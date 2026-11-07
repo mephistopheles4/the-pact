@@ -1,7 +1,8 @@
 # Install the pact
 
 This how-to installs the pact's rules file, review procedure, agents and
-`/scriptorium` command, with the builder kit it runs, into your Claude Code
+`/scriptorium` command, with the builder kit it runs and the auto-compact hook,
+into your Claude Code
 home folder (`~/.claude`), and merges its settings into yours. It takes about
 five minutes.
 
@@ -192,7 +193,11 @@ parts:
     looks like one stays. Every install removes these exact strings again, so
     a rule you want back must differ from the listed text. The install's apply, a `gh` command on rulesets or branch
     protection, and a dry run that writes to a review folder no longer prompt
-    you (ADR 0063).
+    you (ADR 0063);
+  - sets `autoCompactWindow` and merges the pact's five hook entries by key,
+    while `auto-compact-window` is on. Their lines print in the
+    `auto-compact-window:` block under this one, with each hook event added,
+    updated or removed (see the next section).
 - **`Backup: <n> file(s) to copy into pact/backups/ before the first write`.**
   What `--apply` copies first (step 3), ending `(settings.json included)` when
   the merge writes your settings. The dry run doesn't preview the prune: it
@@ -559,12 +564,15 @@ installer's own floor) and `node` on the PATH.
   leave empty), the script, and an `autoCompactWindow` the pact set; a value
   you set by hand stays, with a note.
 - **The cloud.** The cloud copy takes no configuration, so it always sets
-  400000 and has no Off. To turn it off there, merge a commit that does.
+  400000 and has no Off. To turn it off there, revert the cloud part of #482
+  (`gen.mjs`'s `--compact on`, the hooks block in `tpl-config-tail.sh`), run
+  `node cloud-sessions/gen.mjs`, and merge that on the owner's word.
 - **Hand-offs stay.** The pact never deletes a hand-off or `.turn` file in
   `~/.claude/pact/handoff/`; clear them yourself when you like. They are
   notes a session wrote, kept unencrypted in a folder the hook creates for
-  your account alone, and they outlive turning the window off and Claude
-  Code's own transcript clean-up.
+  your account alone on Linux and macOS (on Windows the folder takes the
+  Claude home folder's access), and they outlive turning the window off and
+  Claude Code's own transcript clean-up.
 
 ## Roll back to an older version
 
@@ -621,9 +629,10 @@ the record lists, as it does any file its own payload lacks.
 A pact from before the auto-compact window (#482) refuses a configuration
 with an `auto-compact-window` key, and its install keeps your live hook
 entries but deletes the hook script it doesn't know, so every session would
-call a missing file. Set `auto-compact-window` to `0` and install first, then
-roll back. Stop if the older installer's dry run warns that `settings.json`
-holds hooks after that install.
+call a missing file. Set `auto-compact-window` to `0` and install, then take
+the key out of the configuration, then roll back. Stop if `settings.json`
+still holds a hook that calls `pact/hooks/compact-handoff.mjs` after that
+install; the older installer's own warning about any `hooks` key is not that.
 
 A pact from before the cleaner (#438) refuses a configuration that names
 `cleaner`, and never removes the cleaner's deny rules, so turn the cleaner off
@@ -695,8 +704,11 @@ aside (Updating later) is not your first install's: if every such backup was
 taken that way, or you deleted the first one, follow Installed before backups. Then delete the pact files your
 current record lists: the agents, `pact/review.md`, the `pact/builder/`
 folder, each pact command in `commands/`, `/scriptorium` included,
-`pact/tools/poster.mjs` and `pact/tools/cleaner.mjs` if listed, and `.pact-install.json`. Then do
-steps 4 to 6 with that backup. If you had no `settings.json` before, step 5
+`pact/tools/poster.mjs` and `pact/tools/cleaner.mjs` if listed,
+`pact/hooks/compact-handoff.mjs` if listed, and `.pact-install.json`. Then do
+steps 4 to 6 with that backup. Step 5's restored `settings.json` takes the
+pact's hook entries and `autoCompactWindow` out with it; had you no backup of
+it, remove the entries that call the deleted script by hand. If you had no `settings.json` before, step 5
 deletes it, with anything Claude Code wrote there since.
 
 **Installed before backups.** If no backup in `pact/backups/` lists
@@ -704,7 +716,9 @@ deletes it, with anything Claude Code wrote there since.
 moved the record aside, your first install predates backups. Put
 back your own copies of your rules file, settings and agents. With no copy of
 `settings.json`, edit it instead: remove the keys the dry run listed under
-`settings.json:`, or set them back, `permissions.defaultMode` above all. Then
+`settings.json:` and the lines of the `auto-compact-window:` block, or set them
+back, `permissions.defaultMode` above all, and take out the hook entries that
+call `pact/hooks/compact-handoff.mjs` and `autoCompactWindow`. Then
 delete the pact files your record lists, as for a full uninstall.
 
 Start a new session to load the change.

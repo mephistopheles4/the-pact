@@ -3,7 +3,8 @@
 // (gate/install-run.mjs) reads and writes; every choice it makes about what
 // it read is one of these. Each refusal is a Refusal with one rule id, a
 // string literal here, so a table row can name it. Where a check compares
-// paths, it does so without regard to case.
+// paths, it does so without regard to case, except the hook key (#482), which
+// folds case on Windows only.
 //
 // Nothing here runs on import. Imports nothing.
 
@@ -76,6 +77,8 @@ export const PROJECT_CAP = 64 * 1024;
 export const JSON_DEPTH_MAX = 64;
 // Settings that run a command, load code or reach a tool server: the names
 // seam A refuses in the overlay (BANNED_SETTINGS in gate/seam-a-core.mjs).
+// `hooks` left this list in #482: the overlay carries the pact's own hooks
+// block, which the allow-list holds exactly.
 export const BANNED_SETTINGS = Object.freeze(['mcpServers', 'statusLine', 'fileSuggestion', 'apiKeyHelper', 'awsAuthRefresh', 'awsCredentialExport', 'otelHeadersHelper', 'enabledPlugins', 'extraKnownMarketplaces', 'enableAllProjectMcpServers', 'enabledMcpjsonServers']);
 // Banned in the overlay, but the owner's own in the live file, which the merge keeps.
 export const LIVE_OWN_SETTINGS = Object.freeze(['enabledPlugins', 'extraKnownMarketplaces']);
@@ -1079,6 +1082,8 @@ function retiredIn(live) {
  * objects merge, the plugin keys stay the owner's, and the allow, deny and ask
  * lists are unioned and sorted ordinally, so the owner's own rules survive.
  * Then the retired pact rules leave the ask list (#265), matched exactly.
+ * `hooks` never go through that deep merge: they merge by key (hooksPlan), and
+ * `autoCompactWindow` follows `compact.window` (#482).
  */
 export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT) {
   // #482: hooks never go through the deep merge, which would replace an owner's list; they merge by key below.
@@ -1240,7 +1245,8 @@ const eventShown = event => {
 /**
  * The dry run's block for the window and its hooks: a header line, the
  * autoCompactWindow change, and each pact hook event added, updated or
- * removed. Names only constants and the window's number.
+ * removed. Names constants, the window's number and, for a hook removed or
+ * not addable, the live event, cleaned and cut by eventShown.
  */
 export function compactLines(live, overlay, compact) {
   const on = compact.window > 0;
@@ -1327,7 +1333,8 @@ function bannedKeys(v) {
 
 /**
  * Warnings about the live file (S6, L7): a banned key, retired pact ask rules
- * still there (#265), a mode other than auto. The owner's own keys are named
+ * still there (#265), a mode other than auto, and (#482) a hook the pact did
+ * not install, once per event. The owner's own keys are named
  * once, capped; env names are only counted, since a name can say what a secret
  * is for.
  */

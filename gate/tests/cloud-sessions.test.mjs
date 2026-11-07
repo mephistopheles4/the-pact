@@ -625,19 +625,29 @@ test('#482 C10: the cloud tail writes the hook groups and the window as the inst
   const home = tempDir(t, 'pact-cloud-home-');
   const owner = { hooks: [{ type: 'command', command: 'echo', args: ['mine'] }] };
   const other = { hooks: [{ type: 'command', command: 'echo', args: ['other'] }] };
-  // A node hook on another script of the same name is the owner's, not the pact's.
-  const ownerNode = { hooks: [{ type: 'command', command: 'node', args: ['/elsewhere/compact-handoff.mjs', '400000'] }] };
-  // The owner's command inside the pact's group, a second pact group, and a hook that carries the script path but is not the pact's entry (#482 round 1).
+  // A node hook of the pact's whole shape on another script of the same name differs only in its path: the owner's, not the pact's.
+  const ownerNode = { hooks: [{ type: 'command', command: 'node', args: ['/elsewhere/compact-handoff.mjs', '400000'], timeout: 15 }] };
+  // The owner's command inside the pact's group (whose pact hook carries an older window), a second pact group holding an owner command, and hooks that carry the script path but are not the pact's entry, each differing in one thing (#482 round 1).
   const ownerInner = { type: 'command', command: 'echo', args: ['inside'] };
-  const lookalike = { hooks: [{ type: 'command', command: 'bash', args: [`${home}/pact/hooks/compact-handoff.mjs`, '400000'], timeout: 15 }] };
+  const ownerInner2 = { type: 'command', command: 'echo', args: ['inside the second group'] };
+  const pactHook = cloudGroup(home, 'PreCompact').hooks[0];
+  const older = { ...pactHook, args: [pactHook.args[0], '600000'] };
+  const lookalikes = [
+    { ...pactHook, command: 'bash' },
+    { ...pactHook, type: 'http' },
+    { ...pactHook, timeout: 30 },
+    { ...pactHook, statusMessage: 'x' },
+    { ...pactHook, args: [pactHook.args[0], '400000', '--extra'] },
+    { ...pactHook, args: [pactHook.args[0], 'abc'] },
+  ].map(x => ({ hooks: [x] }));
   writeFileSync(join(home, 'settings.json'), JSON.stringify({
     theme: 'dark',
     hooks: {
       PostToolUse: [owner, ownerNode],
       Notification: [other],
-      PreCompact: [{ hooks: [ownerInner, cloudGroup(home, 'PreCompact').hooks[0]] }],
-      UserPromptSubmit: [cloudGroup(home, 'UserPromptSubmit'), cloudGroup(home, 'UserPromptSubmit')],
-      Elsewhere: [lookalike],
+      PreCompact: [{ hooks: [ownerInner, older] }],
+      UserPromptSubmit: [cloudGroup(home, 'UserPromptSubmit'), { hooks: [ownerInner2, cloudGroup(home, 'UserPromptSubmit').hooks[0]] }],
+      Elsewhere: lookalikes,
     },
   }));
   // Both generated scripts carry the generator's window, not a number of their own.
@@ -651,9 +661,9 @@ test('#482 C10: the cloud tail writes the hook groups and the window as the inst
   assert.deepEqual(Object.keys(s.hooks).sort(), [...EVENTS, 'Notification', 'Elsewhere'].sort());
   assert.deepEqual(s.hooks.PostToolUse, [owner, ownerNode, cloudGroup(home, 'PostToolUse')]);
   assert.deepEqual(s.hooks.Notification, [other]);
-  assert.deepEqual(s.hooks.PreCompact, [{ hooks: [ownerInner, cloudGroup(home, 'PreCompact').hooks[0]] }], 'only the pact hook in a shared group is replaced');
-  assert.deepEqual(s.hooks.UserPromptSubmit, [cloudGroup(home, 'UserPromptSubmit')], 'a second pact group is taken out');
-  assert.deepEqual(s.hooks.Elsewhere, [lookalike]);
+  assert.deepEqual(s.hooks.PreCompact, [{ hooks: [ownerInner, pactHook] }], 'only the pact hook in a shared group is replaced, and brought to the cloud window');
+  assert.deepEqual(s.hooks.UserPromptSubmit, [cloudGroup(home, 'UserPromptSubmit'), { hooks: [ownerInner2] }], 'a second pact hook is taken out of its group, which keeps the owner command');
+  assert.deepEqual(s.hooks.Elsewhere, lookalikes);
   for (const e of EVENTS.filter(x => !['PostToolUse', 'PreCompact', 'UserPromptSubmit'].includes(x))) assert.deepEqual(s.hooks[e], [cloudGroup(home, e)], e);
   // A second run updates in place.
   assert.equal(runTail(home, tail).status, 0);

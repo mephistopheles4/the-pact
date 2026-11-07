@@ -348,75 +348,58 @@ test("the install's retired ask rules are the pact's old rules, exactly", () => 
 
 // ------------------------------------------------------------ #482 C5: the hooks block and --compact
 
+// A change to the hooks block that the allow-list does not hold fails, whatever it is.
+{
+  const run = (text, t) => {
+    const r = runSeamA(stage(t, { [OVERLAY]: text }));
+    return moduleResult(r.code, r.stdout);
+  };
+  const rows = [
+    { id: 'changed-command', plant: o => (o.hooks.Stop[0].hooks[0].command = 'bash'), fails: ['settings-value'], why: 'the command is the allow-list\'s, exactly' },
+    { id: 'extra-event', plant: o => (o.hooks.Notification = o.hooks.Stop), fails: ['settings-value'], why: 'the block lists five events and no more' },
+    { id: 'missing-token', plant: o => (o.hooks.PreCompact[0].hooks[0].args[1] = '400000'), fails: ['settings-value'], why: 'the window is a token the install fills, never a literal' },
+    { id: 'extra-inner-hook', plant: o => o.hooks.PostToolUse[0].hooks.push({ type: 'command', command: 'node', args: ['x.mjs'], timeout: 15 }), fails: ['settings-value'], why: 'one inner hook per group' },
+    { id: 'changed-timeout', plant: o => (o.hooks.Stop[0].hooks[0].timeout = 600), fails: ['settings-value'], why: 'a stuck hook is bounded by the allow-list\'s timeout' },
+    { id: 'shell-string', plant: o => (o.hooks.Stop[0].hooks[0] = { type: 'command', command: 'node x.mjs' }), fails: ['settings-value'], why: 'exec form only, never a shell string' },
+  ];
+  test('the hooks block: base passes', async t => assertPasses(await run(realOverlay(), t)));
+  for (const r of rows) test(`the hooks block: ${r.id}`, async t => assertFails(await run(overlayWith(r.plant), t), r.fails, r.says));
+  test('the hooks block: base passes after the rows', async t => assertPasses(await run(realOverlay(), t)));
+}
+
+// The hook script and --compact: seam A's core on a rendered stage, with the given arguments after the stage root.
 const HOOK = 'claude/hooks/compact-handoff.mjs';
 const withHook = extra => ({ [HOOK]: realHook(), ...extra });
-/** Seam A's core on a rendered stage, with the given arguments after the stage root. */
-function seamArgs(t, files, ...argv) {
-  const root = stage(t, files);
-  renderStage(root);
-  return runCore('seam-a', [root, ...argv]);
-}
-
-// A change to the hooks block that the allow-list does not hold fails, whatever it is.
-for (const [id, edit] of [
-  ['a changed command', o => (o.hooks.Stop[0].hooks[0].command = 'bash')],
-  ['an extra event', o => (o.hooks.Notification = o.hooks.Stop)],
-  ['a missing token', o => (o.hooks.PreCompact[0].hooks[0].args[1] = '400000')],
-  ['an extra inner hook', o => o.hooks.PostToolUse[0].hooks.push({ type: 'command', command: 'node', args: ['x.mjs'], timeout: 15 })],
-  ['a changed timeout', o => (o.hooks.Stop[0].hooks[0].timeout = 600)],
-  ['a shell string in place of exec form', o => (o.hooks.Stop[0].hooks[0] = { type: 'command', command: 'node x.mjs' })],
-]) {
-  test(`bad case: the hooks block with ${id} fails`, t => {
-    expectSettingsFail(t, overlayWith(edit), 'settings-value');
+const NONE = ['--commands', 'none', '--tools', 'none'];
+{
+  const run = ({ files, argv }, t) => {
+    const root = stage(t, files);
+    renderStage(root);
+    const r = runCore('seam-a', [root, ...argv]);
+    return moduleResult(r.code, r.stdout);
+  };
+  const base = () => ({ files: withHook(), argv: [...NONE, '--compact', 'on'] });
+  const rows = [
+    { id: 'other-script', plant: b => ({ ...b, files: withHook({ 'claude/hooks/other.mjs': 'x\n' }) }), fails: ['hook-file-name'], why: 'only the pact\'s script is a hook' },
+    { id: 'not-an-mjs', plant: b => ({ ...b, files: withHook({ 'claude/hooks/compact-handoff.js': 'x\n' }) }), fails: ['hook-file-name'], why: 'the name is the pact\'s, the file is .mjs' },
+    { id: 'subfolder', plant: b => ({ ...b, files: withHook({ 'claude/hooks/sub/compact-handoff.mjs': 'x\n' }) }), fails: ['hook-path'], why: 'a hook is directly in claude/hooks' },
+    { id: 'no-script', plant: b => ({ ...b, files: {} }), fails: ['hooks-not-in-pact'], why: '--compact on needs the script in the stage' },
+    { id: 'hidden-character', plant: b => ({ ...b, files: withHook({ [HOOK]: `${realHook()}// ‮\n` }) }), fails: ['invisible'], says: new RegExp(HOOK.replaceAll('.', '\\.')), why: 'the text scanner reads the script with --compact on' },
+    { id: 'hidden-character-off', plant: b => ({ files: withHook({ [HOOK]: `${realHook()}// ‮\n` }), argv: [...NONE, '--compact', 'off'] }), fails: ['invisible'], why: 'and with --compact off, which stages nothing of it' },
+    { id: 'compact-missing', plant: b => ({ ...b, argv: NONE }), fails: ['compact-arg'], why: 'the flag never defaults' },
+    { id: 'compact-twice', plant: b => ({ ...b, argv: [...NONE, '--compact', 'on', '--compact', 'on'] }), fails: ['compact-arg'], why: 'given twice, even the same' },
+    { id: 'compact-no-value', plant: b => ({ ...b, argv: [...NONE, '--compact'] }), fails: ['compact-arg'], why: 'a flag with nothing after it' },
+    { id: 'compact-other-value', plant: b => ({ ...b, argv: [...NONE, '--compact', 'yes'] }), fails: ['compact-arg'], why: 'on or off' },
+    { id: 'compact-capitals', plant: b => ({ ...b, argv: [...NONE, '--compact', 'ON'] }), fails: ['compact-arg'], why: 'matched exactly' },
+  ];
+  test('the hook script and --compact: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`the hook script and --compact: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('the hook script and --compact: base passes after the rows', async t => assertPasses(await run(base(), t)));
+  test('--compact on lists the hook script for install at pact/hooks, and off stages nothing of it', t => {
+    const on = runCore('seam-a', [(() => { const root = stage(t, withHook()); renderStage(root); return root; })(), ...NONE, '--compact', 'on']);
+    assert.match(on.stdout, new RegExp(`^INSTALL [0-9a-f]{64} ${HOOK.replaceAll('.', '\\.')} pact/hooks/compact-handoff\\.mjs$`, 'm'));
+    const off = runCore('seam-a', [(() => { const root = stage(t, withHook()); renderStage(root); return root; })(), ...NONE, '--compact', 'off']);
+    assert.equal(off.code, 0, off.out);
+    assert.doesNotMatch(off.stdout, /compact-handoff/);
   });
 }
-
-test('bad case: a file in claude/hooks other than the pact script fails', t => {
-  for (const [rel, rule] of [
-    ['claude/hooks/other.mjs', 'hook-file-name'],
-    ['claude/hooks/compact-handoff.js', 'hook-file-name'],
-    ['claude/hooks/sub/compact-handoff.mjs', 'hook-path'],
-  ]) {
-    const r = seamArgs(t, withHook({ [rel]: 'x\n' }), '--commands', 'none', '--tools', 'none', '--compact', 'on');
-    assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
-    assert.ok(failRules(r.stdout).includes(rule), `${rel}: ${r.out}`);
-  }
-});
-
-test('--compact on lists the hook script for install at pact/hooks, and off stages nothing of it', t => {
-  const on = seamArgs(t, withHook(), '--commands', 'none', '--tools', 'none', '--compact', 'on');
-  assert.equal(on.code, 0, on.out);
-  assert.match(on.stdout, new RegExp(`^INSTALL [0-9a-f]{64} ${HOOK} pact/hooks/compact-handoff\.mjs$`, 'm'));
-  const off = seamArgs(t, withHook(), '--commands', 'none', '--tools', 'none', '--compact', 'off');
-  assert.equal(off.code, 0, off.out);
-  assert.doesNotMatch(off.stdout, /compact-handoff/);
-});
-
-test('bad case: --compact on with no hook script in the stage fails', t => {
-  const r = seamArgs(t, {}, '--commands', 'none', '--tools', 'none', '--compact', 'on');
-  assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
-  assert.ok(failRules(r.stdout).includes('hooks-not-in-pact'), r.out);
-});
-
-test('bad case: --compact missing, given twice, without a value or with another value fails', t => {
-  const base = ['--commands', 'none', '--tools', 'none'];
-  for (const [what, argv] of [
-    ['missing', base],
-    ['twice', [...base, '--compact', 'on', '--compact', 'on']],
-    ['no value', [...base, '--compact']],
-    ['other value', [...base, '--compact', 'yes']],
-    ['capitals', [...base, '--compact', 'ON']],
-  ]) {
-    const r = seamArgs(t, withHook(), ...argv);
-    assert.equal(lastLine(r.stdout), 'RESULT: fail', `${what}\n${r.out}`);
-    assert.deepEqual(failRules(r.stdout), ['compact-arg'], `${what}\n${r.out}`);
-  }
-});
-
-test('bad case: a hidden character in the hook script fails the text scanner, with --compact on or off', t => {
-  for (const compact of ['on', 'off']) {
-    const r = seamArgs(t, withHook({ [HOOK]: `${realHook()}// ‮\n` }), '--commands', 'none', '--tools', 'none', '--compact', compact);
-    assert.equal(lastLine(r.stdout), 'RESULT: fail', `${compact}\n${r.out}`);
-    assert.ok(r.stdout.includes(HOOK), `${compact}: the failure names the script\n${r.out}`);
-  }
-});

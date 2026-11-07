@@ -105,8 +105,22 @@ how every session in every repo behaves. So:
   holds the last window so a value you set by hand is never removed. The cloud
   copy always sets 400000 and has no Off: `cloud-sessions/tpl-config-tail.sh`
   runs the same keyed merge with jq. Hand-offs in `pact/handoff/` are never
-  deleted by the pact. Field checks the owner runs, and what a failure does,
-  are in the spec (#482).
+  deleted by the pact.
+- **The field checks (#482),** run by the owner in the first sessions after an
+  install; a session reports them and does not run them for the owner.
+  *Compaction point:* on Windows CLI, a session compacts near 365000 to 370000
+  with the hooks installed; fails if it compacts elsewhere. *Nudge and
+  hand-off:* the session gets the nudge past 320000 and writes
+  `~/.claude/pact/handoff/<session id>.md` with no permission prompt; fails on
+  no nudge, a nudge on every tool call, or a prompt for the write. *Across
+  compaction:* the first turn after compaction shows the "own notes" line and
+  the file's text, and the summary names the file; fails if either is
+  missing. *Surfaces:* the same three on the Desktop Code tab, a `claude --bg`
+  session, a cloud session and an Opus session; the Windows run also watches
+  whether a `node` in a cloned project's folder is run before the PATH's.
+  *On any failure:* at home, set `auto-compact-window` to `0` and install; in
+  the cloud, revert the cloud part of #482 (see the install how-to), merged on
+  the owner's word; either way, open an issue with what was seen.
 - **Agent settings.** The file's `agents` key may set any pact agent's
   `model` and `effort`, `scout` included (#262). The model is any model
   Claude Code takes: an alias such as `opus`, `sonnet`, `haiku`, `fable` or
@@ -213,9 +227,10 @@ those rules. **If the auto-compact window is on,** which it is by default
 (#482), set `auto-compact-window` to `0` and install first: an older
 installer keeps the live hook entries but deletes the script it doesn't know,
 so every session would call a missing file. Then take the key out of the
-configuration, since an older installer refuses it. Stop and ask when the older
-installer's dry run warns that `settings.json` holds hooks after that
-install, or a field check fails.
+configuration, since an older installer refuses it. Stop and ask when
+`settings.json` still holds a hook that calls `pact/hooks/compact-handoff.mjs`
+after that install (the older installer's own warning about any `hooks` key is
+not that), or a field check fails.
 Rollback is supported only to commits on the published `main` from the Node
 install's cutover (#166, `6821d68`) on. **Before checking out a commit to
 roll back to,** check it, with no checkout:

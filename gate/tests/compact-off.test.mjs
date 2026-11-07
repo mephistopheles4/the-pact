@@ -1,5 +1,5 @@
 // The auto-compact window turned off, refused, and warned about (#482 C3, C4,
-// C11), through the install. C1 and C2 are in compact-install.test.mjs.
+// C11), through the install. C1 and C2 are in the install test of the default.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,7 +11,7 @@ import { applyBound, home, install, makeRepo } from './install-harness.mjs';
 // The base commit itself is not in a shallow CI checkout, so the feature-less payload stands for it.
 for (const [name, ownerLive] of [
   ['a live file with no hooks', { permissions: { allow: ['Read'] }, theme: 'dark' }],
-  ['a live file with owner hooks, one on an event of its own and an empty list', { hooks: { PostToolUse: [{ hooks: [{ type: 'command', command: 'echo', args: ['mine'] }] }, { hooks: [{ type: 'command', command: 'node', args: ['/elsewhere/compact-handoff.mjs', '1'] }] }], Notification: [] } }],
+  ['a live file with owner hooks, one on an event of its own and an empty list', { hooks: { PostToolUse: [{ hooks: [{ type: 'command', command: 'echo', args: ['mine'] }] }, { hooks: [{ type: 'command', command: 'node', args: ['/elsewhere/compact-handoff.mjs', '400000'], timeout: 15 }] }], Notification: [] } }],
 ]) {
   test(`#482 C3: Off installs what the pact installed without the feature, and on then off restores it (${name})`, t => {
     const repo = makeRepo(t);
@@ -25,7 +25,7 @@ for (const [name, ownerLive] of [
     const a = home(t);
     const b = home(t);
     for (const h of [a, b]) writeLive(h, ownerLive);
-    // A: on by default (with a configuration that leaves the key unset, so the rules are the same text as Off's), then off. B: off, on the payload without the feature.
+    // A: on by default (with a configuration that leaves the key unset, so the rules are Off's text but for the notice's two lines), then off. B: off, on the payload without the feature.
     config(a, {});
     assert.equal(applyBound(repo, a).code, 0);
     assert.ok(live(a).autoCompactWindow);
@@ -89,11 +89,14 @@ test('#482 C11: the dry run warns once per event for a hook the pact did not ins
   // A user configuration that leaves the key unset names it no more than none does.
   config(h, {});
   const unset = install(repo, h);
+  assert.equal(unset.code, 0, unset.out);
   assert.doesNotMatch(unset.stdout, /sets auto-compact-window/, unset.out);
   config(h, windowCfg(500000));
   const set = install(repo, h);
   assert.match(set.stdout, /^ {2}WARN: the user configuration sets auto-compact-window to 500000\.$/m, set.out);
   // The pact's own hooks, once installed, draw no warning.
   assert.equal(applyBound(repo, h).code, 0);
-  assert.doesNotMatch(install(repo, h).stdout, /did not install: (UserPromptSubmit|PreCompact|SessionStart)/);
+  const last = install(repo, h);
+  assert.equal(last.code, 0, last.out);
+  assert.doesNotMatch(last.stdout, /did not install: (UserPromptSubmit|PreCompact|SessionStart)/, last.out);
 });

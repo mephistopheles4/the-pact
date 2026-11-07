@@ -10,10 +10,10 @@ COMPACT_SCRIPT="$CLAUDE_HOME/pact/hooks/compact-handoff.mjs"
 # The overlay's hooks never go through that merge, which would replace an
 # owner's lists: each event is merged by key. A pact entry is an inner hook
 # equal to the overlay's (its window aside) with the installed script's path as
-# its first argument. The first group holding one is updated in place, and
-# only that inner hook if the group holds others; a second pact entry elsewhere
-# is taken out; else the group is appended after the event's other groups.
-# Then autoCompactWindow is set.
+# its first argument. When no group holds one, the group is appended after the
+# event's other groups; otherwise the first group holding one is updated in
+# place (only that inner hook, if the group holds others) and a second pact
+# entry elsewhere is taken out. Then autoCompactWindow is set.
 MERGE_PROGRAM='
   .[0] as $a | (.[1] | del(.hooks)) as $b | (.[1].hooks // {}) as $h
   | def pactHook:

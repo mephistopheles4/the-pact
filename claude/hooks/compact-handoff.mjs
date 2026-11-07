@@ -16,7 +16,8 @@
 // agent_id), reads at most the last 256 KB of the transcript, makes no network
 // call, never blocks, and on any error exits 0 with no output.
 //
-// Node 20 or later, ESM, node: built-ins only.
+// Node 24 or later, ESM, node: built-ins only. It runs on the `node` found on
+// the PATH, which need not be the installer's.
 
 import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -82,7 +83,7 @@ function main() {
 
   const say = (name, text) => process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } })}\n`);
   const setTurn = word => {
-    // Owner-only, as the pact keeps its backups: the notes can hold what a session knew.
+    // Owner-only on Linux and macOS, as the backups are: the notes can hold what a session knew. Windows ignores the mode.
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     writeFileSync(turn, `${word}\n`);
   };

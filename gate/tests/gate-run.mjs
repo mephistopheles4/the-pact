@@ -187,7 +187,9 @@ export function renderStage(root, claudeHome) {
  * through its core (#140, T10); a `script` other than the real one is a
  * planted copy, so it runs as a child (childSeamA). `commands` is the
  * --commands value and `tools` the --tools value, none by default, as the
- * install passes them with no configuration (#203, #280).
+ * install passes them with no configuration (#203, #280). `compact` is the
+ * --compact value, off by default, unlike the install, which passes on with
+ * no configuration (#482).
  */
 export function runSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none', compact = 'off' } = {}) {
   if (script !== SEAM_A) return childSeamA(root, script, { commands, tools, compact });

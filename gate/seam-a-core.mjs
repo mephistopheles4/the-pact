@@ -7,7 +7,7 @@
 // Seam A: the pact's own static check, run by the install (gate/install-run.mjs)
 // on a staged copy of what it is about to install. Zero dependencies.
 //
-//   node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...>
+//   node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...> --compact <on | off>
 //
 // The stage root holds claude/, familiars/ and AGENTS.md as the commit has
 // them. Seam A checks install mechanics only (#262, the pact is vetted like a
@@ -25,7 +25,11 @@
 // Only a named command is listed for install.
 // --tools does the same for the pact's tools (#280), claude/tools/<name>.mjs,
 // each listed for install at pact/tools/<name>.mjs only when named. It too is
-// required exactly once, and the two options may come in either order.
+// required exactly once, and the options may come in any order.
+// --compact (#482) is on or off, also exactly once. The pact's hook script is
+// exactly claude/hooks/<name>.mjs for a name on PACT_HOOKS; with on it is
+// listed for install at pact/hooks/<name>.mjs and must be in the stage, with
+// off it is not listed.
 // It also holds the settings overlay to gate/settings-allowlist.json, and
 // prints its hash as one SETTINGS line, which the install's merge must match.
 //
@@ -665,7 +669,8 @@ function run(root, listed, listedTools, compact, report) {
 /**
  * The command line: the stage root, then --commands and --tools, each exactly
  * once and in either order, each with none or names joined by commas, each
- * name once. Returns { root, commands, tools }, or undefined after recording
+ * name once, and --compact on or off, once. Returns { root, commands, tools,
+ * compact }, or undefined after recording
  * every refusal. A name it prints is its list's own constant, never the
  * argument's text.
  */

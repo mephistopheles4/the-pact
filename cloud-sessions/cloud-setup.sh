@@ -999,7 +999,8 @@ write_config 'pact/hooks/compact-handoff.mjs' <<'__CLAUDE_CONFIG_EOF__'
 // agent_id), reads at most the last 256 KB of the transcript, makes no network
 // call, never blocks, and on any error exits 0 with no output.
 //
-// Node 20 or later, ESM, node: built-ins only.
+// Node 24 or later, ESM, node: built-ins only. It runs on the `node` found on
+// the PATH, which need not be the installer's.
 
 import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -1065,7 +1066,7 @@ function main() {
 
   const say = (name, text) => process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } })}\n`);
   const setTurn = word => {
-    // Owner-only, as the pact keeps its backups: the notes can hold what a session knew.
+    // Owner-only on Linux and macOS, as the backups are: the notes can hold what a session knew. Windows ignores the mode.
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     writeFileSync(turn, `${word}\n`);
   };
@@ -1344,10 +1345,10 @@ COMPACT_SCRIPT="$CLAUDE_HOME/pact/hooks/compact-handoff.mjs"
 # The overlay's hooks never go through that merge, which would replace an
 # owner's lists: each event is merged by key. A pact entry is an inner hook
 # equal to the overlay's (its window aside) with the installed script's path as
-# its first argument. The first group holding one is updated in place, and
-# only that inner hook if the group holds others; a second pact entry elsewhere
-# is taken out; else the group is appended after the event's other groups.
-# Then autoCompactWindow is set.
+# its first argument. When no group holds one, the group is appended after the
+# event's other groups; otherwise the first group holding one is updated in
+# place (only that inner hook, if the group holds others) and a second pact
+# entry elsewhere is taken out. Then autoCompactWindow is set.
 MERGE_PROGRAM='
   .[0] as $a | (.[1] | del(.hooks)) as $b | (.[1].hooks // {}) as $h
   | def pactHook:
@@ -1444,7 +1445,7 @@ check_hash dc1d1cdc5d332b31164d4d40f5db965088120164b0e2707e86ac6152fc7c9e47 'age
 check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'agents/reader-lens.md'
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
-check_hash 81bf865e342d1e5b68ed4c4c17057f1a05dd076f183c5a0a93842f3f67bdf3a6 'pact/hooks/compact-handoff.mjs'
+check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
 check_hash f4ee26e6b643479e9bbcf5e9ba6764aa29bf503722c389d2d1db2936fc7edc4e 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
@@ -1475,7 +1476,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 6930432746d7"
+  echo "pact cloud copy 3fc4def62046"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
