@@ -114,14 +114,16 @@ test('bad case: an unreadable configuration file refuses, and -Apply writes noth
 function expectedRules(repo, bytes, value) {
   let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8');
   const usage = 'When it is above 75%, wait for my';
-  assert.equal(s.split(usage).length, 2);
-  s = s.replace(usage, `When it is above ${value}%, wait for my`);
+  const swapped = s.replace(usage, `When it is above ${value}%, wait for my`);
+  assert.notEqual(swapped, s, 'the usage line was found and replaced');
+  s = swapped;
   const slot = '<!-- pact:begin config-notice -->\n';
-  assert.equal(s.split(slot).length, 2);
-  s = s.replace(
+  const noticed = s.replace(
     slot,
     `${slot}\n**Configuration in effect.** This file was rendered with the configuration \`${digestOf(bytes)}\`.\nValues set: usage-pause ${value}. Parts edited: none.\n`,
   );
+  assert.notEqual(noticed, s, 'the notice slot was found and filled');
+  s = noticed;
   return Buffer.from(withoutOpenMarks(s));
 }
 

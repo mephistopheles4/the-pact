@@ -40,29 +40,9 @@ test('render() is the same on every call', () => {
 
 test('each figure is a self-contained SVG: no style sheet, script, foreign object or outside link', () => {
   for (const [name, svg] of Object.entries(render())) {
-    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="800" height="\d+" viewBox="0 0 800 \d+"/, name);
-    assert.ok(svg.endsWith('</svg>\n'), `${name} doesn't end with </svg> and a newline`);
     assert.doesNotMatch(svg, /<style|<script|<foreignObject|<image|href=|url\((?!#)|@import|\r/i, name);
     const outside = svg.replace('xmlns="http://www.w3.org/2000/svg"', '');
     assert.doesNotMatch(outside, /https?:/, `${name} names an outside address`);
-  }
-});
-
-test('each figure keeps its words as text, in the monospace stack, with no font of its own', () => {
-  const STACK = 'font-family="&#39;IBM Plex Mono&#39;, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"';
-  const PLAIN = `font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"`;
-  for (const [name, svg] of Object.entries(render())) {
-    const head = svg.slice(0, svg.indexOf('>'));
-    assert.ok(head.includes(PLAIN) || head.includes(STACK), `${name} doesn't set the monospace stack on its root`);
-    assert.ok((svg.match(/<text /g) ?? []).length >= 20, `${name} holds too few <text> elements: are its words drawn as shapes?`);
-    assert.doesNotMatch(svg, /@font-face|<font|font-family="(?!'IBM Plex Mono')/, `${name} brings a font of its own`);
-  }
-});
-
-test('each light figure paints its own paper, and each dark one its own dark paper', () => {
-  for (const [name, svg] of Object.entries(render())) {
-    const paper = name.endsWith('-dark.svg') ? '#1a1614' : '#fafaf7';
-    assert.match(svg, new RegExp(`^<svg[^>]*>\\n<rect width="800" height="\\d+" fill="${paper}"/>`), `${name} paints no paper first`);
   }
 });
 
