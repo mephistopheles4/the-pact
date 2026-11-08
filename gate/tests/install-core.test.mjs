@@ -305,6 +305,12 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     // #501: the home parser takes the word off for the weekly limit only; every other spelling stays refused.
     { id: 'value-session-off', plant: rep('VALUE usage-pause 90', 'VALUE usage-pause-session off'), fails: ['render-unknown-line'], why: 'off for the session limit' },
     { id: 'value-compact-off', plant: rep('RESULT', 'VALUE auto-compact-window off\nRESULT'), fails: ['render-unknown-line'], why: 'off for the auto-compact window' },
+    // #439 C7: the home parser takes the stop switch as on or off, and nothing else.
+    { id: 'value-stop-yes', plant: rep('RESULT', 'VALUE session-stop-deny yes\nRESULT'), fails: ['render-unknown-line'], why: 'a word the stop switch does not take' },
+    { id: 'value-stop-raw-true', plant: rep('RESULT', 'VALUE session-stop-deny true\nRESULT'), fails: ['render-unknown-line'], why: 'the raw true the renderer must not print' },
+    { id: 'value-stop-capitals', plant: rep('RESULT', 'VALUE session-stop-deny ON\nRESULT'), fails: ['render-unknown-line'], why: 'on in capitals' },
+    { id: 'value-stop-two-words', plant: rep('RESULT', 'VALUE session-stop-deny on off\nRESULT'), fails: ['render-unknown-line'], why: 'two words after the setting' },
+    { id: 'value-stop-twice', plant: rep('RESULT', 'VALUE session-stop-deny on\nVALUE session-stop-deny off\nRESULT'), fails: ['render-value-twice'], why: 'the stop switch twice' },
     { id: 'value-off-capitals', plant: rep('usage-pause 90', 'usage-pause OFF'), fails: ['render-unknown-line'], why: 'off in capitals' },
     { id: 'value-off-twice-on-line', plant: rep('usage-pause 90', 'usage-pause off off'), fails: ['render-unknown-line'], why: 'two words after the setting' },
     { id: 'value-raw-false', plant: rep('usage-pause 90', 'usage-pause false'), fails: ['render-unknown-line'], why: 'the raw false the renderer must not print' },
@@ -412,6 +418,15 @@ test('the renderer lines: a home render takes usage-pause off, and the dry run s
   const block = core.configBlock(home, H('9'), null);
   assert.equal(block.filter(l => /usage-pause/.test(l)).length, 1);
   assert.ok(block.includes('  WARN: the user configuration turns usage-pause off.'));
+});
+
+// #439 C1, C2, C7: no VALUE line means the stop switch is off; on and off both parse; a project render never takes it.
+test('the renderer lines: the stop switch is on only for VALUE session-stop-deny on, and a project render refuses the line', () => {
+  const parse = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
+  assert.equal(core.stopSwitchOn(parse(renderBase().in)), false, 'no line');
+  assert.equal(core.stopSwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE session-stop-deny off\nRESULT'))), false);
+  assert.equal(core.stopSwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE session-stop-deny on\nRESULT'))), true);
+  assert.throws(() => core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE session-stop-deny on').split('\n'), sha256), /./);
 });
 
 test('the renderer lines: the parse gives the hashes, the configuration, the edits, the values and the agent settings', () => {

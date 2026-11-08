@@ -436,7 +436,8 @@ const EDIT_RE =/^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limi
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 // #482: a home render may also report the auto-compact window; a project render never does.
-const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6}))$/;
+// #439: and the stop switch, as the word on or off.
+const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off))$/;
 // The auto-compact window (#482): the install's own copy of the default in gate/render-core.mjs, as it keeps PACT_TOOLS. A test holds them equal.
 export const AUTO_COMPACT_DEFAULT = 400000;
 const AUTO_COMPACT_MIN = 100000;
@@ -446,6 +447,8 @@ const AUTO_COMPACT_STEP = 10000;
 export const compactWindowOk = n => n === 0 || (Number.isInteger(n) && n >= AUTO_COMPACT_MIN && n <= AUTO_COMPACT_MAX && (n - AUTO_COMPACT_MIN) % AUTO_COMPACT_STEP === 0);
 /** The window the install uses: the reported value, else the default. 0 is off. */
 export const compactWindow = parsed => (parsed.values.has('auto-compact-window') ? Number(parsed.values.get('auto-compact-window')) : AUTO_COMPACT_DEFAULT);
+/** Whether the stop switch is on (#439): only a reported `VALUE session-stop-deny on`; no line means off. */
+export const stopSwitchOn = parsed => parsed.values.get('session-stop-deny') === 'on';
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 // A skill source's path (#183 T4a), as the renderer checks it: owner/name, a full commit, a relative folder whose last segment is the skill's name.
@@ -529,8 +532,8 @@ export function parseRenderLines(lines, { project, hash }) {
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
     } else if ((m = HOME_VALUE_RE.exec(l))) {
-      const name = m[1] ?? m[3] ?? m[5];
-      const value = m[2] ?? m[4] ?? m[6];
+      const name = m[1] ?? m[3] ?? m[5] ?? m[7];
+      const value = m[2] ?? m[4] ?? m[6] ?? m[8];
       if (name === 'auto-compact-window' && !compactWindowOk(Number(value))) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (values.has(name)) refuse('render-value-twice', 'the renderer reported one setting twice.');
       values.set(name, value);
