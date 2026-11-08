@@ -96,7 +96,8 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 - **Test output is posted only from record mode.** `--record <file>` writes
   everything printed, plus the result line, as printed, to a file outside the
   repo. No path or name is replaced or checked for (ADR 0145), and a user or host
-  name inside a path is no longer a personal detail for the read before posting.
+  name, inside a path or on its own, is no longer a personal detail for the read
+  before posting.
   The record is the whole output, so a post never carries a hand-picked
   excerpt. Two checks stay: a record path inside the
   repo, checked as a real path, exits 2; a record that can't be written exits

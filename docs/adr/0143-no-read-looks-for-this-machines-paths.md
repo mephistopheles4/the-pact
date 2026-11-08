@@ -1,6 +1,6 @@
 # No read looks for this machine's paths
 
-Amended by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md) (2026-11-08): 0145 is the spec change on record mode that this ADR named, and a user or host name inside a path is no longer a personal detail for the read before posting.
+Amended by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md) (2026-11-08): 0145 is the spec change on record mode that this ADR named, and a user or host name, inside a path or on its own, is no longer a personal detail for the read before posting.
 
 #506. The read before posting in `claude/review.md` no longer looks for a path on this machine, and the read of commits before a push in `AGENTS.md` and `docs/agents/gate-tests.md` no longer looks for this machine's paths or names. Both still look for a secret and a personal detail. For the read before posting, a user or host name that a path holds is still a personal detail, as [0098](0098-the-read-before-posting-looks-for-no-path.md) recorded. This amends 0098, which kept the push read's path item, and [0095](0095-ci-runs-the-gate-on-windows-too.md), which set it.
 

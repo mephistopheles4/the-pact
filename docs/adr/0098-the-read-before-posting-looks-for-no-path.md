@@ -1,6 +1,6 @@
 # The read before posting looks for no path
 
-Amended by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md) (2026-11-08): a user or host name inside a path is no longer a personal detail for the read before posting.
+Amended by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md) (2026-11-08): a user or host name, inside a path or on its own, is no longer a personal detail for the read before posting.
 
 The review procedure's read before posting no longer counts a home or temp folder path as a personal detail (#368). It still looks for a secret's value, a user name, a host name and an email address; a path counts only for a user or host name it holds. This amends [ADR 0097](0097-the-poster-refuses-no-path.md), which kept the path item in the read when the poster's path rule went.
 

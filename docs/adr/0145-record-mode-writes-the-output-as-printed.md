@@ -1,12 +1,12 @@
 # Record mode writes the output as printed
 
-#507. `--record <file>` in `gate/tests/run.mjs` no longer replaces the repo, home and temp folders, the user name or the host name with placeholders, and no longer refuses a record that still holds a path or a name. The record is everything printed, plus the result line, as printed. This amends [0030](0030-the-gate-suite-runs-through-one-runner-in-named-tiers.md) (its record-mode bullet, its "Posted records must not leak local paths" reason, and the probe-floor sentence on the security route), and amends [0143](0143-no-read-looks-for-this-machines-paths.md) and [0098](0098-the-read-before-posting-looks-for-no-path.md): a user or host name inside a path is no longer a personal detail for the read before posting.
+#507. `--record <file>` in `gate/tests/run.mjs` no longer replaces the repo, home and temp folders, the user name or the host name with placeholders, and no longer refuses a record that still holds a path or a name. The record is everything printed, plus the result line, as printed. This amends [0030](0030-the-gate-suite-runs-through-one-runner-in-named-tiers.md) (its record-mode bullet, its "Posted records must not leak local paths" reason, and the probe-floor sentence on the security route), and amends [0143](0143-no-read-looks-for-this-machines-paths.md) and [0098](0098-the-read-before-posting-looks-for-no-path.md): a user or host name, inside a path or on its own, is no longer a personal detail for the read before posting.
 
 ## Why
 
 - **The owner asked** (in chat, 2026-11-08): "delete the rules about local paths, it's inevitable and it just creates friction", and, on the user and host names: "we are overcomplicating this, id drop it too".
 - **The scrub cost more than it caught.** A passing run that printed a drive path or the host name exited 3 with no record, so the friction landed on the runs that had nothing wrong. [0143](0143-no-read-looks-for-this-machines-paths.md) took the path look out of the reads and left this one, "a spec change of its own". This is that change.
-- **A name inside a path is no longer a personal detail,** so the read before posting does not hold back every record of this machine. [0126](0126-the-pact-has-no-secret-or-personal-data-rules.md) left the runner's record scrub to #449, and 0143 left a name inside a path there too; with the scrub gone, nothing checks a posted record for a path or a name inside one. `claude/review.md` says "a secret or a personal detail" and is not edited. #449 no longer covers record mode.
+- **A user or host name is no longer a personal detail,** inside a path or on its own, so the read before posting does not hold back every record of this machine. [0126](0126-the-pact-has-no-secret-or-personal-data-rules.md) left the runner's record scrub to #449, and 0143 left a name inside a path there too; with the scrub gone, nothing checks a posted record for a path or a name. `claude/review.md` says "a secret or a personal detail" and is not edited. #449 no longer covers record mode.
 
 ## What changes
 
@@ -30,3 +30,4 @@ A record of this machine now reaches the issue tracker with its home folder, use
 ## How this was decided
 
 - **2026-11-08** on #507, spec revision 4, standard tier, no security route (decision 169). The ask on paths and the one on names were the owner's words in chat; a failed write keeping exit 3, and this ADR's amendment of 0143 and 0098, were settled by the lead (decisions 177 and 185), who relayed the owner's chat.
+- **2026-11-08, at Test.** The behaviour-lens noted that a bare host or user name, outside a path, would still count as a personal detail. The owner widened the carve-out to cover it, and asked for #507 in `docs/rule-reasons.md` (decision 219, relayed by the lead).
