@@ -49,3 +49,7 @@ This file is never installed.
 | A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. |
 | Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. With the weekly limit off (#501), "its line" binds to the session line if one is set, and to nothing if not (see [ADR 0142](adr/0142-the-weekly-usage-limit-can-be-off.md)). |
 | Usage | A pause on weekly usage. The harness has no such pause. |
+
+## What no read looks for
+
+No read before a post looks for a path on this machine, and the read before a push looks for neither its paths nor its names (#506, [ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). The owner sees nothing secret in them, and the check only held back ordinary posts. #368 removed the path item from `claude/review.md` once, and #464 T2's rewrite brought it back: check a rewrite of either read against #368 and #506 before adding a path item.

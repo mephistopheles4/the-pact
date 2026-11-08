@@ -61,8 +61,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Test evidence is CI's two jobs,** `gate` and `gate-windows`, passing on
   the reviewed head, so push the branch and open a draft PR before Test. The
   Test record cites both run links and each run's commit, which is the head.
-  Before any push, read every commit it publishes for a secret, a personal
-  detail, or this machine's paths and names. Details:
+  Before any push, read every commit it publishes for a secret or a personal
+  detail. Details:
   [gate tests](docs/agents/gate-tests.md). A `changed` run is never Test
   evidence.
 - Read a change to `.github/`, the lockdown test

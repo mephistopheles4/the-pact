@@ -1250,8 +1250,8 @@ when no other row answers the sentence.
 
 ## Posting
 
-- **Read before you post.** Read every report and comment for a secret, a
-  personal detail or a path on this machine before posting it.
+- **Read before you post.** Read every report and comment for a secret or a
+  personal detail before posting it.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
@@ -1470,7 +1470,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
-check_hash 76011c6a030ed5003dddf3a3313770845e63dfbf04903e75f05e6264645a5b26 'pact/review.md'
+check_hash 685a5f4794e91e698759dd51301eed60df1a56ed75bcf531d7334c88b9f74928 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1500,7 +1500,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 2220e85b0d49"
+  echo "pact cloud copy 8efc16bec6b4"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

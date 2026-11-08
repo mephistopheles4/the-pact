@@ -124,8 +124,8 @@ when no other row answers the sentence.
 
 ## Posting
 
-- **Read before you post.** Read every report and comment for a secret, a
-  personal detail or a path on this machine before posting it.
+- **Read before you post.** Read every report and comment for a secret or a
+  personal detail before posting it.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
