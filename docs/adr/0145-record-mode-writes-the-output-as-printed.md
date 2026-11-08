@@ -6,7 +6,7 @@
 
 - **The owner asked** (in chat, 2026-11-08): "delete the rules about local paths, it's inevitable and it just creates friction", and, on the user and host names: "we are overcomplicating this, id drop it too".
 - **The scrub cost more than it caught.** A passing run that printed a drive path or the host name exited 3 with no record, so the friction landed on the runs that had nothing wrong. [0143](0143-no-read-looks-for-this-machines-paths.md) took the path look out of the reads and left this one, "a spec change of its own". This is that change.
-- **The names had no other home.** [0126](0126-the-pact-has-no-secret-or-personal-data-rules.md) left the runner's record scrub to #449, and 0143 left a name inside a path there too. With the scrub gone, nothing checks a posted record for a path or a name inside one, so the read before posting would have held back every record of this machine. It does not: `claude/review.md` says "a secret or a personal detail" and is not edited, and a name inside a path is no longer counted as a personal detail. #449 no longer covers record mode.
+- **A name inside a path is no longer a personal detail,** so the read before posting does not hold back every record of this machine. [0126](0126-the-pact-has-no-secret-or-personal-data-rules.md) left the runner's record scrub to #449, and 0143 left a name inside a path there too; with the scrub gone, nothing checks a posted record for a path or a name inside one. `claude/review.md` says "a secret or a personal detail" and is not edited. #449 no longer covers record mode.
 
 ## What changes
 
@@ -29,4 +29,4 @@ A record of this machine now reaches the issue tracker with its home folder, use
 
 ## How this was decided
 
-- **2026-11-08** on #507, spec revision 4, standard tier, no security route (decision 169). The ask on paths and the one on names were the owner's words in chat; a failed write keeping exit 3, and this ADR's amendment of 0143 and 0098 (the spec's P1 (a)), were settled by the lead (decisions 177 and 185), who relayed the owner's chat.
+- **2026-11-08** on #507, spec revision 4, standard tier, no security route (decision 169). The ask on paths and the one on names were the owner's words in chat; a failed write keeping exit 3, and this ADR's amendment of 0143 and 0098, were settled by the lead (decisions 177 and 185), who relayed the owner's chat.

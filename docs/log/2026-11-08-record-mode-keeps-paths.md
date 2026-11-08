@@ -7,7 +7,7 @@
 - **`gate/tests/run.mjs`:** `--record` writes everything printed, plus the result line, as printed. The scrub, the leak check and the imports only they used are gone. A record path inside the repo still exits 2, and a record that can't be written still exits 3 with `record refused`.
 - **`gate/tests/run.test.mjs`:** five scrub and leak tests cut; two shell tests rewritten (a failing run and a passing run, each recorded as printed); one new (a record that can't be written). The PR reads `Tests: +1 −5`.
 - **Texts:** `docs/agents/gate-tests.md`, the `run.mjs` header, the test file's headers, `fixtures/linux/run.sh` and the Dockerfile comment say the output is written as printed.
-- **Not changed:** `claude/review.md`, the `--host-fallback` reason check (`PLAIN_REASON`, offered as a follow-up), and the rule that test output is posted only from record mode.
+- **Not changed:** `claude/review.md`, the `--host-fallback` reason check (`PLAIN_REASON`, a separate check, left as it is), and the rule that test output is posted only from record mode.
 
 ## Decisions
 
@@ -17,3 +17,4 @@
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/507).
 - [The approved spec, revision 4](https://github.com/mephistopheles4/the-pact/issues/507#issuecomment-6722389800).
+- [Spec round 1](https://github.com/mephistopheles4/the-pact/issues/507#issuecomment-6722392021) and [spec round 2](https://github.com/mephistopheles4/the-pact/issues/507#issuecomment-6722394463).

@@ -560,6 +560,7 @@ if (process.execArgv.includes('--test') || /\\.test\\.mjs$/.test(process.argv[1]
 /** `value` in the form the run printed it in `out` (as given, or with doubled backslashes), or undefined if it printed neither. */
 const asPrinted = (value, out) => [value, value.replace(/\\/g, '\\\\')].find(f => out.includes(f));
 
+// #507 C1
 test('shell: --record writes a failing run as printed, paths and all, outside the repo (exit 1, record written)', t => {
   const p = plant(t, {
     'r.test.mjs': `import { test } from 'node:test';
@@ -584,6 +585,7 @@ test('planted paths', () => { throw new Error(['REPO=' + process.cwd(), 'HOME=' 
   assert.equal(text.trimEnd().split('\n').pop(), 'RESULT: full tier, 1 files, fail (exit 1)');
 });
 
+// #507 C1
 test('shell: --record writes a passing run as printed, a drive path and the host name included (exit 0, record written)', t => {
   const p = plant(t, { 'q.test.mjs': `import { test } from 'node:test';\nimport { hostname } from 'node:os';\ntest('left over', () => { console.log('at ' + 'Q:' + '\\\\nowhere\\\\x on ' + hostname()); });\n` });
   const rec = join(tempDir(t, 'pact-rec-'), 'record.txt');
@@ -599,6 +601,7 @@ test('shell: --record writes a passing run as printed, a drive path and the host
   assert.equal(text.trimEnd().split('\n').pop(), 'RESULT: full tier, 1 files, pass');
 });
 
+// #507 C2
 test('shell: a record that cannot be written exits 3 with "record refused" and leaves no file', t => {
   const p = plant(t, { 'a.test.mjs': PASSING });
   const rec = join(tempDir(t, 'pact-rec-'), 'no-such-folder', 'record.txt');
@@ -651,7 +654,6 @@ test('shell: a record path into the repo through a link is refused with exit 2',
   assert.match(r.last, /^RESULT: refused, --record must name a file outside the repo$/);
   assert.ok(!existsSync(join(p.root, 'rec.txt')), 'no record is written inside the repo');
 });
-
 
 // ------------------------------------------------------------ the shell: the changed tier, on a planted git repo
 

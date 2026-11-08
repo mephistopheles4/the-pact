@@ -18,7 +18,7 @@
 // lines go to stderr, so node's reporter output on stdout stays clean; the
 // last line names the tier, the file count and the result. --record writes
 // everything printed, as printed, with the result line, to a file outside the
-// repo (#507): a path inside the repo exits 2, a write that fails exits 3. --skips
+// repo (#507): a record path inside the repo exits 2, a write that fails exits 3. --skips
 // (full only, #351) fails a passing run unless it skipped exactly the tests a
 // list names, by file and name, and prints each difference. --list
 // prints the pick and runs nothing. --host-fallback=<reason> (fast and full,

@@ -30,13 +30,14 @@ Amended by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md) (2026-11
 - **Only changed reads git.** `fast` and `full` read the file system alone, and run in a folder with no git repo.
 - **While building:** run `changed`.
 - **When the full suite runs:** once at move 4; before an install; after a rebase or merge that brought in other work; and after a final change set. It doesn't run before and after each change. A run of fewer files is never move-4 evidence.
-- **On the probe floor.** `gate/tests/run.mjs` and `gate/tests/copy-list.mjs` are named on AGENTS.md's probe floor, with the two test files that hold their bad cases, `run.test.mjs` and `run-guards.test.mjs`.
+- **On the probe floor.** `gate/tests/run.mjs` and `gate/tests/copy-list.mjs` are named on AGENTS.md's probe floor, with the two test files that hold their bad cases, `run.test.mjs` and `run-guards.test.mjs`. (Gone: [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) took the runner off the probe floor, and [ADR 0145](0145-record-mode-writes-the-output-as-printed.md) struck the sentence that sent a record-mode change to the security route.)
+
 ## Why
 
 - **Sessions waited minutes on tests they didn't need.** The full suite took 1,794 s under load and 714 s quiet (the T1 baseline). Every one of its 50 slowest tests runs the real install script through pwsh. The owner wants fast sessions without cutting a test: "write 5k of them if they actually have value but I also want my session to go fast".
 - **One definition of "the full suite".** Before this, AGENTS.md gave a quoted glob for Node 24, an unquoted one for a POSIX shell under Node 20, and a `Get-ChildItem` form for PowerShell. The Linux container had a fourth. Each could drift, and none failed closed. An explicit file list from one module removes the glob and its caveat.
 - **A pass must mean the suite ran.** Two full runs on #97 ended with node's exit -1 and no summary. A runner that only checks for "no failures" can report a pass for a run that never finished. The runner's pass needs a real exit 0 from node, on a non-empty list.
-- **Posted records must not leak local paths.** Test output carries the home folder, the temp folder and the user name. A scrub that fails closed keeps them off the issue tracker. (Dropped by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md), at the owner's word: the scrub refused passing runs, and a path is no secret. A record is still the only way test output is posted, so a post never carries a hand-picked excerpt.)
+- **Posted records must not leak local paths** (dropped by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md), at the owner's word: the scrub refused passing runs, and a path is no secret). It had held that test output carries the home folder, the temp folder and the user name, and that a scrub that fails closed keeps them off the issue tracker. A record is still the only way test output is posted, so a post never carries a hand-picked excerpt.
 - **The tiers are part of the gate's proof.** Narrowing "full" would quietly shrink what move 4 checks, so the runner and the copy list it shares with the harness sit on the probe floor.
 
 ## How this was decided
