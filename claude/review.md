@@ -14,7 +14,8 @@ lenses to offer, and when.
   and Cost limits rows, and the project's "Review rules" section, if it has
   one.
 - **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
-  another lens's report.
+  another lens's report. Launch it as a plain subagent, never as a named
+  teammate, so it holds no tool that messages other sessions or the task list.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
 
