@@ -101,7 +101,7 @@ else: no title, label or state. A review's body can't be edited. Start the new
 body from the item's current body, read with `gh api repos/<owner/name>/<path>
 --jq .body`, where the path is `issues/<n>`, `pulls/<n>`,
 `issues/comments/<id>` or `pulls/comments/<id>`, and keep its signature line
-and every `Edited:` line as they are. The poster sends that body with one
+and every `Edited:` line as they are, except on a status edit (below). The poster sends that body with one
 reason line after it, as its own paragraph:
 
 ```text
@@ -127,7 +127,11 @@ sent, when:
   body that also holds another label's signature line is refused too. A bare
   label is never a signature, so a post signed only with its label, or a pull
   request body with no signature line, can't be edited. Sign a post you may
-  need to edit with a `Signed: <label>` line;
+  need to edit with a `Signed: <label>` line, and a pull request body
+  `Signed: pr-<n>`, n the issue it works on. For a body already posted
+  unsigned, the owner types the fix on GitHub, from a changed line the
+  session scanned with `issue-comment --dry-run` (`claude/review.md`, The
+  poster);
 - **it is a review record** (`edit/record`, best effort), on the item or the
   new body: a heading or a fold's summary that names a word ending in
   `-lens`, a fold summary that opens "Lens dispositions" or "Crossed
@@ -149,10 +153,15 @@ sent, when:
   (`edit/reasons`): the body must end in exactly the item's reason lines, in
   order. As a best effort, no other line may read as one, and nothing above
   them may open an HTML comment or a fold it doesn't close. Reason lines pile
-  up, as the record of each change.
+  up, as the record of each change. A **status edit**, `issue-comment-edit`
+  with `--signed status-<n>` and n the `--issue` value, is the one exception
+  (#503): its body must hold no line that reads as a reason line, the item's
+  are not compared, and the poster adds the newest, so the comment ends in
+  exactly one.
 
 The author, target, signature, leak and append-only reason checks are the
-edit's controls. The record and decision checks, and the reason lines' "in
+edit's controls; on a status edit the append-only check gives way to the
+no-reason-line check, accepted by the owner (decision 180, ADR 0144). The record and decision checks, and the reason lines' "in
 plain sight" part, are a best-effort backstop: they guess at how GitHub
 renders a body, and a form their readings don't see passes (What the scans
 don't cover).
@@ -162,7 +171,8 @@ its reason line.
 
 The routine use of `issue-comment-edit` is the review procedure's status
 comment, signed `status-<n>` and edited after each round (#412); it holds none
-of what `edit/record` and `edit/decision` refuse.
+of what `edit/record` and `edit/decision` refuse, and as a status edit it ends
+in its newest reason line only (#503).
 
 Since #394 the edit checks read more forms of the text, so an edit of a post
 that passed before can now be refused. For `edit/record` or `edit/decision`,
@@ -290,7 +300,7 @@ nothing sent.
 | `edit/record` | The item or the new body is a review record |
 | `edit/decision` | The item or the new body holds the words "owner decision" |
 | `edit/leak` | The item holds what the content scan refuses: a hidden character or a live environment secret's value |
-| `edit/reasons` | The new body doesn't end in exactly the item's reason lines, holds another line that reads as one, or opens a comment or fold above them it doesn't close |
+| `edit/reasons` | The new body doesn't end in exactly the item's reason lines, holds another line that reads as one, or opens a comment or fold above them it doesn't close; on a status edit, it holds any line that reads as a reason line |
 | `secret/env` | The value of a secret environment variable; the line names the variable, never the value |
 | `text/hidden` | A hidden character |
 | `table/header` | A Lens dispositions table's header row isn't exactly `\| Finding \| Lens \| Disposition \| Rerun \|` |
@@ -432,7 +442,10 @@ kept by hand from the poster's source; no test holds them.
   such as an approved spec, a hand-off or a pull request body at merge, and in
   a repo whose rule counts the owner's account's last edit, the item still
   counts. The reason lines and GitHub's history show the change (threat model,
-  Who counts as you).
+  Who counts as you); on a status comment, which keeps only its newest reason
+  line, GitHub's history alone shows the earlier ones, and the round comments
+  stay the record. A pull request body signed `pr-<n>` shares its label with
+  every pull request on issue n, so a wrong `--pr` among them passes too.
 - **The best-effort checks' gaps.** The record, decision and "in plain sight"
   checks read the source text, not GitHub's rendered page, so a form their
   readings don't see passes: a look-alike letter outside the fixed set; a

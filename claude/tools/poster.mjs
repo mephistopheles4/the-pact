@@ -25,7 +25,9 @@
 // not signed `Signed: <label>` or `Posted by <label>.`, a review record, a
 // decision mark, an item holding a leak the scan finds, and a body that
 // drops, forges or hides an earlier reason line. It sends the session's body
-// with `Edited: <reason> (<label>)` after it.
+// with `Edited: <reason> (<label>)` after it. A status edit
+// (`issue-comment-edit --signed status-<n>`, n the --issue) is the one
+// exception: its body holds no reason line, so only the newest is kept (#503).
 //
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every option and file, and scans the
@@ -1674,10 +1676,18 @@ function bodyRules(body, label, where) {
   return out;
 }
 
+/**
+ * Whether an edit is a status edit (#503): `issue-comment-edit` signed exactly
+ * `status-<n>`, n the `--issue` value. A status edit drops the item's reason
+ * lines, so its body carries none and the poster adds the newest.
+ */
+export const isStatusEdit = plan => plan.surface === 'issue-comment-edit' && typeof plan.issue === 'string' && plan.signed === `status-${plan.issue}`;
+
 /** The checks on the composed body, before gh is called. */
 export function editBodyChecks(plan) {
   const out = bodyRules(plan.body, plan.signed, 'option --body');
-  if (!reasonsInSight(plan.body)) out.push({ rule: 'edit/reasons', where: 'option --body' });
+  const shaped = isStatusEdit(plan) && unfenced(linesOf(plan.sessionBody ?? '')).some(l => REASON_SHAPE_RE.test(l.replace(/\p{Cf}/gu, '').trim()));
+  if (shaped || !reasonsInSight(plan.body)) out.push({ rule: 'edit/reasons', where: 'option --body' });
   return out;
 }
 
@@ -1715,8 +1725,9 @@ export function editItemChecks(plan, item, login, ctx = {}) {
   const body = item.body ?? '';
   refusals.push(...bodyRules(body, plan.signed, 'item'));
   if (scan([{ field: 'item', text: body }], { ...ctx, surface: plan.surface }).length) refusals.push({ rule: 'edit/leak', where: 'item' });
+  // A status edit keeps none of the item's reason lines; editBodyChecks refuses one in its body (#503).
   const kept = trailingReasons(plan.sessionBody);
-  const had = trailingReasons(body);
+  const had = isStatusEdit(plan) ? [] : trailingReasons(body);
   if (kept.length !== had.length || kept.some((l, i) => l !== had[i])) refusals.push({ rule: 'edit/reasons', where: 'option --body' });
   return { unusable: false, refusals };
 }
