@@ -14,7 +14,7 @@ Accepted gaps, as for the cleaner: a flag before the subcommand, a path-qualifie
 
 Test round 1 widened the switch from `claude stop` alone to the four commands (a spec change to S1.2 and C9, decision 475): the adversarial lens found `claude kill` is the documented alias, and the supervisor stop and `respawn --all`, by Claude Code's docs, end every hosted session's turn at once. The lead also cut the builder test that backed no numbered claim.
 
-The threat model's "Removals lose local work" bullet names the `claude rm` rules, and a new bullet covers a raw stop getting past a speed bump. Both widen accepted classes, so the merge waits for a confirm: the lead's, at level 3, flagged big, recorded at merge as the lead's and not the owner's.
+The threat model's "Removals lose local work" bullet names the `claude rm` rules, and a new bullet covers a raw stop getting past a speed bump. Both widen accepted classes, so the merge waits for a confirm: the lead's, at level 3, flagged big, recorded at merge as the lead's and not the owner's (decision 484: the lead confirmed the widened class and the 0.30/0.40 chart row at level 3, flagged big).
 
 The apply, and turning the switch on, are the owner's word in chat. This work stops at the dry run.
 

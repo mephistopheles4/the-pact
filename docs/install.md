@@ -560,7 +560,7 @@ notice line names it, as `session-stop-deny on` or `off`.
   anything. A flag before the subcommand, a path-qualified or
   wrapped call, and any other spelling get past them, with the classifier
   behind them.
-- **Your own `claude stop <id>`** (or kill, supervisor stop or respawn). Run it from a separate terminal, outside
+- **Your own `claude stop <id>`** (or kill, supervisor stop or respawn). A session never respawns another one; you do, by hand. Run it from a separate terminal, outside
   Claude Code. Whether Claude Code's `!` shell mode honours deny rules is
   **unmeasured**.
 - **If Brigade's stop is refused.** Brigade's `stop_background_session` runs

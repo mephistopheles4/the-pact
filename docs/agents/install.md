@@ -129,7 +129,7 @@ how every session in every repo behaves. So:
   and does not apply for the owner. While `session-stop-deny` is on, a
   session's harmless `claude stop not-a-real-id`, `claude kill not-a-real-id`
   and `claude respawn not-a-real-id` are refused by permission and Brigade's
-  `stop_background_session` still works. Never probe `claude daemon stop` or
+  `stop_background_session` still works. A session never respawns a session for real. Never probe `claude daemon stop` or
   `claude respawn --all`: if the rule did not fire, the probe ends every
   hosted session's turn. While the cleaner is on, a
   harmless `claude rm not-a-real-id` is refused by permission. Check only
