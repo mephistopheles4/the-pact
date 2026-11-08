@@ -10,7 +10,7 @@ The wording is fixed (spec v3.1); any change beyond word order and punctuation c
 
 ## Why
 
-- **The goal stopped where a brigade starts.** On 2026-11-07 the owner set a level-3 goal and went to sleep; three wording-level mediums were parked for the owner. A started session reads its first message from a session, so it never held the goal, and a sleeping owner stalled it. 0128 had taken the lead out of the pact, so nothing let the holder decide for the sessions it started.
+- **The goal stopped where a brigade starts.** One night the owner set a level-3 goal and was away; three wording-level mediums were parked for the owner. A started session reads its first message from a session, so it never held the goal, and an away owner stalled it. 0128 had taken the lead out of the pact, so nothing let the holder decide for the sessions it started.
 - **The owner's words.** "We can simply have the agent that carries the goal act as the owner" (2026-11-08). The pact already had the clause; it lacked who carries a goal when sessions start sessions.
 - **Later words had no home.** "Keep going until it is met or I end it" covers ending a goal, not narrowing it. The owner's "Merges, closes, filing, installs, publishing and eval runs stay mine" read literally let the holder decide those too.
 
