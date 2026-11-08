@@ -10,7 +10,7 @@ Two page checks loosen, so this is a spec change, read by the spec pair and the 
 - `scripts` is exactly three plain scripts (pre-paint, behaviours, the page's own), and `script-hash` checks that the policy lists exactly their three hashes.
 - `external-url` and the CSS `url(` check allow, inside each pinned block, only the matches `AVIATION_PIN.urls` lists, in those counts. Outside the blocks nothing changes, and the other text checks scan the whole page.
 
-A re-pin changes every constant and takes the security pair on the upstream diff of both dist files. `docs/threat-model.md` gains one scope line: the inlined code runs with the page's powers, including a folder the user grants, and review of each pin is its control.
+A re-pin changes every constant and is reviewed like any change to this repo, at its own tier. `docs/threat-model.md` gains one scope line and one accepted class, "Pinned design-system code", which treats the design system as the owner's own code: the inlined code runs with the page's powers, including a folder the user grants, and review of each pin is its control.
 
 The looks the owner kept stand in one local block of five entries after the bundle, headed with `aviation-design-system#22`, and go at the re-pin. One more page rule, the spacing of `details.av-disclosure > .av-disclosure-body`, stands outside the block and is carried to the same issue at the re-pin. The saved scheme key moves from `pact-config-scheme` to `aviation-scheme`, and the saved panel sizes move to the design system's keys, so each user's saved dark scheme and sizes reset once. The old keys stay in storage, so a revert brings them back.
 

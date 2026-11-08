@@ -119,7 +119,7 @@ const STYLE_RE = /<style>([\s\S]*?)<\/style\s*>/i;
  * - bundle, behaviours: the sha256 (base64) of dist/aviation.bundle.css and dist/aviation.behaviours.js, as pinned between their marks;
  * - prepaint: the pre-paint snippet's text between its script tags, as the policy hashes it;
  * - urls: for each pinned block, the URL-shaped text the page checks may find in it, with its count.
- * A re-pin changes every constant here and takes the security pair on the upstream diff.
+ * A re-pin changes every constant here and is reviewed like any change to this repo.
  */
 const AVIATION_FULL_COMMIT = '30685ccdac9be0388d7364959f9e8d0ae44220dc';
 export const AVIATION_PIN = Object.freeze({
