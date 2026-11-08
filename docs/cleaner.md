@@ -208,7 +208,7 @@ yourself.
 
 Turn the cleaner off and apply first: that removes its recorded deny rules,
 the `claude rm` pair included, and the tool. An older installer refuses a
-configuration that names `cleaner`, and would leave the rules in place. Past
-this change (#439) there is a second reason: an older installer drops the two
+configuration that names `cleaner`, and would leave the rules in place. When
+rolling back to a pact from before #439 there is a second reason: an older installer drops the two
 `claude rm` rules from its record but leaves them in `settings.json`, where
 they look like your own.

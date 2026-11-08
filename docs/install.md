@@ -547,6 +547,9 @@ notice line names it, as `session-stop-deny on` or `off`.
   only rules that are both recorded and one of those two, listed as
   `- permissions.deny`; an identical rule you wrote yourself stays. The cloud
   copy adds neither rule.
+- **Who turns it on.** Turn it on if you run Brigade (the session-manager
+  mod), so that a session can't stop another session with a raw
+  `claude stop` and stops go through Brigade's own tool.
 - **Why a switch.** The pact can't tell whether Brigade is installed, and the
   rules block a raw `claude stop` that a session runs. It is off unless you
   turn it on. The cleaner's `claude rm` rules are separate: they come with the
@@ -563,9 +566,10 @@ notice line names it, as `session-stop-deny on` or `off`.
   That is assumed, not measured. If the rule does catch it, the symptom is a
   permission refusal on Brigade's stop. The way out: set `session-stop-deny`
   to `false`, then a dry run and an apply on your word.
-- **Rolling back.** Set it to `false` and apply first. An older installer
-  refuses a configuration that names it, and ignores `stopDeny`, so the two
-  rules would stay in `settings.json` looking like your own.
+- **Rolling back.** Set it to `false` and apply first, then take the key out
+  of the configuration. An older installer refuses a configuration that names
+  it, even as `false`, and ignores `stopDeny`, so the two rules would stay in
+  `settings.json` looking like your own.
 
 ## The auto-compact window and its hooks
 
@@ -688,7 +692,7 @@ A pact from before the cleaner (#438) refuses a configuration that names
 `cleaner`, and never removes the cleaner's deny rules, so turn the cleaner off
 and apply before you roll back. A pact from before the stop switch (#439)
 refuses a configuration that names `session-stop-deny` and ignores `stopDeny`,
-so set it to `false` and apply first too; and an older installer leaves the
+so set it to `false`, apply, then take the key out of the configuration; and an older installer leaves the
 two `claude rm` rules in `settings.json` while dropping them from its record.
 
 A pact from before the pact commands (#203) refuses a configuration with a

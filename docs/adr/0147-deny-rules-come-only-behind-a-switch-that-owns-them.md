@@ -1,6 +1,6 @@
 # Deny rules come only behind a switch that owns them and records them
 
-The pact adds a deny rule to `permissions.deny` in `settings.json` only behind a switch that owns it, and records each rule it adds so turning the switch off removes only those (#439). It extends [ADR 0124](0124-the-cleaner-removes-worktrees-with-fixed-commands-and-never-forces.md), which put the cleaner's deny rules behind the cleaner. Two rules of that kind are now in play:
+The pact adds a deny rule to `permissions.deny` in `settings.json` only behind a switch that owns it, and records each rule it adds so turning the switch off removes only those (#439). It extends [ADR 0124](0124-the-cleaner-removes-worktrees-with-fixed-commands-and-never-forces.md), which put the cleaner's deny rules behind the cleaner. Two switches of that kind are now in play:
 
 - **`claude rm *` joins the cleaner's switch.** `CLEANER_DENY` holds eighteen rules, the sixteen git rules plus `Bash(claude rm *)` and `PowerShell(claude rm *)`, recorded under `cleanerDeny`. The cleaner is how worktrees go, and `claude rm` deletes a session's worktree with whatever is left in it, which git's keeps don't bound.
 - **`claude stop *` gets a switch of its own,** the user setting `session-stop-deny`, `true` or `false`, off by default. On, the install adds `Bash(claude stop *)` and `PowerShell(claude stop *)` and records them under `stopDeny`. Off, it removes only rules both recorded and on that fixed list; a rule the owner wrote stays. Each plan filters its record by its own list, so one switch never touches the other's rules. A project may not set it.
@@ -16,7 +16,7 @@ The pact adds a deny rule to `permissions.deny` in `settings.json` only behind a
 ## What was weighed
 
 - **The rules in the overlay.** Not taken, as in ADR 0124.
-- **`claude stop` rules always on.** Not taken: Brigade's `stop_background_session` runs `claude stop` from the mod's own process, which permission rules don't see. That is assumed, not measured, so the owner who turns the switch on has a way out (switch off, apply) written in the install doc.
+- **`claude stop` rules always on.** Not taken: for an owner who doesn't run Brigade they cost something and gain nothing (see Why). Brigade's `stop_background_session` is assumed, not measured, to run `claude stop` from the mod's own process, outside permission rules, so the owner who turns the switch on has a way out (switch off, apply) written in the install doc.
 - **The owner's own `claude stop` and `claude rm`.** Run from a separate terminal, outside Claude Code. Whether Claude Code's `!` shell mode honours deny rules is unmeasured.
 
 ## How this was decided

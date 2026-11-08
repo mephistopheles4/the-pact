@@ -125,9 +125,11 @@ how every session in every repo behaves. So:
   subcommand and a wrapped call get past them.
 - **The field check for the deny rules (#439),** run after the owner applies
   with `session-stop-deny` on or the cleaner on; a session reports the result
-  and does not apply for the owner. A session's harmless `claude stop
-  not-a-real-id` and `claude rm not-a-real-id` are refused by permission, and
-  Brigade's `stop_background_session` still works. *On a failure:* if Brigade's
+  and does not apply for the owner. While `session-stop-deny` is on, a
+  session's harmless `claude stop not-a-real-id` is refused by permission and
+  Brigade's `stop_background_session` still works. While the cleaner is on, a
+  harmless `claude rm not-a-real-id` is refused by permission. Check only
+  the commands whose switch is on. *On a failure:* if Brigade's
   stop is refused, set `session-stop-deny` to `false` and apply on the owner's
   word, and open an issue with what was seen; if a rule did not refuse, open an
   issue.
@@ -248,11 +250,12 @@ how every session in every repo behaves. So:
 An older pact installs with that commit's own installer. **If the cleaner is
 on,** turn it off and apply first, so its deny rules leave `settings.json`; a
 pact from before #438 refuses a configuration that names it, and never removes
-those rules. Past #439 there is a second reason: an older installer drops the
+those rules. Rolling back to a pact from before #439 has a second reason: an older installer drops the
 two `claude rm` rules from its record but leaves them in `settings.json`,
 where they look like the owner's own. **If `session-stop-deny` is on,** set it
-to `false` and apply first: an older installer refuses a configuration that
-names it, and ignores `stopDeny`. **If the auto-compact window is on,** which it is by default
+to `false` and apply first, then take the key out of the configuration: an
+older installer refuses a configuration that names it, even as `false`, and
+ignores `stopDeny`. **If the auto-compact window is on,** which it is by default
 (#482), set `auto-compact-window` to `0` and install first: an older
 installer keeps the live hook entries but deletes the script it doesn't know,
 so every session would call a missing file. Then take the key out of the

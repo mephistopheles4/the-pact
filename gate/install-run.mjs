@@ -301,6 +301,7 @@ async function main() {
   } else {
     const cleanerPlan = core.cleanerDenyPlan(liveSettings, toolsOn, record ? record.cleanerDeny : []);
     const stopPlan = core.stopDenyPlan(liveSettings, stopOn, record ? record.stopDeny : []);
+    // deny.record is the cleaner's record only; the stop switch's is kept in stopRecord.
     deny = { ...core.joinDeny(cleanerPlan, stopPlan), record: cleanerPlan.record };
     stopRecord = stopPlan.record;
     merged = core.mergeSettings(liveSettings, overlay, deny, compact);

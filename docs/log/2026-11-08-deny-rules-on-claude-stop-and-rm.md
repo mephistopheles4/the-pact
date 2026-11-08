@@ -16,10 +16,11 @@ The threat model's "Removals lose local work" bullet names the `claude rm` rules
 
 The apply, and turning the switch on, are the owner's word in chat. This work stops at the dry run.
 
-**Rolling back:** set `session-stop-deny` to `false` and turn the cleaner off, apply, then revert the PR and reinstall the reverted text through the dry run and the owner's apply.
+**Rolling back:** set `session-stop-deny` to `false` and turn the cleaner off, apply, take the key out of the configuration, then revert the PR and reinstall the reverted text through the dry run and the owner's apply.
 
 ## Record
 
 - The ask: https://github.com/mephistopheles4/the-pact/issues/439
+- Spec round 1 and round 2 (the final round): https://github.com/mephistopheles4/the-pact/issues/439#issuecomment-6727949933 and https://github.com/mephistopheles4/the-pact/issues/439#issuecomment-6728083639
 - Spec revision 3 and its build brief: https://github.com/mephistopheles4/the-pact/issues/439#issuecomment-6728098978 and https://github.com/mephistopheles4/the-pact/issues/439#issuecomment-6728103308
 - The ADR: [0147](../adr/0147-deny-rules-come-only-behind-a-switch-that-owns-them.md)
