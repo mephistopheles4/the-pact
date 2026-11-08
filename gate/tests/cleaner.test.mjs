@@ -532,7 +532,7 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
 
   // #442 Q3: only on CI's gate-windows, never on the owner's host: an lstat on a junction whose target is a network path in NT form.
   if (process.platform === 'win32' && process.env.CI) {
-    await t.test('C15: lstat on a junction set to \\??\\UNC\\nohost.invalid fails as reparse data, or succeeds, never as a network or name lookup', st => {
+    await t.test('C15: lstat on a junction set to \\??\\UNC\\nohost.invalid throws (ENOENT accepted), consistent with following the target', st => {
       const dir = tempDir(st, 'pact-cleaner-junction-');
       const junction = join(dir, 'j');
       mkdirSync(junction);
@@ -569,17 +569,24 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
       ].join('\n'));
       const r = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-File', script, junction, '\\??\\UNC\\nohost.invalid\\s'], { encoding: 'utf8' });
       assert.equal(r.status, 0, `the junction was not set: ${r.stdout}${r.stderr}`);
-      let outcome = 'lstat succeeded';
-      try {
-        assert.ok(lstatSync(junction).isSymbolicLink(), 'lstat read a junction as a plain folder');
-      } catch (e) {
-        if (e.code === 'ERR_ASSERTION') throw e;
-        outcome = `lstat failed with ${e.code} (errno ${e.errno})`;
-        assert.doesNotMatch(String(e.code), /^(?:ENOENT|ENOTFOUND|EHOSTUNREACH|ENETUNREACH|ENETDOWN|ETIMEDOUT|ECONNREFUSED|EAI_\w+)$/, outcome);
-      }
-      st.diagnostic(`C15: ${outcome}`);
+      // gate-windows saw ENOENT, which libuv also gives a failed network lookup: lstat followed the target, so the walk never calls it.
+      let thrown;
+      assert.throws(() => lstatSync(junction), e => {
+        thrown = e;
+        return true;
+      });
+      st.diagnostic(`C15: lstat failed with ${thrown.code} (errno ${thrown.errno})`);
     });
   }
+
+  // #442 S8, decision 472: the walk calls no lstat, stat, realpath, exists or access. The fake io has only readdir and readlink, so this pins the source.
+  await t.test('C16: the walk\'s code names no lstat, stat, realpath, exists or access call', () => {
+    const src = readFileSync(new URL('../../claude/tools/cleaner.mjs', import.meta.url), 'utf8');
+    const start = src.indexOf('\nfunction walk(');
+    const body = src.slice(start, src.indexOf('\n}\n', start));
+    assert.ok(start > 0 && body.length > 400, 'the walk was not found');
+    assert.doesNotMatch(body, /\b(?:lstat|stat|realpath|exists|access)(?:Sync)?\b|\.native\b/);
+  });
 });
 
 // #438 C4

@@ -255,7 +255,8 @@ const FOLDS = platform => platform === 'win32' || platform === 'darwin';
  * resolving a part before its parent's listing has shown it is not a link
  * (#442). A part the listing does not show is never touched: on Windows a
  * name it hides (an 8.3 short name, a trailing dot) can open a junction, and
- * lstat on a junction to a network path retries as a following stat. So there
+ * lstat on a junction to a network path can follow its target (it threw
+ * ENOENT on Windows, as a failed lookup would, #442 C15). So there
  * is no lstat, stat, realpath or access here: `io.readdir` lists a folder and
  * `io.readlink` reads a link the listing showed. Returns REMOTE, or
  * `{ real, rest }`: the folder reached, and the parts left unwalked. Every
