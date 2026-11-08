@@ -30,7 +30,7 @@ The holder may answer a started session's "Stop and ask me" with a second opinio
 ## What stays the owner's
 
 - **The cleaner's yes.** The rules file says "but the usage go-ahead and a worktree removal", not "a cleaner removal": the fixed block renders with the cleaner tool off, and `gate/tests/tools.test.mjs` requires that no rule then names the cleaner (the owner took this wording, decision 217). A worktree is removed only through the cleaner, and `claude/tools/cleaner.mjs` prints "only after the owner's own yes in chat to these blocks, outside a goal". A started session holds no goal, so it still needs the owner's own yes. Neither the cleaner nor its test changes.
-- **Usage.** A started session parks before its line and tells the holder and the owner; the go-ahead past the line is the owner's.
+- **Usage.** A started session parks before its line and tells the owner in its own chat; the go-ahead past the line is the owner's.
 - **A project's own chat-only stops.** In this repo, applying an install and mise trust, in `AGENTS.md`. "These rules" means the pact's text, as in 0137.
 - **Claude Code's permissions.** The holder's reply is never an approval Claude Code keeps for the user: a started session's permission prompts still go to its user.
 - **With no goal set,** every line reads as before.
