@@ -60,17 +60,24 @@ the name-back, and run `remove` only after your own yes to it in chat.
   Git lists no folder link to an empty folder, so the cleaner walks a folder
   that is still there itself and never enters a link; a symlink or junction as
   Node reports it counts, a file link and a link git tracks included, and so
-  does a record git calls prunable over a folder still there. The block names
-  the links, then the changed, untracked and ignored files a removal by hand
-  would also lose, 20 names each and a count. Remove the links themselves
-  first, never with a recursive delete that could follow one; for a folder
-  full of them, such as an install from a package manager, use that package
-  manager's own removal command. A link made between the cleaner's read and
-  git's removal is not seen.
+  does a record git calls prunable over a folder still there, and so does a
+  folder whose real path differs from where the walk found it. The block names
+  every link, never cut at 20, then the changed, untracked and ignored files a
+  removal by hand would also lose (as git reports them; `show --recoverable`
+  pins the settings that could hide one), 20 names each and a count. On
+  Windows git reads through a junction, so a name it lists under a link is the
+  target's and is never printed. Remove the links themselves first, never with
+  a recursive delete that could follow one; for a folder full of them, such as
+  an install from a package manager, use that package manager's own removal
+  command. A link made between the cleaner's read and git's removal is not
+  seen.
 - **A `.git` entry below its root, in every run** (#454): "holds a .git entry
   below its root, which git does not see". A file or folder named `.git` in any
-  letter case that is not a populated submodule's `.git`, which git sees as a
-  gitlink and refuses. Listed under ".git entries".
+  letter case that is not a populated submodule's `.git`: a gitlink in the
+  index with a `.git` file naming its git folder, or a folder holding `HEAD`,
+  which git sees and refuses. Listed under ".git entries". Each one is a
+  repository or a stray folder whose history and files go with the folder if it
+  is removed by hand.
 - **A walk that fails** keeps that worktree alone, in either mode: "a read
   failed, so it is kept".
 
@@ -84,7 +91,7 @@ these. Its block gives the reason and lists the names (20, then a count):
 - **Changed or untracked files**: "holds changed or untracked files". git
   refuses these too, but its own check can trust a cache in the worktree's
   index, which a session can write.
-- **Ignored files or ignored links**, such as `.env`, which are not in git:
+- **Ignored files**, such as `.env`, which are not in git:
   "holds ignored files, which are not in git".
 - **A program a session could have set**: a `filter.`, `lfs.` or `hook.` key
   of `local` or `worktree` scope in the worktree's config or the main
@@ -121,9 +128,10 @@ Every git call then also carries `GIT_NO_LAZY_FETCH=1`,
 or an edit, from the cleaner or from git's own check. The flag needs git
 2.45 or later; below it, the run is unavailable.
 
-A worktree already kept here for ignored files is not walked, so its block
-names the ignored files but not the links under them, such as the junctions in
-an installed `node_modules` on Windows; the worktree is kept either way.
+The walk for links and `.git` entries runs before these keeps, so a block kept
+for changed or ignored files also names the links and `.git` entries, and a
+name git lists under a link, such as a junction in an installed `node_modules`
+on Windows, is left out.
 
 What "recoverable" can't see: a link or `.git` entry made after the cleaner's
 read and before git's removal, and whether git's removal walks into a junction,

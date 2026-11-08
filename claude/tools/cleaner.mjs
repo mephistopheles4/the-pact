@@ -363,13 +363,16 @@ const GIT_KEEP = 'holds a .git entry below its root, which git does not see';
  * (#454): every link (a symlink or junction as Node reports it, file or
  * folder) and every `.git` entry below the root, in any case, as sorted
  * relative paths. A link is listed and never entered, and so is a `.git`
- * entry; the root's own `.git` is the pointer file `pointsHome` reads. A read
+ * entry; the root's own `.git` is the pointer file `pointsHome` reads. A folder
+ * whose real path differs from where the walk found it is a link too, the
+ * installer's test, for a reparse point Node lists as a plain folder. A read
  * that fails throws, so the caller keeps that worktree.
  */
-export function walkTree(root, readdir = readdirSync) {
+export function walkTree(root, readdir = readdirSync, real = realpathSync.native, platform = process.platform) {
   const links = [];
   const gits = [];
   const stack = [''];
+  const realRoot = real(root);
   while (stack.length) {
     const rel = stack.pop();
     for (const e of readdir(rel ? join(root, rel) : root, { withFileTypes: true })) {
@@ -377,10 +380,24 @@ export function walkTree(root, readdir = readdirSync) {
       if (e.isSymbolicLink()) links.push(at);
       else if (e.name.toLowerCase() === '.git') {
         if (rel) gits.push(at);
-      } else if (e.isDirectory()) stack.push(at);
+      } else if (e.isDirectory()) {
+        if (fold(real(join(root, at)), platform) !== fold(join(realRoot, at), platform)) links.push(at);
+        else stack.push(at);
+      }
     }
   }
   return { links: links.sort(), gits: gits.sort() };
+}
+
+/** Whether a `.git` at a gitlink path is a populated submodule's, which git sees and refuses: a file naming its git folder, or a folder holding HEAD. */
+function populated(p) {
+  try {
+    const st = lstatSync(p);
+    if (st.isDirectory()) return present(join(p, 'HEAD'));
+    return st.isFile() && st.size <= POINTER_MAX && readFileSync(p, 'utf8').startsWith('gitdir:');
+  } catch {
+    return false;
+  }
 }
 
 /** Why the config read from `dir` keeps a worktree: a program or a work tree a session could have set, or a read that fails; else null. */
@@ -553,48 +570,44 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
         status = r.stdout;
       }
       const lists = parseStatus(status);
-      // git leaves an ignored link, and with it the folder, so the name-back names it apart.
-      const lstatLink = p => {
-        try {
-          return lstatSync(p).isSymbolicLink();
-        } catch {
-          return false;
-        }
-      };
-      const linked = new Set(lists.ignored.filter(n => lstatLink(join(path, n.replace(/[\\/]$/, '')))));
-      lists.ignoredLinks = lists.ignored.filter(n => linked.has(n));
-      lists.ignored = lists.ignored.filter(n => !linked.has(n));
-      // git's own check before a removal can trust a cache in the worktree's
-      // index, which a session can write, so with the flag the cleaner's own
-      // read of changed and untracked files keeps the worktree too.
-      if (recoverable && (lists.changed.length || lists.untracked.length || lists.ignored.length || lists.ignoredLinks.length)) {
-        item.keep = lists.changed.length || lists.untracked.length ? CHANGED : IGNORED;
-        item.keepLists = [['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored], ['ignored links', lists.ignoredLinks]];
-        continue;
-      }
       // git lists no folder link to an empty folder and skips a `.git` entry, and its removal might walk into either,
-      // so the cleaner walks a folder that is still there itself, in every run, links never entered (#454). The
-      // lists git did name come along, since a removal by hand would lose them; the links are the ignored links.
+      // so the cleaner walks a folder that is still there itself, in every run, links never entered (#454).
+      let walked = { links: [], gits: [] };
       if (present(path)) {
-        let walked;
         try {
           walked = walkTree(path, readdir);
+          if (walked.gits.length) {
+            // A populated submodule's `.git` is one git sees: a gitlink in the index with a repository behind it, and git's own check refuses it.
+            const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
+            walked.gits = walked.gits.filter(g => !(g.endsWith('/.git') && gitlinks.has(g.slice(0, -'/.git'.length)) && populated(join(path, g))));
+          }
         } catch {
           item.keep = READ_FAILED;
           item.keepLists = [];
           continue;
         }
-        // A populated submodule's `.git` is one git sees: it is a gitlink in the index, and git's own check refuses such a worktree.
-        let { gits } = walked;
-        if (gits.length) {
-          const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
-          gits = gits.filter(g => !(g.endsWith('/.git') && gitlinks.has(g.slice(0, -'/.git'.length))));
-        }
-        if (walked.links.length || gits.length) {
-          item.keep = walked.links.length ? LINK_KEEP : GIT_KEEP;
-          item.keepLists = [['links', walked.links], ['.git entries', gits], ['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
-          continue;
-        }
+      }
+      // On Windows git's status reads through a junction, so the names it lists under a link are the target's, outside
+      // the worktree: never printed. The link itself is named under "links".
+      const under = n => {
+        const p = n.replace(/[\\/]+$/, '');
+        return walked.links.some(l => p === l || p.startsWith(`${l}/`));
+      };
+      for (const k of ['changed', 'untracked', 'ignored']) lists[k] = lists[k].filter(n => !under(n));
+      const named = [['links', walked.links, true], ['.git entries', walked.gits], ['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
+      // git's own check before a removal can trust a cache in the worktree's
+      // index, which a session can write, so with the flag the cleaner's own
+      // read of changed and untracked files keeps the worktree too.
+      if (recoverable && (lists.changed.length || lists.untracked.length || lists.ignored.length)) {
+        item.keep = lists.changed.length || lists.untracked.length ? CHANGED : IGNORED;
+        item.keepLists = named;
+        continue;
+      }
+      // The lists git did name come along, since a removal by hand would lose them.
+      if (walked.links.length || walked.gits.length) {
+        item.keep = walked.links.length ? LINK_KEEP : GIT_KEEP;
+        item.keepLists = named;
+        continue;
       }
       const subjects = branch === null ? [] : [`WIP on ${branch}:`, `On ${branch}:`];
       item.facts = {
@@ -633,16 +646,17 @@ const quoted = s => `"${esc(s, true)}"`;
 /** A worktree folder name: as it is when it fits the --worktree set, else quoted. */
 const folderName = s => (NAME_RE.test(s) ? s : quoted(s));
 
-function listLines(title, names, show = quoted) {
+function listLines(title, names, show = quoted, cap = LISTED) {
   if (!names.length) return [];
-  const shown = names.slice(0, LISTED).map(n => `    ${show(n)}`);
-  return [`  ${title}:`, ...shown, ...(names.length > LISTED ? [`    and ${names.length - LISTED} more`] : [])];
+  const shown = names.slice(0, cap).map(n => `    ${show(n)}`);
+  return [`  ${title}:`, ...shown, ...(names.length > cap ? [`    and ${names.length - cap} more`] : [])];
 }
 
 /** One candidate's name-back. */
 export function blockLines(item) {
   const out = [`worktree ${folderName(item.name)}`];
-  if (item.keep) return [...out, `  kept: ${item.keep}`, ...(item.keepLists ?? []).flatMap(([title, names]) => listLines(title, names))];
+  // The links list is never cut: each link is a step the owner must take by hand first.
+  if (item.keep) return [...out, `  kept: ${item.keep}`, ...(item.keepLists ?? []).flatMap(([title, names, all]) => listLines(title, names, quoted, all ? Infinity : LISTED))];
   const f = item.facts;
   out.push(f.branch === null ? `  detached at ${short(f.tip)}` : `  branch ${esc(f.branch)} at ${short(f.tip)}`);
   if (f.gone) out.push("  folder gone, only git's record goes");
@@ -650,7 +664,6 @@ export function blockLines(item) {
   out.push(...listLines('changed files, git will refuse', f.changed));
   out.push(...listLines('untracked files, git will refuse', f.untracked));
   out.push(...listLines('ignored, deleted with the folder, with everything inside', f.ignored));
-  out.push(...listLines('ignored links, git leaves them and the folder stays', f.ignoredLinks));
   // Stash refs are git's own stash@{n}, never a name someone chose.
   out.push(...listLines('stash entries made on it, kept: the cleaner never touches stashes', f.stashes, esc));
   if (f.branchKept) out.push(`  branch kept: ${f.branchKept}`);

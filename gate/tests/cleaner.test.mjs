@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { closeSync, existsSync, ftruncateSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
 import { delimiter, isAbsolute, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
-import { clean, esc, findGit, realOf } from '../../claude/tools/cleaner.mjs';
+import { clean, esc, findGit, realOf, walkTree } from '../../claude/tools/cleaner.mjs';
 import { tempDir } from './tree.mjs';
 
 const cp = String.fromCodePoint;
@@ -566,7 +566,8 @@ test('--recoverable keeps, with no tag, a worktree holding ignored files or link
   const r = f.run(['show', '--recoverable'], { spawn: recorded().spawn });
   assert.equal(r.code, 0, r.out);
   assert.equal(block(r.out, 'envwt'), '  kept: holds ignored files, which are not in git\n  ignored files:\n    ".env"\n', r.out);
-  assert.match(block(r.out, 'lnkwt'), /^ {2}kept: holds ignored files, which are not in git\n {2}ignored links:\n {4}"out\/?"\n$/, r.out);
+  // The link is walked first (#454): the ignored link is a link, and the names git lists under a junction are its target's.
+  assert.equal(block(r.out, 'lnkwt'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, r.out);
   assert.equal(block(r.out, 'hidden'), '  kept: hides edits from git\n  files git does not check for edits:\n    "a.txt"\n', r.out);
   assert.match(block(r.out, 'plain'), /^ {2}tag [0-9a-f]{10}$/m, r.out);
   assert.equal(tagsOf(r.out).length, 1, 'only plain is a candidate');
@@ -924,19 +925,97 @@ test('every run keeps, with no tag, a worktree holding a link at any depth or a 
     fileLink = false;
   }
   mkdirSync(join(deep, 'sub', '.GIT'), { recursive: true });
-  mkdirSync(join(f.add('gitonly'), 'vendor', '.git'), { recursive: true });
+  const gitonly = f.add('gitonly');
+  mkdirSync(join(gitonly, 'vendor', '.git'), { recursive: true });
+  // A .git FILE below the root is an entry git does not see either; it names no git folder of ours.
+  mkdirSync(join(gitonly, 'pkg'));
+  writeFileSync(join(gitonly, 'pkg', '.git'), 'gitdir: elsewhere\n');
   f.add('plain');
   for (const flags of [[], ['--recoverable']]) {
     const label = flags.join(' ') || 'default';
-    const r = f.run(['show', ...flags], { spawn: cleanStatus().spawn });
+    const read = [];
+    const readdir = (d, o) => {
+      read.push(resolve(d));
+      return readdirSync(d, o);
+    };
+    const r = f.run(['show', ...flags], { spawn: cleanStatus().spawn, readdir });
     assert.equal(r.code, 0, `${label}: ${r.out}`);
     assert.equal(block(r.out, 'deep'), `  kept: ${LINK_KEEP}\n  links:\n    "a/b/out"\n${fileLink ? '    "flink"\n' : ''}  .git entries:\n    "sub/.GIT"\n`, `${label}: ${r.out}`);
-    assert.equal(block(r.out, 'gitonly'), `  kept: ${GIT_KEEP}\n  .git entries:\n    "vendor/.git"\n`, `${label}: ${r.out}`);
+    assert.equal(block(r.out, 'gitonly'), `  kept: ${GIT_KEEP}\n  .git entries:\n    "pkg/.git"\n    "vendor/.git"\n`, `${label}: ${r.out}`);
     assert.match(block(r.out, 'plain'), /^ {2}tag [0-9a-f]{10}$/m, `${label}: ${r.out}`);
     assert.equal(tagsOf(r.out).length, 1, `${label}: only plain is a candidate`);
     assert.doesNotMatch(r.out, /inner|file\.txt/, `${label}: nothing behind a link is listed`);
+    assert.ok(!read.some(d => d.startsWith(resolve(target))), `${label}: no folder behind a link is read`);
     noPath(f, r.out);
   }
+});
+
+// #454 C2: a symlink the index tracks is a link all the same; the walk never asks git. POSIX only: Windows may check it out as a file.
+test('a worktree that checks out a tracked symlink is kept for it', { skip: process.platform === 'win32' }, t => {
+  const f = makeRepo(t);
+  symlinkSync('a.txt', join(f.root, 'tlink'));
+  f.git(f.root, 'add', 'tlink');
+  f.git(f.root, 'commit', '-q', '-m', 'link');
+  f.add('tracked');
+  const r = f.run(['show'], { spawn: recorded().spawn });
+  assert.equal(block(r.out, 'tracked'), `  kept: ${LINK_KEEP}\n  links:\n    "tlink"\n`, r.out);
+});
+
+// #454 C8: on Windows git's status reads through a junction, so the names under a link are its target's, outside the worktree.
+test('names git lists under a link are never printed, in a block kept for the link or for changed files', t => {
+  const f = makeRepo(t);
+  const target = tempDir(t, 'pact-cleaner-target-');
+  writeFileSync(join(target, 'TARGETFILE.txt'), 'x');
+  writeFileSync(join(target, '.env'), 'SECRET CONTENT\n');
+  const w = f.add('under');
+  mkdirSync(join(w, 'x'));
+  symlinkSync(target, join(w, 'x', 'j'), linkKind);
+  writeFileSync(join(w, 'own.txt'), 'x');
+  // What git would name: the worktree's own file, and the target's files as seen through the link.
+  const status = recording((file, args) => (args.includes('status') ? { status: 0, stdout: '?? own.txt\0?? x/j/TARGETFILE.txt\0!! x/j/.env\0!! x/j/\0', stderr: '' } : realGitOld && args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.45.0\n', stderr: '' } : null));
+  for (const flags of [[], ['--recoverable']]) {
+    const label = flags.join(' ') || 'default';
+    const r = f.run(['show', ...flags], { spawn: status.spawn });
+    assert.equal(block(r.out, 'under'), `  kept: ${flags.length ? 'holds changed or untracked files' : LINK_KEEP}\n  links:\n    "x/j"\n  untracked files:\n    "own.txt"\n`, `${label}: ${r.out}`);
+    assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET/, `${label}: ${r.out}`);
+  }
+});
+
+// #454 C4, C7: a gitlink at a path whose .git is no repository does not hide that .git from the keep; the cleaner's own read of the index failing keeps one worktree.
+test('a staged gitlink over a .git folder that is no repository still keeps its worktree; a failing index read keeps that worktree alone', t => {
+  const f = makeRepo(t);
+  const w = f.add('fake');
+  mkdirSync(join(w, 'sub', '.git'), { recursive: true });
+  writeFileSync(join(w, 'sub', '.git', 'note.txt'), 'UNTRACKED CONTENT\n');
+  const head = f.git(w, 'rev-parse', 'HEAD');
+  f.git(w, 'update-index', '--add', '--cacheinfo', `160000,${head},sub`);
+  f.add('good');
+  f.add('bad');
+  const r = f.run(['show'], { spawn: cleanStatus().spawn });
+  assert.equal(block(r.out, 'fake'), `  kept: ${GIT_KEEP}\n  .git entries:\n    "sub/.git"\n`, r.out);
+
+  mkdirSync(join(f.wt('bad'), 'v', '.git'), { recursive: true });
+  const failing = recording((file, args) => (args.includes('ls-files') && resolve(args[args.indexOf('-C') + 1]) === resolve(f.wt('bad')) ?{ status: 1, stdout: '', stderr: 'nope' } : args.includes('status') ? { status: 0, stdout: '', stderr: '' } : realGitOld && args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.45.0\n', stderr: '' } : null));
+  const g = f.run(['show'], { spawn: failing.spawn });
+  assert.equal(g.code, 0, g.out);
+  assert.equal(block(g.out, 'bad'), '  kept: a read failed, so it is kept\n', g.out);
+  assert.match(block(g.out, 'good'), /^ {2}tag [0-9a-f]{10}$/m, g.out);
+});
+
+// #454 C3: a link beyond Node's flag: a folder whose real path differs from where the walk found it.
+test('the walk treats a folder whose real path differs as a link and does not enter it', t => {
+  const f = makeRepo(t);
+  const w = f.add('odd');
+  mkdirSync(join(w, 'x', 'y'), { recursive: true });
+  const seen = [];
+  const real = p => (resolve(p) === resolve(w, 'x', 'y') ? join(tempDir(t, 'pact-cleaner-elsewhere-'), 'y') : realpathSync.native(p));
+  const readdir = (d, o) => {
+    seen.push(resolve(d));
+    return readdirSync(d, o);
+  };
+  const { links } = walkTree(w, readdir, real, process.platform);
+  assert.deepEqual(links, ['x/y']);
+  assert.ok(!seen.includes(resolve(w, 'x', 'y')), 'that folder is not read');
 });
 
 // #454 C1: the block of a kept worktree names what a removal by hand would lose; remove leaves one that gained a link after show.
@@ -990,6 +1069,7 @@ test('a record git calls prunable over a folder still there is walked, so a link
   const f = makeRepo(t);
   const w = f.add('orphan');
   rmSync(join(w, '.git'), { force: true });
+  assert.match(f.git(f.root, 'worktree', 'list', '--porcelain'), /prunable/, 'git calls the record prunable, so this reaches the branch it names');
   symlinkSync(tempDir(t, 'pact-cleaner-target-'), join(w, 'out'), linkKind);
   const r = f.run(['show']);
   assert.equal(r.code, 0, r.out);
@@ -997,17 +1077,22 @@ test('a record git calls prunable over a folder still there is walked, so a link
 });
 
 // #454 C1, on the platform where the bug is: real git lists nothing for an ignored junction to an empty folder.
-test('on Windows an ignored junction to an empty folder keeps its worktree in both modes, and what it points to is untouched', { skip: process.platform !== 'win32' }, t => {
+test('on Windows an ignored junction to an empty folder keeps its worktree in both modes, and the files behind a junction are never named', { skip: process.platform !== 'win32' }, t => {
   const f = makeRepo(t);
   writeFileSync(join(f.root, '.git', 'info', 'exclude'), 'out\n');
   const w = f.add('empty');
-  const target = tempDir(t, 'pact-cleaner-empty-');
-  symlinkSync(target, join(w, 'out'), 'junction');
+  symlinkSync(tempDir(t, 'pact-cleaner-empty-'), join(w, 'out'), 'junction');
+  const full = tempDir(t, 'pact-cleaner-full-');
+  writeFileSync(join(full, 'TARGETFILE.txt'), 'x');
+  writeFileSync(join(full, '.env'), 'SECRET CONTENT\n');
+  mkdirSync(join(f.add('nested'), 'x'));
+  symlinkSync(full, join(f.wt('nested'), 'x', 'j'), 'junction');
   for (const flags of [[], ['--recoverable']]) {
     const label = flags.join(' ') || 'default';
     const r = f.run(['show', ...flags], { spawn: recorded().spawn });
     assert.equal(block(r.out, 'empty'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, `${label}: ${r.out}`);
+    assert.match(block(r.out, 'nested'), new RegExp(`^ {2}kept: (?:${LINK_KEEP}|holds changed or untracked files)\\n {2}links:\\n {4}"x/j"\\n`), `${label}: ${r.out}`);
     assert.equal(tagsOf(r.out).length, 0, `${label}: no tag`);
+    assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET/, `${label}: ${r.out}`);
   }
-  assert.ok(existsSync(w) && existsSync(target));
 });
