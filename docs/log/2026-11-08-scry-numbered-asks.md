@@ -15,6 +15,8 @@ The reply rule is the security-sensitive part, since a short numbered yes now st
 
 A plain merge stays inside "Yes, 1 to N", on the described head commit. A merge whose change touches hooks, settings or root-run setup needs its own yes, outside the range. Both were the lead's picks under its standing goal (decisions 302 and 317), not the owner's in chat, and the security pair asked for the owner to see both sides. The sensitive-route flag is also still open for the owner: the route was declined by the lead's decision, and the change matches the list through "authorization".
 
+The spec named before-and-after sample runs of a no-tools session as the evidence for the answer shape and the reply rules. One baseline run of the old text was made and failed the numbering; the rest were blocked by the auto-mode classifier and then dropped on the owner's word ("skip the runs", relayed by the lead, decision 324). So the by-number reply claims rest on that one baseline run, on the existing tests that check the command files' form, and on the lenses; no test reads what the text says, and none was added.
+
 The Brigade pane's to-do wording lives in grimoire's `head-chef` skill and is filed as mephistopheles4/grimoire#556. Until it lands, `/scry` and the pane differ.
 
 The builder page's `scry` blurb is written in the page itself, so it was edited there; the rebuild refreshed the embedded copy of both command files. The default configuration and the cloud scripts carry neither command and regenerated with no change. No gate code changed and no gate test was added.
