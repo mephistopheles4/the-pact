@@ -19,6 +19,7 @@ The `gate` workflow has two jobs (#351, T1 of #348). `gate` runs on `ubuntu-24.0
 ## Required on main
 
 - **Two required checks,** `gate` and `gate-windows`, both with GitHub Actions as their expected source, and only `gate.yml` may define either name. The owner adds `gate-windows` to main's ruleset after its first green run on `main`; only the owner edits the ruleset. Until a read of the ruleset shows it, the threat model doesn't call `gate-windows` required; a follow-up docs PR records that read.
+- **2026-11-08, the read (#474):** a read of main's ruleset lists `gate` and `gate-windows` as required checks, each with GitHub Actions (integration 15368) as its source and with no bypass actors. The head chef's session added `gate-windows` through the API, under the owner's account, on the owner's approval in chat. By the owner's choice the threat model names neither check, so this ADR and the log hold the read.
 - **Rollback:** first the owner removes `gate-windows` from the ruleset's required checks, then the revert merges. In the other order the revert can't merge, since it deletes the job and the required check never reports, and the ruleset has no bypass.
 
 ## Test evidence and the push before Test
