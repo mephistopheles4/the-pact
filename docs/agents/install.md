@@ -109,7 +109,7 @@ how every session in every repo behaves. So:
   copy always sets 400000 and has no Off: `cloud-sessions/tpl-config-tail.sh`
   runs the same keyed merge with jq. Hand-offs in `pact/handoff/` are never
   deleted by the pact.
-- **The session stop switch (#439, ADR 0147).** `session-stop-deny` is
+- **The session stop switch (#439, ADR 0148).** `session-stop-deny` is
   `true` or `false`, `false` when unset, and no project may set it (a project
   configuration that names it is refused). It has no part in the rules file;
   only the notice line names it, `session-stop-deny on` or `off`, and the

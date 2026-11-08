@@ -534,7 +534,7 @@ session.
 
 ## The session stop switch
 
-`session-stop-deny` in `~/.claude/pact/config.json` (#439, ADR 0147) is
+`session-stop-deny` in `~/.claude/pact/config.json` (#439, ADR 0148) is
 `true` or `false`, `false` when unset, and the builder's Settings dialog shows
 it as Session stop. A project configuration may not set it, and a project
 install never adds its rules. It has no part in the rules file; only the
