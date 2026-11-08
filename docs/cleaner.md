@@ -21,8 +21,7 @@ In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`.
   `.`, `_` and `-`, not starting with `.` or `-`.
 - `show` names back each linked worktree directly under
   `<main>/.claude/worktrees/`: its branch and tip; its changed, untracked and
-  ignored files (20 names each, then a count), with ignored links named apart,
-  since git leaves them and the folder; a lock; a folder already gone;
+  ignored files (20 names each, then a count); a lock; a folder already gone;
   the stash entries made on its branch, by ref. Each block ends with a tag.
 - `remove --yes` takes the tags `show` printed. It reads everything again and
   removes a worktree only when its fresh tag is among them, then deletes its
@@ -56,6 +55,31 @@ the name-back, and run `remove` only after your own yes to it in chat.
   the cleaner's own words.
 - **The default branch:** `origin/HEAD`'s target, or `main` and `master` when
   that is not known. Its worktree goes; the branch stays.
+- **A link anywhere inside, in every run** (#454): "holds a link: remove the
+  link itself first, never with a recursive delete, then the folder by hand".
+  Git lists no folder link to an empty folder, so the cleaner walks a folder
+  that is still there itself and never enters a link; a symlink or junction as
+  Node reports it counts, a file link and a link git tracks included, and so
+  does a record git calls prunable over a folder still there, and so does a
+  folder whose real path differs from where the walk found it. The block names
+  every link, never cut at 20, then the changed, untracked and ignored files a
+  removal by hand would also lose (as git reports them; `show --recoverable`
+  pins the settings that could hide one), 20 names each and a count. On
+  Windows git reads through a junction, so a name it lists under a link is the
+  target's and is never printed. Remove the links themselves first, never with
+  a recursive delete that could follow one; for a folder full of them, such as
+  an install from a package manager, use that package manager's own removal
+  command. A link made between the cleaner's read and git's removal is not
+  seen.
+- **A `.git` entry below its root, in every run** (#454): "holds a .git entry
+  below its root, which git does not see". A file or folder named `.git` in any
+  letter case that is not a populated submodule's `.git`: a gitlink in the
+  index with a `.git` file naming its git folder, or a git folder holding
+  `HEAD`, `objects` and `refs`, which git sees and refuses. Listed under ".git entries". Each one is a
+  repository or a stray folder whose history and files go with the folder if it
+  is removed by hand.
+- **A walk that fails** keeps that worktree alone, in either mode: "a read
+  failed, so it is kept".
 
 A kept worktree has no tag, so `remove` can't take it.
 
@@ -67,7 +91,7 @@ these. Its block gives the reason and lists the names (20, then a count):
 - **Changed or untracked files**: "holds changed or untracked files". git
   refuses these too, but its own check can trust a cache in the worktree's
   index, which a session can write.
-- **Ignored files or ignored links**, such as `.env`, which are not in git:
+- **Ignored files**, such as `.env`, which are not in git:
   "holds ignored files, which are not in git".
 - **A program a session could have set**: a `filter.`, `lfs.` or `hook.` key
   of `local` or `worktree` scope in the worktree's config or the main
@@ -104,7 +128,15 @@ Every git call then also carries `GIT_NO_LAZY_FETCH=1`,
 or an edit, from the cleaner or from git's own check. The flag needs git
 2.45 or later; below it, the run is unavailable.
 
-What "recoverable" can't see: it trusts the local remote-tracking refs, so a
+The walk for links and `.git` entries runs before these keeps, so a block kept
+for changed or ignored files also names the links and `.git` entries, and a
+name git lists under a link, such as a junction in an installed `node_modules`
+on Windows, is left out.
+
+What "recoverable" can't see: a link or `.git` entry made after the cleaner's
+read and before git's removal, and whether git's removal walks into a junction,
+which is unconfirmed on Windows (a junction to an empty folder, which git lists
+nothing for, is now kept by the cleaner's own walk in every run); it trusts the local remote-tracking refs, so a
 stale ref, or one a session wrote, can make unpushed commits read as pushed;
 a commit reachable only through a reflog or a per-worktree ref goes with
 the worktree; and index stat data a session forged, or `core.ignoreCase` on
@@ -175,8 +207,8 @@ child process, so the cleaner itself is not denied.
 
 - **"the folder stays: remove it by hand"**: git dropped its record but the
   folder is still there. If the report adds "it is a link" or "it holds a
-  link", remove the link first, so nothing outside the worktree is deleted
-  through it.
+  link", remove the link itself first, never with a recursive delete, so
+  nothing outside the worktree is deleted through it.
 - **"the branch stays"**: git refused `branch -d`, usually because the branch
   is not merged into HEAD. This happens to a branch whose commits are on
   another branch or a remote but not merged: the name-back offers its
