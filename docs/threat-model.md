@@ -136,5 +136,5 @@ Each box is a boundary a class crosses; the arrows say who reaches it.
 
 - **#180:** no setting yet for trusted accounts on a team repo.
 - **#419:** the poster's edit checks read the source text, not GitHub's rendered page.
-- **#442:** the cleaner follows link chains before resolving a path.
+- **#519:** the cleaner resolves a mapped drive letter and other automount roots, and probes swapped-in worktree folders.
 - **#449:** this repo's own rules on secrets and personal details.

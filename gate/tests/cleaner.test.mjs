@@ -5,7 +5,7 @@
 // or stand in for it.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { closeSync, existsSync, ftruncateSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
+import { closeSync, existsSync, ftruncateSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { test } from 'node:test';
 // #442: the new exports are reached through the namespace, so this file still loads on the base.
@@ -528,6 +528,57 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
     assert.equal(r.lines.at(-1), 'RESULT: unavailable');
     noPath(f, r.out);
   });
+
+  // #442 Q3: only on CI's gate-windows, never on the owner's host: an lstat on a junction whose target is a network path in NT form.
+  if (process.platform === 'win32' && process.env.CI) {
+    await t.test('C15: lstat on a junction set to \\??\\UNC\\nohost.invalid fails as reparse data, or succeeds, never as a network or name lookup', st => {
+      const dir = tempDir(st, 'pact-cleaner-junction-');
+      const junction = join(dir, 'j');
+      mkdirSync(junction);
+      // Node's 'junction' rewrites its target to a local path, so the reparse point is set by a DeviceIoControl call.
+      const script = join(dir, 'set.ps1');
+      writeFileSync(script, [
+        'param($Dir, $Target)',
+        'Add-Type -TypeDefinition @"',
+        'using System; using System.IO; using System.Runtime.InteropServices; using System.Text; using Microsoft.Win32.SafeHandles;',
+        'public static class Rp {',
+        '  [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)]',
+        '  static extern SafeFileHandle CreateFile(string n, uint access, uint share, IntPtr sa, uint disp, uint flags, IntPtr t);',
+        '  [DllImport("kernel32.dll", SetLastError=true)]',
+        '  static extern bool DeviceIoControl(SafeFileHandle h, uint code, byte[] inb, int inLen, IntPtr outb, int outLen, out int ret, IntPtr ov);',
+        '  public static void Set(string dir, string target) {',
+        '    using (var h = CreateFile(dir, 0x40000000, 7, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero)) {',
+        '      if (h.IsInvalid) throw new IOException("open " + Marshal.GetLastWin32Error());',
+        '      byte[] sub = Encoding.Unicode.GetBytes(target);',
+        '      int pathLen = sub.Length + 4;',
+        '      var buf = new byte[16 + pathLen];',
+        '      BitConverter.GetBytes(0xA0000003u).CopyTo(buf, 0);',
+        '      BitConverter.GetBytes((ushort)(8 + pathLen)).CopyTo(buf, 4);',
+        '      BitConverter.GetBytes((ushort)sub.Length).CopyTo(buf, 10);',
+        '      BitConverter.GetBytes((ushort)(sub.Length + 2)).CopyTo(buf, 12);',
+        '      sub.CopyTo(buf, 16);',
+        '      int ret;',
+        '      if (!DeviceIoControl(h, 0x000900A4, buf, buf.Length, IntPtr.Zero, 0, out ret, IntPtr.Zero)) throw new IOException("set " + Marshal.GetLastWin32Error());',
+        '    }',
+        '  }',
+        '}',
+        '"@',
+        '[Rp]::Set($Dir, $Target)',
+        '',
+      ].join('\n'));
+      const r = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-File', script, junction, '\\??\\UNC\\nohost.invalid\\s'], { encoding: 'utf8' });
+      assert.equal(r.status, 0, `the junction was not set: ${r.stdout}${r.stderr}`);
+      let outcome = 'lstat succeeded';
+      try {
+        assert.ok(lstatSync(junction).isSymbolicLink(), 'lstat read a junction as a plain folder');
+      } catch (e) {
+        if (e.code === 'ERR_ASSERTION') throw e;
+        outcome = `lstat failed with ${e.code} (errno ${e.errno})`;
+        assert.doesNotMatch(String(e.code), /^(?:ENOENT|ENOTFOUND|EHOSTUNREACH|ENETUNREACH|ENETDOWN|ETIMEDOUT|ECONNREFUSED|EAI_\w+)$/, outcome);
+      }
+      st.diagnostic(`C15: ${outcome}`);
+    });
+  }
 });
 
 // #438 C4
