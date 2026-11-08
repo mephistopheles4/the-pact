@@ -620,7 +620,9 @@ or a quality row with `enough` or `enoughCosts` (`project-qualities`).
 It does not refuse a Qualities block with an Enough column: it installs that
 text as written, and the column then names costs no part defines, which an
 older lens reads with no one rule and no security bar. Remove the column, the
-edit, the project keys and those builder-file fields first. Its install
+edit, the project keys and those builder-file fields first. A pact from before #501
+also refuses `"usage-pause": false` (`config-value`), so set a number, or take the
+key out, first. Its install
 deletes `commands/scriptorium.md` and the builder kit, which its payload
 lacks; a configuration that lists `scriptorium` in `commands` refuses there.
 

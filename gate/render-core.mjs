@@ -492,7 +492,7 @@ function resolveEnoughCosts(qualities, costLimits, fail) {
   return ok;
 }
 
-// #501: a setting's off value of false is reported as the word off; a number stays a number, so auto-compact-window 0 prints as today.
+// #501: a setting's off value of false is reported as the word off; a number stays a number, so auto-compact-window 0 prints as 0.
 const valueText = v => (v === false ? 'off' : v);
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.

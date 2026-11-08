@@ -1614,7 +1614,6 @@ test('an opened file whose name holds an invisible, direction-changing or contro
 
 // #501 C6: the weekly limit takes Off; it saves as an explicit false, and the summary and the checks agree.
 test('the weekly limit off saves "usage-pause": false, passes the checks, and the default still saves nothing', () => {
-  assert.equal(L.PACT.setting.off, false);
   const s = L.initialState();
   assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined);
   s.usage = false;
@@ -1624,4 +1623,23 @@ test('the weekly limit off saves "usage-pause": false, passes the checks, and th
     s.usage = bad;
     assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'usage-pause'), String(bad));
   }
+});
+
+// #501 C6: the Weekly limit row's chip turns the limit off and back on.
+test('stub page: the Weekly limit chip turns it Off (inputs disabled, summary Off, export false) and On restores 75', () => {
+  const P = bootPage();
+  openSettings(P);
+  const chips = () => P.find(P.ids.settings, n => n.tag === 'button' && (n.text === 'On' || n.text === 'Off'));
+  const inputs = () => P.find(P.ids.settings, n => n.tag === 'input' && n.attrs['aria-label'] === 'Weekly limit, percent');
+  const summary = () => Object.values(P.ids).some(root => P.find(root, n => n.text === 'Usage pause Off').length > 0);
+  assert.equal(chips()[1].text, 'On', 'the Weekly limit chip is the second, after the session limit');
+  chips()[1].click();
+  assert.equal(chips()[1].text, 'Off');
+  assert.ok(inputs().length === 2 && inputs().every(n => n.disabled), 'slider and number disabled');
+  assert.ok(summary());
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /"usage-pause": false/);
+  chips()[1].click();
+  assert.equal(chips()[1].text, 'On');
+  assert.ok(inputs().every(n => !n.disabled && n.value === '75'), 'On restores 75');
 });

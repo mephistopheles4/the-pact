@@ -124,7 +124,7 @@ function listFrom(src, name, file = 'gate/render-core.mjs') {
   return [...m[1].matchAll(/'([^']*)'/g)].map(x => x[1]);
 }
 
-/** The usage-pause setting's range and default, read from gate/render-core.mjs's text. */
+/** The usage-pause setting's range, default and off value (false, #501), read from gate/render-core.mjs's text. */
 function settingFrom(renderSrc) {
   const m = /\['usage-pause', Object\.freeze\(\{ mark: 'usage-pause', min: (\d+), max: (\d+), def: (\d+), off: false,/.exec(renderSrc);
   if (!m) fail('gate/render-core.mjs no longer declares the usage-pause setting in the expected form');

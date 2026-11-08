@@ -47,5 +47,5 @@ This file is never installed.
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. |
 | A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. |
-| Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. With the weekly limit off (#501), "its line" binds to the session line if one is set and to nothing if not; the session line's "also" and "carry on under the weekly rule" then mean give the session figure with no weekly pause; "the call to cut or stop work over usage is mine" is gone while it is off; and with it off a project's line holds alone, since the user's value names no line. |
+| Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. With the weekly limit off (#501), "its line" binds to the session line if one is set, and to nothing if not (see [ADR 0142](adr/0142-the-weekly-usage-limit-can-be-off.md)). |
 | Usage | A pause on weekly usage. The harness has no such pause. |

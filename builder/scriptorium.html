@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-MC9wM0RdE90LIscMOmcGCikDoay9xjIP8lJBsOxrFpU='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8aEOcJnf0L3nmho5JrxKJrt66pzV3Z27G1tJrEVZ0OE='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -5427,7 +5427,7 @@ function boot() {
         { class: 'av-tool-bar av-tool-bar--stack' },
         el('h3', { class: 'section-title', text: 'Usage limits' }),
         limit('5-hour session limit', state.session, ss.min, ss.max, 80, v => (state.session = v), v => (state.session = v)),
-        el('p', { class: 'av-annot', text: `Off by default: no session line. On, Claude also gives the session figure before anything expensive and waits above this line; a session that can't see the figure says so and carries on under the weekly rule. Allowed ${ss.min} to ${ss.max}.` }),
+        el('p', { class: 'av-annot', text: `Off by default: no session line. On, Claude also gives the session figure before anything expensive and waits above this line; a session that can't see the figure says so and carries on under the weekly rule, or with no weekly pause while the weekly limit is off. Allowed ${ss.min} to ${ss.max}.` }),
         limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v), v => (state.usage = v), '%', 1, s.off),
         el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}. Off: no weekly line at all, and no weekly figure.` }),
         limit('Auto-compact window', state.compact, cw.min, cw.max, cw.def, v => (state.compact = v), v => (state.compact = v), 'tokens', cw.step, cw.off),

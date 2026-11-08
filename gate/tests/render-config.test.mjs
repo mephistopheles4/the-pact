@@ -544,9 +544,9 @@ test('the configuration file is opened once and read once, and a large file is r
   const got = big.seen.filter(l => l.startsWith('read ')).reduce((n, l) => n + Number(l.split(' ')[2]), 0);
   assert.ok(got <= 64 * 1024 + 1, `read ${got} bytes of a 1 MiB file`);
 });
-// #501: the weekly limit takes an explicit false as off; the usage part renders empty.
 const USAGE_LINES = '- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, wait for my\n  go-ahead. The call to cut or stop work over usage is mine.\n';
 
+// #501 C1: the weekly limit takes an explicit false as off; the usage part renders empty.
 test('"usage-pause": false renders the usage part empty, and the notice says off', t => {
   const bytes = Buffer.from('{"schema": 1, "settings": {"usage-pause": false}}\n');
   const r = render(t, homeWith(t, bytes));
@@ -561,15 +561,16 @@ test('"usage-pause": false renders the usage part empty, and the notice says off
   assert.ok(!text.includes('Before anything expensive, check my weekly usage'));
 });
 
+// #501 C2
 test('an auto-compact window of 0 still prints as a number, and the rules keep their bytes', t => {
   const bytes = Buffer.from('{"schema": 1, "settings": {"auto-compact-window": 0}}\n');
   const r = render(t, homeWith(t, bytes));
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^VALUE auto-compact-window 0$/m, r.out);
-  assert.ok(r.bytes.toString('utf8').includes('Values set: auto-compact-window 0.'));
-  assert.ok(r.bytes.toString('utf8').includes(USAGE_LINES));
+  assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', 'auto-compact-window 0'));
 });
 
+// config-value
 test('bad case: the session limit takes no false', t => {
   refusedWith(render(t, homeWith(t, Buffer.from('{"schema": 1, "settings": {"usage-pause-session": false}}\n'))), 'config-value', /usage-pause-session must be a whole number from 0 to 100/);
 });

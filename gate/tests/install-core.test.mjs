@@ -405,6 +405,7 @@ test('the renderer lines: a usage-pause-session value parses beside the weekly o
   assert.deepEqual([...proj.values], [['usage-pause-session', '70']]);
 });
 
+// #501 C5
 test('the renderer lines: a home render takes usage-pause off, and the dry run says so once', () => {
   const home = core.parseRenderLines(renderBase().in.replace('VALUE usage-pause 90', 'VALUE usage-pause off').split('\n'), { project: false, hash: sha256 });
   assert.deepEqual([...home.values], [['usage-pause', 'off']]);
