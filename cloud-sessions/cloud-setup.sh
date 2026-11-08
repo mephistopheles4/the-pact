@@ -1150,7 +1150,8 @@ lenses to offer, and when.
   and Cost limits rows, and the project's "Review rules" section, if it has
   one.
 - **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
-  another lens's report.
+  another lens's report. Launch it as a plain subagent, never as a named
+  teammate, so it gets no messaging or task tool beyond its own tool list.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
 
@@ -1492,7 +1493,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
-check_hash 13c225ca3f8c6055bd187af825697f7edc7cd5c557b7dba84a22ac6a902ac7bd 'pact/review.md'
+check_hash 48286d3c9b6571d050fa9c3b8d6022d2679a54ca63f1360e9a96bf5d6f70acb7 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1522,7 +1523,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy bfadc19e40aa"
+  echo "pact cloud copy c2bde92986ba"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
