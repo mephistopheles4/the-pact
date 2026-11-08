@@ -1,6 +1,6 @@
 # A standing goal keeps going on judgment
 
-Amended by [0145](0145-a-standing-goal-reaches-the-sessions-its-holder-starts.md) (2026-11-08): the goal reaches the sessions its holder starts for it, and the owner's words narrow it.
+Amended by [0146](0146-a-standing-goal-reaches-the-sessions-its-holder-starts.md) (2026-11-08): the goal reaches the sessions its holder starts for it, and the owner's words narrow it.
 
 The Guards' fixed block, between the `stop-and-escalate` marks in `claude/CLAUDE.md`, now carries two bullets in place of ADR 0125's four (#475):
 
