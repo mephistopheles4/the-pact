@@ -137,7 +137,7 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   installed(repo, h);
   assert.deepEqual(record().cleanerDeny, added, 'a second install keeps the record');
 
-  // A rule outside the sixteen that the record lists stays.
+  // A rule outside the fixed eighteen that the record lists stays.
   const r = record();
   r.cleanerDeny.push(FOREIGN);
   writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
@@ -158,4 +158,24 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   writeFileSync(join(fresh, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...CLEANER_DENY] } })}\n`);
   installed(repo, fresh);
   assert.deepEqual(JSON.parse(readFileSync(join(fresh, 'settings.json'), 'utf8')).permissions.deny, [...CLEANER_DENY].sort());
+});
+
+// #439 C4: a record from before `claude rm` joined the list, holding the sixteen git rules, gets the two added.
+test('a sixteen-rule cleaner record gets the two claude rm rules on the next install', t => {
+  const repo = makeRepo(t);
+  const h = homeWith(t, ['cleaner']);
+  const RM = ['Bash(claude rm *)', 'PowerShell(claude rm *)'];
+  const sixteen = CLEANER_DENY.filter(r => !RM.includes(r));
+  assert.equal(sixteen.length, 16);
+  installed(repo, h);
+  const rec = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...rec, cleanerDeny: sixteen }, null, 2)}\n`);
+  writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: sixteen } })}\n`);
+  const dry = install(repo, h);
+  passed(dry);
+  for (const r of RM) assert.ok(dry.stdout.includes(`  + permissions.deny: ${r}`), r);
+  assert.equal(dry.stdout.split('\n').filter(l => l.includes('+ permissions.deny:')).length, 2, 'only the two are added');
+  installed(repo, h);
+  assert.deepEqual(JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny, [...CLEANER_DENY].sort());
+  assert.deepEqual([...JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).cleanerDeny].sort(), [...CLEANER_DENY].sort(), 'the record holds all eighteen');
 });

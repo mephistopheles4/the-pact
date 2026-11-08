@@ -41,7 +41,7 @@ const TOOL_WARNS = Object.freeze({
 // the cleaner is on. The install adds the ones not already there and records
 // those under cleanerDeny; turning the cleaner off removes only rules both
 // recorded and on this list, so an identical rule the owner wrote stays.
-const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *'];
+const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *', 'claude rm *'];
 export const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The builder kit (#203 S6; #262), the install's own copy of seam A's list in
 // gate/shared.mjs: installed under pact/builder/ in the repo's own layout

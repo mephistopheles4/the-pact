@@ -227,10 +227,14 @@ test('with the cleaner on, the rules file holds its part after the poster\'s; of
 });
 
 // #438 C13: the fixed list, pinned.
-test('the cleaner\'s deny rules are the sixteen fixed rules', () => {
-  const p = ['worktree remove *', '* worktree remove *', 'branch -d *', '* branch -d *', 'branch -D *', '* branch -D *', 'branch --delete *', '* branch --delete *'].map(x => `git ${x}`);
+test('the cleaner\'s deny rules are the eighteen fixed rules', () => {
+  // #439 S1.1: `claude rm *` joins the sixteen git rules, last in each shell's run.
+  const p = [...['worktree remove *', '* worktree remove *', 'branch -d *', '* branch -d *', 'branch -D *', '* branch -D *', 'branch --delete *', '* branch --delete *'].map(x => `git ${x}`), 'claude rm *'];
   assert.deepEqual([...CLEANER_DENY], [...p.map(x => `Bash(${x})`), ...p.map(x => `PowerShell(${x})`)]);
   assert.ok(Object.isFrozen(CLEANER_DENY));
+  assert.equal(CLEANER_DENY.length, 18);
+  assert.equal(CLEANER_DENY[8], 'Bash(claude rm *)', 'the ninth rule');
+  assert.equal(CLEANER_DENY[17], 'PowerShell(claude rm *)', 'the eighteenth rule');
   // #464 T8: the copy the page shows is this one.
   assert.deepEqual([...SHARED_DENY], [...CLEANER_DENY]);
   assert.ok(Object.isFrozen(SHARED_DENY));

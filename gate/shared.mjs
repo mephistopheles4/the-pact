@@ -24,7 +24,7 @@ const PACT_TOOLS = Object.freeze(['poster', 'cleaner']);
 // The cleaner's deny rules (#438 S2.3), for the builder page to show (#464 T8).
 // The install keeps its own copy (install-core.mjs), which it acts on, held to
 // this one by a test.
-const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *'];
+const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *', 'claude rm *'];
 const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The builder kit (#203 S6; #262): what the builder reads, installed under
 // pact/builder/ in the repo's own layout whenever /scriptorium installs. Seam
