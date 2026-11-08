@@ -115,19 +115,21 @@ const STYLE_RE = /<style>([\s\S]*?)<\/style\s*>/i;
 /**
  * The aviation design system's code the page carries inline (#427), held here
  * in reviewed code rather than in a vendored copy:
- * - commit: the short commit of mephistopheles4/aviation-design-system the two dist files come from;
+ * - full, commit: the full commit of mephistopheles4/aviation-design-system the two dist files come from, and its short form the marks name;
  * - bundle, behaviours: the sha256 (base64) of dist/aviation.bundle.css and dist/aviation.behaviours.js, as pinned between their marks;
  * - prepaint: the pre-paint snippet's text between its script tags, as the policy hashes it;
  * - urls: for each pinned block, the URL-shaped text the page checks may find in it, with its count.
  * A re-pin changes every constant here and takes the security pair on the upstream diff.
  */
+const AVIATION_FULL_COMMIT = '30685ccdac9be0388d7364959f9e8d0ae44220dc';
 export const AVIATION_PIN = Object.freeze({
-  commit: '30685cc',
+  full: AVIATION_FULL_COMMIT,
+  commit: AVIATION_FULL_COMMIT.slice(0, 7),
   bundle: 'k/HfSejIXA7d3gQrrVmyB8ckE7/jaQUHFqB18pllUvg=',
   behaviours: 'NUy+lgcPSQoUWgSOvrWdmoTVk9lQ+vu81zNdCWLit/4=',
   prepaint: "try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}",
   urls: Object.freeze({
-    bundle: Object.freeze([['http://www.w3.org/2000/svg', 3], ['url(', 4]]),
+    bundle: Object.freeze([['http://www.w3.org/2000/svg', 3], ['url("data:', 3], ['url(data:', 1]]),
     behaviours: Object.freeze([['file://', 1]]),
   }),
 });

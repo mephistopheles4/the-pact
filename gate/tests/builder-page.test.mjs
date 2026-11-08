@@ -57,11 +57,14 @@ function blockOf(text, name, whole, pin = AVIATION_PIN) {
   const i = text.indexOf(begin);
   const j = text.indexOf(end);
   if (j < i + begin.length || text.slice(0, i).trim() || (whole && text.slice(j + end.length).trim())) return null;
-  return text.slice(i + begin.length, j);
+  const block = text.slice(i + begin.length, j);
+  // Text the HTML parser would read as the end of its element, or as a comment, is not inert code.
+  if (/<\/(?:script|style)(?=[\s/>])|<!--/i.test(block)) return null;
+  return block;
 }
 
-/** Every URL-shaped match in `text` (a scheme URL, a CSS url( or @import), and every protocol-relative start, counted. */
-const URL_MATCH_RE = /[a-z][a-z0-9+.-]*:\/\/[^\s"'`)]*|\burl\s*\(|@import\b|["'`(=]\s*\/\/[^/\s]/gi;
+/** Every URL-shaped match in `text` (a scheme URL, a CSS url( with its quote and any data:, or @import), and every protocol-relative start, counted. */
+const URL_MATCH_RE = /[a-z][a-z0-9+.-]*:\/\/[^\s"'`)]*|\burl\s*\(\s*["']?(?:data:)?|@import\b|["'`(=]\s*\/\/[^/\s]/gi;
 const urlCounts = text => {
   const seen = new Map();
   for (const m of text.matchAll(URL_MATCH_RE)) seen.set(m[0], (seen.get(m[0]) ?? 0) + 1);
@@ -115,6 +118,8 @@ function pageProblems(html, pin = AVIATION_PIN) {
   if (/<[a-z][^>]*\s(?:on[a-z]+|style)\s*=/i.test(markup)) found.add('inline-attr');
 
   // One policy meta tag, right after the charset, before any script or style.
+  // The browser applies every http-equiv meta: a second one written so the policy pattern misses it would stand beside the strict one.
+  if ((html.match(/http-equiv/gi) ?? []).length !== 1) found.add('csp-decoy');
   if (metas.length !== 1) found.add('csp-missing');
   else {
     const at = html.indexOf(metas[0][0]);
@@ -166,7 +171,6 @@ const BAD_PAGES = [
   ['an innerHTML write', () => inScript("document.body.innerHTML = '';"), 'innerHTML'],
   ['another HTML-writing call', () => inScript("document.body.insertAdjacentHTML('beforeend', '');"), 'html-sink'],
   ['a network API', () => inScript('const x = new XMLHttpRequest();'), 'network-api'],
-  ['a fourth script', () => PAGE.replace('</body>', '<script>1</script>\n</body>'), 'scripts'],
   ['a script with an attribute beside the pinned code', () => PAGE.replace(`<script>\n${BEGIN('behaviours')}`, `<script type="text/javascript">\n${BEGIN('behaviours')}`), 'scripts'],
   ['a policy that leaves one script hash out', () => withPolicy(PAGE, c => c.replace(/(script-src )'sha256-[^']*' /, '$1')), 'script-hash'],
   ['a policy that lists a fourth script hash', () => withPolicy(PAGE, c => c.replace(/(script-src [^;]*)/, `$1 'sha256-${sha256b64('other')}'`)), 'script-hash'],
@@ -216,7 +220,15 @@ const withHashes = html => withPolicy(html, c => c
 function repinned(name, text) {
   const bad = withHashes(PAGE.replace(BEGIN(name), `${BEGIN(name)}${text}`));
   const element = name === 'bundle' ? [...bad.matchAll(STYLE_RE)][0][2] : [...bad.matchAll(SCRIPT_RE)][1][2];
-  return [bad, { ...AVIATION_PIN, [name]: sha256b64(blockOf(element, name, name !== 'bundle')) }];
+  const block = element.slice(element.indexOf(BEGIN(name)) + BEGIN(name).length, element.indexOf(END(name)));
+  return [bad, { ...AVIATION_PIN, [name]: sha256b64(block) }];
+}
+
+/** The page with one byte of the `name` block changed, halfway in, so a hash over a trimmed block would not notice it. */
+function midByte(html, name) {
+  const from = html.indexOf(BEGIN(name)) + BEGIN(name).length;
+  const at = from + ((html.indexOf(END(name)) - from) >> 1);
+  return html.slice(0, at) + (html[at] === 'x' ? 'y' : 'x') + html.slice(at + 1);
 }
 
 const PIN_PLANTS = [
@@ -225,6 +237,11 @@ const PIN_PLANTS = [
   ['the bundle edited, its marks and the constant left alone', h => h.replace(END('bundle'), ` ${END('bundle')}`)],
   ['the behaviours edited, its marks and the constant left alone', h => h.replace(END('behaviours'), ` ${END('behaviours')}`)],
   ['the bundle end mark missing', h => h.replace(END('bundle'), '')],
+  // Only the mark count refuses these: the first end mark is still found, the bundle is not a whole script, and the block's hash still matches.
+  ['the bundle end mark repeated after the block', h => h.replace(END('bundle'), `${END('bundle')}\n${END('bundle')}`)],
+  ['a bundle begin mark after the block', h => h.replace(END('bundle'), `${END('bundle')}\n${BEGIN('bundle')}`)],
+  ['one byte changed in the middle of the bundle', h => midByte(h, 'bundle')],
+  ['one byte changed in the middle of the behaviours', h => midByte(h, 'behaviours')],
   ['the behaviours begin mark missing', h => h.replace(BEGIN('behaviours'), '')],
   ['the bundle begin mark doubled', h => h.replace(BEGIN('bundle'), `${BEGIN('bundle')}${BEGIN('bundle')}`)],
   ['the behaviours end mark doubled', h => h.replace(END('behaviours'), `${END('behaviours')}\n${END('behaviours')}`)],
@@ -241,20 +258,32 @@ for (const [name, plant] of PIN_PLANTS) {
   });
 }
 
-test('a builder file holding the marks\' text does not make or break a mark: they are counted inside their own elements, before the data goes in', t => {
+test('a builder file holding the marks\' text does not make or break a mark: they are counted inside their own elements', t => {
   const title = `${BEGIN('bundle').trim()} ${END('behaviours')}`;
   const page = buildPage(REPO, PAGE, builderFile(t, { ...GOOD, title }, GOOD_BLOCKS));
   assert.ok(page.includes(title), 'the title is carried');
   assert.deepEqual(pageProblems(page), []);
 });
 
-test('the pin is a commit, two hashes of the pinned text, the pre-paint text and a URL allow-list per block', () => {
-  assert.match(AVIATION_PIN.commit, /^[0-9a-f]{7}$/);
-  assert.match(AVIATION_PIN.bundle, /^[A-Za-z0-9+/]{43}=$/);
-  assert.match(AVIATION_PIN.behaviours, /^[A-Za-z0-9+/]{43}=$/);
-  assert.match(AVIATION_PIN.prepaint, /^try\{.*\}catch\(e\)\{\}$/);
-  assert.deepEqual(Object.keys(AVIATION_PIN.urls).sort(), ['behaviours', 'bundle']);
-});
+// The script order and count: the pre-paint script before the style, exactly three plain scripts.
+const SCRIPT_PLANTS = [
+  ['the pre-paint script moved after the style', h => {
+    const prepaint = `<script>${AVIATION_PIN.prepaint}</script>\n`;
+    return h.replace(prepaint, '').replace('</style>\n', `</style>\n${prepaint}`);
+  }, /pre-paint script must come before the style/],
+  ['a fourth script with an attribute', h => h.replace('</body>', '<script type="module">1</script>\n</body>'), /another script/],
+  ['a fourth plain script', h => h.replace('</body>', '<script>1</script>\n</body>'), /another script/],
+  ['the pre-paint script missing', h => h.replace(`<script>${AVIATION_PIN.prepaint}</script>\n`, ''), /no pre-paint script/],
+];
+
+for (const [name, plant, refusal] of SCRIPT_PLANTS) {
+  test(`bad page: ${name} is refused by buildPage and reported as scripts`, () => {
+    const bad = plant(PAGE);
+    assert.notEqual(bad, PAGE, 'the plant changed nothing');
+    assert.throws(() => buildPage(REPO, bad), refusal);
+    assert.ok(pageProblems(bad).includes('scripts'), `expected scripts, got ${JSON.stringify(pageProblems(bad))}`);
+  });
+}
 
 test('a new URL inside a pinned block is caught as external-url even when the hash constant is updated to match', () => {
   for (const name of ['bundle', 'behaviours']) {
@@ -264,11 +293,37 @@ test('a new URL inside a pinned block is caught as external-url even when the ha
   }
   const [bad, pin] = repinned('bundle', '.x { background: url(y.png); }\n');
   assert.deepEqual(pageProblems(bad, pin), ['external-url'], 'a CSS url( inside the bundle beyond the pinned count');
+  // The bundle's one bare url( sits in a comment; making it a live reference swaps one opening for another, so no count moves.
+  const swap = withHashes(PAGE.replace('url(data:...)', 'url(x.png)'));
+  assert.notEqual(swap, PAGE, 'the swap changed nothing');
+  const swapBlock = blockOf([...swap.matchAll(STYLE_RE)][0][2], 'bundle', false);
+  assert.deepEqual(pageProblems(swap, { ...AVIATION_PIN, bundle: sha256b64(swapBlock) }), ['external-url'], 'a commented url( swapped for a live relative one');
 });
 
-test('innerHTML inside a pinned block is caught, since the other text checks scan the whole page', () => {
-  const [bad, pin] = repinned('behaviours', "document.body.innerHTML = '';\n");
-  assert.deepEqual(pageProblems(bad, pin), ['innerHTML']);
+test('text a browser reads as the end of the element or a comment, inside a pinned block, is refused as pin even when the hash constant is updated', () => {
+  for (const [name, text] of [['bundle', '/* </style > */\n'], ['bundle', '/* </STYLE/> */\n'], ['behaviours', '// </script >\n'], ['behaviours', '// <!--\n']]) {
+    const [bad, pin] = repinned(name, text);
+    assert.ok(pageProblems(bad, pin).includes('pin'), `${name}: ${text.trim()}`);
+  }
+});
+
+test('a second policy written so the pattern misses it is caught as csp-decoy', () => {
+  const bad = inBody("<meta HTTP-EQUIV='Content-Security-Policy' content=\"default-src *\">");
+  assert.ok(pageProblems(bad).includes('csp-decoy'), JSON.stringify(pageProblems(bad)));
+  assert.ok(!pageProblems(PAGE).includes('csp-decoy'));
+});
+
+test('fetch(, import(, an HTML sink and a network API inside a pinned block are each caught, since those text checks scan the whole page', () => {
+  for (const [code, line] of [
+    ['innerHTML', "document.body.innerHTML = '';"],
+    ['fetch', "fetch('x.json');"],
+    ['import', "import('./x.mjs');"],
+    ['html-sink', "document.body.insertAdjacentHTML('beforeend', '');"],
+    ['network-api', 'new XMLHttpRequest();'],
+  ]) {
+    const [bad, pin] = repinned('behaviours', `${line}\n`);
+    assert.deepEqual(pageProblems(bad, pin), [code], code);
+  }
 });
 
 test('the policy lists exactly the three scripts\' hashes and the style\'s, and keeps default-src, connect-src and img-src at none', () => {
@@ -278,16 +333,6 @@ test('the policy lists exactly the three scripts\' hashes and the style\'s, and 
   assert.deepEqual(d.get('script-src'), scripts.map(x => `'sha256-${sha256b64(x[2])}'`));
   assert.deepEqual(d.get('style-src'), [`'sha256-${sha256b64([...PAGE.matchAll(STYLE_RE)][0][2])}'`]);
   for (const k of ['default-src', 'connect-src', 'img-src']) assert.deepEqual(d.get(k), ["'none'"], k);
-});
-
-test('the pre-paint script comes first, right after the policy meta and before the style; the behaviours come just before the page\'s own script', () => {
-  const at = s => PAGE.indexOf(s);
-  assert.match(PAGE, /<meta http-equiv="Content-Security-Policy"[^>]*>\n<script>/);
-  const scripts = [...PAGE.matchAll(SCRIPT_RE)];
-  assert.equal(scripts[0][2], AVIATION_PIN.prepaint);
-  assert.ok(scripts[0].index < at('<style>'));
-  assert.ok(scripts[1].index + scripts[1][0].length <= scripts[2].index);
-  assert.match(PAGE, /<body class="av-paper">/);
 });
 
 const OVERRIDES_HEAD = '/* local overrides, carried to the design system (aviation-design-system#22): remove at re-pin */';
@@ -341,9 +386,14 @@ test('#427 claim 5: no local copy of a replaced component remains', () => {
   }
   const markup = pageScript(PAGE);
   assert.doesNotMatch(markup, /localStorage/, 'the page keeps nothing in storage itself');
-  // .wf-chip stays on the tag chips and the sensitive-work chips only; the action chips, zoom, undo and redo are the design system's.
+  // .wf-chip stays on the tag chips (`wf-chip tag`) and on the one list of sensitive-work chips (a bare `wf-chip`);
+  // the action chips, zoom, undo and redo are the design system's.
   const chips = [...markup.matchAll(/class: '([^']*\bwf-chip\b[^']*)'/g)].map(m => m[1]);
-  assert.ok(chips.length >= 3 && chips.every(c => /^wf-chip(?: tag)?$/.test(c)), JSON.stringify(chips));
+  assert.deepEqual(chips.filter(c => c !== 'wf-chip tag'), ['wf-chip'], JSON.stringify(chips));
+  assert.ok(chips.length >= 3, 'the tag chips are there');
+  // The old dialog fade, backdrop and combobox list are gone; the page's own CSS (after the bundle) holds no copy of them.
+  const own = ownCss();
+  for (const gone of ['allow-discrete', '::backdrop']) assert.ok(!own.rest.includes(gone) && !own.overrides.includes(gone), `${gone} is gone from the page's own CSS`);
   for (const kept of ['wf-sw', 'wf-toast', 'tag-input']) assert.ok(PAGE.includes(kept), `${kept} stays`);
 });
 
