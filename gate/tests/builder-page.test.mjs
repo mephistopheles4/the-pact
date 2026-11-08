@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { AVIATION_PIN, EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, personalPresets, personalPresetsDir, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
-import { BUILDER_KIT, CLEANER_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
+import { BUILDER_KIT, CLEANER_DENY, STOP_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -901,8 +901,9 @@ test('stub page: "The pact" shows the pact\'s text read-only, each file byte for
   assert.match(PAGE, /<dialog[^>]*\bid="pacttext"/);
   assert.equal(dialog.attrs.open, '');
   const commandNames = readdirSync(join(REPO, 'claude', 'commands')).map(f => `/${f.slice(0, -3)}`).sort();
-  assert.deepEqual(P.find(dialog, n => n.tag === 'summary').map(n => n.textContent), ['The rules file', 'The review procedure', ...commandNames, 'The settings keys', "The cleaner's deny rules"]);
+  assert.deepEqual(P.find(dialog, n => n.tag === 'summary').map(n => n.textContent), ['The rules file', 'The review procedure', ...commandNames, 'The settings keys', "The cleaner's deny rules", "The stop switch's deny rules"]);
   assert.ok(P.find(dialog, n => n.tag === 'pre').some(n => n.textContent === CLEANER_DENY.join('\n')), 'each of the cleaner\'s deny rules is shown');
+  assert.ok(P.find(dialog, n => n.tag === 'pre').some(n => n.textContent === STOP_DENY.join('\n')), 'each of the stop switch\'s deny rules is shown');
   assert.deepEqual(P.find(dialog, n => ['input', 'textarea', 'select'].includes(n.tag)), [], 'nothing in it can be edited');
   const shown = P.find(dialog, n => n.tag === 'pre').map(n => n.textContent);
   const source = rel => readFileSync(join(REPO, ...rel.split('/')), 'utf8');
@@ -1280,6 +1281,28 @@ test('the settings section draws the auto-compact window right after the weekly 
   assert.ok(weekly > 0 && compact > weekly);
   assert.ok(!src.slice(weekly + 10, compact).includes("limit('"), 'no other limit between them');
   assert.match(src.slice(compact, compact + 300), /state\.compact, cw\.min, cw\.max, cw\.def, v => \(state\.compact = v\), v => \(state\.compact = v\), 'tokens', cw\.step, cw\.off\)/);
+});
+
+// #439 S5.3: the stop switch, an on/off choice that saves nothing at its default (off) and `true` when on.
+test('the stop switch starts off, saves nothing at the default, true when on, and adds no problem', () => {
+  assert.deepEqual(L.PACT.stopSwitch, { name: 'session-stop-deny', def: false });
+  const s = L.initialState();
+  assert.equal(s.stopDeny, false);
+  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined, 'the default is not written');
+  s.stopDeny = true;
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'session-stop-deny': true });
+  s.compact = 600000;
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'auto-compact-window': 600000, 'session-stop-deny': true });
+  assert.deepEqual(L.problems(s), []);
+  s.stopDeny = false;
+  s.compact = 400000;
+  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined);
+});
+
+test('the settings section draws a stop-switch checkbox that sets state.stopDeny', () => {
+  const src = readFileSync(join(REPO, PAGE_REL), 'utf8');
+  assert.match(src, /'aria-label': 'Deny raw claude stop'/);
+  assert.match(src, /state\.stopDeny = box\.checked/);
 });
 
 // #262: a moves edit saves the whole part as one replace; an empty move stops a save.
