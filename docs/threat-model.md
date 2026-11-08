@@ -24,6 +24,7 @@ quadrantChart
   Local copies on disk: [0.30, 0.55]
   Removals lose local work: [0.32, 0.46]
   A standing goal decides alone: [0.20, 0.64]
+  Pinned design-system code: [0.12, 0.55]
 ```
 
 The chart places each class by what is left after today's guards. L and I are
@@ -41,6 +42,7 @@ the classes; they do not size them. The open issues below are not drawn.
 | Local copies on disk | 0.30 | 0.55 |
 | Removals lose local work | 0.32 | 0.46 |
 | A standing goal decides alone | 0.20 | 0.64 |
+| Pinned design-system code | 0.12 | 0.55 |
 
 ## Scope
 
@@ -52,6 +54,13 @@ included), what a session posts or sends off the machine, a file someone hands y
 holds, other local accounts, this repo's publisher and its CI. A session,
 fooled or careless, stays in scope though it runs as you. So does loss of your
 work with no attacker.
+
+**Inlined design-system code:** Scriptorium (`builder/scriptorium.html`)
+carries the aviation design system's CSS and behaviours inline, pinned by hash
+in `builder/build.mjs`. That code runs with the page's powers, including a
+folder you grant it to save into; the page's policy blocks loads and
+connections, but not navigation, pop-ups or writes into that folder. Review of
+each pin is its control: a pin is reviewed like any change to this repo.
 
 **Out of scope:** a program already running on your machine as you, that
 nothing in scope started, supplied or steered, and your own edits and your own
@@ -120,6 +129,7 @@ Each box is a boundary a class crosses; the arrows say who reaches it.
 - **Local copies on disk.** A builder page, kept-local reports, the install's backups and a session's hand-off notes with their `.turn` files sit unencrypted until deleted, in reach of other local accounts and of a session that reads them.
 - **Removals lose local work.** The cleaner's removals rest on a rule tying them to your yes, outside a goal, what git and the cleaner keep bounds them, and a removal past its deny rules has only Claude Code's classifier in the way.
 - **A compromised machine or sandbox.** Once a program, process or agent on the machine or in the sandbox works against you, or a program a cloned repo or a project's version pin supplies runs when a session, a hook or a tool calls a command by bare name, it can plant programs, change files a session or a hook reads, and act as a session would; the pact does not defend against it. Other local accounts, and a session that text in scope has steered, stay in scope.
+- **Pinned design-system code.** The aviation design system is the owner's own code, inlined into Scriptorium at a pinned commit, so it runs with the page's powers, a folder you grant included, and a re-pin is reviewed like any change to this repo, with no security pair of its own.
 - **A standing goal decides alone.** Under a goal, a session uses its judgment on what the rules keep for you, on words from any prompt or message, a stranger's or a fooled session's included; usage holds only as a rule, and only while a usage limit is set; Claude Code's permissions may read a start prompt as your ask, and the log corrects only what can be undone, never what was published or sent off the machine.
 
 ## Open issues

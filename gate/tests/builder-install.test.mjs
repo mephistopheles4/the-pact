@@ -24,7 +24,7 @@ const sha256 = b => createHash('sha256').update(b).digest('hex');
  * this realm, so assertions compare them as plain values.
  */
 function pageLogic() {
-  const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
+  const script = [...PAGE.matchAll(SCRIPT_RE)][2][2];
   const ctx = vm.createContext({});
   const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, addAgent });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
