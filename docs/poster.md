@@ -128,7 +128,8 @@ sent, when:
   label is never a signature, so a post signed only with its label, or a pull
   request body with no signature line, can't be edited. Sign a post you may
   need to edit with a `Signed: <label>` line, and a pull request body
-  `Signed: pr-<n>`, n the issue it works on. For a body already posted
+  `Signed: pr-<n>`, n the issue it works on, or with no issue the session's
+  label. For a body already posted
   unsigned, the owner types the fix on GitHub, from a changed line the
   session scanned with `issue-comment --dry-run` (`claude/review.md`, The
   poster);
@@ -156,7 +157,8 @@ sent, when:
   up, as the record of each change. A **status edit**, `issue-comment-edit`
   with `--signed status-<n>` and n the `--issue` value, is the one exception
   (#503): its body must hold no line that reads as a reason line, the item's
-  are not compared, and the poster adds the newest, so the comment ends in
+  are not compared, nothing above the new line may open a comment or fold it
+  doesn't close, and the poster adds the newest, so the comment ends in
   exactly one.
 
 The author, target, signature, leak and append-only reason checks are the
@@ -301,7 +303,7 @@ nothing sent.
 | `edit/record` | The item or the new body is a review record |
 | `edit/decision` | The item or the new body holds the words "owner decision" |
 | `edit/leak` | The item holds what the content scan refuses: a hidden character or a live environment secret's value |
-| `edit/reasons` | The new body doesn't end in exactly the item's reason lines, holds another line that reads as one, or opens a comment or fold above them it doesn't close; on a status edit, it holds any line that reads as a reason line |
+| `edit/reasons` | The new body doesn't end in exactly the item's reason lines, holds another line that reads as one, or opens a comment or fold above them it doesn't close; on a status edit, it holds any line that reads as a reason line, or opens a comment or fold it doesn't close |
 | `secret/env` | The value of a secret environment variable; the line names the variable, never the value |
 | `text/hidden` | A hidden character |
 | `table/header` | A Lens dispositions table's header row isn't exactly `\| Finding \| Lens \| Disposition \| Rerun \|` |

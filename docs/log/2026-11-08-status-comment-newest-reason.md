@@ -6,7 +6,7 @@ The poster's status edit, `issue-comment-edit --signed status-<n>` with n the `-
 
 `claude/review.md` says to drop the old lines, read the comment and the round comments just before the edit, and restart a session refused right after an install. It also signs every pull request body `Signed: pr-<n>`, n the issue it works on, and gives the owner route for a body already posted unsigned: a changed line, scanned with `issue-comment --dry-run`, that the owner types on GitHub, never a squash message. This repo's template, `AGENTS.md` and `docs/agents/work-records.md` carry the `Signed:` line.
 
-The change narrows a control ADR 0120 names; the owner accepted it, and the stale-read residual beside R60 (decision 180). [ADR 0144](../adr/0144-the-status-comment-keeps-only-its-newest-reason-line.md) records why.
+The change narrows a control ADR 0120 names; the owner accepted it, and accepted the stale-read residual beside R60 (decision 180). [ADR 0144](../adr/0144-the-status-comment-keeps-only-its-newest-reason-line.md) records why.
 
 **Rolling back:** revert the PR, then reinstall through the dry run and the owner's apply. Status comments already trimmed keep their earlier lines in GitHub's history.
 

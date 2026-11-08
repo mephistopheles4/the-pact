@@ -1201,7 +1201,8 @@ Ask each lens to report in this shape:
   read just before, keeping its signature line and dropping every `Edited:`
   line, since the edit adds the newest; the reason reads `after <stage> round <n> (<your label>)`. More than one: stop
   and tell me. Post the round comment first. If a status edit is refused
-  `edit/reasons` right after an install, restart the session. If
+  `edit/reasons` because the body kept old `Edited:` lines, rebuild it
+  without them. If
   the status edit fails or is refused, the record stays whole: say in the
   hand-off that the status is stale, and never post a second status comment.
   The round comments stay the record; nothing reads the status comment back.
@@ -1270,15 +1271,17 @@ when no other row answers the sentence.
   of free text to a file in a scratch folder outside the repo, and run the
   poster from that folder, never from the repo. Sign a post you may edit with
   a `Signed: <label>` line, and keep it when you edit. Sign every pull request
-  body `Signed: pr-<n>`, n the issue it works on, so any session can edit it;
-  with no issue, use your label. Edit the status
-  comment with `issue-comment-edit --signed status-<n>`. An edit never removes
-  text, except the status comment's old `Edited:` lines. A pull request body
+  body `Signed: pr-<n>`, n the issue it works on, never the pull request's
+  own number, so any session can edit it with `pull-request-edit --pr <its
+  number> --signed pr-<the issue>`; with no issue, use your label. Edit the
+  status comment with `issue-comment-edit --signed status-<n>`. An edit never
+  removes text, except the status comment's old `Edited:` lines. An edit's
+  `--reason` names the kind of fix, never the text. A pull request body
   posted unsigned can't be edited through the poster: write only the changed
-  line to a file, run `issue-comment --repo <owner/name> --issue <n> --body <file> --dry-run`
+  line to a file, run `issue-comment --repo <owner/name> --issue <the issue it works on> --body <file> --dry-run`
   on it after the read before posting, and give me the line in chat to type
   on GitHub myself; never put a fix in the squash message, and never edit the
-  body with plain `gh`. An edit's `--reason` names the kind of fix, never the text. Delete a
+  body with plain `gh`. Delete a
   file once its post ends, whatever the result (verified, failed, unverified,
   mismatch or unavailable), or once you drop it; keep one refused for a lens
   report until I have answered, then delete it. Before the session ends,
@@ -1477,7 +1480,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
-check_hash 54cd038acbcd45046f32473a12ad636ce1c5f8f0d734641e43b0b29657a9e3f4 'pact/review.md'
+check_hash 13c225ca3f8c6055bd187af825697f7edc7cd5c557b7dba84a22ac6a902ac7bd 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1507,7 +1510,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy d4254632072c"
+  echo "pact cloud copy 5ea07526b596"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
