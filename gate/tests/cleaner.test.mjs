@@ -85,7 +85,7 @@ function recording(answer = () => null) {
  * #442 C12: plant a real link. A local Windows run without Developer Mode
  * cannot make one and goes on without it; a CI job that cannot fails.
  */
-function plant(target, path, type) {
+function plantLink(target, path, type) {
   try {
     symlinkSync(target, path, type);
     return true;
@@ -149,7 +149,7 @@ function fakeIo(root, spec, { fail = {} } = {}) {
 /** realOf with a spy for the real-path call. */
 function spied(p, io, platform = process.platform) {
   const seen = [];
-  const result = cleaner.realOf(p, x => {
+  const result = realOf(p, x => {
     seen.push(x);
     return x;
   }, platform, io);
@@ -322,10 +322,10 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
   assert.equal(realOf('/net/nohost.invalid/x', rp, 'darwin'), resolve('/net/nohost.invalid/x'), 'macOS autofs');
   // A local path that reaches a share through a link is not resolved either (a dangling link stands in for the share).
   const toShare = join(tempDir(t, 'pact-cleaner-share-'), 'share');
-  const linkMade = plant('//nohost.invalid/share', toShare, 'dir'); // on Windows a link needs Developer Mode or admin rights; CI fails without
+  const linkMade = plantLink('//nohost.invalid/share', toShare, 'dir');
   if (linkMade) assert.equal(realOf(join(toShare, 'x'), rp), join(toShare, 'x'));
   assert.deepEqual(seen, []);
-  // A missing leaf: the walk stops at the deepest folder it listed, which alone is resolved, and the rest is joined back on (#442: no climb through missing parents).
+  // A missing leaf: the walk stops at the deepest folder it listed, which alone is resolved, and the rest is joined back on.
   const gone = join(f.root, 'missing', 'leaf');
   const rpMissing = p => {
     seen.push(p);
@@ -357,79 +357,83 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
   // #442: the walk never touches another host. Each claim is its own subtest, so a run on the base shows each failure apart.
   const SHARE = '//nohost.invalid/share';
   const fresh = st => tempDir(st, 'pact-cleaner-fake-');
-  const at = (root, ...parts) => join(root, ...parts);
 
   await t.test('C1: a link to a link to a share (absolute target) is given back, with no real-path call', st => {
     const root = fresh(st);
-    expectGiven(at(root, 'a', 'x'), fakeIo(root, { [at(root, 'a')]: { link: at(root, 'b') }, [at(root, 'b')]: { link: SHARE } }));
+    expectGiven(join(root, 'a', 'x'), fakeIo(root, { [join(root, 'a')]: { link: join(root, 'b') }, [join(root, 'b')]: { link: SHARE } }));
   });
 
   await t.test('C2: the same with a relative target', st => {
     const root = fresh(st);
-    expectGiven(at(root, 'a', 'x'), fakeIo(root, { [at(root, 'a')]: { link: 'b' }, [at(root, 'b')]: { link: SHARE } }));
+    expectGiven(join(root, 'a', 'x'), fakeIo(root, { [join(root, 'a')]: { link: 'b' }, [join(root, 'b')]: { link: SHARE } }));
   });
 
   if (process.platform === 'win32') {
     await t.test('C3: a link target in an NT form, or root- or drive-relative, is given back', st => {
       for (const target of ['\\??\\GLOBALROOT\\Device\\Mup\\nohost.invalid\\s', '\\Device\\Mup\\nohost.invalid\\s', '\\??\\UNC\\nohost.invalid\\s', '\\x', 'C:x']) {
         const root = fresh(st);
-        expectGiven(at(root, 'lnk', 'x'), fakeIo(root, { [at(root, 'lnk')]: { link: target } }));
+        expectGiven(join(root, 'lnk', 'x'), fakeIo(root, { [join(root, 'lnk')]: { link: target } }));
       }
     });
   }
 
-  await t.test('C4: two links pointing at each other are given back, with no hang', st => {
+  await t.test('C4: two links pointing at each other are given back with no hang; a chain is given back past 40 links, not at 40', st => {
     const root = fresh(st);
-    expectGiven(at(root, 'a', 'x'), fakeIo(root, { [at(root, 'a')]: { link: 'b' }, [at(root, 'b')]: { link: 'a' } }));
+    expectGiven(join(root, 'a', 'x'), fakeIo(root, { [join(root, 'a')]: { link: 'b' }, [join(root, 'b')]: { link: 'a' } }));
+    const chain = n => Object.fromEntries([[join(root, 'real'), 'dir'], ...Array.from({ length: n }, (_, i) => [join(root, `l${i}`), { link: i === n - 1 ? 'real' : `l${i + 1}` }])]);
+    expectGiven(join(root, 'l0', 'x'), fakeIo(root, chain(41)));
+    const { seen, result } = spied(join(root, 'l0', 'x'), fakeIo(root, chain(40)));
+    assert.deepEqual(seen, [join(root, 'real')]);
+    assert.equal(result, join(root, 'real', 'x'));
   });
 
   if (process.platform !== 'win32') {
     await t.test('C5: a link to the root, then net/host, is given back and nothing under /net is read', st => {
       const root = fresh(st);
-      const io = fakeIo(root, { [at(root, 'lnk')]: { link: '/' } });
-      expectGiven(at(root, 'lnk', 'net', 'nohost.invalid'), io);
+      const io = fakeIo(root, { [join(root, 'lnk')]: { link: '/' } });
+      expectGiven(join(root, 'lnk', 'net', 'nohost.invalid'), io);
       assert.ok(io.calls.every(c => !/^\/net(?:\/|$)/i.test(c.path)), 'a call under /net');
     });
   }
 
   await t.test('C6: a part the listing does not show is joined on unresolved, and nothing touches it', st => {
     const root = fresh(st);
-    const io = fakeIo(root, { [at(root, 'real')]: 'dir' });
-    const { seen, result } = spied(at(root, 'real', 'ghost', 'x'), io);
-    assert.deepEqual(seen, [at(root, 'real')]);
-    assert.equal(result, at(root, 'real', 'ghost', 'x'));
+    const io = fakeIo(root, { [join(root, 'real')]: 'dir' });
+    const { seen, result } = spied(join(root, 'real', 'ghost', 'x'), io);
+    assert.deepEqual(seen, [join(root, 'real')]);
+    assert.equal(result, join(root, 'real', 'ghost', 'x'));
     assert.ok(io.calls.every(c => !c.path.includes('ghost')), 'a call named the unshown part');
     io.check();
   });
 
   await t.test('C6: a listing that fails other than ENOENT or ENOTDIR gives the path back', st => {
     const root = fresh(st);
-    expectGiven(at(root, 'real', 'x'), fakeIo(root, { [at(root, 'real')]: 'dir' }, { fail: { [at(root, 'real')]: 'EACCES' } }));
+    expectGiven(join(root, 'real', 'x'), fakeIo(root, { [join(root, 'real')]: 'dir' }, { fail: { [join(root, 'real')]: 'EACCES' } }));
   });
 
   await t.test('C6: an entry that is neither a folder nor a link is not gone into', st => {
     const root = fresh(st);
-    const io = fakeIo(root, { [at(root, 'dev')]: 'other' });
-    const { seen, result } = spied(at(root, 'dev', 'x'), io);
+    const io = fakeIo(root, { [join(root, 'dev')]: 'other' });
+    const { seen, result } = spied(join(root, 'dev', 'x'), io);
     assert.deepEqual(seen, [root]);
-    assert.equal(result, at(root, 'dev', 'x'));
-    assert.ok(io.calls.every(c => c.path !== at(root, 'dev')), 'the entry was listed');
+    assert.equal(result, join(root, 'dev', 'x'));
+    assert.ok(io.calls.every(c => c.path !== join(root, 'dev')), 'the entry was listed');
   });
 
   await t.test('C6: more than 4096 steps give the path back', st => {
     const root = fresh(st);
-    const p = `${at(root, 'x')}${`${sep}..${sep}x`.repeat(2100)}`;
-    expectGiven(p, fakeIo(root, { [at(root, 'x')]: 'dir' }));
+    const p = `${join(root, 'x')}${`${sep}..${sep}x`.repeat(2100)}`;
+    expectGiven(p, fakeIo(root, { [join(root, 'x')]: 'dir' }));
   });
 
   if (process.platform === 'win32') {
     await t.test('C6: a short name or a trailing dot beside a link is not shown, so not touched', st => {
       for (const part of ['LNK~1', 'lnk.']) {
         const root = fresh(st);
-        const io = fakeIo(root, { [at(root, 'lnk')]: { link: SHARE } });
-        const { seen, result } = spied(at(root, part, 'x'), io);
+        const io = fakeIo(root, { [join(root, 'lnk')]: { link: SHARE } });
+        const { seen, result } = spied(join(root, part, 'x'), io);
         assert.deepEqual(seen, [root], part);
-        assert.equal(result, at(root, part, 'x'));
+        assert.equal(result, join(root, part, 'x'));
         assert.ok(io.calls.every(c => !c.path.includes(part) && c.op === 'readdir'), part);
       }
     });
@@ -438,10 +442,11 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
       for (const [spec, part] of [
         [{ Lnk: { link: SHARE }, lnk: 'dir' }, 'LNK'],
         [{ kx: 'dir', [`${cp(0x212a)}x`]: { link: SHARE } }, 'Kx'],
+        [{ Lnk: { link: 'real' }, real: 'dir' }, 'lnk'], // a single case match that is a link, to a plain local folder
       ]) {
         const root = fresh(st);
-        const io = fakeIo(root, Object.fromEntries(Object.entries(spec).map(([k, v]) => [at(root, k), v])));
-        expectGiven(at(root, part, 'x'), io);
+        const io = fakeIo(root, Object.fromEntries(Object.entries(spec).map(([k, v]) => [join(root, k), v])));
+        expectGiven(join(root, part, 'x'), io);
         // Only listings of the folders on the way down to root: nothing under it, so nothing of either entry.
         assert.ok(io.calls.every(c => c.op === 'readdir' && (c.path === root || root.startsWith(c.path.endsWith(sep) ? c.path : c.path + sep))), part);
       }
@@ -450,35 +455,35 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
 
   await t.test('C7: a chain of plain local links ends in one real-path call, on the physical folder', st => {
     const root = fresh(st);
-    const spec = { [at(root, 'real')]: 'dir', [at(root, 'a')]: { link: 'b' }, [at(root, 'b')]: { link: at(root, 'real') } };
+    const spec = { [join(root, 'real')]: 'dir', [join(root, 'a')]: { link: 'b' }, [join(root, 'b')]: { link: join(root, 'real') } };
     const io = fakeIo(root, spec);
-    const { seen, result } = spied(at(root, 'a', 'x'), io);
-    assert.deepEqual(seen, [at(root, 'real')]);
-    assert.equal(result, at(root, 'real', 'x'));
-    assert.deepEqual(io.calls.filter(c => c.op === 'readlink').map(c => c.path), [at(root, 'a'), at(root, 'b')]);
+    const { seen, result } = spied(join(root, 'a', 'x'), io);
+    assert.deepEqual(seen, [join(root, 'real')]);
+    assert.equal(result, join(root, 'real', 'x'));
+    assert.deepEqual(io.calls.filter(c => c.op === 'readlink').map(c => c.path), [join(root, 'a'), join(root, 'b')]);
     io.check();
     if (process.platform === 'win32') {
-      const via = fakeIo(root, { ...spec, [at(root, 'c')]: { link: `\\\\?\\${at(root, 'real')}` } });
-      const again = spied(at(root, 'c', 'x'), via);
-      assert.deepEqual(again.seen, [at(root, 'real')]);
-      assert.equal(again.result, at(root, 'real', 'x'));
+      const via = fakeIo(root, { ...spec, [join(root, 'c')]: { link: `\\\\?\\${join(root, 'real')}` } });
+      const again = spied(join(root, 'c', 'x'), via);
+      assert.deepEqual(again.seen, [join(root, 'real')]);
+      assert.equal(again.result, join(root, 'real', 'x'));
     }
   });
 
   await t.test('C8: real links, absolute and relative, to a link to a share: given back, no real-path call (the ask\'s Done-when)', st => {
     const root = fresh(st);
-    if (!plant(SHARE, at(root, 'b'), 'dir')) return; // no Developer Mode on this Windows host
-    assert.ok(plant(at(root, 'b'), at(root, 'a'), 'dir') && plant('b', at(root, 'r'), 'dir'));
+    if (!plantLink(SHARE, join(root, 'b'), 'dir')) return st.skip('no link rights on this host');
+    assert.ok(plantLink(join(root, 'b'), join(root, 'a'), 'dir') && plantLink('b', join(root, 'r'), 'dir'));
     const seen = [];
     const rp = p => {
       seen.push(p);
       return p;
     };
-    for (const via of ['a', 'r']) assert.equal(realOf(at(root, via, 'x'), rp), at(root, via, 'x'), via);
+    for (const via of ['a', 'r']) assert.equal(realOf(join(root, via, 'x'), rp), join(root, via, 'x'), via);
     assert.deepEqual(seen, []);
     if (process.platform === 'win32') {
-      mkdirSync(at(root, 'real'));
-      symlinkSync(at(root, 'real'), at(root, 'j'), 'junction');
+      mkdirSync(join(root, 'real'));
+      symlinkSync(join(root, 'real'), join(root, 'j'), 'junction');
       const j = readdirSync(root, { withFileTypes: true }).find(e => e.name === 'j');
       assert.ok(j.isSymbolicLink(), 'the listing marks a junction as a link');
     }
@@ -509,10 +514,12 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
   await t.test('C11a: a sessions folder that is a link makes the run unavailable, and no path prints', st => {
     const f = makeRepo(st);
     mkdirSync(join(f.home, '.claude'), { recursive: true });
-    if (!plant(SHARE, join(f.home, '.claude', 'sessions'), 'dir')) return;
+    if (!plantLink(SHARE, join(f.home, '.claude', 'sessions'), 'dir')) return st.skip('no link rights on this host');
     const r = f.run(['show']);
     assert.equal(r.code, 4, r.out);
     assert.equal(r.lines.at(-1), 'RESULT: unavailable');
+    assert.equal(r.lines.at(-2), 'the cleaner is unavailable: the sessions check failed');
+    assert.doesNotMatch(r.out, /nohost\.invalid/);
     noPath(f, r.out);
   });
 
@@ -523,16 +530,17 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
     mkdirSync(sessions, { recursive: true });
     const real = join(tempDir(st, 'pact-cleaner-status-'), 'real.json');
     writeFileSync(real, JSON.stringify({ cwd: join(used, 'sub') }));
-    if (!plant(real, join(sessions, '4242.json'), 'file')) return;
+    if (!plantLink(real, join(sessions, '4242.json'), 'file')) return st.skip('no link rights on this host');
     const r = f.run(['show']);
     assert.equal(r.code, 4, r.out);
     assert.equal(r.lines.at(-1), 'RESULT: unavailable');
+    assert.equal(r.lines.at(-2), 'the cleaner is unavailable: the sessions check failed');
     noPath(f, r.out);
   });
 
-  // #442 Q3: only on CI's gate-windows, never on the owner's host: an lstat on a junction whose target is a network path in NT form.
+  // #442 C15: only on CI's gate-windows, never on the owner's host: an lstat on a junction whose target is a network path in NT form.
   if (process.platform === 'win32' && process.env.CI) {
-    await t.test('C15: lstat on a junction set to \\??\\UNC\\nohost.invalid throws (ENOENT accepted), consistent with following the target', st => {
+    await t.test('C15: lstat on a junction set to \\??\\UNC\\nohost.invalid throws (any code, printed; gate-windows saw ENOENT), consistent with following the target', st => {
       const dir = tempDir(st, 'pact-cleaner-junction-');
       const junction = join(dir, 'j');
       mkdirSync(junction);
@@ -579,7 +587,7 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
     });
   }
 
-  // #442 S8, decision 472: the walk calls no lstat, stat, realpath, exists or access. The fake io has only readdir and readlink, so this pins the source.
+  // #442 C16: the walk calls no lstat, stat, realpath, exists or access. The fake io has only readdir and readlink, so this pins the source.
   await t.test('C16: the walk\'s code names no lstat, stat, realpath, exists or access call', () => {
     const src = readFileSync(new URL('../../claude/tools/cleaner.mjs', import.meta.url), 'utf8');
     const start = src.indexOf('\nfunction walk(');

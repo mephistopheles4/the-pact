@@ -44,11 +44,15 @@ the name-back, and run `remove` only after your own yes to it in chat.
   path, so a link either way still keeps it. A path written with two leading
   separators or under `/net` (in any case on macOS, where `/Network/Servers`
   counts too; not on Windows), or one that reaches such a path through a link
-  or a chain of links, through a link whose target is not a plain local path,
-  or through more than 40 links, is compared as written and never resolved on
-  disk; a device prefix before a drive letter counts as the plain drive path.
-  A sessions folder, or a status file, that is a link makes the run
-  unavailable. A Windows run doesn't see WSL sessions, or the other way.
+  or a chain of links, through a link whose target is not a plain local path
+  (on Windows, a path from a drive letter or a relative one with no drive;
+  elsewhere, any path without two leading separators), or through more than 40
+  links, or one the cleaner can't walk with certainty (a folder it can't list,
+  a link it can't read, names that differ only in case), is compared as
+  written and never resolved on disk; a device prefix before a drive letter
+  counts as the plain drive path. A sessions folder, or a status file, that is
+  a link or not a plain folder or file makes the run unavailable. A Windows
+  run doesn't see WSL sessions, or the other way.
 - **Commits found nowhere else:** a worktree whose branch, or detached HEAD,
   has commits on no other branch and no remote.
 - **A branch name outside** letters, digits and `. _ / -`: the cleaner can't
@@ -187,7 +191,7 @@ file contents, a stash subject or git's own output.
 | 0 | `RESULT: shown <n> <tags>` or `RESULT: removed <r> left 0 changed 0` | done |
 | 1 | `RESULT: removed <r> left <l> changed <c>` | something named in `--yes` was left, or changed or gone since the name-back |
 | 2 | `RESULT: refused <count>` | a usage fault; nothing ran |
-| 4 | `RESULT: unavailable` | git missing or older than 2.36 (2.45 with `--recoverable`), `.claude` or `.claude/worktrees` a link, the sessions check failed (including the sessions folder or a status file being a link), or a read failed |
+| 4 | `RESULT: unavailable` | git missing or older than 2.36 (2.45 with `--recoverable`), `.claude` or `.claude/worktrees` a link, the sessions check failed (including the sessions folder or a status file being a link or the wrong kind), or a read failed |
 
 It needs Node 24 and git 2.36 or later (2.45 with `--recoverable`), and runs on Windows, Linux, WSL and
 macOS. The cloud copy doesn't install it.
@@ -219,10 +223,15 @@ child process, so the cleaner itself is not denied.
   the cleaner no longer sees it. Check it yourself and delete it by hand.
 - **Exit 4 from the sessions check**: a file in `~/.claude/sessions/` did not
   read as JSON with a string `cwd`, the folder could not be listed, or the
-  folder or a status file is a link. Look at the files yourself, with a listing
-  that doesn't follow links (`dir /AL`, `ls -l`), and delete a link rather than
-  open it. A stale status file keeps its worktree until you remove the file,
-  after checking no session runs there.
+  folder or a status file is a link or not a plain folder or file. Never list
+  or open the sessions folder itself first: if it is a link, that follows it,
+  and a link to a share sends your sign-in names to that host. List its parent
+  with a listing that doesn't follow links (`dir /AL "%USERPROFILE%\.claude"`,
+  `ls -l ~/.claude`), and look inside only once `sessions` shows as no link.
+  Remove a folder link with `rmdir <link>` (no `/S`) on Windows, or `rm <link>`
+  with no trailing slash elsewhere, never `del` or a recursive delete. A stale
+  status file keeps its worktree until you remove the file, after checking no
+  session runs there.
 
 ## Rolling back
 

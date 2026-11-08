@@ -223,9 +223,9 @@ const NET_RE = /^[\\/]{2}/;
 const DEVICE_DRIVE_RE = /^[\\/]{2}[?.][\\/](?=[A-Za-z]:)/;
 const local = p => p.replace(DEVICE_DRIVE_RE, '');
 
-// A path under an autofs root mounts from the host named in it (#442): /net
-// everywhere but Windows, where it is a plain folder, and on macOS also
-// /Network/Servers, both in any case there.
+// A path under an autofs root mounts from the host named in it (#442). On
+// Windows /net is a plain folder and none counts. On macOS /net and
+// /Network/Servers count, in any case. Elsewhere /net counts, as written.
 const AUTOFS_RE = /^\/net(?:\/|$)/;
 const AUTOFS_MAC_RE = /^\/(?:net|network\/servers)(?:\/|$)/i;
 
@@ -245,6 +245,7 @@ export function plainTarget(t, platform) {
   return !NET_RE.test(t);
 }
 
+// What the walk returns for a remote path and for any doubt alike: compare the path as written.
 const REMOTE = 'remote';
 const MAX_HOPS = 40;
 const MAX_STEPS = 4096;
@@ -256,8 +257,9 @@ const FOLDS = platform => platform === 'win32' || platform === 'darwin';
  * (#442). A part the listing does not show is never touched: on Windows a
  * name it hides (an 8.3 short name, a trailing dot) can open a junction, and
  * lstat on a junction to a network path can follow its target (it threw
- * ENOENT on Windows, as a failed lookup would, #442 C15). So there
- * is no lstat, stat, realpath or access here: `io.readdir` lists a folder and
+ * ENOENT on Windows, as a failed lookup would, #442 C15). So the walk's own
+ * code calls no lstat, stat, realpath or access (Node may lstat, on POSIX, an
+ * entry whose type comes back unknown): `io.readdir` lists a folder and
  * `io.readlink` reads a link the listing showed. Returns REMOTE, or
  * `{ real, rest }`: the folder reached, and the parts left unwalked. Every
  * doubt ends REMOTE, and the path is then compared as written.
@@ -319,7 +321,8 @@ function walk(p, platform, io) {
  * on. A path that is remote, or reaches a remote path through a link or a
  * chain of links, is never resolved on disk. `rp` stands in for the real-path
  * call in tests, `io` for the listing and link reads. The real-path call runs
- * only on a folder the walk listed, never on a part it did not show.
+ * only on a folder a listing showed (or the path's root), never on a part no
+ * listing showed.
  */
 export function realOf(p, rp = realpathSync.native, platform = process.platform, io = { readdir: readdirSync, readlink: readlinkSync }) {
   const given = resolve(local(p));
@@ -347,10 +350,12 @@ const within = (inner, outer, platform) => {
  * The cwd of every Claude Code session status file. A file that does not
  * read, and (#442) a sessions folder or a status file that is a link or the
  * wrong kind, stop the run: a planted link could point at another host, and
- * reading through it would reach it. Both folders are listed first, so
- * nothing is opened before its listing shows it is no link.
+ * reading through it would reach it. `~/.claude` is listed as given, so a
+ * link there is not caught (#519); the sessions folder and its files are
+ * listed first, so nothing under them is opened before a listing shows it is
+ * no link.
  */
-export function sessionCwds(home) {
+export function sessionCwds(home, platform = process.platform) {
   const fail = () => new Unavailable('the sessions check failed');
   const list = dir => {
     try {
@@ -364,7 +369,7 @@ export function sessionCwds(home) {
   const top = list(claude);
   if (!top) return [];
   let entry = top.find(e => e.name === 'sessions');
-  if (!entry && FOLDS(process.platform)) {
+  if (!entry && FOLDS(platform)) {
     const same = top.filter(e => e.name.toLowerCase() === 'sessions');
     if (same.length > 1) throw fail();
     entry = same[0];
@@ -596,7 +601,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
   const main = realpathSync.native(records[0].worktree);
   if (isLink(join(main, '.claude'), platform) || isLink(join(main, '.claude', 'worktrees'), platform)) throw new Unavailable('the worktrees folder or its parent is a link');
   const container = join(main, '.claude', 'worktrees');
-  const used = [...sessionCwds(home), cwd].flatMap(forms);
+  const used = [...sessionCwds(home, platform), cwd].flatMap(forms);
   const origin = read(git, main, ['for-each-ref', '--format=%(symref)', 'refs/remotes/origin/HEAD']).trim();
   const defaults = origin.startsWith('refs/remotes/origin/') ? [origin.slice('refs/remotes/origin/'.length)] : ['main', 'master'];
   const stashes = read(git, main, ['stash', 'list', '-z', '--format=%gd%x1f%gs']).split('\0').filter(Boolean).map(s => s.split('\x1f'));
