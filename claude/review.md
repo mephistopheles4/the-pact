@@ -73,9 +73,12 @@ Ask each lens to report in this shape:
   naming a lens, and never the words "owner decision": the edit checks would
   refuse every later edit. Find it among the comments your gh login wrote,
   read as JSON, holding the whole line `Signed: status-<n>` outside a fence or
-  quote. None: post it. One: edit it, keeping its signature line and, at the
-  end as they were, every `Edited:` line; the reason reads `after <stage> round <n> (<your label>)`. More than one: stop
-  and tell me. Post the round comment first. If
+  quote. None: post it. One: edit it, from its body and the round comments
+  read just before, keeping its signature line and dropping every `Edited:`
+  line, since the edit adds the newest; the reason reads `after <stage> round <n> (<your label>)`. More than one: stop
+  and tell me. Post the round comment first. If a status edit is refused
+  `edit/reasons` because the body kept old `Edited:` lines, rebuild it
+  without them. If
   the status edit fails or is refused, the record stays whole: say in the
   hand-off that the status is stale, and never post a second status comment.
   The round comments stay the record; nothing reads the status comment back.
@@ -143,9 +146,18 @@ when no other row answers the sentence.
   `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell. Write each piece
   of free text to a file in a scratch folder outside the repo, and run the
   poster from that folder, never from the repo. Sign a post you may edit with
-  a `Signed: <label>` line, and keep it when you edit. Edit the status
-  comment with `issue-comment-edit --signed status-<n>`. An edit never removes
-  text. An edit's `--reason` names the kind of fix, never the text. Delete a
+  a `Signed: <label>` line, and keep it when you edit. Sign every pull request
+  body `Signed: pr-<n>`, n the issue it works on, never the pull request's
+  own number, so any session can edit it with `pull-request-edit --pr <its
+  number> --signed pr-<the issue>`; with no issue, use your label. Edit the
+  status comment with `issue-comment-edit --signed status-<n>`. An edit never
+  removes text, except the status comment's old `Edited:` lines. An edit's
+  `--reason` names the kind of fix, never the text. A pull request body
+  posted unsigned can't be edited through the poster: write only the changed
+  line to a file, run `issue-comment --repo <owner/name> --issue <the issue it works on> --body <file> --dry-run`
+  on it after the read before posting, and give me the line in chat to type
+  on GitHub myself; never put a fix in the squash message, and never edit the
+  body with plain `gh`. Delete a
   file once its post ends, whatever the result (verified, failed, unverified,
   mismatch or unavailable), or once you drop it; keep one refused for a lens
   report until I have answered, then delete it. Before the session ends,

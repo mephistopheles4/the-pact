@@ -21,4 +21,4 @@ The author, target, signature, leak and append-only reason checks are the edit's
 - **Refusing edits to spec revisions too** (S10 q2 (b) on #413). Not taken: the owner accepted the widening instead.
 - **Only the newest comment on its item** (q5 (b)). Not taken: fixing an older comment would send a session back to plain `gh`.
 - **Checking the edit history after the `PATCH`** (q6 (b)), to catch a change between the read and the write. Not taken: both writers are the owner's account and the window is one round trip; accepted as R60.
-- **An exemption for #412's sticky status comment.** Not built: #412 inherits the same checks, so its comment carries a `Signed:` line and keeps its reason lines.
+- **An exemption for #412's sticky status comment.** Not built: #412 inherits the same checks, so its comment carries a `Signed:` line and keeps its reason lines. Constrained by [0144](0144-the-status-comment-keeps-only-its-newest-reason-line.md): a status edit now keeps only its newest reason line.

@@ -11,7 +11,7 @@
 
 ## Decisions
 
-- [ADR 0144](../adr/0144-record-mode-writes-the-output-as-printed.md): record mode writes the output as printed. Amends ADR 0030, ADR 0098 and ADR 0143, strikes 0030's security-route sentence, and gives the reason the record-only posting rule stays.
+- [ADR 0145](../adr/0145-record-mode-writes-the-output-as-printed.md): record mode writes the output as printed. Amends ADR 0030, ADR 0098 and ADR 0143, strikes 0030's security-route sentence, and gives the reason the record-only posting rule stays.
 
 ## Record
 

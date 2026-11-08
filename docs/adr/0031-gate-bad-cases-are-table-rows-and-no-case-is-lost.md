@@ -6,7 +6,7 @@ Superseded in part by [ADR 0047](0047-install-cases-are-cut-by-covering-row.md) 
 
 Superseded in part by [ADR 0092](0092-gate-bad-cases-are-plain-test-loops.md) (2026-10-18): the table module, its load-time checks, its registration guard and `tables.test.mjs` are gone; each table's rows run as a plain loop over `test()` in its own file, with the same assertions and test names. A bad case is still a row.
 
-Amended by [ADR 0144](0144-record-mode-writes-the-output-as-printed.md) (2026-11-08): the runner's leak patterns that the compare imported are gone, and the compare went with 0047.
+Amended by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md) (2026-11-08): the runner's leak patterns that the compare imported are gone, and the compare went with 0047.
 
 A bad case for a gate module is a row in that module's table: one plant on a base input that passes, and the exact rule ids it must fail with. The T1 baseline of every case is committed, and a compare script proves at each move 4 that every baseline case still has a home.
 

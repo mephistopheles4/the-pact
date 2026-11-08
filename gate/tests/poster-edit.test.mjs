@@ -435,3 +435,92 @@ test('C12: a dry run prints the PATCH and sizes, runs the body checks, and calls
   const unsigned = edit(t, 'issue-edit', world(), { body: 'No signature.\n', extra: ['--dry-run'] });
   assert.ok(refusedBy(unsigned, 'edit/unsigned', 'option --body'));
 });
+
+// #503: the status comment, signed status-<n>, keeps only its newest reason line.
+const STATUS = 'status-5';
+const OLD_REASONS = 'Edited: after Design round 1 (pact-a)\n\nEdited: after Design round 2 (pact-b)';
+const STATUS_ITEM = `## Status: 0 for you, after Design round 2\n\nSigned: ${STATUS}\n\n${OLD_REASONS}`;
+const STATUS_BODY = `## Status: 1 for you, after Test round 1\n\nSigned: ${STATUS}\n`;
+
+// #503 C1, C1a
+test('#503 C1: a status edit with no reason line in --body lands with exactly one Edited line, on an issue and on a pull request', t => {
+  const w = world({ store: items(STATUS_ITEM) });
+  const r = edit(t, 'issue-comment-edit', w, { body: STATUS_BODY, signed: STATUS, reason: 'after Test round 1\n' });
+  assert.equal(last(r), `RESULT: verified issue-comment-edit ${URLS['issue-comment-edit']} as ${ME}`, r.lines.join(' | '));
+  const sent = JSON.parse(patches(w)[0].input).body;
+  assert.equal(sent, `${STATUS_BODY}\nEdited: after Test round 1 (${STATUS})`);
+  // C1a: a status comment in a pull request's conversation, --issue the pull request's number.
+  const onPr = '## Status\n\nSigned: status-7\n\nEdited: after Test round 1 (pact-a)';
+  const store = { ...items(), [`repos/${TARGET}/issues/comments/9003`]: { id: 9003, body: onPr, user: { login: ME }, issue_url: `${API}/issues/7` } };
+  const p = world({ store });
+  const pr = edit(t, 'issue-comment-edit', p, { body: '## Status\n\nSigned: status-7\n', signed: 'status-7', args: ['--issue', '7', '--comment', '9003'] });
+  assert.equal(pr.code, 0, pr.lines.join(' | '));
+  assert.equal(JSON.parse(patches(p)[0].input).body, '## Status\n\nSigned: status-7\n\nEdited: fixed a wrong link (status-7)');
+});
+
+// #503 C2
+test('#503 C2: a status edit whose --body keeps the old reason lines, or holds any reason-shaped line, is refused with nothing sent', t => {
+  const bodies = [
+    `${STATUS_BODY}\n${OLD_REASONS}\n`,
+    `${STATUS_BODY}\nEdited: after Design round 2 (pact-b)\n`,
+    `Edited: a forged line (${STATUS})\n\n${STATUS_BODY}`,
+  ];
+  for (const body of bodies) {
+    const w = world({ store: items(STATUS_ITEM) });
+    const r = edit(t, 'issue-comment-edit', w, { body, signed: STATUS });
+    assert.ok(refusedBy(r, 'edit/reasons', 'option --body'), `${JSON.stringify(body)}: ${r.lines.join(' | ')}`);
+    assert.equal(patches(w).length, 0);
+  }
+});
+
+// #503 C3
+test('#503 C3: a status label for another number, with a leading zero, or on another surface keeps the append-only rule', t => {
+  const cases = [
+    ['issue-comment-edit', 'status-6', ARGS['issue-comment-edit']],
+    ['issue-comment-edit', 'status-05', ARGS['issue-comment-edit']],
+    ['review-thread-reply-edit', 'status-7', ARGS['review-thread-reply-edit']],
+    ['issue-edit', 'status-5', ARGS['issue-edit']],
+  ];
+  for (const [surface, label, args] of cases) {
+    const item = `Text.\n\nSigned: ${label}\n\nEdited: fixed a typo (pact-a)`;
+    const w = world({ store: items(item) });
+    const r = edit(t, surface, w, { body: `Text, fixed.\n\nSigned: ${label}\n`, signed: label, args });
+    assert.ok(refusedBy(r, 'edit/reasons', 'option --body'), `${surface} ${label}: ${r.lines.join(' | ')}`);
+    assert.equal(patches(w).length, 0);
+  }
+});
+
+// #503 C4
+test('#503 C4: on a status edit, the author, target, signature, record, decision, leak and plain-sight checks still refuse', t => {
+  const s = 'issue-comment-edit';
+  for (const [store, args, rule] of [
+    [items(STATUS_ITEM, 'someone-else'), ARGS[s], 'edit/author'],
+    [items(STATUS_ITEM), ['--issue', '5', '--comment', '9002'], 'edit/target'],
+    // The item must already be signed status-<n> and nothing else: another session's comment can't become the status comment.
+    [items(`Text.\n\nSigned: pact-x\n\n${OLD_REASONS}`), ARGS[s], 'edit/unsigned'],
+    [items(`Text.\n\n${OLD_REASONS}`), ARGS[s], 'edit/unsigned'],
+  ]) {
+    const w = world({ store });
+    const r = edit(t, s, w, { body: STATUS_BODY, signed: STATUS, args });
+    assert.ok(refusedBy(r, rule, 'item'), `${rule}: ${r.lines.join(' | ')}`);
+    assert.equal(patches(w).length, 0);
+  }
+  const cases = [
+    [`${STATUS_BODY}\nSigned: pact-other\n`, 'edit/unsigned'],
+    [`## behaviour-lens\n\n${STATUS_BODY}`, 'edit/record'],
+    [`An owner decision.\n\n${STATUS_BODY}`, 'edit/decision'],
+    [`<details>\n\n${STATUS_BODY}`, 'edit/reasons'],
+    [`<!--\n\n${STATUS_BODY}`, 'edit/reasons'],
+  ];
+  for (const [body, rule] of cases) {
+    const w = world({ store: items(STATUS_ITEM) });
+    const r = edit(t, s, w, { body, signed: STATUS });
+    assert.ok(refusedBy(r, rule, 'option --body'), `${rule}: ${r.lines.join(' | ')}`);
+    assert.equal(patches(w).length, 0);
+  }
+  const secret = 'zebra-quokka-503';
+  const w = world({ store: items(`Key ${secret}.\n\n${STATUS_ITEM}`) });
+  const r = edit(t, s, w, { body: STATUS_BODY, signed: STATUS, env: { MY_API_KEY: secret } });
+  assert.ok(refusedBy(r, 'edit/leak', 'item'), r.lines.join(' | '));
+  assert.equal(patches(w).length, 0);
+});

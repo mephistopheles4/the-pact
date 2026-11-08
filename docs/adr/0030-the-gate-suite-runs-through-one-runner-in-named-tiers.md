@@ -2,7 +2,7 @@
 
 Superseded in part by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) (2026-10-10): the runner and the copy list are ordinary test code, no longer on a probe floor.
 
-Amended by [ADR 0144](0144-record-mode-writes-the-output-as-printed.md) (2026-11-08): record mode writes the output as printed, with no scrub and no leak check.
+Amended by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md) (2026-11-08): record mode writes the output as printed, with no scrub and no leak check.
 
 "The full suite" is one command everywhere: `node gate/tests/run.mjs full`. The everyday run while building is `node gate/tests/run.mjs changed`. A runner in the gate's tests folder picks each tier's files, always runs them at the cap of four files at once, and never reports a pass it didn't earn.
 
@@ -26,7 +26,7 @@ Amended by [ADR 0144](0144-record-mode-writes-the-output-as-printed.md) (2026-11
   - **Exit 0:** only after node ran a non-empty list and exited 0.
   - **A pass** is exit 0 together with the runner's last line ending in `pass`. An exit 0 with no result line is not one. The runner compares its own path and the one it was started by as real paths, so a start through a link, a junction or a short name still runs.
   - **The last line on stderr** names the tier, the file count and the result. The runner's own lines go to stderr, so node's reporter output on stdout stays clean TAP or junit.
-- **Record mode.** `--record <file>` writes everything printed, plus the result line, as printed, to a file outside the repo ([ADR 0144](0144-record-mode-writes-the-output-as-printed.md); it first replaced the repo, home and temp folders, the user name and the host name with placeholders, and wrote nothing and exited 3 if a path or name survived). A record path is checked against the repo as a real path; a record that can't be written exits 3. Test output posted on an issue comes only from record mode.
+- **Record mode.** `--record <file>` writes everything printed, plus the result line, as printed, to a file outside the repo ([ADR 0145](0145-record-mode-writes-the-output-as-printed.md); it first replaced the repo, home and temp folders, the user name and the host name with placeholders, and wrote nothing and exited 3 if a path or name survived). A record path is checked against the repo as a real path; a record that can't be written exits 3. Test output posted on an issue comes only from record mode.
 - **Only changed reads git.** `fast` and `full` read the file system alone, and run in a folder with no git repo.
 - **While building:** run `changed`.
 - **When the full suite runs:** once at move 4; before an install; after a rebase or merge that brought in other work; and after a final change set. It doesn't run before and after each change. A run of fewer files is never move-4 evidence.
@@ -36,7 +36,7 @@ Amended by [ADR 0144](0144-record-mode-writes-the-output-as-printed.md) (2026-11
 - **Sessions waited minutes on tests they didn't need.** The full suite took 1,794 s under load and 714 s quiet (the T1 baseline). Every one of its 50 slowest tests runs the real install script through pwsh. The owner wants fast sessions without cutting a test: "write 5k of them if they actually have value but I also want my session to go fast".
 - **One definition of "the full suite".** Before this, AGENTS.md gave a quoted glob for Node 24, an unquoted one for a POSIX shell under Node 20, and a `Get-ChildItem` form for PowerShell. The Linux container had a fourth. Each could drift, and none failed closed. An explicit file list from one module removes the glob and its caveat.
 - **A pass must mean the suite ran.** Two full runs on #97 ended with node's exit -1 and no summary. A runner that only checks for "no failures" can report a pass for a run that never finished. The runner's pass needs a real exit 0 from node, on a non-empty list.
-- **Posted records must not leak local paths.** Test output carries the home folder, the temp folder and the user name. A scrub that fails closed keeps them off the issue tracker. (Dropped by [ADR 0144](0144-record-mode-writes-the-output-as-printed.md), at the owner's word: the scrub refused passing runs, and a path is no secret. A record is still the only way test output is posted, so a post never carries a hand-picked excerpt.)
+- **Posted records must not leak local paths.** Test output carries the home folder, the temp folder and the user name. A scrub that fails closed keeps them off the issue tracker. (Dropped by [ADR 0145](0145-record-mode-writes-the-output-as-printed.md), at the owner's word: the scrub refused passing runs, and a path is no secret. A record is still the only way test output is posted, so a post never carries a hand-picked excerpt.)
 - **The tiers are part of the gate's proof.** Narrowing "full" would quietly shrink what move 4 checks, so the runner and the copy list it shares with the harness sit on the probe floor.
 
 ## How this was decided
