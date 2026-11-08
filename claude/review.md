@@ -53,7 +53,8 @@ Ask each lens to report in this shape:
   returns no report, or comes back inconclusive, runs again inside its round,
   and a further read runs again the same way; every report it returned stays
   in the record and its findings carry in, but a withheld one stays local, as
-  Posting says: its text appears in no post, yet still count, and a high
+  Posting says: its text appears in no post, yet its
+  findings still count, and a high
   security finding among them reopens the stage; route them before that
   read's comment is posted, and until they are routed, name them in chat,
   never in the record, in every hand-off; a withheld read has reported once I

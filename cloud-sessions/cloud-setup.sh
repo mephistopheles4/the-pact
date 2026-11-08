@@ -1190,7 +1190,8 @@ Ask each lens to report in this shape:
   returns no report, or comes back inconclusive, runs again inside its round,
   and a further read runs again the same way; every report it returned stays
   in the record and its findings carry in, but a withheld one stays local, as
-  Posting says: its text appears in no post, yet still count, and a high
+  Posting says: its text appears in no post, yet its
+  findings still count, and a high
   security finding among them reopens the stage; route them before that
   read's comment is posted, and until they are routed, name them in chat,
   never in the record, in every hand-off; a withheld read has reported once I
@@ -1521,7 +1522,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
-check_hash 783d9ddd895b6607320c53dbada6e3fe45f15cec7ec8730fd62398eecbd95de9 'pact/review.md'
+check_hash 8168cf09962ceb23c6fb877b5b5aa4a491196270d1b4bb8b025b0e59b8fcb4f9 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1551,7 +1552,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy b2efd1d6aaed"
+  echo "pact cloud copy 451a126fc291"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
