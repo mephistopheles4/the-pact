@@ -20,7 +20,7 @@ The rules cost more than they caught: too much friction, and Claude treated almo
 - **Narrowing the rules.** Offered once by the lead; the owner chose removal.
 - **Cutting the poster's environment-secret refusal too.** Not taken: it matches only the exact value of a secret-named variable in the poster's own environment, so it never fires on ordinary text (decision 388). It sees no credential `gh` keeps in a credential store and no key in a file, and on the default install the poster is off.
 - **A product's leaked key as an auth finding.** Not taken: a product's leaked credential is not by itself an auth finding. Its fix is Hardening, offered to the owner as an accepted-risk candidate, never built unasked (decision 378).
-- **This repo's own rules** (`AGENTS.md`, `docs/agents/issue-tracker.md`, `docs/agents/gate-tests.md`, `SECURITY.md`, the gate runner's record scrub, the installer's quiet output, the home-paths test) go to a separate issue, filed before merge (decision 354).
+- **This repo's own rules** (`AGENTS.md`, `docs/agents/issue-tracker.md`, `docs/agents/gate-tests.md`, `SECURITY.md`, the gate runner's record scrub (settled by [0144](0144-record-mode-writes-the-output-as-printed.md), no longer left to #449), the installer's quiet output, the home-paths test) go to a separate issue, filed before merge (decision 354).
 
 ## How this was decided
 

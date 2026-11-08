@@ -16,9 +16,9 @@
 // pick, a refused name or a usage error exits 2 without starting node, and a
 // killed node, a node that didn't start or a non-zero status exits 1. Its own
 // lines go to stderr, so node's reporter output on stdout stays clean; the
-// last line names the tier, the file count and the result. --record writes a
-// scrubbed copy of everything printed to a file outside the repo, and exits 3
-// if a local path, the user name or the host name survives the scrub. --skips
+// last line names the tier, the file count and the result. --record writes
+// everything printed, as printed, with the result line, to a file outside the
+// repo (#507): a path inside the repo exits 2, a write that fails exits 3. --skips
 // (full only, #351) fails a passing run unless it skipped exactly the tests a
 // list names, by file and name, and prints each difference. --list
 // prints the pick and runs nothing. --host-fallback=<reason> (fast and full,
@@ -31,11 +31,11 @@
 // code since #189, proved by use.
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, hostname, tmpdir, userInfo } from 'node:os';
+import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { posix } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { COPY_DIRS, COPY_FILES } from './copy-list.mjs';
 
 export const TIERS = Object.freeze(['changed', 'fast', 'full']);
@@ -339,116 +339,6 @@ export function pick({ tier, entries, sources, copyList, changed = [], withFast 
   return { files, refused, unmapped };
 }
 
-// ------------------------------------------------------------ record-mode scrub: pure
-
-const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-function splitSegs(p) {
-  return p.split(/[\\/]+/).filter(s => s !== '');
-}
-
-/**
- * The text forms a local path can take in output: as given, with either
- * slash, with doubled backslashes, and as a file URL. `aliases` are pairs of
- * [shortForm, longForm] (8.3 names) used to derive short forms of each path.
- */
-export function pathForms(p, aliases = [], win = process.platform === 'win32') {
-  const bases = new Set([p]);
-  for (const [short, long] of aliases) {
-    for (const [from, to] of [
-      [long, short],
-      [short, long],
-    ]) {
-      const fs = splitSegs(from);
-      const ts = splitSegs(to);
-      if (fs.length !== ts.length) continue;
-      const ps = splitSegs(p);
-      for (let k = fs.length; k >= 1; k -= 1) {
-        const head = fs.slice(0, k);
-        const same = win ? head.every((s, i) => ps[i]?.toLowerCase() === s.toLowerCase()) : head.every((s, i) => ps[i] === s);
-        if (same && ps.length >= k) {
-          bases.add([...ts.slice(0, k), ...ps.slice(k)].join(win ? '\\' : '/'));
-          break;
-        }
-      }
-    }
-  }
-  const forms = new Set();
-  for (const b of bases) {
-    const back = b.replace(/\//g, '\\');
-    const fwd = b.replace(/\\/g, '/');
-    forms.add(b);
-    forms.add(back);
-    forms.add(fwd);
-    forms.add(back.replace(/\\/g, '\\\\'));
-    try {
-      // The path part of its file URL, so "file://" stays and the placeholder follows it.
-      const href = pathToFileURL(b).href.replace(win ? /^file:\/\/\// : /^file:\/\//, '');
-      forms.add(href);
-      forms.add(decodeURI(href));
-    } catch {
-      // not a path a URL can hold; the plain forms stand
-    }
-  }
-  return [...forms].filter(f => f.length >= 3);
-}
-
-/** A whole-word, case-folded match for a name such as the user or host name, or null for one too short to match safely. */
-function wordRe(word, flags) {
-  return word && word.length >= 2 ? new RegExp(`(?<![A-Za-z0-9])${escapeRe(word)}(?![A-Za-z0-9])`, flags) : null;
-}
-
-/** A scrub function for { repo, home, tmp, user, host } with their placeholders, longest form first. */
-export function makeScrub({ repo, home, tmp, user, host, aliases = [], win = process.platform === 'win32' }) {
-  const pairs = [];
-  for (const [p, ph] of [
-    [repo, '<repo>'],
-    [tmp, '<tmp>'],
-    [home, '<home>'],
-  ]) {
-    if (p) for (const f of pathForms(p, aliases, win)) pairs.push([f, ph]);
-  }
-  pairs.sort((a, b) => b[0].length - a[0].length);
-  const flags = win ? 'gi' : 'g';
-  const res = pairs.map(([f, ph]) => [new RegExp(escapeRe(f), flags), ph]);
-  const names = [
-    [wordRe(host, 'gi'), '<host>'],
-    [wordRe(user, flags), '<user>'],
-  ].filter(([re]) => re);
-  return text => {
-    let out = text;
-    for (const [re, ph] of res) out = out.replace(re, ph);
-    for (const [re, ph] of names) out = out.replace(re, ph);
-    return out;
-  };
-}
-
-const LEAK_RES = [
-  // A drive-letter path, not the scheme of a URL.
-  /(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]/,
-  // A home-prefix path.
-  /(?<![A-Za-z0-9.-])\/(?:home|Users)\/[^/\s<]/,
-  /\\Users\\[^\\\s<]/i,
-  // A drive as a leading folder (Git Bash, MSYS), or under /mnt (WSL).
-  /(?<![A-Za-z0-9.-])\/[A-Za-z]\/(?:Users|home)\//i,
-  /(?<![A-Za-z0-9.-])\/mnt\/[A-Za-z]\//,
-  // A network share: \\host\share.
-  /(?:^|[\s'"=(\[])\\\\[A-Za-z0-9._$-]+\\[A-Za-z0-9._$-]+/,
-];
-
-/**
- * The 1-based numbers of the lines that still hold a local path, or one of
- * `words` (such as the host or user name) as a whole word, case-folded.
- */
-export function leakedLines(text, words = []) {
-  const wordRes = words.map(w => wordRe(w, 'i')).filter(Boolean);
-  const out = [];
-  text.split('\n').forEach((l, i) => {
-    if (LEAK_RES.some(re => re.test(l)) || wordRes.some(re => re.test(l))) out.push(i + 1);
-  });
-  return out;
-}
-
 // ------------------------------------------------------------ the skip list
 
 // A skip line is the test file's name, a space and the test's name, with
@@ -670,38 +560,6 @@ export function changedSet(base, shown = base) {
   return { base: commit, mergeBase, paths: [...new Set([...nulList(diff.out), ...nulList(staged.out), ...nulList(others.out)])].sort() };
 }
 
-/** The names a record must never hold as whole words: the host and user names. */
-function localNames() {
-  let user = null;
-  try {
-    user = userInfo().username;
-  } catch {
-    user = process.env.USERNAME ?? process.env.USER ?? null;
-  }
-  return { user, host: hostname() };
-}
-
-function localScrub() {
-  const aliases = [];
-  const t = tmpdir();
-  try {
-    const long = realpathSync.native(t);
-    if (long !== t) aliases.push([t, long]);
-  } catch {
-    // no alias from an unreadable temp folder
-  }
-  const { user, host } = localNames();
-  const real = p => {
-    try {
-      return realpathSync.native(p);
-    } catch {
-      return p;
-    }
-  };
-  const scrubs = [makeScrub({ repo: REPO, home: homedir(), tmp: t, user, host, aliases }), makeScrub({ repo: real(REPO), home: real(homedir()), tmp: real(t), user: null, aliases })];
-  return text => scrubs.reduce((s, f) => f(s), text);
-}
-
 export async function main(argv) {
   const record = [];
   const say = line => {
@@ -819,16 +677,8 @@ export async function main(argv) {
 
   if (recordPath) {
     record.push(`${last}\n`);
-    const text = localScrub()(record.join(''));
-    const { user, host } = localNames();
-    const leaks = leakedLines(text, [host, user]);
-    if (leaks.length) {
-      say(`record: not written, ${leaks.length} lines still held a local path or name (lines ${leaks.slice(0, 20).join(', ')}${leaks.length > 20 ? ', ...' : ''})`);
-      say(`${last}; record refused`);
-      return 3;
-    }
     try {
-      writeFileSync(recordPath, text);
+      writeFileSync(recordPath, record.join(''));
     } catch (e) {
       say(`record: not written (${SHOWN(String(e.code ?? 'write failed'))})`);
       say(`${last}; record refused`);

@@ -15,7 +15,7 @@
 #   git bundle create <tmp>/pact.bundle HEAD
 #   docker run --rm --network none -v <tmp>:/in:ro -v <out>:/out pact-linux:96
 # <out> is an empty folder outside the repo; the run writes its record there
-# (record.txt, scrubbed by the runner), to post on the issue.
+# (record.txt, the output as printed), to post on the issue.
 #
 # athanor runs this image too (#361), by the repo's athanor.json: it replaces
 # the CMD with its own command and tests the working tree as one synthetic

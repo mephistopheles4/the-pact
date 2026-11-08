@@ -1,4 +1,4 @@
-// The test runner, run.mjs (#140): its pure pick and scrub, then its shell end
+// The test runner, run.mjs (#140): its pure pick and verdict, then its shell end
 // to end on tiny planted folders. Each planted folder is a throwaway repo with
 // a copy of the runner and the copy-list module in its gate/tests, so the
 // runner finds its own folder and the repo root as it does in this tree.
@@ -11,10 +11,10 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, symlink
 import { homedir, hostname, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tempDir } from './tree.mjs';
 import { COPY_DIRS, COPY_FILES } from './copy-list.mjs';
-import { CAP, MAX_CHANGED, PLAIN_NAME, leakedLines, makeScrub, parseArgs, pathNames, pick, relativeImports, stringLiterals, verdict } from './run.mjs';
+import { CAP, MAX_CHANGED, PLAIN_NAME, parseArgs, pathNames, pick, relativeImports, stringLiterals, verdict } from './run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WIN = process.platform === 'win32';
@@ -345,58 +345,7 @@ test('parseArgs: a --host-fallback reason split into more arguments is refused, 
   }
 });
 
-// ------------------------------------------------------------ the record scrub
-
-test('the scrub: repo, temp and home folders, in every form, and the user name become placeholders', () => {
-  const scrub = makeScrub({
-    repo: 'C:\\Users\\alice\\src\\pact',
-    home: 'C:\\Users\\alice',
-    tmp: 'C:\\Users\\alice\\AppData\\Local\\Temp',
-    user: 'alice',
-    aliases: [['C:\\Users\\ALICE~1\\AppData\\Local\\Temp', 'C:\\Users\\alice\\AppData\\Local\\Temp']],
-    win: true,
-  });
-  const text = [
-    'at C:\\Users\\alice\\src\\pact\\gate\\tests\\x.test.mjs:3',
-    'file:///C:/Users/alice/src/pact/gate/run.mjs',
-    'c:/users/ALICE/src/pact/a and C:\\\\Users\\\\alice\\\\src\\\\pact\\\\b',
-    'C:\\Users\\ALICE~1\\AppData\\Local\\Temp\\pact-x and C:\\Users\\ALICE~1\\.claude',
-    'C:\\Users\\alice\\.claude and user alice, not malice',
-    'see https://example.com/a',
-  ].join('\n');
-  const out = scrub(text);
-  assert.deepEqual(leakedLines(out), []);
-  assert.equal(
-    out,
-    [
-      'at <repo>\\gate\\tests\\x.test.mjs:3',
-      'file:///<repo>/gate/run.mjs',
-      '<repo>/a and <repo>\\\\b',
-      '<tmp>\\pact-x and <home>\\.claude',
-      '<home>\\.claude and user <user>, not malice',
-      'see https://example.com/a',
-    ].join('\n'),
-  );
-});
-
-test('the scrub on a POSIX tree, and the leak check on what survives', () => {
-  const scrub = makeScrub({ repo: '/home/bob/pact', home: '/home/bob', tmp: '/tmp', user: 'bob', win: false });
-  const out = scrub('/home/bob/pact/x /tmp/y /home/bob/.z file:///home/bob/pact/q');
-  assert.deepEqual(leakedLines(out), []);
-  assert.equal(out, '<repo>/x <tmp>/y <home>/.z file://<repo>/q');
-  assert.deepEqual(leakedLines('ok\nD:\\other\\x\nhttps://a.b/c\n/home/eve/x\n/Users/eve/y\nfile:///E:/z'), [2, 4, 5, 6]);
-});
-
-test('the scrub replaces the host name, whole words only, in any case', () => {
-  const scrub = makeScrub({ repo: '/r/x', home: '/h/x', tmp: '/t/x', user: 'bob', host: 'Build-Box7', win: false });
-  assert.equal(scrub('<testsuites hostname="BUILD-BOX7"> build-box7 build-box77'), '<testsuites hostname="<host>"> <host> build-box77');
-});
-
-test('the leak check: Git Bash, WSL and network-share paths, and a named word, are leaks', () => {
-  const text = ['at /c/Users/eve/x', 'at /mnt/d/work/x', "at '\\\\fileserver\\share\\x'", 'host BUILD-BOX7 here', 'fine <repo>\\\\gate\\\\tests and /r/x', 'not build-box77'].join('\n');
-  assert.deepEqual(leakedLines(text, ['build-box7']), [1, 2, 3, 4]);
-  assert.deepEqual(leakedLines('BUILD-BOX7'), [], 'with no words named, a bare name is not a path');
-});
+// ------------------------------------------------------------ the verdict
 
 test('verdict: only a clean exit 0 with no error or signal is a pass', () => {
   assert.deepEqual(verdict({ code: 0, signal: null }), { result: 'pass', code: 0 });
@@ -608,7 +557,10 @@ if (process.execArgv.includes('--test') || /\\.test\\.mjs$/.test(process.argv[1]
   assert.deepEqual(readdirSync(marks), [], 'the preload ran in a process the runner started');
 });
 
-test('shell: --record writes a scrubbed copy with only placeholders, outside the repo', t => {
+/** `value` in the form the run printed it in `out` (as given, or with doubled backslashes), or undefined if it printed neither. */
+const asPrinted = (value, out) => [value, value.replace(/\\/g, '\\\\')].find(f => out.includes(f));
+
+test('shell: --record writes a failing run as printed, paths and all, outside the repo (exit 1, record written)', t => {
   const p = plant(t, {
     'r.test.mjs': `import { test } from 'node:test';
 import { homedir, hostname, tmpdir } from 'node:os';
@@ -621,22 +573,39 @@ test('planted paths', () => { throw new Error(['REPO=' + process.cwd(), 'HOME=' 
   assert.equal(r.code, 1);
   assert.equal(r.last, 'RESULT: full tier, 1 files, fail (exit 1)');
   const text = readFileSync(rec, 'utf8');
-  assert.deepEqual(leakedLines(text), [], 'the record holds no local path');
-  for (const local of [p.root, homedir(), tmpdir()]) assert.ok(!text.toLowerCase().includes(local.toLowerCase()), 'a local folder survived the scrub');
-  assert.match(text, /REPO=<repo>/);
-  assert.match(text, /HOME=<home>/);
-  assert.match(text, /TMP=<tmp>/);
-  assert.match(text, /URL=file:\/\/\/?<home>/);
+  // The oracle is the child's own output relayed by the run: each value must be there as printed, and in the record the same.
+  for (const value of [p.root, homedir(), tmpdir(), pathToFileURL(homedir()).href]) {
+    const printed = asPrinted(value, r.stdout);
+    assert.ok(printed, `the run printed ${value}`);
+    assert.ok(text.includes(printed), `the record holds ${value} as printed`);
+  }
+  assert.doesNotMatch(text, /<repo>|<home>|<tmp>|<host>|<user>/, 'no placeholder');
   assert.match(text, /^not ok \d+ - planted paths$/m);
   assert.equal(text.trimEnd().split('\n').pop(), 'RESULT: full tier, 1 files, fail (exit 1)');
 });
 
-test('shell: a local path that survives the scrub fails the record closed: exit 3 and no file', t => {
-  const p = plant(t, { 'q.test.mjs': `import { test } from 'node:test';\ntest('left over', () => { console.log('at ' + 'Q:' + '\\\\nowhere\\\\x'); });\n` });
+test('shell: --record writes a passing run as printed, a drive path and the host name included (exit 0, record written)', t => {
+  const p = plant(t, { 'q.test.mjs': `import { test } from 'node:test';\nimport { hostname } from 'node:os';\ntest('left over', () => { console.log('at ' + 'Q:' + '\\\\nowhere\\\\x on ' + hostname()); });\n` });
   const rec = join(tempDir(t, 'pact-rec-'), 'record.txt');
   const r = runIn(p, ['full', '--record', rec]);
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(r.last, 'RESULT: full tier, 1 files, pass');
+  const text = readFileSync(rec, 'utf8');
+  for (const value of ['Q:\\nowhere\\x', hostname()]) {
+    const printed = asPrinted(value, r.stdout);
+    assert.ok(printed, `the run printed ${value}`);
+    assert.ok(text.includes(printed), `the record holds ${value} as printed`);
+  }
+  assert.equal(text.trimEnd().split('\n').pop(), 'RESULT: full tier, 1 files, pass');
+});
+
+test('shell: a record that cannot be written exits 3 with "record refused" and leaves no file', t => {
+  const p = plant(t, { 'a.test.mjs': PASSING });
+  const rec = join(tempDir(t, 'pact-rec-'), 'no-such-folder', 'record.txt');
+  const r = runIn(p, ['full', '--record', rec]);
   assert.equal(r.code, 3);
-  assert.match(r.last, /^RESULT: full tier, 1 files, pass; record refused$/);
+  assert.match(r.stderr, /^record: not written \(ENOENT\)$/m);
+  assert.equal(r.last, 'RESULT: full tier, 1 files, pass; record refused');
   assert.ok(!existsSync(rec), 'no record is written');
 });
 
@@ -683,16 +652,7 @@ test('shell: a record path into the repo through a link is refused with exit 2',
   assert.ok(!existsSync(join(p.root, 'rec.txt')), 'no record is written inside the repo');
 });
 
-test('shell: --record replaces the host name', t => {
-  const p = plant(t, { 'h.test.mjs': "import { describe, test } from 'node:test';\nimport { hostname } from 'node:os';\ndescribe('suite', () => { test('host', () => { throw new Error('HOST=' + hostname()); }); });\n" });
-  const rec = join(tempDir(t, 'pact-rec-'), 'record.txt');
-  const r = runIn(p, ['full', '--reporter', 'junit', '--record', rec]);
-  assert.equal(r.code, 1, r.last);
-  const text = readFileSync(rec, 'utf8');
-  assert.match(text, /HOST=<host>/);
-  assert.match(text, /hostname="<host>"/);
-  assert.ok(!new RegExp(`(?<![A-Za-z0-9])${hostname().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, 'i').test(text), 'the host name survived the scrub');
-});
+
 // ------------------------------------------------------------ the shell: the changed tier, on a planted git repo
 
 /** git in `cwd`, with no inherited GIT_ variables; throws on failure. */
