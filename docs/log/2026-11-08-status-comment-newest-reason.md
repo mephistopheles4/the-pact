@@ -16,3 +16,5 @@ The change narrows a control ADR 0120 names; the owner accepted it, and accepted
 - Spec revision 5, final: https://github.com/mephistopheles4/the-pact/issues/503#issuecomment-6722422925
 - Spec round 1: https://github.com/mephistopheles4/the-pact/issues/503#issuecomment-6722424761
 - Spec round 2 (final): https://github.com/mephistopheles4/the-pact/issues/503#issuecomment-6722426592
+- Test round 1: https://github.com/mephistopheles4/the-pact/issues/503#issuecomment-6722658606
+- Test round 2 (final): https://github.com/mephistopheles4/the-pact/issues/503#issuecomment-6722660120
