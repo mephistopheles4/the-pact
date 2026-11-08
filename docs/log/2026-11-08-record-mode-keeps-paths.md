@@ -18,3 +18,4 @@
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/507).
 - [The approved spec, revision 4](https://github.com/mephistopheles4/the-pact/issues/507#issuecomment-6722389800).
 - [Spec round 1](https://github.com/mephistopheles4/the-pact/issues/507#issuecomment-6722392021) and [spec round 2](https://github.com/mephistopheles4/the-pact/issues/507#issuecomment-6722394463).
+- [Test round 1](https://github.com/mephistopheles4/the-pact/issues/507#issuecomment-6722882504).
