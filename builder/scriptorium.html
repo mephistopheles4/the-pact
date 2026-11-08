@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-q2O8qpjE5C/uT5ZcllGR4N0ZisWi4KOKVg0JGFsvalE='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-frtTInp/hs/fYDMFcX4i6KfLdvumBK0PMsacaDO9kMw='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -3339,7 +3339,7 @@ const PACT = /* pact-data:begin */ {
    },
    {
     "name": "make-it-so",
-    "text": "---\ndescription: The owner's \"accept all recommendations\", meant to be typed by the owner.\ndisable-model-invocation: true\n---\n\n# /make-it-so\n\nAccept every recommendation in your last message, and carry them out. This\nnever takes a step that needs its own yes, nor a number already answered. After\na `/scry` answer it is \"Yes, 1 to N\" to that answer.\n"
+    "text": "---\ndescription: The owner's \"accept all recommendations\", meant to be typed by the owner.\ndisable-model-invocation: true\n---\n\n# /make-it-so\n\nAccept every recommendation in your last message, and carry them out. This\nnever takes a step that needs its own yes, nor a number already answered. Those\nsteps are an install apply, mise trust, a deletion by hand, a release or\npublish to users, a message to someone outside the session, a merge whose\nchange touches hooks, settings or setup that runs as root (or anything else the\nproject's rules on the base branch say to read closely), and any step you can't\nundo or aren't sure you can. After a `/scry` answer it is \"Yes, 1 to N\" to that\nanswer.\n"
    },
    {
     "name": "scriptorium",
