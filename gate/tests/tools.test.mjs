@@ -280,6 +280,7 @@ function denies(rule, command) {
 
 const RM_RULES = CLEANER_DENY.filter(r => r.includes('claude rm'));
 
+// #439 C5: each new rule matches its bad cases under the model above, and none of the neighbours.
 test('the matcher model: the new rules match their bad cases and none of the neighbours', () => {
   assert.deepEqual(RM_RULES, ['Bash(claude rm *)', 'PowerShell(claude rm *)']);
   const shells = rules => rules.map(r => [r, r.startsWith('PowerShell')]);

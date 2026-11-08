@@ -426,7 +426,7 @@ test('the renderer lines: the stop switch is on only for VALUE session-stop-deny
   assert.equal(core.stopSwitchOn(parse(renderBase().in)), false, 'no line');
   assert.equal(core.stopSwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE session-stop-deny off\nRESULT'))), false);
   assert.equal(core.stopSwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE session-stop-deny on\nRESULT'))), true);
-  assert.throws(() => core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE session-stop-deny on').split('\n'), sha256), /./);
+  assert.throws(() => core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE session-stop-deny on').split('\n'), sha256), e => e.rule === 'project-render-unknown-line');
 });
 
 test('the renderer lines: the parse gives the hashes, the configuration, the edits, the values and the agent settings', () => {

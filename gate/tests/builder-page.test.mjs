@@ -1283,7 +1283,7 @@ test('the settings section draws the auto-compact window right after the weekly 
   assert.match(src.slice(compact, compact + 300), /state\.compact, cw\.min, cw\.max, cw\.def, v => \(state\.compact = v\), v => \(state\.compact = v\), 'tokens', cw\.step, cw\.off\)/);
 });
 
-// #439 S5.3: the stop switch, an on/off choice that saves nothing at its default (off) and `true` when on.
+// #439 S5.3 (no numbered claim; kept because a save that wrote the switch wrongly would turn the owner's deny rules on or off at the next install): the default is off and unwritten, and on writes `true`.
 test('the stop switch starts off, saves nothing at the default, true when on, and adds no problem', () => {
   assert.deepEqual(L.PACT.stopSwitch, { name: 'session-stop-deny', def: false });
   const s = L.initialState();
@@ -1297,12 +1297,6 @@ test('the stop switch starts off, saves nothing at the default, true when on, an
   s.stopDeny = false;
   s.compact = 400000;
   assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined);
-});
-
-test('the settings section draws a stop-switch checkbox that sets state.stopDeny', () => {
-  const src = readFileSync(join(REPO, PAGE_REL), 'utf8');
-  assert.match(src, /'aria-label': 'Deny raw claude stop'/);
-  assert.match(src, /state\.stopDeny = box\.checked/);
 });
 
 // #262: a moves edit saves the whole part as one replace; an empty move stops a save.

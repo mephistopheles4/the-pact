@@ -579,6 +579,7 @@ test('"session-stop-deny": true prints VALUE session-stop-deny on and the notice
     assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', `session-stop-deny ${word}`));
   }
 });
+// #439 C6
 test('bad case: session-stop-deny takes no value but true or false', t => {
   for (const bad of ['1', '0', '"on"', '"true"', 'null', '[]']) {
     refusedWith(render(t, homeWith(t, Buffer.from(`{"schema": 1, "settings": {"session-stop-deny": ${bad}}}\n`))), 'config-value', /session-stop-deny must be true or false/);

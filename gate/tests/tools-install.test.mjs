@@ -205,7 +205,7 @@ test('session-stop-deny unset or false: no claude stop rule is added or recorded
   }
 });
 
-// #439 C2, C3, C8: on, the install adds and records both rules; off removes only recorded ones on the list.
+// #439 C2, C3: on, the install adds and records both rules; off removes only recorded ones on the list.
 test('session-stop-deny on adds and records both rules; off removes only rules both recorded and fixed; the owner\'s identical rule stays', t => {
   const repo = makeRepo(t);
   const h = stopHome(t, [], true);
@@ -249,7 +249,8 @@ test('the stop plan and the cleaner plan each touch only their own fixed rules, 
   const h = stopHome(t, ['cleaner'], true);
   const deny = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
   const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
-  installed(repo, h);
+  const bothOn = installed(repo, h);
+  for (const r of STOP_DENY) assert.ok(bothOn.stdout.includes(`  + permissions.deny: ${r}`), r);
   assert.deepEqual([...deny()].sort(), [...CLEANER_DENY, ...STOP_DENY].sort());
   assert.deepEqual(record().cleanerDeny, [...CLEANER_DENY]);
   assert.deepEqual(record().stopDeny, [...STOP_DENY]);
@@ -268,10 +269,18 @@ test('the stop plan and the cleaner plan each touch only their own fixed rules, 
   r.cleanerDeny.push(STOP_DENY[0]);
   r.stopDeny.push(CLEANER_DENY[0]);
   writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
+  // Cleaner off, stop on: the cleaner's plan drops its own rules and leaves the stop rules planted in its record.
+  setConfig(h, [], true);
+  const cleanerOff = installed(repo, h);
+  assert.deepEqual([...deny()].sort(), [...STOP_DENY].sort(), 'only the cleaner\'s own rules went');
+  assert.ok(!cleanerOff.stdout.includes('- permissions.deny: Bash(claude stop *)'), 'a stop rule in the cleaner\'s record is not dropped');
+  assert.equal(record().cleanerDeny, undefined, 'and is not recorded again under cleanerDeny');
+  assert.deepEqual(record().stopDeny, [...STOP_DENY]);
+
+  // Both off: each plan drops its own rules only.
   setConfig(h, [], false);
   installed(repo, h);
-  assert.deepEqual(deny(), [], 'both off: each plan dropped its own rules only, and the planted cross entries drop none twice');
-  assert.equal(record().cleanerDeny, undefined);
+  assert.deepEqual(deny(), []);
   assert.equal(record().stopDeny, undefined);
 });
 
@@ -288,7 +297,7 @@ test('a malformed stopDeny in the record refuses', t => {
 });
 
 // #439 C8: with settings.json not strict JSON, the merge leaves it alone and the record keeps stopDeny.
-// The apply refuses on such a file (settings-install.test.mjs), so the record is never rewritten there; the dry run plans no rule and the record stays byte for byte.
+// The apply refuses on such a file (the settings install tests cover that refusal), so the record is never rewritten there; the dry run plans no rule and the record stays byte for byte.
 test('settings.json that is not strict JSON: the dry run plans no stop rule and the record\'s stopDeny stays as it was', t => {
   const repo = makeRepo(t);
   const h = stopHome(t, [], true);
@@ -303,7 +312,7 @@ test('settings.json that is not strict JSON: the dry run plans no stop rule and 
   passed(dry);
   assert.match(dry.stdout, /^WARN: settings\.json is not a strict JSON object/m, dry.out);
   assert.ok(!dry.stdout.includes('permissions.deny'), 'no rule is planned');
-  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }));
+  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /settings\.json is not a strict JSON object/);
   assert.equal(readFileSync(recordFile, 'utf8'), before, 'the record is untouched');
   assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), bad, 'settings.json is untouched');
 });
