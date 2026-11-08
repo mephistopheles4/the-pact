@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs inside the Linux container (#96): clone the bundled commit, print the
 # versions, and run every gate test once. The junit report keeps each skip's
-# reason, and the record in /out is the scrubbed copy to post on the issue.
+# reason, and the record in /out is the output as printed, to post on the issue.
 set -u
 # The suite never needs PowerShell (#210): a run with one on the machine could
 # not show that, so it refuses.

@@ -52,4 +52,4 @@ This file is never installed.
 
 ## What no read looks for
 
-No read before a post looks for a path on this machine, and the read before a push looks for neither its paths nor its names (#506, [ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). The owner sees nothing secret in them, and the check only held back ordinary posts. #368 removed the path item from `claude/review.md` once, and #464 T2's rewrite brought it back: check a rewrite of either read against #368 and #506 before adding a path item.
+No read before a post looks for a path on this machine, and the read before a push looks for neither its paths nor its names (#506, [ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). The owner sees nothing secret in them, and the check only held back ordinary posts. #368 removed the path item from `claude/review.md` once, and #464 T2's rewrite brought it back: check a rewrite of either read against #368 and #506 before adding a path item. #507 ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)) also took a user or host name, inside a path or on its own, out of what the read before posting counts as a personal detail.
