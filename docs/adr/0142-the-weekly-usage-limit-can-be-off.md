@@ -17,7 +17,7 @@ The owner asked for the weekly limit to get a toggle like the session limit's, i
 
 - **Off as an absent key.** Not taken: an absent key already means 75%.
 - **Off as 0.** Not taken: 0 is a valid line ("always wait").
-- **Rewording the rules text for the off case.** Not taken: it would change the renders every existing configuration keeps. The spec pair and the security pair read this. Three rendered lines then name a weekly line that is absent while it is off: the Guard's "its line", the session line's "carry on under the weekly rule", and a project's "the line in my user rules". The page's session note says what they mean; whether the rules text itself changes is open.
+- **Rewording the rules text for the off case.** Not taken: it would change the renders every existing configuration keeps. The spec pair and the security pair read this. Three rendered lines then name a weekly line that is absent while it is off: the Guard's "its line", the session line's "carry on under the weekly rule", and a project's "the line in my user rules". The owner decided to leave the rendered wording: the page's session note and this record say what the three lines mean while the limit is off, and the rules text stays byte for byte.
 
 ## What it costs
 

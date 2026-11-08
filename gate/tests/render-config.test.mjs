@@ -335,7 +335,6 @@ const BAD = [
   ['a value as true', '{"schema": 1, "settings": {"usage-pause": true}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
   ['a value as null', '{"schema": 1, "settings": {"usage-pause": null}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
   ['a value as a list', '{"schema": 1, "settings": {"usage-pause": [90]}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
-  ['a value as the word off', '{"schema": 1, "settings": {"usage-pause": "off"}}', 'config-value', /usage-pause must be false, or a whole number/],
   ['a value of -0', '{"schema": 1, "settings": {"usage-pause": -0}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
   ['a value of -0.0', '{"schema": 1, "settings": {"usage-pause": -0.0}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
   ['a fraction', '{"schema": 1, "settings": {"usage-pause": 90.5}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],

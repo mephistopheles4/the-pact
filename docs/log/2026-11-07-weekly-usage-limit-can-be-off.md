@@ -16,7 +16,7 @@ The dry run prints `WARN: the user configuration turns usage-pause off.` in plac
 
 The pact's default stays on at 75%, so `builder/default-config/` and `cloud-sessions/` did not change.
 
-Left to the owner: the rendered session line and project line still say "the weekly rule" and "the line in my user rules" when the weekly limit is off, because the rules text was kept byte for byte; and the threat-model widening and the removable usage control wait on the owner's confirm in chat at merge. The owner's words came relayed by the lead session, and the proceed was recorded on the issue as relayed, not as an owner decision from chat.
+Decided by the owner: the rendered session line and project line keep saying "the weekly rule" and "the line in my user rules" when the weekly limit is off, because the rules text stays byte for byte (ADR 0142); and the owner confirmed the threat-model widening and that the weekly usage control can be off. The owner's words came relayed by the lead session; the issue records the answers as relayed, not as an owner decision from chat.
 
 ## Record
 
