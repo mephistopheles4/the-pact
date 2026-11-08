@@ -192,7 +192,7 @@ trade-off.
   its work and where it came from, and list them in the result.
 - **Working for a goal.** If the session that holds my goal started you for
   it, you hold none: what these rules would bring to me, but the usage
-  go-ahead and a cleaner removal, goes to that session, and only its reply to
+  go-ahead and a worktree removal, goes to that session, and only its reply to
   what you sent counts. Log each reply and who gave it, never as mine; with no
   reply, it waits for me. Holding the goal, say so in each start prompt,
   answer only the sessions you start as the goal says, naming in the log the
