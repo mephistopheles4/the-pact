@@ -139,7 +139,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 ## Closing out
 
 - Plans and reviews live on the issue. The PR body opens with the template's
-  checkbox line, word for word, then `Tests: +<added> −<cut>`.
+  checkbox line, word for word, then `Tests: +<added> −<cut>`, and ends with
+  `Signed: pr-<n>`, n the issue it works on.
 - An ADR, indexed, only when a decision reverses or constrains something; a
   dated log only for a change to the pact text or the gate. Each merges with
   the PR. More: [work records](docs/agents/work-records.md).
