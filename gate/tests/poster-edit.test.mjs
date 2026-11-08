@@ -493,10 +493,18 @@ test('#503 C3: a status label for another number, with a leading zero, or on ano
 // #503 C4
 test('#503 C4: on a status edit, the author, target, signature, record, decision, leak and plain-sight checks still refuse', t => {
   const s = 'issue-comment-edit';
-  const author = edit(t, s, world({ store: items(STATUS_ITEM, 'someone-else') }), { body: STATUS_BODY, signed: STATUS });
-  assert.ok(refusedBy(author, 'edit/author', 'item'), author.lines.join(' | '));
-  const target = edit(t, s, world({ store: items(STATUS_ITEM) }), { body: STATUS_BODY, signed: STATUS, args: ['--issue', '5', '--comment', '9002'] });
-  assert.ok(refusedBy(target, 'edit/target', 'item'), target.lines.join(' | '));
+  for (const [store, args, rule] of [
+    [items(STATUS_ITEM, 'someone-else'), ARGS[s], 'edit/author'],
+    [items(STATUS_ITEM), ['--issue', '5', '--comment', '9002'], 'edit/target'],
+    // The item must already be signed status-<n> and nothing else: another session's comment can't become the status comment.
+    [items(`Text.\n\nSigned: pact-x\n\n${OLD_REASONS}`), ARGS[s], 'edit/unsigned'],
+    [items(`Text.\n\n${OLD_REASONS}`), ARGS[s], 'edit/unsigned'],
+  ]) {
+    const w = world({ store });
+    const r = edit(t, s, w, { body: STATUS_BODY, signed: STATUS, args });
+    assert.ok(refusedBy(r, rule, 'item'), `${rule}: ${r.lines.join(' | ')}`);
+    assert.equal(patches(w).length, 0);
+  }
   const cases = [
     [`${STATUS_BODY}\nSigned: pact-other\n`, 'edit/unsigned'],
     [`## behaviour-lens\n\n${STATUS_BODY}`, 'edit/record'],

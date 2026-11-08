@@ -160,8 +160,9 @@ sent, when:
   exactly one.
 
 The author, target, signature, leak and append-only reason checks are the
-edit's controls; on a status edit the append-only check gives way to the
-no-reason-line check, accepted by the owner (decision 180, ADR 0144). The record and decision checks, and the reason lines' "in
+edit's controls; on a status edit the append-only check is removed, accepted
+by the owner (decision 180, ADR 0144), and the no-reason-line check that
+stands in its place is a best-effort reading, like the "in plain sight" part. The record and decision checks, and the reason lines' "in
 plain sight" part, are a best-effort backstop: they guess at how GitHub
 renders a body, and a form their readings don't see passes (What the scans
 don't cover).

@@ -31,9 +31,9 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   [`.github/pull_request_template.md`](../../.github/pull_request_template.md) only
   in the web UI; `gh pr create --body` skips it. So a session that opens a PR
   from the CLI makes the template's checkbox line the first line of its
-  `--body`, copied word for word, and its last line `Signed: pr-<n>`, n the
-  issue it works on, so any session can fix the body through the poster
-  (#503). It ticks the box when the PR finishes the work, and leaves it
+  `--body`, copied word for word, and its last line `Signed: pr-<n>` with
+  `<n>` replaced by the issue it works on, so any session can fix the body
+  through the poster (#503); a body left with `<n>` counts as unsigned. It ticks the box when the PR finishes the work, and leaves it
   unticked otherwise.
 - **Finding a decision or a log:** decisions start from the index
   [`docs/adr/README.md`](../../docs/adr/README.md), one line per file; add a line
