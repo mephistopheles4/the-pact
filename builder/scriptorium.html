@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-TBFil6hH2iKKhfHpZLx1z4mWKihTSwkD3eK7c7NVO88='; style-src 'sha256-jaz94qUR1eoKrNumkgHS5co0uAuQmuVc4jZ7+D+LAIE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-4ug85Bo+moU2d2l6WXei+yHEjixvbSv8f7IcdBwVAZw='; style-src 'sha256-jaz94qUR1eoKrNumkgHS5co0uAuQmuVc4jZ7+D+LAIE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -7775,7 +7775,26 @@ function boot() {
   function paintReset() {
     resetBtn.disabled = resetBefore === null && atStart(state);
   }
+  // Taking a preset offers the same Undo: the page presses the chip twice, the design system's way, and the
+  // av-reset that comes back keeps what was there instead of resetting; then the chip is left and entered, so it offers Undo at once.
+  let offeringPreset = null;
+  function offerUndoAfterPreset(before) {
+    offeringPreset = before;
+    resetBefore = before;
+    paintReset();
+    resetBtn.click();
+    resetBtn.click();
+    resetBtn.dispatchEvent(new Event('pointerout', { bubbles: true }));
+    setTimeout(() => resetBtn.dispatchEvent(new Event('pointerover', { bubbles: true })), 300);
+  }
   resetBtn.addEventListener('av-reset', () => {
+    if (offeringPreset !== null) {
+      resetBefore = offeringPreset;
+      offeringPreset = null;
+      resetAt = JSON.stringify(state);
+      paintReset();
+      return;
+    }
     resetAt = null;
     resetBefore = resetAll(state);
     fromPreset.clear();
@@ -8166,11 +8185,13 @@ function boot() {
         ...(kept.length ? [el('p', { class: 'av-annot', text: `Not in this preset, so yours stays: ${kept.join(', ')}.` })] : []),
         el('div', { class: 'chips' },
           chip('Take these', true, () => {
+            const before = JSON.stringify(state);
             for (const n of takePreset(state, chosen, [...picks])) fromPreset.add(n);
             $('presets').close();
             renderAll();
-            paintReset();
-            setStatus(`Taken from ${chosen.title}. Reset puts the page back where it started.`);
+            resetAt = JSON.stringify(state);
+            offerUndoAfterPreset(before);
+            setStatus(`Taken from ${chosen.title}. To put yours back, use Undo reset on the Reset chip within ten seconds. Reset puts the page back where it started.`);
           }),
           chip('Back', false, () => openPresets(), 'av-tool-chip--ghost')))));
     showDialog('presets');

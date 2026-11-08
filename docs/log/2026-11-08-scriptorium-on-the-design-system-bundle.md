@@ -14,7 +14,7 @@ A re-pin changes every constant and takes the security pair on the upstream diff
 
 The looks the owner kept stand in one local block of five entries after the bundle, headed with `aviation-design-system#22`, and go at the re-pin. The saved scheme key moves from `pact-config-scheme` to `aviation-scheme`, and the saved panel sizes move to the design system's keys, so each user's saved dark scheme and sizes reset once. The old keys stay in storage, so a revert brings them back.
 
-One behaviour changed: taking a preset no longer leaves an Undo on the Reset chip, since the design system offers Undo only after a Reset it fired.
+One behaviour changed: taking a preset still offers Undo on the Reset chip, but for the design system's ten seconds, where it used to stay until the next change. The page presses the chip twice and enters it, so the design system's own reset rules offer the Undo.
 
 **Rolling back:** revert the PR.
 
