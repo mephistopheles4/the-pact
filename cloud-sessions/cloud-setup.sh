@@ -706,6 +706,7 @@ trade-off.
 | Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as a note; never built unasked |
 | Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |
 | Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |
+| Review rounds | Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own | 2, the second declared final | A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage |
 
 ## Guards
 
@@ -1185,10 +1186,35 @@ Ask each lens to report in this shape:
 - **You decide** which findings are security findings, by the rules file's
   Cost limits. A security or `security?` finding comes to me and is never
   `auto`.
+- **A stage's rounds.** Under a Review rounds cost, a lens that errors or
+  returns no report, or comes back inconclusive, runs again inside its round,
+  and a further read runs again the same way; every report it returned stays
+  in the record and its findings carry in, but a withheld one stays local, as
+  Posting says: its text appears in no post, yet still count, and a high
+  security finding among them reopens the stage; route them before that
+  read's comment is posted, and until they are routed, name them in chat,
+  never in the record, in every hand-off; a withheld read has reported once I
+  have answered it in chat. A report that Posting refused is never rerun. If the
+  security pair, a repo's required lenses or a
+  typed skill's lenses would read anything
+  after the final round, that read still runs, outside the count,
+  with the Guards' "gone round twice" as its brake, and its findings go by the
+  row's At the limit; this is how those lenses keep running, so the Cost
+  limits opening's trade-off does not arise for them there. The stage closes,
+  and nothing is accepted or merged, only once
+  every further read has reported. A security or `security?` finding of any severity past the limit
+  keeps the security bar. A high security finding reopens the stage: its count
+  starts again, and its next round runs the security pair. A ticket that
+  changes the spec gets its own rounds.
 - **One review comment per round.** Open it with a title line,
-  `## <stage> round <n> on <head or spec revision>: <verdict>, <N> for you`,
+  `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
   N being the rows that need my decision (an `open`, trade-off or `security?`
-  row), not a drafted fix waiting on my word. Then a signal table, one row per
+  row), not a drafted fix waiting on my word. Write `, reopened` on the first
+  round after a reopen and `, final` on the round a Review rounds cost
+  declares final, and leave out both otherwise; a further read outside the
+  count is titled
+  `## <stage> further read on <head or spec revision>: <verdict>, <N> for you`.
+  Then a signal table, one row per
   lens that ran: the lens, its signal (the mark of its most severe `open`
   finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
   diagrams, then a count line with one count per Disposition word, summing to
@@ -1201,18 +1227,20 @@ Ask each lens to report in this shape:
   round without reading them all. Its label is `status-<n>`, n the issue's or
   pull request's number, never a session's, so any session can edit it. It
   holds, in order: a title line, `## Status: <N> for you, after <stage> round
-  <n>`, N as in the round's title line; the round's signal table, copied as
+  <n>[, reopened][, final]` or `after <stage> further read`, N as in the
+  round's title line; the round's signal table, copied as
   posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
   and word, its headline, a link to the round comment), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
-  round and head or revision; and `Signed: status-<n>`. It holds no Lens
+  round, marks and head or revision, and a further read by its own title; and `Signed: status-<n>`. It holds no Lens
   dispositions table, crossed findings, report, diagram, or heading or fold
   naming a lens, and never the words "owner decision": the edit checks would
   refuse every later edit. Find it among the comments your gh login wrote,
   read as JSON, holding the whole line `Signed: status-<n>` outside a fence or
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, keeping its signature line and dropping every `Edited:`
-  line, since the edit adds the newest; the reason reads `after <stage> round <n> (<your label>)`. More than one: stop
+  line, since the edit adds the newest; the reason reads `after <stage> round <n> (<your label>)` or
+  `after <stage> further read (<your label>)`. More than one: stop
   and tell me. Post the round comment first. If a status edit is refused
   `edit/reasons` because the body kept old `Edited:` lines, rebuild it
   without them. If
@@ -1482,7 +1510,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 6572aa7f6147c55e52d34dc4e799e87ea48af7ec0a7e178e9b16818b57be25ec 'CLAUDE.md'
+check_hash b60bf00f7fb3a71285fbba6b5464ebe62830979cd6b088a5eeb01a9e53c43944 'CLAUDE.md'
 check_hash e69fe55c1ff76fb6c1c374e6cee3774ed07183351674928d42a906de8cfc5852 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1493,7 +1521,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
-check_hash 48286d3c9b6571d050fa9c3b8d6022d2679a54ca63f1360e9a96bf5d6f70acb7 'pact/review.md'
+check_hash 783d9ddd895b6607320c53dbada6e3fe45f15cec7ec8730fd62398eecbd95de9 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1523,7 +1551,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy c2bde92986ba"
+  echo "pact cloud copy b2efd1d6aaed"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

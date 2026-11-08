@@ -49,10 +49,35 @@ Ask each lens to report in this shape:
 - **You decide** which findings are security findings, by the rules file's
   Cost limits. A security or `security?` finding comes to me and is never
   `auto`.
+- **A stage's rounds.** Under a Review rounds cost, a lens that errors or
+  returns no report, or comes back inconclusive, runs again inside its round,
+  and a further read runs again the same way; every report it returned stays
+  in the record and its findings carry in, but a withheld one stays local, as
+  Posting says: its text appears in no post, yet still count, and a high
+  security finding among them reopens the stage; route them before that
+  read's comment is posted, and until they are routed, name them in chat,
+  never in the record, in every hand-off; a withheld read has reported once I
+  have answered it in chat. A report that Posting refused is never rerun. If the
+  security pair, a repo's required lenses or a
+  typed skill's lenses would read anything
+  after the final round, that read still runs, outside the count,
+  with the Guards' "gone round twice" as its brake, and its findings go by the
+  row's At the limit; this is how those lenses keep running, so the Cost
+  limits opening's trade-off does not arise for them there. The stage closes,
+  and nothing is accepted or merged, only once
+  every further read has reported. A security or `security?` finding of any severity past the limit
+  keeps the security bar. A high security finding reopens the stage: its count
+  starts again, and its next round runs the security pair. A ticket that
+  changes the spec gets its own rounds.
 - **One review comment per round.** Open it with a title line,
-  `## <stage> round <n> on <head or spec revision>: <verdict>, <N> for you`,
+  `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
   N being the rows that need my decision (an `open`, trade-off or `security?`
-  row), not a drafted fix waiting on my word. Then a signal table, one row per
+  row), not a drafted fix waiting on my word. Write `, reopened` on the first
+  round after a reopen and `, final` on the round a Review rounds cost
+  declares final, and leave out both otherwise; a further read outside the
+  count is titled
+  `## <stage> further read on <head or spec revision>: <verdict>, <N> for you`.
+  Then a signal table, one row per
   lens that ran: the lens, its signal (the mark of its most severe `open`
   finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
   diagrams, then a count line with one count per Disposition word, summing to
@@ -65,18 +90,20 @@ Ask each lens to report in this shape:
   round without reading them all. Its label is `status-<n>`, n the issue's or
   pull request's number, never a session's, so any session can edit it. It
   holds, in order: a title line, `## Status: <N> for you, after <stage> round
-  <n>`, N as in the round's title line; the round's signal table, copied as
+  <n>[, reopened][, final]` or `after <stage> further read`, N as in the
+  round's title line; the round's signal table, copied as
   posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
   and word, its headline, a link to the round comment), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
-  round and head or revision; and `Signed: status-<n>`. It holds no Lens
+  round, marks and head or revision, and a further read by its own title; and `Signed: status-<n>`. It holds no Lens
   dispositions table, crossed findings, report, diagram, or heading or fold
   naming a lens, and never the words "owner decision": the edit checks would
   refuse every later edit. Find it among the comments your gh login wrote,
   read as JSON, holding the whole line `Signed: status-<n>` outside a fence or
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, keeping its signature line and dropping every `Edited:`
-  line, since the edit adds the newest; the reason reads `after <stage> round <n> (<your label>)`. More than one: stop
+  line, since the edit adds the newest; the reason reads `after <stage> round <n> (<your label>)` or
+  `after <stage> further read (<your label>)`. More than one: stop
   and tell me. Post the round comment first. If a status edit is refused
   `edit/reasons` because the body kept old `Edited:` lines, rebuild it
   without them. If
