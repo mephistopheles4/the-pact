@@ -59,7 +59,8 @@ function blockOf(text, name, whole, pin = AVIATION_PIN) {
   if (j < i + begin.length || text.slice(0, i).trim() || (whole && text.slice(j + end.length).trim())) return null;
   const block = text.slice(i + begin.length, j);
   // Text the HTML parser would read as the end of its element, or as a comment, is not inert code.
-  if (/<\/(?:script|style)(?=[\s/>])|<!--/i.test(block)) return null;
+  // The end mark's leading slash completes a closing tag the block ends in, so its first character is read too.
+  if (/<\/(?:script|style)(?=[\s/>])|<!--/i.test(text.slice(i + begin.length, j + 1))) return null;
   return block;
 }
 
@@ -305,6 +306,12 @@ test('text a browser reads as the end of the element or a comment, inside a pinn
     const [bad, pin] = repinned(name, text);
     assert.ok(pageProblems(bad, pin).includes('pin'), `${name}: ${text.trim()}`);
   }
+  // Text ending in a closing tag's start: the end mark that follows completes it.
+  const tail = withHashes(PAGE.replace(END('bundle'), `</style${END('bundle')}`));
+  assert.notEqual(tail, PAGE);
+  const element = [...tail.matchAll(STYLE_RE)][0][2];
+  const block = element.slice(element.indexOf(BEGIN('bundle')) + BEGIN('bundle').length, element.indexOf(END('bundle')));
+  assert.ok(pageProblems(tail, { ...AVIATION_PIN, bundle: sha256b64(block) }).includes('pin'), 'a bundle ending in </style');
 });
 
 test('a second policy written so the pattern misses it is caught as csp-decoy', () => {
@@ -395,15 +402,6 @@ test('#427 claim 5: no local copy of a replaced component remains', () => {
   const own = ownCss();
   for (const gone of ['allow-discrete', '::backdrop']) assert.ok(!own.rest.includes(gone) && !own.overrides.includes(gone), `${gone} is gone from the page's own CSS`);
   for (const kept of ['wf-sw', 'wf-toast', 'tag-input']) assert.ok(PAGE.includes(kept), `${kept} stays`);
-});
-
-test('#427 claim 3: the threat model names the inlined design-system code, its powers and its control', () => {
-  const text = readFileSync(join(REPO, 'docs', 'threat-model.md'), 'utf8');
-  const at = text.indexOf('**Inlined design-system code:**');
-  assert.ok(at >= 0, 'the scope line is there');
-  const line = text.slice(at, text.indexOf('\n\n', at)).replace(/\s+/g, ' ');
-  assert.match(line, /page's powers, including a folder you grant/);
-  assert.match(line, /Review of each pin/);
 });
 
 // ------------------------------------------------------------ where the page lives

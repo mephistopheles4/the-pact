@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-4ug85Bo+moU2d2l6WXei+yHEjixvbSv8f7IcdBwVAZw='; style-src 'sha256-jaz94qUR1eoKrNumkgHS5co0uAuQmuVc4jZ7+D+LAIE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-RT0lecxhZ/BqRRnsWSllqq5+hIMKmrE0IcRmcuSzALM='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1401,6 +1401,7 @@ input[type="number"].av-input { width: 5.5em; font-variant-numeric: tabular-nums
 .close-x { position: absolute; top: var(--av-s1); right: var(--av-s2); }
 .av-dialog .classic-head { padding-right: calc(var(--av-s5) + var(--av-s4)); }
 .accs .av-disclosure--quiet { border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+/* Page spacing on a design-system component, outside the five local overrides: carried to aviation-design-system#22 at re-pin. */
 details.av-disclosure > .av-disclosure-body { display: flex; flex-direction: column; gap: var(--space-row); padding: var(--space-row) var(--av-s2) var(--space-section); }
 dialog.settings .av-field { gap: var(--space-item); }
 .agent-add .add-square { flex: none; width: var(--av-control-h); padding: 0; font-size: var(--av-t-lead); line-height: 1; letter-spacing: 0; text-align: center; height: var(--av-control-h); }
@@ -7777,20 +7778,31 @@ function boot() {
   }
   // Taking a preset offers the same Undo: the page presses the chip twice, the design system's way, and the
   // av-reset that comes back keeps what was there instead of resetting; then the chip is left and entered, so it offers Undo at once.
+  // The presses run at once, so nothing else can happen between them. When the chip is in the middle of its own
+  // reset or undo window they do nothing, and no Undo is offered (this returns false).
   let offeringPreset = null;
+  let offerTook = false;
   function offerUndoAfterPreset(before) {
     offeringPreset = before;
+    offerTook = false;
     resetBefore = before;
     paintReset();
     resetBtn.click();
     resetBtn.click();
+    offeringPreset = null;
     resetBtn.dispatchEvent(new Event('pointerout', { bubbles: true }));
-    setTimeout(() => resetBtn.dispatchEvent(new Event('pointerover', { bubbles: true })), 300);
+    if (!offerTook) {
+      resetBefore = null;
+      paintReset();
+      return false;
+    }
+    setTimeout(() => { if (resetBefore === before) resetBtn.dispatchEvent(new Event('pointerover', { bubbles: true })); }, 300);
+    return true;
   }
   resetBtn.addEventListener('av-reset', () => {
     if (offeringPreset !== null) {
       resetBefore = offeringPreset;
-      offeringPreset = null;
+      offerTook = true;
       resetAt = JSON.stringify(state);
       paintReset();
       return;
@@ -7803,7 +7815,7 @@ function boot() {
     paintReset();
   });
   resetBtn.addEventListener('av-undo', () => {
-    if (resetBefore === null) return;
+    if (offeringPreset !== null || resetBefore === null) return;
     const before = resetBefore;
     resetBefore = null;
     resetAt = null;
@@ -8190,8 +8202,8 @@ function boot() {
             $('presets').close();
             renderAll();
             resetAt = JSON.stringify(state);
-            offerUndoAfterPreset(before);
-            setStatus(`Taken from ${chosen.title}. To put yours back, use Undo reset on the Reset chip within ten seconds. Reset puts the page back where it started.`);
+            const offered = offerUndoAfterPreset(before);
+            setStatus(`Taken from ${chosen.title}. ${offered ? 'To put yours back, use Undo reset on the Reset chip within ten seconds. ' : ''}Reset puts the page back where it started.`);
           }),
           chip('Back', false, () => openPresets(), 'av-tool-chip--ghost')))));
     showDialog('presets');

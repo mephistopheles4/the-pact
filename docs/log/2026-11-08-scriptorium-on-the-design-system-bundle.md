@@ -12,7 +12,7 @@ Two page checks loosen, so this is a spec change, read by the spec pair and the 
 
 A re-pin changes every constant and takes the security pair on the upstream diff of both dist files. `docs/threat-model.md` gains one scope line: the inlined code runs with the page's powers, including a folder the user grants, and review of each pin is its control.
 
-The looks the owner kept stand in one local block of five entries after the bundle, headed with `aviation-design-system#22`, and go at the re-pin. The saved scheme key moves from `pact-config-scheme` to `aviation-scheme`, and the saved panel sizes move to the design system's keys, so each user's saved dark scheme and sizes reset once. The old keys stay in storage, so a revert brings them back.
+The looks the owner kept stand in one local block of five entries after the bundle, headed with `aviation-design-system#22`, and go at the re-pin. One more page rule, the spacing of `details.av-disclosure > .av-disclosure-body`, stands outside the block and is carried to the same issue at the re-pin. The saved scheme key moves from `pact-config-scheme` to `aviation-scheme`, and the saved panel sizes move to the design system's keys, so each user's saved dark scheme and sizes reset once. The old keys stay in storage, so a revert brings them back.
 
 One behaviour changed: taking a preset still offers Undo on the Reset chip, but for the design system's ten seconds, where it used to stay until the next change. The page presses the chip twice and enters it, so the design system's own reset rules offer the Undo.
 
