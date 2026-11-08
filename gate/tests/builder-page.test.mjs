@@ -679,7 +679,7 @@ test('stub page: "The pact" shows the pact\'s text read-only, each file byte for
   const body = mark => new RegExp(`<!-- pact:begin ${mark} -->\\n([\\s\\S]*?)\\n<!-- pact:end ${mark} -->`).exec(src)[1];
   // Each part stands whole between its two labels, so a label can't run on over fixed text.
   for (const mark of PART_MARKS) assert.match(rules.split(`\n${body(mark)}\n[End of the editable part.]`)[0].split('\n').at(-1), /^\[Editable /, mark);
-  assert.ok(rules.includes(`[The percentage is yours to set, under Settings:]\n${body('usage-pause')}`));
+  assert.ok(rules.includes(`[The percentage is yours to set or turn off, under Settings:]\n${body('usage-pause')}`));
   // The rules that render only when something is on stand at their mark, each a bullet under its label.
   const beforePoster = src.split('<!-- pact:begin tool-poster -->')[0].trimEnd().split('\n').at(-1);
   assert.match(rules, new RegExp(`${beforePoster.replace(/[.*+?^$()[\]{}|\\/]/g, '\\$&')}\\n\\[Only while the poster is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[Only while the cleaner is on[^\\n]*\\n- \\*\\*`));
@@ -1610,4 +1610,36 @@ test('an opened file whose name holds an invisible, direction-changing or contro
   assert.equal(L.fileLabel('shared.json'), 'shared.json');
   assert.equal(L.fileLabel('caf\u00e9.json'), 'caf\u00e9.json', 'a plain accented name is kept');
   for (const name of ['a\u202ejson.exe', 'a\u200bb.json', 'a\u0007b.json', 'a\ud800b.json', 'a\udb40\udc01b.json', 'a\nb.json']) assert.equal(L.fileLabel(name), 'A shared file', JSON.stringify(name));
+});
+
+// #501 C6: the weekly limit takes Off; it saves as an explicit false, and the summary and the checks agree.
+test('the weekly limit off saves "usage-pause": false, passes the checks, and the default still saves nothing', () => {
+  const s = L.initialState();
+  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined);
+  s.usage = false;
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'usage-pause': false });
+  assert.deepEqual(L.problems(s), []);
+  for (const bad of [null, NaN, 'off', true, 101]) {
+    s.usage = bad;
+    assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'usage-pause'), String(bad));
+  }
+});
+
+// #501 C6: the Weekly limit row's chip turns the limit off and back on.
+test('stub page: the Weekly limit chip turns it Off (inputs disabled, summary Off, export false) and On restores 75', () => {
+  const P = bootPage();
+  openSettings(P);
+  const chips = () => P.find(P.ids.settings, n => n.tag === 'button' && (n.text === 'On' || n.text === 'Off'));
+  const inputs = () => P.find(P.ids.settings, n => n.tag === 'input' && n.attrs['aria-label'] === 'Weekly limit, percent');
+  const summary = () => Object.values(P.ids).some(root => P.find(root, n => n.text === 'Usage pause Off').length > 0);
+  assert.equal(chips()[1].text, 'On', 'the Weekly limit chip is the second, after the session limit');
+  chips()[1].click();
+  assert.equal(chips()[1].text, 'Off');
+  assert.ok(inputs().length === 2 && inputs().every(n => n.disabled), 'slider and number disabled');
+  assert.ok(summary());
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /"usage-pause": false/);
+  chips()[1].click();
+  assert.equal(chips()[1].text, 'On');
+  assert.ok(inputs().length === 2 && inputs().every(n => !n.disabled && n.value === '75'), 'On restores 75');
 });

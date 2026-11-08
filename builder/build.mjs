@@ -124,11 +124,11 @@ function listFrom(src, name, file = 'gate/render-core.mjs') {
   return [...m[1].matchAll(/'([^']*)'/g)].map(x => x[1]);
 }
 
-/** The usage-pause setting's range and default, read from gate/render-core.mjs's text. */
+/** The usage-pause setting's range, default and off value (false, #501), read from gate/render-core.mjs's text. */
 function settingFrom(renderSrc) {
-  const m = /\['usage-pause', Object\.freeze\(\{ mark: 'usage-pause', min: (\d+), max: (\d+), def: (\d+),/.exec(renderSrc);
+  const m = /\['usage-pause', Object\.freeze\(\{ mark: 'usage-pause', min: (\d+), max: (\d+), def: (\d+), off: false,/.exec(renderSrc);
   if (!m) fail('gate/render-core.mjs no longer declares the usage-pause setting in the expected form');
-  return { name: 'usage-pause', min: Number(m[1]), max: Number(m[2]), def: Number(m[3]) };
+  return { name: 'usage-pause', min: Number(m[1]), max: Number(m[2]), def: Number(m[3]), off: false };
 }
 
 /** The session limit's range (#142): a setting with no default, read from gate/render-core.mjs's text. */
@@ -194,7 +194,7 @@ function rulesText(src, renderSrc) {
   const before = {
     'tool-poster': ['[Only while the poster is on, under Settings:]', ...toolLines('tool-poster')],
     'tool-cleaner': ['[Only while the cleaner is on, under Settings:]', ...toolLines('tool-cleaner')],
-    'usage-pause': ['[The percentage is yours to set, under Settings:]'],
+    'usage-pause': ['[The percentage is yours to set or turn off, under Settings:]'],
     'usage-pause-session': ['[Only when you set this line, under Settings:]', ...templateLines(renderSrc, /const SESSION_TEMPLATE = n => \[([\s\S]*?)\];/, 'SESSION_TEMPLATE')],
   };
   for (const m of PART_MARKS) before[m] = [m === 'workflow' ? '[Editable on the canvas, apart from its fixed sentences. The page starts from the default configuration, which adds a Skills column:]' : '[Editable on this page, apart from its fixed sentences:]'];

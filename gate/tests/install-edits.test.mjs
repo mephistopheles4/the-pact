@@ -322,7 +322,7 @@ test('the review output is written only after every check passes: -Apply on a di
 // ------------------------------------------------------------ the renderer's new lines, parsed exactly
 
 const R_NONE = "  if (config === NONE) head.push('CONFIG none');";
-const R_USER = '`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines';
+const R_USER = '`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${valueText(v)}`), ...editLines';
 const R_PUSH = '  report.lines.push(`RENDERED ${sha256(rendered)}`, `DIFF ${sha256(diff)}`, ...head);';
 const R_DIFF_WRITE = "  writeFileSync(join(out, DIFF_NAME), diff, { flag: 'wx' });";
 const A64 = 'a'.repeat(64);

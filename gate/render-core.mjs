@@ -292,7 +292,7 @@ const SESSION_PROJECT_LINE = n =>
 // `def: null` marks a setting with no default: its part is empty in the
 // source, and a project may set it whatever the user's file says.
 const SETTINGS = new Map([
-  ['usage-pause', Object.freeze({ mark: 'usage-pause', min: 0, max: 100, def: 75, template: USAGE_TEMPLATE, tighter: 'lower', projectLine: USAGE_PROJECT_LINE })],
+  ['usage-pause', Object.freeze({ mark: 'usage-pause', min: 0, max: 100, def: 75, off: false, template: USAGE_TEMPLATE, tighter: 'lower', projectLine: USAGE_PROJECT_LINE })],
   ['usage-pause-session', Object.freeze({ mark: 'usage-pause-session', min: 0, max: 100, def: null, template: SESSION_TEMPLATE, tighter: 'lower', projectLine: SESSION_PROJECT_LINE })],
   // #482: the auto-compact window, in tokens. It has no part in the rules file (mark: null), so its value never changes the rules text. 0 turns it off. A project may not set it.
   ['auto-compact-window', Object.freeze({ mark: null, min: 100000, max: 1000000, step: 10000, off: 0, def: 400000, template: null, tighter: null, projectLine: null })],
@@ -303,7 +303,7 @@ function settingOk(v, spec) {
   if (spec.off !== undefined && v === spec.off && !Object.is(v, -0)) return true;
   return wholeIn(v, spec.min, spec.max) && (spec.step === undefined || (v - spec.min) % spec.step === 0);
 }
-const settingRule = (name, spec) => (spec.step === undefined ? `${name} must be a whole number from ${spec.min} to ${spec.max}` : `${name} must be ${spec.off}, or a whole number from ${spec.min} to ${spec.max} in steps of ${spec.step}`);
+const settingRule = (name, spec) => (spec.step === undefined ? `${name} must be ${spec.off === undefined ? 'a whole number' : `${spec.off}, or a whole number`} from ${spec.min} to ${spec.max}` : `${name} must be ${spec.off}, or a whole number from ${spec.min} to ${spec.max} in steps of ${spec.step}`);
 
 // Each pact tool's part of the rules file (#280): the open mark it fills, and
 // its fixed text, one line since #464 T4: the poster's how-to is in review.md,
@@ -492,12 +492,15 @@ function resolveEnoughCosts(qualities, costLimits, fail) {
   return ok;
 }
 
+// #501: a setting's off value of false is reported as the word off; a number stays a number, so auto-compact-window 0 prints as 0.
+const valueText = v => (v === false ? 'off' : v);
+
 // The notice. It starts with an empty line, so it reads as its own paragraph.
 const NOTICE_MARK = 'config-notice';
 const NOTICE_TEMPLATE = (digest, values, edits, agents = [], pactDefault = false) => [
   '',
   `**Configuration in effect.** This file was rendered with ${pactDefault ? "the pact's default configuration" : 'the configuration'} \`${digest}\`.`,
-  `Values set: ${values.length ? values.map(([k, v]) => `${k} ${v}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
+  `Values set: ${values.length ? values.map(([k, v]) => `${k} ${valueText(v)}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
   ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${noticeModel(a.model)}, ${a.effort} effort)`).join(', ')}.`] : []),
 ];
 
@@ -1152,7 +1155,7 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tool
     const now = lines.slice(p.begin + 1, p.end);
     const def = spec.def === null ? [] : toLines(spec.template(spec.def));
     if (now.length !== def.length || now.some((l, i) => !l.equals(def[i]))) return fail(spec.mark, 'the template at its default no longer matches the source');
-    swaps.push({ ...p, with: toLines(spec.template(value)) });
+    swaps.push({ ...p, with: value === spec.off ? [] : toLines(spec.template(value)) });
   }
   for (const e of edits) {
     const p = pairs.get(e.mark);
@@ -1311,7 +1314,10 @@ function checkProject(buf, effective, report) {
     } else if (spec.tighter !== 'lower') {
       fail('project-direction', `${name} has no tightening direction, so a project may not set it`);
       ok = false;
-    } else if (effective.get(name) !== null && !(v < effective.get(name))) {
+    } else if (spec.off !== undefined && v === spec.off) {
+      fail('project-looser', `${name} off is never tighter than the user's value`);
+      ok = false;
+    } else if (effective.get(name) !== null && effective.get(name) !== spec.off && !(v < effective.get(name))) {
       fail('project-looser', `${name} ${v} is not tighter than the user's effective value, ${effective.get(name)}`);
       ok = false;
     } else values.push([name, v]);
@@ -1377,7 +1383,7 @@ function runProject(out, home, projectFolder, report) {
     userHash ? `CONFIG user ${userHash}` : 'CONFIG none',
     `PROJECT ${projHash}`,
     `DIGEST ${digest}`,
-    ...values.map(([k, v]) => `VALUE ${k} ${v}`),
+    ...values.map(([k, v]) => `VALUE ${k} ${valueText(v)}`),
     ...(qualities ? [`QUALITIES ${qualities.length}`] : []),
     ...(qualities ? RETIRED_AGENTS.filter(a => qualities.some(q => q.lenses.some(l => retiredIn(l).includes(a)))).map(a => `RETIRED-NAME qualities ${a}`) : []),
     ...(costLimits ? [`COST-LIMITS ${costLimits.length}`] : []),
@@ -1458,7 +1464,7 @@ function run(argv, report) {
     const editLines = edits.map(e => (e.path ? `EDIT ${e.mark} ${e.op} ${e.hash} ${e.path}` : `EDIT ${e.mark} ${e.op}`));
     // A block is prose, so a retired agent's name in one is a warning, never a refusal; the line holds constants only (#302).
     const retiredLines = edits.flatMap(e => (e.retired ?? []).map(a => `RETIRED-NAME block ${e.mark} ${a}`));
-    head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines, ...retiredLines);
+    head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${valueText(v)}`), ...editLines, ...retiredLines);
     // The pact's default names itself on its CONFIG line, the first in head (#183 T4a). The push keeps the
     // literal `CONFIG user ${hash}`: the gate tests plant renderer faults by anchoring on that text.
     if (kind === 'default') head[0] = `CONFIG default ${hash}`;

@@ -302,6 +302,12 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     { id: 'digest-wrong-length', plant: rep(`DIGEST ${D}`, `DIGEST ${D}0`), fails: ['render-unknown-line'], why: 'a digest of the wrong length' },
     { id: 'value-twice', plant: rep('VALUE usage-pause 90', 'VALUE usage-pause 90\nVALUE usage-pause 80'), fails: ['render-value-twice'], why: 'one setting twice' },
     { id: 'value-unknown-setting', plant: rep('VALUE usage-pause', 'VALUE other-thing'), fails: ['render-unknown-line'], why: 'a value for no known setting' },
+    // #501: the home parser takes the word off for the weekly limit only; every other spelling stays refused.
+    { id: 'value-session-off', plant: rep('VALUE usage-pause 90', 'VALUE usage-pause-session off'), fails: ['render-unknown-line'], why: 'off for the session limit' },
+    { id: 'value-compact-off', plant: rep('RESULT', 'VALUE auto-compact-window off\nRESULT'), fails: ['render-unknown-line'], why: 'off for the auto-compact window' },
+    { id: 'value-off-capitals', plant: rep('usage-pause 90', 'usage-pause OFF'), fails: ['render-unknown-line'], why: 'off in capitals' },
+    { id: 'value-off-twice-on-line', plant: rep('usage-pause 90', 'usage-pause off off'), fails: ['render-unknown-line'], why: 'two words after the setting' },
+    { id: 'value-raw-false', plant: rep('usage-pause 90', 'usage-pause false'), fails: ['render-unknown-line'], why: 'the raw false the renderer must not print' },
     { id: 'value-out-of-range', plant: rep('usage-pause 90', 'usage-pause 101'), fails: ['render-unknown-line'], why: 'a value out of range' },
     { id: 'agent-twice', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-agent-twice'], why: 'one agent setting twice' },
     { id: 'agent-not-configurable', plant: rep('AGENT data-lens', 'AGENT my-reviewer'), fails: ['render-unknown-line'], why: 'an agent the configuration cannot set' },
@@ -399,6 +405,15 @@ test('the renderer lines: a usage-pause-session value parses beside the weekly o
   assert.deepEqual([...proj.values], [['usage-pause-session', '70']]);
 });
 
+// #501 C5
+test('the renderer lines: a home render takes usage-pause off, and the dry run says so once', () => {
+  const home = core.parseRenderLines(renderBase().in.replace('VALUE usage-pause 90', 'VALUE usage-pause off').split('\n'), { project: false, hash: sha256 });
+  assert.deepEqual([...home.values], [['usage-pause', 'off']]);
+  const block = core.configBlock(home, H('9'), null);
+  assert.equal(block.filter(l => /usage-pause/.test(l)).length, 1);
+  assert.ok(block.includes('  WARN: the user configuration turns usage-pause off.'));
+});
+
 test('the renderer lines: the parse gives the hashes, the configuration, the edits, the values and the agent settings', () => {
   const p = core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 });
   assert.equal(p.renderHash, H('a'));
@@ -449,6 +464,9 @@ const projRenderBase = () => ({ in: [`RENDERED ${H('a')}`, `CONFIG user ${U}`, `
     { id: 'two-project-hashes', plant: rep('DIGEST', `PROJECT ${H('4')}\nDIGEST`), fails: ['project-render-two-files'], why: 'two project file hashes' },
     { id: 'two-digests', plant: rep('VALUE', `DIGEST ${PD}\nVALUE`), fails: ['project-render-two-digests'], why: 'two digests' },
     { id: 'value-twice', plant: rep('RESULT', 'VALUE usage-pause 50\nRESULT'), fails: ['project-render-value-twice'], why: 'one setting twice' },
+    // #501: a project render never reports the weekly limit as off, or as a raw false.
+    { id: 'value-off', plant: rep('usage-pause 60', 'usage-pause off'), fails: ['project-render-unknown-line'], why: 'off in a project render' },
+    { id: 'value-raw-false', plant: rep('usage-pause 60', 'usage-pause false'), fails: ['project-render-unknown-line'], why: 'a raw false in a project render' },
     { id: 'unknown-line', plant: rep('RESULT', 'DIFF x\nRESULT'), fails: ['project-render-unknown-line'], why: 'a line the install does not read' },
     { id: 'no-value', plant: rep('VALUE usage-pause 60\n', ''), fails: ['project-render-counts'], why: 'a project configuration sets a value' },
     { id: 'no-project-hash', plant: rep(`PROJECT ${PF}\n`, ''), fails: ['project-render-counts'], why: 'the project file is named' },
