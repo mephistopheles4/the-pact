@@ -69,8 +69,8 @@ export const CLOUD_COMPACT_WINDOW = 400000;
 // assignments at the top of the block. Bump them only by the procedure in
 // ADR 0088: each comes from a signature checked against a committed key.
 export const CLOUD_PINS = Object.freeze({
-  MISE_VERSION: '2026.10.2',
-  MISE_SHA256: '79a2bf0ffc9b8a9a6391344e875b3c3679c15053fda3e8728ddf1790d63db788',
+  MISE_VERSION: '2026.10.14',
+  MISE_SHA256: '5bc573bc91c2571ee371f5d570cf6f8d51af3ef343b124a6609b9fec7f0d47f2',
   NODE_VERSION: '24.22.1',
   NODE_TAR_SHA256: 'eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c',
   NODE_BIN_SHA256: 'e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb',
