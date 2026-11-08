@@ -41,7 +41,7 @@ place with the builder kit. The cloud copy installs none yet.
 | --- | --- |
 | `/make-it-so` | "Accept all recommendations": the session carries out every recommendation in its last message. |
 | `/finis` | "We're done, archive this session": the session checks for anything outstanding, says what it is if there is, and archives the session if there isn't. |
-| `/scry` | "Where are we?": the session answers in a fixed shape, one line per item: what needs you, what is in progress, what landed since you last asked. Leaves out a heading with nothing under it. |
+| `/scry` | "Where are we?": the session answers with numbered asks first, each with the question, the one or two facts you need and its pick, then the steps only you can do, then what is moving and what is done. You reply by number: "Yes, 1 to N" takes every pick, except an ask that needs its own yes. |
 | `/scriptorium` | "Build my Scriptorium page": the session writes the builder file from your own skills, commands, agents and configuration, checks it, and renders your page with the installed kit. Always installed. |
 
 ## Pact tools
