@@ -109,8 +109,8 @@ function markMarkup(root) {
 
 /** builder/parts.mjs as page script: its header comment and every "export " taken off. */
 const partsCode = () => readFileSync(PARTS_FILE, 'utf8').replace(/^(?:\/\/.*\n)+\n/, '').replace(/^export /gm, '');
-const SCRIPT_RE = /<script>([\s\S]*?)<\/script>/g;
-const STYLE_RE = /<style>([\s\S]*?)<\/style>/;
+const SCRIPT_RE = /<script>([\s\S]*?)<\/script\s*>/gi;
+const STYLE_RE = /<style>([\s\S]*?)<\/style\s*>/i;
 
 /**
  * The aviation design system's code the page carries inline (#427), held here
