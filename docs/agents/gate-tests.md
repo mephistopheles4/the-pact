@@ -81,9 +81,8 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   and names each run's commit as GitHub shows it, which must be the head it
   cites. No local `full` at Test is kept as evidence.
 - **Before any push,** the session reads every commit the push publishes,
-  from the merge base, for a secret's value, a personal detail, or this
-  machine's home or temp path, user name or host name, as the review
-  procedure reads a post. If it finds one, it keeps the branch local and tells
+  from the merge base, for a secret's value or a personal detail, as the
+  review procedure reads a post. If it finds one, it keeps the branch local and tells
   the owner in chat.
 - **A cancelled run on `main`** is re-run before an install or a rollback
   reads its result. No run of the gate workflow cancels another on `main`,
