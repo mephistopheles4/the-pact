@@ -3,7 +3,7 @@
 The pact adds a deny rule to `permissions.deny` in `settings.json` only behind a switch that owns it, and records each rule it adds so turning the switch off removes only those (#439). It extends [ADR 0124](0124-the-cleaner-removes-worktrees-with-fixed-commands-and-never-forces.md), which put the cleaner's deny rules behind the cleaner. Two switches of that kind are now in play:
 
 - **`claude rm *` joins the cleaner's switch.** `CLEANER_DENY` holds eighteen rules, the sixteen git rules plus `Bash(claude rm *)` and `PowerShell(claude rm *)`, recorded under `cleanerDeny`. The cleaner is how worktrees go, and `claude rm` deletes a session's worktree with whatever is left in it, which git's keeps don't bound.
-- **`claude stop *` gets a switch of its own,** the user setting `session-stop-deny`, `true` or `false`, off by default. On, the install adds `Bash(claude stop *)` and `PowerShell(claude stop *)` and records them under `stopDeny`. Off, it removes only rules both recorded and on that fixed list; a rule the owner wrote stays. Each plan filters its record by its own list, so one switch never touches the other's rules. A project may not set it.
+- **The stop commands get a switch of their own,** the user setting `session-stop-deny`, `true` or `false`, off by default. It owns eight rules, four commands each as a `Bash(...)` and a `PowerShell(...)` rule: `claude stop *`, `claude kill *` (Claude Code's documented alias of stop), `claude daemon stop *` (stops the supervisor and every session it hosts) and `claude respawn *` (restarts one session or, with `--all`, every running one). On, the install adds them and records them under `stopDeny`. Off, it removes only rules both recorded and on that fixed list; a rule the owner wrote stays. Each plan filters its record by its own list, so one switch never touches the other's rules. A project may not set it.
 
 ## Why
 
@@ -16,9 +16,10 @@ The pact adds a deny rule to `permissions.deny` in `settings.json` only behind a
 ## What was weighed
 
 - **The rules in the overlay.** Not taken, as in ADR 0124.
+- **Only `claude stop *`.** Not taken at Test: `claude kill` is the same command under another name, and the supervisor stop and `respawn --all` end every session's turn at once. `claude respawn *` is matched whole, not as `--all` alone, because a rule with a mid `*` is the broad one (see Suffix only) and a single respawn also costs the session its turn. Not covered: `claude daemon` spelled with a flag before `stop`, and the other daemon commands.
 - **`claude stop` rules always on.** Not taken: for an owner who doesn't run Brigade they cost something and gain nothing (see Why). Brigade's `stop_background_session` is assumed, not measured, to run `claude stop` from the mod's own process, outside permission rules, so the owner who turns the switch on has a way out (switch off, apply) written in the install doc.
 - **The owner's own `claude stop` and `claude rm`.** Run from a separate terminal, outside Claude Code. Whether Claude Code's `!` shell mode honours deny rules is unmeasured.
 
 ## How this was decided
 
-- **2026-11-08.** Decided on #439, spec revision 3, standard tier, the security pair on the spec and again at Test. The proceed, the placement and the rule shape were the lead's picks under the owner's level-3 goal, not the owner's words. The threat-model lines that widen "Removals lose local work" and add a class wait for the owner's confirm at merge.
+- **2026-11-08.** Decided on #439, spec revision 3, standard tier, the security pair on the spec and again at Test. The proceed, the placement and the rule shape were the lead's picks under the owner's level-3 goal, not the owner's words; so was the Test-round widening to the four commands (decision 475). The threat-model lines that widen "Removals lose local work" and add a class wait for the owner's confirm at merge.

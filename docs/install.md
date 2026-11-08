@@ -540,35 +540,38 @@ it as Session stop. A project configuration may not set it, and a project
 install never adds its rules. It has no part in the rules file; only the
 notice line names it, as `session-stop-deny on` or `off`.
 
-- **What it does.** While it is `true`, the install adds
-  `Bash(claude stop *)` and `PowerShell(claude stop *)` to `permissions.deny`
-  in `settings.json`, each listed as `+ permissions.deny`, and records the ones
-  it added under `stopDeny` in `.pact-install.json`. Turning it off removes
-  only rules that are both recorded and one of those two, listed as
-  `- permissions.deny`; an identical rule you wrote yourself stays. The cloud
-  copy adds neither rule.
+- **What it does.** While it is `true`, the install adds eight rules to
+  `permissions.deny` in `settings.json`, each listed as `+ permissions.deny`:
+  `claude stop *`, `claude kill *` (Claude Code's alias of stop),
+  `claude daemon stop *` (stops the supervisor and every session it hosts) and
+  `claude respawn *` (restarts a session, or all with `--all`), each as a
+  `Bash(...)` and a `PowerShell(...)` rule. It records the ones it added under
+  `stopDeny` in `.pact-install.json`. Turning it off removes only rules that
+  are both recorded and one of those eight, listed as `- permissions.deny`; an
+  identical rule you wrote yourself stays. The cloud copy adds none of them.
 - **Who turns it on.** Turn it on if you run Brigade (the session-manager
   mod), so that a session can't stop another session with a raw
   `claude stop` and stops go through Brigade's own tool.
 - **Why a switch.** The pact can't tell whether Brigade is installed, and the
-  rules block a raw `claude stop` that a session runs. It is off unless you
+  rules block a raw stop, kill, supervisor stop or respawn that a session runs. It is off unless you
   turn it on. The cleaner's `claude rm` rules are separate: they come with the
   cleaner.
-- **A speed bump, not a gate.** The rules are a suffix only: `claude stop`
-  followed by anything. A flag before the subcommand, a path-qualified or
+- **A speed bump, not a gate.** Each rule is a suffix only: the command, then
+  anything. A flag before the subcommand, a path-qualified or
   wrapped call, and any other spelling get past them, with the classifier
   behind them.
-- **Your own `claude stop <id>`.** Run it from a separate terminal, outside
+- **Your own `claude stop <id>`** (or kill, supervisor stop or respawn). Run it from a separate terminal, outside
   Claude Code. Whether Claude Code's `!` shell mode honours deny rules is
   **unmeasured**.
 - **If Brigade's stop is refused.** Brigade's `stop_background_session` runs
   `claude stop` from the mod's own process, which permission rules don't see.
+  A Brigade restart that runs `claude respawn` the same way is assumed the same.
   That is assumed, not measured. If the rule does catch it, the symptom is a
   permission refusal on Brigade's stop. The way out: set `session-stop-deny`
   to `false`, then a dry run and an apply on your word.
 - **Rolling back.** Set it to `false` and apply first, then take the key out
   of the configuration. An older installer refuses a configuration that names
-  it, even as `false`, and ignores `stopDeny`, so the two rules would stay in
+  it, even as `false`, and ignores `stopDeny`, so the eight rules would stay in
   `settings.json` looking like your own.
 
 ## The auto-compact window and its hooks

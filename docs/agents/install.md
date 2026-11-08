@@ -114,15 +114,16 @@ how every session in every repo behaves. So:
   configuration that names it is refused). It has no part in the rules file;
   only the notice line names it, `session-stop-deny on` or `off`, and the
   renderer prints `VALUE session-stop-deny on` or `off`, the only two words
-  the install's parser takes for it. On, the install adds `STOP_DENY`'s two
-  rules (`Bash(claude stop *)`, `PowerShell(claude stop *)`) to
+  the install's parser takes for it. On, the install adds `STOP_DENY`'s eight
+  rules (`claude stop *`, `claude kill *`, `claude daemon stop *` and
+  `claude respawn *`, each as a `Bash(...)` and a `PowerShell(...)` rule) to
   `permissions.deny` and records the ones it added under `stopDeny`; off, it
   removes only rules both recorded and on that list. `parseRecord` refuses a
   `stopDeny` that is not a list of strings. The cleaner's switch adds
   `claude rm *` the same way, under `cleanerDeny`. Each plan filters its record
   by its own list. Neither is in the overlay or the allow-list, and the cloud
   copy adds neither. Both sets of rules are a speed bump: a flag before the
-  subcommand and a wrapped call get past them.
+  subcommand, a wrapped call and `claude daemon` flags such as `--keep-workers` placed before `stop` get past them.
 - **The field check for the deny rules (#439),** run after the owner applies
   with `session-stop-deny` on or the cleaner on; a session reports the result
   and does not apply for the owner. While `session-stop-deny` is on, a

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-1maJ1uAhpq1gjWFstK7Ei+T5C42n4U8rUSIr5/likN8='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-gPTmilOoG5lVYWvynNgfhN2+9H5F+o5tPFjuYf+BqTM='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -3356,7 +3356,7 @@ const PACT = /* pact-data:begin */ {
   ],
   "settings": "{\n  \"permissions\": {\n    \"defaultMode\": \"auto\"\n  },\n  \"skipAutoPermissionPrompt\": true,\n  \"hooks\": {\n    \"PostToolUse\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"UserPromptSubmit\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"Stop\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"PreCompact\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"SessionStart\": [\n      {\n        \"matcher\": \"compact\",\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ]\n  }\n}\n",
   "cleanerDeny": "Bash(git worktree remove *)\nBash(git * worktree remove *)\nBash(git branch -d *)\nBash(git * branch -d *)\nBash(git branch -D *)\nBash(git * branch -D *)\nBash(git branch --delete *)\nBash(git * branch --delete *)\nBash(claude rm *)\nPowerShell(git worktree remove *)\nPowerShell(git * worktree remove *)\nPowerShell(git branch -d *)\nPowerShell(git * branch -d *)\nPowerShell(git branch -D *)\nPowerShell(git * branch -D *)\nPowerShell(git branch --delete *)\nPowerShell(git * branch --delete *)\nPowerShell(claude rm *)",
-  "stopDeny": "Bash(claude stop *)\nPowerShell(claude stop *)"
+  "stopDeny": "Bash(claude stop *)\nBash(claude kill *)\nBash(claude daemon stop *)\nBash(claude respawn *)\nPowerShell(claude stop *)\nPowerShell(claude kill *)\nPowerShell(claude daemon stop *)\nPowerShell(claude respawn *)"
  },
  "presets": [
   {

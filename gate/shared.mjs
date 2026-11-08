@@ -28,7 +28,8 @@ const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'g
 const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The stop switch's deny rules (#439 S1.2), for the builder page to show. The
 // install keeps its own copy (install-core.mjs), held to this one by a test.
-const STOP_DENY = Object.freeze(['Bash(claude stop *)', 'PowerShell(claude stop *)']);
+const STOP_PATTERNS = ['claude stop *', 'claude kill *', 'claude daemon stop *', 'claude respawn *'];
+const STOP_DENY = Object.freeze([...STOP_PATTERNS.map(p => `Bash(${p})`), ...STOP_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The builder kit (#203 S6; #262): what the builder reads, installed under
 // pact/builder/ in the repo's own layout whenever /scriptorium installs. Seam
 // A reads this copy; the install keeps its own (install-core.mjs), held to

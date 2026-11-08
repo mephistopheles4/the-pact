@@ -217,7 +217,7 @@ test('session-stop-deny on adds and records both rules; off removes only rules b
   const added = STOP_DENY.filter(r => r !== OWN[0]);
 
   const on = installed(repo, h);
-  assert.deepEqual(added, ['PowerShell(claude stop *)']);
+  assert.deepEqual(added, STOP_DENY.slice(1));
   for (const r of added) assert.ok(on.stdout.includes(`  + permissions.deny: ${r}`), r);
   assert.ok(!on.stdout.includes('  + permissions.deny: Bash(claude stop *)'), 'a rule the owner already has is not added');
   assert.deepEqual(deny(), [...new Set([...OWN, ...STOP_DENY])].sort());

@@ -241,8 +241,10 @@ test('the cleaner\'s deny rules are the eighteen fixed rules', () => {
 });
 
 // #439 C9: the stop switch's two rules, pinned, and held equal in both files.
-test('the stop switch\'s deny rules are the two fixed rules, equal in both files and frozen', () => {
-  assert.deepEqual([...STOP_DENY], ['Bash(claude stop *)', 'PowerShell(claude stop *)']);
+test('the stop switch\'s deny rules are the eight fixed rules, equal in both files and frozen', () => {
+  const p = ['claude stop *', 'claude kill *', 'claude daemon stop *', 'claude respawn *'];
+  assert.deepEqual([...STOP_DENY], [...p.map(x => `Bash(${x})`), ...p.map(x => `PowerShell(${x})`)]);
+  assert.equal(STOP_DENY.length, 8);
   assert.ok(Object.isFrozen(STOP_DENY));
   assert.deepEqual([...SHARED_STOP], [...STOP_DENY]);
   assert.ok(Object.isFrozen(SHARED_STOP));
@@ -284,15 +286,23 @@ const RM_RULES = CLEANER_DENY.filter(r => r.includes('claude rm'));
 test('the matcher model: the new rules match their bad cases and none of the neighbours', () => {
   assert.deepEqual(RM_RULES, ['Bash(claude rm *)', 'PowerShell(claude rm *)']);
   const shells = rules => rules.map(r => [r, r.startsWith('PowerShell')]);
+  // Each stop-switch rule matches its own command in its bad cases; the PowerShell forms also the cased one (S2.1 d).
+  const STOP_CASES = new Map([
+    ['claude stop *', ['claude stop 3fa9c1', 'claude stop', 'git status && claude stop 3fa9c1']],
+    ['claude kill *', ['claude kill 3fa9c1', 'claude kill', 'git status && claude kill 3fa9c1']],
+    ['claude daemon stop *', ['claude daemon stop --any', 'claude daemon stop --any --keep-workers', 'claude daemon stop']],
+    ['claude respawn *', ['claude respawn --all', 'claude respawn 7c5dcf5d', 'claude respawn']],
+  ]);
   for (const [rule, ps] of shells(STOP_DENY)) {
-    for (const c of ['claude stop 3fa9c1', 'claude stop', 'git status && claude stop 3fa9c1']) assert.ok(denies(rule, c), `${rule} matches ${c}`);
-    if (ps) assert.ok(denies(rule, 'Claude Stop 3fa9c1'), `${rule} matches the cased form`);
+    const pattern = rule.slice(rule.indexOf('(') + 1, -1);
+    for (const c of STOP_CASES.get(pattern)) assert.ok(denies(rule, c), `${rule} matches ${c}`);
+    if (ps) assert.ok(denies(rule, STOP_CASES.get(pattern)[0].replace(/^claude/, 'Claude')), `${rule} matches the cased form`);
   }
   for (const [rule, ps] of shells(RM_RULES)) {
     for (const c of ['claude rm 3fa9c1', 'claude rm', 'claude rm 3fa9c1 --force-remove-worktree --discard-unpushed']) assert.ok(denies(rule, c), `${rule} matches ${c}`);
     if (ps) assert.ok(denies(rule, 'Claude RM 3fa9c1'), `${rule} matches the cased form`);
   }
-  const NEIGHBOURS = ['claude --bg -w pact-1 "stop it, then rm the file"', 'claude attach 3fa9c1', 'claude agents', 'git rm x', 'claude stopwatch', 'claude rmdir x'];
+  const NEIGHBOURS = ['claude --bg -w pact-1 "stop it, then rm the file"', 'claude attach 3fa9c1', 'claude agents', 'git rm x', 'claude stopwatch', 'claude rmdir x', 'claude killall', 'claude daemon status', 'claude daemon logs', 'claude respawnable', 'claude kill-switch'];
   for (const rule of [...STOP_DENY, ...RM_RULES]) {
     for (const c of NEIGHBOURS) assert.ok(!denies(rule, c), `${rule} must not match ${c}`);
   }

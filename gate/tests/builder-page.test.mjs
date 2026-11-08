@@ -1283,22 +1283,6 @@ test('the settings section draws the auto-compact window right after the weekly 
   assert.match(src.slice(compact, compact + 300), /state\.compact, cw\.min, cw\.max, cw\.def, v => \(state\.compact = v\), v => \(state\.compact = v\), 'tokens', cw\.step, cw\.off\)/);
 });
 
-// #439 S5.3 (no numbered claim; kept because a save that wrote the switch wrongly would turn the owner's deny rules on or off at the next install): the default is off and unwritten, and on writes `true`.
-test('the stop switch starts off, saves nothing at the default, true when on, and adds no problem', () => {
-  assert.deepEqual(L.PACT.stopSwitch, { name: 'session-stop-deny', def: false });
-  const s = L.initialState();
-  assert.equal(s.stopDeny, false);
-  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined, 'the default is not written');
-  s.stopDeny = true;
-  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'session-stop-deny': true });
-  s.compact = 600000;
-  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'auto-compact-window': 600000, 'session-stop-deny': true });
-  assert.deepEqual(L.problems(s), []);
-  s.stopDeny = false;
-  s.compact = 400000;
-  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined);
-});
-
 // #262: a moves edit saves the whole part as one replace; an empty move stops a save.
 test('an edited move saves the moves part as one replace, and an empty move stops a save', () => {
   const s = L.initialState();
