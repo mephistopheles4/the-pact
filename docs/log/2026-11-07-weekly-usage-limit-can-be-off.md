@@ -4,7 +4,7 @@
 
 `"usage-pause": false` in a user configuration turns the weekly limit off: the `usage-pause` part renders empty, the notice reads `Values set: usage-pause off.`, and the renderer's `VALUE` line reads `VALUE usage-pause off`. An absent key still means the default, 75%, and every configuration that sets a number, or nothing, renders byte for byte as before. The auto-compact window's off value, 0, still prints as `0`, not `off`.
 
-Four checks are loosened, so this is a spec change, read by the spec pair and the security pair and approved on the issue:
+Three checks are loosened and one rule changes its meaning, so this is a spec change, read by the spec pair and the security pair and approved on the issue:
 - The config check takes `false` for `usage-pause` (`settingOk`).
 - The project comparison skips a user whose limit is off, so any project number is taken.
 - The install's home-render parser (`HOME_VALUE_RE`) accepts `off` for `usage-pause` only. The project parser stays strict, and a project can never turn the weekly limit off: the renderer refuses `false` with `project-looser`.
@@ -21,8 +21,10 @@ Left to the owner: the rendered session line and project line still say "the wee
 ## Record
 
 - The ask: https://github.com/mephistopheles4/the-pact/issues/501
-- Spec r2: https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6714575329
+- Spec revision 2: https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6714575329
 - Spec round 1: https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6714576947
 - Spec round 2 (final): https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6714653043
-- Spec r3: https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6714653384
+- Spec revision 3: https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6714653384
 - The relayed proceed: https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6714688394
+- Test round 1: https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6714945301
+- Test round 2 (final): https://github.com/mephistopheles4/the-pact/issues/501#issuecomment-6715017426

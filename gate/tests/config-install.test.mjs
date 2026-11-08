@@ -398,6 +398,7 @@ test('bad case: a wrong hash refuses a dry run too', t => {
   assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
 });
 
+// config-value
 test('bad case: a refused configuration changes nothing on disk under -Apply, and names only the setting', t => {
   const repo = makeRepo(t);
   const h = home(t);

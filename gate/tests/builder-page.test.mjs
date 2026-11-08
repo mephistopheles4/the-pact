@@ -1641,5 +1641,5 @@ test('stub page: the Weekly limit chip turns it Off (inputs disabled, summary Of
   assert.match(P.ids.output.text, /"usage-pause": false/);
   chips()[1].click();
   assert.equal(chips()[1].text, 'On');
-  assert.ok(inputs().every(n => !n.disabled && n.value === '75'), 'On restores 75');
+  assert.ok(inputs().length === 2 && inputs().every(n => !n.disabled && n.value === '75'), 'On restores 75');
 });
