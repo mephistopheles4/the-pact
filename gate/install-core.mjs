@@ -362,10 +362,13 @@ export function parseRecord(text) {
   const digest = ci(doc, 'digest');
   const cleanerDeny = ci(doc, 'cleanerdeny') ?? [];
   if (!Array.isArray(cleanerDeny) || cleanerDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerDeny is not a list of rule strings; fix or remove it.');
+  const stopDeny = ci(doc, 'stopdeny') ?? [];
+  if (!Array.isArray(stopDeny) || stopDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s stopDeny is not a list of rule strings; fix or remove it.');
   // The auto-compact window this install set (#482); null when none, or not a window the install takes.
   const recordedWindow = ci(doc, 'autocompactwindow');
   return {
     cleanerDeny,
+    stopDeny,
     autoCompactWindow: typeof recordedWindow === 'number' && compactWindowOk(recordedWindow) && recordedWindow > 0 ? recordedWindow : null,
     commit: psString(commit),
     digest: typeof digest === 'string' && /^[0-9a-f]{12}$/.test(digest) ? digest : null,
@@ -376,7 +379,7 @@ export function parseRecord(text) {
 }
 
 /** The record the install writes (S6, X6): commit, digest, config, files, gate, in today's shape. */
-export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], autoCompactWindow = 0 }) {
+export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], stopDeny = [], autoCompactWindow = 0 }) {
   const doc = {
     commit,
     digest: digest ?? null,
@@ -385,6 +388,8 @@ export function recordText({ commit, digest, userHash, blockHashes, repoFiles, g
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
     // #438: the cleaner's deny rules this install added, only while there are any.
     ...(cleanerDeny.length ? { cleanerDeny: [...cleanerDeny] } : {}),
+    // #439: the stop switch's deny rules this install added, only while there are any.
+    ...(stopDeny.length ? { stopDeny: [...stopDeny] } : {}),
     // #482: the window the install set, only while it is on.
     ...(autoCompactWindow > 0 ? { autoCompactWindow } : {}),
   };
@@ -1280,13 +1285,29 @@ export function compactLines(live, overlay, compact) {
  * both recorded and fixed are dropped, and the record holds none.
  */
 export function cleanerDenyPlan(live, toolsOn, recorded) {
+  return denyPlan(live, CLEANER_DENY, toolsOn.includes('cleaner'), recorded);
+}
+
+/**
+ * The stop switch's deny rules for this install (#439 S1.2): the same plan,
+ * over STOP_DENY only, so a rule of the cleaner's planted in stopDeny is never
+ * dropped, printed or recorded again, and the cleaner's plan likewise.
+ */
+export function stopDenyPlan(live, on, recorded) {
+  return denyPlan(live, STOP_DENY, on, recorded);
+}
+
+function denyPlan(live, fixed, on, recorded) {
   const lp = live.get('permissions');
   const had = isMap(lp) ? listOf(lp.get('deny')).map(ruleString) : [];
-  const ours = recorded.filter(r => CLEANER_DENY.includes(r));
-  if (!toolsOn.includes('cleaner')) return { add: [], drop: ours.filter(r => had.includes(r)), record: [] };
-  const add = CLEANER_DENY.filter(r => !had.includes(r));
+  const ours = recorded.filter(r => fixed.includes(r));
+  if (!on) return { add: [], drop: ours.filter(r => had.includes(r)), record: [] };
+  const add = fixed.filter(r => !had.includes(r));
   return { add, drop: [], record: [...new Set([...ours, ...add])] };
 }
+
+/** Two deny plans as the one `deny` that mergeSettings and settingsChanges take: adds and drops joined; each record is kept apart by the caller. */
+export const joinDeny = (a, b) => ({ add: [...a.add, ...b.add], drop: [...a.drop, ...b.drop], record: [] });
 
 const pathIn = (map, segs) => {
   let v = map;
