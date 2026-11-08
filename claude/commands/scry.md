@@ -48,7 +48,9 @@ tool names.
   standing goal's text, never does.
 - Some asks need their own yes: an install apply, mise trust, a deletion by
   hand, a release or publish to users, a message to someone outside the
-  session, and any step you can't undo or aren't sure you can. My own yes is a
+  session, a merge whose change touches what the project's rules say to read
+  closely (hooks, settings, setup that runs as root), and any step you can't
+  undo or aren't sure you can. My own yes is a
   reply that names that number ("yes to 4"). A range ("Yes, 1 to 4") or an
   exclusion ("yes except 3") never reaches one: ask that number again. Where a
   written rule asks for more than a yes (an install apply after its dry run is

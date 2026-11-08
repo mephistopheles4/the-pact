@@ -13,7 +13,7 @@ The reply rule is the security-sensitive part, since a short numbered yes now st
 - An ask carries a summary of its evidence and where to see the rest, never raw output or a secret.
 - `/make-it-so` never takes a step that needs its own yes, nor a number already answered; after a `/scry` answer it is "Yes, 1 to N".
 
-A merge stays inside "Yes, 1 to N", on the described head commit. That was the lead's pick under its standing goal, not the owner's in chat, and the security pair asked for the owner to see both sides; the cheaper middle option is a merge that touches hooks, settings or root-run setup needing its own yes. The sensitive-route flag is also still open for the owner: the route was declined by the lead's decision, and the change matches the list through "authorization".
+A plain merge stays inside "Yes, 1 to N", on the described head commit. A merge whose change touches hooks, settings or root-run setup needs its own yes, outside the range. Both were the lead's picks under its standing goal (decisions 302 and 317), not the owner's in chat, and the security pair asked for the owner to see both sides. The sensitive-route flag is also still open for the owner: the route was declined by the lead's decision, and the change matches the list through "authorization".
 
 The Brigade pane's to-do wording lives in grimoire's `head-chef` skill and is filed as mephistopheles4/grimoire#556. Until it lands, `/scry` and the pane differ.
 
