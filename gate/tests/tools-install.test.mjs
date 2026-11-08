@@ -205,8 +205,8 @@ test('session-stop-deny unset or false: no claude stop rule is added or recorded
   }
 });
 
-// #439 C2, C3: on, the install adds and records both rules; off removes only recorded ones on the list.
-test('session-stop-deny on adds and records both rules; off removes only rules both recorded and fixed; the owner\'s identical rule stays', t => {
+// #439 C2, C3: on, the install adds and records the eight rules; off removes only recorded ones on the list.
+test('session-stop-deny on adds and records the eight rules; off removes only rules both recorded and fixed; the owner\'s identical rule stays', t => {
   const repo = makeRepo(t);
   const h = stopHome(t, [], true);
   const OWN = ['Bash(claude stop *)', 'Bash(rm -rf ./mine *)'];
@@ -226,7 +226,7 @@ test('session-stop-deny on adds and records both rules; off removes only rules b
   installed(repo, h);
   assert.deepEqual(record().stopDeny, added, 'a second install keeps the record');
 
-  // Entries outside the two fixed rules that the record lists stay, in the live list and out of the record: a foreign rule and one of the cleaner's.
+  // Entries outside the eight fixed rules that the record lists stay, in the live list and out of the record: a foreign rule and one of the cleaner's.
   const r = record();
   r.stopDeny.push(FOREIGN, CLEANER_DENY[0]);
   writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
@@ -255,7 +255,7 @@ test('the stop plan and the cleaner plan each touch only their own fixed rules, 
   assert.deepEqual(record().cleanerDeny, [...CLEANER_DENY]);
   assert.deepEqual(record().stopDeny, [...STOP_DENY]);
 
-  // The stop switch off drops the two stop rules and leaves every cleaner rule.
+  // The stop switch off drops the eight stop rules and leaves every cleaner rule.
   setConfig(h, ['cleaner'], false);
   installed(repo, h);
   assert.deepEqual([...deny()].sort(), [...CLEANER_DENY].sort());

@@ -12,7 +12,7 @@ The change to the gate:
 
 Accepted gaps, as for the cleaner: a flag before the subcommand, a path-qualified or wrapped call and other spellings get past the rules. The classifier stands behind them unless an installed mod approves the call. Brigade's stop running outside permission rules, and whether Claude Code's `!` shell mode honours deny rules, are assumed and unmeasured; a field check after the owner's apply is written in `docs/agents/install.md`.
 
-Test round 1 widened the switch from `claude stop` alone to the four commands (a spec change to S1.2 and C9, decision 475): the adversarial lens found `claude kill` is the documented alias, and the supervisor stop and `respawn --all` ended every session just the same. The lead also cut the builder test that backed no numbered claim.
+Test round 1 widened the switch from `claude stop` alone to the four commands (a spec change to S1.2 and C9, decision 475): the adversarial lens found `claude kill` is the documented alias, and the supervisor stop and `respawn --all`, by Claude Code's docs, end every hosted session's turn at once. The lead also cut the builder test that backed no numbered claim.
 
 The threat model's "Removals lose local work" bullet names the `claude rm` rules, and a new bullet covers a raw stop getting past a speed bump. Both widen accepted classes, so the merge waits for a confirm: the lead's, at level 3, flagged big, recorded at merge as the lead's and not the owner's.
 

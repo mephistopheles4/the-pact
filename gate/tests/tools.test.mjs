@@ -240,7 +240,7 @@ test('the cleaner\'s deny rules are the eighteen fixed rules', () => {
   assert.ok(Object.isFrozen(SHARED_DENY));
 });
 
-// #439 C9: the stop switch's two rules, pinned, and held equal in both files.
+// #439 C9: the stop switch's eight rules, pinned, and held equal in both files.
 test('the stop switch\'s deny rules are the eight fixed rules, equal in both files and frozen', () => {
   const p = ['claude stop *', 'claude kill *', 'claude daemon stop *', 'claude respawn *'];
   assert.deepEqual([...STOP_DENY], [...p.map(x => `Bash(${x})`), ...p.map(x => `PowerShell(${x})`)]);

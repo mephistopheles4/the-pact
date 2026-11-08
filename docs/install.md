@@ -543,7 +543,7 @@ notice line names it, as `session-stop-deny on` or `off`.
 - **What it does.** While it is `true`, the install adds eight rules to
   `permissions.deny` in `settings.json`, each listed as `+ permissions.deny`:
   `claude stop *`, `claude kill *` (Claude Code's alias of stop),
-  `claude daemon stop *` (stops the supervisor and every session it hosts) and
+  `claude daemon stop *` (stops the supervisor and, unless `--keep-workers` is passed, the sessions it hosts) and
   `claude respawn *` (restarts a session, or all with `--all`), each as a
   `Bash(...)` and a `PowerShell(...)` rule. It records the ones it added under
   `stopDeny` in `.pact-install.json`. Turning it off removes only rules that
@@ -565,7 +565,7 @@ notice line names it, as `session-stop-deny on` or `off`.
   **unmeasured**.
 - **If Brigade's stop is refused.** Brigade's `stop_background_session` runs
   `claude stop` from the mod's own process, which permission rules don't see.
-  A Brigade restart that runs `claude respawn` the same way is assumed the same.
+  A Brigade restart that runs `claude respawn` the same way is assumed the same; a refusal on a restart has the same way out.
   That is assumed, not measured. If the rule does catch it, the symptom is a
   permission refusal on Brigade's stop. The way out: set `session-stop-deny`
   to `false`, then a dry run and an apply on your word.

@@ -123,12 +123,15 @@ how every session in every repo behaves. So:
   `claude rm *` the same way, under `cleanerDeny`. Each plan filters its record
   by its own list. Neither is in the overlay or the allow-list, and the cloud
   copy adds neither. Both sets of rules are a speed bump: a flag before the
-  subcommand, a wrapped call and `claude daemon` flags such as `--keep-workers` placed before `stop` get past them.
+  subcommand, a wrapped call and a flag placed between `claude daemon` and `stop` (a leading `--dangerously-skip-permissions` is the one Claude Code's docs name as still reaching the subcommand) get past them.
 - **The field check for the deny rules (#439),** run after the owner applies
   with `session-stop-deny` on or the cleaner on; a session reports the result
   and does not apply for the owner. While `session-stop-deny` is on, a
-  session's harmless `claude stop not-a-real-id` is refused by permission and
-  Brigade's `stop_background_session` still works. While the cleaner is on, a
+  session's harmless `claude stop not-a-real-id`, `claude kill not-a-real-id`
+  and `claude respawn not-a-real-id` are refused by permission and Brigade's
+  `stop_background_session` still works. Never probe `claude daemon stop` or
+  `claude respawn --all`: if the rule did not fire, the probe ends every
+  hosted session's turn. While the cleaner is on, a
   harmless `claude rm not-a-real-id` is refused by permission. Check only
   the commands whose switch is on. *On a failure:* if Brigade's
   stop is refused, set `session-stop-deny` to `false` and apply on the owner's
