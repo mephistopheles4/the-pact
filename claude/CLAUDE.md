@@ -193,11 +193,13 @@ trade-off.
 - **Working for a goal.** If the session that holds my goal started you for
   it, you hold none: what these rules would bring to me, but the usage
   go-ahead and a worktree removal, goes to that session, and only its reply to
-  what you sent counts. Log each reply and who gave it, never as mine; with no
-  reply, it waits for me. Holding the goal, say so in each start prompt,
-  answer only the sessions you start as the goal says, naming in the log the
-  one each was for; pass each narrowing on, and record it by the kind of step
-  it keeps. What these rules tell me only in chat, tell me in your chat.
+  what you sent counts. My words in your chat beat its reply; record each
+  narrowing I type there. Log each reply and who gave it, never as mine; with
+  no reply, it waits for me. Holding the goal, say so in each start prompt,
+  answer only the sessions you start as the goal says, naming in the log, by
+  its kind, the one each was for; pass each narrowing on, and record it by the
+  kind of step it keeps; and what these rules tell me only in chat, tell me in
+  your chat.
 - **Usage still holds.** Before it passes its line, park the work cleanly:
   commit, put the state in the record, stop and tell me.
 <!-- pact:end stop-and-escalate -->

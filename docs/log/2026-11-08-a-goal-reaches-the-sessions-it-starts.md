@@ -1,6 +1,6 @@
 # A standing goal reaches the sessions its holder starts
 
-#505, thorough tier on the sensitive route, built by pact-505-build from spec v3.1.
+#505, thorough tier on the sensitive route, built by pact-505-build from spec v3.1, with two spec changes (v3.2: "a worktree removal"; v3.3, after Test round 1: the owner's words in a started session's chat beat the holder's reply and are recorded there, the holder's log is by kind, the threat-model clause adds a reply the session can't tell from its starter's, and AGENTS.md says a goal never stands for the owner's word for an install apply or mise trust).
 
 The Guards' fixed block (`stop-and-escalate` in `claude/CLAUDE.md`) gains one sentence in the standing-goal bullet and one bullet, "Working for a goal", about 145 words in all. The owner's words in a session's chat narrow a goal for that session and those it starts; text may narrow it only by keeping a step for the owner. A session the goal's holder started for it holds no goal: what the rules would bring to the owner, but the usage go-ahead and a worktree removal, goes to the holder, and only the holder's reply counts, logged as the holder's and never the owner's. One hop; with no reply the item waits for the owner.
 
@@ -21,3 +21,4 @@ This is a protected-set change. The merge ask names the class widening and resco
 - Proceed, re-posted with the owner-decision mark: https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6723186056
 - Spec change, "a worktree removal" for "a cleaner removal": https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6723245789
 - Test round 1 on 600b2fa: https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6723461174
+- Owner decision, from chat, spec change v3.3: https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6723539871

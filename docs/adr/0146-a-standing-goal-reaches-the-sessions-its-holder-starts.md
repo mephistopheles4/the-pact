@@ -3,10 +3,15 @@
 #505. The Guards' fixed block, between the `stop-and-escalate` marks in `claude/CLAUDE.md`, gains one sentence in the standing-goal bullet and one new bullet, "Working for a goal". This amends [0137](0137-a-standing-goal-keeps-going-on-judgment.md), whose goal stopped at the session that held it, and [0128](0128-the-pact-names-no-lead-session-and-keeps-chat-only-where-it-closes-a-gap.md), which cut every lead and relay from the pact.
 
 - **Narrowing.** The owner's words in a session's chat narrow the goal for that session and those it starts; text may narrow it only by keeping a step for the owner, never widen it. A narrowing is part of "the goal" the compaction hook asks the hand-off to keep.
-- **Working for a goal.** A session the holder started for the goal holds none. What the rules would bring to the owner, but the usage go-ahead and a worktree removal, goes to the holder, and only the holder's reply to what the session sent counts. The session logs each reply and who gave it, never as the owner's; with no reply, the item waits for the owner. The holder says so in each start prompt, answers only the sessions it starts, names in its log the one each was for, passes each narrowing on, and tells the owner in its own chat what the rules tell the owner only in chat.
+- **Working for a goal.** A session the holder started for the goal holds none. What the rules would bring to the owner, but the usage go-ahead and a worktree removal, goes to the holder, and only the holder's reply to what the session sent counts. The owner's words in the session's own chat beat that reply, and the session records each narrowing typed there so a compaction keeps it. The session logs each reply and who gave it, never as the owner's; with no reply, the item waits for the owner. The holder says so in each start prompt, answers only the sessions it starts, names in its log, by its kind, the one each was for, passes each narrowing on, and tells the owner in its own chat what the rules tell the owner only in chat (the sentence is the holder's).
 - **One hop.** A session started by a session that holds no goal works for none.
 
-The wording is fixed (spec v3.1); any change beyond word order and punctuation comes back as a spec change read by the spec pair and the security pair. The rendered default grows by about 145 words and stays within the 2250 budget.
+The wording is fixed (spec v3.1, with the two changes below); any change beyond word order and punctuation comes back as a spec change read by the spec pair and the security pair. The rendered default grows by about 165 words and stays within the 2250 budget.
+
+## Spec changes after v3.1
+
+- **v3.2** (decision 217): "a worktree removal" for "a cleaner removal", since the fixed block renders with the cleaner tool off and gate/tests/tools.test.mjs forbids the word then.
+- **v3.3** (decision 236, after Test round 1): the owner's words in a started session's chat beat the holder's reply and are recorded there; the holder logs a decision by its kind; the closing sentence is tied to "Holding the goal"; the threat-model clause adds a reply the session can't tell from its starter's; and AGENTS.md says a goal, or a holder's reply, is never the owner's word in chat for an install apply or mise trust. The last closes the run-time gap in "these rules", which the ADRs alone defined.
 
 ## Why
 
@@ -32,7 +37,7 @@ The holder may answer a started session's "Stop and ask me" with a second opinio
 
 ## The threat model
 
-"A standing goal decides alone" gains a clause: a session started for a goal acts on its starter's replies, on its start prompt's word that a goal is set; what its rules would tell the owner reaches the owner through its starter. Its likelihood rises from 0.20 to 0.30, in the chart and the table, because more sessions act on a word they can't check. "Removals lose local work" is unchanged. Widening a class and removing a control are the owner's, through a merge they confirm in chat.
+"A standing goal decides alone" gains a clause: a session started for a goal acts on its starter's replies, on its start prompt's word that a goal is set, or on a reply it can't tell from its starter's; what its rules would tell the owner reaches the owner through its starter. Its likelihood rises from 0.20 to 0.30, in the chart and the table, because more sessions act on a word they can't check. "Removals lose local work" is unchanged. Widening a class and removing a control are the owner's, through a merge they confirm in chat.
 
 ## What was weighed
 
