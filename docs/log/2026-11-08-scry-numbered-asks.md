@@ -32,3 +32,4 @@ No ADR yet: whether a range reply counts as the owner's confirm for a plain merg
 - Design round 2 (the security pair): https://github.com/mephistopheles4/the-pact/issues/515#issuecomment-6724453478 ; revision 3: https://github.com/mephistopheles4/the-pact/issues/515#issuecomment-6724461356
 - The closing read and its five amendments: https://github.com/mephistopheles4/the-pact/issues/515#issuecomment-6724624396
 - Test round 1 (the QA pair and the security pair): https://github.com/mephistopheles4/the-pact/issues/515#issuecomment-6724828389
+- Test round 2, the final round (the standards pair and `adversarial-lens`): https://github.com/mephistopheles4/the-pact/issues/515#issuecomment-6725045013
