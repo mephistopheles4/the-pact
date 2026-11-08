@@ -1,6 +1,6 @@
 # No read looks for this machine's paths
 
-#506. The read before posting in `claude/review.md` and the read of commits before a push in `AGENTS.md` and `docs/agents/gate-tests.md` no longer look for a path on this machine, or for this machine's names. Both still look for a secret and a personal detail. This amends [0098](0098-the-read-before-posting-looks-for-no-path.md), which kept the push read's path item, and [0095](0095-ci-runs-the-gate-on-windows-too.md), which set it.
+#506. The read before posting in `claude/review.md` no longer looks for a path on this machine, and the read of commits before a push in `AGENTS.md` and `docs/agents/gate-tests.md` no longer looks for this machine's paths or names. Both still look for a secret and a personal detail. For the read before posting, a user or host name that a path holds is still a personal detail, as [0098](0098-the-read-before-posting-looks-for-no-path.md) recorded. This amends 0098, which kept the push read's path item, and [0095](0095-ci-runs-the-gate-on-windows-too.md), which set it.
 
 ## Why
 
