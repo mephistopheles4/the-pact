@@ -442,7 +442,8 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
         const root = fresh(st);
         const io = fakeIo(root, Object.fromEntries(Object.entries(spec).map(([k, v]) => [at(root, k), v])));
         expectGiven(at(root, part, 'x'), io);
-        assert.ok(io.calls.every(c => c.op === 'readdir' && c.path === root), part);
+        // Only listings of the folders on the way down to root: nothing under it, so nothing of either entry.
+        assert.ok(io.calls.every(c => c.op === 'readdir' && (c.path === root || root.startsWith(c.path.endsWith(sep) ? c.path : c.path + sep))), part);
       }
     });
   }
