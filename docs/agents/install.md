@@ -109,6 +109,28 @@ how every session in every repo behaves. So:
   copy always sets 400000 and has no Off: `cloud-sessions/tpl-config-tail.sh`
   runs the same keyed merge with jq. Hand-offs in `pact/handoff/` are never
   deleted by the pact.
+- **The session stop switch (#439, ADR 0147).** `session-stop-deny` is
+  `true` or `false`, `false` when unset, and no project may set it (a project
+  configuration that names it is refused). It has no part in the rules file;
+  only the notice line names it, `session-stop-deny on` or `off`, and the
+  renderer prints `VALUE session-stop-deny on` or `off`, the only two words
+  the install's parser takes for it. On, the install adds `STOP_DENY`'s two
+  rules (`Bash(claude stop *)`, `PowerShell(claude stop *)`) to
+  `permissions.deny` and records the ones it added under `stopDeny`; off, it
+  removes only rules both recorded and on that list. `parseRecord` refuses a
+  `stopDeny` that is not a list of strings. The cleaner's switch adds
+  `claude rm *` the same way, under `cleanerDeny`. Each plan filters its record
+  by its own list. Neither is in the overlay or the allow-list, and the cloud
+  copy adds neither. Both sets of rules are a speed bump: a flag before the
+  subcommand and a wrapped call get past them.
+- **The field check for the deny rules (#439),** run after the owner applies
+  with `session-stop-deny` on or the cleaner on; a session reports the result
+  and does not apply for the owner. A session's harmless `claude stop
+  not-a-real-id` and `claude rm not-a-real-id` are refused by permission, and
+  Brigade's `stop_background_session` still works. *On a failure:* if Brigade's
+  stop is refused, set `session-stop-deny` to `false` and apply on the owner's
+  word, and open an issue with what was seen; if a rule did not refuse, open an
+  issue.
 - **The field checks (#482),** run by the owner in the first sessions after an
   install; a session reports them and does not run them for the owner.
   *Compaction point:* on Windows CLI, a session compacts near 365000 to 370000
@@ -226,7 +248,11 @@ how every session in every repo behaves. So:
 An older pact installs with that commit's own installer. **If the cleaner is
 on,** turn it off and apply first, so its deny rules leave `settings.json`; a
 pact from before #438 refuses a configuration that names it, and never removes
-those rules. **If the auto-compact window is on,** which it is by default
+those rules. Past #439 there is a second reason: an older installer drops the
+two `claude rm` rules from its record but leaves them in `settings.json`,
+where they look like the owner's own. **If `session-stop-deny` is on,** set it
+to `false` and apply first: an older installer refuses a configuration that
+names it, and ignores `stopDeny`. **If the auto-compact window is on,** which it is by default
 (#482), set `auto-compact-window` to `0` and install first: an older
 installer keeps the live hook entries but deletes the script it doesn't know,
 so every session would call a missing file. Then take the key out of the

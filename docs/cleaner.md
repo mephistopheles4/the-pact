@@ -159,17 +159,34 @@ macOS. The cloud copy doesn't install it.
 
 ## Deny rules
 
-While the cleaner is on, the install adds sixteen rules to
+While the cleaner is on, the install adds eighteen rules to
 `permissions.deny` in `~/.claude/settings.json`, in `Bash(...)` and
 `PowerShell(...)` forms: `git worktree remove *`, `git * worktree remove *`,
 `git branch -d *`, `git * branch -d *`, `git branch -D *`,
-`git * branch -D *`, `git branch --delete *` and `git * branch --delete *`.
+`git * branch -D *`, `git branch --delete *`, `git * branch --delete *` and
+`claude rm *` (#439). `claude rm` joins them because it deletes a session's
+worktree with whatever is left in it, uncommitted and untracked files
+included, which git's own keeps don't bound.
 It records the ones it added under `cleanerDeny` in `.pact-install.json`, and
 turning the cleaner off removes only those; a rule you wrote yourself stays.
+A record from before `claude rm` joined holds only the git rules, and the
+next install with the cleaner on adds the two.
 
 They are a speed bump with the classifier behind them, not a gate: other
-spellings of the same commands get past them. They don't see git run by a
-child process, so the cleaner itself is not denied.
+spellings of the same commands get past them (a flag before the subcommand, a
+path-qualified or wrapped call). They don't see git run by a child process,
+so the cleaner itself is not denied. The classifier doesn't stand behind them
+in one case: without managed settings or a Team or Enterprise login, an
+installed mod can approve a call a deny rule refuses, and in auto mode that
+call skips the classifier.
+
+**Your own `claude rm`.** Run `claude rm <id>` from a separate terminal,
+outside Claude Code. That works whether or not Claude Code's `!` shell mode
+honours deny rules; whether it does is **unmeasured**, and Claude Code's own
+docs are silent on it. `claude rm <id>` deletes the session's worktree with
+everything left in it, including what the cleaner kept: run it only after the
+cleaner has removed the worktree, or after you have checked the worktree
+yourself.
 
 ## When it leaves something
 
@@ -189,6 +206,9 @@ child process, so the cleaner itself is not denied.
 
 ## Rolling back
 
-Turn the cleaner off and apply first: that removes its recorded deny rules
-and the tool. An older installer refuses a configuration that names
-`cleaner`, and would leave the rules in place.
+Turn the cleaner off and apply first: that removes its recorded deny rules,
+the `claude rm` pair included, and the tool. An older installer refuses a
+configuration that names `cleaner`, and would leave the rules in place. Past
+this change (#439) there is a second reason: an older installer drops the two
+`claude rm` rules from its record but leaves them in `settings.json`, where
+they look like your own.
