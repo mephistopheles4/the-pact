@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS } from '../install-core.mjs';
-import { CLEANER_DENY as SHARED_DENY, PACT_TOOLS } from '../shared.mjs';
+import { CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS, STOP_DENY } from '../install-core.mjs';
+import { CLEANER_DENY as SHARED_DENY, PACT_TOOLS, STOP_DENY as SHARED_STOP } from '../shared.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
 import { REPO, assertFails, assertPasses, moduleResult } from './text.mjs';
@@ -238,4 +238,66 @@ test('the cleaner\'s deny rules are the eighteen fixed rules', () => {
   // #464 T8: the copy the page shows is this one.
   assert.deepEqual([...SHARED_DENY], [...CLEANER_DENY]);
   assert.ok(Object.isFrozen(SHARED_DENY));
+});
+
+// #439 C9: the stop switch's two rules, pinned, and held equal in both files.
+test('the stop switch\'s deny rules are the two fixed rules, equal in both files and frozen', () => {
+  assert.deepEqual([...STOP_DENY], ['Bash(claude stop *)', 'PowerShell(claude stop *)']);
+  assert.ok(Object.isFrozen(STOP_DENY));
+  assert.deepEqual([...SHARED_STOP], [...STOP_DENY]);
+  assert.ok(Object.isFrozen(SHARED_STOP));
+});
+
+// #439 C5: a model of Claude Code's matcher, as S2.1 states it, and only that.
+// (a) a trailing ` *`, the rule's only wildcard, matches the bare command and
+// the command followed by a space and any text; (b) a mid `*` matches any
+// text, spaces included; (c) a deny rule applies to each part of a compound
+// command; (d) PowerShell rules match case-insensitively. Whether Bash rules
+// are case-sensitive is not stated, so no case here depends on it.
+function denies(rule, command) {
+  const [, tool, pattern] = /^(Bash|PowerShell)\((.*)\)$/.exec(rule);
+  const flags = tool === 'PowerShell' ? 'i' : '';
+  const esc = s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const body = pattern.split('*');
+  const re = pattern.endsWith(' *') && body.length === 2
+    ? new RegExp(`^${esc(pattern.slice(0, -2))}( .*)?$`, flags)
+    : new RegExp(`^${body.map(esc).join('.*')}$`, flags);
+  const parts = [];
+  let cur = '';
+  let quote = null;
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i];
+    if (quote) { cur += ch; if (ch === quote) quote = null; continue; }
+    if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue; }
+    const two = command.slice(i, i + 2);
+    if (two === '&&' || two === '||') { parts.push(cur); cur = ''; i++; continue; }
+    if (ch === ';' || ch === '|') { parts.push(cur); cur = ''; continue; }
+    cur += ch;
+  }
+  parts.push(cur);
+  return parts.some(p => re.test(p.trim()));
+}
+
+const RM_RULES = CLEANER_DENY.filter(r => r.includes('claude rm'));
+
+test('the matcher model: the new rules match their bad cases and none of the neighbours', () => {
+  assert.deepEqual(RM_RULES, ['Bash(claude rm *)', 'PowerShell(claude rm *)']);
+  const shells = rules => rules.map(r => [r, r.startsWith('PowerShell')]);
+  for (const [rule, ps] of shells(STOP_DENY)) {
+    for (const c of ['claude stop 3fa9c1', 'claude stop', 'git status && claude stop 3fa9c1']) assert.ok(denies(rule, c), `${rule} matches ${c}`);
+    if (ps) assert.ok(denies(rule, 'Claude Stop 3fa9c1'), `${rule} matches the cased form`);
+  }
+  for (const [rule, ps] of shells(RM_RULES)) {
+    for (const c of ['claude rm 3fa9c1', 'claude rm', 'claude rm 3fa9c1 --force-remove-worktree --discard-unpushed']) assert.ok(denies(rule, c), `${rule} matches ${c}`);
+    if (ps) assert.ok(denies(rule, 'Claude RM 3fa9c1'), `${rule} matches the cased form`);
+  }
+  const NEIGHBOURS = ['claude --bg -w pact-1 "stop it, then rm the file"', 'claude attach 3fa9c1', 'claude agents', 'git rm x', 'claude stopwatch', 'claude rmdir x'];
+  for (const rule of [...STOP_DENY, ...RM_RULES]) {
+    for (const c of NEIGHBOURS) assert.ok(!denies(rule, c), `${rule} must not match ${c}`);
+  }
+  // The model can say no: the mid-`*` shape the spec rejects does catch a session start.
+  assert.ok(denies('Bash(claude * stop *)', 'claude --bg -w pact-1 please stop it now'));
+  // No new rule holds a `*` other than its trailing one.
+  for (const rule of [...STOP_DENY, ...RM_RULES]) assert.equal(rule.split('*').length, 2, `${rule} holds one star`);
+  for (const rule of [...STOP_DENY, ...RM_RULES]) assert.ok(rule.endsWith(' *)'), `${rule} ends with a space and a star`);
 });

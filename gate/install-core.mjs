@@ -43,6 +43,12 @@ const TOOL_WARNS = Object.freeze({
 // recorded and on this list, so an identical rule the owner wrote stays.
 const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *', 'claude rm *'];
 export const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
+// The stop switch's deny rules (#439 S1.2): settings.json holds them only
+// while the user setting session-stop-deny is on. The install records those it
+// adds under stopDeny, and removes only rules both recorded and on this list.
+// Suffix only: a mid `*` would catch a session start whose prompt says "stop".
+// The builder's copy is in shared.mjs, held equal to this one by a test.
+export const STOP_DENY = Object.freeze(['Bash(claude stop *)', 'PowerShell(claude stop *)']);
 // The builder kit (#203 S6; #262), the install's own copy of seam A's list in
 // gate/shared.mjs: installed under pact/builder/ in the repo's own layout
 // whenever /scriptorium installs. Its gate files are the only gate files that
