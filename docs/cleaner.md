@@ -74,8 +74,8 @@ the name-back, and run `remove` only after your own yes to it in chat.
 - **A `.git` entry below its root, in every run** (#454): "holds a .git entry
   below its root, which git does not see". A file or folder named `.git` in any
   letter case that is not a populated submodule's `.git`: a gitlink in the
-  index with a `.git` file naming its git folder, or a folder holding `HEAD`,
-  which git sees and refuses. Listed under ".git entries". Each one is a
+  index with a `.git` file naming its git folder, or a git folder holding
+  `HEAD`, `objects` and `refs`, which git sees and refuses. Listed under ".git entries". Each one is a
   repository or a stray folder whose history and files go with the folder if it
   is removed by hand.
 - **A walk that fails** keeps that worktree alone, in either mode: "a read

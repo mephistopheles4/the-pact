@@ -973,13 +973,15 @@ test('names git lists under a link are never printed, in a block kept for the li
   mkdirSync(join(w, 'x'));
   symlinkSync(target, join(w, 'x', 'j'), linkKind);
   writeFileSync(join(w, 'own.txt'), 'x');
-  // What git would name: the worktree's own file, and the target's files as seen through the link.
-  const status = recording((file, args) => (args.includes('status') ? { status: 0, stdout: '?? own.txt\0?? x/j/TARGETFILE.txt\0!! x/j/.env\0!! x/j/\0', stderr: '' } : realGitOld && args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.45.0\n', stderr: '' } : null));
+  // What git would name: the worktree's own file, a retargeted tracked link (an edit, so it stays), the target's files as seen through
+  // the link, and on Windows one of them in another letter case.
+  const seen = `?? own.txt\0 M x/j\0?? x/j/TARGETFILE.txt\0!! x/j/.env\0!! x/j/\0${process.platform === 'win32' ? '?? X/J/UPPER.txt\0' : ''}`;
+  const status = recording((file, args) => (args.includes('status') ? { status: 0, stdout: seen, stderr: '' } : realGitOld && args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.45.0\n', stderr: '' } : null));
   for (const flags of [[], ['--recoverable']]) {
     const label = flags.join(' ') || 'default';
     const r = f.run(['show', ...flags], { spawn: status.spawn });
-    assert.equal(block(r.out, 'under'), `  kept: ${flags.length ? 'holds changed or untracked files' : LINK_KEEP}\n  links:\n    "x/j"\n  untracked files:\n    "own.txt"\n`, `${label}: ${r.out}`);
-    assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET/, `${label}: ${r.out}`);
+    assert.equal(block(r.out, 'under'), `  kept: ${flags.length ? 'holds changed or untracked files' : LINK_KEEP}\n  links:\n    "x/j"\n  changed files:\n    "x/j"\n  untracked files:\n    "own.txt"\n`, `${label}: ${r.out}`);
+    assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET|UPPER/, `${label}: ${r.out}`);
   }
 });
 
@@ -989,6 +991,8 @@ test('a staged gitlink over a .git folder that is no repository still keeps its 
   const w = f.add('fake');
   mkdirSync(join(w, 'sub', '.git'), { recursive: true });
   writeFileSync(join(w, 'sub', '.git', 'note.txt'), 'UNTRACKED CONTENT\n');
+  // A HEAD alone is not a repository: git needs objects and refs too before it refuses a submodule, so only those two make it populated.
+  writeFileSync(join(w, 'sub', '.git', 'HEAD'), 'ref: refs/heads/main\n');
   const head = f.git(w, 'rev-parse', 'HEAD');
   f.git(w, 'update-index', '--add', '--cacheinfo', `160000,${head},sub`);
   f.add('good');
@@ -1018,6 +1022,9 @@ test('the walk treats a folder whose real path differs as a link and does not en
   const { links } = walkTree(w, readdir, real, process.platform);
   assert.deepEqual(links, ['x/y']);
   assert.ok(!seen.includes(resolve(w, 'x', 'y')), 'that folder is not read');
+  // A root that is itself a link, swapped in after the caller's check, is a failed read, so its worktree is kept.
+  const elsewhere = tempDir(t, 'pact-cleaner-elsewhere-');
+  assert.throws(() => walkTree(w, readdir, p => (resolve(p) === resolve(w) ? elsewhere : realpathSync.native(p)), process.platform));
 });
 
 // #454 C1: the block of a kept worktree names what a removal by hand would lose; remove leaves one that gained a link after show.

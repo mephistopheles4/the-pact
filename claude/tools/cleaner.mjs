@@ -373,6 +373,8 @@ export function walkTree(root, readdir = readdirSync, real = realpathSync.native
   const gits = [];
   const stack = [''];
   const realRoot = real(root);
+  // A root swapped for a link after the caller's link check would be read through, so it is a failed read.
+  if (fold(realRoot, platform) !== fold(root, platform)) throw new Error('the root is a link');
   while (stack.length) {
     const rel = stack.pop();
     for (const e of readdir(rel ? join(root, rel) : root, { withFileTypes: true })) {
@@ -389,11 +391,11 @@ export function walkTree(root, readdir = readdirSync, real = realpathSync.native
   return { links: links.sort(), gits: gits.sort() };
 }
 
-/** Whether a `.git` at a gitlink path is a populated submodule's, which git sees and refuses: a file naming its git folder, or a folder holding HEAD. */
+/** Whether a `.git` at a gitlink path is a populated submodule's, which git sees and refuses: a file naming its git folder, or a git folder (HEAD, objects and refs). */
 function populated(p) {
   try {
     const st = lstatSync(p);
-    if (st.isDirectory()) return present(join(p, 'HEAD'));
+    if (st.isDirectory()) return ['HEAD', 'objects', 'refs'].every(n => present(join(p, n)));
     return st.isFile() && st.size <= POINTER_MAX && readFileSync(p, 'utf8').startsWith('gitdir:');
   } catch {
     return false;
@@ -575,7 +577,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
       let walked = { links: [], gits: [] };
       if (present(path)) {
         try {
-          walked = walkTree(path, readdir);
+          walked = walkTree(path, readdir, undefined, platform);
           if (walked.gits.length) {
             // A populated submodule's `.git` is one git sees: a gitlink in the index with a repository behind it, and git's own check refuses it.
             const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
@@ -589,11 +591,13 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
       }
       // On Windows git's status reads through a junction, so the names it lists under a link are the target's, outside
       // the worktree: never printed. The link itself is named under "links".
-      const under = n => {
-        const p = n.replace(/[\\/]+$/, '');
-        return walked.links.some(l => p === l || p.startsWith(`${l}/`));
+      // A name equal to a link is the link's own entry: it stays in the changed list, where a retargeted tracked link is an edit.
+      const same = platform === 'win32' ? s => s.toLowerCase() : s => s;
+      const under = (n, orEqual) => {
+        const p = same(n.replace(/[\\/]+$/, ''));
+        return walked.links.some(l => (orEqual && p === same(l)) || p.startsWith(`${same(l)}/`));
       };
-      for (const k of ['changed', 'untracked', 'ignored']) lists[k] = lists[k].filter(n => !under(n));
+      for (const k of ['changed', 'untracked', 'ignored']) lists[k] = lists[k].filter(n => !under(n, k !== 'changed'));
       const named = [['links', walked.links, true], ['.git entries', walked.gits], ['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
       // git's own check before a removal can trust a cache in the worktree's
       // index, which a session can write, so with the flag the cleaner's own
