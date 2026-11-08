@@ -53,6 +53,13 @@ holds, other local accounts, this repo's publisher and its CI. A session,
 fooled or careless, stays in scope though it runs as you. So does loss of your
 work with no attacker.
 
+**Inlined design-system code:** Scriptorium (`builder/scriptorium.html`)
+carries the aviation design system's CSS and behaviours inline, pinned by hash
+in `builder/build.mjs`. That code runs with the page's powers, including a
+folder you grant it to save into; the page's policy blocks loads and
+connections, but not navigation, pop-ups or writes into that folder. Review of
+each pin, with the security pair on the upstream diff, is its control.
+
 **Out of scope:** a program already running on your machine as you, that
 nothing in scope started, supplied or steered, and your own edits and your own
 account's edit in the browser. Claude Code, Anthropic's models and

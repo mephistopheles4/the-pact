@@ -109,8 +109,49 @@ function markMarkup(root) {
 
 /** builder/parts.mjs as page script: its header comment and every "export " taken off. */
 const partsCode = () => readFileSync(PARTS_FILE, 'utf8').replace(/^(?:\/\/.*\n)+\n/, '').replace(/^export /gm, '');
-const SCRIPT_RE = /<script>([\s\S]*?)<\/script>/;
+const SCRIPT_RE = /<script>([\s\S]*?)<\/script>/g;
 const STYLE_RE = /<style>([\s\S]*?)<\/style>/;
+
+/**
+ * The aviation design system's code the page carries inline (#427), held here
+ * in reviewed code rather than in a vendored copy:
+ * - commit: the short commit of mephistopheles4/aviation-design-system the two dist files come from;
+ * - bundle, behaviours: the sha256 (base64) of dist/aviation.bundle.css and dist/aviation.behaviours.js, as pinned between their marks;
+ * - prepaint: the pre-paint snippet's text between its script tags, as the policy hashes it;
+ * - urls: for each pinned block, the URL-shaped text the page checks may find in it, with its count.
+ * A re-pin changes every constant here and takes the security pair on the upstream diff.
+ */
+export const AVIATION_PIN = Object.freeze({
+  commit: '30685cc',
+  bundle: 'k/HfSejIXA7d3gQrrVmyB8ckE7/jaQUHFqB18pllUvg=',
+  behaviours: 'NUy+lgcPSQoUWgSOvrWdmoTVk9lQ+vu81zNdCWLit/4=',
+  prepaint: "try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}",
+  urls: Object.freeze({
+    bundle: Object.freeze([['http://www.w3.org/2000/svg', 3], ['url(', 4]]),
+    behaviours: Object.freeze([['file://', 1]]),
+  }),
+});
+
+/**
+ * The pinned text of the `name` block in `text` (the style for the bundle, the second script for the behaviours).
+ * Each mark appears exactly once there, names the pin's commit, and stands in
+ * order; only whitespace comes before the begin mark, and for a script after
+ * the end mark too; and the text hashes to its constant.
+ */
+function pinnedBlock(text, name, whole) {
+  const begin = `/* aviation-${name}:begin ${AVIATION_PIN.commit} */\n`;
+  const end = `/* aviation-${name}:end */`;
+  const count = piece => text.split(piece).length - 1;
+  if (count(`aviation-${name}:begin`) !== 1 || count(`aviation-${name}:end`) !== 1) fail(`the design-system pin: the ${name} marks must each appear exactly once, inside the ${name === 'bundle' ? 'style' : 'second script'}`);
+  if (count(begin) !== 1) fail(`the design-system pin: the ${name} begin mark must name commit ${AVIATION_PIN.commit}`);
+  const i = text.indexOf(begin);
+  const j = text.indexOf(end);
+  if (j < i + begin.length) fail(`the design-system pin: the ${name} end mark comes before its begin mark`);
+  if (text.slice(0, i).trim() || (whole && text.slice(j + end.length).trim())) fail(`the design-system pin: the ${name} block must ${whole ? 'be the whole script' : 'open the style'}`);
+  const block = text.slice(i + begin.length, j);
+  if (sha256b64(block) !== AVIATION_PIN[name]) fail(`the design-system pin: the ${name} text does not hash to the pinned constant for commit ${AVIATION_PIN.commit}`);
+  return block;
+}
 const CSP_RE = /(<meta http-equiv="Content-Security-Policy" content=")([^"]*)(">)/;
 
 const fail = msg => {
@@ -612,12 +653,19 @@ export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_R
   out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);
   if (!MARK_SLOT_RE.test(out)) fail('the page has no brand-mark slot');
   out = out.replace(MARK_SLOT_RE, (_, a, b) => `${a}${markMarkup(root)}${b}`);
-  const script = SCRIPT_RE.exec(out);
-  const style = STYLE_RE.exec(out);
-  if (!script || !style || !CSP_RE.test(out)) fail('the page has no inline script, style or policy meta tag');
+  // The pins are read from the template `html`, before the data went in: a builder file or preset holding mark text can't make or break a mark.
+  const scripts = [...html.matchAll(SCRIPT_RE)];
+  const style = STYLE_RE.exec(html);
+  if (scripts.length !== 3 || !style || !CSP_RE.test(html) || (html.replace(SCRIPT_RE, '<script></script>').match(/<script\b/gi) ?? []).length !== 3) fail('the page has no pre-paint script, behaviours script, own script, style and policy meta tag, or has another script');
+  if (scripts[0][1] !== AVIATION_PIN.prepaint) fail('the design-system pin: the first script must be the pre-paint snippet, exactly');
+  if (scripts[0].index > html.search(/<style\b/i)) fail('the design-system pin: the pre-paint script must come before the style');
+  pinnedBlock(style[1], 'bundle', false);
+  pinnedBlock(scripts[1][1], 'behaviours', true);
+  // The page's own script is the third, read from the built page, where the data is in.
+  const own = [...out.matchAll(SCRIPT_RE)][2];
   const csp = [
     "default-src 'none'",
-    `script-src 'sha256-${sha256b64(script[1])}'`,
+    `script-src ${[scripts[0][1], scripts[1][1], own[1]].map(t => `'sha256-${sha256b64(t)}'`).join(' ')}`,
     `style-src 'sha256-${sha256b64(style[1])}'`,
     "connect-src 'none'",
     "img-src 'none'",

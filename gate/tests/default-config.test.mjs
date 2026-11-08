@@ -19,7 +19,7 @@ import { REPO, assertFails, assertPasses, moduleResult } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const PAGE = readFileSync(join(REPO, 'builder', 'scriptorium.html'), 'utf8');
-const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/i;
+const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
 const PIN = 'a'.repeat(40);
 const SKILLS = [{ repo: 'someone/skills', commit: PIN, paths: ['skills/one', 'skills/two'] }, { repo: 'other/more', commit: 'b'.repeat(40), paths: ['three'] }];
 const SIX = ['spec-driven-development', 'incremental-implementation', 'test-driven-development', 'code-review-and-quality', 'shipping-and-launch', 'documentation-and-adrs'];
@@ -40,7 +40,7 @@ const withPresetSkills = skills => r => {
 };
 
 /** Run the page's script in a fresh context, then `expr`, and hand back its JSON. */
-const onPage = (page, expr) => JSON.parse(vm.runInContext(`${SCRIPT_RE.exec(page)[1]}\n;JSON.stringify(${expr})`, vm.createContext({})));
+const onPage = (page, expr) => JSON.parse(vm.runInContext(`${[...page.matchAll(SCRIPT_RE)][2][1]}\n;JSON.stringify(${expr})`, vm.createContext({})));
 
 /** Render the pact's source against `home`, with the default folder `def` when given. */
 function render(t, home, def) {
