@@ -223,45 +223,114 @@ const NET_RE = /^[\\/]{2}/;
 const DEVICE_DRIVE_RE = /^[\\/]{2}[?.][\\/](?=[A-Za-z]:)/;
 const local = p => p.replace(DEVICE_DRIVE_RE, '');
 
-/** Whether reading `p` could reach another host: a network path, or on macOS an autofs path under /net. */
-const remote = (p, platform) => NET_RE.test(local(p)) || (platform === 'darwin' && /^\/net(?:\/|$)/.test(p));
+// A path under an autofs root mounts from the host named in it (#442): /net
+// everywhere but Windows, where it is a plain folder, and on macOS also
+// /Network/Servers, both in any case there.
+const AUTOFS_RE = /^\/net(?:\/|$)/;
+const AUTOFS_MAC_RE = /^\/(?:net|network\/servers)(?:\/|$)/i;
 
-/** Whether a link on the way to `p` points at a remote path; a missing part ends the walk. */
-function linksOut(p, platform) {
+/** Whether reading `p` could reach another host: a network path, or an autofs path under /net (macOS: also /Network/Servers). */
+const remote = (p, platform) => NET_RE.test(local(p)) || (platform === 'darwin' ? AUTOFS_MAC_RE.test(p) : platform !== 'win32' && AUTOFS_RE.test(p));
+
+/**
+ * Whether a link target, as `readlink` returned it, may be followed (#442).
+ * It is checked on the raw string, before any resolve(), which would turn
+ * `\??\GLOBALROOT\Device\Mup\h\s` into a drive path that looks local. On
+ * Windows only a drive-absolute path, or a relative one with no drive letter,
+ * is plain; elsewhere any target but one with two leading separators is.
+ */
+export function plainTarget(t, platform) {
+  const s = local(t);
+  if (platform === 'win32') return /^[A-Za-z]:[\\/]/.test(s) || !/^[\\/]|^[A-Za-z]:/.test(s);
+  return !NET_RE.test(t);
+}
+
+const REMOTE = 'remote';
+const MAX_HOPS = 40;
+const MAX_STEPS = 4096;
+const FOLDS = platform => platform === 'win32' || platform === 'darwin';
+
+/**
+ * The physical folder a path reaches, found without opening, probing or
+ * resolving a part before its parent's listing has shown it is not a link
+ * (#442). A part the listing does not show is never touched: on Windows a
+ * name it hides (an 8.3 short name, a trailing dot) can open a junction, and
+ * lstat on a junction to a network path retries as a following stat. So there
+ * is no lstat, stat, realpath or access here: `io.readdir` lists a folder and
+ * `io.readlink` reads a link the listing showed. Returns REMOTE, or
+ * `{ real, rest }`: the folder reached, and the parts left unwalked. Every
+ * doubt ends REMOTE, and the path is then compared as written.
+ */
+function walk(p, platform, io) {
+  const split = s => s.split(platform === 'win32' ? /[\\/]/ : '/').filter(Boolean);
   const { root } = parse(p);
+  const todo = split(p.slice(root.length));
   let cur = root;
-  for (const part of p.slice(root.length).split(sep).filter(Boolean)) {
-    cur = join(cur, part);
-    let st;
-    try {
-      st = lstatSync(cur);
-    } catch {
-      return false;
+  let hops = 0;
+  for (let steps = 0; todo.length; ) {
+    if (++steps > MAX_STEPS) return REMOTE;
+    const part = todo.shift();
+    if (part === '.') continue;
+    if (part === '..') {
+      cur = dirname(cur); // cur is always physical, so this is the physical parent
+      continue;
     }
-    if (st.isSymbolicLink() && remote(readlinkSync(cur), platform)) return true;
+    if (remote(join(cur, part), platform)) return REMOTE;
+    const unwalked = { real: cur, rest: [part, ...todo] };
+    let list;
+    try {
+      list = io.readdir(cur, { withFileTypes: true });
+    } catch (e) {
+      return e?.code === 'ENOENT' || e?.code === 'ENOTDIR' ? unwalked : REMOTE;
+    }
+    let entry = list.find(e => e.name === part);
+    if (!entry && FOLDS(platform)) {
+      const same = list.filter(e => e.name.toLowerCase() === part.toLowerCase());
+      if (same.length > 1 || same[0]?.isSymbolicLink()) return REMOTE;
+      entry = same[0];
+    }
+    if (!entry) return unwalked; // nothing touches the unshown name
+    if (entry.isSymbolicLink()) {
+      if (++hops > MAX_HOPS) return REMOTE;
+      let target;
+      try {
+        target = io.readlink(join(cur, entry.name));
+      } catch {
+        return REMOTE;
+      }
+      if (!plainTarget(target, platform) || remote(target, platform)) return REMOTE;
+      const t = local(target);
+      const { root: tr } = parse(t);
+      todo.unshift(...split(t.slice(tr.length)));
+      if (tr) cur = tr; // an absolute target restarts at its root; a relative one starts in the link's folder
+    } else if (entry.isDirectory()) {
+      cur = join(cur, entry.name); // the entry's own name, so the next listing opens what was checked
+    } else {
+      return unwalked; // a file, a device or an unknown type is never gone into
+    }
   }
-  return false;
+  return { real: cur, rest: [] };
 }
 
 /**
  * A path's real path, so one reached through a link compares equal: the
- * deepest folder that exists, resolved, with the rest joined on. A path that
- * is remote, or reaches a remote path through a link, is never resolved on
- * disk. `rp` stands in for the real-path call in tests.
+ * physical folder the walk reached, resolved, with the unwalked rest joined
+ * on. A path that is remote, or reaches a remote path through a link or a
+ * chain of links, is never resolved on disk. `rp` stands in for the real-path
+ * call in tests, `io` for the listing and link reads. The real-path call runs
+ * only on a folder the walk listed, never on a part it did not show.
  */
-export function realOf(p, rp = realpathSync.native, platform = process.platform) {
+export function realOf(p, rp = realpathSync.native, platform = process.platform, io = { readdir: readdirSync, readlink: readlinkSync }) {
   const given = resolve(local(p));
-  if (remote(p, platform) || remote(given, platform) || linksOut(given, platform)) return given;
-  const rest = [];
-  for (let head = given; ; ) {
-    try {
-      return join(rp(head), ...rest);
-    } catch {
-      const up = dirname(head);
-      if (up === head) return given;
-      rest.unshift(basename(head));
-      head = up;
-    }
+  if (remote(p, platform) || remote(given, platform)) return given;
+  // The walk takes the path as written, so a `..` after a link is its physical parent.
+  const start = local(p);
+  const w = walk(isAbsolute(start) ? start : `${process.cwd()}${sep}${start}`, platform, io);
+  if (w === REMOTE) return given;
+  try {
+    return join(rp(w.real), ...w.rest);
+  } catch {
+    return given;
   }
 }
 
@@ -273,24 +342,47 @@ const within = (inner, outer, platform) => {
   return a === b || a.startsWith(b.endsWith(sep) ? b : b + sep);
 };
 
-/** The cwd of every Claude Code session status file; a file that does not read stops the run. */
+/**
+ * The cwd of every Claude Code session status file. A file that does not
+ * read, and (#442) a sessions folder or a status file that is a link or the
+ * wrong kind, stop the run: a planted link could point at another host, and
+ * reading through it would reach it. Both folders are listed first, so
+ * nothing is opened before its listing shows it is no link.
+ */
 export function sessionCwds(home) {
-  const dir = join(home, '.claude', 'sessions');
-  let names;
-  try {
-    names = readdirSync(dir);
-  } catch (e) {
-    if (e.code === 'ENOENT') return [];
-    throw new Unavailable('the sessions check failed');
+  const fail = () => new Unavailable('the sessions check failed');
+  const list = dir => {
+    try {
+      return readdirSync(dir, { withFileTypes: true });
+    } catch (e) {
+      if (e.code === 'ENOENT') return null;
+      throw fail();
+    }
+  };
+  const claude = join(home, '.claude');
+  const top = list(claude);
+  if (!top) return [];
+  let entry = top.find(e => e.name === 'sessions');
+  if (!entry && FOLDS(process.platform)) {
+    const same = top.filter(e => e.name.toLowerCase() === 'sessions');
+    if (same.length > 1) throw fail();
+    entry = same[0];
   }
-  return names.filter(n => n.endsWith('.json')).map(n => {
+  if (!entry) return [];
+  if (entry.isSymbolicLink() || !entry.isDirectory()) throw fail();
+  const dir = join(claude, entry.name);
+  const files = list(dir);
+  if (!files) return [];
+  const status = files.filter(e => e.name.endsWith('.json'));
+  if (status.some(e => e.isSymbolicLink() || !e.isFile())) throw fail();
+  return status.map(e => {
     let doc;
     try {
-      doc = JSON.parse(readFileSync(join(dir, n), 'utf8'));
+      doc = JSON.parse(readFileSync(join(dir, e.name), 'utf8'));
     } catch {
-      throw new Unavailable('the sessions check failed');
+      throw fail();
     }
-    if (typeof doc?.cwd !== 'string') throw new Unavailable('the sessions check failed');
+    if (typeof doc?.cwd !== 'string') throw fail();
     return doc.cwd;
   });
 }

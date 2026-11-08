@@ -325,7 +325,7 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
   const linkMade = plant('//nohost.invalid/share', toShare, 'dir'); // on Windows a link needs Developer Mode or admin rights; CI fails without
   if (linkMade) assert.equal(realOf(join(toShare, 'x'), rp), join(toShare, 'x'));
   assert.deepEqual(seen, []);
-  // A missing leaf: the walk goes up until a folder resolves, then joins the rest back on.
+  // A missing leaf: the walk stops at the deepest folder it listed, which alone is resolved, and the rest is joined back on (#442: no climb through missing parents).
   const gone = join(f.root, 'missing', 'leaf');
   const rpMissing = p => {
     seen.push(p);
@@ -333,7 +333,7 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
     return p;
   };
   assert.equal(realOf(gone, rpMissing), gone);
-  assert.deepEqual(seen, [gone, join(f.root, 'missing'), f.root]);
+  assert.deepEqual(seen, [f.root]);
   if (process.platform === 'win32') assert.equal(realOf(`\\\\?\\${f.root}`), realpathSync.native(f.root), 'a device prefix before a drive letter is local');
 
   for (const [why, plant] of [
