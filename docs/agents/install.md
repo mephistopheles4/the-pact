@@ -84,7 +84,10 @@ how every session in every repo behaves. So:
   also refuses a builder file with a `costLimits` key or an Enough on a quality
   row. To roll back past either, remove those edits first. The `usage-pause-session` setting
   (#142) sets the 5-hour session limit beside the weekly `usage-pause`; unset,
-  the rules file has no session line.
+  the rules file has no session line. `usage-pause` also takes `false` (#501),
+  which renders no weekly line; a pact before #501 refuses it with
+  `config-value`, so to roll back past #501, set `usage-pause` to a number, or
+  remove it, first.
 - **The auto-compact window (#482, ADR 0140).** `auto-compact-window` is 0
   (off) or 100000 to 1000000 tokens in steps of 10000, 400000 when unset, and
   no project may set it. It has no part in the rules file, so the rules text is

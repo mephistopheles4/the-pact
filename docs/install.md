@@ -518,9 +518,9 @@ configuration (see below).
 
 To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
-usage settings exist: `usage-pause`, the weekly line (75% by default), and
-`usage-pause-session`, the 5-hour session line, unset by default (#142). The
-builder's Settings dialog holds both. A third, `auto-compact-window`, is
+usage settings exist: `usage-pause`, the weekly line (75% by default; `false`
+turns it off, #501), and `usage-pause-session`, the 5-hour session line, unset
+by default (#142). The builder's Settings dialog holds both. A third, `auto-compact-window`, is
 described in the next section. The canvas edits the workflow, Settings
 the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the

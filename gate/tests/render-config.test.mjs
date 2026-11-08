@@ -330,14 +330,15 @@ const BAD = [
   ['a constructor setting', '{"schema": 1, "settings": {"constructor": 90}}', 'config-settings', /not a setting/],
   ['settings as a list', '{"schema": 1, "settings": [90]}', 'config-settings', /settings must be an object/],
   ['settings as null', '{"schema": 1, "settings": null}', 'config-settings', /settings must be an object/],
-  ['a value as a string', '{"schema": 1, "settings": {"usage-pause": "90"}}', 'config-value', /usage-pause must be a whole number from 0 to 100/],
-  ['a value as the string NaN', '{"schema": 1, "settings": {"usage-pause": "NaN"}}', 'config-value', /usage-pause must be a whole number from 0 to 100/],
-  ['a value as true', '{"schema": 1, "settings": {"usage-pause": true}}', 'config-value', /usage-pause must be a whole number/],
-  ['a value as null', '{"schema": 1, "settings": {"usage-pause": null}}', 'config-value', /usage-pause must be a whole number/],
-  ['a value as a list', '{"schema": 1, "settings": {"usage-pause": [90]}}', 'config-value', /usage-pause must be a whole number/],
-  ['a value of -0', '{"schema": 1, "settings": {"usage-pause": -0}}', 'config-value', /usage-pause must be a whole number/],
-  ['a value of -0.0', '{"schema": 1, "settings": {"usage-pause": -0.0}}', 'config-value', /usage-pause must be a whole number/],
-  ['a fraction', '{"schema": 1, "settings": {"usage-pause": 90.5}}', 'config-value', /usage-pause must be a whole number/],
+  ['a value as a string', '{"schema": 1, "settings": {"usage-pause": "90"}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
+  ['a value as the string NaN', '{"schema": 1, "settings": {"usage-pause": "NaN"}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
+  ['a value as true', '{"schema": 1, "settings": {"usage-pause": true}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
+  ['a value as null', '{"schema": 1, "settings": {"usage-pause": null}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
+  ['a value as a list', '{"schema": 1, "settings": {"usage-pause": [90]}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
+  ['a value as the word off', '{"schema": 1, "settings": {"usage-pause": "off"}}', 'config-value', /usage-pause must be false, or a whole number/],
+  ['a value of -0', '{"schema": 1, "settings": {"usage-pause": -0}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
+  ['a value of -0.0', '{"schema": 1, "settings": {"usage-pause": -0.0}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
+  ['a fraction', '{"schema": 1, "settings": {"usage-pause": 90.5}}', 'config-value', /usage-pause must be false, or a whole number from 0 to 100/],
   ['a value over the range', '{"schema": 1, "settings": {"usage-pause": 101}}', 'config-value', /from 0 to 100/],
   ['a value under the range', '{"schema": 1, "settings": {"usage-pause": -1}}', 'config-value', /from 0 to 100/],
   ['a value that overflows', '{"schema": 1, "settings": {"usage-pause": 1e400}}', 'config-value', /from 0 to 100/],
@@ -542,4 +543,33 @@ test('the configuration file is opened once and read once, and a large file is r
   assert.equal(big.seen.filter(l => l.startsWith('open ')).length, 1, big.seen.join('\n'));
   const got = big.seen.filter(l => l.startsWith('read ')).reduce((n, l) => n + Number(l.split(' ')[2]), 0);
   assert.ok(got <= 64 * 1024 + 1, `read ${got} bytes of a 1 MiB file`);
+});
+// #501: the weekly limit takes an explicit false as off; the usage part renders empty.
+const USAGE_LINES = '- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, wait for my\n  go-ahead. The call to cut or stop work over usage is mine.\n';
+
+test('"usage-pause": false renders the usage part empty, and the notice says off', t => {
+  const bytes = Buffer.from('{"schema": 1, "settings": {"usage-pause": false}}\n');
+  const r = render(t, homeWith(t, bytes));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^VALUE usage-pause off$/m, r.out);
+  const src = read(SOURCE);
+  assert.ok(src.includes(USAGE_LINES), 'the source no longer holds the usage lines');
+  const want = expected(src, digestOf(bytes), 75).replace(USAGE_LINES, '').replace('usage-pause 75', 'usage-pause off');
+  assert.equal(r.bytes.toString('utf8'), want);
+  const text = r.bytes.toString('utf8');
+  assert.ok(text.includes('Values set: usage-pause off.'));
+  assert.ok(!text.includes('Before anything expensive, check my weekly usage'));
+});
+
+test('an auto-compact window of 0 still prints as a number, and the rules keep their bytes', t => {
+  const bytes = Buffer.from('{"schema": 1, "settings": {"auto-compact-window": 0}}\n');
+  const r = render(t, homeWith(t, bytes));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^VALUE auto-compact-window 0$/m, r.out);
+  assert.ok(r.bytes.toString('utf8').includes('Values set: auto-compact-window 0.'));
+  assert.ok(r.bytes.toString('utf8').includes(USAGE_LINES));
+});
+
+test('bad case: the session limit takes no false', t => {
+  refusedWith(render(t, homeWith(t, Buffer.from('{"schema": 1, "settings": {"usage-pause-session": false}}\n'))), 'config-value', /usage-pause-session must be a whole number from 0 to 100/);
 });

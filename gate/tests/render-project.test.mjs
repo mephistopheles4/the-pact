@@ -454,3 +454,27 @@ test('bad case: a project template holding a refused character fails the text sc
   const r = render(t, userHome(t), project(t, projectFile(60)), plantedRenderer(t, LEAD, "'# Pact settings for this project\\u202e',"));
   refusedWith(r, 'invisible');
 });
+
+// #501: a project can never turn the weekly limit off; a user who is off gives a project any number.
+test('bad case: a project false refuses against a user with no key and against a user at 90', t => {
+  const want = /usage-pause off is never tighter than the user's value/;
+  refusedWith(render(t, userHome(t), project(t, projectFile('false'))), 'project-looser', want);
+  refusedWith(render(t, userHome(t, userFile(90)), project(t, projectFile('false'))), 'project-looser', want);
+});
+
+test('bad case: a project false refuses against a user who is off too', t => {
+  refusedWith(render(t, userHome(t, userFile('false')), project(t, projectFile('false'))), 'project-looser', /usage-pause off is never tighter/);
+});
+
+test('a project number installs when the user\'s weekly limit is off, even 0 and 100', t => {
+  for (const n of [0, 60, 100]) {
+    const r = render(t, userHome(t, userFile('false')), project(t, projectFile(n)));
+    assert.equal(r.code, 0, r.out);
+    assert.equal(r.bytes.toString('utf8'), expectedFile(n));
+    assert.match(r.stdout, new RegExp(`^VALUE usage-pause ${n}$`, 'm'), r.out);
+  }
+});
+
+test('bad case: a project session false keeps its own refusal', t => {
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause-session": false}}\n')), 'project-value', /usage-pause-session must be a whole number from 0 to 100/);
+});

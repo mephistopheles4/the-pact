@@ -404,7 +404,7 @@ test('bad case: a refused configuration changes nothing on disk under -Apply, an
   writeFileSync(configPath(h), '{"schema": 1, "settings": {"usage-pause": 101}}\n');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
-  assert.match(r.stdout, /^render\| FAIL config-value: pact\/config\.json: usage-pause must be a whole number from 0 to 100\r?$/m, r.out);
+  assert.match(r.stdout, /^render\| FAIL config-value: pact\/config\.json: usage-pause must be false, or a whole number from 0 to 100\r?$/m, r.out);
   assert.match(r.stdout, /^REFUSED: the renderer failed\./m, r.out);
   nothingWritten(h);
 });
@@ -489,7 +489,7 @@ test('the user file and its blocks folder are never deleted, whatever the record
 // ------------------------------------------------------------ the renderer's lines, parsed exactly
 
 const R_NONE = "  if (config === NONE) head.push('CONFIG none');";
-const R_USER = '`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`)';
+const R_USER = '`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${valueText(v)}`)';
 
 function plantRenderer(root, from, to) {
   plantModule(join(root, 'gate'), 'render', from, to);
@@ -600,4 +600,22 @@ test('bad case: a stray word after the named options refuses, and is not printed
   assert.match(r.stdout, /^REFUSED: the command line holds 1 word the script does not read\./m, r.out);
   assert.ok(!r.out.includes('CANARYstray'), r.out);
   nothingWritten(h);
+});
+// #501 C1, C5: a user config with the weekly limit off installs with no usage line, and the dry run warns once.
+test('a configuration with the weekly limit off: the dry run warns, -Apply installs, and the rules file holds no usage line', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const bytes = Buffer.from('{"schema": 1, "settings": {"usage-pause": false}}\n');
+  writeFileSync(configPath(h), bytes);
+
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration turns usage-pause off\.\r?$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, /sets usage-pause to/, dry.out);
+
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
+  assert.equal(r.code, 0, r.out);
+  const text = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+  assert.ok(text.includes('Values set: usage-pause off.'));
+  assert.ok(!text.includes('- **Usage.** Before anything expensive'));
 });
