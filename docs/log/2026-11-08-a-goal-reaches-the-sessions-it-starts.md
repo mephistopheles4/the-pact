@@ -18,3 +18,5 @@ This is a protected-set change. The merge ask names the class widening and resco
 - Design round 3 on spec v3: https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6720947222
 - Spec v3.1: https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6720949190
 - Proceed: https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6723115820
+- Proceed, re-posted with the owner-decision mark: https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6723186056
+- Spec change, "a worktree removal" for "a cleaner removal": https://github.com/mephistopheles4/the-pact/issues/505#issuecomment-6723245789
