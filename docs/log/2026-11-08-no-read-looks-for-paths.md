@@ -7,7 +7,7 @@
 - **`claude/review.md`:** the read before posting looks for a secret or a personal detail, and no longer for a path on this machine.
 - **`AGENTS.md` and `docs/agents/gate-tests.md`:** the read of commits before a push loses this machine's paths and names.
 - **`docs/rule-reasons.md`** says why no read looks for a path, naming #368, so the next rewrite sees it.
-- **Regenerated:** `cloud-sessions/`, `builder/scriptorium.html`, `builder/default-config/`.
+- **Regenerated:** `cloud-sessions/` and `builder/scriptorium.html`; `builder/default-config/` needed no change.
 
 ## Decisions
 
