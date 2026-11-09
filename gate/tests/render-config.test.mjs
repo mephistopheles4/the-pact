@@ -569,6 +569,23 @@ test('an auto-compact window of 0 still prints as a number, and the rules keep t
   assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', 'auto-compact-window 0'));
 });
 
+// #439 C6: the stop switch takes true or false only; it has no part in the rules file, so only the notice line changes.
+test('"session-stop-deny": true prints VALUE session-stop-deny on and the notice word on; false prints off', t => {
+  for (const [v, word] of [[true, 'on'], [false, 'off']]) {
+    const bytes = Buffer.from(`{"schema": 1, "settings": {"session-stop-deny": ${v}}}\n`);
+    const r = render(t, homeWith(t, bytes));
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.stdout, new RegExp(`^VALUE session-stop-deny ${word}$`, 'm'), r.out);
+    assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', `session-stop-deny ${word}`));
+  }
+});
+// #439 C6
+test('bad case: session-stop-deny takes no value but true or false', t => {
+  for (const bad of ['1', '0', '"on"', '"true"', 'null', '[]']) {
+    refusedWith(render(t, homeWith(t, Buffer.from(`{"schema": 1, "settings": {"session-stop-deny": ${bad}}}\n`))), 'config-value', /session-stop-deny must be true or false/);
+  }
+});
+
 // config-value
 test('bad case: the session limit takes no false', t => {
   refusedWith(render(t, homeWith(t, Buffer.from('{"schema": 1, "settings": {"usage-pause-session": false}}\n'))), 'config-value', /usage-pause-session must be a whole number from 0 to 100/);

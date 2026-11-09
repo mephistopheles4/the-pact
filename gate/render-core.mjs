@@ -296,14 +296,17 @@ const SETTINGS = new Map([
   ['usage-pause-session', Object.freeze({ mark: 'usage-pause-session', min: 0, max: 100, def: null, template: SESSION_TEMPLATE, tighter: 'lower', projectLine: SESSION_PROJECT_LINE })],
   // #482: the auto-compact window, in tokens. It has no part in the rules file (mark: null), so its value never changes the rules text. 0 turns it off. A project may not set it.
   ['auto-compact-window', Object.freeze({ mark: null, min: 100000, max: 1000000, step: 10000, off: 0, def: 400000, template: null, tighter: null, projectLine: null })],
+  // #439: the stop switch, `true` or `false`, off by default. It has no part in the rules file (mark: null), so only the notice line changes. A project may not set it.
+  ['session-stop-deny', Object.freeze({ kind: 'switch', mark: null, def: false, template: null, tighter: null, projectLine: null })],
 ]);
 
-/** Whether `v` is a value the setting takes: a whole number in its range (on its step, if it has one), or its off value. */
+/** Whether `v` is a value the setting takes: `true` or `false` for a switch; else a whole number in its range (on its step, if it has one), or its off value. */
 function settingOk(v, spec) {
+  if (spec.kind === 'switch') return v === true || v === false;
   if (spec.off !== undefined && v === spec.off && !Object.is(v, -0)) return true;
   return wholeIn(v, spec.min, spec.max) && (spec.step === undefined || (v - spec.min) % spec.step === 0);
 }
-const settingRule = (name, spec) => (spec.step === undefined ? `${name} must be ${spec.off === undefined ? 'a whole number' : `${spec.off}, or a whole number`} from ${spec.min} to ${spec.max}` : `${name} must be ${spec.off}, or a whole number from ${spec.min} to ${spec.max} in steps of ${spec.step}`);
+const settingRule = (name, spec) => (spec.kind === 'switch' ? `${name} must be true or false` : spec.step === undefined ? `${name} must be ${spec.off === undefined ? 'a whole number' : `${spec.off}, or a whole number`} from ${spec.min} to ${spec.max}` : `${name} must be ${spec.off}, or a whole number from ${spec.min} to ${spec.max} in steps of ${spec.step}`);
 
 // Each pact tool's part of the rules file (#280): the open mark it fills, and
 // its fixed text, one line since #464 T4: the poster's how-to is in review.md,
@@ -493,7 +496,8 @@ function resolveEnoughCosts(qualities, costLimits, fail) {
 }
 
 // #501: a setting's off value of false is reported as the word off; a number stays a number, so auto-compact-window 0 prints as 0.
-const valueText = v => (v === false ? 'off' : v);
+// #439: a switch's true prints as the word on, its false as off.
+const valueText = v => (v === false ? 'off' : v === true ? 'on' : v);
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.
 const NOTICE_MARK = 'config-notice';

@@ -1,0 +1,25 @@
+# Deny rules come only behind a switch that owns them and records them
+
+The pact adds a deny rule to `permissions.deny` in `settings.json` only behind a switch that owns it, and records each rule it adds so turning the switch off removes only those (#439). It extends [ADR 0124](0124-the-cleaner-removes-worktrees-with-fixed-commands-and-never-forces.md), which put the cleaner's deny rules behind the cleaner. Two switches of that kind are now in play:
+
+- **`claude rm *` joins the cleaner's switch.** `CLEANER_DENY` holds eighteen rules, the sixteen git rules plus `Bash(claude rm *)` and `PowerShell(claude rm *)`, recorded under `cleanerDeny`. The cleaner is how worktrees go, and `claude rm` deletes a session's worktree with whatever is left in it, which git's keeps don't bound.
+- **The stop commands get a switch of their own,** the user setting `session-stop-deny`, `true` or `false`, off by default. It owns eight rules, four commands each as a `Bash(...)` and a `PowerShell(...)` rule: `claude stop *`, `claude kill *` (Claude Code's documented alias of stop), `claude daemon stop *` (stops the supervisor and, unless `--keep-workers` is passed, the sessions it hosts) and `claude respawn *` (restarts one session or, with `--all`, every running one). On, the install adds them and records them under `stopDeny`. Off, it removes only rules both recorded and on that fixed list; a rule the owner wrote stays. Each plan filters its record by its own list, so one switch never touches the other's rules. A project may not set it.
+
+## Why
+
+- **A switch, because the pact can't tell what is installed.** Whether Brigade runs here is unknown to the installer, and a deny rule that blocks a tool's raw command for someone who doesn't use the tool is a cost with no gain (the reason ADR 0124 kept the cleaner's rules out of the overlay). An owner who runs Brigade turns the switch on.
+- **Off by default.** An install that doesn't run Brigade stays exactly as it was.
+- **Recorded, so removal is exact.** Without the record, turning the switch off would either leave the rules or take the owner's identical rule with them.
+- **Suffix only.** Command, subcommand, then ` *`. A mid `*` matches any text, spaces included, so `claude * stop *` would catch a session start whose prompt holds the word "stop".
+- **A speed bump, not a gate.** A flag before the subcommand, a path-qualified or wrapped call and other spellings get past, with the classifier behind them, which an installed mod can bypass.
+
+## What was weighed
+
+- **The rules in the overlay.** Not taken, as in ADR 0124.
+- **Only `claude stop *`.** Not taken at Test: `claude kill` is the same command under another name, and the supervisor stop and `respawn --all` end every session's turn at once. `claude respawn *` is matched whole, not as `--all` alone, because a rule with a mid `*` is the broad one (see Suffix only) and a single respawn is assumed to cost a running session its turn (not measured). The rule also blocks a session's `claude respawn <id>` of a stopped session, which is kept on purpose: agents never respawn, and the owner respawns by hand from a separate terminal. Not covered: `claude daemon` with a flag before `stop` (Claude Code's docs name a leading `--dangerously-skip-permissions` as one that still routes to the subcommand), and the other daemon commands.
+- **`claude stop` rules always on.** Not taken: for an owner who doesn't run Brigade they cost something and gain nothing (see Why). Brigade's `stop_background_session` is assumed, not measured, to run `claude stop` from the mod's own process, outside permission rules, so the owner who turns the switch on has a way out (switch off, apply) written in the install doc.
+- **The owner's own `claude stop` and `claude rm`.** Run from a separate terminal, outside Claude Code. Whether Claude Code's `!` shell mode honours deny rules is unmeasured.
+
+## How this was decided
+
+- **2026-11-08.** Decided on #439, spec revision 3, standard tier, the security pair on the spec and again at Test. The proceed, the placement and the rule shape were the lead's picks under the owner's level-3 goal, not the owner's words; so was the Test-round widening to the four commands (decision 475). The threat-model lines that widen "Removals lose local work" and add a class wait for a confirm at merge: the lead's, at level 3, recorded as the lead's and not the owner's.

@@ -50,7 +50,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CLEANER_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
+import { CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
@@ -188,6 +188,13 @@ function compactFrom(renderSrc) {
   return { name: 'auto-compact-window', min: Number(m[1]), max: Number(m[2]), step: Number(m[3]), off: Number(m[4]), def: Number(m[5]) };
 }
 
+/** The stop switch's name and default (#439), read from gate/render-core.mjs's text. */
+function stopSwitchFrom(renderSrc) {
+  const m = /\['(session-stop-deny)', Object\.freeze\(\{ kind: 'switch', mark: null, def: (true|false),/.exec(renderSrc);
+  if (!m) fail('gate/render-core.mjs no longer declares the session-stop-deny setting in the expected form');
+  return { name: m[1], def: m[2] === 'true' };
+}
+
 /** The source's marked parts (name -> dedented text) and its sequence of lead-ins and marks. */
 function parseSource(src) {
   const parts = new Map();
@@ -259,6 +266,7 @@ function pactText(root, src, renderSrc) {
     commands: commands.map(f => ({ name: f.slice(0, -3), text: read(`claude/commands/${f}`) })),
     settings: read('claude/settings.overlay.json'),
     cleanerDeny: CLEANER_DENY.join('\n'),
+    stopDeny: STOP_DENY.join('\n'),
   };
 }
 
@@ -320,7 +328,8 @@ export function pactData(root) {
 
   const session = sessionFrom(renderSrc);
   const compact = compactFrom(renderSrc);
-  return { always, editable, setting, session, compact, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
+  const stopSwitch = stopSwitchFrom(renderSrc);
+  return { always, editable, setting, session, compact, stopSwitch, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
 }
 
 // ------------------------------------------------------------ the builder file

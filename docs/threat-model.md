@@ -23,6 +23,7 @@ quadrantChart
   Review rests on rules: [0.45, 0.56]
   Local copies on disk: [0.30, 0.55]
   Removals lose local work: [0.32, 0.46]
+  A raw stop gets past a speed bump: [0.30, 0.40]
   A standing goal decides alone: [0.30, 0.64]
   Pinned design-system code: [0.12, 0.55]
 ```
@@ -41,6 +42,7 @@ the classes; they do not size them. The open issues below are not drawn.
 | Review rests on rules | 0.45 | 0.56 |
 | Local copies on disk | 0.30 | 0.55 |
 | Removals lose local work | 0.32 | 0.46 |
+| A raw stop gets past a speed bump | 0.30 | 0.40 |
 | A standing goal decides alone | 0.30 | 0.64 |
 | Pinned design-system code | 0.12 | 0.55 |
 
@@ -97,6 +99,7 @@ flowchart LR
   subgraph B5["Your disk"]
     T8["Local copies on disk"]
     T9["Removals lose local work"]
+    T10["A raw stop gets past a speed bump"]
   end
 
   tracker --> B1
@@ -127,7 +130,8 @@ Each box is a boundary a class crosses; the arrows say who reaches it.
 - **The pact gets loosened.** A fooled session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a shared builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary test code, work that publishes or handles credentials can run below the thorough tier, a product's leaked secret is no security finding by itself, a read-only lens takes the base on trust, a lens launched as a teammate, against the procedure, can pass what it read to, or write tasks for, your other sessions and the shared task list, and from there it leaves the machine only when a session posts or sends it, a message to your cloud or Remote Control sessions included, and the table check doesn't pair a state word with a disposition.
 - **Local copies on disk.** A builder page, kept-local reports, the install's backups and a session's hand-off notes with their `.turn` files and the shared task list's files sit unencrypted until deleted, in reach of other local accounts and of a session that reads them.
-- **Removals lose local work.** The cleaner's removals rest on a rule tying them to your yes, outside a goal, what git and the cleaner keep bounds them, and a removal past its deny rules has only Claude Code's classifier in the way.
+- **Removals lose local work.** The cleaner's removals rest on a rule tying them to your yes, outside a goal, what git and the cleaner keep bounds them, and a removal past its deny rules has only Claude Code's classifier in the way. The deny rules include `claude rm`; Claude Code's docs say a plain `claude rm` keeps a worktree with uncommitted changes, and a raw `claude rm` that gets past its rule, in its forced forms (`--force-remove-worktree`, `--discard-unpushed`), deletes the worktree with its uncommitted and untracked files, and the branch and unpushed commits with it, which git's keeps don't bound. The classifier stands behind the rules unless an installed mod approves the call, which also skips the classifier in auto mode.
+- **A raw stop gets past a speed bump.** While `session-stop-deny` is on, eight deny rules on raw `claude stop`, `claude kill`, `claude daemon stop` and `claude respawn` are a speed bump and nothing more: another spelling gets past them, and a stopped session loses its turn, every hosted session's at once for a supervisor stop or a respawn of all. Other `claude daemon` commands are not covered. Impact is scored for that worst case, the loss of every hosted session's turn at once, not for one session. They exist only while the setting is on, and the classifier stands behind them unless an installed mod approves the call, which also skips the classifier in auto mode.
 - **A compromised machine or sandbox.** Once a program, process or agent on the machine or in the sandbox works against you, or a program a cloned repo or a project's version pin supplies runs when a session, a hook or a tool calls a command by bare name, it can plant programs, change files a session or a hook reads, and act as a session would; the pact does not defend against it. Other local accounts, and a session that text in scope has steered, stay in scope.
 - **Pinned design-system code.** The aviation design system is the owner's own code, inlined into Scriptorium at a pinned commit, so it runs with the page's powers, a folder you grant included, and a re-pin is reviewed like any change to this repo, with no security pair of its own.
 - **A standing goal decides alone.** Under a goal, a session uses its judgment on what the rules keep for you, on words from any prompt or message, a stranger's or a fooled session's included; a session started for a goal acts on its starter's replies, on its start prompt's word that a goal is set, or on a reply it can't tell from its starter's; what its rules would tell you reaches you through its starter; usage holds only as a rule, and only while a usage limit is set; Claude Code's permissions may read a start prompt as your ask, and the log corrects only what can be undone, never what was published or sent off the machine.

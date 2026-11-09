@@ -303,11 +303,16 @@ parts:
     WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.
   ```
 
-  The cleaner on also adds sixteen deny rules on raw worktree and branch
-  removal commands to `settings.json`, each listed under `settings.json` as
-  `+ permissions.deny`, and records the ones it added in
+  The cleaner on also adds eighteen deny rules on raw worktree and branch
+  removal commands and on `claude rm` to `settings.json`, each listed under
+  `settings.json` as `+ permissions.deny`, and records the ones it added in
   `.pact-install.json`; turning it off removes only those, also listed. A
-  rule you wrote yourself stays. [cleaner.md](cleaner.md) lists them.
+  rule you wrote yourself stays. [cleaner.md](cleaner.md) lists them, and
+  says how to run your own `claude rm`: from a separate terminal, outside
+  Claude Code, because whether Claude Code's `!` shell mode honours deny rules
+  is unmeasured. `claude rm <id>` deletes the session's worktree with
+  everything left in it, so run it only after the cleaner has removed the
+  worktree, or after checking the worktree yourself.
 
   The poster on also adds its rule to the rules file, so the rendered hash
   changes; `--review-folder` shows the rule. Taking the name out of the list
@@ -520,12 +525,54 @@ To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default; `false`
 turns it off, #501), and `usage-pause-session`, the 5-hour session line, unset
-by default (#142). The builder's Settings dialog holds both. A third, `auto-compact-window`, is
-described in the next section. The canvas edits the workflow, Settings
+by default (#142). The builder's Settings dialog holds both. A third, `session-stop-deny`, and a
+fourth, `auto-compact-window`, are described in the next two sections. The canvas edits the workflow, Settings
 the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
 session line set. For a builder of your own, type `/scriptorium` in any
 session.
+
+## The session stop switch
+
+`session-stop-deny` in `~/.claude/pact/config.json` (#439, ADR 0148) is
+`true` or `false`, `false` when unset, and the builder's Settings dialog shows
+it as Session stop. A project configuration may not set it, and a project
+install never adds its rules. It has no part in the rules file; only the
+notice line names it, as `session-stop-deny on` or `off`.
+
+- **What it does.** While it is `true`, the install adds eight rules to
+  `permissions.deny` in `settings.json`, each listed as `+ permissions.deny`:
+  `claude stop *`, `claude kill *` (Claude Code's alias of stop),
+  `claude daemon stop *` (stops the supervisor and, unless `--keep-workers` is passed, the sessions it hosts) and
+  `claude respawn *` (restarts a session, or all with `--all`), each as a
+  `Bash(...)` and a `PowerShell(...)` rule. It records the ones it added under
+  `stopDeny` in `.pact-install.json`. Turning it off removes only rules that
+  are both recorded and one of those eight, listed as `- permissions.deny`; an
+  identical rule you wrote yourself stays. The cloud copy adds none of them.
+- **Who turns it on.** Turn it on if you run Brigade (the session-manager
+  mod), so that a session can't stop another session with a raw
+  `claude stop` and stops go through Brigade's own tool.
+- **Why a switch.** The pact can't tell whether Brigade is installed, and the
+  rules block a raw stop, kill, supervisor stop or respawn that a session runs. It is off unless you
+  turn it on. The cleaner's `claude rm` rules are separate: they come with the
+  cleaner.
+- **A speed bump, not a gate.** Each rule is a suffix only: the command, then
+  anything. A flag before the subcommand, a path-qualified or
+  wrapped call, and any other spelling get past them, with the classifier
+  behind them.
+- **Your own `claude stop <id>`** (or kill, supervisor stop or respawn). A session never respawns another one; you do, by hand. Run it from a separate terminal, outside
+  Claude Code. Whether Claude Code's `!` shell mode honours deny rules is
+  **unmeasured**.
+- **If Brigade's stop is refused.** Brigade's `stop_background_session` runs
+  `claude stop` from the mod's own process, which permission rules don't see.
+  A Brigade restart that runs `claude respawn` the same way is assumed the same; a refusal on a restart has the same way out.
+  That is assumed, not measured. If the rule does catch it, the symptom is a
+  permission refusal on Brigade's stop. The way out: set `session-stop-deny`
+  to `false`, then a dry run and an apply on your word.
+- **Rolling back.** Set it to `false` and apply first, then take the key out
+  of the configuration. An older installer refuses a configuration that names
+  it, even as `false`, and ignores `stopDeny`, so the eight rules would stay in
+  `settings.json` looking like your own.
 
 ## The auto-compact window and its hooks
 
@@ -646,7 +693,10 @@ install; the older installer's own warning about any `hooks` key is not that.
 
 A pact from before the cleaner (#438) refuses a configuration that names
 `cleaner`, and never removes the cleaner's deny rules, so turn the cleaner off
-and apply before you roll back.
+and apply before you roll back. A pact from before the stop switch (#439)
+refuses a configuration that names `session-stop-deny` and ignores `stopDeny`,
+so set it to `false`, apply, then take the key out of the configuration; and an older installer leaves the
+two `claude rm` rules in `settings.json` while dropping them from its record.
 
 A pact from before the pact commands (#203) refuses a configuration with a
 `commands` key, so take the key out first. Its install then deletes the

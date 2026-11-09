@@ -110,6 +110,13 @@ test('bad case: the auto-compact window in a project configuration refuses, nami
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"auto-compact-window": 0}}\n')), 'project-direction', /auto-compact-window/);
 });
 
+// #439 C6: the stop switch has no tightening direction, so a project may not set it, valid value or not.
+test('bad case: session-stop-deny in a project configuration refuses, naming the key', t => {
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": true}}\n')), 'project-direction', /session-stop-deny has no tightening direction, so a project may not set it/);
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": false}}\n')), 'project-direction', /session-stop-deny/);
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": 1}}\n')), 'project-value', /session-stop-deny must be true or false/);
+});
+
 test('bad case: a project value looser than the user\'s but tighter than the default refuses', t => {
   refusedWith(render(t, userHome(t, userFile(50)), project(t, projectFile(60))), 'project-looser', /usage-pause 60 is not tighter than the user's effective value, 50/);
 });

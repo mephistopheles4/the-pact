@@ -285,7 +285,10 @@ async function main() {
   const liveSettings = liveBytes === null ? new Map() : core.readSettings(liveBytes.toString('utf8'));
   let merged = null;
   // #438: the cleaner's deny rules come and go with it; settings left untouched keep the record's list.
+  // #439: the stop switch's rules likewise, in a record key of their own; a project install never turns the switch on.
+  const stopOn = project ? false : core.stopSwitchOn(parsed);
   let deny = { add: [], drop: [], record: record ? record.cleanerDeny : [] };
+  let stopRecord = record ? record.stopDeny : [];
   let settings;
   let changes = [];
   let notes = [];
@@ -296,7 +299,11 @@ async function main() {
     settings = 'not a strict JSON object: left untouched';
     notes = ['WARN: settings.json is not a strict JSON object (a comment, a trailing comma or another root); the merge leaves it untouched, and nothing in it was checked.'];
   } else {
-    deny = core.cleanerDenyPlan(liveSettings, toolsOn, record ? record.cleanerDeny : []);
+    const cleanerPlan = core.cleanerDenyPlan(liveSettings, toolsOn, record ? record.cleanerDeny : []);
+    const stopPlan = core.stopDenyPlan(liveSettings, stopOn, record ? record.stopDeny : []);
+    // deny.record is the cleaner's record only; the stop switch's is kept in stopRecord.
+    deny = { ...core.joinDeny(cleanerPlan, stopPlan), record: cleanerPlan.record };
+    stopRecord = stopPlan.record;
     merged = core.mergeSettings(liveSettings, overlay, deny, compact);
     if (liveBytes === null) settings = 'would be created from the overlay';
     else {
@@ -409,7 +416,7 @@ async function main() {
     io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
+  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, stopDeny: stopRecord, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;

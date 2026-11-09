@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { CLEANER_DENY } from '../install-core.mjs';
+import { CLEANER_DENY, STOP_DENY } from '../install-core.mjs';
 import { home, install, listTree, makeRepo, passed, refused } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -137,7 +137,7 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   installed(repo, h);
   assert.deepEqual(record().cleanerDeny, added, 'a second install keeps the record');
 
-  // A rule outside the sixteen that the record lists stays.
+  // A rule outside the fixed eighteen that the record lists stays.
   const r = record();
   r.cleanerDeny.push(FOREIGN);
   writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
@@ -158,4 +158,161 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   writeFileSync(join(fresh, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...CLEANER_DENY] } })}\n`);
   installed(repo, fresh);
   assert.deepEqual(JSON.parse(readFileSync(join(fresh, 'settings.json'), 'utf8')).permissions.deny, [...CLEANER_DENY].sort());
+});
+
+// #439 C4: a record from before `claude rm` joined the list, holding the sixteen git rules, gets the two added.
+test('a sixteen-rule cleaner record gets the two claude rm rules on the next install', t => {
+  const repo = makeRepo(t);
+  const h = homeWith(t, ['cleaner']);
+  const RM = ['Bash(claude rm *)', 'PowerShell(claude rm *)'];
+  const sixteen = CLEANER_DENY.filter(r => !RM.includes(r));
+  assert.equal(sixteen.length, 16);
+  installed(repo, h);
+  const rec = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...rec, cleanerDeny: sixteen }, null, 2)}\n`);
+  writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: sixteen } })}\n`);
+  const dry = install(repo, h);
+  passed(dry);
+  for (const r of RM) assert.ok(dry.stdout.includes(`  + permissions.deny: ${r}`), r);
+  assert.equal(dry.stdout.split('\n').filter(l => l.includes('+ permissions.deny:')).length, 2, 'only the two are added');
+  installed(repo, h);
+  assert.deepEqual(JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny, [...CLEANER_DENY].sort());
+  assert.deepEqual([...JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).cleanerDeny].sort(), [...CLEANER_DENY].sort(), 'the record holds all eighteen');
+});
+
+/** A Claude home folder whose configuration sets `tools` and, if given, the stop switch. */
+function stopHome(t, tools, stop) {
+  const h = home(t);
+  mkdirSync(join(h, 'pact'), { recursive: true });
+  setConfig(h, tools, stop);
+  return h;
+}
+function setConfig(h, tools, stop) {
+  const doc = { schema: 1, tools, ...(stop === undefined ? {} : { settings: { 'session-stop-deny': stop } }) };
+  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify(doc)}\n`);
+}
+
+// #439 C1: the switch unset or false adds no claude stop rule, whatever the cleaner does.
+test('session-stop-deny unset or false: no claude stop rule is added or recorded', t => {
+  const repo = makeRepo(t);
+  for (const stop of [undefined, false]) {
+    const h = stopHome(t, ['cleaner'], stop);
+    const dry = installed(repo, h);
+    assert.ok(!dry.stdout.includes('claude stop'), 'the dry run shows no stop rule');
+    const deny = JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
+    assert.ok(deny.every(r => !STOP_DENY.includes(r)), 'settings.json holds no stop rule');
+    assert.equal(JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).stopDeny, undefined);
+  }
+});
+
+// #439 C2, C3: on, the install adds and records the eight rules; off removes only recorded ones on the list.
+test('session-stop-deny on adds and records the eight rules; off removes only rules both recorded and fixed; the owner\'s identical rule stays', t => {
+  const repo = makeRepo(t);
+  const h = stopHome(t, [], true);
+  const OWN = ['Bash(claude stop *)', 'Bash(rm -rf ./mine *)'];
+  const FOREIGN = 'Bash(foreign *)';
+  writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: OWN } })}\n`);
+  const deny = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
+  const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const added = STOP_DENY.filter(r => r !== OWN[0]);
+
+  const on = installed(repo, h);
+  assert.deepEqual(added, STOP_DENY.slice(1));
+  for (const r of added) assert.ok(on.stdout.includes(`  + permissions.deny: ${r}`), r);
+  assert.ok(!on.stdout.includes('  + permissions.deny: Bash(claude stop *)'), 'a rule the owner already has is not added');
+  assert.deepEqual(deny(), [...new Set([...OWN, ...STOP_DENY])].sort());
+  assert.deepEqual(record().stopDeny, added, 'an identical rule the owner wrote before is not recorded');
+  assert.equal(record().cleanerDeny, undefined, 'the cleaner is off: its record is untouched');
+  installed(repo, h);
+  assert.deepEqual(record().stopDeny, added, 'a second install keeps the record');
+
+  // Entries outside the eight fixed rules that the record lists stay, in the live list and out of the record: a foreign rule and one of the cleaner's.
+  const r = record();
+  r.stopDeny.push(FOREIGN, CLEANER_DENY[0]);
+  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
+  writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...deny(), FOREIGN, CLEANER_DENY[0]] } })}\n`);
+  const kept = installed(repo, h);
+  assert.deepEqual(record().stopDeny, added, 'an entry off the fixed list is never recorded again');
+  assert.ok(!kept.stdout.includes('- permissions.deny'), 'and nothing is dropped while the switch is on');
+
+  setConfig(h, [], false);
+  const off = installed(repo, h);
+  for (const x of added) assert.ok(off.stdout.includes(`  - permissions.deny: ${x}`), x);
+  assert.ok(!off.stdout.includes(`- permissions.deny: ${FOREIGN}`) && !off.stdout.includes(`- permissions.deny: ${CLEANER_DENY[0]}`), 'planted entries are not printed as dropped');
+  assert.deepEqual(deny(), [OWN[0], FOREIGN, CLEANER_DENY[0], OWN[1]].sort());
+  assert.equal(record().stopDeny, undefined);
+});
+
+// #439 C3: each switch owns its own list; a rule of one planted in the other's record is never touched.
+test('the stop plan and the cleaner plan each touch only their own fixed rules, with both switches on and off', t => {
+  const repo = makeRepo(t);
+  const h = stopHome(t, ['cleaner'], true);
+  const deny = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
+  const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const bothOn = installed(repo, h);
+  for (const r of STOP_DENY) assert.ok(bothOn.stdout.includes(`  + permissions.deny: ${r}`), r);
+  assert.deepEqual([...deny()].sort(), [...CLEANER_DENY, ...STOP_DENY].sort());
+  assert.deepEqual(record().cleanerDeny, [...CLEANER_DENY]);
+  assert.deepEqual(record().stopDeny, [...STOP_DENY]);
+
+  // The stop switch off drops the eight stop rules and leaves every cleaner rule.
+  setConfig(h, ['cleaner'], false);
+  installed(repo, h);
+  assert.deepEqual([...deny()].sort(), [...CLEANER_DENY].sort());
+  assert.equal(record().stopDeny, undefined);
+  assert.deepEqual(record().cleanerDeny, [...CLEANER_DENY]);
+
+  // A stop rule planted in the cleaner's record is not the cleaner's to drop; a cleaner rule planted in the stop record is not the stop plan's.
+  setConfig(h, ['cleaner'], true);
+  installed(repo, h);
+  const r = record();
+  r.cleanerDeny.push(STOP_DENY[0]);
+  r.stopDeny.push(CLEANER_DENY[0]);
+  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
+  // Cleaner off, stop on: the cleaner's plan drops its own rules and leaves the stop rules planted in its record.
+  setConfig(h, [], true);
+  const cleanerOff = installed(repo, h);
+  assert.deepEqual([...deny()].sort(), [...STOP_DENY].sort(), 'only the cleaner\'s own rules went');
+  assert.ok(!cleanerOff.stdout.includes('- permissions.deny: Bash(claude stop *)'), 'a stop rule in the cleaner\'s record is not dropped');
+  assert.equal(record().cleanerDeny, undefined, 'and is not recorded again under cleanerDeny');
+  assert.deepEqual(record().stopDeny, [...STOP_DENY]);
+
+  // Both off: each plan drops its own rules only.
+  setConfig(h, [], false);
+  installed(repo, h);
+  assert.deepEqual(deny(), []);
+  assert.equal(record().stopDeny, undefined);
+});
+
+// #439 C7: a record whose stopDeny is not a list of strings refuses, as cleanerDeny does.
+test('a malformed stopDeny in the record refuses', t => {
+  const repo = makeRepo(t);
+  const h = stopHome(t, [], true);
+  installed(repo, h);
+  const good = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  for (const bad of ['Bash(x)', ['Bash(x)', 5], { a: 1 }]) {
+    writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...good, stopDeny: bad }, null, 2)}\n`);
+    refused(install(repo, h), /^REFUSED: the install record's stopDeny is not a list of rule strings/m);
+  }
+});
+
+// #439 C8: with settings.json not strict JSON, the merge leaves it alone and the record keeps stopDeny.
+// The apply refuses on such a file (the settings install tests cover that refusal), so the record is never rewritten there; the dry run plans no rule and the record stays byte for byte.
+test('settings.json that is not strict JSON: the dry run plans no stop rule and the record\'s stopDeny stays as it was', t => {
+  const repo = makeRepo(t);
+  const h = stopHome(t, [], true);
+  installed(repo, h);
+  const recordFile = join(h, '.pact-install.json');
+  const before = readFileSync(recordFile, 'utf8');
+  assert.deepEqual(JSON.parse(before).stopDeny, [...STOP_DENY]);
+  const bad = '{ // a comment\n  "permissions": { "deny": [] }\n}\n';
+  writeFileSync(join(h, 'settings.json'), bad);
+  setConfig(h, [], false);
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(dry.stdout, /^WARN: settings\.json is not a strict JSON object/m, dry.out);
+  assert.ok(!dry.stdout.includes('permissions.deny'), 'no rule is planned');
+  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /settings\.json is not a strict JSON object/);
+  assert.equal(readFileSync(recordFile, 'utf8'), before, 'the record is untouched');
+  assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), bad, 'settings.json is untouched');
 });

@@ -41,8 +41,15 @@ const TOOL_WARNS = Object.freeze({
 // the cleaner is on. The install adds the ones not already there and records
 // those under cleanerDeny; turning the cleaner off removes only rules both
 // recorded and on this list, so an identical rule the owner wrote stays.
-const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *'];
+const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *', 'claude rm *'];
 export const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
+// The stop switch's deny rules (#439 S1.2; `claude kill`, the supervisor stop and `claude respawn` added at Test, the lead's pick): settings.json holds them only
+// while the user setting session-stop-deny is on. The install records those it
+// adds under stopDeny, and removes only rules both recorded and on this list.
+// Suffix only: a mid `*` would catch a session start whose prompt says "stop".
+// The builder's copy is in shared.mjs, held equal to this one by a test.
+const STOP_PATTERNS = ['claude stop *', 'claude kill *', 'claude daemon stop *', 'claude respawn *'];
+export const STOP_DENY = Object.freeze([...STOP_PATTERNS.map(p => `Bash(${p})`), ...STOP_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The builder kit (#203 S6; #262), the install's own copy of seam A's list in
 // gate/shared.mjs: installed under pact/builder/ in the repo's own layout
 // whenever /scriptorium installs. Its gate files are the only gate files that
@@ -356,10 +363,13 @@ export function parseRecord(text) {
   const digest = ci(doc, 'digest');
   const cleanerDeny = ci(doc, 'cleanerdeny') ?? [];
   if (!Array.isArray(cleanerDeny) || cleanerDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerDeny is not a list of rule strings; fix or remove it.');
+  const stopDeny = ci(doc, 'stopdeny') ?? [];
+  if (!Array.isArray(stopDeny) || stopDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s stopDeny is not a list of rule strings; fix or remove it.');
   // The auto-compact window this install set (#482); null when none, or not a window the install takes.
   const recordedWindow = ci(doc, 'autocompactwindow');
   return {
     cleanerDeny,
+    stopDeny,
     autoCompactWindow: typeof recordedWindow === 'number' && compactWindowOk(recordedWindow) && recordedWindow > 0 ? recordedWindow : null,
     commit: psString(commit),
     digest: typeof digest === 'string' && /^[0-9a-f]{12}$/.test(digest) ? digest : null,
@@ -370,7 +380,7 @@ export function parseRecord(text) {
 }
 
 /** The record the install writes (S6, X6): commit, digest, config, files, gate, in today's shape. */
-export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], autoCompactWindow = 0 }) {
+export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], stopDeny = [], autoCompactWindow = 0 }) {
   const doc = {
     commit,
     digest: digest ?? null,
@@ -379,6 +389,8 @@ export function recordText({ commit, digest, userHash, blockHashes, repoFiles, g
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
     // #438: the cleaner's deny rules this install added, only while there are any.
     ...(cleanerDeny.length ? { cleanerDeny: [...cleanerDeny] } : {}),
+    // #439: the stop switch's deny rules this install added, only while there are any.
+    ...(stopDeny.length ? { stopDeny: [...stopDeny] } : {}),
     // #482: the window the install set, only while it is on.
     ...(autoCompactWindow > 0 ? { autoCompactWindow } : {}),
   };
@@ -430,7 +442,8 @@ const EDIT_RE =/^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limi
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 // #482: a home render may also report the auto-compact window; a project render never does.
-const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6}))$/;
+// #439: and the stop switch, as the word on or off.
+const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off))$/;
 // The auto-compact window (#482): the install's own copy of the default in gate/render-core.mjs, as it keeps PACT_TOOLS. A test holds them equal.
 export const AUTO_COMPACT_DEFAULT = 400000;
 const AUTO_COMPACT_MIN = 100000;
@@ -440,6 +453,8 @@ const AUTO_COMPACT_STEP = 10000;
 export const compactWindowOk = n => n === 0 || (Number.isInteger(n) && n >= AUTO_COMPACT_MIN && n <= AUTO_COMPACT_MAX && (n - AUTO_COMPACT_MIN) % AUTO_COMPACT_STEP === 0);
 /** The window the install uses: the reported value, else the default. 0 is off. */
 export const compactWindow = parsed => (parsed.values.has('auto-compact-window') ? Number(parsed.values.get('auto-compact-window')) : AUTO_COMPACT_DEFAULT);
+/** Whether the stop switch is on (#439): only a reported `VALUE session-stop-deny on`; no line means off. */
+export const stopSwitchOn = parsed => parsed.values.get('session-stop-deny') === 'on';
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 // A skill source's path (#183 T4a), as the renderer checks it: owner/name, a full commit, a relative folder whose last segment is the skill's name.
@@ -523,8 +538,8 @@ export function parseRenderLines(lines, { project, hash }) {
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
     } else if ((m = HOME_VALUE_RE.exec(l))) {
-      const name = m[1] ?? m[3] ?? m[5];
-      const value = m[2] ?? m[4] ?? m[6];
+      const name = m[1] ?? m[3] ?? m[5] ?? m[7];
+      const value = m[2] ?? m[4] ?? m[6] ?? m[8];
       if (name === 'auto-compact-window' && !compactWindowOk(Number(value))) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (values.has(name)) refuse('render-value-twice', 'the renderer reported one setting twice.');
       values.set(name, value);
@@ -1271,13 +1286,29 @@ export function compactLines(live, overlay, compact) {
  * both recorded and fixed are dropped, and the record holds none.
  */
 export function cleanerDenyPlan(live, toolsOn, recorded) {
+  return denyPlan(live, CLEANER_DENY, toolsOn.includes('cleaner'), recorded);
+}
+
+/**
+ * The stop switch's deny rules for this install (#439 S1.2): the same plan,
+ * over STOP_DENY only, so a rule of the cleaner's planted in stopDeny is never
+ * dropped, printed or recorded again, and the cleaner's plan likewise.
+ */
+export function stopDenyPlan(live, on, recorded) {
+  return denyPlan(live, STOP_DENY, on, recorded);
+}
+
+function denyPlan(live, fixed, on, recorded) {
   const lp = live.get('permissions');
   const had = isMap(lp) ? listOf(lp.get('deny')).map(ruleString) : [];
-  const ours = recorded.filter(r => CLEANER_DENY.includes(r));
-  if (!toolsOn.includes('cleaner')) return { add: [], drop: ours.filter(r => had.includes(r)), record: [] };
-  const add = CLEANER_DENY.filter(r => !had.includes(r));
+  const ours = recorded.filter(r => fixed.includes(r));
+  if (!on) return { add: [], drop: ours.filter(r => had.includes(r)), record: [] };
+  const add = fixed.filter(r => !had.includes(r));
   return { add, drop: [], record: [...new Set([...ours, ...add])] };
 }
+
+/** Two deny plans as the one `deny` that mergeSettings and settingsChanges take: adds and drops joined; each record is kept apart by the caller. */
+export const joinDeny = (a, b) => ({ add: [...a.add, ...b.add], drop: [...a.drop, ...b.drop], record: [] });
 
 const pathIn = (map, segs) => {
   let v = map;
