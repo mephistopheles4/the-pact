@@ -81,13 +81,24 @@ the name-back, and run `remove` only after your own yes to it in chat.
   an install from a package manager, use that package manager's own removal
   command. A link made between the cleaner's read and git's removal is not
   seen.
+- **A `.git` file that doesn't name its own folder, in every run** (#442): "its
+  .git file names another git folder". The worktree's root `.git` file must
+  name its own folder under `<main>/.git/worktrees/`, whose `gitdir` names it
+  back and whose `commondir` names the main repository's `.git`, read with no
+  git run and only from small regular files. The check runs before any git
+  call in the worktree, since git's setup probes the folder the file names, so
+  a file naming a share would send your sign-in there.
 - **A `.git` entry below its root, in every run** (#454): "holds a .git entry
   below its root, which git does not see". A file or folder named `.git` in any
-  letter case that is not a populated submodule's `.git`: a gitlink in the
-  index with a `.git` file naming its git folder, or a git folder holding
-  `HEAD`, `objects` and `refs`, which git sees and refuses. Listed under ".git entries". Each one is a
-  repository or a stray folder whose history and files go with the folder if it
-  is removed by hand.
+  letter case that is not a populated submodule's `.git` as git sees it: a
+  gitlink in the index with a `.git` file naming a folder under the main
+  repository's `.git` (no part of the way there a link). Any other entry, a
+  git folder inside the worktree included, keeps the worktree. Listed under
+  ".git entries". The keep is decided from the index alone, before `git
+  status` runs (#442), because status probes the folder a nested pointer
+  names; so the block names the entries and not the changed or untracked
+  files. Each one is a repository or a stray folder whose history and files go
+  with the folder if it is removed by hand.
 - **A walk that fails** keeps that worktree alone, in either mode: "a read
   failed, so it is kept".
 
@@ -120,11 +131,8 @@ these. Its block gives the reason and lists the names (20, then a count):
   entry. "hides edits from git".
 - **A work tree set in its config**, a `core.worktree` key of `local` or
   `worktree` scope, which would point the cleaner's reads at another folder:
-  "its config points git at another folder". **A `.git` file that doesn't
-  name its own folder** under `<main>/.git/worktrees/`, or whose folder's
-  `gitdir` doesn't name it back or whose `commondir` doesn't name the main
-  repository's `.git`, read with no git run and only from small regular
-  files: "its .git file names another git folder".
+  "its config points git at another folder". (The `.git` file check runs in
+  every run now; see above.)
 - **A read that fails** for that worktree, or a record git calls prunable
   over a folder still there: "a read failed, so it is kept". The rest of the
   run goes on.
@@ -139,10 +147,12 @@ or an edit, from the cleaner or from git's own check. The flag needs git
 2.45 or later; below it, the run is unavailable.
 
 The walk for links and `.git` entries runs before these keeps, and before any
-git call in the worktree, so a block kept for changed or ignored files also
-names the `.git` entries, and a worktree that holds a link is kept for it
-without git reading it. The main worktree's config keep still comes first,
-since it reads nothing in the folder.
+git call in the worktree, so a worktree that holds a link is kept for it
+without git reading it. Then come the main worktree's config keep (it reads
+nothing in the folder), the `.git` file check, and the `.git` entry keep,
+which reads the index alone; only after those does `git status` run, so a
+block kept for changed or ignored files names those files and no link or
+`.git` entry.
 
 What "recoverable" can't see: a link or `.git` entry made after the cleaner's
 read and before git's removal, and whether git's removal walks into a junction,

@@ -1398,6 +1398,58 @@ test('a worktree holding a link is kept before git runs in it: no git call names
   }
 });
 
+// #442 C18 (decision 500, adversarial F1): git's setup reads the root `.git` pointer and probes the folder it names, so the pointer
+// check runs in every run before any git call in the worktree, not only with the flag.
+test('a worktree whose .git file names another git folder is kept before git runs in it, in either mode', t => {
+  const f = makeRepo(t);
+  const pw = f.add('pointed');
+  const other = f.add('other');
+  f.add('plain');
+  overwrite(join(pw, '.git'), readFileSync(join(other, '.git'), 'utf8'));
+  for (const flags of [[], ['--recoverable']]) {
+    const label = flags.join(' ') || 'default';
+    const rec = recorded();
+    const r = f.run(['show', ...flags], { spawn: rec.spawn });
+    assert.equal(r.code, 0, `${label}: ${r.out}`);
+    assert.match(block(r.out, 'pointed'), /^ {2}kept: its \.git file names another git folder$/m, `${label}: ${r.out}`);
+    assert.deepEqual(rec.calls.filter(c => dirOf(c) === pw).map(c => c.args.join(' ')), [], `${label}: git ran in the worktree`);
+    assert.ok(rec.calls.some(c => dirOf(c) === f.wt('plain')), `${label}: the filter sees git calls in the plain worktree`);
+  }
+});
+
+// #442 C19 (decision 500, adversarial F2): the walk records a nested `.git` and never enters it, and git's status would probe the
+// folder a nested pointer names, so a nested `.git` entry git does not vouch for keeps its worktree before status runs.
+test('a nested .git entry that is no verified submodule keeps its worktree before git status runs, in either mode', t => {
+  const f = makeRepo(t);
+  const nw = f.add('nested');
+  mkdirSync(join(nw, 'pkg'));
+  writeFileSync(join(nw, 'pkg', '.git'), 'gitdir: elsewhere\n');
+  const sw = f.add('sub');
+  mkdirSync(join(sw, 'mods'));
+  // A staged gitlink whose pointer names a folder outside the main repository's git folder: populated, but not one of ours.
+  writeFileSync(join(sw, 'mods', '.git'), `gitdir: ${tempDir(t, 'pact-cleaner-gitdir-').replace(/\\/g, '/')}\n`);
+  f.git(sw, 'update-index', '--add', '--cacheinfo', `160000,${f.git(sw, 'rev-parse', 'HEAD')},mods`);
+  f.add('plain');
+  for (const flags of [[], ['--recoverable']]) {
+    const label = flags.join(' ') || 'default';
+    const rec = recorded();
+    const r = f.run(['show', ...flags], { spawn: rec.spawn });
+    assert.equal(r.code, 0, `${label}: ${r.out}`);
+    assert.equal(block(r.out, 'nested'), `  kept: ${GIT_KEEP}\n  .git entries:\n    "pkg/.git"\n`, `${label}: ${r.out}`);
+    assert.match(block(r.out, 'sub'), flags.length ? /^ {2}kept: a filter program could run$/m : new RegExp(`^ {2}kept: ${GIT_KEEP}$`, 'm'), `${label}: ${r.out}`);
+    for (const w of ['nested', 'sub']) assert.deepEqual(rec.calls.filter(c => dirOf(c) === f.wt(w) && c.args.includes('status')).map(c => c.args.join(' ')), [], `${label}: status ran in ${w}`);
+    assert.ok(rec.calls.some(c => dirOf(c) === f.wt('plain') && c.args.includes('status')), `${label}: the filter sees a status call in the plain worktree`);
+  }
+  // The other side: a staged gitlink whose pointer names a folder under the main repository's git folder is one git sees, so the default run goes on.
+  const g = makeRepo(t);
+  const hw = g.add('home');
+  mkdirSync(join(hw, 'mods'));
+  writeFileSync(join(hw, 'mods', '.git'), `gitdir: ${join(g.root, '.git', 'modules', 'mods').replace(/\\/g, '/')}\n`);
+  g.git(hw, 'update-index', '--add', '--cacheinfo', `160000,${g.git(hw, 'rev-parse', 'HEAD')},mods`);
+  const hr = g.run(['show'], { spawn: cleanStatus().spawn });
+  assert.match(block(hr.out, 'home'), /^ {2}tag [0-9a-f]{10}$/m, hr.out);
+});
+
 // #454 C4: a walk that swallowed its own error would hand the worktree to git with its links unseen.
 test('a walk that cannot read a worktree keeps that worktree alone, in every run', t => {
   const f = makeRepo(t);

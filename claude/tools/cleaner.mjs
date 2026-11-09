@@ -42,7 +42,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { lstatSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, delimiter, dirname, isAbsolute, join, parse, resolve, sep } from 'node:path';
+import { basename, delimiter, dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
@@ -489,12 +489,23 @@ export function walkTree(root, readdir = readdirSync, real = realpathSync.native
   return { links: links.sort(), gits: gits.sort() };
 }
 
-/** Whether a `.git` at a gitlink path is a populated submodule's, which git sees and refuses: a file naming its git folder, or a git folder (HEAD, objects and refs). */
-function populated(p) {
+/**
+ * Whether the `.git` file at `p`, a populated submodule's, names a folder under
+ * the main repository's git folder and no part of the way there is a link: a
+ * pointer git can follow without leaving the repository (#442). A directory
+ * `.git`, a pointer naming another place and a remote path all say no. Read
+ * with no git run.
+ */
+function submoduleHome(main, p, platform) {
   try {
     const st = lstatSync(p);
-    if (st.isDirectory()) return ['HEAD', 'objects', 'refs'].every(n => present(join(p, n)));
-    return st.isFile() && st.size <= POINTER_MAX && readFileSync(p, 'utf8').startsWith('gitdir:');
+    if (!st.isFile() || st.size > POINTER_MAX) return false;
+    const m = /^gitdir: (.+?)\r?\n?$/.exec(readFileSync(p, 'utf8'));
+    if (!m) return false;
+    const target = resolve(dirname(p), m[1]);
+    const gitDir = join(main, '.git');
+    if (remote(target, platform) || !within(target, gitDir, platform) || fold(target, platform) === fold(gitDir, platform)) return false;
+    return !throughLink(gitDir, relative(gitDir, target).split(sep).join('/'), platform);
   } catch {
     return false;
   }
@@ -675,13 +686,37 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
       // A folder already gone holds nothing to lose; only git's record goes. A
       // record git calls prunable over a folder still there is read by nothing.
       // The main worktree's keep holds a gone record too, since `branch -d` runs there.
-      const held = !recoverable
-        ? null
-        : (mainHeld ?? (gone ? (present(path) ? { keep: READ_FAILED, lists: [] } : null) : pointsHome(main, path, platform) ? heldBack(git, path, platform) : { keep: POINTER, lists: [] }));
+      // The pointer check runs in every run (#442): git's setup reads the root `.git` pointer and probes the folder it
+      // names before any other work, so a pointer naming a share must keep the worktree before git runs in it.
+      const held = recoverable && mainHeld
+        ? mainHeld
+        : gone
+          ? (recoverable && present(path) ? { keep: READ_FAILED, lists: [] } : null)
+          : !pointsHome(main, path, platform)
+            ? { keep: POINTER, lists: [] }
+            : recoverable ? heldBack(git, path, platform) : null;
       if (held) {
         item.keep = held.keep;
         item.keepLists = held.lists;
         continue;
+      }
+      // A nested `.git` entry is never entered by the walk, and git's status probes the folder a nested pointer names,
+      // so the keep for one is decided before status, from the index alone (#442). Only a populated submodule whose
+      // pointer names a folder under the main repository's git folder is one git sees; any other entry keeps the worktree.
+      if (walked.gits.length) {
+        try {
+          const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
+          walked.gits = walked.gits.filter(g => !(g.endsWith('/.git') && gitlinks.has(g.slice(0, -'/.git'.length)) && submoduleHome(main, join(path, g), platform)));
+        } catch {
+          item.keep = READ_FAILED;
+          item.keepLists = [];
+          continue;
+        }
+        if (walked.gits.length) {
+          item.keep = GIT_KEEP;
+          item.keepLists = [['.git entries', walked.gits]];
+          continue;
+        }
       }
       let status = '';
       if (!gone) {
@@ -694,29 +729,12 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
         status = r.stdout;
       }
       const lists = parseStatus(status);
-      if (walked.gits.length) {
-        try {
-          // A populated submodule's `.git` is one git sees: a gitlink in the index with a repository behind it, and git's own check refuses it.
-          const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
-          walked.gits = walked.gits.filter(g => !(g.endsWith('/.git') && gitlinks.has(g.slice(0, -'/.git'.length)) && populated(join(path, g))));
-        } catch {
-          item.keep = READ_FAILED;
-          item.keepLists = [];
-          continue;
-        }
-      }
-      const named = [['.git entries', walked.gits], ['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
+      const named = [['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
       // git's own check before a removal can trust a cache in the worktree's
       // index, which a session can write, so with the flag the cleaner's own
       // read of changed and untracked files keeps the worktree too.
       if (recoverable && (lists.changed.length || lists.untracked.length || lists.ignored.length)) {
         item.keep = lists.changed.length || lists.untracked.length ? CHANGED : IGNORED;
-        item.keepLists = named;
-        continue;
-      }
-      // The lists git did name come along, since a removal by hand would lose them.
-      if (walked.links.length || walked.gits.length) {
-        item.keep = walked.links.length ? LINK_KEEP : GIT_KEEP;
         item.keepLists = named;
         continue;
       }
