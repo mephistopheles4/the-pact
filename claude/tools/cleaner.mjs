@@ -648,6 +648,27 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
         continue;
       }
       const gone = 'prunable' in rec || !present(path);
+      // git lists no folder link to an empty folder and skips a `.git` entry, and its removal might walk into either,
+      // so the cleaner walks a folder that is still there itself, in every run, links never entered (#454).
+      // The walk lists only, so it comes before any git call in the worktree (#442): git's status, its config and
+      // its index reads follow a junction on Windows, and a session can plant one aimed at a share.
+      let walked = { links: [], gits: [] };
+      if (present(path)) {
+        try {
+          walked = walkTree(path, readdir, undefined, platform);
+        } catch {
+          item.keep = READ_FAILED;
+          item.keepLists = [];
+          continue;
+        }
+      }
+      // The main worktree's config keep reads nothing in this folder, so it still comes first. A link keeps the
+      // worktree with no git call in it, so the changed and untracked files git would name are not listed.
+      if (walked.links.length && !(recoverable && mainHeld)) {
+        item.keep = LINK_KEEP;
+        item.keepLists = [['links', walked.links, true], ['.git entries', walked.gits]];
+        continue;
+      }
       // A folder already gone holds nothing to lose; only git's record goes. A
       // record git calls prunable over a folder still there is read by nothing.
       // The main worktree's keep holds a gone record too, since `branch -d` runs there.
@@ -670,33 +691,18 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
         status = r.stdout;
       }
       const lists = parseStatus(status);
-      // git lists no folder link to an empty folder and skips a `.git` entry, and its removal might walk into either,
-      // so the cleaner walks a folder that is still there itself, in every run, links never entered (#454).
-      let walked = { links: [], gits: [] };
-      if (present(path)) {
+      if (walked.gits.length) {
         try {
-          walked = walkTree(path, readdir, undefined, platform);
-          if (walked.gits.length) {
-            // A populated submodule's `.git` is one git sees: a gitlink in the index with a repository behind it, and git's own check refuses it.
-            const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
-            walked.gits = walked.gits.filter(g => !(g.endsWith('/.git') && gitlinks.has(g.slice(0, -'/.git'.length)) && populated(join(path, g))));
-          }
+          // A populated submodule's `.git` is one git sees: a gitlink in the index with a repository behind it, and git's own check refuses it.
+          const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
+          walked.gits = walked.gits.filter(g => !(g.endsWith('/.git') && gitlinks.has(g.slice(0, -'/.git'.length)) && populated(join(path, g))));
         } catch {
           item.keep = READ_FAILED;
           item.keepLists = [];
           continue;
         }
       }
-      // On Windows git's status reads through a junction, so the names it lists under a link are the target's, outside
-      // the worktree: never printed. The link itself is named under "links".
-      // A name equal to a link is the link's own entry: it stays in the changed list, where a retargeted tracked link is an edit.
-      const same = platform === 'win32' ? s => s.toLowerCase() : s => s;
-      const under = (n, orEqual) => {
-        const p = same(n.replace(/[\\/]+$/, ''));
-        return walked.links.some(l => (orEqual && p === same(l)) || p.startsWith(`${same(l)}/`));
-      };
-      for (const k of ['changed', 'untracked', 'ignored']) lists[k] = lists[k].filter(n => !under(n, k !== 'changed'));
-      const named = [['links', walked.links, true], ['.git entries', walked.gits], ['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
+      const named = [['.git entries', walked.gits], ['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
       // git's own check before a removal can trust a cache in the worktree's
       // index, which a session can write, so with the flag the cleaner's own
       // read of changed and untracked files keeps the worktree too.

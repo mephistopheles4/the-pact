@@ -68,12 +68,13 @@ the name-back, and run `remove` only after your own yes to it in chat.
   that is still there itself and never enters a link; a symlink or junction as
   Node reports it counts, a file link and a link git tracks included, and so
   does a record git calls prunable over a folder still there, and so does a
-  folder whose real path differs from where the walk found it. The block names
-  every link, never cut at 20, then the changed, untracked and ignored files a
-  removal by hand would also lose (as git reports them; `show --recoverable`
-  pins the settings that could hide one), 20 names each and a count. On
-  Windows git reads through a junction, so a name it lists under a link is the
-  target's and is never printed. Remove the links themselves first, never with
+  folder whose real path differs from where the walk found it. The walk only
+  lists, and runs before any git call in the worktree (#442), because git
+  reads through a junction on Windows and a session can plant one aimed at a
+  share. So the block names every link, never cut at 20, and its `.git`
+  entries, but not the changed, untracked or ignored files git would report:
+  git is not asked, and no name from behind a link is printed. Remove the
+  links themselves first, never with
   a recursive delete that could follow one; for a folder full of them, such as
   an install from a package manager, use that package manager's own removal
   command. A link made between the cleaner's read and git's removal is not
@@ -135,10 +136,11 @@ Every git call then also carries `GIT_NO_LAZY_FETCH=1`,
 or an edit, from the cleaner or from git's own check. The flag needs git
 2.45 or later; below it, the run is unavailable.
 
-The walk for links and `.git` entries runs before these keeps, so a block kept
-for changed or ignored files also names the links and `.git` entries, and a
-name git lists under a link, such as a junction in an installed `node_modules`
-on Windows, is left out.
+The walk for links and `.git` entries runs before these keeps, and before any
+git call in the worktree, so a block kept for changed or ignored files also
+names the `.git` entries, and a worktree that holds a link is kept for it
+without git reading it. The main worktree's config keep still comes first,
+since it reads nothing in the folder.
 
 What "recoverable" can't see: a link or `.git` entry made after the cleaner's
 read and before git's removal, and whether git's removal walks into a junction,

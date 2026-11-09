@@ -1055,7 +1055,8 @@ test('--recoverable also keeps on a local lfs. or hook. key, the main worktree\'
   writeFileSync(join(odd, 'mods', 'sub'), 'x');
   s.add('clean');
   const sr = s.run(['show', '--recoverable'], { spawn: recorded().spawn });
-  assert.equal(block(sr.out, 'linked'), '  kept: a submodule path goes through a link\n  submodule paths:\n    "mods/sub"\n', sr.out);
+  // #442: the listing-only walk sees the link first, so git's index is never read for this worktree.
+  assert.equal(block(sr.out, 'linked'), `  kept: ${LINK_KEEP}\n  links:\n    "mods"\n`, sr.out);
   assert.equal(block(sr.out, 'unseen'), '  kept: a submodule folder holds files git does not see\n  submodule folders:\n    "mods/sub"\n', sr.out);
   assert.match(block(sr.out, 'odd'), kept('a read failed, so it is kept'), sr.out);
   assert.match(block(sr.out, 'clean'), /^ {2}tag [0-9a-f]{10}$/m, 'an empty submodule folder keeps nothing, and one bad worktree leaves the run going');
@@ -1286,7 +1287,7 @@ test('a worktree that checks out a tracked symlink is kept for it', t => {
 });
 
 // #454 C8: on Windows git's status reads through a junction, so the names under a link are its target's, outside the worktree.
-test('names git lists under a link are never printed, in a block kept for the link or for changed files', t => {
+test('a worktree holding a link prints only the link: git is not asked, so no name from it or from behind the link appears', t => {
   const f = makeRepo(t);
   const target = tempDir(t, 'pact-cleaner-target-');
   writeFileSync(join(target, 'TARGETFILE.txt'), 'x');
@@ -1295,15 +1296,15 @@ test('names git lists under a link are never printed, in a block kept for the li
   mkdirSync(join(w, 'x'));
   symlinkSync(target, join(w, 'x', 'j'), linkKind);
   writeFileSync(join(w, 'own.txt'), 'x');
-  // What git would name: the worktree's own file, a retargeted tracked link (an edit, so it stays), the target's files as seen through
-  // the link, and on Windows one of them in another letter case.
+  // What git would name if it were asked (#442: it is not): the worktree's own file, a retargeted tracked link, the target's files as
+  // seen through the link, and on Windows one of them in another letter case.
   const seen = `?? own.txt\0 M x/j\0?? x/j/TARGETFILE.txt\0!! x/j/.env\0!! x/j/\0${process.platform === 'win32' ? '?? X/J/UPPER.txt\0' : ''}`;
   const status = recording((file, args) => (args.includes('status') ? { status: 0, stdout: seen, stderr: '' } : realGitOld && args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.45.0\n', stderr: '' } : null));
   for (const flags of [[], ['--recoverable']]) {
     const label = flags.join(' ') || 'default';
     const r = f.run(['show', ...flags], { spawn: status.spawn });
-    assert.equal(block(r.out, 'under'), `  kept: ${flags.length ? 'holds changed or untracked files' : LINK_KEEP}\n  links:\n    "x/j"\n  changed files:\n    "x/j"\n  untracked files:\n    "own.txt"\n`, `${label}: ${r.out}`);
-    assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET|UPPER/, `${label}: ${r.out}`);
+    assert.equal(block(r.out, 'under'), `  kept: ${LINK_KEEP}\n  links:\n    "x/j"\n`, `${label}: ${r.out}`);
+    assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET|UPPER|own\.txt/, `${label}: ${r.out}`);
   }
 });
 
@@ -1350,7 +1351,7 @@ test('the walk treats a folder whose real path differs as a link and does not en
 });
 
 // #454 C1: the block of a kept worktree names what a removal by hand would lose; remove leaves one that gained a link after show.
-test('a worktree kept for a link also names its changed, untracked and ignored files; remove leaves one that gained a link after show, and git is not called for it', t => {
+test('a worktree kept for a link names only its links, with no changed, untracked or ignored file; remove leaves one that gained a link after show, and git is not called for it', t => {
   const f = makeRepo(t);
   writeFileSync(join(f.root, '.git', 'info', 'exclude'), 'out\n');
   const w = f.add('edits');
@@ -1359,7 +1360,7 @@ test('a worktree kept for a link also names its changed, untracked and ignored f
   writeFileSync(join(w, '.env'), 'SECRET CONTENT\n');
   symlinkSync(tempDir(t, 'pact-cleaner-target-'), join(w, 'out'), linkKind);
   const r = f.run(['show']);
-  assert.equal(block(r.out, 'edits'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n  changed files:\n    "a.txt"\n  untracked files:\n    "new.txt"\n  ignored files:\n    ".env"\n`, r.out);
+  assert.equal(block(r.out, 'edits'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, r.out);
   assert.doesNotMatch(r.out, /CONTENT/, r.out);
   noPath(f, r.out);
 
@@ -1373,6 +1374,25 @@ test('a worktree kept for a link also names its changed, untracked and ignored f
   assert.equal(rm.lines.at(-1), 'RESULT: removed 0 left 0 changed 1');
   assert.ok(!rec.calls.some(c => c.args.includes('worktree') && c.args.includes('remove')), 'git is not asked to remove it');
   assert.ok(existsSync(late));
+});
+
+// #442 C17 (decision 490): git's status reads through a junction on Windows, so a worktree holding a link is kept
+// by the listing-only walk before any git call runs in it, in either mode.
+test('a worktree holding a link is kept before git runs in it: no git call names its folder, in either mode', t => {
+  const f = makeRepo(t);
+  const linked = f.add('linked');
+  writeFileSync(join(linked, 'new.txt'), 'x');
+  symlinkSync(tempDir(t, 'pact-cleaner-target-'), join(linked, 'out'), linkKind);
+  f.add('plain');
+  for (const flags of [[], ['--recoverable']]) {
+    const label = flags.join(' ') || 'default';
+    const rec = recorded();
+    const r = f.run(['show', ...flags], { spawn: rec.spawn });
+    assert.equal(r.code, 0, `${label}: ${r.out}`);
+    assert.equal(block(r.out, 'linked'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, `${label}: ${r.out}`);
+    const inLinked = rec.calls.filter(c => c.args.includes('-C') && resolve(c.args[c.args.indexOf('-C') + 1]) === resolve(linked));
+    assert.deepEqual(inLinked.map(c => c.args.slice(c.args.indexOf('-C') + 2).join(' ')), [], `${label}: git ran in the worktree`);
+  }
 });
 
 // #454 C4: a walk that swallowed its own error would hand the worktree to git with its links unseen.
