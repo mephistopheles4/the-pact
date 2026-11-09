@@ -42,7 +42,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { lstatSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, delimiter, dirname, isAbsolute, join, parse, resolve, sep } from 'node:path';
+import { basename, delimiter, dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
@@ -223,45 +223,118 @@ const NET_RE = /^[\\/]{2}/;
 const DEVICE_DRIVE_RE = /^[\\/]{2}[?.][\\/](?=[A-Za-z]:)/;
 const local = p => p.replace(DEVICE_DRIVE_RE, '');
 
-/** Whether reading `p` could reach another host: a network path, or on macOS an autofs path under /net. */
-const remote = (p, platform) => NET_RE.test(local(p)) || (platform === 'darwin' && /^\/net(?:\/|$)/.test(p));
+// A path under an autofs root mounts from the host named in it (#442). On
+// Windows /net is a plain folder and none counts. On macOS /net and
+// /Network/Servers count, in any case. Elsewhere /net counts, as written.
+const AUTOFS_RE = /^\/net(?:\/|$)/;
+const AUTOFS_MAC_RE = /^\/(?:net|network\/servers)(?:\/|$)/i;
 
-/** Whether a link on the way to `p` points at a remote path; a missing part ends the walk. */
-function linksOut(p, platform) {
+/** Whether reading `p` could reach another host: a network path, or an autofs path under /net (macOS: also /Network/Servers). */
+const remote = (p, platform) => NET_RE.test(local(p)) || (platform === 'darwin' ? AUTOFS_MAC_RE.test(p) : platform !== 'win32' && AUTOFS_RE.test(p));
+
+/**
+ * Whether a link target, as `readlink` returned it, may be followed (#442).
+ * It is checked on the raw string, before any resolve(), which would turn
+ * `\??\GLOBALROOT\Device\Mup\h\s` into a drive path that looks local. On
+ * Windows only a drive-absolute path, or a relative one with no drive letter,
+ * is plain; elsewhere any target but one with two leading separators is.
+ */
+export function plainTarget(t, platform) {
+  const s = local(t);
+  if (platform === 'win32') return /^[A-Za-z]:[\\/]/.test(s) || !/^[\\/]|^[A-Za-z]:/.test(s);
+  return !NET_RE.test(t);
+}
+
+// What the walk returns for a remote path and for any doubt alike: compare the path as written.
+const REMOTE = 'remote';
+const MAX_HOPS = 40;
+const MAX_STEPS = 4096;
+const FOLDS = platform => platform === 'win32' || platform === 'darwin';
+
+/**
+ * The physical folder a path reaches, found without opening, probing or
+ * resolving a part before its parent's listing has shown it is not a link
+ * (#442). A part the listing does not show is never touched: on Windows a
+ * name it hides (an 8.3 short name, a trailing dot) can open a junction, and
+ * lstat on a junction to a network path can follow its target (it threw
+ * ENOENT on Windows, as a failed lookup would, #442 C15). So the walk's own
+ * code calls no lstat, stat, realpath or access (Node may lstat, on POSIX, an
+ * entry whose type comes back unknown): `io.readdir` lists a folder and
+ * `io.readlink` reads a link the listing showed. Returns REMOTE, or
+ * `{ real, rest }`: the folder reached, and the parts left unwalked. Every
+ * doubt ends REMOTE, and the path is then compared as written.
+ */
+function walk(p, platform, io) {
+  const split = s => s.split(platform === 'win32' ? /[\\/]/ : '/').filter(Boolean);
   const { root } = parse(p);
+  const todo = split(p.slice(root.length));
   let cur = root;
-  for (const part of p.slice(root.length).split(sep).filter(Boolean)) {
-    cur = join(cur, part);
-    let st;
-    try {
-      st = lstatSync(cur);
-    } catch {
-      return false;
+  let hops = 0;
+  for (let steps = 0; todo.length; ) {
+    if (++steps > MAX_STEPS) return REMOTE;
+    const part = todo.shift();
+    if (part === '.') continue;
+    if (part === '..') {
+      cur = dirname(cur); // cur is always physical, so this is the physical parent
+      continue;
     }
-    if (st.isSymbolicLink() && remote(readlinkSync(cur), platform)) return true;
+    if (remote(join(cur, part), platform)) return REMOTE;
+    const unwalked = { real: cur, rest: [part, ...todo] };
+    let list;
+    try {
+      list = io.readdir(cur, { withFileTypes: true });
+    } catch (e) {
+      return e?.code === 'ENOENT' || e?.code === 'ENOTDIR' ? unwalked : REMOTE;
+    }
+    let entry = list.find(e => e.name === part);
+    if (!entry && FOLDS(platform)) {
+      const same = list.filter(e => e.name.toLowerCase() === part.toLowerCase());
+      if (same.length > 1 || same[0]?.isSymbolicLink()) return REMOTE;
+      entry = same[0];
+    }
+    if (!entry) return unwalked; // nothing touches the unshown name
+    if (entry.isSymbolicLink()) {
+      if (++hops > MAX_HOPS) return REMOTE;
+      let target;
+      try {
+        target = io.readlink(join(cur, entry.name));
+      } catch {
+        return REMOTE;
+      }
+      if (!plainTarget(target, platform) || remote(target, platform)) return REMOTE;
+      const t = local(target);
+      const { root: tr } = parse(t);
+      todo.unshift(...split(t.slice(tr.length)));
+      if (tr) cur = tr; // an absolute target restarts at its root; a relative one starts in the link's folder
+    } else if (entry.isDirectory()) {
+      cur = join(cur, entry.name); // the entry's own name, so the next listing opens what was checked
+    } else {
+      return unwalked; // a file, a device or an unknown type is never gone into
+    }
   }
-  return false;
+  return { real: cur, rest: [] };
 }
 
 /**
  * A path's real path, so one reached through a link compares equal: the
- * deepest folder that exists, resolved, with the rest joined on. A path that
- * is remote, or reaches a remote path through a link, is never resolved on
- * disk. `rp` stands in for the real-path call in tests.
+ * physical folder the walk reached, resolved, with the unwalked rest joined
+ * on. A path that is remote, or reaches a remote path through a link or a
+ * chain of links, is never resolved on disk. `rp` stands in for the real-path
+ * call in tests, `io` for the listing and link reads. The real-path call runs
+ * only on a folder a listing showed (or the path's root), never on a part no
+ * listing showed.
  */
-export function realOf(p, rp = realpathSync.native, platform = process.platform) {
+export function realOf(p, rp = realpathSync.native, platform = process.platform, io = { readdir: readdirSync, readlink: readlinkSync }) {
   const given = resolve(local(p));
-  if (remote(p, platform) || remote(given, platform) || linksOut(given, platform)) return given;
-  const rest = [];
-  for (let head = given; ; ) {
-    try {
-      return join(rp(head), ...rest);
-    } catch {
-      const up = dirname(head);
-      if (up === head) return given;
-      rest.unshift(basename(head));
-      head = up;
-    }
+  if (remote(p, platform) || remote(given, platform)) return given;
+  // The walk takes the path as written, so a `..` after a link is its physical parent.
+  const start = local(p);
+  const w = walk(isAbsolute(start) ? start : `${process.cwd()}${sep}${start}`, platform, io);
+  if (w === REMOTE) return given;
+  try {
+    return join(rp(w.real), ...w.rest);
+  } catch {
+    return given;
   }
 }
 
@@ -273,24 +346,49 @@ const within = (inner, outer, platform) => {
   return a === b || a.startsWith(b.endsWith(sep) ? b : b + sep);
 };
 
-/** The cwd of every Claude Code session status file; a file that does not read stops the run. */
-export function sessionCwds(home) {
-  const dir = join(home, '.claude', 'sessions');
-  let names;
-  try {
-    names = readdirSync(dir);
-  } catch (e) {
-    if (e.code === 'ENOENT') return [];
-    throw new Unavailable('the sessions check failed');
+/**
+ * The cwd of every Claude Code session status file. A file that does not
+ * read, and (#442) a sessions folder or a status file that is a link or the
+ * wrong kind, stop the run: a planted link could point at another host, and
+ * reading through it would reach it. `~/.claude` is listed as given, so a
+ * link there is not caught (#519); the sessions folder and its files are
+ * listed first, so nothing under them is opened before a listing shows it is
+ * no link.
+ */
+export function sessionCwds(home, platform = process.platform) {
+  const fail = () => new Unavailable('the sessions check failed');
+  const list = dir => {
+    try {
+      return readdirSync(dir, { withFileTypes: true });
+    } catch (e) {
+      if (e.code === 'ENOENT') return null;
+      throw fail();
+    }
+  };
+  const claude = join(home, '.claude');
+  const top = list(claude);
+  if (!top) return [];
+  let entry = top.find(e => e.name === 'sessions');
+  if (!entry && FOLDS(platform)) {
+    const same = top.filter(e => e.name.toLowerCase() === 'sessions');
+    if (same.length > 1) throw fail();
+    entry = same[0];
   }
-  return names.filter(n => n.endsWith('.json')).map(n => {
+  if (!entry) return [];
+  if (entry.isSymbolicLink() || !entry.isDirectory()) throw fail();
+  const dir = join(claude, entry.name);
+  const files = list(dir);
+  if (!files) return [];
+  const status = files.filter(e => e.name.endsWith('.json'));
+  if (status.some(e => e.isSymbolicLink() || !e.isFile())) throw fail();
+  return status.map(e => {
     let doc;
     try {
-      doc = JSON.parse(readFileSync(join(dir, n), 'utf8'));
+      doc = JSON.parse(readFileSync(join(dir, e.name), 'utf8'));
     } catch {
-      throw new Unavailable('the sessions check failed');
+      throw fail();
     }
-    if (typeof doc?.cwd !== 'string') throw new Unavailable('the sessions check failed');
+    if (typeof doc?.cwd !== 'string') throw fail();
     return doc.cwd;
   });
 }
@@ -391,12 +489,23 @@ export function walkTree(root, readdir = readdirSync, real = realpathSync.native
   return { links: links.sort(), gits: gits.sort() };
 }
 
-/** Whether a `.git` at a gitlink path is a populated submodule's, which git sees and refuses: a file naming its git folder, or a git folder (HEAD, objects and refs). */
-function populated(p) {
+/**
+ * Whether the `.git` file at `p`, a populated submodule's, names a folder under
+ * the main repository's git folder and no part of the way there is a link: a
+ * pointer git can follow without leaving the repository (#442). A directory
+ * `.git`, a pointer naming another place and a remote path all say no. Read
+ * with no git run.
+ */
+function submoduleHome(main, p, platform) {
   try {
     const st = lstatSync(p);
-    if (st.isDirectory()) return ['HEAD', 'objects', 'refs'].every(n => present(join(p, n)));
-    return st.isFile() && st.size <= POINTER_MAX && readFileSync(p, 'utf8').startsWith('gitdir:');
+    if (!st.isFile() || st.size > POINTER_MAX) return false;
+    const m = /^gitdir: (.+?)\r?\n?$/.exec(readFileSync(p, 'utf8'));
+    if (!m) return false;
+    const target = resolve(dirname(p), m[1]);
+    const gitDir = join(main, '.git');
+    if (remote(target, platform) || !within(target, gitDir, platform) || fold(target, platform) === fold(gitDir, platform)) return false;
+    return !throughLink(gitDir, relative(gitDir, target).split(sep).join('/'), platform);
   } catch {
     return false;
   }
@@ -474,6 +583,8 @@ export function heldBack(git, path, platform = process.platform) {
     const gitlinks = entries(read(git, path, ['ls-files', '--stage', '-z'])).filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1));
     // An index path is the session's text: one that could climb out of the worktree is never joined.
     if (gitlinks.some(p => p.split('/').some(part => part === '' || part === '.' || part === '..' || /[\\:]/.test(part)))) return { keep: READ_FAILED, lists: [] };
+    // Since #442 the walk keeps a worktree holding a link before this runs, so this keep is reached only by a link made
+    // between the walk and this read. It stays as the second check.
     const linked = gitlinks.filter(p => throughLink(path, p, platform));
     if (linked.length) return { keep: LINKED, lists: [['submodule paths', linked]] };
     const populated = gitlinks.filter(p => present(join(path, p, '.git')));
@@ -503,7 +614,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
   const main = realpathSync.native(records[0].worktree);
   if (isLink(join(main, '.claude'), platform) || isLink(join(main, '.claude', 'worktrees'), platform)) throw new Unavailable('the worktrees folder or its parent is a link');
   const container = join(main, '.claude', 'worktrees');
-  const used = [...sessionCwds(home), cwd].flatMap(forms);
+  const used = [...sessionCwds(home, platform), cwd].flatMap(forms);
   const origin = read(git, main, ['for-each-ref', '--format=%(symref)', 'refs/remotes/origin/HEAD']).trim();
   const defaults = origin.startsWith('refs/remotes/origin/') ? [origin.slice('refs/remotes/origin/'.length)] : ['main', 'master'];
   const stashes = read(git, main, ['stash', 'list', '-z', '--format=%gd%x1f%gs']).split('\0').filter(Boolean).map(s => s.split('\x1f'));
@@ -550,16 +661,62 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
         continue;
       }
       const gone = 'prunable' in rec || !present(path);
+      // git lists no folder link to an empty folder and skips a `.git` entry, and its removal might walk into either,
+      // so the cleaner walks a folder that is still there itself, in every run, links never entered (#454).
+      // The walk runs no git and enters no link (it lists, and resolves the real path of each folder a listing
+      // showed as plain), so it comes before any git call in the worktree (#442): git's status, its config and
+      // its index reads follow a junction on Windows, and a session can plant one aimed at a share.
+      let walked = { links: [], gits: [] };
+      if (present(path)) {
+        try {
+          walked = walkTree(path, readdir, undefined, platform);
+        } catch {
+          item.keep = READ_FAILED;
+          item.keepLists = [];
+          continue;
+        }
+      }
+      // The main worktree's config keep reads nothing in this folder, so it still comes first. A link keeps the
+      // worktree with no git call in it, so the changed and untracked files git would name are not listed.
+      if (walked.links.length && !(recoverable && mainHeld)) {
+        item.keep = LINK_KEEP;
+        item.keepLists = [['links', walked.links, true], ['.git entries', walked.gits]];
+        continue;
+      }
       // A folder already gone holds nothing to lose; only git's record goes. A
       // record git calls prunable over a folder still there is read by nothing.
       // The main worktree's keep holds a gone record too, since `branch -d` runs there.
-      const held = !recoverable
-        ? null
-        : (mainHeld ?? (gone ? (present(path) ? { keep: READ_FAILED, lists: [] } : null) : pointsHome(main, path, platform) ? heldBack(git, path, platform) : { keep: POINTER, lists: [] }));
+      // The pointer check runs in every run (#442): git's setup reads the root `.git` pointer and probes the folder it
+      // names before any other work, so a pointer naming a share must keep the worktree before git runs in it.
+      const held = recoverable && mainHeld
+        ? mainHeld
+        : gone
+          ? (recoverable && present(path) ? { keep: READ_FAILED, lists: [] } : null)
+          : !pointsHome(main, path, platform)
+            ? { keep: POINTER, lists: [] }
+            : recoverable ? heldBack(git, path, platform) : null;
       if (held) {
         item.keep = held.keep;
         item.keepLists = held.lists;
         continue;
+      }
+      // A nested `.git` entry is never entered by the walk, and git's status probes the folder a nested pointer names,
+      // so the keep for one is decided before status, from the index alone (#442). Only a populated submodule whose
+      // pointer names a folder under the main repository's git folder is one git sees; any other entry keeps the worktree.
+      if (walked.gits.length) {
+        try {
+          const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
+          walked.gits = walked.gits.filter(g => !(g.endsWith('/.git') && gitlinks.has(g.slice(0, -'/.git'.length)) && submoduleHome(main, join(path, g), platform)));
+        } catch {
+          item.keep = READ_FAILED;
+          item.keepLists = [];
+          continue;
+        }
+        if (walked.gits.length) {
+          item.keep = GIT_KEEP;
+          item.keepLists = [['.git entries', walked.gits]];
+          continue;
+        }
       }
       let status = '';
       if (!gone) {
@@ -572,44 +729,12 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
         status = r.stdout;
       }
       const lists = parseStatus(status);
-      // git lists no folder link to an empty folder and skips a `.git` entry, and its removal might walk into either,
-      // so the cleaner walks a folder that is still there itself, in every run, links never entered (#454).
-      let walked = { links: [], gits: [] };
-      if (present(path)) {
-        try {
-          walked = walkTree(path, readdir, undefined, platform);
-          if (walked.gits.length) {
-            // A populated submodule's `.git` is one git sees: a gitlink in the index with a repository behind it, and git's own check refuses it.
-            const gitlinks = new Set(read(git, path, ['ls-files', '--stage', '-z']).split('\0').filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1)));
-            walked.gits = walked.gits.filter(g => !(g.endsWith('/.git') && gitlinks.has(g.slice(0, -'/.git'.length)) && populated(join(path, g))));
-          }
-        } catch {
-          item.keep = READ_FAILED;
-          item.keepLists = [];
-          continue;
-        }
-      }
-      // On Windows git's status reads through a junction, so the names it lists under a link are the target's, outside
-      // the worktree: never printed. The link itself is named under "links".
-      // A name equal to a link is the link's own entry: it stays in the changed list, where a retargeted tracked link is an edit.
-      const same = platform === 'win32' ? s => s.toLowerCase() : s => s;
-      const under = (n, orEqual) => {
-        const p = same(n.replace(/[\\/]+$/, ''));
-        return walked.links.some(l => (orEqual && p === same(l)) || p.startsWith(`${same(l)}/`));
-      };
-      for (const k of ['changed', 'untracked', 'ignored']) lists[k] = lists[k].filter(n => !under(n, k !== 'changed'));
-      const named = [['links', walked.links, true], ['.git entries', walked.gits], ['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
+      const named = [['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored]];
       // git's own check before a removal can trust a cache in the worktree's
       // index, which a session can write, so with the flag the cleaner's own
       // read of changed and untracked files keeps the worktree too.
       if (recoverable && (lists.changed.length || lists.untracked.length || lists.ignored.length)) {
         item.keep = lists.changed.length || lists.untracked.length ? CHANGED : IGNORED;
-        item.keepLists = named;
-        continue;
-      }
-      // The lists git did name come along, since a removal by hand would lose them.
-      if (walked.links.length || walked.gits.length) {
-        item.keep = walked.links.length ? LINK_KEEP : GIT_KEEP;
         item.keepLists = named;
         continue;
       }

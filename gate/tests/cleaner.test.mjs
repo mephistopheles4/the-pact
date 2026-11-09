@@ -5,9 +5,11 @@
 // or stand in for it.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { closeSync, existsSync, ftruncateSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
-import { delimiter, isAbsolute, join, relative, resolve } from 'node:path';
+import { closeSync, existsSync, ftruncateSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { test } from 'node:test';
+// #442: the new exports are reached through the namespace, so this file still loads on the base.
+import * as cleaner from '../../claude/tools/cleaner.mjs';
 import { clean, esc, findGit, realOf, walkTree } from '../../claude/tools/cleaner.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -77,6 +79,89 @@ function recording(answer = () => null) {
     return answer(file, args, opts) ?? spawnSync(file, args, opts);
   };
   return { calls, spawn };
+}
+
+/**
+ * #442 C12: plant a real link. A local Windows run without Developer Mode
+ * cannot make one and goes on without it; a CI job that cannot fails.
+ */
+function plantLink(target, path, type) {
+  try {
+    symlinkSync(target, path, type);
+    return true;
+  } catch (e) {
+    if (process.env.CI) throw e;
+    return false;
+  }
+}
+
+/**
+ * #442: a fake folder tree for the walk, over `root`, a fresh empty folder, so
+ * a call that skips the fake finds nothing. `spec` maps an absolute path to
+ * 'dir', 'file', 'other' or { link: target }; every ancestor of a path is a
+ * folder. It records each call, and `check` fails if any call went through a
+ * link in a part other than the last (a readdir's own path counts as a part).
+ */
+function fakeIo(root, spec, { fail = {} } = {}) {
+  const kinds = new Map([[root, 'dir'], ...Object.entries(spec)]);
+  for (const p of [...kinds.keys()]) {
+    for (let up = dirname(p); ; up = dirname(up)) {
+      if (!kinds.has(up)) kinds.set(up, 'dir');
+      if (dirname(up) === up) break;
+    }
+  }
+  const calls = [];
+  const bad = [];
+  const note = (op, path, last) => {
+    calls.push({ op, path });
+    for (let q = last ? path : dirname(path); ; q = dirname(q)) {
+      if (typeof kinds.get(q) === 'object') bad.push(`${op} ${path}`);
+      if (dirname(q) === q) break;
+    }
+  };
+  const err = code => Object.assign(new Error(code), { code });
+  const dirent = (p, k) => ({
+    name: basename(p),
+    isSymbolicLink: () => typeof k === 'object',
+    isDirectory: () => k === 'dir',
+    isFile: () => k === 'file',
+  });
+  return {
+    calls,
+    readdir(cur) {
+      note('readdir', cur, true);
+      if (fail[cur]) throw err(fail[cur]);
+      const k = kinds.get(cur);
+      if (k === undefined) throw err('ENOENT');
+      if (k !== 'dir') throw err('ENOTDIR');
+      return [...kinds].filter(([p]) => p !== cur && dirname(p) === cur).map(([p, v]) => dirent(p, v));
+    },
+    readlink(p) {
+      note('readlink', p, false);
+      const k = kinds.get(p);
+      if (typeof k !== 'object') throw err('EINVAL');
+      return k.link;
+    },
+    check: () => assert.deepEqual(bad, [], 'a call went through a link'),
+  };
+}
+
+/** realOf with a spy for the real-path call. */
+function spied(p, io, platform = process.platform) {
+  const seen = [];
+  const result = realOf(p, x => {
+    seen.push(x);
+    return x;
+  }, platform, io);
+  return { seen, result };
+}
+
+/** The path comes back as given, with no real-path call and no call through a link. */
+function expectGiven(p, io, platform) {
+  const { seen, result } = spied(p, io, platform);
+  assert.equal(result, resolve(p));
+  assert.deepEqual(seen, []);
+  io.check();
 }
 
 // #464 T4: the how-to the rules file gave up comes with the name-back, once, last, and only when there are tags.
@@ -189,7 +274,7 @@ test('show names changed, untracked and ignored files, a lock, a gone folder and
 });
 
 // #438 C3
-test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is kept with no tag; a status file that does not read stops the run', t => {
+test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is kept with no tag; a status file that does not read stops the run', async t => {
   const f = makeRepo(t);
   const used = f.add('used');
   const here = f.add('here');
@@ -237,15 +322,10 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
   assert.equal(realOf('/net/nohost.invalid/x', rp, 'darwin'), resolve('/net/nohost.invalid/x'), 'macOS autofs');
   // A local path that reaches a share through a link is not resolved either (a dangling link stands in for the share).
   const toShare = join(tempDir(t, 'pact-cleaner-share-'), 'share');
-  let linkMade = true;
-  try {
-    symlinkSync('//nohost.invalid/share', toShare, 'dir');
-  } catch {
-    linkMade = false; // creating a symbolic link on Windows needs Developer Mode or admin rights
-  }
+  const linkMade = plantLink('//nohost.invalid/share', toShare, 'dir');
   if (linkMade) assert.equal(realOf(join(toShare, 'x'), rp), join(toShare, 'x'));
   assert.deepEqual(seen, []);
-  // A missing leaf: the walk goes up until a folder resolves, then joins the rest back on.
+  // A missing leaf: the walk stops at the deepest folder it listed, which alone is resolved, and the rest is joined back on.
   const gone = join(f.root, 'missing', 'leaf');
   const rpMissing = p => {
     seen.push(p);
@@ -253,7 +333,7 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
     return p;
   };
   assert.equal(realOf(gone, rpMissing), gone);
-  assert.deepEqual(seen, [gone, join(f.root, 'missing'), f.root]);
+  assert.deepEqual(seen, [f.root]);
   if (process.platform === 'win32') assert.equal(realOf(`\\\\?\\${f.root}`), realpathSync.native(f.root), 'a device prefix before a drive letter is local');
 
   for (const [why, plant] of [
@@ -273,6 +353,248 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
   }
   rmSync(sessions, { force: true });
   assert.equal(f.run(['show']).code, 0, 'a missing sessions folder runs');
+
+  // #442: the walk never touches another host. Each claim is its own subtest, so a run on the base shows each failure apart.
+  const SHARE = '//nohost.invalid/share';
+  const fresh = st => tempDir(st, 'pact-cleaner-fake-');
+
+  await t.test('C1: a link to a link to a share (absolute target) is given back, with no real-path call', st => {
+    const root = fresh(st);
+    expectGiven(join(root, 'a', 'x'), fakeIo(root, { [join(root, 'a')]: { link: join(root, 'b') }, [join(root, 'b')]: { link: SHARE } }));
+  });
+
+  await t.test('C2: the same with a relative target', st => {
+    const root = fresh(st);
+    expectGiven(join(root, 'a', 'x'), fakeIo(root, { [join(root, 'a')]: { link: 'b' }, [join(root, 'b')]: { link: SHARE } }));
+  });
+
+  if (process.platform === 'win32') {
+    await t.test('C3: a link target in an NT form, or root- or drive-relative, is given back', st => {
+      for (const target of ['\\??\\GLOBALROOT\\Device\\Mup\\nohost.invalid\\s', '\\Device\\Mup\\nohost.invalid\\s', '\\??\\UNC\\nohost.invalid\\s', '\\x', 'C:x']) {
+        const root = fresh(st);
+        expectGiven(join(root, 'lnk', 'x'), fakeIo(root, { [join(root, 'lnk')]: { link: target } }));
+      }
+    });
+  }
+
+  await t.test('C4: two links pointing at each other are given back with no hang; a chain is given back past 40 links, not at 40', st => {
+    const root = fresh(st);
+    expectGiven(join(root, 'a', 'x'), fakeIo(root, { [join(root, 'a')]: { link: 'b' }, [join(root, 'b')]: { link: 'a' } }));
+    const chain = n => Object.fromEntries([[join(root, 'real'), 'dir'], ...Array.from({ length: n }, (_, i) => [join(root, `l${i}`), { link: i === n - 1 ? 'real' : `l${i + 1}` }])]);
+    expectGiven(join(root, 'l0', 'x'), fakeIo(root, chain(41)));
+    const { seen, result } = spied(join(root, 'l0', 'x'), fakeIo(root, chain(40)));
+    assert.deepEqual(seen, [join(root, 'real')]);
+    assert.equal(result, join(root, 'real', 'x'));
+  });
+
+  if (process.platform !== 'win32') {
+    await t.test('C5: a link to the root, then net/host, is given back and nothing under /net is read', st => {
+      const root = fresh(st);
+      const io = fakeIo(root, { [join(root, 'lnk')]: { link: '/' } });
+      expectGiven(join(root, 'lnk', 'net', 'nohost.invalid'), io);
+      assert.ok(io.calls.every(c => !/^\/net(?:\/|$)/i.test(c.path)), 'a call under /net');
+    });
+  }
+
+  await t.test('C6: a part the listing does not show is joined on unresolved, and nothing touches it', st => {
+    const root = fresh(st);
+    const io = fakeIo(root, { [join(root, 'real')]: 'dir' });
+    const { seen, result } = spied(join(root, 'real', 'ghost', 'x'), io);
+    assert.deepEqual(seen, [join(root, 'real')]);
+    assert.equal(result, join(root, 'real', 'ghost', 'x'));
+    assert.ok(io.calls.every(c => !c.path.includes('ghost')), 'a call named the unshown part');
+    io.check();
+  });
+
+  await t.test('C6: a listing that fails other than ENOENT or ENOTDIR gives the path back', st => {
+    const root = fresh(st);
+    expectGiven(join(root, 'real', 'x'), fakeIo(root, { [join(root, 'real')]: 'dir' }, { fail: { [join(root, 'real')]: 'EACCES' } }));
+  });
+
+  await t.test('C6: an entry that is neither a folder nor a link is not gone into', st => {
+    const root = fresh(st);
+    const io = fakeIo(root, { [join(root, 'dev')]: 'other' });
+    const { seen, result } = spied(join(root, 'dev', 'x'), io);
+    assert.deepEqual(seen, [root]);
+    assert.equal(result, join(root, 'dev', 'x'));
+    assert.ok(io.calls.every(c => c.path !== join(root, 'dev')), 'the entry was listed');
+  });
+
+  await t.test('C6: more than 4096 steps give the path back', st => {
+    const root = fresh(st);
+    const p = `${join(root, 'x')}${`${sep}..${sep}x`.repeat(2100)}`;
+    expectGiven(p, fakeIo(root, { [join(root, 'x')]: 'dir' }));
+  });
+
+  if (process.platform === 'win32') {
+    await t.test('C6: a short name or a trailing dot beside a link is not shown, so not touched', st => {
+      for (const part of ['LNK~1', 'lnk.']) {
+        const root = fresh(st);
+        const io = fakeIo(root, { [join(root, 'lnk')]: { link: SHARE } });
+        const { seen, result } = spied(join(root, part, 'x'), io);
+        assert.deepEqual(seen, [root], part);
+        assert.equal(result, join(root, part, 'x'));
+        assert.ok(io.calls.every(c => !c.path.includes(part) && c.op === 'readdir'), part);
+      }
+    });
+
+    await t.test('C6: two entries that fold to the part, or one that is a link, give the path back', st => {
+      for (const [spec, part] of [
+        [{ Lnk: { link: SHARE }, lnk: 'dir' }, 'LNK'],
+        [{ kx: 'dir', [`${cp(0x212a)}x`]: { link: SHARE } }, 'Kx'],
+        [{ Lnk: { link: 'real' }, real: 'dir' }, 'lnk'], // a single case match that is a link, to a plain local folder
+      ]) {
+        const root = fresh(st);
+        const io = fakeIo(root, Object.fromEntries(Object.entries(spec).map(([k, v]) => [join(root, k), v])));
+        expectGiven(join(root, part, 'x'), io);
+        // Only listings of the folders on the way down to root: nothing under it, so nothing of either entry.
+        assert.ok(io.calls.every(c => c.op === 'readdir' && (c.path === root || root.startsWith(c.path.endsWith(sep) ? c.path : c.path + sep))), part);
+      }
+    });
+  }
+
+  await t.test('C7: a chain of plain local links ends in one real-path call, on the physical folder', st => {
+    const root = fresh(st);
+    const spec = { [join(root, 'real')]: 'dir', [join(root, 'a')]: { link: 'b' }, [join(root, 'b')]: { link: join(root, 'real') } };
+    const io = fakeIo(root, spec);
+    const { seen, result } = spied(join(root, 'a', 'x'), io);
+    assert.deepEqual(seen, [join(root, 'real')]);
+    assert.equal(result, join(root, 'real', 'x'));
+    assert.deepEqual(io.calls.filter(c => c.op === 'readlink').map(c => c.path), [join(root, 'a'), join(root, 'b')]);
+    io.check();
+    if (process.platform === 'win32') {
+      const via = fakeIo(root, { ...spec, [join(root, 'c')]: { link: `\\\\?\\${join(root, 'real')}` } });
+      const again = spied(join(root, 'c', 'x'), via);
+      assert.deepEqual(again.seen, [join(root, 'real')]);
+      assert.equal(again.result, join(root, 'real', 'x'));
+    }
+  });
+
+  await t.test('C8: real links, absolute and relative, to a link to a share: given back, no real-path call (the ask\'s Done-when)', st => {
+    const root = fresh(st);
+    if (!plantLink(SHARE, join(root, 'b'), 'dir')) return st.skip('no link rights on this host');
+    assert.ok(plantLink(join(root, 'b'), join(root, 'a'), 'dir') && plantLink('b', join(root, 'r'), 'dir'));
+    const seen = [];
+    const rp = p => {
+      seen.push(p);
+      return p;
+    };
+    for (const via of ['a', 'r']) assert.equal(realOf(join(root, via, 'x'), rp), join(root, via, 'x'), via);
+    assert.deepEqual(seen, []);
+    if (process.platform === 'win32') {
+      mkdirSync(join(root, 'real'));
+      symlinkSync(join(root, 'real'), join(root, 'j'), 'junction');
+      const j = readdirSync(root, { withFileTypes: true }).find(e => e.name === 'j');
+      assert.ok(j.isSymbolicLink(), 'the listing marks a junction as a link');
+    }
+  });
+
+  await t.test('C9: /net on Linux, /net in any case and /Network/Servers on macOS: given back, no real-path call', () => {
+    const seen = [];
+    const rp = p => {
+      seen.push(p);
+      return p;
+    };
+    for (const [p, platform] of [['/net/nohost.invalid/x', 'linux'], ['/NeT/nohost.invalid/x', 'darwin'], ['/network/SERVERS/nohost.invalid/x', 'darwin']]) {
+      assert.equal(realOf(p, rp, platform), resolve(p), `${platform} ${p}`);
+    }
+    assert.deepEqual(seen, []);
+  });
+
+  await t.test('C10: plainTarget says which link targets may be followed', () => {
+    const plain = (t, platform) => cleaner.plainTarget(t, platform);
+    for (const t of ['C:\\x', 'C:/x', '\\\\?\\C:\\x', 'rel\\x']) assert.equal(plain(t, 'win32'), true, t);
+    for (const t of ['\\\\nohost.invalid\\s', '\\\\?\\UNC\\nohost.invalid\\s', '\\??\\UNC\\nohost.invalid\\s', '\\??\\GLOBALROOT\\Device\\Mup\\nohost.invalid\\s', '\\Device\\Mup\\nohost.invalid\\s', '\\x', 'C:x']) {
+      assert.equal(plain(t, 'win32'), false, t);
+    }
+    assert.equal(plain('//nohost.invalid/s', 'linux'), false);
+    for (const t of ['/x', 'rel/x']) assert.equal(plain(t, 'linux'), true, t);
+  });
+
+  await t.test('C11a: a sessions folder that is a link makes the run unavailable, and no path prints', st => {
+    const f = makeRepo(st);
+    mkdirSync(join(f.home, '.claude'), { recursive: true });
+    if (!plantLink(SHARE, join(f.home, '.claude', 'sessions'), 'dir')) return st.skip('no link rights on this host');
+    const r = f.run(['show']);
+    assert.equal(r.code, 4, r.out);
+    assert.equal(r.lines.at(-1), 'RESULT: unavailable');
+    assert.equal(r.lines.at(-2), 'the cleaner is unavailable: the sessions check failed');
+    assert.doesNotMatch(r.out, /nohost\.invalid/);
+    noPath(f, r.out);
+  });
+
+  await t.test('C11b: a status file that is a link makes the run unavailable, and no path prints', st => {
+    const f = makeRepo(st);
+    const used = f.add('used');
+    const sessions = join(f.home, '.claude', 'sessions');
+    mkdirSync(sessions, { recursive: true });
+    const real = join(tempDir(st, 'pact-cleaner-status-'), 'real.json');
+    writeFileSync(real, JSON.stringify({ cwd: join(used, 'sub') }));
+    if (!plantLink(real, join(sessions, '4242.json'), 'file')) return st.skip('no link rights on this host');
+    const r = f.run(['show']);
+    assert.equal(r.code, 4, r.out);
+    assert.equal(r.lines.at(-1), 'RESULT: unavailable');
+    assert.equal(r.lines.at(-2), 'the cleaner is unavailable: the sessions check failed');
+    noPath(f, r.out);
+  });
+
+  // #442 C15: only on CI's gate-windows, never on the owner's host: an lstat on a junction whose target is a network path in NT form.
+  if (process.platform === 'win32' && process.env.CI) {
+    await t.test('C15: lstat on a junction set to \\??\\UNC\\nohost.invalid throws (any code, printed; gate-windows saw ENOENT), consistent with following the target', st => {
+      const dir = tempDir(st, 'pact-cleaner-junction-');
+      const junction = join(dir, 'j');
+      mkdirSync(junction);
+      // Node's 'junction' rewrites its target to a local path, so the reparse point is set by a DeviceIoControl call.
+      const script = join(dir, 'set.ps1');
+      writeFileSync(script, [
+        'param($Dir, $Target)',
+        'Add-Type -TypeDefinition @"',
+        'using System; using System.IO; using System.Runtime.InteropServices; using System.Text; using Microsoft.Win32.SafeHandles;',
+        'public static class Rp {',
+        '  [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)]',
+        '  static extern SafeFileHandle CreateFile(string n, uint access, uint share, IntPtr sa, uint disp, uint flags, IntPtr t);',
+        '  [DllImport("kernel32.dll", SetLastError=true)]',
+        '  static extern bool DeviceIoControl(SafeFileHandle h, uint code, byte[] inb, int inLen, IntPtr outb, int outLen, out int ret, IntPtr ov);',
+        '  public static void Set(string dir, string target) {',
+        '    using (var h = CreateFile(dir, 0x40000000, 7, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero)) {',
+        '      if (h.IsInvalid) throw new IOException("open " + Marshal.GetLastWin32Error());',
+        '      byte[] sub = Encoding.Unicode.GetBytes(target);',
+        '      int pathLen = sub.Length + 4;',
+        '      var buf = new byte[16 + pathLen];',
+        '      BitConverter.GetBytes(0xA0000003u).CopyTo(buf, 0);',
+        '      BitConverter.GetBytes((ushort)(8 + pathLen)).CopyTo(buf, 4);',
+        '      BitConverter.GetBytes((ushort)sub.Length).CopyTo(buf, 10);',
+        '      BitConverter.GetBytes((ushort)(sub.Length + 2)).CopyTo(buf, 12);',
+        '      sub.CopyTo(buf, 16);',
+        '      int ret;',
+        '      if (!DeviceIoControl(h, 0x000900A4, buf, buf.Length, IntPtr.Zero, 0, out ret, IntPtr.Zero)) throw new IOException("set " + Marshal.GetLastWin32Error());',
+        '    }',
+        '  }',
+        '}',
+        '"@',
+        '[Rp]::Set($Dir, $Target)',
+        '',
+      ].join('\n'));
+      const r = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-File', script, junction, '\\??\\UNC\\nohost.invalid\\s'], { encoding: 'utf8' });
+      assert.equal(r.status, 0, `the junction was not set: ${r.stdout}${r.stderr}`);
+      // gate-windows saw ENOENT, which libuv also gives a failed network lookup: lstat followed the target, so the walk never calls it.
+      let thrown;
+      assert.throws(() => lstatSync(junction), e => {
+        thrown = e;
+        return true;
+      });
+      st.diagnostic(`C15: lstat failed with ${thrown.code} (errno ${thrown.errno})`);
+    });
+  }
+
+  // #442 C16: the walk calls no lstat, stat, realpath, exists or access. The fake io has only readdir and readlink, so this pins the source.
+  await t.test('C16: the walk\'s code names no lstat, stat, realpath, exists or access call', () => {
+    const src = readFileSync(new URL('../../claude/tools/cleaner.mjs', import.meta.url), 'utf8');
+    const start = src.indexOf('\nfunction walk(');
+    const body = src.slice(start, src.indexOf('\n}\n', start));
+    assert.ok(start > 0 && body.length > 400, 'the walk was not found');
+    assert.doesNotMatch(body, /\b(?:lstat|stat|realpath|exists|access)(?:Sync)?\b|\.native\b/);
+  });
 });
 
 // #438 C4
@@ -733,7 +1055,8 @@ test('--recoverable also keeps on a local lfs. or hook. key, the main worktree\'
   writeFileSync(join(odd, 'mods', 'sub'), 'x');
   s.add('clean');
   const sr = s.run(['show', '--recoverable'], { spawn: recorded().spawn });
-  assert.equal(block(sr.out, 'linked'), '  kept: a submodule path goes through a link\n  submodule paths:\n    "mods/sub"\n', sr.out);
+  // #442: the listing-only walk sees the link first, so git's index is never read for this worktree.
+  assert.equal(block(sr.out, 'linked'), `  kept: ${LINK_KEEP}\n  links:\n    "mods"\n`, sr.out);
   assert.equal(block(sr.out, 'unseen'), '  kept: a submodule folder holds files git does not see\n  submodule folders:\n    "mods/sub"\n', sr.out);
   assert.match(block(sr.out, 'odd'), kept('a read failed, so it is kept'), sr.out);
   assert.match(block(sr.out, 'clean'), /^ {2}tag [0-9a-f]{10}$/m, 'an empty submodule folder keeps nothing, and one bad worktree leaves the run going');
@@ -964,7 +1287,7 @@ test('a worktree that checks out a tracked symlink is kept for it', t => {
 });
 
 // #454 C8: on Windows git's status reads through a junction, so the names under a link are its target's, outside the worktree.
-test('names git lists under a link are never printed, in a block kept for the link or for changed files', t => {
+test('a worktree holding a link prints only the link: git is not asked, so no name from it or from behind the link appears', t => {
   const f = makeRepo(t);
   const target = tempDir(t, 'pact-cleaner-target-');
   writeFileSync(join(target, 'TARGETFILE.txt'), 'x');
@@ -973,15 +1296,15 @@ test('names git lists under a link are never printed, in a block kept for the li
   mkdirSync(join(w, 'x'));
   symlinkSync(target, join(w, 'x', 'j'), linkKind);
   writeFileSync(join(w, 'own.txt'), 'x');
-  // What git would name: the worktree's own file, a retargeted tracked link (an edit, so it stays), the target's files as seen through
-  // the link, and on Windows one of them in another letter case.
+  // What git would name if it were asked (#442: it is not): the worktree's own file, a retargeted tracked link, the target's files as
+  // seen through the link, and on Windows one of them in another letter case.
   const seen = `?? own.txt\0 M x/j\0?? x/j/TARGETFILE.txt\0!! x/j/.env\0!! x/j/\0${process.platform === 'win32' ? '?? X/J/UPPER.txt\0' : ''}`;
   const status = recording((file, args) => (args.includes('status') ? { status: 0, stdout: seen, stderr: '' } : realGitOld && args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.45.0\n', stderr: '' } : null));
   for (const flags of [[], ['--recoverable']]) {
     const label = flags.join(' ') || 'default';
     const r = f.run(['show', ...flags], { spawn: status.spawn });
-    assert.equal(block(r.out, 'under'), `  kept: ${flags.length ? 'holds changed or untracked files' : LINK_KEEP}\n  links:\n    "x/j"\n  changed files:\n    "x/j"\n  untracked files:\n    "own.txt"\n`, `${label}: ${r.out}`);
-    assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET|UPPER/, `${label}: ${r.out}`);
+    assert.equal(block(r.out, 'under'), `  kept: ${LINK_KEEP}\n  links:\n    "x/j"\n`, `${label}: ${r.out}`);
+    assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET|UPPER|own\.txt/, `${label}: ${r.out}`);
   }
 });
 
@@ -1028,7 +1351,7 @@ test('the walk treats a folder whose real path differs as a link and does not en
 });
 
 // #454 C1: the block of a kept worktree names what a removal by hand would lose; remove leaves one that gained a link after show.
-test('a worktree kept for a link also names its changed, untracked and ignored files; remove leaves one that gained a link after show, and git is not called for it', t => {
+test('a worktree kept for a link names only its links, with no changed, untracked or ignored file; remove leaves one that gained a link after show, and git is not called for it', t => {
   const f = makeRepo(t);
   writeFileSync(join(f.root, '.git', 'info', 'exclude'), 'out\n');
   const w = f.add('edits');
@@ -1037,7 +1360,7 @@ test('a worktree kept for a link also names its changed, untracked and ignored f
   writeFileSync(join(w, '.env'), 'SECRET CONTENT\n');
   symlinkSync(tempDir(t, 'pact-cleaner-target-'), join(w, 'out'), linkKind);
   const r = f.run(['show']);
-  assert.equal(block(r.out, 'edits'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n  changed files:\n    "a.txt"\n  untracked files:\n    "new.txt"\n  ignored files:\n    ".env"\n`, r.out);
+  assert.equal(block(r.out, 'edits'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, r.out);
   assert.doesNotMatch(r.out, /CONTENT/, r.out);
   noPath(f, r.out);
 
@@ -1051,6 +1374,80 @@ test('a worktree kept for a link also names its changed, untracked and ignored f
   assert.equal(rm.lines.at(-1), 'RESULT: removed 0 left 0 changed 1');
   assert.ok(!rec.calls.some(c => c.args.includes('worktree') && c.args.includes('remove')), 'git is not asked to remove it');
   assert.ok(existsSync(late));
+});
+
+// #442 C17 (decision 490): git's status reads through a junction on Windows, so a worktree holding a link is kept
+// by the listing-only walk before any git call runs in it, in either mode.
+test('a worktree holding a link is kept before git runs in it: no git call names its folder, in either mode', t => {
+  const f = makeRepo(t);
+  const linked = f.add('linked');
+  writeFileSync(join(linked, 'new.txt'), 'x');
+  symlinkSync(tempDir(t, 'pact-cleaner-target-'), join(linked, 'out'), linkKind);
+  f.add('plain');
+  for (const flags of [[], ['--recoverable']]) {
+    const label = flags.join(' ') || 'default';
+    const rec = recorded();
+    const r = f.run(['show', ...flags], { spawn: rec.spawn });
+    assert.equal(r.code, 0, `${label}: ${r.out}`);
+    assert.equal(block(r.out, 'linked'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, `${label}: ${r.out}`);
+    const inLinked = rec.calls.filter(c => c.args.includes('-C') && resolve(c.args[c.args.indexOf('-C') + 1]) === resolve(linked));
+    assert.deepEqual(inLinked.map(c => c.args.slice(c.args.indexOf('-C') + 2).join(' ')), [], `${label}: git ran in the worktree`);
+    // Positive control: the same filter finds git running in the plain worktree, so an empty list above is not a filter that matches nothing.
+    const inPlain = rec.calls.filter(c => c.args.includes('-C') && resolve(c.args[c.args.indexOf('-C') + 1]) === resolve(f.wt('plain')));
+    assert.ok(inPlain.length > 0, `${label}: the filter sees git calls in the plain worktree`);
+  }
+});
+
+// #442 C18 (decision 500, adversarial F1): git's setup reads the root `.git` pointer and probes the folder it names, so the pointer
+// check runs in every run before any git call in the worktree, not only with the flag.
+test('a worktree whose .git file names another git folder is kept before git runs in it, in either mode', t => {
+  const f = makeRepo(t);
+  const pw = f.add('pointed');
+  const other = f.add('other');
+  f.add('plain');
+  overwrite(join(pw, '.git'), readFileSync(join(other, '.git'), 'utf8'));
+  for (const flags of [[], ['--recoverable']]) {
+    const label = flags.join(' ') || 'default';
+    const rec = recorded();
+    const r = f.run(['show', ...flags], { spawn: rec.spawn });
+    assert.equal(r.code, 0, `${label}: ${r.out}`);
+    assert.match(block(r.out, 'pointed'), /^ {2}kept: its \.git file names another git folder$/m, `${label}: ${r.out}`);
+    assert.deepEqual(rec.calls.filter(c => dirOf(c) === pw).map(c => c.args.join(' ')), [], `${label}: git ran in the worktree`);
+    assert.ok(rec.calls.some(c => dirOf(c) === f.wt('plain')), `${label}: the filter sees git calls in the plain worktree`);
+  }
+});
+
+// #442 C19 (decision 500, adversarial F2): the walk records a nested `.git` and never enters it, and git's status would probe the
+// folder a nested pointer names, so a nested `.git` entry git does not vouch for keeps its worktree before status runs.
+test('a nested .git entry that is no verified submodule keeps its worktree before git status runs, in either mode', t => {
+  const f = makeRepo(t);
+  const nw = f.add('nested');
+  mkdirSync(join(nw, 'pkg'));
+  writeFileSync(join(nw, 'pkg', '.git'), 'gitdir: elsewhere\n');
+  const sw = f.add('sub');
+  mkdirSync(join(sw, 'mods'));
+  // A staged gitlink whose pointer names a folder outside the main repository's git folder: populated, but not one of ours.
+  writeFileSync(join(sw, 'mods', '.git'), `gitdir: ${tempDir(t, 'pact-cleaner-gitdir-').replace(/\\/g, '/')}\n`);
+  f.git(sw, 'update-index', '--add', '--cacheinfo', `160000,${f.git(sw, 'rev-parse', 'HEAD')},mods`);
+  f.add('plain');
+  for (const flags of [[], ['--recoverable']]) {
+    const label = flags.join(' ') || 'default';
+    const rec = recorded();
+    const r = f.run(['show', ...flags], { spawn: rec.spawn });
+    assert.equal(r.code, 0, `${label}: ${r.out}`);
+    assert.equal(block(r.out, 'nested'), `  kept: ${GIT_KEEP}\n  .git entries:\n    "pkg/.git"\n`, `${label}: ${r.out}`);
+    assert.match(block(r.out, 'sub'), flags.length ? /^ {2}kept: a filter program could run$/m : new RegExp(`^ {2}kept: ${GIT_KEEP}$`, 'm'), `${label}: ${r.out}`);
+    for (const w of ['nested', 'sub']) assert.deepEqual(rec.calls.filter(c => dirOf(c) === f.wt(w) && c.args.includes('status')).map(c => c.args.join(' ')), [], `${label}: status ran in ${w}`);
+    assert.ok(rec.calls.some(c => dirOf(c) === f.wt('plain') && c.args.includes('status')), `${label}: the filter sees a status call in the plain worktree`);
+  }
+  // The other side: a staged gitlink whose pointer names a folder under the main repository's git folder is one git sees, so the default run goes on.
+  const g = makeRepo(t);
+  const hw = g.add('home');
+  mkdirSync(join(hw, 'mods'));
+  writeFileSync(join(hw, 'mods', '.git'), `gitdir: ${join(g.root, '.git', 'modules', 'mods').replace(/\\/g, '/')}\n`);
+  g.git(hw, 'update-index', '--add', '--cacheinfo', `160000,${g.git(hw, 'rev-parse', 'HEAD')},mods`);
+  const hr = g.run(['show'], { spawn: cleanStatus().spawn });
+  assert.match(block(hr.out, 'home'), /^ {2}tag [0-9a-f]{10}$/m, hr.out);
 });
 
 // #454 C4: a walk that swallowed its own error would hand the worktree to git with its links unseen.
@@ -1100,7 +1497,7 @@ test('on Windows an ignored junction to an empty folder keeps its worktree in bo
     const label = flags.join(' ') || 'default';
     const r = f.run(['show', ...flags], { spawn: recorded().spawn });
     assert.equal(block(r.out, 'empty'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, `${label}: ${r.out}`);
-    assert.match(block(r.out, 'nested'), new RegExp(`^ {2}kept: (?:${LINK_KEEP}|holds changed or untracked files)\\n {2}links:\\n {4}"x/j"\\n`), `${label}: ${r.out}`);
+    assert.match(block(r.out, 'nested'), new RegExp(`^ {2}kept: ${LINK_KEEP}\\n {2}links:\\n {4}"x/j"\\n$`), `${label}: ${r.out}`);
     assert.equal(tagsOf(r.out).length, 0, `${label}: no tag`);
     assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET/, `${label}: ${r.out}`);
   }

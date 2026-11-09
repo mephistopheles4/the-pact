@@ -42,10 +42,17 @@ the name-back, and run `remove` only after your own yes to it in chat.
   session status file (`~/.claude/sessions/*.json`, on the system the cleaner
   runs on), or the cleaner's own cwd, compared both as written and by real
   path, so a link either way still keeps it. A path written with two leading
-  separators, `/net` on macOS, or one that reaches such a path through a link,
-  is compared as written and never resolved on disk; a device prefix before a
-  drive letter counts as the plain drive path. A Windows run doesn't see
-  WSL sessions, or the other way.
+  separators or under `/net` (in any case on macOS, where `/Network/Servers`
+  counts too; not on Windows), or one that reaches such a path through a link
+  or a chain of links, through a link whose target is not a plain local path
+  (on Windows, a path from a drive letter or a relative one with no drive;
+  elsewhere, any path without two leading separators), or through more than 40
+  links, or one the cleaner can't walk with certainty (a folder it can't list,
+  a link it can't read, names that differ only in case), is compared as
+  written and never resolved on disk; a device prefix before a drive letter
+  counts as the plain drive path. A sessions folder, or a status file, that is
+  a link or not a plain folder or file makes the run unavailable. A Windows
+  run doesn't see WSL sessions, or the other way.
 - **Commits found nowhere else:** a worktree whose branch, or detached HEAD,
   has commits on no other branch and no remote.
 - **A branch name outside** letters, digits and `. _ / -`: the cleaner can't
@@ -61,23 +68,37 @@ the name-back, and run `remove` only after your own yes to it in chat.
   that is still there itself and never enters a link; a symlink or junction as
   Node reports it counts, a file link and a link git tracks included, and so
   does a record git calls prunable over a folder still there, and so does a
-  folder whose real path differs from where the walk found it. The block names
-  every link, never cut at 20, then the changed, untracked and ignored files a
-  removal by hand would also lose (as git reports them; `show --recoverable`
-  pins the settings that could hide one), 20 names each and a count. On
-  Windows git reads through a junction, so a name it lists under a link is the
-  target's and is never printed. Remove the links themselves first, never with
+  folder whose real path differs from where the walk found it. The walk runs
+  no git and enters no link (it lists, and resolves the real path of each
+  folder a listing showed as plain), and it runs before any git call in the
+  worktree (#442), because git
+  reads through a junction on Windows and a session can plant one aimed at a
+  share. So the block names every link, never cut at 20, and its `.git`
+  entries, but not the changed, untracked or ignored files git would report:
+  git is not asked, and no name from behind a link is printed. Remove the
+  links themselves first, never with
   a recursive delete that could follow one; for a folder full of them, such as
   an install from a package manager, use that package manager's own removal
   command. A link made between the cleaner's read and git's removal is not
   seen.
+- **A `.git` file that doesn't name its own folder, in every run** (#442): "its
+  .git file names another git folder". The worktree's root `.git` file must
+  name its own folder under `<main>/.git/worktrees/`, whose `gitdir` names it
+  back and whose `commondir` names the main repository's `.git`, read with no
+  git run and only from small regular files. The check runs before any git
+  call in the worktree, since git's setup probes the folder the file names, so
+  a file naming a share would send your sign-in there.
 - **A `.git` entry below its root, in every run** (#454): "holds a .git entry
   below its root, which git does not see". A file or folder named `.git` in any
-  letter case that is not a populated submodule's `.git`: a gitlink in the
-  index with a `.git` file naming its git folder, or a git folder holding
-  `HEAD`, `objects` and `refs`, which git sees and refuses. Listed under ".git entries". Each one is a
-  repository or a stray folder whose history and files go with the folder if it
-  is removed by hand.
+  letter case that is not a populated submodule's `.git` as git sees it: a
+  gitlink in the index with a `.git` file naming a folder under the main
+  repository's `.git` (no part of the way there a link). Any other entry, a
+  git folder inside the worktree included, keeps the worktree. Listed under
+  ".git entries". The keep is decided from the index alone, before `git
+  status` runs (#442), because status probes the folder a nested pointer
+  names; so the block names the entries and not the changed or untracked
+  files. Each one is a repository or a stray folder whose history and files go
+  with the folder if it is removed by hand.
 - **A walk that fails** keeps that worktree alone, in either mode: "a read
   failed, so it is kept".
 
@@ -110,11 +131,8 @@ these. Its block gives the reason and lists the names (20, then a count):
   entry. "hides edits from git".
 - **A work tree set in its config**, a `core.worktree` key of `local` or
   `worktree` scope, which would point the cleaner's reads at another folder:
-  "its config points git at another folder". **A `.git` file that doesn't
-  name its own folder** under `<main>/.git/worktrees/`, or whose folder's
-  `gitdir` doesn't name it back or whose `commondir` doesn't name the main
-  repository's `.git`, read with no git run and only from small regular
-  files: "its .git file names another git folder".
+  "its config points git at another folder". (The `.git` file check runs in
+  every run now; see above.)
 - **A read that fails** for that worktree, or a record git calls prunable
   over a folder still there: "a read failed, so it is kept". The rest of the
   run goes on.
@@ -128,10 +146,13 @@ Every git call then also carries `GIT_NO_LAZY_FETCH=1`,
 or an edit, from the cleaner or from git's own check. The flag needs git
 2.45 or later; below it, the run is unavailable.
 
-The walk for links and `.git` entries runs before these keeps, so a block kept
-for changed or ignored files also names the links and `.git` entries, and a
-name git lists under a link, such as a junction in an installed `node_modules`
-on Windows, is left out.
+The walk for links and `.git` entries runs before these keeps, and before any
+git call in the worktree, so a worktree that holds a link is kept for it
+without git reading it. Then come the main worktree's config keep (it reads
+nothing in the folder), the `.git` file check, and the `.git` entry keep,
+which reads the index alone; only after those does `git status` run, so a
+block kept for changed or ignored files names those files and no link or
+`.git` entry.
 
 What "recoverable" can't see: a link or `.git` entry made after the cleaner's
 read and before git's removal, and whether git's removal walks into a junction,
@@ -184,7 +205,7 @@ file contents, a stash subject or git's own output.
 | 0 | `RESULT: shown <n> <tags>` or `RESULT: removed <r> left 0 changed 0` | done |
 | 1 | `RESULT: removed <r> left <l> changed <c>` | something named in `--yes` was left, or changed or gone since the name-back |
 | 2 | `RESULT: refused <count>` | a usage fault; nothing ran |
-| 4 | `RESULT: unavailable` | git missing or older than 2.36 (2.45 with `--recoverable`), `.claude` or `.claude/worktrees` a link, the sessions check failed, or a read failed |
+| 4 | `RESULT: unavailable` | git missing or older than 2.36 (2.45 with `--recoverable`), `.claude` or `.claude/worktrees` a link, the sessions check failed (including the sessions folder or a status file being a link or the wrong kind), or a read failed |
 
 It needs Node 24 and git 2.36 or later (2.45 with `--recoverable`), and runs on Windows, Linux, WSL and
 macOS. The cloud copy doesn't install it.
@@ -232,9 +253,21 @@ yourself.
   worktree, the folder goes, and the branch stays with no worktree, where
   the cleaner no longer sees it. Check it yourself and delete it by hand.
 - **Exit 4 from the sessions check**: a file in `~/.claude/sessions/` did not
-  read as JSON with a string `cwd`, or the folder could not be listed. Look at
-  the files yourself. A stale status file keeps its worktree until you remove
-  the file, after checking no session runs there.
+  read as JSON with a string `cwd`, the folder could not be listed, or the
+  folder or a status file is a link or not a plain folder or file. Never list
+  or open the sessions folder itself first: if it is a link, that follows it,
+  and a link to a share sends your Windows sign-in (your name, and a reply made
+  from your password) to that host. List its parent with a listing that doesn't
+  follow links (in Command Prompt `dir /AL "%USERPROFILE%\.claude"`; in
+  PowerShell `Get-ChildItem -Force "$HOME\.claude" | Where-Object LinkType`;
+  elsewhere `ls -l ~/.claude`), and look inside only once `sessions` shows as
+  no link. Remove a folder link in Command Prompt with
+  `rmdir "<link>"` (no `/S`); from PowerShell run that same line as
+  `cmd /c rmdir "<link>"`, since PowerShell's own `rmdir` is `Remove-Item`,
+  which may list the target first. Elsewhere `rm <link>` with no trailing
+  slash. Never `del` or a recursive delete. A stale
+  status file keeps its worktree until you remove the file, after checking no
+  session runs there.
 
 ## Rolling back
 
