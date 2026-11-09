@@ -1392,6 +1392,9 @@ test('a worktree holding a link is kept before git runs in it: no git call names
     assert.equal(block(r.out, 'linked'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, `${label}: ${r.out}`);
     const inLinked = rec.calls.filter(c => c.args.includes('-C') && resolve(c.args[c.args.indexOf('-C') + 1]) === resolve(linked));
     assert.deepEqual(inLinked.map(c => c.args.slice(c.args.indexOf('-C') + 2).join(' ')), [], `${label}: git ran in the worktree`);
+    // Positive control: the same filter finds git running in the plain worktree, so an empty list above is not a filter that matches nothing.
+    const inPlain = rec.calls.filter(c => c.args.includes('-C') && resolve(c.args[c.args.indexOf('-C') + 1]) === resolve(f.wt('plain')));
+    assert.ok(inPlain.length > 0, `${label}: the filter sees git calls in the plain worktree`);
   }
 });
 
@@ -1442,7 +1445,7 @@ test('on Windows an ignored junction to an empty folder keeps its worktree in bo
     const label = flags.join(' ') || 'default';
     const r = f.run(['show', ...flags], { spawn: recorded().spawn });
     assert.equal(block(r.out, 'empty'), `  kept: ${LINK_KEEP}\n  links:\n    "out"\n`, `${label}: ${r.out}`);
-    assert.match(block(r.out, 'nested'), new RegExp(`^ {2}kept: (?:${LINK_KEEP}|holds changed or untracked files)\\n {2}links:\\n {4}"x/j"\\n`), `${label}: ${r.out}`);
+    assert.match(block(r.out, 'nested'), new RegExp(`^ {2}kept: ${LINK_KEEP}\\n {2}links:\\n {4}"x/j"\\n$`), `${label}: ${r.out}`);
     assert.equal(tagsOf(r.out).length, 0, `${label}: no tag`);
     assert.doesNotMatch(r.out, /TARGETFILE|\.env|SECRET/, `${label}: ${r.out}`);
   }

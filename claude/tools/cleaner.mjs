@@ -572,6 +572,8 @@ export function heldBack(git, path, platform = process.platform) {
     const gitlinks = entries(read(git, path, ['ls-files', '--stage', '-z'])).filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1));
     // An index path is the session's text: one that could climb out of the worktree is never joined.
     if (gitlinks.some(p => p.split('/').some(part => part === '' || part === '.' || part === '..' || /[\\:]/.test(part)))) return { keep: READ_FAILED, lists: [] };
+    // Since #442 the walk keeps a worktree holding a link before this runs, so this keep is reached only by a link made
+    // between the walk and this read. It stays as the second check.
     const linked = gitlinks.filter(p => throughLink(path, p, platform));
     if (linked.length) return { keep: LINKED, lists: [['submodule paths', linked]] };
     const populated = gitlinks.filter(p => present(join(path, p, '.git')));
@@ -650,7 +652,8 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
       const gone = 'prunable' in rec || !present(path);
       // git lists no folder link to an empty folder and skips a `.git` entry, and its removal might walk into either,
       // so the cleaner walks a folder that is still there itself, in every run, links never entered (#454).
-      // The walk lists only, so it comes before any git call in the worktree (#442): git's status, its config and
+      // The walk runs no git and enters no link (it lists, and resolves the real path of each folder a listing
+      // showed as plain), so it comes before any git call in the worktree (#442): git's status, its config and
       // its index reads follow a junction on Windows, and a session can plant one aimed at a share.
       let walked = { links: [], gits: [] };
       if (present(path)) {

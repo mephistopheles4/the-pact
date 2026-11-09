@@ -68,8 +68,10 @@ the name-back, and run `remove` only after your own yes to it in chat.
   that is still there itself and never enters a link; a symlink or junction as
   Node reports it counts, a file link and a link git tracks included, and so
   does a record git calls prunable over a folder still there, and so does a
-  folder whose real path differs from where the walk found it. The walk only
-  lists, and runs before any git call in the worktree (#442), because git
+  folder whose real path differs from where the walk found it. The walk runs
+  no git and enters no link (it lists, and resolves the real path of each
+  folder a listing showed as plain), and it runs before any git call in the
+  worktree (#442), because git
   reads through a junction on Windows and a session can plant one aimed at a
   share. So the block names every link, never cut at 20, and its `.git`
   entries, but not the changed, untracked or ignored files git would report:
@@ -227,11 +229,16 @@ child process, so the cleaner itself is not denied.
   read as JSON with a string `cwd`, the folder could not be listed, or the
   folder or a status file is a link or not a plain folder or file. Never list
   or open the sessions folder itself first: if it is a link, that follows it,
-  and a link to a share sends your sign-in names to that host. List its parent
-  with a listing that doesn't follow links (`dir /AL "%USERPROFILE%\.claude"`,
-  `ls -l ~/.claude`), and look inside only once `sessions` shows as no link.
-  Remove a folder link with `rmdir <link>` (no `/S`) on Windows, or `rm <link>`
-  with no trailing slash elsewhere, never `del` or a recursive delete. A stale
+  and a link to a share sends your Windows sign-in (your name, and a reply made
+  from your password) to that host. List its parent with a listing that doesn't
+  follow links (in Command Prompt `dir /AL "%USERPROFILE%\.claude"`; in
+  PowerShell `Get-ChildItem -Force "$HOME\.claude" | Where-Object LinkType`;
+  elsewhere `ls -l ~/.claude`), and look inside only once `sessions` shows as
+  no link. Remove a folder link in Command Prompt with
+  `rmdir "<link>"` (no `/S`); from PowerShell run that same line as
+  `cmd /c rmdir "<link>"`, since PowerShell's own `rmdir` is `Remove-Item`,
+  which may list the target first. Elsewhere `rm <link>` with no trailing
+  slash. Never `del` or a recursive delete. A stale
   status file keeps its worktree until you remove the file, after checking no
   session runs there.
 
