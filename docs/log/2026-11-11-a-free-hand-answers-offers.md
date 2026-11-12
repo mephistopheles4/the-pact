@@ -13,5 +13,13 @@ The merge adds a threat-model class, removes the owner's answer on lens offers a
 ## Record
 
 - The ask: https://github.com/mephistopheles4/the-pact/issues/525
+- Spec revision 1: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6810731262
+- Spec round 1 on revision 1: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6810865512
+- Spec revision 2.1: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6810942577
+- Spec round 2 on revision 2.1, final: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811058018
+- Spec revision 3: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811164139
+- Spec round 1, reopened, on revision 3: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811266190
+- Spec revision 4: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811293233
+- Spec round 2, reopened, on revision 4, final: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811395409
 - Spec revision 4.1: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811433753
 - Security pair's further read on 4.1: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811457015
