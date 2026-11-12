@@ -356,7 +356,7 @@ that comment's id.
 
 A repo's own rule can still say a text is never edited. In this repo, a
 probe's expected result and its run records stay as posted after a run
-(`docs/agents/changing-rules.md`, A probe the owner asks for); a correction
+(`evals/README.md`, Probes); a correction
 there is a new comment.
 
 ## The post fields

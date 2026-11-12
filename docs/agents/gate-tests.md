@@ -292,8 +292,8 @@ before every Bash and PowerShell call, with a 15 s timeout.
   fails loudly, with an error the owner sees and can recover from, needs no
   test of its own. A gate check's bad case is not covered by this: a refusal
   test catches the check itself vanishing, and a vanished check passes
-  everything in silence. The rule in ["What every change here needs"](changing-rules.md#what-every-change-here-needs), that
-  each check a change adds or tightens needs a bad case it is seen to catch,
+  everything in silence. The rule in ["Reviewing a change here"](../../AGENTS.md#reviewing-a-change-here) in
+  `AGENTS.md`, that each check a change adds or tightens needs a bad case it is seen to catch,
   stands unchanged.
 - **Minus-one.** A test whose caught broken versions another test already
   catches, on the same function and the same class of input, is a cut
