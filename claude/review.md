@@ -131,7 +131,7 @@ security ruling, or publish a weakness in someone else's software.
    outside (tracker text, an outside pull request, a clone, an install or
    update, a fetched page, CI, heard speech) or where an act goes out (a
    merge, an install, a publish, a post, data off the machine). The machine
-   is your own computer, or a sandbox run on it, and a local tool's data on
+   is the owner's computer, or a sandbox run on it, and a local tool's data on
    a user's own computer is that user's machine. A cloud session's sandbox,
    a service a project deploys, and that service's users' devices are not
    the machine, and data that service keeps for its users is past a
@@ -139,29 +139,31 @@ security ruling, or publish a weakness in someone else's software.
    repo's file or an installed plugin is outside input, and so is what
    anything on the machine makes from outside input. What starts and ends
    on the machine (a program, process, account, file or memory made there)
-   is the machine's, and no finding.
+   is the machine's, and no finding, unless the project's threat model holds
+   it in scope, or it touches the sensitive-work list.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
    doesn't hold; one the path gets past holds nothing, and the machine's
    own controls hold only the machine. If one holds it, add nothing.
-4. **Check the residual** against the accepted classes. A finding that fits
+4. **Check the residual,** what gets past the controls, against the accepted
+   classes. A finding that fits
    one needs nothing, though a session may still fix one in passing if it's
    cheap. A change that weakens a rule or control, or adds a route for
    outside text into a session or more reach to one that reads it, fits no
    class (step 5). A change that adds text to files sessions load, or
-   writes a secret into text sessions read, fits no class either, and is
-   reviewed with the change.
+   writes a secret or personal detail into text sessions read, fits no class
+   either, and is reviewed with the change.
 5. **Bring me** a new boundary, a residual no class covers, a change that
    removes or weakens a control, a change to the scope, and every
    `security?` row.
 
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or after the owner has reported it privately. Until then it stays in a private note, and the owner decides.
+A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the
-machine as outside input, and never add a boundary or class the threat
-model holds.
+machine as outside input, and never re-add a boundary or class the threat
+model already holds.
 
 ## Diagrams
 

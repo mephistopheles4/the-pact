@@ -44,7 +44,7 @@ This file is never installed.
 | An empty limit | Who decides an unset limit. Nothing else would. |
 | A security finding | The definition the sorter uses, and that it places a finding on a boundary as the guide says, so a path wholly on the machine is no finding. The classifier judges actions, not findings. |
 | Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
-| Publishing a weakness in someone else's software | Secret scanning and push protection match credentials, and the read before a push checks only for secrets and personal details, so a weakness page can reach a public branch. The guide holds it back until its maker's tracker does too, or the owner has reported it privately. |
+| Publishing a weakness in someone else's software | Secret scanning and push protection match credentials, and the read before a push checks only for secrets and personal details, so a weakness page can reach a public branch. The guide holds it back until its maker's tracker does too, or the owner says it may be published. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. |
 | A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. It also says how later words narrow a goal, which no other guardrail does. |
