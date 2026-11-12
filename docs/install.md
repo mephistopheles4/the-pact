@@ -3,11 +3,12 @@
 This how-to installs the pact's rules file, review procedure, agents and
 `/scriptorium` command, with the builder kit it runs and the auto-compact hook,
 into your Claude Code
-home folder (`~/.claude`), and merges its settings into yours.
+home folder (`~/.claude`), and merges its settings into yours. It takes about
+five minutes.
 
 Read the README's [Who it's for](../README.md#who-its-for) first. The rules
-are written for one person's setup, and installing them changes how every
-Claude Code session on your machine behaves.
+are written for one person's setup, and installing them changes every
+Claude Code session on your machine.
 
 **Where these steps were tried:**
 
@@ -584,9 +585,9 @@ notice line names it, as `session-stop-deny on` or `off`.
 
 `checkpoint-stops` in `~/.claude/pact/config.json` is `true` or `false`, `true`
 when unset; the builder's Settings dialog shows it. `true` keeps the rules
-file's "Checkpoints wait" line, and `false` takes it out. A configuration
-that leaves it unset waits, as the dry run's NOTE says; the pact's default
-configuration sets `false`. A project may set `true`, never `false`.
+file's "Checkpoints wait" line, and `false` takes it out. Unset waits, as the
+dry run's NOTE says; the pact's default configuration sets `false`. A project
+may set `true`, never `false`.
 
 ## The auto-compact window and its hooks
 

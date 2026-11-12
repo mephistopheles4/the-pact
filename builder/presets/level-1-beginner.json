@@ -1,6 +1,9 @@
 {
   "schema": 1,
   "title": "Level 1 · Beginner",
+  "settings": {
+    "checkpoint-stops": true
+  },
   "tiers": [
     {
       "id": "light",

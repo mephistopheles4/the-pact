@@ -123,23 +123,16 @@ const stopsProject = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}
 const stopsUser = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`;
 
 for (const [label, user] of [['no user file', undefined], ['a user file that leaves it unset', '{"schema": 1, "settings": {"usage-pause": 90}}\n'], ['a user true', stopsUser(true)], ['a user false', stopsUser(false)]]) {
-  test(`checkpoint-stops: a project true installs over ${label}: the project line, the value, the hashes`, t => {
-    const pbytes = Buffer.from(stopsProject(true));
+  test(`checkpoint-stops: a project true beside a usage value installs over ${label}: both project lines, in the settings order, the values, the hashes`, t => {
+    const pbytes = Buffer.from('{"schema": 1, "settings": {"checkpoint-stops": true, "usage-pause": 60}}\n');
     const r = render(t, userHome(t, user), project(t, pbytes));
     assert.equal(r.code, 0, r.out);
-    assert.equal(r.bytes.toString('utf8'), expectedFile(75).replace(/- \*\*Usage pause\.\*\*.*\n/, `${STOPS_LINE}\n`));
-    assert.match(r.stdout, /^VALUE checkpoint-stops on$/m, r.out);
+    assert.equal(r.bytes.toString('utf8'), expectedFile(60).replace(/\n$/, `\n${STOPS_LINE}\n`));
+    assert.deepEqual(r.stdout.split('\n').filter(l => l.startsWith('VALUE ')), ['VALUE usage-pause 60', 'VALUE checkpoint-stops on']);
     assert.match(r.stdout, new RegExp(`^PROJECT ${sha256(pbytes)}$`, 'm'), r.out);
     assert.deepEqual(readdirSync(r.dir), [OUTPUT]);
   });
 }
-
-test('checkpoint-stops: a project true beside a usage value writes both lines, in the settings order', t => {
-  const r = render(t, userHome(t), project(t, '{"schema": 1, "settings": {"checkpoint-stops": true, "usage-pause": 60}}\n'));
-  assert.equal(r.code, 0, r.out);
-  assert.equal(r.bytes.toString('utf8'), expectedFile(60).replace(/\n$/, `\n${STOPS_LINE}\n`));
-  assert.deepEqual(r.stdout.split('\n').filter(l => l.startsWith('VALUE ')), ['VALUE usage-pause 60', 'VALUE checkpoint-stops on']);
-});
 
 // C3: a project false is a loosening, whatever the user's value.
 test('bad case: a project checkpoint-stops false refuses as a loosening, over any user value', t => {

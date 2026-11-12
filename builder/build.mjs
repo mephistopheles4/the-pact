@@ -676,11 +676,11 @@ export function personalPresets(root, pact, dir = personalPresetsDir(root)) {
 export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_REL), ownPresets = []) {
   if (!DATA_RE.test(html)) fail('the page has no pact-data marks');
   const pact = pactData(root);
-  const { builder, refusals } = loadBuilder(builderFile, pact);
+  const { builder, refusals, givenSettings } = loadBuilder(builderFile, pact);
   if (!builder) fail(`the builder file is refused: ${refusals.join('; ')}`);
   const presets = shippedPresets(root, pact);
   // JSON inside a script: "<" is escaped, so no text can close the script or open a comment.
-  const json = JSON.stringify({ ...pact, presets, ownPresets, ...builder }, null, 1).replaceAll('<', ESC_LT);
+  const json = JSON.stringify({ ...pact, presets, ownPresets, ...builder, ...(givenSettings ? { ownSettings: givenSettings } : {}) }, null, 1).replaceAll('<', ESC_LT);
   let out = html.replace(DATA_RE, () => `/* pact-data:begin */ ${json} /* pact-data:end */`);
   if (!PARTS_CODE_RE.test(out)) fail('the page has no parts-code marks');
   out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);

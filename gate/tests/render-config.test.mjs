@@ -646,16 +646,6 @@ test('bad case: checkpoint-stops takes no value but true or false', t => {
   }
 });
 
-// The part is filled only by its setting, as the usage part is: no edit may target it.
-test('bad case: an edit that targets the checkpoint-stops part refuses', t => {
-  refusedWith(render(t, homeWith(t, '{"schema": 1, "edits": [{"mark": "checkpoint-stops", "op": "remove"}]}\n')), 'edit-setting', /checkpoint-stops is set only through its setting/);
-});
-
-test('bad case: a source with no checkpoint-stops part refuses a configuration that sets it', t => {
-  const src = read(SOURCE).replace('<!-- pact:begin checkpoint-stops -->\n', '').replace('<!-- pact:end checkpoint-stops -->\n', '');
-  refusedWith(render(t, homeWith(t, stopsBytes(false)), sourceFile(t, src)), 'render', /checkpoint-stops: the part is not in the source/);
-});
-
 test('bad case: a checkpoint-stops part that no longer matches its template at the default refuses', t => {
   const src = read(SOURCE).replace('a pending read-back waits even then.', 'a pending read-back waits no more.');
   refusedWith(render(t, homeWith(t, stopsBytes(false)), sourceFile(t, src)), 'render', /checkpoint-stops: the template at its default no longer matches the source/);

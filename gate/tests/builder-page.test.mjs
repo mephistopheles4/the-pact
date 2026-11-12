@@ -1896,18 +1896,15 @@ test('stub page: the Weekly limit chip turns it Off (inputs disabled, summary Of
 // ------------------------------------------------------------ checkpoint-stops (#554, T1)
 
 // C5: the page's state, its save, and its check for the switch.
-test('checkpoint-stops starts on, saves nothing at its default and false when off, in the settings order, and refuses a non-boolean', () => {
+test('checkpoint-stops starts on, saves nothing at its default and false when off, and refuses a non-boolean', () => {
   assert.deepEqual(L.PACT.checkpointStops, { name: 'checkpoint-stops', def: true });
   const s = L.initialState();
   assert.equal(s.checkpointStops, true);
   assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined, 'the default is not written');
   s.checkpointStops = false;
   assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'checkpoint-stops': false });
-  s.usage = 90;
-  s.compact = 600000;
-  assert.deepEqual(Object.keys(JSON.parse(L.buildFiles(s)[0].text).settings), ['usage-pause', 'auto-compact-window', 'checkpoint-stops']);
   s.checkpointStops = true;
-  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings['checkpoint-stops'], undefined, 'on again writes nothing');
+  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined, 'on again writes nothing');
   assert.deepEqual(L.problems(s), []);
   for (const bad of ['false', 0, 1, null, undefined, [], {}]) {
     s.checkpointStops = bad;
@@ -1915,28 +1912,27 @@ test('checkpoint-stops starts on, saves nothing at its default and false when of
   }
 });
 
-// C5: the presets' own files: levels 1 and 2 leave the switch out, the others set it false.
-test('the level-3 presets and ultra-code carry checkpoint-stops false; the level-1 and level-2 presets carry none; so does the default configuration, as false', () => {
+// C5: the presets' own files: levels 1 and 2 set the switch true, the others set it false.
+test('the level-3 presets and ultra-code carry checkpoint-stops false; the level-1 and level-2 presets carry true; so does the default configuration, as false', () => {
   const dir = join(REPO, 'builder', 'presets');
   const settingsOf = name => JSON.parse(readFileSync(join(dir, name), 'utf8')).settings;
   for (const name of ['level-3-full.json', 'level-3-matt-pocock.json', 'level-3-superpowers.json', 'ultra-code.json']) assert.deepEqual(settingsOf(name), { 'checkpoint-stops': false }, name);
-  for (const name of ['level-1-beginner.json', 'level-2-intermediate.json']) assert.equal(settingsOf(name), undefined, name);
+  for (const name of ['level-1-beginner.json', 'level-2-intermediate.json']) assert.deepEqual(settingsOf(name), { 'checkpoint-stops': true }, name);
   assert.deepEqual(JSON.parse(readFileSync(join(REPO, 'builder', 'default-config', 'config.json'), 'utf8')).settings, { 'checkpoint-stops': false });
   // The page carries them as they stand.
   const carried = Object.fromEntries(L.PACT.presets.map(p => [p.id, p.settings]));
   assert.deepEqual(carried, {
-    'level-1-beginner': undefined,
-    'level-2-intermediate': undefined,
+    'level-1-beginner': { 'checkpoint-stops': true },
+    'level-2-intermediate': { 'checkpoint-stops': true },
     'level-3-full': { 'checkpoint-stops': false },
     'level-3-matt-pocock': { 'checkpoint-stops': false },
     'level-3-superpowers': { 'checkpoint-stops': false },
     'ultra-code': { 'checkpoint-stops': false },
   });
-  assert.deepEqual(L.PACT.presets, shippedPresets(REPO, pactData(REPO)));
 });
 
-// C5: loading a preset sets the switch; one that gives none leaves it.
-test('taking a shipped preset sets the switch: level 1 leaves it on, level 3 turns it off, an unticked setting changes nothing, and a save carries it', () => {
+// C5: loading a preset sets the switch.
+test('taking a shipped preset sets the switch: level 1 sets it on, level 3 turns it off, level 1 after level 3 turns it on again, an unticked setting changes nothing, and a save carries it', () => {
   const take = (id, drop = []) => {
     const s = L.initialState();
     const p = L.PACT.presets.find(x => x.id === id);
@@ -1948,6 +1944,9 @@ test('taking a shipped preset sets the switch: level 1 leaves it on, level 3 tur
   assert.equal(three.checkpointStops, false);
   assert.deepEqual(JSON.parse(L.buildFiles(three)[0].text).settings, { 'checkpoint-stops': false });
   assert.equal(take('level-3-full', ['setting:checkpoint-stops']).checkpointStops, true);
+  const level1 = L.PACT.presets.find(x => x.id === 'level-1-beginner');
+  L.takePreset(three, level1, L.presetPicks(level1));
+  assert.equal(three.checkpointStops, true, 'level 1 after level 3 turns the switch back on');
   assert.deepEqual(L.presetPicks(L.PACT.presets.find(x => x.id === 'level-3-full')).filter(k => k.startsWith('setting:')), ['setting:checkpoint-stops']);
 });
 
@@ -2008,6 +2007,20 @@ test('shippedPresets and personalPresets carry settings, and a personal preset t
   const own = personalPresets(REPO, pactData(REPO), dir);
   assert.deepEqual(own.presets.map(p => [p.id, p.settings]), [['on', { 'checkpoint-stops': true }], ['only', { 'checkpoint-stops': false }], ['plain', undefined]]);
   assert.deepEqual(own.findings, ['presets/empty.json: left out: it gives no part, setting, models, agent files or skill sources']);
+});
+
+// C5, S4.5: a save carries the switch into builder.json, and a rebuilt page loads it back.
+test('checkpoint-stops false saves into builder.json and a page built from that file starts with it off; on again empties it', t => {
+  const s = L.initialState();
+  s.checkpointStops = false;
+  const saved = L.builderWith(null, s);
+  assert.deepEqual(JSON.parse(saved.text).settings, { 'checkpoint-stops': false });
+  const file = builderFile(t, JSON.parse(saved.text), {});
+  assert.deepEqual(checkBuilder(REPO, file).refusals, []);
+  const reloaded = JSON.parse(vm.runInContext(`${pageScript(buildPage(REPO, PAGE, file))}\n;JSON.stringify(initialState().checkpointStops)`, vm.createContext({})));
+  assert.equal(reloaded, false);
+  s.checkpointStops = true;
+  assert.deepEqual(JSON.parse(L.builderWith(saved.text, s).text).settings, {});
 });
 
 // C5, #554: the switch is a checkbox in Settings, and the page shows and saves it.

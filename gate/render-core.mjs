@@ -1182,8 +1182,7 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tool
     const now = lines.slice(p.begin + 1, p.end);
     const def = spec.def === null ? [] : toLines(spec.template(spec.def));
     if (now.length !== def.length || now.some((l, i) => !l.equals(def[i]))) return fail(spec.mark, 'the template at its default no longer matches the source');
-    // A switch's template reads its own value: the lines when on, none when off. A number is off at its off value.
-    swaps.push({ ...p, with: spec.kind === 'switch' ? toLines(spec.template(value)) : value === spec.off ? [] : toLines(spec.template(value)) });
+    swaps.push({ ...p, with: value === spec.off ? [] : toLines(spec.template(value)) });
   }
   for (const e of edits) {
     const p = pairs.get(e.mark);

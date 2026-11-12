@@ -227,7 +227,7 @@ test('S13: the default configuration\'s dry run shows VALUE checkpoint-stops off
 });
 
 // C3, S13: a project true dry-runs to the project line, whatever the user's value is; a project false is refused.
-test('S13: a project with checkpoint-stops true dry-runs to the project line; a project false is refused', t => {
+test('S13: a project with checkpoint-stops true dry-runs to its VALUE and WARN lines; a project false is refused', t => {
   const repo = makeRepo(t);
   const root = tempDir(t, 'pact-proj-');
   const ch = join(root, 'home', '.claude');
@@ -246,8 +246,8 @@ test('S13: a project with checkpoint-stops true dry-runs to the project line; a 
   refused(project(false), /project-looser: .*checkpoint-stops false is never tighter than the user's value/);
 });
 
-// C5, S13: the installed kit's presets are the ones the page loads: level 1 leaves the switch on, level 3 turns it off.
-test('S13: the installed kit\'s level-1 preset loads with the switch left on, and its level-3-full turns it off', t => {
+// C5, S13: the installed kit's presets are the ones the page loads: level 1 sets the switch on, level 3 turns it off.
+test('S13: the installed kit\'s level-1 preset loads with the switch on, and its level-3-full turns it off', t => {
   const repo = makeRepo(t);
   const h = home(t);
   assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
@@ -258,7 +258,7 @@ test('S13: the installed kit\'s level-1 preset loads with the switch left on, an
     return r.preset;
   };
   const levelOne = load('level-1-beginner.json');
-  assert.equal(levelOne.settings, undefined, 'level 1 carries no setting');
+  assert.deepEqual(levelOne.settings, { 'checkpoint-stops': true });
   const s1 = L.initialState();
   L.takePreset(s1, levelOne, L.presetPicks(levelOne));
   assert.equal(s1.checkpointStops, true);
@@ -267,7 +267,7 @@ test('S13: the installed kit\'s level-1 preset loads with the switch left on, an
   const s3 = L.initialState();
   L.takePreset(s3, levelThree, L.presetPicks(levelThree));
   assert.equal(s3.checkpointStops, false);
-  // Taking level 1 after level 3 leaves the switch as level 3 set it: a preset that gives no setting changes none.
+  // Taking level 1 after level 3 turns the switch back on.
   L.takePreset(s3, levelOne, L.presetPicks(levelOne));
-  assert.equal(s3.checkpointStops, false);
+  assert.equal(s3.checkpointStops, true);
 });

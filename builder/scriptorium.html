@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-jgEkQo84kxmphhXRVK3NM+iI3jrlefXHVpxnfIqYJzU='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-9U18mWYLLrQSXdMbvJmTmxRFMd0yOm+TtMGPHOy5wsQ='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -3499,6 +3499,9 @@ const PACT = /* pact-data:begin */ {
      ],
      "layout": {}
     }
+   },
+   "settings": {
+    "checkpoint-stops": true
    }
   },
   {
@@ -3688,6 +3691,9 @@ const PACT = /* pact-data:begin */ {
      ],
      "layout": {}
     }
+   },
+   "settings": {
+    "checkpoint-stops": true
    }
   },
   {
@@ -5812,7 +5818,7 @@ function initialState() {
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
   // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
   // #183 T4a: skills holds the skill sources, named for the cloud setup to fetch, as the builder file gives them; a save writes them into config.json.
-  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, checkpointStops: PACT.checkpointStops.def, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
+  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, checkpointStops: PACT.ownSettings?.[PACT.checkpointStops.name] ?? PACT.checkpointStops.def, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
 }
 
 /** The model and effort an agent file's frontmatter sets, each falling back to `def`'s. */
@@ -5988,8 +5994,11 @@ function builderWith(existing, state) {
   const hasFiles = existing !== null && /"agentFiles"\s*:/.test(existing);
   const hasSkills = existing !== null && /"skills"\s*:/.test(existing);
   const files = Object.fromEntries(Object.keys(state.own).sort().map(name => [name, ownFile(state, name)]));
-  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, qualities: state.parts.qualities, costLimits: state.parts.costLimits, ...(modelsAtPact && !hasModels ? {} : { models: state.models }), ...(!Object.keys(files).length && !hasFiles ? {} : { agentFiles: files }), ...(!state.skills.length && !hasSkills ? {} : { skills: state.skills }) };
-  const atPact = !Object.keys(partsChanged(state)).length && modelsAtPact && !Object.keys(files).length && !state.skills.length;
+  // #554 S4.5: the checkpoint-stops switch, written only when it is false; a settings key already in the file is emptied when the switch is back on.
+  const hasSettings = existing !== null && /"settings"\s*:/.test(existing);
+  const stopsOff = state.checkpointStops !== PACT.checkpointStops.def;
+  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, qualities: state.parts.qualities, costLimits: state.parts.costLimits, ...(modelsAtPact && !hasModels ? {} : { models: state.models }), ...(!Object.keys(files).length && !hasFiles ? {} : { agentFiles: files }), ...(!state.skills.length && !hasSkills ? {} : { skills: state.skills }), ...(stopsOff ? { settings: { [PACT.checkpointStops.name]: state.checkpointStops } } : hasSettings ? { settings: {} } : {}) };
+  const atPact = !Object.keys(partsChanged(state)).length && !stopsOff && modelsAtPact && !Object.keys(files).length && !state.skills.length;
   if (existing === null) return atPact ? { skip: true } : { text: `${JSON.stringify({ schema: 1, ...keys }, null, 2)}\n` };
   let doc;
   try {
@@ -8380,7 +8389,8 @@ function boot() {
       return setStatus('Saving failed part way. Check the folder before you install.', 'error');
     }
     const where = dir.name === 'pact' ? '' : ` The installer reads the folder named pact in your Claude folder; this one is "${dir.name}", so move the files there.`;
-    setStatus(`Saved ${files.length} file${files.length === 1 ? '' : 's'}.${where} Next, run the install's dry run.`, 'ok');
+    const events = state.checkpointStops === false ? ` This configuration sets ${PACT.checkpointStops.name} to false, so checkpoints will be events.` : '';
+    setStatus(`Saved ${files.length} file${files.length === 1 ? '' : 's'}.${where}${events} Next, run the install's dry run.`, 'ok');
   }
 
   function download(f) {
