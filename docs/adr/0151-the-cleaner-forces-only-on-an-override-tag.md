@@ -14,7 +14,8 @@
   - **Commits found nowhere else on a detached head:** after the folder goes nothing names them.
   - **Every `--recoverable` keep:** the flag asks to keep whatever can't be recovered.
 - **The override tag** is 16 hex over the worktree's full facts, listed files' sizes, change times and inode included, so a change after the name-back makes it stale. It is valid across runs while the facts hold. A last read runs before git is told to force.
-- **The block** counts what is lost and lists it uncapped, with an undo line run from the repository root. `remove`'s lines go to chat only.
+- **The block** counts the changed and untracked files the override deletes and lists every one, uncapped; ignored files, lost too, are named by folder as before. It carries an undo line run from the repository root (none when files are forced, with what is not restored named). `remove`'s lines go to chat only.
+- **The last read and the check after it.** Before it lifts a lock or forces anything, `remove` reads the folder again. Right before the forced call it checks that the folder, `.claude/worktrees` and `.claude` are not links and that the folder's device and inode are those it read. A link swapped in after the last read would send git's forced delete outside the worktree, since `--force` skips git's own clean check; the check narrows that window and doesn't close it.
 - **Who may pass it:** only on the owner's own words in the chat of the session that runs `remove`, after that session showed the block. `show` and `remove` both print the rule. The printed rule is a reminder, not a control.
 - **Two ask rules** (`CLEANER_ASK`): `Bash(*cleaner.mjs*remove*--override*)` and its `PowerShell(...)` twin, added to `permissions.ask` while the cleaner is on, recorded under `cleanerAsk`, and removed only when recorded and fixed. They make Claude Code ask before a forced removal runs, in auto mode too. If `settings.json` is not strict JSON the install leaves it untouched and warns, naming both rules.
 
@@ -39,11 +40,20 @@ As [ADR 0042](0042-the-apply-guard-asks-on-any-command-naming-the-install.md) li
 
 - a path held in a variable or a splat;
 - `Cleaner.mjs` under the Bash tool, where the match is case-sensitive;
-- a wrapper script that holds the words;
-- possibly a backslash-newline split;
+- a wrapper script that holds the words, or a copy, hard link or link of the tool under another name;
+- possibly a backslash-newline split, or a quote that splits one of the three words;
+- a shell glob in the path, a Windows 8.3 short name, arguments fed through `$(...)` or `xargs`, and `node -e` importing the tool's exported `clean()`;
 - every call under `bypassPermissions`.
 
+The list is not complete, as 0042's was not.
+
 It will also prompt on any command whose text names those three words in that order, a commit message for example. That is accepted: in an ask rule a match it shouldn't make only prompts.
+
+## Left open
+
+- **No ask rule behind a `settings.json` that is not strict JSON.** The install leaves such a file untouched and warns, naming both rules; the cleaner does not check at run time that the rules are installed. Kept as the spec decided (A9, decision 99).
+- **A live subagent's worktree may read as a soft risk.** Its lock may not take the `claude session <name> (pid N)` form, and the in-use check reads only session status files. Unconfirmed, with no probe made; the block says the lock's holder is not named.
+- **A name git's text decodes differently** (a non-UTF-8 name on Linux or WSL, a trailing dot or space on Windows) is not bound by the tag: an `lstat` that finds nothing for a name the index does not hold withholds the override tag.
 
 ## Rolling back
 

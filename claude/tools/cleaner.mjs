@@ -4,7 +4,8 @@
 // has to be read to tell a removal apart.
 //
 //   node cleaner.mjs show   [--recoverable] [--repo <dir>] [--worktree <name>]...
-//   node cleaner.mjs remove [--recoverable] [--repo <dir>] [--worktree <name>]... --yes <tag>[,<tag>]... [--override <folder>=<tag>[,...]]
+//   node cleaner.mjs remove [--recoverable] [--repo <dir>] [--worktree <name>]... [--yes <tag>[,<tag>]...] [--override <folder>=<tag>[,...]]
+//   (remove needs --yes, --override or both)
 //
 // show names back each candidate with what it holds and ends its block with a
 // tag over everything it read. remove reads everything again and removes a
@@ -24,9 +25,11 @@
 // --force at most once, in a `git worktree remove`, only when changed or
 // untracked files were listed; never -f, -D or --delete. A hard keep (in use,
 // a link, a submodule, edits git is told not to check, a read that failed)
-// gets no override tag. The owner passes it, in chat, for that run; remove's
-// lines go to chat only. Every git call carries the pins that keep a setting
-// from hiding an untracked file or an edit.
+// gets no override tag. A session passes it only on the owner's own words in
+// chat; remove's lines go to chat only. Right before the forced call it checks
+// that the folder, its parent and .claude are not links and that the folder is
+// the one it read. Every git call carries the pins that keep a setting from
+// hiding an untracked file or an edit.
 //
 // --recoverable (#446) also keeps a worktree
 // whose removal could lose what git does not hold, or run a program: ignored
@@ -447,6 +450,22 @@ const present = p => {
   }
 };
 
+/**
+ * A worktree folder's identity (device and inode), or null when it, its parent
+ * `.claude/worktrees` or `.claude` is a link, or it can't be read. Run after the
+ * last read and again right before a forced removal: a difference means the
+ * folder was swapped in between (#523).
+ */
+function standOf(path, main, platform) {
+  try {
+    if (isLink(path, platform) || isLink(join(main, '.claude'), platform) || isLink(join(main, '.claude', 'worktrees'), platform)) return null;
+    const st = lstatSync(path);
+    return `${st.dev}:${st.ino}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Whether the folder holds a link anywhere inside, links never followed. */
 function holdsLink(dir) {
   const stack = [dir];
@@ -659,6 +678,8 @@ function overrideRead(git, path, admin, recoverable, lstat) {
   };
   const stage = take(['ls-files', '--stage', '-z']);
   if (stage !== null && entries(stage).some(e => e.startsWith('160000 '))) risk.submodules = true;
+  // The names the index holds: only these can be a deleted file, so a name outside it that lstat cannot find (a name git's text decodes to something else, or a race) bars the tag.
+  const tracked = new Set(stage === null ? [] : entries(stage).map(e => e.slice(e.indexOf('\t') + 1)));
   try {
     if (admin !== null && present(join(admin, 'modules'))) risk.submodules = true;
   } catch {
@@ -684,8 +705,8 @@ function overrideRead(git, path, admin, recoverable, lstat) {
       const st = lstat(join(path, name));
       risk.files.push([name, st.size, st.mtimeMs, st.ctimeMs, Number(st.ino)]);
     } catch (e) {
-      // A deleted tracked file is gone: nulls in place of its numbers.
-      if (e?.code === 'ENOENT') risk.files.push([name, null, null, null, null]);
+      // A deleted tracked file is gone: nulls in place of its numbers. Any other name that is not there is a failed read.
+      if (e?.code === 'ENOENT' && tracked.has(name)) risk.files.push([name, null, null, null, null]);
       else {
         risk.failed = true;
         break;
@@ -901,9 +922,9 @@ function listLines(title, names, show = quoted, cap = LISTED) {
  * `none` says what it does not restore.
  */
 function undoLine(f, { files, stays }) {
-  if (files) return '  undo: none; the files above are gone for good';
-  const dir = `.claude/worktrees/${esc(f.folder)}`;
   const tail = (branchRef) => `; not restored: ignored files, the worktree's reflog, refs and config${branchRef ? ", the branch's reflog and upstream" : ''}${f.lock !== null ? ', the lock' : ''}`;
+  if (files) return `  undo: none; the files above are gone for good${tail(false)}`;
+  const dir = `.claude/worktrees/${esc(f.folder)}`;
   const root = '  undo, from the repository root: git worktree add';
   if (f.branch === null) return `${root} --detach ${dir} ${f.tip}${tail(false)}`;
   if (stays) return `${root} ${dir} ${esc(f.branch)} (it was at ${f.tip})${tail(false)}`;
@@ -1015,10 +1036,18 @@ function removeOne(git, item, main, hooks, platform, lines, counts, again) {
     }
     if (!fresh || fresh.overrideTag !== item.overrideTag) return left('left, it changed since the read');
   }
+  // The folder's identity as of the last read, for the check right before git is told to force (the window after the last read, #523).
+  const stood = again ? standOf(item.path, main, platform) : null;
+  if (again && stood === null) return left('left, it changed since the read');
   const listed = again ? item.risk.changed.length + item.risk.untracked.length : 0;
   // A stopped session's own lock comes off just before the removal; git's other refusals still stand. An override lifts any lock.
   const lifted = f.lock !== null && (Boolean(again) || isSessionLock(f.lock, f.folder));
   if (lifted && !git(main, ['worktree', 'unlock', item.path]).ok) return left('left, git refused: it is locked');
+  // --force skips git's own clean check, so a folder or parent swapped for a link, or a folder made anew, since the last read is never forced.
+  if (again && standOf(item.path, main, platform) !== stood) {
+    const back = lifted ? (git(main, ['worktree', 'lock', ...(f.lock === '' ? [] : ['--reason', f.lock]), item.path]).ok ? [] : ['  the lock was not put back']) : [];
+    return left('left, it changed since the read', back);
+  }
   // --force at most once, only with listed files, so git's own lock check and, without files, its check for changed files still hold.
   const ok = git(main, ['worktree', 'remove', ...(listed ? ['--force'] : []), item.path]).ok;
   // A refusal leaves the lock as it was found.
@@ -1071,10 +1100,10 @@ const unavailable = why => ({ code: 4, lines: [`the cleaner is unavailable: ${wh
  */
 export function clean(argv, io) {
   const { opts, refusals } = parseArgs(argv);
-  if (refusals.length) return refused(refusals);
-  const r = cleanRun(opts, io);
-  // The rule comes first in every run given an override: a reminder for later runs, not a control (decision 43).
-  return opts.override ? { ...r, lines: [OVERRIDE_RULE, ...r.lines] } : r;
+  // The rule comes first in every run given an override, a refused one included: a reminder for later runs, not a control (decision 43).
+  const first = r => (argv.includes('--override') ? { ...r, lines: [OVERRIDE_RULE, ...r.lines] } : r);
+  if (refusals.length) return first(refused(refusals));
+  return first(cleanRun(opts, io));
 }
 
 /** One run's work after the command line has parsed. */

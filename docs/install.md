@@ -190,8 +190,9 @@ parts:
     (#523), added only while the cleaner is on. Claude Code guards its own folder and
     `~/.claude.json`, and in auto mode its classifier weighs the rest. The
     dry run's `- permissions.ask:` lines name each rule it removes, matched
-    exactly, and a `NOTE:` line counts them. A rule of your own that only
-    looks like one stays. Every install removes these exact strings again, so
+    exactly, and a `NOTE:` line counts them (the cleaner's two ask rules print
+    the same kind of line when you turn the cleaner off, and the `NOTE:` line
+    does not count them). A rule of your own that only looks like one stays. Every install removes these exact strings again, so
     a rule you want back must differ from the listed text. The install's apply, a `gh` command on rulesets or branch
     protection, and a dry run that writes to a review folder no longer prompt
     you (ADR 0063);

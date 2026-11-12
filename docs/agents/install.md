@@ -126,8 +126,9 @@ how every session in every repo behaves. So:
   over the ask list, `mergeSettings` applies it after the retired-ask filter, and `parseRecord`
   refuses a `cleanerAsk` that is not a list of strings. With `settings.json` not strict JSON and the
   cleaner on, a `WARN:` line names both rules. Each plan filters its record
-  by its own list. Neither is in the overlay or the allow-list, and the cloud
-  copy adds neither. Both sets of rules are a speed bump: a flag before the
+  by its own list. None of the three is in the overlay or the allow-list, and
+  the cloud copy adds none. The ask rules' misses are listed in ADR 0151. The
+  deny rules are a speed bump: a flag before the
   subcommand, a wrapped call and a flag placed between `claude daemon` and `stop` (a leading `--dangerously-skip-permissions` is the one Claude Code's docs name as still reaching the subcommand) get past them.
 - **The field check for the deny rules (#439),** run after the owner applies
   with `session-stop-deny` on or the cleaner on; a session reports the result
