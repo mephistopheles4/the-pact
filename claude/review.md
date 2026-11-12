@@ -12,7 +12,8 @@ lenses to offer, and when.
   diff from the base. Tell each lens which other lenses ran.
 - **With them,** hand the report template below, the rules file's Qualities
   and Cost limits rows, and the project's "Review rules" section, if it has
-  one.
+  one, and, to the security pair, the Threat model section below as it stood
+  at the base.
 - **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
   another lens's report. Launch it as a plain subagent, never as a named
   teammate, so it gets no messaging or task tool beyond its own tool list.
@@ -116,6 +117,54 @@ Ask each lens to report in this shape:
   hand-off that the status is stale, and never post a second status comment.
   The round comments stay the record; nothing reads the status comment back.
 
+## The threat model
+
+Read this, then the project's threat model, both as they stood before the
+change, before you sort a finding as security, write a guard, bring me a
+security ruling, or publish a weakness in someone else's software.
+
+1. **Read the threat model first,** its boundaries before its classes. With
+   none, the sensitive-work list decides and steps 2 to 5 don't apply. With
+   no list of boundaries, use its scope's in-scope lines as the boundaries
+   and the controls it names.
+2. **Place the finding on a boundary:** where something comes in from
+   outside (tracker text, an outside pull request, a clone, an install or
+   update, a fetched page, CI, heard speech) or where an act goes out (a
+   merge, an install, a publish, a post, data off the machine). The machine
+   is the owner's computer, or a sandbox run on it, and a local tool's data on
+   a user's own computer is that user's machine. A cloud session's sandbox,
+   a service a project deploys, and that service's users' devices are not
+   the machine, and data that service keeps for its users is past a
+   boundary. Where input came from decides, not where it sits: a cloned
+   repo's file or an installed plugin is outside input, and so is what
+   anything on the machine makes from outside input. What starts and ends
+   on the machine (a program, process, account, file or memory made there)
+   is the machine's, and no finding, unless the project's threat model holds
+   it in scope, or it touches the sensitive-work list.
+3. **Name the control that holds that boundary against this path** without
+   the session's cooperation, from the threat model's list: the harness,
+   GitHub, the host or the project's own tools. Each is named with when it
+   doesn't hold; one the path gets past holds nothing, and the machine's
+   own controls hold only the machine. If one holds it, add nothing.
+4. **Check the residual,** what gets past the controls, against the accepted
+   classes. A finding that fits
+   one needs nothing, though a session may still fix one in passing if it's
+   cheap. A change that weakens a rule or control, or adds a route for
+   outside text into a session or more reach to one that reads it, fits no
+   class (step 5). A change that adds text to files sessions load, or
+   writes a secret or personal detail into text sessions read, fits no class
+   either, and is reviewed with the change.
+5. **Bring me** a new boundary, a residual no class covers, a change that
+   removes or weakens a control, a change to the scope, and every
+   `security?` row.
+
+A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published; a standing goal, a free hand, or a goal holder's or free hand holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
+
+Never rebuild a harness control in prose or restate one as a rule, never
+build a detector for injected wording, never treat what started on the
+machine as outside input, and never re-add a boundary or class the threat
+model already holds.
+
 ## Diagrams
 
 Draw them generously: they are how I understand a round quickly. Each review
@@ -161,7 +210,8 @@ when no other row answers the sentence.
 ## Posting
 
 - **Read before you post.** Read every report and comment for a secret or a
-  personal detail before posting it.
+  personal detail, or a weakness in someone else's software that The threat
+  model section keeps unpublished, before posting it.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it

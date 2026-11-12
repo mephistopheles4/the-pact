@@ -42,14 +42,15 @@ This file is never installed.
 | One rule | No finding is dropped silently at a limit. Nothing else routes findings. |
 | The security bar | When a security fix is due. No tool weighs a fix's cost against its risk. |
 | An empty limit | Who decides an unset limit. Nothing else would. |
-| A security finding | The definition the sorter uses. The classifier judges actions, not findings. |
+| A security finding | The definition the sorter uses, and that it places a finding on a boundary as the guide says, so a path wholly on the machine is no finding. The classifier judges actions, not findings. |
 | Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
+| Publishing a weakness in someone else's software | Secret scanning and push protection match credentials, and the read before a push checks only for secrets and personal details, so a weakness page can reach a public branch. The guide holds it back until its maker's tracker does too, or the owner says in chat it may be published. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. |
-| A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. It also says how later words narrow a goal (the owner's words in any chat; text only by keeping a step), a gap that "keep going until I end it" leaves, since no other guardrail narrows a goal in place. |
-| Working for a goal | Who answers for the owner in a session the goal's holder started: the holder, by its reply to an item the session sent, one hop, logged as the holder's, never as the owner's, and below the owner's own words in the session's chat. No guardrail lets a session's starter answer for the owner, and an answer in a start prompt, a file or an unasked message counts for nothing, so only a reply does. The usage go-ahead and a worktree removal stay the owner's. |
-| A free hand | Nothing else lets a session take its own picks, on lens offers and design questions, short of a full goal; auto memory never binds. |
-| Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. With the weekly limit off, "its line" binds to the session line if one is set, and to nothing if not. |
+| A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. It also says how later words narrow a goal, which no other guardrail does. |
+| Working for a goal | Who answers for the owner in a session the goal's holder started: the holder, by its reply to an item the session sent, one hop, logged as the holder's, never as the owner's, and below the owner's own words in the session's chat. No guardrail lets a session's starter answer for the owner; only a reply counts. The usage go-ahead and a worktree removal stay the owner's. |
+| A free hand | Nothing else lets a session take its own picks, on lens offers and design questions, short of a full goal. |
+| Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. |
 | Usage | A pause on weekly usage. The harness has no such pause. |
 
 ## What no read looks for

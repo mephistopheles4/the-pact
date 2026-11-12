@@ -134,14 +134,14 @@ trade-off.
   me as a trade-off.
 - **A security finding** names an attacker in scope in the project's threat
   model as it stood before the change (the file its agent instructions name,
-  else `docs/threat-model.md`), or touches the sensitive-work list, auth
-  meaning authentication and authorization. With no threat model, the list
+  else `docs/threat-model.md`), placed as review.md's Threat model section
+  said before the change, or touches the sensitive-work list, auth meaning
+  authentication and authorization. With no threat model, the list
   decides. The session that sorts the findings decides; another lens marks a
   doubtful one "security?", and its row is never `auto`.
 - **Accepted threat classes** live only in the project's threat model, one
   line each: what it covers, never the steps. A finding that fits one needs
-  nothing, though a session may still fix one in passing if it's cheap. A
-  finding that fits none comes to me as a new class, and only a merge I confirm
+  nothing. A finding that fits none comes to me as a new class, and only a merge I confirm
   in chat adds or widens one. A change that removes a control still comes to
   me, and so does a change to the threat model's scope. With no threat model,
   flag the risk and record nothing.
