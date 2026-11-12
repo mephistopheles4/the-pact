@@ -2416,3 +2416,195 @@ Issue comments on mephistopheles4/the-pact#214:
 - **Move 4:** QA pair 6103701489; `unstated-lens` 6103701717; standards pair 6103701863; Lens dispositions 6103704452; build state and kit location 6103704636.
 
 The replay kit (script, prompt, set with each issue's outcome tier, proxy settings), the results and the report are in the owner's local results folder, outside the repo.
+
+## Code scanning skips the gate's test files
+
+**2026-10-11.** Code scanning moves from CodeQL default setup to a workflow the repo holds, `.github/workflows/codeql.yml`, which leaves the gate's test files out of the analysis (mephistopheles4/the-pact#239, built in #244). The test files plant bad cases on purpose and raised 19 of the 21 alerts that appeared when the repo went public on 2026-10-09. ADR 0058 records the decision.
+
+### What it set out to do
+
+The owner filed #239 from the Security tab: 21 open CodeQL alerts, 19 in `gate/tests/` and 2 in shipped code. The issue preferred a configuration that keeps the test-file alerts from coming back over dismissing them one by one. The spec (revision 3, signed off on 2026-10-11) cut the work into three tickets: this workflow and its guard (#244), the switch from default setup and the cleanup of the 19 (#245), and a private review of the 2 shipped-code alerts (#243).
+
+### What was built
+
+- **The workflow.** Four triggers (push to `main`, pull requests, a weekly schedule, a manual run), a top-level `contents: read`, and one `analyze` job holding `contents: read` and `security-events: write`. The job skips Dependabot's pull requests, whoever pushed to them last, runs a matrix of `actions` and `javascript-typescript`, and has three pinned steps: checkout on `gate.yml`'s commit, and `codeql-action` `init` and `analyze` on the v4.38.2 release commit. The inline configuration's only entry is `paths-ignore: gate/tests/*.test.mjs`, and results upload under default setup's categories. Its header says never to re-run it with debug logging while a shipped-code alert is open.
+- **The guard.** `gate/tests/workflow.test.mjs` gains an exact allow-list for the CodeQL workflow at every level, with 57 bad cases, and a test that no file outside `gate/tests/` loads a file inside it, with 8 bad cases, a floor on the file listing, and a control that the words in a comment, a string or a pattern are not a load. The premise test reads code tokens, through the table module's tokenizer, which it now exports. The first 51 bad cases were seen to fail against stub checks; the 14 added at move 4 were each seen to fail with only their own rule deleted. One more bad case checks that another workflow asking for `security-events` still fails; its rule is the existing common lockdown, which is unchanged, like the `gate.yml` rules.
+- **The docs.** ADR 0058, this entry, and three accepted risks in `docs/threat-model.md`, in a new section on code scanning: R26 (the test files aren't scanned), R27 (a pull request from a branch here runs its own copy of the workflow, with the write token, before review) and R28 (the workflow's token can change alerts on `main`).
+
+### What was decided
+
+- **Advanced setup, after all.** The build's check of GitHub's docs found that default setup can now take a configuration file that excludes paths, through the `github-codeql-config-file` repository property. That property is a custom property, an organization feature; this repo belongs to a personal account, and its custom-property endpoint returns 404. The head chef relayed the owner's choice to proceed as specced, and the ADR records the corrected premise.
+- **The bad cases stay in loops.** The spec asked for `table()` rows, but a table needs a gate module with rule ids, and these checks live in the test file. The head chef relayed the owner's choice of the loop form.
+- **The v4.38.2 pin.** The newest release, v4.38.3, was three days old. The older one had already cleared Dependabot's 14-day cooldown, which R28 cites.
+- **Two keys beyond the spec's list.** The top-level `name`, held to `codeql`, and `fail-fast: false`, so one language's failure can't cancel the other's analysis.
+- **Move 4's findings were taken.** The Dependabot skip now checks the pull request's author as well as the run's actor, because another account's push to a Dependabot branch starts a run under that account. The premise test now catches a load by a template with a substitution, a computed `require` and `createRequire`. R27 now says the first run of an edited workflow comes before review. The debug re-run rule is written where a person will see it.
+
+### What comes next
+
+Until #245 turns default setup off, GitHub refuses this workflow's uploads. So its two jobs fail at the upload on every pull request (#243's fix included), on the push to `main` after the merge, and on the weekly run. Only the `gate` check is required, so none of these blocks a merge. #245 then runs the workflow once by hand and compares the owner's scanned-file counts from before and after the switch. The 2 shipped-code alerts are reviewed under #243, and #239 records only their outcomes.
+
+### Record
+
+- The spec, revisions 1 to 3, the last signed off: mephistopheles4/the-pact#239 (comments 6111353258, 6111520855, 6111622682).
+- Its reviews: round 1, the security pair (6111475788), the spec pair (6111475978), `unstated-lens` (6111476174) and the refused first cross, as a record (6111476459); round 2, the security pair (6111587409) and the spec pair (6111596534).
+- Its Lens dispositions: 6111521021 and 6111622864.
+- The owner's sign-off, as relayed: 6111701377. The plan's phase boundary: 6111732937.
+- The build ticket, #244: the stop on the docs check and the loop form (6111790749), the pre-write checks (6112205556), and the acceptance claims (6111945238).
+- Move 4's reports on #244: the standards pair (6112205787), `unstated-lens` (6112206021), the security pair, whose cross refused one headline (6112206193), and `integrity-lens` (6112206355). `behaviour-lens`'s report is held in the private advisory.
+- Move 4's Lens dispositions on #244: 6112207826.
+- The PR: #251, with its CodeQL run's step outcomes (comment 6111955701).
+
+## Each gate test names what it backs and earns its place
+
+**2026-10-11.** "Writing a gate test" in `AGENTS.md` now asks of every test a change adds or edits: what does it back, and is it worth having (mephistopheles4/the-pact#215). `integrity-lens` asks whether a test can fail; nothing asked whether it was worth keeping, so the only pressure on the suite was upward. The rule is forward-only and for this repo only. ADR 0057 records it.
+
+### What it set out to do
+
+The owner's observation, from chat: builds keep adding tests to close every gap they can see, and the suites balloon. The owner deleted about 20,000 lines from this repo on 2026-10-10. The issue proposed five things: each test names its claim, test what fails silently, minus-one, the spec names which seams get tests, and size the suite to review cost.
+
+### What was built
+
+- **Five bullets in "Writing a gate test".** A test names a claim of its issue or a written invariant, and never a file path or script name in the comment. A path that fails loudly needs no test of its own, but a gate check's bad case is outside that. Minus-one is judged by reading, in a file the change already edits, with each cut listed on the issue, in the PR body and to `integrity-lens`. The PR body's second line is `Tests: +<added> −<cut>`. A never-a-cut list keeps the last bad case for a check, install cases, protected-set tests and the cloud-sessions test file out of reach.
+- **ADR 0057 and its index line.** The decisions D1 to D3: no guard test, no sweep of the existing suite and no prune issue, and a five-PR measure.
+- **Follow-up issue #240.** It holds the deferred items and the measure.
+
+### What was decided
+
+- **Forward-only, no guard, no sweep.** A guard would parse every test and force a retrofit of the existing suite. The owner took the recommendation at sign-off: no prune issue.
+- **The security route was not needed.** Only `AGENTS.md` and docs changed. The never-a-cut list closes the doubt over protected tests.
+- **Reader and conventions findings were taken.** A pointer that said "the rule above" named the wrong direction; it now names the section. Four smaller wording fixes followed.
+
+### Deferred
+
+Issue point 4, a "worth having" question in `integrity-lens`, and the pact-wide forms wait for #238. Mutation-backed minus-one waits for a mutation tool pinned by a lock file. Both are in #240.
+
+### Record
+
+The verbatim spec, its review and the move-4 reports are comments on #215. The follow-up and the measure are on #240.
+
+## No rollback path to install.ps1
+
+**2026-10-11.** The live docs and the gate now describe only the Node install (mephistopheles4/the-pact#242). The rollback route to `scripts/install.ps1` is gone from `AGENTS.md`, `docs/install.md` and the threat model. So are the gate code and tests that existed only for it. The history stays: ADR and log bodies are untouched, and ADRs 0048 and 0052 gain a one-line pointer to ADR 0059, which records the cut.
+
+### What it set out to do
+
+The Node install (#166) replaced `scripts/install.ps1`, and #217 removed its ask rules. The current-state text still offered a rollback to it, and the gate still carried code for the switch from one installer to the other. The owner chose option A in chat: clean the live layer of the retired installer, and keep the history.
+
+### What was built
+
+- **The gate.** The dry run's gate block loses its cutover line, which explained the first Node install after an `install.ps1` install and never printed after a rollback. Two comments lose their mention of the old installer.
+- **The test runner.** The install tier is now exactly the test files that reach the install harness through imports. The rule that also put a file naming `install.ps1` there is gone, with its two fixtures and two tests. All 12 install-tier files stayed in the tier, each by a harness import.
+- **The settings tests.** The #217 tests that the old installer's rules stay out are gone. One row stays, on a generic rule: a rule put into the overlay alone fails `settings-value`, beside a control that passes with the rule on both files.
+- **The docs.** Rollback is supported only to commits on the published `main` from the cutover, `6821d68`, on. Before checking out a target, a session resolves it to its full id and checks three things: it holds `gate/install.mjs`, it descends from the cutover, and it is on `main` as fetched by the repo's URL. If any check fails, it stops and asks the owner. Step 5's cleanup names no old installer by file. It lists the four Node broad rules ADR 0049 retired, and points to ADR 0052 for the older rules. It keeps the warning not to hand the settings file to a session, and the two checks. The threat model words R22 as an attack path with its boundary at the cutover, and the owner's acceptance of it stands.
+- **The cloud copy** was regenerated and came out byte-identical. `AGENTS.md` is in the generator's payload list, but seam A never installs it.
+
+### What the build found
+
+- **#238 had grown to touch the same files.** #242's issue said the renovation (#238) would leave these files alone. #238's spec revision 6 is a four-ticket chain whose later tickets edit five files this change edits. That was a listed stop. The owner chose, through the head chef, to merge #242 first and regenerate the cloud copy in its own PR, so #238's tickets rebase onto it.
+- **The planned rollback check spelled the name it was removing.** Correction 1 checked for `scripts/install.ps1` in the target commit, which put the old installer's name back into the docs and failed the change's own search. The build checks ancestry from the cutover instead, which covers the same commits on `main`. A check that `scripts/` holds no PowerShell file would have been wrong: `check-skill-flags.ps1` was still there at the cutover.
+- **Move 4 tightened the stop.** `adversarial-lens` showed that a commit pushed to a fork on top of the cutover passed both planned checks, and that a short id can be shadowed by a tag. The stop gained the main bound and full ids. Three lenses found the docs gave the checkout before the checks, and the threat model drew its boundary at #166 instead of the cutover; both were fixed. The checks were then run on real commits, and each commit landed where the docs say.
+- **One rule had arrived after the plan.** #241 added a clause on the runner's install-tier name rule to "Writing a gate test" after the spec's base commit. It went with the rule.
+
+### Record
+
+- The spec, revision 3 with correction 1: mephistopheles4/the-pact#242 (comments 6111775754 and 6111811241); revisions 1 and 2: 6111661216 and 6111723633.
+- Its reviews and dispositions: the security pair on revision 1 (6111712797, 6111723821); `unstated-lens` and the spec pair on revision 2 (6111744207, 6111755398, 6111775890).
+- The owner's decisions on #242: the head chef's O1 to O3 (6111668494); proceed and confirm all, with the hand-off (6111822168); merge first, from the build's stop (6111863836, answered in 6111950712).
+- The build record, claims and test cuts: 6111950712.
+- Move 4's reports, as crossed sections on #242: the standards pair (6112060702), `unstated-lens` (6112060905), the security pair (6112071547) and the QA pair (6112112033).
+- Move 4's Lens dispositions, the rollback checks run on real commits, and the claims as now written: 6112252465.
+- The rebase note for #238's tickets: mephistopheles4/the-pact#238 (comment 6112253722).
+- The PR: #252.
+
+## Review crossings by template
+
+**2026-10-11.** The cross script is gone (mephistopheles4/the-pact#264). A session lays out a lens review from a template in `claude/review.md` and posts it; nothing parses a report or refuses one. ADR 0064 records the decision.
+
+### What it set out to do
+
+The owner's view was that the script made more friction than it helped. #260's measure found cross refusals the largest single source of lens reruns: 11 each for `adversarial-lens` and `data-lens`. The direction was to let guards that check text shape give way to judgment, and keep guards on what can run.
+
+### What was built
+
+- **The removal.** `cross/cross.mjs` and `cross/render-check.mjs` are deleted. Seam A loses `CROSS_FILES` and the `cross-script` and `cross-imports` rules; the install's staging, copy set and bootstrap filter lose their cross case; nothing under `cross/` stages or installs.
+- **The template and the posting rules** in `claude/review.md`, with the table of pairs kept and its `--point`, `--tier` and `--anchors` columns gone.
+- **The nine lens files and their contracts.** The report ends in a plain list. The lens-text test's pinned words follow the rename to "Not checked".
+- **The tests.** The cross-named test files and their helper are deleted. The `isStaged` case, the copy-set rows, the cloud-copy bad cases and the roster check retarget to a file that survives. One test says no installed file names the script.
+- **The docs.** `AGENTS.md`, `docs/reference.md`, `docs/install.md`, the README and its third figure, `CONTEXT.md` and the threat model, which gains R29 and updates R3, R13, R17 and R23.
+- **Regenerated:** the cloud copy, the builder page and the figures.
+
+### What to look at next
+
+- **Did it pay off?** Compare the reruns in the Lens dispositions tables of the next few reviews with #260's measure, and note any crossing the template missed that the old join would have caught.
+- **After the merge,** the owner installs, re-pastes `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field and checks the first session's `pact cloud copy` line. Until the install, the live pact still tells sessions to run the installed script.
+
+### Record
+
+- The spec, revision 3: mephistopheles4/the-pact#264 (comment 6115307148); revision 2: 6115232203.
+- The owner's decisions on #264: the issue body; proceed with one trim (the comment headed "Owner decision, from chat").
+- The PR: filled in at merge.
+
+## The moves as intents, and the rules cut to what judgment and the harness can't cover
+
+**2026-10-11.** The rules file, `claude/CLAUDE.md`, was rewritten from a long list of rules into three parts (mephistopheles4/the-pact#186, built in #232). First come the four moves, stated once as intents with their why. Next comes a short floor of what holds in every workflow and every repo. Last comes the software preset, cut to the sentences that pass a keep test. The gated `move-4` clause is the only clause that changed. The file went from about 6,250 words to 5,199, with every rule the spec chose to keep still in place. ADR 0056 records the decision, the keep test, every deletion and what covers it.
+
+### What it set out to do
+
+The owner, from chat on #186: the more rules there are, the more friction they cause, and they weren't paying for it. Leave more to the model's judgment, and lean on Claude Code's harness and the model's own safety training. A session should read less and ask the owner less, and still stop in the same places.
+
+### What was built
+
+- **`## The moves`**, a new section above "Implementing a change". The four moves run at every seam: where work is handed on, published or decided. Any move can send the work back. A session starts at the move the owner's record on the issue shows. A checkpoint is the owner's decision, or an earlier check of the owner's that has been seen to fail; a lens advises and is never a checkpoint on its own.
+- **The floor**, a paragraph in that section. It points at the gated clauses and restates none of them, and it declares two required slots. Risky work gets an independent review before it ships, and every result gets a review that could have failed. In software, the security route and the QA pair fill them. Only a change to the rules file, installed through the gate, narrows the risky list or swaps a reviewer. A new test, `gate/tests/floor.test.mjs`, holds the floor word for word. It passed on the new text and failed when a floor sentence was removed.
+- **The software preset**, each section of "Implementing a change" rewritten to its row in the spec's table. Stops, auto-take exceptions, prohibitions and precedence lines were kept. Restated reasons, report formats the cross script checks, and mechanics the model works out were cut. The PR carries a stop inventory of 88 rows, mapping each such line in the old file to its place in the new one, or to ADR 0056.
+- **`move-4`** opens with the owner's three tests of ownership and adds "Your confidence is never evidence."
+- **`AGENTS.md`** puts the moves section on the security route. `CONTEXT.md` pins seam, checkpoint, floor, slot, filler and preset. The README, FIG. 01 and the reference table show the moves running at every seam. The threat model's R15 and R23 record the floor's "may only add" line and the owner's acceptance of risky-list option A. The builder page and the cloud copy were regenerated.
+
+### What the build found
+
+- **Pinned text won twice, as the spec says it must.** One existing test plants a weakening on move 4's exact line breaks, so move 4 keeps today's breaks across that span, with the spec's words byte for byte. The lead session, the head chef, answered q1 with option A; the build's brief counts its messages as the owner's decisions. The cloud copy's two edits anchor on two parallel-session paragraph openings, and a test pins the edits by digest. Those openings, tool names included, stay word for word, though the spec's table had cut the tool names.
+- **The word budget could not be met.** The spec capped the file at 3,500 words. About 2,700 words cannot move: the gated clauses, the open parts of moves 1 to 4, the approved moves section and the pinned strings. That left about 800 words for the 25 or so rows the spec keeps, which need about 2,000 even written tersely. The build stopped and asked (q2). The owner chose A, relayed by the head chef: the budget leaves this ticket, the cut ends where the keep rows allow, and the size target moves to #233. #233 follows Anthropic's guidance for CLAUDE.md files: under 200 lines, procedures that are needed only sometimes moved into skills, and must-always rules as hooks or gate checks. The `tracker-authors` trim is filed as #235.
+- **One move-2 phrase collided with a preset test.** The test looks for "You question me until" and expects to find it first in move 2. The moves section now says "You ask me questions until", with the meaning unchanged.
+
+### Record
+
+- The spec, rev 5, signed off: mephistopheles4/the-pact#186 (comment 6109423411).
+- Its reviews and dispositions: the security pair on rev 2 (6109152268, 6109154395) and rev 4 (6109356685, 6109378494); the spec pair and `unstated-lens` on rev 3 (6109207595, 6109208596, 6109222334).
+- The owner's decisions on #186: 6104666592, 6108942180, 6109285401, 6109423226; the contract moved to #233 (#233's body).
+- The build ticket and its questions: #232, q1 (6109605165) and q2 (6109634854, answered in 6109818737).
+- Move 4's reports, as crossed sections on #232: the standards pair (6109879637), `unstated-lens` (6109899396), the security pair (6109931306) and the QA pair (6110118454).
+- Move 4's Lens dispositions on #232: 6109950342 and 6110132814.
+- The PR: #237.
+
+## The pact sets no ask rules
+
+**2026-10-11.** The pact no longer ships permission ask rules (mephistopheles4/the-pact#265). The settings overlay sets no `permissions.ask`, seam A requires none, and the install takes the retired rules out of a live `settings.json`, so the owner's prompts stop after the next install. ADR 0063 records the decision.
+
+### What it set out to do
+
+The owner asked to drop the ask rules: "I don't even need the prompts anymore", and, on keeping a few edit asks, "We are trying to do what the harness already does again." The rules misfired on mentions: #239's T1 prompted the owner because a body said "ruleset". The owner had already removed every ask rule from their live settings by hand, and a dry run from `main` showed the overlay would add 52 back.
+
+### What was built
+
+- **The overlay and the settings guard.** `claude/settings.overlay.json` loses its ask list; everything else stays. `gate/settings-allowlist.json` loses its ask entry, and seam A loses the two lists it required and their checks. An overlay that sets an ask list now fails as `settings-unlisted`, a bad case the tests catch. `permissions.defaultMode` stays required, with its own bad case.
+- **The install.** `RETIRED_ASK` holds the 56 retired rules: the 52, and the four broad ones ADR 0049 retired. The merge drops each from the live ask list after its union, matched exactly. The dry run prints one `- permissions.ask:` line per removal and a `NOTE:` with the count, in place of the old "lacks N" warning. The post-apply guard checks auto mode and that no retired rule is left; an absent ask list holds.
+- **The cloud copy** was regenerated with the new overlay. Its jq merge is unchanged.
+- **The docs.** `docs/install.md` says the merge takes the old rules out, and keeps a hand-removal step for the older rules it doesn't know. The threat model renames R22 to "Apply unprompted" and names what now stands before each action: Claude Code's protected paths, auto mode's classifier, and nothing for the review folder but its own checks. `AGENTS.md`'s rollback note and the scriptorium skill drop their ask-rule wording.
+- **The tests.** The matcher model, its command tables and every test that the rules were present or asked are retired with the rules. The helper keeps the retired list as a frozen literal, which the install's copy must equal.
+
+### What the build found
+
+- **The risk floor applied.** The install now edits the owner's live settings, and seam A validates input, so the work ran as thorough: the spec pair read the spec beside the security pair and `unstated-lens`. It stayed one ticket in one session, as the owner chose for speed.
+- **The spec review's gaps were all fixable in the spec.** `executability-lens` called revision 1 blocking with 14 findings: done-criteria, stop conditions, the guard's result for a missing list, the source for the frozen list. The security pair asked the threat model to say plainly what now stands before the apply, branch protection and the review folder. Revision 2 took them all; the owner declined an auto-mode block rule and a review-folder refusal for now.
+- **Older pacts added rules the install doesn't know.** Move 4 asked whether every supported rollback target's rules are on the retired list. A check of history found six `main` commits from the cutover on that shipped 22 others: 20 that guarded the PowerShell installer, and two `--rev*` rules. The approved plan left the PowerShell ones to the hand step, so `docs/install.md` names all 22 for hand removal, after a rollback too, rather than widening the list.
+- **A restored rule doesn't last.** The merge drops the retired strings on every install, so the guide says a rule the owner wants back must differ from them. The threat model's R14 now says the same foothold that plants a file can rewrite the install record the drift check compares with.
+- **One file outside the plan.** The scriptorium skill lost a sentence saying the `pact/` folder asks before each edit. The spec didn't name the file, so it went to the owner at acceptance.
+
+### Record
+
+- The spec, revision 2: mephistopheles4/the-pact#265 (comment 6114662797); revision 1: 6114582898.
+- Its reviews: the security pair (6114652791), the spec pair (6114652961) and `unstated-lens` (6114653127); the Lens dispositions: 6114662659.
+- The owner's decisions on #265: the issue body; proceed, no block rule, no review-folder refusal (6114676415).
+- The build record and claims C1 to C8: 6114838145.
+- Move 4's reports: the QA pair (6114904109), `unstated-lens`, whose cross failed its block-count check (6114904276), the standards pair (6114904413) and the security pair (6114904582); the Lens dispositions: 6114943962.
+- The PR: #268.
