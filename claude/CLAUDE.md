@@ -31,8 +31,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
 ## How Claude helps
 
 - **Always mine:** a spec's proceed, fix or kill; the ticket cut; accepting,
-  closing and merging; installs; anything published. Each waits for my confirm
-  in chat.
+  closing and merging; anything published. Each waits for my confirm in chat.
 - **Keep the record** as the Posting section of `~/.claude/pact/review.md` says.
 <!-- pact:begin tool-poster -->
 <!-- pact:end tool-poster -->

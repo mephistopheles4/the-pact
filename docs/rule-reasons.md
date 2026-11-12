@@ -26,7 +26,7 @@ This file is never installed.
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
 | How Claude helps | What stays the owner's, and where the record's and the tools' how-to lives. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
-| Always mine | The owner's map of decisions. The harness defers to durable authorization, and this list is that authorization's limits. |
+| Always mine | The owner's map of decisions. The harness defers to durable authorization, and this list is that authorization's limits. Installs left it (#540): the owner got more friction from false positives than protection from the rule, so installing a new program is no longer on the list. The pact install (dry run, then apply on the owner's go-ahead) and mise trust stay, in `AGENTS.md`. |
 | Keep the record | Points to review.md's Posting section, which no tool loads. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent. |
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
 | Remove worktrees only through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (threat model, Removals lose local work). |
