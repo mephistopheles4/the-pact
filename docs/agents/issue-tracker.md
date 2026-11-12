@@ -10,7 +10,7 @@ Pass `-R mephistopheles4/the-pact` to every `gh` command: a clone without the `o
 - **Comment on an issue**: `gh issue comment <number> --body-file <file>`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
-- **Before ruling on security here,** read the [threat model](../threat-model.md), boundaries first.
+- **Before ruling on security here,** read the [threat model](../threat-model.md) as it stood before the change, boundaries first.
 
 ## Whose text counts
 

@@ -29,11 +29,16 @@ test('threat-model cap: a copy padded to one word past the cap is reported over'
   const source = readFileSync(join(REPO, 'docs', 'threat-model.md'), 'utf8');
   writeFileSync(padded, `${source}\n${'padding '.repeat(CAP + 1 - words(source))}\n`);
   const text = readFileSync(padded, 'utf8');
-  assert.equal(words(text), CAP + 1);
+  assert.equal(words(text), 3001);
   assert.deepEqual(overCap('padded', text), [`padded: ${CAP + 1} words, cap ${CAP}`]);
 });
 
 // #544 C9
 test('threat-model cap: a copy at exactly the cap passes', () => {
-  assert.deepEqual(overCap('at cap', 'word\n'.repeat(CAP)), []);
+  assert.deepEqual(overCap('at cap', 'word '.repeat(CAP / 2) + 'word\r\n'.repeat(CAP / 2)), []);
+});
+
+// #544 C9
+test('threat-model cap: words are runs of non-whitespace, whatever the separator', () => {
+  assert.equal(words('a b\r\nc\td\n- e '), 6);
 });
