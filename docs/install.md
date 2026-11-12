@@ -191,7 +191,7 @@ parts:
     the same kind of line when you turn the cleaner off, and the `NOTE:` line
     does not count them). A rule of your own that only looks like one stays. Every install removes these exact strings again, so
     a rule you want back must differ from the listed text. The install's apply, a `gh` command on rulesets or branch
-    protection, and a dry run that writes to a review folder no longer prompt
+    protection, and a dry run that writes to a review folder never prompt
     you;
   - sets `autoCompactWindow` and merges the pact's five hook entries by key,
     while `auto-compact-window` is on. Their lines print in the
@@ -658,14 +658,15 @@ session run, an installer from it: nothing prompts before such an installer
 runs (the threat model's class The pact gets loosened). From a commit that passes, check out exactly
 that id and run only `gate/install.mjs`, dry run first.
 
-**Rolling back to before `pact/review.md` existed.** The parent of the commit
-that added it deletes `pact/review.md`, which its payload lacks, and
-overwrites `CLAUDE.md` with the rules it held. Run its dry run first and check
-that it lists exactly those two.
+**Rolling back to before `pact/review.md` existed.** The install at the parent
+of the commit that added it deletes `pact/review.md`, which its payload lacks,
+and overwrites `CLAUDE.md` with the rules it held. Run its dry run first and
+check that it lists exactly those two.
 
 **Take out what the older pact doesn't know, first.** An older pact refuses a
-configuration key or value it doesn't know, and its dry run says which. Take
-these out of your configuration before you roll back:
+configuration key or value it doesn't know, and its dry run names each one:
+take out what it names, then run it again. The older the commit, the more it
+refuses. What an old enough pact refuses:
 
 - an edit to `tiers`, `sensitive`, `workflow`, `lenses`, `qualities` or
   `cost-limits`. A pact from before configuration edits existed refuses a
@@ -676,41 +677,51 @@ these out of your configuration before you roll back:
   `high`, or any setting for `scout`; a pact from before agent settings
   existed refuses an `agents` key at all, and the first to take one refuses a
   setting for any lens but `integrity-lens`;
-- the keys `skills`, `tools` and `commands`. An older install deletes what
-  its own payload lacks: the poster and the commands the record lists, and
-  `commands/scriptorium.md` and the builder kit, where a configuration that
+- the keys `skills` (in a configuration or a builder file), `tools` and
+  `commands`. An older install deletes what its own payload lacks: the poster
+  and the commands the record lists, and `commands/scriptorium.md` and the
+  builder kit. At a commit from before the builder kit, a configuration that
   lists `scriptorium` in `commands` refuses;
 - in a project's configuration, the `costLimits` key (`project-key`) and the
   `enough` and `enoughCosts` fields (`project-qualities`); in a builder file,
-  the `costLimits` key and an Enough on a quality row;
-- an Enough column in a Qualities block. An older pact doesn't refuse it: it
-  installs that text as written, and the column then names costs no part
-  defines, which an older lens reads with no one rule and no security bar.
+  the `costLimits` key and an Enough on a quality row.
+
+One thing an older pact does not refuse: an Enough column in a Qualities
+block. A pact from before the Enough column installs that text as written, and
+the column then names costs no part defines, which an older lens reads with no
+one rule and no security bar. If the commit you roll back to predates the
+column, remove it first.
 
 Three settings leave rules or files that an older installer can't remove. For
 each, turn it off and apply at the newer commit first, then take its key out
 of the configuration:
 
 - **The cleaner** (take `cleaner` out of `tools`): an older installer never
-  removes its deny rules, or its two ask rules, so they would stay in
-  `settings.json`.
+  removes its deny rules, which include the two `claude rm` rules, or its two
+  ask rules, so they would stay in `settings.json`, where they look like your
+  own. A pact from before the `claude rm` rules also drops those two from its
+  record and leaves them there.
 - **`session-stop-deny`** (set it to `false`): an older installer refuses the
-  key, even as `false`, and ignores `stopDeny`, so the eight rules stay in
-  `settings.json`; it also leaves the two `claude rm` rules there while
-  dropping them from its record.
+  key, even as `false`, and ignores `stopDeny`, so its eight rules stay in
+  `settings.json`.
 - **The auto-compact window** (set `auto-compact-window` to `0`): an older
   installer keeps your live hook entries but deletes the hook script it
   doesn't know, so every session would call a missing file. Stop if
   `settings.json` still holds a hook that calls `pact/hooks/compact-handoff.mjs`
-  after that install; the older installer's own warning about any `hooks` key
+  after that apply; the older installer's own warning about any `hooks` key
   is not that.
 
 With no configuration of yours, a pact from before the default configuration
-renders the pact's plain text again in place of the default, and refuses a
-configuration or builder file with a `skills` key. Its dry run names the last
-install's configuration digest, then says no configuration, lists `CLAUDE.md`
-under Overwrite and the default's kit files under Delete, and prints no line
-naming the `workflow` part.
+renders the pact's plain text again in place of the default. Its dry run names
+the last install's configuration digest, then says no configuration, lists
+`CLAUDE.md` under Overwrite and the default's kit files under Delete, and
+prints no line naming the `workflow` part.
+
+**Backups.** A rollback to a commit from before backups existed takes no
+backup and prunes none, so copy what you want to keep first, and delete
+`pact/backups` by hand once you are sure. An older installer never touches
+`pact/backups` unless the install record was rewritten to list a path there
+(the threat model's class The pact gets loosened).
 
 Every Node install reads and writes the same install record, so an older one
 can follow a newer one. An older commit's install also adds back to your

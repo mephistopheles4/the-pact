@@ -51,7 +51,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   installer's link, path or file handling is input validation: the change
   matches the sensitive-work list, and the skip goes to the owner. A line out
   of the list's shape refuses the run by its line number.
-- **Node.** Run the tests on Node 24, the current LTS; `mise use -g node@24`
+- **Node.** Run the tests on Node 24; `mise use -g node@24`
   gets it. The install needs it too. The Linux run in a container is in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs
   `full` on Node 24.

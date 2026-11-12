@@ -247,9 +247,8 @@ An older pact installs with that commit's own installer.
   keys it refuses, and the three settings (the cleaner, `session-stop-deny`,
   the auto-compact window) to turn off and apply before the rollback. Stop and
   ask when `settings.json` still holds a hook that calls
-  `pact/hooks/compact-handoff.mjs` after that install, or a field check fails.
-- **Backups.** A rollback to a commit from before backups existed takes no
-  backup and prunes none, so copy what you want to keep first, and delete
-  `pact/backups` by hand once you are sure. An older installer never touches
-  `pact/backups` unless the install record was rewritten to list a path there
-  (the threat model's class The pact gets loosened).
+  `pact/hooks/compact-handoff.mjs` after the apply that turned the window off
+  (the older installer's own warning about any `hooks` key is not that), or
+  when a field check above fails.
+- **Backups:** the same section says what a rollback does to
+  `pact/backups`.

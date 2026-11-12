@@ -44,7 +44,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   runner, in a Linux container): `athanor run` runs `full`, and
   `athanor run fast` runs `fast`. Run on the host only for a quick
   `changed` pick, or when athanor can't run.
-- **A hook holds you to that** (`.claude/settings.json`): while
+- **A hook holds you to that** (`.claude/settings.json`, ADR 0104): while
   `athanor --version` works, it refuses a host `fast` or `full` run. When athanor can't run, add
   `--host-fallback='<reason>'` to the same command,
   quoted so PowerShell keeps it one argument: a short reason in your own
@@ -125,10 +125,11 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   protected-set route. The rules file and
   each agent stay within their word budgets in
   `gate/tests/rule-budget.test.mjs`; raising one is a spec change.
-- **The agent-facing docs say what holds now.** How a rule came to be (issue
-  and ADR cites as history, "since", "was retired", dated trails) goes in an ADR
-  or a dated log, not in them. Each doc stays within its word budget in
-  `gate/tests/doc-budget.test.mjs`; raising one is a spec change.
+- **The agent-facing docs say what holds now:** the docs
+  `gate/tests/doc-budget.test.mjs` lists; a new one joins that list. How a
+  rule came to be (issue and ADR cites as history, "since", "was retired",
+  dated trails) goes in an ADR or a dated log, not in them. Each stays within
+  its word budget there; raising one is a spec change.
 
 ## The tracker
 

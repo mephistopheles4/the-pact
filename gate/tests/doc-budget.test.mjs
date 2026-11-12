@@ -1,7 +1,8 @@
 // The word budget of this repo's agent-facing docs (#548). Each doc stays within
 // a budget, so adding to one means cutting from it, and how a rule came to be goes
 // in an ADR or a dated log, not here. A budget is the smallest multiple of 50 above
-// the doc's size after the #548 cuts; raising one is a spec change.
+// the doc's size when it was set; raising one is a spec change. The two docs that
+// needed no cut are budgeted at their size too.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -38,7 +39,7 @@ test('each agent-facing doc stays within its word budget', () => {
 
 // #548 C4
 test('the doc budget check fails a doc one word past its budget, and passes it at the budget', () => {
-  const at = n => 'word '.repeat(n);
+  const at = n => 'word\n'.repeat(n);
   assert.deepEqual(overBudget([{ path: 'CONTEXT.md', text: at(BUDGETS['CONTEXT.md']) }]), []);
   assert.deepEqual(overBudget([{ path: 'CONTEXT.md', text: at(BUDGETS['CONTEXT.md'] + 1) }]), [`CONTEXT.md: ${BUDGETS['CONTEXT.md'] + 1} words, budget ${BUDGETS['CONTEXT.md']}`]);
 });
