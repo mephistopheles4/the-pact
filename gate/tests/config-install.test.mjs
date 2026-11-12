@@ -151,11 +151,13 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
   assert.equal(dry.code, 0, dry.out);
   const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
   const c = lines.indexOf('Configuration:');
-  assert.deepEqual(lines.slice(c + 1, c + 7), [
+  assert.deepEqual(lines.slice(c + 1, c + 8), [
     `  user file pact/config.json: sha256 ${sha256(EXAMPLE)}, no install recorded`,
     `  configuration digest: ${digestOf(EXAMPLE)}`,
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
+    // A configuration that leaves checkpoint-stops unset gets a NOTE (#554).
+    '  NOTE: checkpoint-stops is unset: checkpoints wait; set it false to make them events',
     '  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.',
     // The pact commands' block follows the configuration's (#203).
     'Commands:',

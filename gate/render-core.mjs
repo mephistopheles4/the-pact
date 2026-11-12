@@ -184,7 +184,7 @@ import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, PACT_TOOLS, Refused, Report, SEGME
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, a spec
 // change like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'tool-cleaner', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'checkpoint-stops', 'tool-poster', 'tool-cleaner', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 // The open marks an edit may target: every open mark but the notice slot, a
 // setting's part and a tool's part.
 const EDITABLE = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
@@ -296,6 +296,20 @@ const SESSION_TEMPLATE = n => [
 ];
 const SESSION_PROJECT_LINE = n =>
   `- **Session usage pause.** In this project, wait for my go-ahead when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+// The checkpoint-stops switch's part (#554): the line that keeps each checkpoint
+// as a stop. On, the part holds it; off, the part renders empty. The source
+// holds it at the default, on.
+const CHECKPOINTS_TEMPLATE = on => (on
+  ? [
+      '- **Checkpoints wait.** Each checkpoint waits for my word in chat, except under',
+      '  a standing goal, and under a free hand for a lens offer, the sensitive route',
+      '  or an intent or design question; a pending read-back waits even then.',
+    ]
+  : []);
+// Its project line: a project may set it on whatever the user's value is, and
+// the line holds whatever the user later sets. A project may never set it off.
+const CHECKPOINTS_PROJECT_LINE = () =>
+  '- **Checkpoints wait.** In this project, each checkpoint waits for my word in chat, except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question; a pending read-back waits even then.';
 // `def: null` marks a setting with no default: its part is empty in the
 // source, and a project may set it whatever the user's file says.
 const SETTINGS = new Map([
@@ -305,6 +319,8 @@ const SETTINGS = new Map([
   ['auto-compact-window', Object.freeze({ mark: null, min: 100000, max: 1000000, step: 10000, off: 0, def: 400000, template: null, tighter: null, projectLine: null })],
   // #439: the stop switch, `true` or `false`, off by default. It has no part in the rules file (mark: null), so only the notice line changes. A project may not set it.
   ['session-stop-deny', Object.freeze({ kind: 'switch', mark: null, def: false, template: null, tighter: null, projectLine: null })],
+  // #554: checkpoints wait unless a configuration turns this off. `tighter: 'true'` means a project may set it true over any user value, and never false.
+  ['checkpoint-stops', Object.freeze({ kind: 'switch', mark: 'checkpoint-stops', def: true, template: CHECKPOINTS_TEMPLATE, tighter: 'true', projectLine: CHECKPOINTS_PROJECT_LINE })],
 ]);
 
 /** Whether `v` is a value the setting takes: `true` or `false` for a switch; else a whole number in its range (on its step, if it has one), or its off value. */
@@ -1166,7 +1182,8 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tool
     const now = lines.slice(p.begin + 1, p.end);
     const def = spec.def === null ? [] : toLines(spec.template(spec.def));
     if (now.length !== def.length || now.some((l, i) => !l.equals(def[i]))) return fail(spec.mark, 'the template at its default no longer matches the source');
-    swaps.push({ ...p, with: value === spec.off ? [] : toLines(spec.template(value)) });
+    // A switch's template reads its own value: the lines when on, none when off. A number is off at its off value.
+    swaps.push({ ...p, with: spec.kind === 'switch' ? toLines(spec.template(value)) : value === spec.off ? [] : toLines(spec.template(value)) });
   }
   for (const e of edits) {
     const p = pairs.get(e.mark);
@@ -1322,6 +1339,13 @@ function checkProject(buf, effective, report) {
     if (!settingOk(v, spec)) {
       fail('project-value', settingRule(name, spec));
       ok = false;
+    } else if (spec.tighter === 'true') {
+      // A switch tighter when on: any user value accepts a project true, and a project false never is.
+      if (v === true) values.push([name, v]);
+      else {
+        fail('project-looser', `${name} false is never tighter than the user's value`);
+        ok = false;
+      }
     } else if (spec.tighter !== 'lower') {
       fail('project-direction', `${name} has no tightening direction, so a project may not set it`);
       ok = false;

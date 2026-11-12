@@ -95,9 +95,8 @@ how every session in every repo behaves. So:
 - **The session stop switch.** `session-stop-deny` is
   `true` or `false`, `false` when unset, and no project may set it (a project
   configuration that names it is refused). It has no part in the rules file;
-  only the notice line names it, `session-stop-deny on` or `off`, and the
-  renderer prints `VALUE session-stop-deny on` or `off`, the only two words
-  the install's parser takes for it. On, the install adds `STOP_DENY`'s eight
+  the notice names it, and the renderer prints `VALUE session-stop-deny on` or
+  `off`, the only two words the install's parser takes. On, the install adds `STOP_DENY`'s eight
   rules (`claude stop *`, `claude kill *`, `claude daemon stop *` and
   `claude respawn *`, each as a `Bash(...)` and a `PowerShell(...)` rule) to
   `permissions.deny` and records the ones it added under `stopDeny`; off, it
@@ -124,8 +123,11 @@ how every session in every repo behaves. So:
   harmless `claude rm not-a-real-id` is refused by permission. Check only
   the commands whose switch is on. *On a failure:* if Brigade's
   stop is refused, set `session-stop-deny` to `false` and apply on the owner's
-  word, and open an issue with what was seen; if a rule did not refuse, open an
-  issue.
+  word; open an issue with what was seen, or if a rule did not refuse.
+- **The checkpoints switch.** `checkpoint-stops` is `true` or `false`, `true`
+  when unset. Its part holds the "Checkpoints wait" line; `false` empties it.
+  A project may set `true` over any value, never `false`. The dry run's NOTE
+  names an unset value and the default configuration, which sets `false`.
 - **The auto-compact field checks,** run by the owner in the first sessions after an
   install; a session reports them and does not run them for the owner.
   *Compaction point:* on Windows CLI, a session compacts near 365000 to 370000
@@ -190,8 +192,7 @@ how every session in every repo behaves. So:
   add `--review-folder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
   no-configuration render) there. The folder must be new or empty, and outside
-  the Claude home folder and any `.claude` folder. Without the option, a dry
-  run changes nothing on disk.
+  the Claude home folder and any `.claude` folder.
 - **Project install.** To make the pact stricter in one repo, add
   `--project-folder <full path>`. It reads the project's
   `.claude/pact-config.json`, which may only set values strictly tighter than
@@ -226,10 +227,9 @@ how every session in every repo behaves. So:
   you do. When the wrapper changes, the owner pastes the merged
   `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup
   field again and checks the first session's setup log for the generator's
-  `pact cloud copy <marker>` line; the generator prints that reminder.
+  `pact cloud copy <marker>` line.
   Read every change to `cloud-sessions/` and to that test closely: the
-  script is published, runs as root, and carries the pact's rules and a
-  settings overlay.
+  script is published and runs as root.
 
 ## Rolling back
 

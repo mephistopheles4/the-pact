@@ -928,7 +928,9 @@ test('stub page: "The pact" shows the pact\'s text read-only, each file byte for
   for (const mark of PART_MARKS) assert.match(rules.split(`\n${body(mark)}\n[End of the editable part.]`)[0].split('\n').at(-1), /^\[Editable /, mark);
   assert.ok(rules.includes(`[The percentage is yours to set or turn off, under Settings:]\n${body('usage-pause')}`));
   // The rules that render only when something is on stand at their mark, each a bullet under its label.
-  const beforePoster = src.split('<!-- pact:begin tool-poster -->')[0].trimEnd().split('\n').at(-1);
+  // #554: the checkpoint-stops part, between the record bullet and the poster, shows under its own label, whole.
+  assert.ok(rules.includes(`[Checkpoints wait unless you turn it off, under Settings:]\n${body('checkpoint-stops')}\n`));
+  const beforePoster = src.split('<!-- pact:begin tool-poster -->')[0].split('\n').filter(l => l.trim() && !l.includes('<!-- pact:')).at(-1);
   assert.match(rules, new RegExp(`${beforePoster.replace(/[.*+?^$()[\]{}|\\/]/g, '\\$&')}\\n\\[Only while the poster is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[Only while the cleaner is on[^\\n]*\\n- \\*\\*`));
   assert.match(rules, /\[Only when you set this line, under Settings:\]\n- \*\*/);
   P.button(P.ids.actions, 'Export').click();
@@ -1552,7 +1554,7 @@ test('a shared file opens as a preset only when the page can use it, and says wh
   assert.match(L.presetFromText('{"schema": 1, "presets": []}').refuse, /keys a builder file doesn't: presets/);
   assert.match(L.presetFromText('{"schema": 1, "tiers": []}').refuse, /tiers: tiers must list 1 to 6 tiers/);
   assert.match(L.presetFromText('{"schema": 1, "agentFiles": {"Bad": "x"}}').refuse, /^agentFiles entry 1 is not an agent name with a file$/);
-  assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, models, agent files or skill sources/);
+  assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, setting, models, agent files or skill sources/);
   // Tiers without a workflow meet the pact's workflow: its offers take the tiers that exist.
   const r = L.presetFromText(JSON.stringify({ schema: 1, title: 'Two tiers', tiers: [{ id: 'light', name: 'Light', fits: 'Small', plan: 'none', build: 'Sonnet, medium' }, { id: 'full', name: 'Full', fits: 'The rest', plan: 'Opus, high', build: 'Sonnet, medium' }] }));
   assert.equal(r.refuse, undefined);
@@ -1889,4 +1891,152 @@ test('stub page: the Weekly limit chip turns it Off (inputs disabled, summary Of
   chips()[1].click();
   assert.equal(chips()[1].text, 'On');
   assert.ok(inputs().length === 2 && inputs().every(n => !n.disabled && n.value === '75'), 'On restores 75');
+});
+
+// ------------------------------------------------------------ checkpoint-stops (#554, T1)
+
+// C5: the page's state, its save, and its check for the switch.
+test('checkpoint-stops starts on, saves nothing at its default and false when off, in the settings order, and refuses a non-boolean', () => {
+  assert.deepEqual(L.PACT.checkpointStops, { name: 'checkpoint-stops', def: true });
+  const s = L.initialState();
+  assert.equal(s.checkpointStops, true);
+  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined, 'the default is not written');
+  s.checkpointStops = false;
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'checkpoint-stops': false });
+  s.usage = 90;
+  s.compact = 600000;
+  assert.deepEqual(Object.keys(JSON.parse(L.buildFiles(s)[0].text).settings), ['usage-pause', 'auto-compact-window', 'checkpoint-stops']);
+  s.checkpointStops = true;
+  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings['checkpoint-stops'], undefined, 'on again writes nothing');
+  assert.deepEqual(L.problems(s), []);
+  for (const bad of ['false', 0, 1, null, undefined, [], {}]) {
+    s.checkpointStops = bad;
+    assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'checkpoint-stops'), String(bad));
+  }
+});
+
+// C5: the presets' own files: levels 1 and 2 leave the switch out, the others set it false.
+test('the level-3 presets and ultra-code carry checkpoint-stops false; the level-1 and level-2 presets carry none; so does the default configuration, as false', () => {
+  const dir = join(REPO, 'builder', 'presets');
+  const settingsOf = name => JSON.parse(readFileSync(join(dir, name), 'utf8')).settings;
+  for (const name of ['level-3-full.json', 'level-3-matt-pocock.json', 'level-3-superpowers.json', 'ultra-code.json']) assert.deepEqual(settingsOf(name), { 'checkpoint-stops': false }, name);
+  for (const name of ['level-1-beginner.json', 'level-2-intermediate.json']) assert.equal(settingsOf(name), undefined, name);
+  assert.deepEqual(JSON.parse(readFileSync(join(REPO, 'builder', 'default-config', 'config.json'), 'utf8')).settings, { 'checkpoint-stops': false });
+  // The page carries them as they stand.
+  const carried = Object.fromEntries(L.PACT.presets.map(p => [p.id, p.settings]));
+  assert.deepEqual(carried, {
+    'level-1-beginner': undefined,
+    'level-2-intermediate': undefined,
+    'level-3-full': { 'checkpoint-stops': false },
+    'level-3-matt-pocock': { 'checkpoint-stops': false },
+    'level-3-superpowers': { 'checkpoint-stops': false },
+    'ultra-code': { 'checkpoint-stops': false },
+  });
+  assert.deepEqual(L.PACT.presets, shippedPresets(REPO, pactData(REPO)));
+});
+
+// C5: loading a preset sets the switch; one that gives none leaves it.
+test('taking a shipped preset sets the switch: level 1 leaves it on, level 3 turns it off, an unticked setting changes nothing, and a save carries it', () => {
+  const take = (id, drop = []) => {
+    const s = L.initialState();
+    const p = L.PACT.presets.find(x => x.id === id);
+    L.takePreset(s, p, L.presetPicks(p).filter(k => !drop.includes(k)));
+    return s;
+  };
+  assert.equal(take('level-1-beginner').checkpointStops, true);
+  const three = take('level-3-full');
+  assert.equal(three.checkpointStops, false);
+  assert.deepEqual(JSON.parse(L.buildFiles(three)[0].text).settings, { 'checkpoint-stops': false });
+  assert.equal(take('level-3-full', ['setting:checkpoint-stops']).checkpointStops, true);
+  assert.deepEqual(L.presetPicks(L.PACT.presets.find(x => x.id === 'level-3-full')).filter(k => k.startsWith('setting:')), ['setting:checkpoint-stops']);
+});
+
+// C5: a shared file's or a person's own preset's setting starts unticked, as an agent file does: a file someone handed them could turn checkpoints into events.
+test('only a shipped preset\'s checkpoint-stops starts ticked; a shared file\'s and an own preset\'s starts unticked, and the note says so', () => {
+  const doc = JSON.stringify({ schema: 1, tiers: ONE_TIER, settings: { 'checkpoint-stops': false } });
+  const got = inPage(PAGE, `(() => {
+    const shared = presetFromText(${JSON.stringify(doc)}).preset;
+    PACT.ownPresets.push({ id: 'mine', title: 'Mine', parts: { tiers: PACT.presets[0].parts.tiers }, settings: { 'checkpoint-stops': false } });
+    const level3 = PACT.presets.find(p => p.id === 'level-3-full');
+    return { shipped: startPicks(level3), shared: startPicks(shared), own: startPicks(PACT.ownPresets[0]), sharedNote: takeNote(shared), ownNote: takeNote(PACT.ownPresets[0]), shippedNote: takeNote(level3) };
+  })()`);
+  assert.ok(got.shipped.includes('setting:checkpoint-stops'));
+  assert.ok(!got.shared.includes('setting:checkpoint-stops') && got.shared.includes('part:tiers'));
+  assert.ok(!got.own.includes('setting:checkpoint-stops') && got.own.includes('part:tiers'));
+  assert.match(got.sharedNote, /Its checkpoint-stops setting starts unticked too\./);
+  assert.match(got.ownNote, /Its checkpoint-stops setting starts unticked too\./);
+  assert.equal(got.shippedNote, '');
+});
+
+// C5, bad cases: the page checks a shared file's settings as the build does.
+test('bad case: a shared file whose settings hold another key, a non-boolean or no object is refused by the page; a settings-only file opens', () => {
+  assert.match(L.presetFromText('{"schema": 1, "settings": {"usage-pause": 50}}').refuse, /^settings must be an object holding only checkpoint-stops$/);
+  assert.match(L.presetFromText('{"schema": 1, "settings": {"checkpoint-stops": false, "session-stop-deny": true}}').refuse, /^settings must be an object holding only checkpoint-stops$/);
+  for (const bad of ['[]', 'null', '"off"', '1']) assert.match(L.presetFromText(`{"schema": 1, "settings": ${bad}}`).refuse, /^settings must be an object holding only checkpoint-stops$/, bad);
+  for (const bad of ['"false"', '0', 'null', '[]']) assert.match(L.presetFromText(`{"schema": 1, "settings": {"checkpoint-stops": ${bad}}}`).refuse, /^settings checkpoint-stops must be true or false$/, bad);
+  assert.match(L.presetFromText('{"schema": 1, "settings": {}}').refuse, /gives no part, setting, models, agent files or skill sources/);
+  const r = L.presetFromText('{"schema": 1, "settings": {"checkpoint-stops": false}}');
+  assert.equal(r.refuse, undefined);
+  assert.deepEqual(r.preset.settings, { 'checkpoint-stops': false });
+  assert.deepEqual(L.presetPicks(r.preset), ['setting:checkpoint-stops']);
+});
+
+// C5: the builder's own refusals, on a builder file and so on a preset.
+test('bad case: a builder file whose settings hold any key but checkpoint-stops, or a non-boolean, is refused; true and false pass', t => {
+  const refusals = settings => checkBuilder(REPO, builderFile(t, { schema: 1, settings })).refusals;
+  assert.deepEqual(refusals({ 'checkpoint-stops': false }), []);
+  assert.deepEqual(refusals({ 'checkpoint-stops': true }), []);
+  assert.deepEqual(refusals({}), []);
+  for (const bad of [{ 'usage-pause': 50 }, { 'session-stop-deny': true }, { 'checkpoint-stops': false, 'usage-pause': 50 }, { 'auto-compact-window': 0 }, []]) assert.deepEqual(refusals(bad), ['settings must be an object holding only checkpoint-stops'], JSON.stringify(bad));
+  for (const bad of ['false', 0, 1, null, [], {}]) assert.deepEqual(refusals({ 'checkpoint-stops': bad }), ['settings checkpoint-stops must be true or false'], JSON.stringify(bad));
+  assert.deepEqual(checkBuilder(REPO, builderFile(t, '{"schema": 1, "settings": "off"}')).refusals, ['settings must be an object holding only checkpoint-stops']);
+  // A preset in the presets folder is a builder file: a shipped one that held another key would stop the build.
+  const dir = tempDir(t, 'pact-presets-');
+  writeFileSync(join(dir, 'bad.json'), JSON.stringify({ schema: 1, tiers: ONE_TIER, settings: { 'usage-pause': 1 } }));
+  assert.throws(() => shippedPresets(REPO, pactData(REPO), dir), /the preset bad\.json is refused: settings must be an object holding only checkpoint-stops/);
+});
+
+// C5: shippedPresets and personalPresets carry the settings, and a person's preset that gives only a setting is listed.
+test('shippedPresets and personalPresets carry settings, and a personal preset that gives only the setting is listed rather than left out', t => {
+  const dir = tempDir(t, 'pact-presets-');
+  writeFileSync(join(dir, 'on.json'), JSON.stringify({ schema: 1, title: 'On', tiers: ONE_TIER, settings: { 'checkpoint-stops': true } }));
+  writeFileSync(join(dir, 'only.json'), JSON.stringify({ schema: 1, title: 'Only', settings: { 'checkpoint-stops': false } }));
+  writeFileSync(join(dir, 'empty.json'), JSON.stringify({ schema: 1, title: 'Empty', settings: {} }));
+  writeFileSync(join(dir, 'plain.json'), JSON.stringify({ schema: 1, title: 'Plain', tiers: ONE_TIER }));
+  const shipped = shippedPresets(REPO, pactData(REPO), dir);
+  assert.deepEqual(shipped.map(p => [p.id, p.settings]), [['empty', undefined], ['on', { 'checkpoint-stops': true }], ['only', { 'checkpoint-stops': false }], ['plain', undefined]]);
+  const own = personalPresets(REPO, pactData(REPO), dir);
+  assert.deepEqual(own.presets.map(p => [p.id, p.settings]), [['on', { 'checkpoint-stops': true }], ['only', { 'checkpoint-stops': false }], ['plain', undefined]]);
+  assert.deepEqual(own.findings, ['presets/empty.json: left out: it gives no part, setting, models, agent files or skill sources']);
+});
+
+// C5, #554: the switch is a checkbox in Settings, and the page shows and saves it.
+test('stub page: Settings shows the checkpoint-stops box in a label; the page starts at the default configuration, so it starts unticked; ticking it drops the setting from the save', () => {
+  const P = bootPage();
+  openSettings(P);
+  const box = () => P.find(P.ids.settings, n => n.tag === 'input' && n.attrs['aria-label'] === 'Checkpoints wait')[0];
+  assert.ok(box(), 'the checkbox is there');
+  assert.ok(P.find(P.ids.settings, n => n.tag === 'label').some(l => P.find(l, n => n === box()).length), 'it sits in a label');
+  assert.ok(P.find(P.ids.settings, n => n.tag === 'code').some(n => n.textContent === 'checkpoint-stops'));
+  assert.equal(box().checked, false, 'the landing preset, level 3 full, turned it off');
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /"checkpoint-stops": false/);
+  box().checked = true;
+  box().listeners.change.forEach(f => f({}));
+  P.button(P.ids.actions, 'Export').click();
+  assert.doesNotMatch(P.ids.output.text, /checkpoint-stops/);
+  assert.equal(box().checked, true);
+});
+
+// The rules view: a label, as for the usage part.
+test('the rules view labels the checkpoint-stops part, and the page data reads the switch from the renderer, refusing a renderer that declares it another way', t => {
+  assert.ok(L.PACT.pactText.rules.includes('[Checkpoints wait unless you turn it off, under Settings:]\n- **Checkpoints wait.**'), 'the part stands under its label');
+  assert.deepEqual(pactData(REPO).checkpointStops, { name: 'checkpoint-stops', def: true });
+  const root = buildRoot(t, r => {
+    const p = join(r, 'gate', 'render-core.mjs');
+    const was = readFileSync(p, 'utf8');
+    assert.ok(was.includes("mark: 'checkpoint-stops', def: true,"));
+    writeFileSync(p, was.replace("mark: 'checkpoint-stops', def: true,", "mark: 'checkpoint-stops', default: true,"));
+  });
+  assert.throws(() => pactData(root), /gate\/render-core\.mjs no longer declares the checkpoint-stops setting in the expected form/);
 });

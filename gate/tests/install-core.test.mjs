@@ -311,6 +311,13 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     { id: 'value-stop-capitals', plant: rep('RESULT', 'VALUE session-stop-deny ON\nRESULT'), fails: ['render-unknown-line'], why: 'on in capitals' },
     { id: 'value-stop-two-words', plant: rep('RESULT', 'VALUE session-stop-deny on off\nRESULT'), fails: ['render-unknown-line'], why: 'two words after the setting' },
     { id: 'value-stop-twice', plant: rep('RESULT', 'VALUE session-stop-deny on\nVALUE session-stop-deny off\nRESULT'), fails: ['render-value-twice'], why: 'the stop switch twice' },
+    // #554 C4: the home parser takes checkpoint-stops as on or off, and nothing else.
+    { id: 'value-checkpoint-yes', plant: rep('RESULT', 'VALUE checkpoint-stops yes\nRESULT'), fails: ['render-unknown-line'], why: 'a word the checkpoint switch does not take' },
+    { id: 'value-checkpoint-raw-false', plant: rep('RESULT', 'VALUE checkpoint-stops false\nRESULT'), fails: ['render-unknown-line'], why: 'the raw false the renderer must not print' },
+    { id: 'value-checkpoint-capitals', plant: rep('RESULT', 'VALUE checkpoint-stops OFF\nRESULT'), fails: ['render-unknown-line'], why: 'off in capitals' },
+    { id: 'value-checkpoint-two-words', plant: rep('RESULT', 'VALUE checkpoint-stops off on\nRESULT'), fails: ['render-unknown-line'], why: 'two words after the setting' },
+    { id: 'value-checkpoint-number', plant: rep('RESULT', 'VALUE checkpoint-stops 1\nRESULT'), fails: ['render-unknown-line'], why: 'a number for a switch' },
+    { id: 'value-checkpoint-twice', plant: rep('RESULT', 'VALUE checkpoint-stops on\nVALUE checkpoint-stops off\nRESULT'), fails: ['render-value-twice'], why: 'the checkpoint switch twice' },
     { id: 'value-off-capitals', plant: rep('usage-pause 90', 'usage-pause OFF'), fails: ['render-unknown-line'], why: 'off in capitals' },
     { id: 'value-off-twice-on-line', plant: rep('usage-pause 90', 'usage-pause off off'), fails: ['render-unknown-line'], why: 'two words after the setting' },
     { id: 'value-raw-false', plant: rep('usage-pause 90', 'usage-pause false'), fails: ['render-unknown-line'], why: 'the raw false the renderer must not print' },
@@ -427,6 +434,50 @@ test('the renderer lines: the stop switch is on only for VALUE session-stop-deny
   assert.equal(core.stopSwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE session-stop-deny off\nRESULT'))), false);
   assert.equal(core.stopSwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE session-stop-deny on\nRESULT'))), true);
   assert.throws(() => core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE session-stop-deny on').split('\n'), sha256), e => e.rule === 'project-render-unknown-line');
+});
+
+// #554 C4: the home and project parsers read VALUE checkpoint-stops on and off, which no other setting's line is mistaken for.
+test('the renderer lines: VALUE checkpoint-stops on and off parse on a home and a project render, as the words the renderer prints', () => {
+  const home = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
+  for (const word of ['on', 'off']) {
+    assert.equal(home(renderBase().in.replace('RESULT', `VALUE checkpoint-stops ${word}\nRESULT`)).values.get('checkpoint-stops'), word);
+    const proj = core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', `VALUE checkpoint-stops ${word}\nRESULT`).split('\n'), sha256);
+    assert.equal(proj.values.get('checkpoint-stops'), word);
+    assert.equal(proj.values.get('usage-pause'), '60');
+  }
+  // A VALUE line for no setting the install knows is still refused, beside a good checkpoint line.
+  assert.throws(() => home(renderBase().in.replace('RESULT', 'VALUE checkpoint-stops on\nVALUE other-thing on\nRESULT')), e => e.rule === 'render-unknown-line');
+});
+
+test('the project render lines: a bad checkpoint-stops line is refused, and a twice-reported one too', () => {
+  const run = extra => core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', `${extra}\nRESULT`).split('\n'), sha256);
+  for (const bad of ['VALUE checkpoint-stops yes', 'VALUE checkpoint-stops true', 'VALUE checkpoint-stops ON', 'VALUE checkpoint-stops 60', 'VALUE checkpoint-stops on off']) assert.throws(() => run(bad), e => e.rule === 'project-render-unknown-line', bad);
+  assert.throws(() => run('VALUE checkpoint-stops on\nVALUE checkpoint-stops on'), e => e.rule === 'project-render-value-twice');
+});
+
+// #554 C4: the dry run's NOTE, for a user configuration that leaves checkpoint-stops unset and for the default that turns it off.
+test('the configuration block: a user configuration with checkpoint-stops unset gets the NOTE, a set one none, and the default that sets it off gets its own', () => {
+  const UNSET = '  NOTE: checkpoint-stops is unset: checkpoints wait; set it false to make them events';
+  const DEFAULT = '  NOTE: the default configuration makes checkpoints events; set checkpoint-stops true in your configuration to make them wait';
+  const parse = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
+  const notes = b => b.filter(l => l.startsWith('  NOTE:'));
+  const withValue = (text, word) => text.replace('RESULT', `VALUE checkpoint-stops ${word}\nRESULT`);
+  const unset = parse(renderBase().in);
+  assert.deepEqual(notes(core.configBlock(unset, H('a'), null)), [UNSET]);
+  for (const word of ['on', 'off']) assert.deepEqual(notes(core.configBlock(parse(withValue(renderBase().in, word)), H('a'), null)), [], word);
+  const asDefault = text => text.replace(`CONFIG user ${U}`, `CONFIG default ${U}`).replace(`DIGEST ${D}`, `DIGEST ${digestOf(`default ${U}\nblock a.md ${H('e')}\n`)}`);
+  assert.deepEqual(notes(core.configBlock(parse(asDefault(withValue(renderBase().in, 'off'))), H('a'), null)), [DEFAULT]);
+  // A default that leaves it unset, or sets it on, is no default that makes checkpoints events.
+  assert.deepEqual(notes(core.configBlock(parse(asDefault(renderBase().in)), H('a'), null)), []);
+  assert.deepEqual(notes(core.configBlock(parse(asDefault(withValue(renderBase().in, 'on'))), H('a'), null)), []);
+  // No configuration at all renders the source, which holds the line: no note.
+  assert.deepEqual(notes(core.configBlock(parse(noneBase().in), H('a'), null)), []);
+});
+
+test('the project block: a project checkpoint-stops names what it does, not the lower-of rule the numbers follow', () => {
+  const p = core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', 'VALUE checkpoint-stops on\nRESULT').split('\n'), sha256);
+  const warns = core.projectBlock({ kind: 'new' }, p).filter(l => l.startsWith('  WARN:'));
+  assert.deepEqual(warns, ["  WARN: the project configuration sets usage-pause to 60; the rules file reads it as the lower of that and the user's value.", "  WARN: the project configuration sets checkpoint-stops to on; checkpoints wait in this project whatever the user's value is."]);
 });
 
 test('the renderer lines: the parse gives the hashes, the configuration, the edits, the values and the agent settings', () => {

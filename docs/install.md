@@ -3,8 +3,7 @@
 This how-to installs the pact's rules file, review procedure, agents and
 `/scriptorium` command, with the builder kit it runs and the auto-compact hook,
 into your Claude Code
-home folder (`~/.claude`), and merges its settings into yours. It takes about
-five minutes.
+home folder (`~/.claude`), and merges its settings into yours.
 
 Read the README's [Who it's for](../README.md#who-its-for) first. The rules
 are written for one person's setup, and installing them changes how every
@@ -532,8 +531,8 @@ To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default; `false`
 turns it off), and `usage-pause-session`, the 5-hour session line, unset
-by default. The builder's Settings dialog holds both. A third, `session-stop-deny`, and a
-fourth, `auto-compact-window`, are described in the next two sections. The canvas edits the workflow, Settings
+by default. The builder's Settings dialog holds both. Three more, `session-stop-deny`,
+`auto-compact-window` and `checkpoint-stops`, have a section each. The canvas edits the workflow, Settings
 the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
 session line set. For a builder of your own, type `/scriptorium` in any
@@ -557,10 +556,10 @@ notice line names it, as `session-stop-deny on` or `off`.
   are both recorded and one of those eight, listed as `- permissions.deny`; an
   identical rule you wrote yourself stays. The cloud copy adds none of them.
 - **Who turns it on.** Turn it on if you run Brigade (the session-manager
-  mod), so that a session can't stop another session with a raw
-  `claude stop` and stops go through Brigade's own tool.
+  mod), so that stops go through Brigade's own tool, not a raw
+  `claude stop` from a session.
 - **Why a switch.** The pact can't tell whether Brigade is installed, and the
-  rules block a raw stop, kill, supervisor stop or respawn that a session runs. It is off unless you
+  rules block a raw stop, kill, supervisor stop or respawn. It is off unless you
   turn it on. The cleaner's `claude rm` rules are separate: they come with the
   cleaner.
 - **A speed bump, not a gate.** Each rule is a suffix only: the command, then
@@ -581,6 +580,14 @@ notice line names it, as `session-stop-deny on` or `off`.
   it, even as `false`, and ignores `stopDeny`, so the eight rules would stay in
   `settings.json` looking like your own.
 
+## The checkpoints setting
+
+`checkpoint-stops` in `~/.claude/pact/config.json` is `true` or `false`, `true`
+when unset; the builder's Settings dialog shows it. `true` keeps the rules
+file's "Checkpoints wait" line, and `false` takes it out. A configuration
+that leaves it unset waits, as the dry run's NOTE says; the pact's default
+configuration sets `false`. A project may set `true`, never `false`.
+
 ## The auto-compact window and its hooks
 
 Every install, and every cloud session, sets Claude Code's auto-compact
@@ -598,7 +605,7 @@ installer's own floor) and `node` on the PATH.
   and five hook entries in `settings.json` that call it with `node`: on
   `PostToolUse`, `UserPromptSubmit`, `Stop`, `PreCompact` and `SessionStart`
   (matcher `compact`). Your own hooks, and other tools' hooks, stay as they
-  are, in the order they were: a pact entry is a hook exactly like the one the
+  were: a pact entry is a hook exactly like the one the
   overlay carries (its window aside) that calls the installed script. It is
   updated in place, and only it: a command of yours in the same entry stays. A
   missing one is added after the event's other entries, and a second copy is
@@ -615,7 +622,7 @@ installer's own floor) and `node` on the PATH.
   reads. The `--autocompact` flag overrides the setting and the hook can't see
   it. The nudge line assumes the window you set: a model whose own context cap
   is lower, or an override the hook can't see, can compact a session before
-  the nudge comes (every model has a 1M window today).
+  the nudge comes.
 - **Off.** `0` removes the pact's hook entries (and an event or `hooks` they
   leave empty), the script, and an `autoCompactWindow` the pact set; a value
   you set by hand stays, with a note.
@@ -671,8 +678,9 @@ refuses. What an old enough pact refuses:
 - an edit to `tiers`, `sensitive`, `workflow`, `lenses`, `qualities` or
   `cost-limits`. A pact from before configuration edits existed refuses a
   file that has any, `moves` included, so empty the edit list for it;
-- `usage-pause-session`, and `"usage-pause": false` (set a number, or take the
-  key out);
+- `usage-pause-session`, `checkpoint-stops` (in a configuration, a project's
+  or a builder file's `settings`), and `"usage-pause": false` (set a number,
+  or take the key out);
 - an agent setting: a model other than `opus` or `sonnet`, an effort above
   `high`, or any setting for `scout`; a pact from before agent settings
   existed refuses an `agents` key at all, and the first to take one refuses a

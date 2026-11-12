@@ -32,7 +32,9 @@
 //       written or edited on the page, optional (#262 addendum 4),
 //     "skills": [ { "repo", "commit", "paths" } ]: the skill sources the cloud
 //       setup fetches, each repo at a full commit, optional (#183 T4a); a save
-//       writes them into config.json as they stand }
+//       writes them into config.json as they stand,
+//     "settings": { "checkpoint-stops": <true or false> }: the one setting a builder
+//       file may carry, optional (#554); a preset that sets it false turns checkpoints into events }
 // A builder file is also a preset: a saved result, shipped in builder/presets/
 // or shared, that the page loads after the person ticks what to take.
 // Skills bind to the workflow's stages as skill nodes, never to a move: the
@@ -195,6 +197,13 @@ function stopSwitchFrom(renderSrc) {
   return { name: m[1], def: m[2] === 'true' };
 }
 
+/** The checkpoint-stops switch's name and default (#554), read from gate/render-core.mjs's text. */
+function checkpointStopsFrom(renderSrc) {
+  const m = /\['(checkpoint-stops)', Object\.freeze\(\{ kind: 'switch', mark: 'checkpoint-stops', def: (true|false),/.exec(renderSrc);
+  if (!m) fail('gate/render-core.mjs no longer declares the checkpoint-stops setting in the expected form');
+  return { name: m[1], def: m[2] === 'true' };
+}
+
 /** The source's marked parts (name -> dedented text) and its sequence of lead-ins and marks. */
 function parseSource(src) {
   const parts = new Map();
@@ -245,6 +254,7 @@ function rulesText(src, renderSrc) {
     'tool-poster': ['[Only while the poster is on, under Settings:]', ...toolLines('tool-poster')],
     'tool-cleaner': ['[Only while the cleaner is on, under Settings:]', ...toolLines('tool-cleaner')],
     'usage-pause': ['[The percentage is yours to set or turn off, under Settings:]'],
+    'checkpoint-stops': ['[Checkpoints wait unless you turn it off, under Settings:]'],
     'usage-pause-session': ['[Only when you set this line, under Settings:]', ...templateLines(renderSrc, /const SESSION_TEMPLATE = n => \[([\s\S]*?)\];/, 'SESSION_TEMPLATE')],
   };
   for (const m of PART_MARKS) before[m] = [m === 'workflow' ? '[Editable on the canvas, apart from its fixed sentences. The page starts from the default configuration, which adds a Skills column:]' : '[Editable on this page, apart from its fixed sentences:]'];
@@ -330,7 +340,8 @@ export function pactData(root) {
   const session = sessionFrom(renderSrc);
   const compact = compactFrom(renderSrc);
   const stopSwitch = stopSwitchFrom(renderSrc);
-  return { always, editable, setting, session, compact, stopSwitch, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
+  const checkpointStops = checkpointStopsFrom(renderSrc);
+  return { always, editable, setting, session, compact, stopSwitch, checkpointStops, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
 }
 
 // ------------------------------------------------------------ the builder file
@@ -368,8 +379,8 @@ const keysOnly = (o, allowed) => Object.keys(o).every(k => allowed.includes(k));
 
 /**
  * Read and check a builder file against the pact data `pact`. Returns
- * { builder, refusals, findings, givenParts }: `givenParts` is the part keys
- * the file holds, beside `builder`, never inside it; `builder` is the page's half of the data
+ * { builder, refusals, findings, givenParts, givenSettings }: `givenParts` is the part keys
+ * the file holds and `givenSettings` the settings it holds (or null), each beside `builder`, never inside it; `builder` is the page's half of the data
  * when there are no refusals, else null. Messages name ids and fields, never
  * text taken from the file beyond an id that passed its pattern.
  */
@@ -404,7 +415,7 @@ export function loadBuilder(file, pact) {
   if (holdsEscapedChar(doc)) return { builder: null, refusals: ['the builder file holds an escaped invisible, direction-changing or control character in a key or string'], findings };
   const givenParts = PART_KEYS.filter(k => Object.hasOwn(doc, k));
   if (Object.hasOwn(doc, 'presets') || Object.hasOwn(doc, 'workflows')) refuse('presets and workflows left the builder (#262): bind a skill to a stage as a skill node in workflowGraph instead');
-  else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models', 'agentFiles', 'skills'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')}, models, agentFiles or skills; the pact's own text is never part of a builder file`);
+  else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models', 'agentFiles', 'skills', 'settings'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')}, models, agentFiles, skills or settings; the pact's own text is never part of a builder file`);
   if (doc.schema !== 1) refuse('schema must be 1');
   if (Object.hasOwn(doc, 'title') && (typeof doc.title !== 'string' || !LINE_RE.test(doc.title) || doc.title.length > 80)) refuse('title must be one line of at most 80 characters');
 
@@ -453,6 +464,16 @@ export function loadBuilder(file, pact) {
   const skills = Object.hasOwn(doc, 'skills') ? doc.skills : null;
   if (skills !== null) for (const p of skillsProblems(skills)) refusals.push(p);
 
+  // The settings (#554): the one the page carries, checkpoint-stops, as a boolean; any other key or value is refused.
+  let givenSettings = null;
+  if (Object.hasOwn(doc, 'settings')) {
+    if (!isObject(doc.settings) || !keysOnly(doc.settings, [pact.checkpointStops.name])) refuse(`settings must be an object holding only ${pact.checkpointStops.name}`);
+    else if (Object.hasOwn(doc.settings, pact.checkpointStops.name)) {
+      if (typeof doc.settings[pact.checkpointStops.name] !== 'boolean') refuse(`settings ${pact.checkpointStops.name} must be true or false`);
+      else givenSettings = { [pact.checkpointStops.name]: doc.settings[pact.checkpointStops.name] };
+    }
+  }
+
   // The agent files (#262 addendum 4): by name, each the whole file as text.
   const agentFiles = Object.hasOwn(doc, 'agentFiles') ? doc.agentFiles : null;
   if (agentFiles !== null) {
@@ -485,8 +506,8 @@ export function loadBuilder(file, pact) {
   const listed = yours.skills.length + yours.commands.length + yours.agents.length;
   if (!listed) findings.push(YOURS_NONE);
 
-  if (refusals.length) return { builder: null, refusals, findings, givenParts };
-  return { givenParts, builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}), ...(skills ? { ownSkills: structuredClone(skills) } : {}), ...(droppedRetired ? { droppedRetired: true } : {}) }, refusals, findings };
+  if (refusals.length) return { builder: null, refusals, findings, givenParts, givenSettings };
+  return { givenParts, givenSettings, builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}), ...(skills ? { ownSkills: structuredClone(skills) } : {}), ...(droppedRetired ? { droppedRetired: true } : {}) }, refusals, findings };
 }
 
 /**
@@ -585,10 +606,10 @@ export function shippedPresets(root, pact, dir = join(root, PRESETS_REL)) {
   }
   return names.map(name => {
     const file = join(dir, name);
-    const { builder, refusals, givenParts } = loadBuilder(file, pact);
+    const { builder, refusals, givenParts, givenSettings } = loadBuilder(file, pact);
     if (!builder) fail(`the preset ${name} is refused: ${refusals.join('; ')}`);
     const parts = Object.fromEntries(givenParts.map(k => [k, builder.ownParts[k]]));
-    return { id: name.slice(0, -'.json'.length), title: builder.title || name, parts, ...(builder.ownModels ? { models: builder.ownModels } : {}), ...(builder.ownAgentFiles ? { agentFiles: builder.ownAgentFiles } : {}), ...(builder.ownSkills ? { skills: builder.ownSkills } : {}) };
+    return { id: name.slice(0, -'.json'.length), title: builder.title || name, parts, ...(givenSettings ? { settings: givenSettings } : {}), ...(builder.ownModels ? { models: builder.ownModels } : {}), ...(builder.ownAgentFiles ? { agentFiles: builder.ownAgentFiles } : {}), ...(builder.ownSkills ? { skills: builder.ownSkills } : {}) };
   });
 }
 
@@ -638,13 +659,13 @@ export function personalPresets(root, pact, dir = personalPresetsDir(root)) {
       continue;
     }
     const b = r.builder;
-    if (!r.givenParts.length && !b.ownModels && !b.ownAgentFiles && !b.ownSkills) {
-      findings.push(`${at}: left out: it gives no part, models, agent files or skill sources`);
+    if (!r.givenParts.length && !r.givenSettings && !b.ownModels && !b.ownAgentFiles && !b.ownSkills) {
+      findings.push(`${at}: left out: it gives no part, setting, models, agent files or skill sources`);
       continue;
     }
     for (const f of r.findings) if (f !== YOURS_NONE) findings.push(`${at}: ${f}`);
     const id = name.slice(0, -'.json'.length);
-    presets.push({ id, title: b.title || id, parts: Object.fromEntries(r.givenParts.map(k => [k, b.ownParts[k]])), ...(b.ownModels ? { models: b.ownModels } : {}), ...(b.ownAgentFiles ? { agentFiles: b.ownAgentFiles } : {}), ...(b.ownSkills ? { skills: b.ownSkills } : {}), ...(b.droppedRetired ? { droppedRetired: true } : {}) });
+    presets.push({ id, title: b.title || id, parts: Object.fromEntries(r.givenParts.map(k => [k, b.ownParts[k]])), ...(r.givenSettings ? { settings: r.givenSettings } : {}), ...(b.ownModels ? { models: b.ownModels } : {}), ...(b.ownAgentFiles ? { agentFiles: b.ownAgentFiles } : {}), ...(b.ownSkills ? { skills: b.ownSkills } : {}), ...(b.droppedRetired ? { droppedRetired: true } : {}) });
   }
   const past = fit.length - OWN_PRESETS_MAX;
   if (past > 0) findings.push(`presets: ${past} more file${past === 1 ? '' : 's'} in your presets folder ${past === 1 ? 'is' : 'are'} past the limit of ${OWN_PRESETS_MAX} and ${past === 1 ? 'is' : 'are'} left out`);
