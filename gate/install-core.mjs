@@ -43,6 +43,12 @@ const TOOL_WARNS = Object.freeze({
 // recorded and on this list, so an identical rule the owner wrote stays.
 const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *', 'claude rm *'];
 export const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
+// The cleaner's ask rules (#523 S3b): the same switch as its deny rules, in the ask list. One pattern with a wildcard
+// on every side, since quotes, `env -u NODE_OPTIONS`, `node.exe`, `& node` and `$env:` prefixes all sit around the
+// path; in an ask rule a match it shouldn't make only prompts. The install records those it adds under cleanerAsk.
+// The builder's copy is in shared.mjs, held equal to this one by a test.
+const CLEANER_ASK_PATTERNS = ['*cleaner.mjs*remove*--override*'];
+export const CLEANER_ASK = Object.freeze([...CLEANER_ASK_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_ASK_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The stop switch's deny rules (#439 S1.2; `claude kill`, the supervisor stop and `claude respawn` added at Test, the lead's pick): settings.json holds them only
 // while the user setting session-stop-deny is on. The install records those it
 // adds under stopDeny, and removes only rules both recorded and on this list.
@@ -363,12 +369,15 @@ export function parseRecord(text) {
   const digest = ci(doc, 'digest');
   const cleanerDeny = ci(doc, 'cleanerdeny') ?? [];
   if (!Array.isArray(cleanerDeny) || cleanerDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerDeny is not a list of rule strings; fix or remove it.');
+  const cleanerAsk = ci(doc, 'cleanerask') ?? [];
+  if (!Array.isArray(cleanerAsk) || cleanerAsk.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerAsk is not a list of rule strings; fix or remove it.');
   const stopDeny = ci(doc, 'stopdeny') ?? [];
   if (!Array.isArray(stopDeny) || stopDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s stopDeny is not a list of rule strings; fix or remove it.');
   // The auto-compact window this install set (#482); null when none, or not a window the install takes.
   const recordedWindow = ci(doc, 'autocompactwindow');
   return {
     cleanerDeny,
+    cleanerAsk,
     stopDeny,
     autoCompactWindow: typeof recordedWindow === 'number' && compactWindowOk(recordedWindow) && recordedWindow > 0 ? recordedWindow : null,
     commit: psString(commit),
@@ -380,7 +389,7 @@ export function parseRecord(text) {
 }
 
 /** The record the install writes (S6, X6): commit, digest, config, files, gate, in today's shape. */
-export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], stopDeny = [], autoCompactWindow = 0 }) {
+export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], cleanerAsk = [], stopDeny = [], autoCompactWindow = 0 }) {
   const doc = {
     commit,
     digest: digest ?? null,
@@ -389,6 +398,8 @@ export function recordText({ commit, digest, userHash, blockHashes, repoFiles, g
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
     // #438: the cleaner's deny rules this install added, only while there are any.
     ...(cleanerDeny.length ? { cleanerDeny: [...cleanerDeny] } : {}),
+    // #523: the cleaner's ask rules this install added, only while there are any.
+    ...(cleanerAsk.length ? { cleanerAsk: [...cleanerAsk] } : {}),
     // #439: the stop switch's deny rules this install added, only while there are any.
     ...(stopDeny.length ? { stopDeny: [...stopDeny] } : {}),
     // #482: the window the install set, only while it is on.
@@ -1100,7 +1111,7 @@ function retiredIn(live) {
  * `hooks` never go through that deep merge: they merge by key (hooksPlan), and
  * `autoCompactWindow` follows `compact.window` (#482).
  */
-export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT) {
+export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY) {
   // #482: hooks never go through the deep merge, which would replace an owner's list; they merge by key below.
   const plain = new Map(overlay);
   plain.delete('hooks');
@@ -1123,6 +1134,12 @@ export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPAC
     if (!isMap(m.get('permissions'))) m.set('permissions', new Map());
     const p = m.get('permissions');
     p.set('deny', union(p.get('deny'), deny.add).filter(r => !deny.drop.includes(r)));
+  }
+  // #523: the cleaner's ask rules, after the retired filter, so only the plan's own rules are added or dropped.
+  if (ask.add.length || ask.drop.length) {
+    if (!isMap(m.get('permissions'))) m.set('permissions', new Map());
+    const p = m.get('permissions');
+    p.set('ask', union(p.get('ask'), ask.add).filter(r => !ask.drop.includes(r)));
   }
   return m;
 }
@@ -1290,6 +1307,16 @@ export function cleanerDenyPlan(live, toolsOn, recorded) {
 }
 
 /**
+ * The cleaner's ask rules for this install (#523 S3b): the same plan as the
+ * deny rules, over the ask list and CLEANER_ASK, and recorded under cleanerAsk.
+ * On, the rules not yet in the live ask list are added; off, only rules both
+ * recorded and fixed are dropped, so an identical rule the owner wrote stays.
+ */
+export function cleanerAskPlan(live, toolsOn, recorded) {
+  return denyPlan(live, CLEANER_ASK, toolsOn.includes('cleaner'), recorded, 'ask');
+}
+
+/**
  * The stop switch's deny rules for this install (#439 S1.2): the same plan,
  * over STOP_DENY only, so a rule of the cleaner's planted in stopDeny is never
  * dropped, printed or recorded again, and the cleaner's plan likewise.
@@ -1298,9 +1325,9 @@ export function stopDenyPlan(live, on, recorded) {
   return denyPlan(live, STOP_DENY, on, recorded);
 }
 
-function denyPlan(live, fixed, on, recorded) {
+function denyPlan(live, fixed, on, recorded, list = 'deny') {
   const lp = live.get('permissions');
-  const had = isMap(lp) ? listOf(lp.get('deny')).map(ruleString) : [];
+  const had = isMap(lp) ? listOf(lp.get(list)).map(ruleString) : [];
   const ours = recorded.filter(r => fixed.includes(r));
   if (!on) return { add: [], drop: ours.filter(r => had.includes(r)), record: [] };
   const add = fixed.filter(r => !had.includes(r));
@@ -1320,7 +1347,7 @@ const pathIn = (map, segs) => {
 };
 
 /** What the merge changes, told from the overlay's side only (S6, L6): a live value is never printed. */
-export function settingsChanges(live, overlay, deny = NO_DENY) {
+export function settingsChanges(live, overlay, deny = NO_DENY, ask = NO_DENY) {
   const paths = [];
   for (const [top, v] of overlay) {
     // The hooks block merges by key and prints its own lines (compactLines, #482).
@@ -1344,6 +1371,9 @@ export function settingsChanges(live, overlay, deny = NO_DENY) {
   const shown = new Set(out);
   for (const rule of deny.add) if (!shown.has(`  + permissions.deny: ${formatRule(rule)}`)) out.push(`  + permissions.deny: ${formatRule(rule)}`);
   for (const rule of deny.drop) out.push(`  - permissions.deny: ${formatRule(rule)}`);
+  // #523: the cleaner's ask rules, the pact's fixed list as well.
+  for (const rule of ask.add) if (!shown.has(`  + permissions.ask: ${formatRule(rule)}`)) out.push(`  + permissions.ask: ${formatRule(rule)}`);
+  for (const rule of ask.drop) out.push(`  - permissions.ask: ${formatRule(rule)}`);
   return out;
 }
 

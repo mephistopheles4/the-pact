@@ -335,6 +335,12 @@ turning the cleaner off removes only those; a rule you wrote yourself stays.
 A record from before `claude rm` joined holds only the git rules, and the
 next install with the cleaner on adds the two.
 
+The install also adds two ask rules (#523), `Bash(*cleaner.mjs*remove*--override*)` and its
+`PowerShell(...)` twin, to `permissions.ask`, recorded under `cleanerAsk` and removed the same way.
+They make Claude Code ask before a `remove --override` runs. They are a speed bump: a spelling that
+splits `cleaner.mjs`, `remove` or `--override` apart, or runs the tool through a wrapper that hides
+them, gets past. If `settings.json` is not strict JSON the install leaves it alone and warns.
+
 They are a speed bump with the classifier behind them, not a gate: other
 spellings of the same commands get past them (a flag before the subcommand, a
 path-qualified or wrapped call). They don't see git run by a child process,
@@ -382,7 +388,7 @@ yourself.
 ## Rolling back
 
 Turn the cleaner off and apply first: that removes its recorded deny rules,
-the `claude rm` pair included, and the tool. An older installer refuses a
+the `claude rm` pair included, its two ask rules (#523), and the tool. An older installer refuses a
 configuration that names `cleaner`, and would leave the rules in place. When
 rolling back to a pact from before #439 there is a second reason: an older installer drops the two
 `claude rm` rules from its record but leaves them in `settings.json`, where

@@ -1,5 +1,7 @@
 # The cleaner removes worktrees with fixed commands and never forces
 
+Its "Never forces" is reversed by [0151](0151-the-cleaner-forces-only-on-an-override-tag.md).
+
 A pact tool, `claude/tools/cleaner.mjs`, off by default as every pact tool is ([ADR 0074](0074-pact-tools-are-opt-in.md)), removes leftover worktrees under `<repo>/.claude/worktrees/` and their local branches (#438):
 
 - **Fixed commands, no parsing.** It runs its own `git worktree remove <path>` and `git branch -d <branch>`, and nothing else that removes. git runs by an absolute path, from an empty folder, with an empty hooks folder and fixed flags.

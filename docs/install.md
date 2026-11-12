@@ -186,7 +186,8 @@ parts:
     `defaultMode` back after the install. Every later `--apply` sets it to
     `auto` again, and its dry run warns you first;
   - takes out the ask rules (`permissions.ask`) an older pact added. Since
-    #265 the pact sets no ask rules: Claude Code guards its own folder and
+    #265 the pact sets no ask rules, bar one exception: the cleaner's two
+    (#523), added only while the cleaner is on. Claude Code guards its own folder and
     `~/.claude.json`, and in auto mode its classifier weighs the rest. The
     dry run's `- permissions.ask:` lines name each rule it removes, matched
     exactly, and a `NOTE:` line counts them. A rule of your own that only
@@ -314,6 +315,14 @@ parts:
   everything left in it, so run it only after the cleaner has removed the
   worktree, or after checking the worktree yourself.
 
+  It also adds two ask rules (#523) on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
+  and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added under
+  `cleanerAsk` in `.pact-install.json`; turning the cleaner off removes only those. They make Claude Code
+  ask you before a `remove --override` runs, a speed bump and not a boundary: spellings that hide the
+  words from the pattern get past it. If `settings.json` is not strict JSON the install leaves it
+  untouched, so it adds neither the deny rules nor these, and the dry run and the apply print a `WARN:`
+  line naming the two ask rules.
+
   The poster on also adds its rule to the rules file, so the rendered hash
   changes; `--review-folder` shows the rule. Taking the name out of the list
   deletes the poster and its rule at the next install. The rule names the
@@ -408,7 +417,7 @@ It installs these files under `~/.claude`:
   It posts and edits on GitHub as your `gh` account. Taking it out of the
   list deletes it at the next install;
 - `pact/tools/cleaner.mjs`, only while your `tools` list turns the cleaner
-  on, with its deny rules in `settings.json`. Taking it out of the list
+  on, with its deny rules and two ask rules in `settings.json`. Taking it out of the list
   deletes it and the rules it added at the next install;
 - `pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
@@ -693,7 +702,8 @@ install; the older installer's own warning about any `hooks` key is not that.
 
 A pact from before the cleaner (#438) refuses a configuration that names
 `cleaner`, and never removes the cleaner's deny rules, so turn the cleaner off
-and apply before you roll back. A pact from before the stop switch (#439)
+and apply before you roll back. The same goes for a pact from before #523: its installer ignores `cleanerAsk`
+and would leave the two ask rules in `settings.json`, so turn the cleaner off and apply at the new commit first. A pact from before the stop switch (#439)
 refuses a configuration that names `session-stop-deny` and ignores `stopDeny`,
 so set it to `false`, apply, then take the key out of the configuration; and an older installer leaves the
 two `claude rm` rules in `settings.json` while dropping them from its record.

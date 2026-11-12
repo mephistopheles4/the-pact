@@ -26,6 +26,10 @@ const PACT_TOOLS = Object.freeze(['poster', 'cleaner']);
 // this one by a test.
 const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *', 'claude rm *'];
 const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
+// The cleaner's ask rules (#523 S3b), for the builder page to show: one pattern with a wildcard on every side,
+// in its Bash and PowerShell forms. The install keeps its own copy (install-core.mjs), held to this one by a test.
+const CLEANER_ASK_PATTERNS = ['*cleaner.mjs*remove*--override*'];
+const CLEANER_ASK = Object.freeze([...CLEANER_ASK_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_ASK_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The stop switch's deny rules (#439 S1.2), for the builder page to show. The
 // install keeps its own copy (install-core.mjs), held to this one by a test.
 const STOP_PATTERNS = ['claude stop *', 'claude kill *', 'claude daemon stop *', 'claude respawn *'];
@@ -252,6 +256,7 @@ const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 export {
   PACT_COMMANDS,
   PACT_TOOLS,
+  CLEANER_ASK,
   CLEANER_DENY,
   STOP_DENY,
   BUILDER_KIT,
