@@ -25,6 +25,7 @@ quadrantChart
   Removals lose local work: [0.32, 0.46]
   A raw stop gets past a speed bump: [0.30, 0.40]
   A standing goal decides alone: [0.30, 0.64]
+  A free hand answers offers: [0.40, 0.30]
   Pinned design-system code: [0.12, 0.55]
 ```
 
@@ -44,6 +45,7 @@ the classes; they do not size them. The open issues below are not drawn.
 | Removals lose local work | 0.32 | 0.46 |
 | A raw stop gets past a speed bump | 0.30 | 0.40 |
 | A standing goal decides alone | 0.30 | 0.64 |
+| A free hand answers offers | 0.40 | 0.30 |
 | Pinned design-system code | 0.12 | 0.55 |
 
 ## Scope
@@ -84,6 +86,7 @@ flowchart LR
   subgraph B1["Text into a session"]
     T1["Text steers a session"]
     T2["A standing goal decides alone"]
+    T11["A free hand answers offers"]
   end
   subgraph B2["What you install, and CI"]
     T3["What you install and CI run"]
@@ -123,7 +126,7 @@ Each box is a boundary a class crosses; the arrows say who reaches it.
 
 ## Accepted threat classes
 
-- **Text steers a session.** Any text a session or a lens reads while it works can move it: a stranger's, an outside pull request's, a cloned repo's instructions or skills, a fetched page, a hand-off, note, comment or tool output, a command sent in as a prompt or an unattended trigger, and in auto mode it can act before you see it, an archive that loses untracked files or a container a session builds wrongly for outsiders' code included. No further check is built to spot injected wording in what a session reads; the checks that stand (the poster's refusals and edit checks, the install's text scanner, the builder page's refusal of hidden characters, the tracker's whose-text-counts rule and its author checker) stay, and a gap in one, or its removal, stays under review (ADR 0149). The steps kept for you (approval by your words in chat, installs, mise trust, merges, anything published, worktree removals) are rules a steered session may break, posting with raw `gh` past the poster included; Claude Code's permission prompts outside auto mode, its classifier in auto mode unless an installed mod approves the call, and any deny and ask rules, the pact's switches' included, stand behind them. Under a goal the steps pass to the session that holds it, as "A standing goal decides alone" below says, except a step a rule keeps from a goal. What a steered session posts falls under "Posts are public". Not in this class: a control that works without the session's cooperation (Claude Code's prompts and deny rules, the poster's refusals for a body sent through it) failing; a change that weakens one of these rules or controls, or adds a route for outside text into a session, or into one with more reach (a lead, or a session that can merge, post or install); and text a change adds to files sessions load (rules, agents, skills, commands, a project's instructions), which is reviewed as part of the change. The security lenses' carried rules stay as they are.
+- **Text steers a session.** Any text a session or a lens reads while it works can move it: a stranger's, an outside pull request's, a cloned repo's instructions or skills, a fetched page, a hand-off, note, comment or tool output, a command sent in as a prompt or an unattended trigger, and in auto mode it can act before you see it, an archive that loses untracked files or a container a session builds wrongly for outsiders' code included. No further check is built to spot injected wording in what a session reads; the checks that stand (the poster's refusals and edit checks, the install's text scanner, the builder page's refusal of hidden characters, the tracker's whose-text-counts rule and its author checker) stay, and a gap in one, or its removal, stays under review (ADR 0150). The steps kept for you (approval by your words in chat, installs, mise trust, merges, anything published, worktree removals) are rules a steered session may break, posting with raw `gh` past the poster included; Claude Code's permission prompts outside auto mode, its classifier in auto mode unless an installed mod approves the call, and any deny and ask rules, the pact's switches' included, stand behind them. Under a goal the steps pass to the session that holds it, as "A standing goal decides alone" below says, except a step a rule keeps from a goal. What a steered session posts falls under "Posts are public". Not in this class: a control that works without the session's cooperation (Claude Code's prompts and deny rules, the poster's refusals for a body sent through it) failing; a change that weakens one of these rules or controls, or adds a route for outside text into a session, or into one with more reach (a lead, or a session that can merge, post or install); and text a change adds to files sessions load (rules, agents, skills, commands, a project's instructions), which is reviewed as part of the change. The security lenses' carried rules stay as they are.
 - **Who counts as you.** Every session posts as you, a lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch only accidents, a foreign token or a commit's email can read as you, and the author checker trusts a clone's `origin` by its path.
 - **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, and can carry a secret, a personal detail, a revealing path or hidden characters, or a table row the poster's check doesn't read; a lens can send a secret out, and a builder file keeps what was typed into it.
 - **What you install and CI run.** The publisher, plugins and skills, the cloud setup's pins (git's SHA-1 ids included) and what pinned plugins send by design, a trusted mise config, the gate's unscanned test files and the code-scanning token run with your rights or a write token.
@@ -135,6 +138,7 @@ Each box is a boundary a class crosses; the arrows say who reaches it.
 - **A compromised machine or sandbox.** Once a program, process or agent on the machine or in the sandbox works against you, or a program a cloned repo or a project's version pin supplies runs when a session, a hook or a tool calls a command by bare name, it can plant programs, change files a session or a hook reads, and act as a session would; the pact does not defend against it. Other local accounts, and a session that text in scope has steered, stay in scope.
 - **Pinned design-system code.** The aviation design system is the owner's own code, inlined into Scriptorium at a pinned commit, so it runs with the page's powers, a folder you grant included, and a re-pin is reviewed like any change to this repo, with no security pair of its own.
 - **A standing goal decides alone.** Under a goal, a session uses its judgment on what the rules keep for you, on words from any prompt or message, a stranger's or a fooled session's included; a session started for a goal acts on its starter's replies, on its start prompt's word that a goal is set, or on a reply it can't tell from its starter's; what its rules would tell you reaches you through its starter; usage holds only as a rule, and only while a usage limit is set; Claude Code's permissions may read a start prompt as your ask, and the log corrects only what can be undone, never what was published or sent off the machine.
+- **A free hand answers offers.** A session the owner gave a free hand answers lens offers and design questions on its own pick, a design pick on what a change stores, logs or sends included, on words it reads as the owner's in its chat, on what its hand-off notes say after a compaction, whoever wrote them, on its start prompt's word that its starter holds one, or on a reply it can't tell from its holder's.
 
 ## Open issues
 
