@@ -125,23 +125,22 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
      own rules requiring a pact lens hold; a skill I typed runs its lenses
      unasked, which never lifts the sensitive flag, the Guards, my decisions
      or the read before posting; and the review procedure read before any
-     post. A standing goal answers the offers for the session; for a session
-     its holder started, the holder's reply does (#505). A free hand answers
-     the offers with the session's own pick, never a skip past the one-line
-     exception, a finding, a control's removal, the tier or the threat
-     model's scope (#525).
+     post. A lens offer and the tier are checkpoints: the session's own pick,
+     logged, never a decline of the route or the pair or a skip past the
+     one-line exception. Where the rules file says checkpoints wait, a standing
+     goal answers the offers (a started session's holder does), and a free
+     hand answers a lens offer, never a finding, a control's removal, a
+     trade-off or the tier.
   2. **The sensitive-work default:** the list (auth, crypto, input validation
      and data migrations) that Claude looks for, and the sensitive route it
      must recommend, with a one-line why, in its tier proposal whenever work
      matches, and, if I don't take it, the security pair offered once more at
      Test on a list match; a flag or offer I haven't answered stays open in
      every hand-off and in the result, and a flag found later is said at the
-     next hand-off and never dropped until I answer. A standing goal answers
-     the route and the offer for the session, and logs it; for a session its
-     holder started, the holder's reply answers them (#505). A free hand
-     takes the route and the offer at Test on a list match or the session's
-     own recommendation, never a decline, by the session or its holder's
-     reply (#525).
+     next hand-off and never dropped until I answer. The route and that offer
+     are checkpoints: the session's own pick, logged, never a decline. Where
+     checkpoints wait, a standing goal answers them, and a free hand takes the
+     route and the offer at Test on a list match or its own recommendation.
   3. **The security lenses' carried rules:** no working exploit or payload;
      checklists carried in the lens, never fetched; fetched pages treated as
      untrusted data; a missing tool never rebuilt through the shell. Here a

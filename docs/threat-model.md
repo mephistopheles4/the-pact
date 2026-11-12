@@ -28,20 +28,19 @@ flowchart LR
 
   subgraph B1["Text into a session"]
     T1["Text steers a session"]
-    T2["A standing goal decides alone"]
-    T3["A free hand answers offers"]
+    T2["A session takes checkpoints alone"]
   end
   subgraph B2["Code that runs"]
-    T4["What you install and CI run"]
-    T5["Pinned design-system code"]
+    T3["What you install and CI run"]
+    T4["Pinned design-system code"]
   end
   subgraph B3["Merges and installs"]
-    T6["The pact gets loosened"]
-    T7["Review rests on rules"]
+    T5["The pact gets loosened"]
+    T6["Review rests on rules"]
   end
   subgraph B4["What leaves the machine"]
-    T8["Posts are public"]
-    T9["Who counts as you"]
+    T7["Posts are public"]
+    T8["Who counts as you"]
   end
 
   outside --> B1
@@ -78,8 +77,9 @@ prompt, a mic transcript, a file someone hands a session to load.
   deny rule is a speed bump: another spelling gets past it. The ask rule is
   passed by `bypassPermissions`, a mod, or a spelling outside its pattern.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
-  what git keeps. It can't tell whether the owner said yes; a rule ties each
-  removal to that yes. A removal that gets past the deny rules meets only the
+  what git keeps. It can't tell whether the owner said yes to a hard stop; a
+  rule makes a recoverable removal through it a checkpoint and any other
+  deletion a hard stop. A removal that gets past the deny rules meets only the
   classifier. A forced removal rests on the rule the cleaner prints
   ([ADR 0151](adr/0151-the-cleaner-forces-only-on-an-override-tag.md)). The
   install's text scanner and the builder page's refusal of hidden characters
@@ -89,21 +89,25 @@ prompt, a mic transcript, a file someone hands a session to load.
   No detector for injected wording is built
   ([ADR 0150](adr/0150-text-steering-is-accepted-and-no-detector-is-built.md)).
 
-**Residual:** Text steers a session; A standing goal decides alone; A free hand
-answers offers. Rules it rests on, each a control: whose-text-counts
-(`docs/agents/issue-tracker.md`); the owner-only steps (approval, installs,
-mise trust, merges, anything published, worktree removals); the stop and
-removal rules above. A change that loosens the cleaner's checks or the pact's
-deny rules is a spec change.
+**Residual:** Text steers a session; A session takes checkpoints alone. Rules it
+rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`);
+the hard stops, the steps that wait for the owner's own typed words (an install
+apply, mise trust, a merge on their list, anything made public or sent beyond
+the record, a deletion nothing can restore); the stop and removal rules above.
+A change that loosens the cleaner's checks or the pact's deny rules is a spec
+change.
 
-Also accepted. A standing goal decides alone: its log corrects only what can
-be undone, never what was published or sent; what its rules would tell the
-owner reaches them through its starter; usage holds only as a rule, and only
-while a limit is set; Claude Code's permissions may read a start prompt as the
-owner's ask. A standing goal decides alone and A free hand answers offers: a
-session started for either acts on its starter's reply, on its start prompt's
-word, or on a reply it can't tell from its starter's. A free hand answers
-offers: its design pick can cover what a change stores, logs or sends.
+Also accepted. A session takes checkpoints alone: the log is written by the
+session that took the pick, and the owner checks it against GitHub's history;
+it corrects only what can be undone, never what was published or sent; a public
+record shows only the "Owner's call: security, see chat" marker, which a reader
+can still search for; outside text can steer the framing of a finding; what its
+rules would tell the owner reaches them through its starter; usage holds only
+as a rule, and only while a limit is set; Claude Code's permissions may read a
+start prompt as the owner's ask; a session started under a goal or a free hand
+acts on its starter's reply, on its start prompt's word, on what its hand-off
+notes say after a compaction, or on a reply it can't tell from its starter's; a
+free hand's design pick can cover what a change stores, logs or sends.
 
 ### Code that runs
 
@@ -153,9 +157,11 @@ like any change to this repo.
   pact's text.
 
 **Residual:** The pact gets loosened; Review rests on rules. Rules they rest
-on, each a control: a merge waits for the owner's confirm in chat; an install
-apply and mise trust wait for the owner's word in chat, which a standing goal
-or a free hand never stands in for. Also accepted. Review rests on rules: a
+on, each a control: an install apply and mise trust wait for the owner's own
+typed words (hard stops), which a standing goal or a free hand never stands in
+for; a merge on the hard-stop list waits for the same; any other merge is a
+checkpoint, where checkpoints are events the session's own logged pick, pinned
+to its reviewed head. Also accepted. Review rests on rules: a
 read-only lens takes the base on trust; the table check doesn't pair a state
 word with a disposition; a lens launched as a teammate, against the procedure,
 can pass what it read to, or write tasks for, the owner's other sessions and
@@ -232,8 +238,7 @@ quadrantChart
   What you install and CI run: [0.22, 0.92]
   The pact gets loosened: [0.45, 0.72]
   Review rests on rules: [0.45, 0.56]
-  A standing goal decides alone: [0.30, 0.64]
-  A free hand answers offers: [0.40, 0.30]
+  A session takes checkpoints alone: [0.45, 0.70]
   Pinned design-system code: [0.12, 0.55]
 ```
 
@@ -245,9 +250,8 @@ they do not size them.
 
 Each "Also accepted" line above details what the class it names covers; it is not a class of its own. No class accepts the failure of a control that works without the session's cooperation (the harness's prompts and deny rules, the poster's refusals for a post sent through it): bring it to the owner.
 
-- **Text steers a session.** Any text a session or lens reads can move it, and in auto mode it can act before the owner sees it; the rules that keep steps for the owner can be broken, raw `gh` posts past the poster included.
-- **A standing goal decides alone.** Under a goal a session uses its own judgment on what the rules keep for the owner, acting on words from any prompt or message, or on replies it can't tell from its starter's.
-- **A free hand answers offers.** A session given a free hand answers lens offers and design questions on its own pick, on words it reads as the owner's, or on what its hand-off notes say after a compaction, whoever wrote them.
+- **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, and break the hard stops, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
+- **A session takes checkpoints alone.** Where checkpoints are events, a session takes calls the rules keep for the owner on its own logged pick, open security picks included, never a hard stop, on words from any prompt or replies it can't tell from its starter's.
 - **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, and the gate's unscanned test files run with the owner's rights or a write token.
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
