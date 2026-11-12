@@ -689,7 +689,7 @@ Size the work and write acceptance claims from these measures.
 other, the side taken, and the driver that decides it.
 
 **Business drivers.** The spec's driver holds, else the one under "Business
-drivers" in the project's AGENTS.md or CLAUDE.md. With none, flag it and
+drivers" in the project's AGENTS.md or CLAUDE.md. With none, flag it once and
 lean to what is cheaper to reverse; I decide. A driver in a spec carries no
 private terms.
 
@@ -1378,8 +1378,12 @@ when no other row answers the sentence.
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image. In a public record, a report holding a
   security finding your pick leaves open (an Owner's-call row) stays local, as
-  a withheld one does: no fold, and its line in the round's findings and the
-  status comment reads `security finding, see chat`; it goes to me in chat.
+  a withheld lens's does: no fold; its line in the signal table, the round's
+  findings and the status comment reads `security finding, see chat`, and its
+  signal keeps its mark, as Lens dispositions says; it has no part in any
+  diagram and no entry in the places both lenses flagged, and the state and
+  open questions at a phase boundary name only the marker; it goes to me in
+  chat.
 - **Where to post.** In the work's record; with no record, in chat.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
@@ -1393,10 +1397,12 @@ when no other row answers the sentence.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record, as
   your own pick under your own label, never as mine: a one-line why, the goal
   or free hand you ran under (its work and where it came from, by kind), each
-  narrowing I typed there (by the kind of step it keeps), and a flag. A pick
+  narrowing I typed there (by the kind of step it keeps), and a flag: the line
+  opens `Checkpoint (flagged):`, except the forms below. A pick
   that leaves a security path open is flagged big: in a public record its line
   is exactly "Owner's call: security, see chat", with the why in chat; in a
-  private record, one only I can read, the line opens "Owner's call: security"
+  private record, one only I can read (a record anyone but me can read counts
+  as public), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
   withheld lens report or its findings, a secret, a weakness not yet public,
@@ -1655,7 +1661,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 7deb00bcec77f49a0135f37b441e13cbd4f954fa66a56ddc75ebbd8b993265c1 'CLAUDE.md'
+check_hash d4c53e286b14cb5097f1a665eab5588b28e0c802b507e5a4a62886a419e15659 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1666,7 +1672,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 8aff0ed88c6b7e24591fe74d1f304c4d4108d747036d145cd75552c54f6eea2a 'pact/review.md'
+check_hash 9a235799a221cd6186206512043ad6804d53febc8ad9d274503569c9e1be6ad0 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1696,7 +1702,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy f6a35c422f67"
+  echo "pact cloud copy 671b2b039340"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

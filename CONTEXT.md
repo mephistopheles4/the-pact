@@ -8,7 +8,7 @@ rules file is [`claude/CLAUDE.md`](claude/CLAUDE.md).
 
 - **Move:** one of the owner's four practices: sense the work, think before doing, checkpoint the seams, and stay the owner. The owner takes each up as the work needs it; a session nudges once when one seems to drop.
 - **Seam:** a point where work is handed on, published or decided. In a design, a seam is also a boundary between the parts a spec names, where a build is tested first.
-- **Checkpoint:** a call at a seam the rules keep for the owner that is not a hard stop: the session takes its own pick, logs it and goes on, and the owner reviews after. The light kind of stop; the heavy kind is a **hard stop**, and the harder a step is to undo, the heavier it is.
+- **Checkpoint:** a call at a seam the rules keep for the owner that is not a hard stop: the session takes its own pick, logs it and goes on, and the owner reviews after. The light kind of stop. The moves' "heavy checkpoint" is a **hard stop**; the harder a step is to undo, the heavier it is.
 - **Hard stop:** a step that waits for the owner's own typed words in the session's chat, under a goal or free hand too. The rules file lists them.
 - **Checkpoints wait:** the `checkpoint-stops` setting, on unless a configuration turns it off: each checkpoint then waits for the owner's word in chat, except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question. Off, checkpoints are events.
 - **Tier:** how much checking the work needs: by default quick, standard or thorough. A home configuration may set one to six tiers, lightest first, each with an id the workflow and the sensitive route point at. It is not the set of moves, and not the model's effort setting.

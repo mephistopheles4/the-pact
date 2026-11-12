@@ -101,7 +101,8 @@ Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; a public
 record shows an open security pick only as the "Owner's call: security, see
-chat" marker, its row's state word and its lens's signal mark, and a reader can
+chat" marker, its row's state word and its lens's signal mark, which shows the
+finding's severity, with the title's N counting it, and a reader can
 still search for the marker; outside text can steer the framing of a finding; what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a

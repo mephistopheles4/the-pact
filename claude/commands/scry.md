@@ -32,9 +32,8 @@ The answer has four sections, in this order. Only the asks are numbered.
   name them: "Yes, 1 to 4 takes every pick except 3, which needs its own yes."
 
   Ask, too, about each open "Owner's call: security" pick, with its private
-  note, until a `decision` post that answers it is on the record. A session's
-  post never answers it: only my own words in chat do, recorded as review.md
-  says.
+  note, until a `decision` post records my answer from chat; no session's own
+  pick or post answers it, and the record never carries the private note's why.
 - **Only you can do:** steps only I can take (paste, restart, sign in), a plain
   list, one line each, never numbered.
 - **Moving:** one line each: what is running and what holds it up. Leave out a

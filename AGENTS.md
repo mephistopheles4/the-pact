@@ -40,7 +40,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   or `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>` in a POSIX shell.
   `full` is the full suite; `fast` leaves out the install tests; `changed`
   adds what your change can reach (`--base <ref>`, `--list`).
-- **Local runs go through athanor by default:** `athanor run` runs `full`, and
+- **Local runs go through athanor by default** (the owner's Docker test
+  runner): `athanor run` runs `full`, and
   `athanor run fast` runs `fast`. Run on the host only when athanor can't
   run.
 - **A hook holds you to that** (`.claude/settings.json`, ADR 0104): while
@@ -51,8 +52,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   plain words (no path, token or pasted error text). Say in your report that
   you used the fallback. The runner prints the reason.
   [The hook](docs/agents/gate-tests.md#the-hook).
-- **While building, run `athanor run fast`.** Run no host `changed` pick
-  while athanor works.
+- **While building, run `athanor run fast`.**
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
   locally after a rebase or merge that brought in other work, and after a
   final change set (through athanor). An install relies on CI's two jobs
@@ -62,9 +62,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   Test record cites both run links and each run's commit, which is the head.
   Before any push, read every commit it publishes for a secret or a personal
   detail. A `changed` run is never Test evidence.
-- Read a change to `.github/`, the lockdown test
-  (`gate/tests/workflow.test.mjs`), `.claude/settings.json` or
-  `.claude/hooks/` before pushing it.
+- Read a change to anything under Read closely, below, before pushing it.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.
 - **Post test output only from record mode** (`--record <file>`); read a
@@ -111,8 +109,10 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   for this repo go to local scope, `.claude/settings.local.json`, never to
   `.claude/settings.json`.
 - **Read closely** (a merge touching one is a hard stop): `claude/tools/`,
-  `gate/install*.mjs`, `docs/agents/issue-tracker.md` (whose text counts), the
-  protected set below, `gate/tests/workflow.test.mjs`, `.github/`.
+  the gate's code (`gate/` but its tests), `cloud-sessions/`,
+  `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
+  (whose text counts), the protected set below,
+  `gate/tests/workflow.test.mjs`, `.github/`.
 - **The protected set** (the offers paragraph, the sensitive-work default and
   the security lenses' carried rules) is cut or weakened, and the lens roster
   changed, only by a spec change read by the spec pair and the security pair.

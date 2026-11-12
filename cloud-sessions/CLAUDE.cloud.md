@@ -134,7 +134,7 @@ Size the work and write acceptance claims from these measures.
 other, the side taken, and the driver that decides it.
 
 **Business drivers.** The spec's driver holds, else the one under "Business
-drivers" in the project's AGENTS.md or CLAUDE.md. With none, flag it and
+drivers" in the project's AGENTS.md or CLAUDE.md. With none, flag it once and
 lean to what is cheaper to reverse; I decide. A driver in a spec carries no
 private terms.
 

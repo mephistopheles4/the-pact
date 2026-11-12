@@ -221,8 +221,12 @@ when no other row answers the sentence.
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image. In a public record, a report holding a
   security finding your pick leaves open (an Owner's-call row) stays local, as
-  a withheld one does: no fold, and its line in the round's findings and the
-  status comment reads `security finding, see chat`; it goes to me in chat.
+  a withheld lens's does: no fold; its line in the signal table, the round's
+  findings and the status comment reads `security finding, see chat`, and its
+  signal keeps its mark, as Lens dispositions says; it has no part in any
+  diagram and no entry in the places both lenses flagged, and the state and
+  open questions at a phase boundary name only the marker; it goes to me in
+  chat.
 - **Where to post.** In the work's record; with no record, in chat.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
@@ -236,10 +240,12 @@ when no other row answers the sentence.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record, as
   your own pick under your own label, never as mine: a one-line why, the goal
   or free hand you ran under (its work and where it came from, by kind), each
-  narrowing I typed there (by the kind of step it keeps), and a flag. A pick
+  narrowing I typed there (by the kind of step it keeps), and a flag: the line
+  opens `Checkpoint (flagged):`, except the forms below. A pick
   that leaves a security path open is flagged big: in a public record its line
   is exactly "Owner's call: security, see chat", with the why in chat; in a
-  private record, one only I can read, the line opens "Owner's call: security"
+  private record, one only I can read (a record anyone but me can read counts
+  as public), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
   withheld lens report or its findings, a secret, a weakness not yet public,

@@ -107,7 +107,7 @@ Their reports go into the work's record word for word. The agent sorts the findi
 | `claude/agents/` | The lenses, in pairs, and `scout`, the search helper |
 | `claude/commands/` | The pact commands: `/scriptorium`, always installed, and `/make-it-so`, `/finis` and `/scry`, when you list them |
 | `claude/hooks/` | The auto-compact hook, installed by default (turn it off with `auto-compact-window` set to `0`): it asks a session to keep a hand-off file and puts it back after compaction. It needs Claude Code 2.1.318 or later |
-| `claude/tools/` | The pact tools, off unless you list them: today the poster, which posts free text to GitHub, edits what a session posted, and reads it back, and the cleaner, which removes leftover worktrees and their branches after your yes |
+| `claude/tools/` | The pact tools, off unless you list them: today the poster, which posts free text to GitHub, edits what a session posted, and reads it back, and the cleaner, which removes leftover worktrees and their branches: a removal it can undo is a checkpoint, and any other is a hard stop that waits for your yes |
 | `familiars/` | Empty: the agents' contracts are retired |
 | `gate/` | The install gate: the pact checks itself before it installs |
 | `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON, and its presets; it installs with `/scriptorium` |
