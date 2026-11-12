@@ -43,19 +43,19 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   adds what your change can reach (`--base <ref>`, `--list`).
 - **Local runs go through athanor by default** (the owner's Docker test
   runner, in a Linux container): `athanor run` runs `full`, and
-  `athanor run fast` runs `fast`. Run on the host only for a quick
-  `changed` pick, or when athanor can't run.
+  `athanor run fast` runs `fast`. Run on the host only when athanor can't
+  run; host runs slow the owner's machine, and CI's two jobs cover both
+  platforms.
 - **A hook holds you to that** (`.claude/settings.json`, ADR 0104): while
-  `athanor --version` works, it refuses a host `fast` or `full` run. When athanor can't run, add
-  `--host-fallback='<reason>'` to the same command,
+  `athanor --version` works, it refuses a host `fast`, `full` or `changed`
+  run, and `changed` has no fallback. When athanor can't run, `fast` or `full` take
+  `--host-fallback='<reason>'` on the same command,
   quoted so PowerShell keeps it one argument: a short reason in your own
   plain words (no path, token or pasted error text). Say in your report that
   you used the fallback. The runner prints the reason.
   [The hook](docs/agents/gate-tests.md#the-hook).
-- **While building, run `athanor run fast`.** For a quick pick on the host,
-  run `changed`:
-  `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
-  `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell.
+- **While building, run `athanor run fast`.** Run no host `changed` pick
+  while athanor works; CI's two jobs are the evidence.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
   locally after a rebase or merge that brought in other work, and after a
   final change set (through athanor). An install relies on CI's two jobs
