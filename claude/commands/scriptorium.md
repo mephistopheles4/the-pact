@@ -27,7 +27,8 @@ and renders the page. The shapes are in the headers of the kit's
    Fix each `REFUSE`; fix each `FINDING` or say in one line why it's meant.
    Report a finding on one of my presets, and never edit a preset unasked.
    Done at `RESULT: pass`.
-5. **Save and render.** Show me the `yours` lists, save on my yes, then run
+5. **Save and render.** Show me the `yours` lists, then save: a checkpoint,
+   keeping the previous file beside it as `builder.json.bak`. Then run
    `env -u NODE_OPTIONS node ~/.claude/pact/builder/builder/build.mjs --builder ~/.claude/pact/builder.json`
    and give me the path on its `WROTE` line.
 6. **Hand over** what changed since the last file, and tell me the page holds
