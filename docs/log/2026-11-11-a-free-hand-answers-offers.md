@@ -23,3 +23,5 @@ The merge adds a threat-model class, removes the owner's answer on lens offers a
 - Spec round 2, reopened, on revision 4, final: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811395409
 - Spec revision 4.1: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811433753
 - Security pair's further read on 4.1: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811457015
+- Test round 1 on 7ac76eb: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811842619
+- Test round 2 on 13a92c9, final: https://github.com/mephistopheles4/the-pact/issues/525#issuecomment-6811929506
