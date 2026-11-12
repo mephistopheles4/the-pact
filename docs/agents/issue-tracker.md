@@ -340,7 +340,8 @@ issue, linked to the parent issue as a GitHub sub-issue.
   alone.
 - **A ticket's plan, reviews and records live on its own issue.** Its PR signs
   `Signed: pr-<n>` with the ticket's number and closes the ticket issue, never
-  the parent. The parent closes when its last sub-issue closes.
+  the parent. When the last sub-issue closes, the session tells the owner the
+  parent is ready to close; closing it is the owner's call.
 - **The cut says which tickets can run side by side.** Tickets with no
   dependency between them and no shared files start in parallel, one session
   each, under [parallel sessions](parallel-sessions.md).
