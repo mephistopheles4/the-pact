@@ -94,8 +94,7 @@ answers offers. Rules it rests on, each a control: whose-text-counts
 (`docs/agents/issue-tracker.md`); the owner-only steps (approval, installs,
 mise trust, merges, anything published, worktree removals); the stop and
 removal rules above. A change that loosens the cleaner's checks or the pact's
-deny rules is a spec change. Not accepted, so bring it to the owner: the
-failure of a control that works without the session's cooperation.
+deny rules is a spec change.
 
 Also accepted. A standing goal decides alone: its log corrects only what can
 be undone, never what was published or sent; what its rules would tell the
@@ -174,13 +173,16 @@ connector call.
 
 - **GitHub.** Secret scanning and push protection on the repo, which match
   known token shapes, and which a pusher can override.
+- **Harness.** Permission prompts and the classifier, as above, for what a
+  session sends by fetch, search or connector call.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
   Its text fields and edit checks catch accidents only and are not a control.
 
-**Residual:** Posts are public; Who counts as you. Rule they rest on, a
+**Residual:** Posts are public; Who counts as you; Text steers a session, for
+what a steered session sends. Rule they rest on, a
 control: read every commit before a push, and the post before it is sent, for
 a secret or a personal detail. Also accepted. Posts are public: a lens can
 send a secret out through a post, a builder file keeps what was typed into it,
@@ -202,8 +204,8 @@ finding: other local accounts, unencrypted copies (the install's backups,
 kept-local reports, hand-off notes, the private notes folder), a program
 already running as the owner that nothing in scope started, supplied or
 steered, and loss of work with no attacker. In a cloud session these copies
-sit in Anthropic's sandbox: not the machine, but out of scope as Anthropic's.
-What the machine makes from outside input stays outside input. The machine's
+sit in Anthropic's sandbox: not the machine, but out of scope as Anthropic's;
+code that reached the sandbox from outside stays in scope. What the machine makes from outside input stays outside input. The machine's
 own antivirus, account isolation and disk encryption hold it. Also out: the
 owner's own edits and own account's edit in the browser; Claude Code,
 Anthropic's models and servers, and GitHub; the provider of a synced or backed-up copy, though
@@ -215,7 +217,7 @@ the owner.
 
 ## Accepted threat classes
 
-Each "Also accepted" line above details what the class it names covers; it is not a class of its own.
+Each "Also accepted" line above details what the class it names covers; it is not a class of its own. No class accepts the failure of a control that works without the session's cooperation (the harness's prompts and deny rules, the poster's refusals for a post sent through it): bring it to the owner.
 
 - **Text steers a session.** Any text a session or lens reads can move it, and in auto mode it can act before the owner sees it; the rules that keep steps for the owner can be broken, raw `gh` posts past the poster included.
 - **A standing goal decides alone.** Under a goal a session uses its own judgment on what the rules keep for the owner, acting on words from any prompt or message, or on replies it can't tell from its starter's.
