@@ -215,20 +215,6 @@ folder still holds.
 **Root of trust:** the owner's GitHub account. Whoever controls it counts as
 the owner.
 
-## Accepted threat classes
-
-Each "Also accepted" line above details what the class it names covers; it is not a class of its own. No class accepts the failure of a control that works without the session's cooperation (the harness's prompts and deny rules, the poster's refusals for a post sent through it): bring it to the owner.
-
-- **Text steers a session.** Any text a session or lens reads can move it, and in auto mode it can act before the owner sees it; the rules that keep steps for the owner can be broken, raw `gh` posts past the poster included.
-- **A standing goal decides alone.** Under a goal a session uses its own judgment on what the rules keep for the owner, acting on words from any prompt or message, or on replies it can't tell from its starter's.
-- **A free hand answers offers.** A session given a free hand answers lens offers and design questions on its own pick, on words it reads as the owner's, or on what its hand-off notes say after a compaction, whoever wrote them.
-- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, and the gate's unscanned test files run with the owner's rights or a write token.
-- **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
-- **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
-- **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
-- **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
-- **Who counts as you.** Every session posts as the owner, a lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
-
 ## Residual risk
 
 ```mermaid
@@ -254,6 +240,20 @@ quadrantChart
 Each class sits by what is left after the controls above. Likelihood and
 impact run from 0 to 1: judgement, not measurement. They rank the classes;
 they do not size them.
+
+## Accepted threat classes
+
+Each "Also accepted" line above details what the class it names covers; it is not a class of its own. No class accepts the failure of a control that works without the session's cooperation (the harness's prompts and deny rules, the poster's refusals for a post sent through it): bring it to the owner.
+
+- **Text steers a session.** Any text a session or lens reads can move it, and in auto mode it can act before the owner sees it; the rules that keep steps for the owner can be broken, raw `gh` posts past the poster included.
+- **A standing goal decides alone.** Under a goal a session uses its own judgment on what the rules keep for the owner, acting on words from any prompt or message, or on replies it can't tell from its starter's.
+- **A free hand answers offers.** A session given a free hand answers lens offers and design questions on its own pick, on words it reads as the owner's, or on what its hand-off notes say after a compaction, whoever wrote them.
+- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, and the gate's unscanned test files run with the owner's rights or a write token.
+- **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
+- **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
+- **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
+- **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
+- **Who counts as you.** Every session posts as the owner, a lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
 
 ## Open issues
 
