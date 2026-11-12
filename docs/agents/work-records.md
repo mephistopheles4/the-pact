@@ -12,7 +12,12 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **The assignee is for visibility.** Claims go by
   [parallel sessions](parallel-sessions.md).
 - **Plans:** a plan, its review rounds and its probe records live on the
-  issue, as the body and comments. Nothing in the tree holds a plan. A record
+  issue, as the body and comments. When a spec is cut into tickets, the spec
+  stays on the parent issue and each ticket is its own sub-issue holding its
+  own plan and records; the ticket's PR closes the ticket, and the parent
+  closes with its last sub-issue
+  ([tickets as sub-issues](issue-tracker.md#tickets-as-sub-issues)).
+  Nothing in the tree holds a plan. A record
   a check can run becomes a test or fixture beside the code it checks.
 - **When the work finishes:** a decision that reverses or constrains something
   becomes one ADR in [`docs/adr/`](../../docs/adr/), with its reasoning. A change
