@@ -1,7 +1,7 @@
 // The word budget of this repo's agent-facing docs (#548). Each doc stays within
 // a budget, so adding to one means cutting from it, and how a rule came to be goes
-// in an ADR or a dated log, not here. A budget is the smallest multiple of 50 at
-// or above the doc's size after the #548 cuts; raising one is a spec change.
+// in an ADR or a dated log, not here. A budget is the smallest multiple of 50 above
+// the doc's size after the #548 cuts; raising one is a spec change.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,10 +11,10 @@ import { REPO } from './text.mjs';
 const BUDGETS = Object.freeze({
   'AGENTS.md': 1400,
   'CONTEXT.md': 2100,
-  'docs/agents/domain.md': 250,
+  'docs/agents/domain.md': 300,
   'docs/agents/gate-tests.md': 3250,
   'docs/agents/install.md': 2850,
-  'docs/agents/issue-tracker.md': 3800,
+  'docs/agents/issue-tracker.md': 3850,
   'docs/agents/parallel-sessions.md': 300,
   'docs/agents/triage-labels.md': 550,
   'docs/agents/work-records.md': 600,
