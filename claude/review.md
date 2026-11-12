@@ -73,9 +73,9 @@ Ask each lens to report in this shape:
   changes the spec gets its own rounds.
 - **One review comment per round.** Open it with a title line,
   `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
-  N being the rows that need my decision (an `open`, trade-off, `security?` or
-  Owner's-call row, as Lens dispositions says), not a drafted fix waiting on my
-  word. Write `, reopened` on the first
+  N being the rows that need my decision, each a checkpoint (an `open`,
+  trade-off, `security?` or Owner's-call row, as Lens dispositions says), not a
+  drafted fix waiting on my word. Write `, reopened` on the first
   round after a reopen and `, final` on the round a Review rounds cost
   declares final, and leave out both otherwise; a further read outside the
   count is titled
@@ -198,7 +198,7 @@ when no other row answers the sentence.
   is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
   security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
   `color:`.
-- **Labels** are your own words, never text from a report, and hold no link,
+- **Labels** are your wording, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any

@@ -1230,9 +1230,9 @@ Ask each lens to report in this shape:
   changes the spec gets its own rounds.
 - **One review comment per round.** Open it with a title line,
   `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
-  N being the rows that need my decision (an `open`, trade-off, `security?` or
-  Owner's-call row, as Lens dispositions says), not a drafted fix waiting on my
-  word. Write `, reopened` on the first
+  N being the rows that need my decision, each a checkpoint (an `open`,
+  trade-off, `security?` or Owner's-call row, as Lens dispositions says), not a
+  drafted fix waiting on my word. Write `, reopened` on the first
   round after a reopen and `, final` on the round a Review rounds cost
   declares final, and leave out both otherwise; a further read outside the
   count is titled
@@ -1355,7 +1355,7 @@ when no other row answers the sentence.
   is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
   security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
   `color:`.
-- **Labels** are your own words, never text from a report, and hold no link,
+- **Labels** are your wording, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
@@ -1672,7 +1672,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 9a235799a221cd6186206512043ad6804d53febc8ad9d274503569c9e1be6ad0 'pact/review.md'
+check_hash e6c8963ec28c0fe2a1a25121f4d432b3cfafe7c7b56c498dd602b73ead4c4389 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1702,7 +1702,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 671b2b039340"
+  echo "pact cloud copy d7c54461ed6f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

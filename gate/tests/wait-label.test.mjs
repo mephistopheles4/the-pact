@@ -1,19 +1,30 @@
 // The wait-label test (#558 S8, of #554): every place the pact's text says
 // something waits on the owner names it a checkpoint or a hard stop. A unit
-// (a list item, a paragraph, a table row, a fenced block, a mark line, or one
+// (a list item, a paragraph, a table cell, a fenced block, a mark line, or one
 // string literal of a tool or hook) that holds a wait phrase and none of the
-// labels fails, named by file and first words. Whitespace folds to one space;
-// matching ignores case, reaches inside code spans, and takes whole words, so
-// `only i` matches "only I can" and never "only in" or "only its". A hyphen
-// joins words: "checkpoint-stops" is one word, never the label.
+// labels fails, named by file and first words. Before matching, whitespace
+// folds to one space, `*`, `_` and backticks drop out, and a curly apostrophe
+// is a straight one; a tool literal's \xNN, \uNNNN and \u{...} escapes are
+// decoded. Matching ignores case and takes whole words, so `only i` matches
+// "only I can" and never "only in" or "only its". A hyphen joins words:
+// "checkpoint-stops" is one word, never the label.
 // Reads text only: the sources are read, never run or rendered.
+//
+// What the tokenizer cannot see, so a wait phrased this way passes:
+// - a phrase split across concatenated or joined literals ('waits for' + ' my
+//   word', or an array of pieces that is `.join`ed);
+// - the renderer's fixed text outside the declarations derived from its
+//   SETTINGS map (PROJECT_TEMPLATE, NOTICE_TEMPLATE, SECURITY_DOUBT);
+// - a fenced block, which is one unit, so a label anywhere in the fence covers
+//   a wait anywhere else in it.
+// A label word anywhere in a unit covers a wait in it, even a negated one.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { REPO } from './text.mjs';
 
-const WAIT_PHRASES = ['wait for my', 'waits for my', 'wait for me', 'waits for me', 'waits on', 'stop and ask', 'stop and tell me', 'go-ahead', 'my confirm', 'own yes', 'needs my', 'my yes', 'only i'];
+const WAIT_PHRASES = ['wait for my', 'waits for my', 'wait for me', 'waits for me', 'waits on', 'stop and ask', 'stop and tell me', 'go-ahead', 'my confirm', 'own yes', 'needs my', 'my yes', 'only i', 'i confirm', 'says in chat', 'own words', "owner's yes", "owner's word", 'waiting on', 'my word'];
 const LABELS = ['checkpoint', 'checkpoints', 'hard stop', 'hard stops'];
 
 // A word's edges: no letter, digit or underscore beside it, and no such
@@ -23,9 +34,11 @@ const WAIT_RE = wholeWords(WAIT_PHRASES);
 const LABEL_RE = wholeWords(LABELS);
 
 const fold = s => s.replace(/\s+/g, ' ').trim();
+// The text as matched: folded, with emphasis marks and backticks dropped and curly apostrophes straight.
+const canon = s => fold(s.replace(/[*_`]/g, '').replace(/[‘’]/g, "'"));
 
 /** Whether a unit's text holds a wait phrase and no label. */
-export const unlabelled = text => WAIT_RE.test(fold(text)) && !LABEL_RE.test(fold(text));
+export const unlabelled = text => WAIT_RE.test(canon(text)) && !LABEL_RE.test(canon(text));
 
 // ------------------------------------------------------------ units of a markdown file
 
@@ -50,9 +63,13 @@ export function markdownUnits(text) {
     } else if (/^\s*(?:```|~~~)/.test(line)) {
       flush();
       fence = true;
-    } else if (line.trim() === '' || /^\s*(?:---+|#{1,6}\s.*)$/.test(line) || MARK_LINE.test(line) || /^\s*\|/.test(line)) {
+    } else if (/^\s*\|/.test(line)) {
       flush();
-      // A heading, a mark line and a table row are each one unit (a mark line sits against the item before it, so it must not share its label); a rule or a blank line is none.
+      // Each cell of a table row is a unit, so a label in one cell never covers a wait in another; a separator cell is none.
+      for (const cell of line.split(/(?<!\\)\|/)) if (!/^[\s:-]*$/.test(cell)) units.push(fold(cell));
+    } else if (line.trim() === '' || /^\s*(?:---+|#{1,6}\s.*)$/.test(line) || MARK_LINE.test(line)) {
+      flush();
+      // A heading and a mark line are each one unit (a mark line sits against the item before it, so it must not share its label); a rule or a blank line is none.
       if (line.trim() !== '' && !/^\s*---+$/.test(line)) units.push(fold(line));
     } else if (LIST_ITEM.test(line)) {
       flush();
@@ -68,7 +85,12 @@ export function markdownUnits(text) {
 const REGEX_AFTER = new Set([...'([{,;:=!&|?+-*%<>~^}']);
 const REGEX_WORDS = new Set(['return', 'typeof', 'case', 'in', 'of', 'delete', 'void', 'throw', 'else', 'do', 'new']);
 
-const unescape = s => s.replace(/\\\r?\n/g, '').replace(/\\[ntr]/g, ' ').replace(/\\([\s\S])/g, '$1');
+// A string literal's text as the script reads it: a line continuation is nothing, \n \t \r a space, \xNN \uNNNN and \u{...} the character they name, any other escape its character.
+const char = hex => (parseInt(hex, 16) > 0x10ffff ? '' : String.fromCodePoint(parseInt(hex, 16)));
+const unescape = s => s.replace(/\\(?:\r?\n|x([0-9a-fA-F]{2})|u\{([0-9a-fA-F]+)\}|u([0-9a-fA-F]{4})|([ntr])|([\s\S]))/g, (m, x, braced, u, ws, other) => {
+  const hex = x ?? braced ?? u;
+  return hex !== undefined ? char(hex) : ws !== undefined ? ' ' : (other ?? '');
+});
 
 /**
  * Scan script text from `from`, pushing each string literal's text to `out`: a
@@ -171,8 +193,24 @@ export function literalUnits(src) {
 // The renderer's fixed text, found by regex over its text as the builder page
 // does: each declaration is located by its name, and its literals run to its
 // closing semicolon. The array templates join their lines, so a list item
-// that wraps stays one unit.
-const RENDER_DECLARED = ['TOOL_PARTS', 'USAGE_TEMPLATE', 'USAGE_PROJECT_LINE', 'SESSION_TEMPLATE', 'SESSION_PROJECT_LINE', 'CHECKPOINTS_TEMPLATE', 'CHECKPOINTS_PROJECT_LINE', 'COST_LIMITS_FIXED'];
+// that wraps stays one unit. The names are the ones the SETTINGS map points at
+// (each entry's template and projectLine), plus TOOL_PARTS and
+// COST_LIMITS_FIXED; a template written inline, not named, is refused, so no
+// setting's text goes unread.
+const RENDER_FIXED = ['TOOL_PARTS', 'COST_LIMITS_FIXED'];
+
+/** The declarations of the renderer's fixed text, by name: the SETTINGS map's template and projectLine names, then the two fixed ones. */
+export function renderNames(src) {
+  const body = /^const SETTINGS = new Map\(\[([\s\S]*?)^\]\);/m.exec(src)?.[1];
+  if (!body) throw new Error('the renderer no longer declares SETTINGS in the expected form');
+  const names = [];
+  for (const [, key, value] of body.matchAll(/\b(template|projectLine): ([^,}\s]+)/g)) {
+    if (value === 'null') continue;
+    if (!/^[A-Z][A-Z_]*$/.test(value)) throw new Error(`the renderer's SETTINGS ${key} is ${value}, not the name of a declaration`);
+    if (!names.includes(value)) names.push(value);
+  }
+  return [...names, ...RENDER_FIXED];
+}
 
 /** The units of one renderer declaration, by name. */
 function renderUnits(src, name) {
@@ -187,16 +225,24 @@ function renderUnits(src, name) {
 // ------------------------------------------------------------ every source
 
 const real = rel => readFileSync(join(REPO, ...rel.split('/')), 'utf8');
-const listReal = (dir, ext) => readdirSync(join(REPO, ...dir.split('/'))).filter(f => f.endsWith(ext)).sort().map(f => `${dir}/${f}`);
+// A folder's entries by name, a subfolder with a trailing slash.
+const listReal = dir => readdirSync(join(REPO, ...dir.split('/')), { withFileTypes: true }).map(e => (e.isDirectory() ? `${e.name}/` : e.name)).sort();
 
 /** Every unit of every source, each `{ file, text }`. `read` and `list` stand for the files, so a bad case plants into one. */
 export function collect(read = real, list = listReal) {
   const units = [];
   const add = (file, texts) => units.push(...texts.map(text => ({ file, text })));
-  for (const f of ['claude/CLAUDE.md', 'claude/review.md', ...list('claude/commands', '.md'), ...list('claude/agents', '.md')]) add(f, markdownUnits(read(f)));
+  const files = (dir, ext) => list(dir).filter(f => f.endsWith(ext)).map(f => `${dir}/${f}`);
+  // A tool or a hook is read as script text; a file of another kind, or a subfolder, would go unread, so it fails the run.
+  const scripts = dir => {
+    const stray = list(dir).filter(f => !f.endsWith('.mjs'));
+    if (stray.length) throw new Error(`${dir} holds ${stray.join(', ')}, which this test does not read: read it, or take it out`);
+    return files(dir, '.mjs');
+  };
+  for (const f of ['claude/CLAUDE.md', 'claude/review.md', ...files('claude/commands', '.md'), ...files('claude/agents', '.md')]) add(f, markdownUnits(read(f)));
   const render = read('gate/render-core.mjs');
-  for (const name of RENDER_DECLARED) add(`gate/render-core.mjs ${name}`, renderUnits(render, name));
-  for (const f of [...list('claude/tools', '.mjs'), ...list('claude/hooks', '.mjs')]) add(f, literalUnits(read(f)));
+  for (const name of renderNames(render)) add(`gate/render-core.mjs ${name}`, renderUnits(render, name));
+  for (const f of [...scripts('claude/tools'), ...scripts('claude/hooks')]) add(f, literalUnits(read(f)));
   return units;
 }
 
@@ -227,29 +273,96 @@ test('wait label: every exemption still matches a unit that would fail', () => {
   }
 });
 
-// The spec's bad cases, fed to the checker itself: each is a unit's text, or
-// script text for a tool's literal.
+// The checker's own phrase and label lists, pinned by hard-coded fixtures: one
+// unlabelled sentence per wait phrase, which must fail, and one labelled
+// sentence per label form, which must pass. These tables are written out, not
+// looped from WAIT_PHRASES or LABELS, so dropping a phrase or a label from the
+// checker fails the row that names it. Each sentence holds its phrase and no
+// other.
+{
+  const phrases = [
+    ['wait for my', 'Please wait for my reply.'],
+    ['waits for my', 'It waits for my reply.'],
+    ['wait for me', 'Please wait for me.'],
+    ['waits for me', 'It waits for me.'],
+    ['waits on', 'It waits on the build.'],
+    ['stop and ask', 'Stop and ask first.'],
+    ['stop and tell me', 'Stop and tell me why.'],
+    ['go-ahead', 'Get the go-ahead first.'],
+    ['my confirm', 'Send my confirm.'],
+    ['own yes', 'Give your own yes.'],
+    ['needs my', 'This needs my attention.'],
+    ['my yes', 'Reply with my yes.'],
+    ['only i', 'Only I decide.'],
+    ['i confirm', 'I confirm the plan.'],
+    ['says in chat', 'Once the owner says in chat that it is done.'],
+    ['own words', 'In your own words.'],
+    ["owner's yes", "The owner's yes is due."],
+    ["owner's word", "On the owner's word."],
+    ['waiting on', 'The item is waiting on a reply.'],
+    ['my word', 'Take my word.'],
+  ];
+  for (const [phrase, text] of phrases) {
+    // #558 S8, #558 round 1 (decision 225)
+    test(`wait label phrase: "${phrase}" in an unlabelled unit fails`, () => {
+      assert.equal(unlabelled(text), true, `${JSON.stringify(text)} holds "${phrase}" and no label`);
+    });
+  }
+  const labels = [
+    ['checkpoint', 'This is a checkpoint and waits for my word.'],
+    ['checkpoints', 'These are checkpoints and wait for my word.'],
+    ['hard stop', 'This is a hard stop and waits for my word.'],
+    ['hard stops', 'Hard stops wait for my word.'],
+  ];
+  for (const [label, text] of labels) {
+    // #558 S8, #558 round 1 (decision 225)
+    test(`wait label label: "${label}" covers a wait`, () => {
+      assert.equal(unlabelled(text), false, `${JSON.stringify(text)} holds the label "${label}"`);
+    });
+  }
+}
+
+// The spec's other bad cases, fed to the checker itself: each is a unit's
+// text, or script text for a tool's literal. The script text of an escape keeps
+// its backslash (the \uNNNN one is built, so no editor reads it as a space).
 {
   const rows = [
     { id: 'waits-for-my-word', text: '- **Sample.** This waits for my word.', fails: true, why: 'an unlabelled wait' },
-    { id: 'labelled-checkpoint', text: '- **Sample.** This is a checkpoint and waits for my word.', fails: false, why: 'the same unit with a label' },
     { id: 'needs-my-confirm', text: 'It needs my confirm in chat.', fails: true, why: 'another wait phrase' },
     { id: 'code-span', text: 'Run `go-ahead` first.', fails: true, why: 'a phrase inside a code span' },
     { id: 'line-break', text: '- **Sample.** It waits for\n  my word.', fails: true, why: 'a phrase wrapped across a line break' },
     { id: 'only-i-can', text: 'Steps only I can take.', fails: true, why: 'a phrase of two words, in capitals' },
     { id: 'only-if-its', text: 'Only if it holds; only its own part.', fails: false, why: 'a prefix of the phrase is no match' },
-    { id: 'hard-stops-label', text: 'Hard stops wait for my word.', fails: false, why: 'the plural label, in capitals' },
     { id: 'label-in-a-name', text: 'The checkpoint-stops setting needs my yes.', fails: true, why: 'a hyphenated name is not the label' },
+    { id: 'emphasis-in-a-phrase', text: '- **Sample.** This waits for **my** word.', fails: true, why: 'emphasis marks inside the phrase' },
+    { id: 'code-span-in-a-phrase', text: 'Merge on my `yes`.', fails: true, why: 'a code span inside the phrase' },
+    { id: 'curly-apostrophe', text: 'Only on the owner’s yes.', fails: true, why: 'a curly apostrophe in a phrase' },
+    { id: 'table-cells', text: '| Step | Who |\n| --- | --- |\n| A checkpoint | waits for my word |', fails: true, why: 'a label in one cell of a row does not cover a wait in another' },
     { id: 'tool-literal', src: `const RULE = "only after the owner's own yes";`, fails: true, why: 'a tool string literal' },
     { id: 'tool-literal-labelled', src: `const RULE = "a hard stop, only after the owner's own yes";`, fails: false, why: 'the same literal with a label' },
+    { id: 'tool-escape-u', src: `const RULE = "my${'\\'}u0020yes";`, fails: true, why: 'a \\uNNNN escape in a literal' },
+    { id: 'tool-escape-x', src: String.raw`const RULE = "my\x20yes";`, fails: true, why: 'a \\xNN escape in a literal' },
+    { id: 'tool-escape-braced', src: String.raw`const RULE = "my\u{20}yes";`, fails: true, why: 'a \\u{...} escape in a literal' },
     { id: 'tool-template', src: 'const RULE = `it waits on you ${"checkpoint"}`;', fails: true, why: 'a template literal is one unit, and a literal inside its expression is another' },
     { id: 'tool-comment-and-regex', src: `// waits on 'my yes'\nconst RE = /'only i/; const OK = "fine"; /* "go-ahead" */`, fails: false, why: 'a comment and a regular expression are no literal' },
   ];
   for (const r of rows) {
-    // #558 S8
+    // #558 S8, #558 round 1 (decision 225)
     test(`wait label bad case: ${r.id}`, () => {
       const units = r.src === undefined ? markdownUnits(r.text) : literalUnits(r.src);
       assert.equal(units.some(unlabelled), r.fails, r.why);
+    });
+  }
+}
+
+// A source the test does not read must fail the run, not pass it: a tools or
+// hooks folder holding a file that is not a script, or a subfolder, is refused.
+{
+  const withEntry = (dir, entry) => (d => (d === dir ? [...listReal(d), entry] : listReal(d)));
+  for (const [dir, entry] of [['claude/tools', 'helper.sh'], ['claude/hooks', 'extra.cjs'], ['claude/tools', 'lib/']]) {
+    // #558 round 1 (decision 225)
+    test(`wait label: ${dir} holding ${entry} fails the run`, () => {
+      assert.throws(() => collect(real, withEntry(dir, entry)), new RegExp(`${dir} holds ${entry}, which this test does not read`));
     });
   }
 }
@@ -273,7 +386,10 @@ test('wait label: every exemption still matches a unit that would fail', () => {
     { id: 'usage-project-line', ...swap('gate/render-core.mjs', "it's a hard stop when the weekly limit", 'it needs my yes when the weekly limit'), says: 'gate/render-core.mjs USAGE_PROJECT_LINE:' },
     { id: 'session-template', ...swap('gate/render-core.mjs', "it's a hard stop. If you can't", "it needs my yes. If you can't"), says: 'gate/render-core.mjs SESSION_TEMPLATE:' },
     { id: 'checkpoints-template', ...swap('gate/render-core.mjs', "'- **Checkpoints wait.** Each checkpoint waits for my word", "'- **It waits.** Each one waits for my word"), says: 'gate/render-core.mjs CHECKPOINTS_TEMPLATE:' },
-    { id: 'cost-limits', ...swap('gate/render-core.mjs', 'I confirm in chat, a hard stop, adds', 'I confirm in chat, my yes, adds'), says: 'gate/render-core.mjs COST_LIMITS_FIXED:' },
+    // A setting added to the map with a template of its own is read, because the names come from the map.
+    { id: 'new-setting-template', ...swap('gate/render-core.mjs', 'const SETTINGS = new Map([', "const NEWSET_TEMPLATE = ['- It needs my yes.'];\nconst SETTINGS = new Map([\n  ['newset', Object.freeze({ mark: null, template: NEWSET_TEMPLATE, projectLine: null })],"), says: 'gate/render-core.mjs NEWSET_TEMPLATE: "- It needs my yes."' },
+    // The label deleted, with no phrase swapped in: the unit holds "I confirm" and nothing that labels it.
+    { id: 'cost-limits', ...swap('gate/render-core.mjs', 'I confirm in chat, a hard stop, adds', 'I confirm in chat, adds'), says: 'gate/render-core.mjs COST_LIMITS_FIXED:' },
     { id: 'tool-literal', rel: 'claude/tools/cleaner.mjs', plant: s => `${s}\nconst PLANT = "only after the owner's own yes";\n`, says: 'claude/tools/cleaner.mjs: "only after the owner\'s own yes"' },
     { id: 'hook-literal', rel: 'claude/hooks/compact-handoff.mjs', plant: s => `${s}\nconst PLANT = 'it waits on my word';\n`, says: 'claude/hooks/compact-handoff.mjs: "it waits on my word"' },
   ];
@@ -286,8 +402,3 @@ test('wait label: every exemption still matches a unit that would fail', () => {
     });
   }
 }
-
-// #558 S8
-test('wait label: the tree passes again after the plants', () => {
-  assert.deepEqual(failures(collect()), []);
-});

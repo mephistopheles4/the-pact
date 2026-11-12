@@ -12,11 +12,11 @@ or tool names.
 
 The answer has four sections, in this order. Only the asks are numbered.
 
-- **Asks first,** one numbered item per decision waiting on me, numbered from
-  1, in the order I should decide them: those that block running work first,
-  then oldest first. Each has three parts, in this order:
+- **Asks first,** one numbered item per decision waiting on me, a checkpoint or a hard stop,
+  numbered from 1, in the order I should decide them: those that block running
+  work first, then oldest first. Each has three parts, in this order:
   - **The question, in bold, one line,** naming the PR or issue in plain words.
-    Describe the change in your own words; never use a stranger's title as the
+    Describe the change yourself; never use a stranger's title as the
     question.
   - **At most two facts I need to answer it:** what yes does (what merging
     means), the risk I accept, CI state. Take them from your own checks, not

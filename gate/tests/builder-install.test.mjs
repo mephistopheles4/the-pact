@@ -247,7 +247,7 @@ test('S13: the default configuration\'s dry run shows VALUE checkpoint-stops off
   ]) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
   // #557 C1: the cut bullets are gone. #557 C12: the goal bullet's read-back waits only where checkpoints wait, the head pin stays, and the free hand bullet never says no checkpoint waits.
   for (const s of ['Always mine', 'Working for a goal']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
-  for (const s of ['where checkpoints wait', 'Pin a merge to its reviewed head']) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
+  for (const s of ['where checkpoints wait, a pending read-back', 'Pin a merge to its reviewed head']) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
   const freeHand = /- \*\*A free hand\*\*.*?(?= - \*\*|$)/.exec(flat)?.[0];
   assert.ok(freeHand?.includes('intent or design questions'), 'the free hand bullet is found');
   assert.ok(!freeHand.includes('no checkpoint waits'), 'the free hand bullet holds no "no checkpoint waits"');
