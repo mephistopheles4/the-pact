@@ -1,6 +1,6 @@
 # Why each rule is in the pact
 
-The pact states only what nothing else covers (#450). Each rule in the rules
+The pact states only what nothing else covers. Each rule in the rules
 file, as rendered from the default configuration with both pact tools on, has
 a row here naming the gap it covers that no other guardrail does: not Claude
 Code's harness, and not the pact's own threat model, poster, cleaner, gate or
@@ -26,7 +26,7 @@ This file is never installed.
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
 | How Claude helps | What stays the owner's, and where the record's and the tools' how-to lives. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
-| Always mine | The owner's map of decisions. The harness defers to durable authorization, and this list is that authorization's limits. Installs left it (#540): the owner got more friction from false positives than protection from the rule, so installing a new program is no longer on the list. The pact install (dry run, then apply on the owner's go-ahead) and mise trust stay, in `AGENTS.md`. |
+| Always mine | The owner's map of decisions. The harness defers to durable authorization, and this list is that authorization's limits. Installing a new program is not on the list. The pact install (dry run, then apply on the owner's go-ahead) and mise trust stay, in `AGENTS.md`. |
 | Keep the record | Points to review.md's Posting section, which no tool loads. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent. |
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
 | Remove worktrees only through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (threat model, Removals lose local work). |
@@ -46,12 +46,12 @@ This file is never installed.
 | Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. |
-| A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. It also says how later words narrow a goal (the owner's words in any chat; text only by keeping a step), a gap that "keep going until I end it" leaves, since no other guardrail narrows a goal in place (#505). |
-| Working for a goal | Who answers for the owner in a session the goal's holder started: the holder, by its reply to an item the session sent, one hop, logged as the holder's, never as the owner's, and below the owner's own words in the session's chat. No guardrail lets a session's starter answer for the owner, and an answer in a start prompt, a file or an unasked message counts for nothing, so only a reply does. The usage go-ahead and a worktree removal stay the owner's (#505, [ADR 0146](adr/0146-a-standing-goal-reaches-the-sessions-its-holder-starts.md)). |
-| A free hand | Nothing else lets a session take its own picks, on lens offers and design questions, short of a full goal; auto memory never binds (#525, [ADR 0149](adr/0149-a-free-hand-answers-offers-and-design-questions-with-the-sessions-own-pick.md)). |
-| Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. With the weekly limit off (#501), "its line" binds to the session line if one is set, and to nothing if not (see [ADR 0142](adr/0142-the-weekly-usage-limit-can-be-off.md)). |
+| A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. It also says how later words narrow a goal (the owner's words in any chat; text only by keeping a step), a gap that "keep going until I end it" leaves, since no other guardrail narrows a goal in place. |
+| Working for a goal | Who answers for the owner in a session the goal's holder started: the holder, by its reply to an item the session sent, one hop, logged as the holder's, never as the owner's, and below the owner's own words in the session's chat. No guardrail lets a session's starter answer for the owner, and an answer in a start prompt, a file or an unasked message counts for nothing, so only a reply does. The usage go-ahead and a worktree removal stay the owner's. |
+| A free hand | Nothing else lets a session take its own picks, on lens offers and design questions, short of a full goal; auto memory never binds. |
+| Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. With the weekly limit off, "its line" binds to the session line if one is set, and to nothing if not. |
 | Usage | A pause on weekly usage. The harness has no such pause. |
 
 ## What no read looks for
 
-No read before a post looks for a path on this machine, and the read before a push looks for neither its paths nor its names (#506, [ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). The owner sees nothing secret in them, and the check only held back ordinary posts. #368 removed the path item from `claude/review.md` once, and #464 T2's rewrite brought it back: check a rewrite of either read against #368 and #506 before adding a path item. #507 ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)) also took a user or host name, inside a path or on its own, out of what the read before posting counts as a personal detail.
+No read before a post looks for a path on this machine, and the read before a push looks for neither its paths nor its names ([ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). A user or host name, inside a path or on its own, is not a personal detail for the read before posting ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)). A rewrite of either read adds no path item.

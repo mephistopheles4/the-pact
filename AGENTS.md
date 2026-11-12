@@ -19,7 +19,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Apply only on the owner's go-ahead in chat,** with the apply command the
   dry run printed, and check that it exits zero.
 - **Before rolling back,** run the four checks in
-  [Rolling back](docs/agents/install.md#rolling-back), before any checkout;
+  [Roll back to an older version](docs/install.md#roll-back-to-an-older-version), before any checkout;
   if one fails, never run its installer: stop and ask. Configuration, tools,
   project installs: [install](docs/agents/install.md).
 
@@ -29,10 +29,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   owner's word in chat: `mise trust`, the `trusted_config_paths` setting or
   `MISE_TRUSTED_CONFIG_PATHS`, safe mode (`MISE_SAFE`) in a project folder, an edit to mise's
   global or system config, or `paranoid` off. A trusted project config can
-  fetch tools and run hooks as root in a cloud session
-  ([ADR 0088](docs/adr/0088-the-cloud-setup-installs-a-pinned-verified-node.md)).
+  fetch tools and run hooks as root in a cloud session.
 - **A standing goal, a free hand, or a goal holder's or free hand holder's reply, is never the owner's word in chat**
-  for an install apply or for mise trust (#505).
+  for an install apply or for mise trust.
 
 ## Running the gate's tests
 
@@ -45,7 +44,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   runner, in a Linux container): `athanor run` runs `full`, and
   `athanor run fast` runs `fast`. Run on the host only for a quick
   `changed` pick, or when athanor can't run.
-- **A hook holds you to that** (`.claude/settings.json`, ADR 0104): while
+- **A hook holds you to that** (`.claude/settings.json`): while
   `athanor --version` works, it refuses a host `fast` or `full` run. When athanor can't run, add
   `--host-fallback='<reason>'` to the same command,
   quoted so PowerShell keeps it one argument: a short reason in your own
@@ -101,8 +100,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## Reviewing a change here
 
-- Work here takes the pact's tiers and sensitive route, as in any project
-  ([ADR 0072](docs/adr/0072-this-repo-has-no-security-route-of-its-own.md)).
+- Work here takes the pact's tiers and sensitive route, as in any project.
 - Each check a change adds or tightens in the gate's code (`gate/` but its
   tests, `.github/workflows/`, `.github/dependabot.yml`) needs a bad case it
   is seen to catch. Deleting or loosening a check, or changing a built-in
@@ -126,7 +124,11 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   threat model relies on it, and a protected-set rule goes only by the
   protected-set route. The rules file and
   each agent stay within their word budgets in
-  `gate/tests/rule-budget.test.mjs`; raising one is a spec change (ADR 0129).
+  `gate/tests/rule-budget.test.mjs`; raising one is a spec change.
+- **The agent-facing docs say what holds now.** How a rule came to be (issue
+  and ADR cites as history, "since", "was retired", dated trails) goes in an ADR
+  or a dated log, not in them. Each doc stays within its word budget in
+  `gate/tests/doc-budget.test.mjs`; raising one is a spec change.
 
 ## The tracker
 

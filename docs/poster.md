@@ -3,7 +3,7 @@
 The poster posts free text to GitHub as your `gh` account, and edits what a
 session posted there, then reads back what landed and checks it against what
 it sent. It is a pact tool, off unless
-the `tools` list in `~/.claude/pact/config.json` names it (ADR 0074). When it's
+the `tools` list in `~/.claude/pact/config.json` names it. When it's
 on, the install puts it at `~/.claude/pact/tools/poster.mjs`, and the rules
 file tells a session to post through it. Its scans catch accidents, not a
 session that sets out to get past them. For a secret, its refusal of a live
@@ -249,7 +249,7 @@ sent, when:
   says (`edit/target`): a comment on another issue or pull request, an issue
   number that is a pull request's, or a thread's first comment, which the
   poster never makes. An item another account wrote is read no further, so
-  its text never reaches the slower checks below (#394);
+  its text never reaches the slower checks below;
 - **it isn't signed by `signer`** (`edit/unsigned`), on the item or on the
   rendered body. A signature line is a whole line, outside a fence, a quote
   and a closed HTML comment, that is exactly `Signed: <label>` or `Posted by <label>.`; a
@@ -287,13 +287,13 @@ sent, when:
   (`post/owned-line`), nothing above them may open an HTML comment or a fold
   it doesn't close, and reason lines pile up, as the record of each change. A
   **status edit**, `issue-comment-edit` with `signer` `status-<n>` and n the
-  `issue` value, is the one exception (#503): the item's reason lines are not
+  `issue` value, is the one exception: the item's reason lines are not
   compared or carried, and the poster adds the newest, so the comment ends in
   exactly one.
 
 The author, target, signature, leak and append-only reason checks are the
 edit's controls; on a status edit the append-only check is removed, accepted
-by the owner (decision 180, ADR 0144). The record and decision checks, and the
+by the owner. The record and decision checks, and the
 reason lines' "in plain sight" part, are a best-effort backstop: they guess at
 how GitHub renders a body, and a form their readings don't see passes (What the
 scans don't cover).
@@ -302,9 +302,9 @@ The scans that read a post read the edit too: the reason, and the whole
 rendered body with its reason line.
 
 The routine use of `issue-comment-edit` is the review procedure's status
-comment, signed `status-<n>` and edited after each round (#412); it holds none
+comment, signed `status-<n>` and edited after each round; it holds none
 of what `edit/record` and `edit/decision` refuse, and as a status edit it ends
-in its newest reason line only (#503).
+in its newest reason line only.
 
 #### Ask items and the read-back
 
@@ -320,7 +320,7 @@ item carry neither, and a `quote` or `intent` on them is refused
 `post/field`.
 
 **An older ask-shaped item is not an ask item.** A body written before the
-switch that opens `## The ask` but has no read-back line, such as #524's own,
+switch that opens `## The ask` but has no read-back line,
 fails the strict test, so an edit replaces it whole and its ask can't be
 carried over. Don't edit one through the poster: post a comment, or ask the
 owner to edit it by hand.
@@ -513,7 +513,7 @@ nothing sent.
 | `table/disposition` | A Disposition cell doesn't start with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted`; or, in a row whose Finding cell is exactly `withheld, see chat`, it is anything but one bare `open`, `fixed`, `taken` or `dismissed` |
 | `table/skipped` | `skipped` isn't followed by `, because` |
 | `table/auto` | ` (auto` isn't followed by `:`, `)` or `, reversed` |
-| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or the word "withheld", in any case, spacing or markup, comes after a state word, after any marks and one severity word (`high`, `medium` or `low`), a `security?` after it and the colon (#478) |
+| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or the word "withheld", in any case, spacing or markup, comes after a state word, after any marks and one severity word (`high`, `medium` or `low`), a `security?` after it and the colon |
 | `fence/unclosed` | A fence is left open: the body ends inside it, or a `mermaid` fence runs into another fence or a fold's tag |
 | `text/hard-wrap` | A prose line stops mid-sentence and the next line continues the same paragraph, list item or quote |
 | `link/relative` | A link's target has no scheme and isn't an anchor on the same page |
@@ -523,13 +523,12 @@ nothing sent.
 The content scan reads the title, each label, each passage's `text`,
 `intent.text` and `intent.corrected`, each as its own field so a refusal names
 it, and the whole rendered body, as written and as normalised copies, each
-meant to show the text as a reader sees it on GitHub's page (#394, ADR 0122):
+meant to show the text as a reader sees it on GitHub's page:
 
-- **The floor,** two copies built as before #394, one with HTML comments
+- **The floor,** two copies, one with HTML comments
   dropped and one with their contents kept: invisible characters, markdown
   escapes and inline tags removed every round, the old short list of named
-  references decoded, NFKC applied. It is frozen, so no form refused before
-  #394 passes now.
+  references decoded, NFKC applied. It is frozen, so no form it refuses passes later.
 - **The page copy:** block-quote markers stripped, then the source's own raw
   HTML removed once, block by block, as GitHub's grammar reads it (tags with
   any quoted attribute value and ASCII spacing, but for the nine tag names
@@ -543,8 +542,7 @@ meant to show the text as a reader sees it on GitHub's page (#394, ADR 0122):
 - **The bare copy:** the same, removing nothing, for a tag the page shows as
   text in a fence or elsewhere the page copy reads otherwise.
 - **The wide copy:** the same as the page copy, but read over the whole text
-  with any Unicode spacing in a tag and no tag filter, as the first build of
-  #394 read it, for a tag the HTML parser reads inside an HTML block where the
+  with any Unicode spacing in a tag and no tag filter, for a tag the HTML parser reads inside an HTML block where the
   grammar doesn't, such as one with a no-break space before `=`.
 - **The page copy with its marks folded:** `*`, backticks, `~` and link
   syntax dropped, `_` kept.
@@ -554,19 +552,19 @@ as U+FFFD: stripping only ever adds refusals. The lists of names below are
 kept by hand from the poster's source; no test holds them.
 
 - **No token-shape, URL-password or email rule.** The scan refuses no
-  credential shape, password in a link or email address (#441): the pact has
+  credential shape, password in a link or email address: the pact has
   no rule on a secret or a personal detail in a session's own text.
 - **`secret/env`:** the value, 8 characters or more, of any environment
   variable whose name has a part ending in `TOKEN`, `SECRET`, `KEY`,
   `PASSWORD`, `PASSWD`, `PWD`, `PAT`, `AUTH`, `CREDENTIAL`, `CREDENTIALS` or
   `COOKIE`, except `PWD`, `OLDPWD` and `SSH_AUTH_SOCK`.
 - **No path rule.** The scan refuses no path, this machine's own home and
-  temp folders, user name and host name included (#364, ADR 0097). A
+  temp folders, user name and host name included. A
   link whose target is a local path is still refused, by `link/relative`,
   since it lands as a dead link.
 - **No session-id rule.** The scan refuses no UUID, `session_` id or Claude
   Code session link, so a scratchpad path, a GitHub attachment link and
-  Claude Code's attribution post on any surface (#366, ADR 0100). A session
+  Claude Code's attribution post on any surface. A session
   link opens only for the account that owns the session.
 - **`text/hidden`:** tag characters (a subdivision flag aside), direction
   embeddings, overrides and isolates, the zero-width space, word joiners, the
@@ -574,9 +572,9 @@ kept by hand from the poster's source; no test holds them.
   joiners and selectors ordinary emoji use are let through.
 - **The table check (`table/`):** on the body only, after the content scan.
   It reads a table with a header cell reading `Disposition` under an earlier
-  line naming "Lens dispositions", outside any fence, folds (`<details>` blocks) included; the review procedure gives the table's template, and its review comment folds the table, with the fold's summary line as the line naming "Lens dispositions" (#401). Of each row with the template's cell count, it reads the Finding cell's lead word and what follows it (unless the row is `skipped` or the cell is exactly `withheld, see chat`), whether the Lens cell is empty, and the Disposition cell, which in a withheld row must be one bare word (#336, ADR 0090). A
+  line naming "Lens dispositions", outside any fence, folds (`<details>` blocks) included; the review procedure gives the table's template, and its review comment folds the table, with the fold's summary line as the line naming "Lens dispositions". Of each row with the template's cell count, it reads the Finding cell's lead word and what follows it (unless the row is `skipped` or the cell is exactly `withheld, see chat`), whether the Lens cell is empty, and the Disposition cell, which in a withheld row must be one bare word. A
   refusal on a line inside a lens report means the report's fence is too
-  short: fix the fence, never the report (ADR 0076). Past 50 table refusals,
+  short: fix the fence, never the report. Past 50 table refusals,
   the rest are counted, not listed. It is a backstop too.
 - **The fence check (`fence/unclosed`):** on the body only, after the table
   check. A fence left open swallows what follows it, the review comment's
@@ -586,7 +584,7 @@ kept by hand from the poster's source; no test holds them.
   another fence or a fold's tag. It names the opening fence's line and column.
   It reads nothing inside a closed fence, so a diagram's labels are checked
   only by the content scans above. A refusal on a line inside a lens report
-  means the report's fence is too short: fix the fence, never the report (#401).
+  means the report's fence is too short: fix the fence, never the report.
 - **The wrap check (`text/hard-wrap`):** on the body only, after the table
   check. GitHub shows each single line break in a post, so a paragraph wrapped
   at a column limit lands as a ragged column. It refuses a prose line that
@@ -598,26 +596,25 @@ kept by hand from the poster's source; no test holds them.
   label such as `**After:**` starting the next line. To fix it, join the
   paragraph or item onto one line; never put prose in a fence, code span or
   comment to get past it. A refusal on a line inside a lens report means the
-  report's fence is too short: fix the fence, never the report, as for tables
-  (ADR 0076). The poster never rewrites a body.
+  report's fence is too short: fix the fence, never the report, as for tables. The poster never rewrites a body.
 - **The link check (`link/relative`):** on the body only, after the table
   check. GitHub leaves a link's target as written, so a repository-relative
   link on an issue page is a dead link. It refuses an inline link, an image, a
   reference definition or an HTML `href` or `src` whose target does not start with a
   scheme of two letters or more (`https:`, `mailto:`), `//` or `#`, a root
   link such as `/owner/repo/issues/3` and a drive-letter path such as
-  `D:/work/x.md` included (#364), and names the target's line and column
+  `D:/work/x.md` included, and names the target's line and column
   once. It never reads a fence, a code span or an HTML comment, and a footnote
   definition is not a link. To fix it, write the full `https://github.com/...`
   link; never put the link in a fence, code span or comment to get past it. A
   refusal on a line inside a lens report means the report's fence is too
-  short: fix the fence, never the report (ADR 0076).
+  short: fix the fence, never the report.
 
 ## What the scans don't cover
 
 - **Any secret or personal detail** other than a live environment secret's
   value: a token `gh` keeps in a credential store, a key in a file, a name,
-  an email address (#441).
+  an email address.
 - **A refused value written in a form no copy reads as the page does**
   (threat model, Posts are public): two tricks at once that no single copy reads together,
   a look-alike letter from another script, a renderer other than GitHub's
@@ -640,14 +637,14 @@ kept by hand from the poster's source; no test holds them.
   line isn't an ask item, so the poster can't carry its ask through an edit
   (Edits).
 - **Windows file names.** A `body_file` name that ends in a dot or names a
-  device is not refused (noted as a hardening candidate, #524).
+  device is not refused (noted as a hardening candidate).
 - **Fields the schema doesn't check beyond their pattern,** which are checked
   against patterns and bounds, not scanned: `repo`, `as`, `signer`, `head`,
   `base` and `via`.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
   leading `|`, and any table inside a fence.
-- **The review comment's opening** (#401, #478): its title line, signal
+- **The review comment's opening**: its title line, signal
   table, 1 to 3 diagrams and count line, and what the diagrams say. The content scans read
   all of it, diagrams included; the table, wrap and link checks never read
   inside a fence, and nothing checks the counts against the table, the number

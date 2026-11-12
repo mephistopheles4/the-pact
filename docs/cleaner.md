@@ -1,8 +1,8 @@
 # The cleaner
 
-The cleaner (`claude/tools/cleaner.mjs`, #438) removes leftover worktrees
+The cleaner (`claude/tools/cleaner.mjs`) removes leftover worktrees
 under `.claude/worktrees/` and their local branches with its own fixed git
-commands. It is a pact tool, off by default (ADR 0074); turn it on by listing
+commands. It is a pact tool, off by default; turn it on by listing
 `cleaner` in the `tools` key of `~/.claude/pact/config.json`. ADR 0124 says
 why it works this way.
 
@@ -74,7 +74,7 @@ override tag, a third line says who may pass it.
   the cleaner's own words.
 - **The default branch:** `origin/HEAD`'s target, or `main` and `master` when
   that is not known. Its worktree goes; the branch stays.
-- **A link anywhere inside, in every run** (#454): "holds a link: remove the
+- **A link anywhere inside, in every run**: "holds a link: remove the
   link itself first, never with a recursive delete, then the folder by hand".
   Git lists no folder link to an empty folder, so the cleaner walks a folder
   that is still there itself and never enters a link; a symlink or junction as
@@ -83,7 +83,7 @@ override tag, a third line says who may pass it.
   folder whose real path differs from where the walk found it. The walk runs
   no git and enters no link (it lists, and resolves the real path of each
   folder a listing showed as plain), and it runs before any git call in the
-  worktree (#442), because git
+  worktree, because git
   reads through a junction on Windows and a session can plant one aimed at a
   share. So the block names every link, never cut at 20, and its `.git`
   entries, but not the changed, untracked or ignored files git would report:
@@ -93,21 +93,21 @@ override tag, a third line says who may pass it.
   an install from a package manager, use that package manager's own removal
   command. A link made between the cleaner's read and git's removal is not
   seen.
-- **A `.git` file that doesn't name its own folder, in every run** (#442): "its
+- **A `.git` file that doesn't name its own folder, in every run**: "its
   .git file names another git folder". The worktree's root `.git` file must
   name its own folder under `<main>/.git/worktrees/`, whose `gitdir` names it
   back and whose `commondir` names the main repository's `.git`, read with no
   git run and only from small regular files. The check runs before any git
   call in the worktree, since git's setup probes the folder the file names, so
   a file naming a share would send your sign-in there.
-- **A `.git` entry below its root, in every run** (#454): "holds a .git entry
+- **A `.git` entry below its root, in every run**: "holds a .git entry
   below its root, which git does not see". A file or folder named `.git` in any
   letter case that is not a populated submodule's `.git` as git sees it: a
   gitlink in the index with a `.git` file naming a folder under the main
   repository's `.git` (no part of the way there a link). Any other entry, a
   git folder inside the worktree included, keeps the worktree. Listed under
   ".git entries". The keep is decided from the index alone, before `git
-  status` runs (#442), because status probes the folder a nested pointer
+  status` runs, because status probes the folder a nested pointer
   names; so the block names the entries and not the changed or untracked
   files. Each one is a repository or a stray folder whose history and files go
   with the folder if it is removed by hand.
@@ -254,8 +254,7 @@ worktree, a folder already gone included, since `git branch -d` runs there.
 
 Every git call then also carries `GIT_NO_LAZY_FETCH=1`, so git fetches no
 missing object. (The three pins, `-c status.showUntrackedFiles=normal`,
-`-c core.checkStat=default` and `-c core.trustctime=true`, are on in every run
-since #523.) The flag needs git 2.45 or later; below it, the run is
+`-c core.checkStat=default` and `-c core.trustctime=true`, are on in every run.) The flag needs git 2.45 or later; below it, the run is
 unavailable.
 
 The walk for links and `.git` entries runs before these keeps, and before any
@@ -335,7 +334,7 @@ While the cleaner is on, the install adds eighteen rules to
 `PowerShell(...)` forms: `git worktree remove *`, `git * worktree remove *`,
 `git branch -d *`, `git * branch -d *`, `git branch -D *`,
 `git * branch -D *`, `git branch --delete *`, `git * branch --delete *` and
-`claude rm *` (#439). `claude rm` joins them because it deletes a session's
+`claude rm *`. `claude rm` joins them because it deletes a session's
 worktree with whatever is left in it, uncommitted and untracked files
 included, which git's own keeps don't bound.
 It records the ones it added under `cleanerDeny` in `.pact-install.json`, and
@@ -343,7 +342,7 @@ turning the cleaner off removes only those; a rule you wrote yourself stays.
 A record from before `claude rm` joined holds only the git rules, and the
 next install with the cleaner on adds the two.
 
-The install also adds two ask rules (#523), `Bash(*cleaner.mjs*remove*--override*)` and its
+The install also adds two ask rules, `Bash(*cleaner.mjs*remove*--override*)` and its
 `PowerShell(...)` twin, to `permissions.ask`, recorded under `cleanerAsk` and removed the same way.
 They make Claude Code ask before a `remove --override` runs. They are a speed bump: a spelling that
 splits `cleaner.mjs`, `remove` or `--override` apart, or runs the tool through a wrapper that hides
@@ -396,8 +395,8 @@ yourself.
 ## Rolling back
 
 Turn the cleaner off and apply first: that removes its recorded deny rules,
-the `claude rm` pair included, its two ask rules (#523), and the tool. An older installer refuses a
+the `claude rm` pair included, its two ask rules, and the tool. An older installer refuses a
 configuration that names `cleaner`, and would leave the rules in place. When
-rolling back to a pact from before #439 there is a second reason: an older installer drops the two
+rolling back to a pact from before the `claude rm` rules there is a second reason: an older installer drops the two
 `claude rm` rules from its record but leaves them in `settings.json`, where
 they look like your own.
