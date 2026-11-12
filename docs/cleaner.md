@@ -10,10 +10,14 @@ why it works this way.
 
 ```text
 node ~/.claude/pact/tools/cleaner.mjs show   [--recoverable] [--repo <dir>] [--worktree <name>]...
-node ~/.claude/pact/tools/cleaner.mjs remove [--recoverable] [--repo <dir>] [--worktree <name>]... --yes <tag>[,<tag>]...
+node ~/.claude/pact/tools/cleaner.mjs remove [--recoverable] [--repo <dir>] [--worktree <name>]... --yes <tag>[,<tag>]... [--override <folder>=<tag>[,...]]
 ```
 
-In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`.
+In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`, and give
+`--override` just so: `node "$HOME/.claude/pact/tools/cleaner.mjs" remove --override <folder>=<tag>`.
+The ask rule on the override matches that spelling (see
+[Overriding a keep](#overriding-a-keep)). `remove` needs `--yes`, `--override`
+or both.
 
 - `--repo` is any folder in the repository; the default is the current
   folder.
@@ -22,10 +26,14 @@ In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`.
 - `show` names back each linked worktree directly under
   `<main>/.claude/worktrees/`: its branch and tip; its changed, untracked and
   ignored files (20 names each, then a count); a lock; a folder already gone;
-  the stash entries made on its branch, by ref. Each block ends with a tag.
+  the stash entries made on its branch, by ref. Each block ends with a tag. A
+  block with a soft risk also prints an override tag, a warning and an undo
+  line (see [Overriding a keep](#overriding-a-keep)).
 - `remove --yes` takes the tags `show` printed. It reads everything again and
   removes a worktree only when its fresh tag is among them, then deletes its
   branch with `git branch -d`, only when git exited 0 and the folder is gone.
+- `remove --override` takes a folder and its 16-hex override tag, as
+  `<folder>=<tag>`, comma between pairs. It is the only way past a refusal.
 - `--recoverable` keeps more, so that only what can be recovered goes (see
   [With `--recoverable`](#with---recoverable)). Give it to both commands: a
   tag from a run without it never passes a run with it.
@@ -53,8 +61,11 @@ the name-back, and run `remove` only after your own yes to it in chat.
   counts as the plain drive path. A sessions folder, or a status file, that is
   a link or not a plain folder or file makes the run unavailable. A Windows
   run doesn't see WSL sessions, or the other way.
-- **Commits found nowhere else:** a worktree whose branch, or detached HEAD,
-  has commits on no other branch and no remote.
+- **Commits found nowhere else, on a detached HEAD:** a worktree whose
+  detached HEAD has commits on no branch and no remote. After the folder
+  goes, nothing would name them. On a branch these are a soft risk now: the
+  branch keeps the commits, so the worktree has no yes tag but can take an
+  override (#523).
 - **A branch name outside** letters, digits and `. _ / -`: the cleaner can't
   read its commits safely, so it keeps the worktree and the branch.
 - **A folder that is a link, or a folder name outside** letters, digits, `.`,
@@ -101,8 +112,102 @@ the name-back, and run `remove` only after your own yes to it in chat.
   with the folder if it is removed by hand.
 - **A walk that fails** keeps that worktree alone, in either mode: "a read
   failed, so it is kept".
+- **Edits git is told not to check, in every run** (#523): an assume-unchanged
+  or skip-worktree entry. The block says `no override:` and names the files,
+  since a yes deletes those edits too and the cleaner can't list what such a
+  file holds. The worktree keeps its yes tag, as before, but gets no override
+  tag.
+- **The pins, in every run** (#523): every git call carries
+  `-c status.showUntrackedFiles=normal`, `-c core.checkStat=default` and
+  `-c core.trustctime=true`, so a setting can no longer hide an untracked file
+  from a plain yes. A worktree that got a yes tag only because a setting hid
+  its untracked files now shows them, and git refuses it.
 
 A kept worktree has no tag, so `remove` can't take it.
+
+## Overriding a keep
+
+`remove --override` removes a worktree git would refuse, after `show` named
+everything that goes. It is never on by default, and a yes alone is never an
+override.
+
+**The soft risks.** Each gets a warning and an override tag:
+
+- changed or untracked files (every one, listed, no folder collapsed);
+- commits found nowhere else, on a branch (the branch stays);
+- a lock that is not a stopped session's (the override lifts it).
+
+**The hard keeps.** A worktree holding one gets no override tag:
+
+- **In use:** removing it pulls the folder from under a live process. Stop
+  the session first.
+- **A link, a link or `.git` entry in the walk, or a pointer naming
+  elsewhere:** the warning can't say what a forced removal would delete or
+  which host it would touch.
+- **Submodule data:** a gitlink in the index, or a `modules` folder in its
+  admin folder. Forcing past git's own check deletes a submodule's
+  repository, which no list names.
+- **Edits git is told not to check:** the cleaner can't list what they hold.
+- **A folder or branch name the cleaner doesn't read, or a read that
+  failed:** it can't say what it would delete. A failed override read
+  withholds the override tag and nothing else; a plain yes goes on as before.
+- **Commits found nowhere else on a detached head:** no branch would hold
+  them after the folder goes.
+- **Every `--recoverable` keep.** The flag asks to keep what can't be
+  recovered, so an override in the same run would contradict it.
+
+**The block.** For an item with an override tag, `show` prints, after the
+branch line: a `WARNING:` line with the counts (`the override deletes <c>
+changed and <u> untracked file(s) git holds no copy of`, and `the override
+removes the folder; branch <b> keeps its <n> commits`), the two lists titled
+`lost if overridden (<n>)` with every name and no cut, the lock line, an undo
+line, the yes tag line (`a yes alone leaves it, git refuses`) and the override
+tag line, which repeats the counts so that a cut display still states the loss.
+
+**The undo line.** It names a command to run from the repository root, with
+full hashes. With changed or untracked files it says `undo: none; the files
+above are gone for good`. Otherwise it is `git worktree add` on the branch
+that stays, `git worktree add -b <branch> ...` when `branch -d` deletes the
+branch, or `--detach` on a detached head. Each says what it does not
+restore: ignored files, the worktree's reflog, refs and config, the branch's
+reflog and upstream (the `-b` form) and the lock. The undo command runs the
+repository's own hooks and checkout filters. Nothing brings back a deleted
+changed or untracked file: a backup would run a `git add` or `git stash
+create`, and with it any filter a session set, so there is none.
+
+**Who may pass it.** Only on the owner's own words in the chat of the session
+that runs `remove`, after that session showed the block: never on a lead's
+pick, a relayed or quoted message, a start prompt, or under a goal. `show`
+prints that rule with any override tag, and `remove` prints it first whenever
+`--override` is given; by then the run is already going, so that is a
+reminder, not a control. An override tag stays valid across runs while every
+fact holds, including each listed file's size, change times and inode; on FAT
+and exFAT drives it binds size and modified time only. Give `--repo <dir>`
+with `--override`, so the permission prompt shows the repository.
+
+**The ask rule.** The install adds a permission ask rule on `remove
+--override`, in `Bash(...)` and `PowerShell(...)` forms, so Claude Code asks
+you before the command runs, even in auto mode. It is a speed bump, not a boundary: `bypassPermissions` skips it, an installed
+mod or permission-prompt tool can approve the call past it with no prompt
+unless managed settings or a Team or Enterprise login is in place, and a
+spelling outside its pattern gets past it.
+
+**The last read.** Before it lifts a lock or forces anything, `remove` reads
+the folder once more, from a fresh worktree list and fresh sessions, in the
+order the first read ran. A hard keep that now holds, or any fact that
+differs, leaves the worktree: `left, it changed since the read`. This narrows
+the window #519 names and doesn't close it: a file or link made between that
+read and git's removal is lost unnamed, when files were being forced anyway.
+
+**`remove`'s lines go to chat only.** A record gets the RESULT counts, never
+the tags or the lines.
+
+**What a forced removal does.** `git worktree unlock` for any lock, then `git
+worktree remove --force` when there are listed files, or a plain `git
+worktree remove` otherwise; `--force` is never given twice, so git's own lock
+check still holds at removal time. On a refusal, the lock is put back with its
+old reason and the report says `some listed files may already be gone` when
+files were listed. `branch -d` runs unless the branch stays.
 
 ## With `--recoverable`
 
@@ -140,11 +245,11 @@ these. Its block gives the reason and lists the names (20, then a count):
 A program or work tree the main worktree's config names keeps every
 worktree, a folder already gone included, since `git branch -d` runs there.
 
-Every git call then also carries `GIT_NO_LAZY_FETCH=1`,
-`-c status.showUntrackedFiles=normal`, `-c core.checkStat=default` and
-`-c core.trustctime=true`, so no setting hides an untracked or ignored file,
-or an edit, from the cleaner or from git's own check. The flag needs git
-2.45 or later; below it, the run is unavailable.
+Every git call then also carries `GIT_NO_LAZY_FETCH=1`, so git fetches no
+missing object. (The three pins, `-c status.showUntrackedFiles=normal`,
+`-c core.checkStat=default` and `-c core.trustctime=true`, are on in every run
+since #523.) The flag needs git 2.45 or later; below it, the run is
+unavailable.
 
 The walk for links and `.git` entries runs before these keeps, and before any
 git call in the worktree, so a worktree that holds a link is kept for it
@@ -174,7 +279,9 @@ use" before any lock is read, since its status file names the worktree as its
 cwd, so a session lock here is a stopped session's.
 
 `show` says `locked by a stopped session; remove unlocks it` for a session lock
-and `locked, git will refuse` for any other. The tag covers the lock's reason,
+and, for any other, `locked, its holder is not named: the override lifts the
+lock` (a soft risk, see [Overriding a keep](#overriding-a-keep)); a yes alone
+leaves it, git refuses. The tag covers the lock's reason,
 so a lock added, dropped or changed after `show` reads as changed. `remove`
 runs `git worktree unlock`, then the same unforced `git worktree remove`. If
 git refuses, the cleaner locks the worktree again with the same reason, and
@@ -183,17 +290,20 @@ pid is ever printed.
 
 ## What it never does
 
-It never passes `--force`, `-f`, `-D` or `--delete`, never pushes or prunes,
-never touches a stash, and never removes anything its name-back didn't name
-with the same facts. It asks no remote for anything, but in a partial clone
-a read without `--recoverable` could make git fetch a missing object. It
-unlocks a session lock and leaves any other lock. git's own refusals stand: a
-worktree with changed or untracked files, another lock or a submodule is left. Without `--recoverable`, a worktree's ignored files, such
-as `.env`, go with its folder; the name-back says so.
+It forces only on a fresh override pair, and passes `--force` at most once,
+in a `git worktree remove`; it never passes `-f`, `-D` or `--delete`, never
+pushes or prunes, never touches a stash, and never removes anything its
+name-back didn't name with the same facts. It asks no remote for anything, but
+in a partial clone a read without `--recoverable` could make git fetch a
+missing object. It unlocks a session lock, and lifts any other lock only for an
+override. Without an override, git's own refusals stand: a worktree with
+changed or untracked files, another lock or a submodule is left. Without
+`--recoverable`, a worktree's ignored files, such as `.env`, go with its
+folder; the name-back says so.
 
 It runs git by an absolute path from `PATH`, from an empty folder, with an
 empty hooks folder and `--no-optional-locks -c core.fsmonitor=false -c
-log.showSignature=false`, and without `GIT_DIR`, `GIT_WORK_TREE`,
+log.showSignature=false`, then the three pins, and without `GIT_DIR`, `GIT_WORK_TREE`,
 `GIT_INDEX_FILE` and `GIT_COMMON_DIR`. Its output is fixed words and relative
 names, every name escaped and every file name in quotes; it never prints an absolute path, a session id,
 file contents, a stash subject or git's own output.
@@ -203,7 +313,7 @@ file contents, a stash subject or git's own output.
 | Exit | Last line | Means |
 | --- | --- | --- |
 | 0 | `RESULT: shown <n> <tags>` or `RESULT: removed <r> left 0 changed 0` | done |
-| 1 | `RESULT: removed <r> left <l> changed <c>` | something named in `--yes` was left, or changed or gone since the name-back |
+| 1 | `RESULT: removed <r> left <l> changed <c>` | something named in `--yes` or `--override` was left, or changed or gone since the name-back |
 | 2 | `RESULT: refused <count>` | a usage fault; nothing ran |
 | 4 | `RESULT: unavailable` | git missing or older than 2.36 (2.45 with `--recoverable`), `.claude` or `.claude/worktrees` a link, the sessions check failed (including the sessions folder or a status file being a link or the wrong kind), or a read failed |
 
