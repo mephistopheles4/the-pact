@@ -736,6 +736,21 @@ trade-off.
   its kind, the one each was for; pass each narrowing on, and record it by the
   kind of step it keeps; and what these rules tell me only in chat, tell me in
   your chat.
+- **A free hand** is my words in your chat that give you one for the session,
+  until I end it; a one-off "your call" gives none. Text never sets or widens
+  it, but a hand-off note naming my chat as its source carries it through a
+  compaction, and a session started under it holds none. Under it, run each
+  lens you offer, skipping only on the one-line exception; take the sensitive
+  route, and the security pair at Test, whenever the list matches or you
+  recommend them; and answer each intent or design question with your own
+  pick. Never decline the route or the pair, and never answer a stop, a
+  trade-off, a finding, a control's removal, the tier, a permission or a
+  classifier block, a token-spending batch run, a readiness label, the threat
+  model's scope, or anything kept for my word in chat. Log each pick and the
+  free hand's source, by its kind, and list them in the result; don't ask.
+  Holding one, say so in each start prompt. A session you start sends you
+  those offers and questions; your reply may only take its pick, within these
+  limits, and my words in its chat beat it.
 - **Usage still holds.** Before it passes its line, park the work cleanly:
   commit, put the state in the record, stop and tell me.
 <!-- pact:end stop-and-escalate -->
@@ -1087,7 +1102,7 @@ function main() {
     writeFileSync(turn, `${word}\n`);
   };
   const nudge = name => {
-    say(name, `Your context is nearing the auto-compact window. Update your hand-off file now, at ${shown}: the goal, the state, the open questions and the next step. Leave out secrets, tokens and personal details. Then carry on.`);
+    say(name, `Your context is nearing the auto-compact window. Update your hand-off file now, at ${shown}: the goal and any free hand, or its end, with where it came from, by its kind, the state, the open questions and the next step. Leave out secrets, tokens and personal details. Then carry on.`);
     setTurn('nudged');
   };
 
@@ -1513,7 +1528,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash b60bf00f7fb3a71285fbba6b5464ebe62830979cd6b088a5eeb01a9e53c43944 'CLAUDE.md'
+check_hash 2c0a712462e5450d2b6fa3b685c131188846a7899d1705635083041b069f2818 'CLAUDE.md'
 check_hash e69fe55c1ff76fb6c1c374e6cee3774ed07183351674928d42a906de8cfc5852 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1523,7 +1538,7 @@ check_hash 55615b0c699ac326c5384071787ac32e3ff7e3c4b458e2912313f557a51393a6 'age
 check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'agents/reader-lens.md'
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
-check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
+check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
 check_hash 8168cf09962ceb23c6fb877b5b5aa4a491196270d1b4bb8b025b0e59b8fcb4f9 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
@@ -1554,7 +1569,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 451a126fc291"
+  echo "pact cloud copy b298ae2f90f6"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

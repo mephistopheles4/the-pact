@@ -18,9 +18,10 @@ const RULES = 'the rules file';
 // #450 cuts (S5.1), measured on the rebased branch. The rules file's is the
 // same measure after the #464 T4 cut. Each lens's is the 300 words #464 T5
 // set, and scout's the 200, counted over the whole file, frontmatter included.
+// The rules file's is 2450 since #525: the free hand's 199 words (2247 + 199).
 const LENS_BUDGET = 300;
 const BUDGETS = Object.freeze({
-  [RULES]: 2250,
+  [RULES]: 2450,
   'adversarial-lens': LENS_BUDGET,
   'behaviour-lens': LENS_BUDGET,
   'conventions-lens': LENS_BUDGET,
