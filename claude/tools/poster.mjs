@@ -28,7 +28,11 @@
 // not signed with the post's signer, a review record, a decision mark, an item
 // holding a leak the scan finds, and a body that drops, forges or hides an
 // earlier reason line. It carries the item's reason lines forward and adds
-// `Edited: <reason> (<signer>)`. A status edit (`issue-comment-edit` signed
+// `Edited: <reason> (<signer>)`. An item that opens with the owner's ask and the
+// read-back is an ask item (#524): its edit carries `quote` and `intent`, which
+// must be the item's own (edit/ask), and may move the read-back from pending to
+// confirmed or corrected by citing the decision comment that heard the owner
+// (edit/status, edit/confirm). A status edit (`issue-comment-edit` signed
 // `status-<n>`, n the issue) is the one exception: it carries none, so only the
 // newest is kept (#503).
 //
@@ -84,6 +88,8 @@ const OPT = 'opt';
 const BYKIND = 'kind';
 const COMMON_FIELDS = { repo: REQ, as: OPT, signer: REQ, body_file: REQ };
 const CREATE_FIELDS = { kind: REQ, quote: BYKIND, intent: BYKIND };
+/** An edit's quote and intent: both or neither, and the item decides which (S6.1). */
+const EDIT_ASK = { quote: OPT, intent: OPT };
 
 /**
  * Each surface's own post fields: `req` is required, `opt` optional, `kind`
@@ -96,10 +102,10 @@ export const SURFACES = Object.freeze({
   'issue-comment': { ...CREATE_FIELDS, issue: REQ, answers: OPT },
   'pull-request-review': { ...CREATE_FIELDS, pr: REQ },
   'review-thread-reply': { ...CREATE_FIELDS, pr: REQ, comment: REQ },
-  'issue-edit': { issue: REQ, reason: REQ },
-  'pull-request-edit': { pr: REQ, reason: REQ },
-  'issue-comment-edit': { issue: REQ, comment: REQ, reason: REQ },
-  'review-thread-reply-edit': { pr: REQ, comment: REQ, reason: REQ },
+  'issue-edit': { issue: REQ, reason: REQ, ...EDIT_ASK },
+  'pull-request-edit': { pr: REQ, reason: REQ, ...EDIT_ASK },
+  'issue-comment-edit': { issue: REQ, comment: REQ, reason: REQ, ...EDIT_ASK },
+  'review-thread-reply-edit': { pr: REQ, comment: REQ, reason: REQ, ...EDIT_ASK },
 });
 
 /** The fields a surface takes: the common ones and its own. */
@@ -234,7 +240,8 @@ export const SCHEMA = Object.freeze({
     'One JSON document per post, strict: an unknown field, a wrong type, a pattern miss or an over-length value is refused. ' +
     'Code beside the schema decides what a schema cannot: which fields each surface takes (post/field, post/missing), ' +
     'the kind table (post/kind, post/signer, post/status), the quote rules (post/tracker, post/when, post/field), ' +
-    'the intent rules (post/status, post/owned-line, text/hidden-line), and the body file (file rules, post/owned-line). ' +
+    'the intent rules (post/status, post/owned-line, text/hidden-line), the edit rules once the item is read (edit/ask, edit/status, edit/confirm), ' +
+    'and the body file (file rules, post/owned-line). ' +
     'The surfaces: issue, pull-request, issue-comment, pull-request-review, review-thread-reply, and the four edits ' +
     '(issue-edit, pull-request-edit, issue-comment-edit, review-thread-reply-edit).',
   type: 'object',
@@ -572,23 +579,28 @@ function postRules(doc, surface, now) {
       out.push({ rule: 'post/missing', where: name });
     }
   }
-  if (isEdit(surface)) return out;
-
+  const edit = isEdit(surface);
   const kind = doc.kind;
-  const row = typeof kind === 'string' && Object.hasOwn(KINDS, kind) ? KINDS[kind] : null;
-  if (row && !row.surfaces.includes(surface)) out.push({ rule: 'post/kind', where: 'kind' });
-  if (!row || !row.surfaces.includes(surface)) return out;
-  if (row.quoted) {
-    for (const name of ['quote', 'intent']) if (!has(name)) out.push({ rule: 'post/missing', where: name });
+  if (edit) {
+    // An edit carries both quote and intent or neither; whether it may is the item's to say (S6.1).
+    for (const name of ['quote', 'intent']) if ((has('quote') || has('intent')) && !has(name)) out.push({ rule: 'post/missing', where: name });
   } else {
-    for (const name of ['quote', 'intent']) if (has(name)) out.push({ rule: 'post/field', where: name });
+    const row = typeof kind === 'string' && Object.hasOwn(KINDS, kind) ? KINDS[kind] : null;
+    if (row && !row.surfaces.includes(surface)) out.push({ rule: 'post/kind', where: 'kind' });
+    if (!row || !row.surfaces.includes(surface)) return out;
+    if (row.quoted) {
+      for (const name of ['quote', 'intent']) if (!has(name)) out.push({ rule: 'post/missing', where: name });
+    } else {
+      for (const name of ['quote', 'intent']) if (has(name)) out.push({ rule: 'post/field', where: name });
+    }
+    if (has('answers') && kind !== 'decision' && fields.answers !== undefined) out.push({ rule: 'post/field', where: 'answers' });
+    if (typeof doc.signer === 'string') {
+      const status = kind === 'status' ? typeof doc.issue === 'number' && doc.signer === `status-${doc.issue}` : !doc.signer.startsWith('status-');
+      if (!status) out.push({ rule: 'post/signer', where: 'signer' });
+    }
+    if (!row.quoted) return out;
   }
-  if (has('answers') && kind !== 'decision' && fields.answers !== undefined) out.push({ rule: 'post/field', where: 'answers' });
-  if (typeof doc.signer === 'string') {
-    const status = kind === 'status' ? typeof doc.issue === 'number' && doc.signer === `status-${doc.issue}` : !doc.signer.startsWith('status-');
-    if (!status) out.push({ rule: 'post/signer', where: 'signer' });
-  }
-  if (!row.quoted || !Array.isArray(doc.quote) || !isObject(doc.intent)) return out;
+  if (!Array.isArray(doc.quote) || !isObject(doc.intent)) return out;
 
   doc.quote.forEach((q, i) => {
     const at = `quote[${i}]`;
@@ -603,12 +615,18 @@ function postRules(doc, surface, now) {
   });
 
   const { intent } = doc;
-  if (intent.status === 'corrected') out.push({ rule: 'post/status', where: 'intent.status' });
-  if (Object.hasOwn(intent, 'comment')) out.push({ rule: 'post/field', where: 'intent.comment' });
-  if (Object.hasOwn(intent, 'corrected')) out.push({ rule: 'post/field', where: 'intent.corrected' });
-  const chat = doc.quote.every(q => isObject(q) && q.source === 'chat');
-  if (intent.status === 'confirmed' && !chat) out.push({ rule: 'post/status', where: 'intent.status' });
-  if (kind === 'decision' && chat && intent.status === 'pending') out.push({ rule: 'post/status', where: 'intent.status' });
+  if (edit) {
+    // On an edit the read-back's move is the item's to judge (S6.2); the corrected text belongs to the corrected status alone, and that status needs it.
+    if (intent.status === 'corrected' && !Object.hasOwn(intent, 'corrected')) out.push({ rule: 'post/missing', where: 'intent.corrected' });
+    if (intent.status !== 'corrected' && Object.hasOwn(intent, 'corrected')) out.push({ rule: 'post/field', where: 'intent.corrected' });
+  } else {
+    if (intent.status === 'corrected') out.push({ rule: 'post/status', where: 'intent.status' });
+    if (Object.hasOwn(intent, 'comment')) out.push({ rule: 'post/field', where: 'intent.comment' });
+    if (Object.hasOwn(intent, 'corrected')) out.push({ rule: 'post/field', where: 'intent.corrected' });
+    const chat = doc.quote.every(q => isObject(q) && q.source === 'chat');
+    if (intent.status === 'confirmed' && !chat) out.push({ rule: 'post/status', where: 'intent.status' });
+    if (kind === 'decision' && chat && intent.status === 'pending') out.push({ rule: 'post/status', where: 'intent.status' });
+  }
   for (const name of ['text', 'corrected']) {
     if (typeof intent[name] === 'string' && intentOwned(intent[name])) out.push({ rule: 'post/owned-line', where: `intent.${name}` });
   }
@@ -650,9 +668,33 @@ const readBack = intent => {
 };
 /** The intent block (S5.1 3): a corrected one shows the original struck through, paragraph by paragraph, then the correction. */
 const intentBlock = intent => {
-  const text = intent.status === 'corrected' ? `${intent.text.split(/\n{2,}/).map(p => `~~${p}~~`).join('\n\n')}\n\nCorrected read-back:\n\n${intent.corrected}` : intent.text;
+  // Line ends are made LF first, so a CRLF paragraph break still ends its strike span and the item reads the same whichever line ends the session wrote.
+  const original = lf(intent.text);
+  const text = intent.status === 'corrected' ? `${original.split(/\n{2,}/).map(p => `~~${p}~~`).join('\n\n')}\n\nCorrected read-back:\n\n${lf(intent.corrected)}` : original;
   return `## Understood intent\n\n${text}\n\n${readBack(intent)}`;
 };
+
+/**
+ * The parts of a body that hold the owner's ask, each with the field it names
+ * (S5.1 1 to 3): the decision mark and `Answers:` line, `## The ask` with each
+ * passage, and the intent block. A create post's mark comes from its kind; an
+ * edit's comes from the item (`p.mark`, `p.answers`), so the item's own lines
+ * are carried forward as they stand (S6.1).
+ */
+function askSegments(p, blankQuotes = false) {
+  const segments = [];
+  const mark = p.mark ?? (p.kind === 'decision' ? (allChat(p.quote) ? MARK_CHAT : MARK_RELAYED) : undefined);
+  if (mark !== undefined) {
+    segments.push({ where: 'mark', text: mark });
+    if (p.answers !== undefined) segments.push({ where: 'answers', text: `Answers: ${p.answers}.` });
+  }
+  if (p.quote !== undefined) {
+    segments.push({ where: 'quote', text: '## The ask' });
+    p.quote.forEach((q, i) => segments.push({ where: `quote[${i}]`, text: `${quoteLines(q.text, blankQuotes)}\n\n${sourceLine(q)}` }));
+    segments.push({ where: 'intent', text: intentBlock(p.intent) });
+  }
+  return segments;
+}
 
 /**
  * The body the poster sends, built from fixed parts, one blank line between
@@ -662,15 +704,7 @@ const intentBlock = intent => {
  * owner's words reads the same lines at the same positions.
  */
 export function renderBody(p, blankQuotes = false) {
-  const parts = [];
-  if (p.kind === 'decision') {
-    parts.push(allChat(p.quote) ? MARK_CHAT : MARK_RELAYED);
-    if (p.answers !== undefined) parts.push(`Answers: ${p.answers}.`);
-  }
-  if (p.quote !== undefined) {
-    parts.push(['## The ask', ...p.quote.map(q => `${quoteLines(q.text, blankQuotes)}\n\n${sourceLine(q)}`)].join('\n\n'));
-    parts.push(intentBlock(p.intent));
-  }
+  const parts = askSegments(p, blankQuotes).map(s => s.text);
   parts.push(p.sessionPart.replace(/(?:\r?\n)+$/, ''));
   parts.push(`Signed: ${p.signer}`);
   for (const line of p.reasons ?? []) parts.push(line);
@@ -2161,7 +2195,143 @@ export function editItemChecks(plan, item, login, ctx = {}) {
   refusals.push(...bodyRules(body, plan.signer, 'item'));
   if (scan([{ field: 'item', text: body }], { ...ctx, surface: plan.surface }).length) refusals.push({ rule: 'edit/leak', where: 'item' });
   // The poster carries the item's reason lines forward; a status edit keeps none of them (#503).
-  return { unusable: false, refusals, carried: isStatusEdit(plan) ? [] : trailingReasons(body) };
+  return { unusable: false, refusals, carried: isStatusEdit(plan) ? [] : trailingReasons(body), body };
+}
+
+// ---------------------------------------------------------------- ask items (S6.1, S6.2)
+
+const ANSWERS_LINE_RE = /^Answers: ((?:issue|pull request|comment) [1-9][0-9]{0,15})\.$/;
+const READBACK_RE = /^Read-back: (?:not yet confirmed|confirmed in this session's chat|confirmed in comment [1-9][0-9]{0,15}|corrected in comment [1-9][0-9]{0,15})\.$/;
+const READBACK_COMMENT_RE = /(?:confirmed|corrected) in comment ([1-9][0-9]{0,15})\.$/;
+/** Line ends made `\n`, on both sides of each comparison (P24). */
+const lf = s => s.replace(/\r\n?/g, '\n');
+
+/**
+ * What a body is as an ask item (S6.1), or null when it is not one: it opens
+ * with the optional mark line and, after a mark, at most one `Answers:` line,
+ * then `## The ask` and `## Understood intent`, and a read-back line follows
+ * before any fence. Returns { text, mark, answers, status, comment, corrected,
+ * intent }: the body with LF line ends, the mark line and the answers it
+ * holds, the read-back's status and comment, the corrected text of a
+ * corrected one, and the span from the line after the intent heading to the
+ * blank line before the read-back line.
+ */
+export function askItem(body) {
+  const text = lf(body);
+  const lines = text.split('\n');
+  let i = 0;
+  let mark;
+  let answers;
+  if (lines[0] === MARK_CHAT || lines[0] === MARK_RELAYED) {
+    if (lines[1] !== '') return null;
+    mark = lines[0];
+    i = 2;
+    const m = ANSWERS_LINE_RE.exec(lines[i] ?? '');
+    if (m) {
+      if (lines[i + 1] !== '') return null;
+      answers = m[1];
+      i += 2;
+    }
+  }
+  if (lines[i] !== '## The ask' || lines[i + 1] !== '') return null;
+  const h = lines.indexOf('## Understood intent', i + 2);
+  if (h < 0 || lines[h + 1] !== '') return null;
+  let r = -1;
+  for (let j = h + 2; j < lines.length && r < 0; j += 1) {
+    if (READBACK_RE.test(lines[j])) r = j;
+    else if (FENCE_OPEN_RE.test(lines[j])) return null;
+  }
+  if (r < 0 || lines[r - 1] !== '') return null;
+  const status = lines[r].includes('not yet') ? 'pending' : lines[r].includes('corrected in') ? 'corrected' : 'confirmed';
+  let corrected;
+  if (status === 'corrected') {
+    const c = lines.indexOf('Corrected read-back:', h + 2);
+    if (c < 0 || c >= r || lines[c - 1] !== '' || lines[c + 1] !== '') return null;
+    corrected = lines.slice(c + 2, r - 1).join('\n');
+  }
+  return { text, mark, answers, status, comment: READBACK_COMMENT_RE.exec(lines[r])?.[1], corrected, intent: lines.slice(h + 2, r - 1).join('\n') };
+}
+
+/**
+ * The checks of an ask-item edit against the item (S6.1, S6.2): the status
+ * move or kept status first (`edit/status`), then the ask as the item holds it
+ * (`edit/ask`), byte for byte but for line ends, naming the part that
+ * differs. Returns { refusals, move }.
+ */
+function askChecks(plan, ask) {
+  const { intent } = plan;
+  const comment = intent.comment === undefined ? undefined : String(intent.comment);
+  const kept = intent.status === ask.status;
+  const status = [];
+  if (kept) {
+    if (comment !== ask.comment) status.push({ rule: 'edit/status', where: 'intent.comment' });
+    else if (ask.status === 'corrected' && lf(intent.corrected) !== ask.corrected) status.push({ rule: 'edit/status', where: 'intent.corrected' });
+  } else if (ask.status === 'pending' && (intent.status === 'confirmed' || intent.status === 'corrected')) {
+    if (comment === undefined) status.push({ rule: 'edit/status', where: 'intent.comment' });
+  } else {
+    status.push({ rule: 'edit/status', where: 'intent.status' });
+  }
+  if (status.length) return { refusals: status };
+  // The ask as it stands in the item, at the item's own status.
+  const was = kept ? intent : { text: intent.text, status: ask.status };
+  let pos = 0;
+  for (const seg of askSegments({ ...plan, mark: ask.mark, answers: ask.answers, intent: was })) {
+    const want = lf(seg.text);
+    if (!ask.text.startsWith(want, pos) || !ask.text.startsWith('\n\n', pos + want.length)) return { refusals: [{ rule: 'edit/ask', where: seg.where }] };
+    pos += want.length + 2;
+  }
+  return { refusals: [], move: !kept };
+}
+
+/**
+ * The decision a read-back move cites (S6.2a), read from the repo and checked.
+ * Returns { label }, the decision's single signature, { refusals }, or { lines }
+ * for an `unavailable` result. No text from the comment reaches output, and a
+ * comment by another author is read no further.
+ */
+function confirmChecks(plan, ask, login, io, ctx) {
+  const refusals = [{ rule: 'edit/confirm', where: 'intent.comment' }];
+  // The item's own number, and the line a decision answering it carries. A review thread reply is no ask item, so no decision answers one: refused before any read.
+  const own = { 'issue-edit': ['issue', plan.issue], 'pull-request-edit': ['pull request', plan.pr], 'issue-comment-edit': ['comment', plan.comment] }[plan.surface];
+  if (own === undefined) return { refusals };
+  const read = io.gh(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}/issues/comments/${plan.intent.comment}`, false));
+  if (!read.ok) return { lines: [saidLine(read.stderr, ctx), 'RESULT: unavailable'] };
+  const item = parseJson(read.stdout);
+  const usable = isObject(item) && typeof item.user?.login === 'string' && typeof item.issue_url === 'string' && (item.body === null || typeof item.body === 'string');
+  if (!usable) return { lines: ['the cited comment read could not be read', 'RESULT: unavailable'] };
+  if (item.user.login !== login) return { refusals };
+  const number = plan.surface === 'pull-request-edit' ? plan.pr : plan.issue;
+  if (item.issue_url.toLowerCase() !== `https://api.github.com/repos/${plan.repo.owner}/${plan.repo.name}/issues/${number}`.toLowerCase()) return { refusals };
+  const body = item.body ?? '';
+  const d = askItem(body);
+  const labels = signatures(body);
+  if (!d || d.mark !== MARK_CHAT || d.status !== 'confirmed' || d.comment !== undefined || d.answers !== `${own[0]} ${own[1]}` || labels.length !== 1) return { refusals };
+  const fits = plan.intent.status === 'confirmed' ? d.intent === ask.intent : d.intent === lf(plan.intent.corrected) && d.intent !== ask.intent;
+  return fits ? { label: labels[0] } : { refusals };
+}
+
+/** An ask-item edit's checks after the item read (S6.1a): { refusals } or { lines } when one fails, else {}. Sets what the render needs on `plan`. */
+function askEdit(plan, ask, login, io, ctx) {
+  if (ask === null && plan.quote === undefined) return {};
+  if (ask === null || plan.quote === undefined) {
+    const rule = ask === null ? 'post/field' : 'post/missing';
+    return { refusals: [{ rule, where: 'quote' }, { rule, where: 'intent' }] };
+  }
+  const a = askChecks(plan, ask);
+  if (a.refusals.length) return a;
+  plan.mark = ask.mark;
+  plan.answers = ask.answers;
+  if (a.move) {
+    const d = confirmChecks(plan, ask, login, io, ctx);
+    if (d.label === undefined) return d;
+    // The item keeps its own signer; the reason says who heard the owner (S6.2b).
+    plan.reason = `${plan.reason}, heard by ${d.label}`;
+  }
+  if (plan.quote.some(q => q.source === 'tracker')) {
+    const t = trackerChecks(plan, login, io, ctx);
+    if (t.lines || t.refusals.length) return t;
+  }
+  return {};
 }
 
 /**
@@ -2358,6 +2528,9 @@ function editItem(plan, p, args, login, io, ctx, setPhase) {
   const c = editItemChecks(plan, parseJson(read.stdout), login, ctx);
   if (c.unusable) return { code: 4, lines: ['the item read could not be read', 'RESULT: unavailable'] };
   if (c.refusals.length) return refused(c.refusals);
+  const ask = askEdit(plan, askItem(c.body), login, io, ctx);
+  if (ask.lines) return { code: 4, lines: ask.lines };
+  if (ask.refusals?.length) return refused(ask.refusals);
 
   // The second stage (S6.1a): the whole body, with the item's reason lines carried forward, is built and checked before the PATCH.
   plan.reasons = [...c.carried, reasonLine(plan.reason, plan.signer)];

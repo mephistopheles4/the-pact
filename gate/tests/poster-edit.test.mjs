@@ -115,9 +115,9 @@ test('C1: each edit surface takes its fields with a reason and a signer, edits w
   }
 });
 
-// #524 C2: fields an edit does not take
-test('C2: kind, quote and intent on an edit are refused post/field, and nothing is sent', t => {
-  for (const extra of [{ kind: 'note' }, { quote: [{ text: 'The owner said it.', source: 'chat', when: '2026-11-11' }] }, { intent: { text: 'A read-back.', status: 'pending' } }, { title: 'A title' }, { labels: ['x'] }, { answers: 'issue 5' }]) {
+// #524 C2: fields an edit does not take (quote and intent are an ask item's, poster-ask.test.mjs)
+test('C2: kind, title, labels and answers on an edit are refused post/field, and nothing is sent', t => {
+  for (const extra of [{ kind: 'note' }, { title: 'A title' }, { labels: ['x'] }, { answers: 'issue 5' }]) {
     const w = world();
     const r = edit(t, 'issue-comment-edit', w, { change: d => ({ ...d, ...extra }) });
     assert.ok(refusedBy(r, 'post/field', Object.keys(extra)[0]), text(r));
