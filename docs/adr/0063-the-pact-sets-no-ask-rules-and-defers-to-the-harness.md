@@ -1,5 +1,7 @@
 # The pact sets no ask rules and defers to the harness
 
+Superseded in part by [0151](0151-the-cleaner-forces-only-on-an-override-tag.md): the cleaner's switch adds two ask rules.
+
 The settings overlay no longer sets `permissions.ask`. The pact's 52 ask rules, on the install's apply, its review folder, its record, rulesets and branch protection, and edits under `~/.claude/`, are retired. The install takes them out of a live `settings.json`, so the prompts stop after the next install. This supersedes [ADR 0041](0041-a-required-ci-check-guards-main.md), [ADR 0042](0042-the-apply-guard-asks-on-any-command-naming-the-install.md), [ADR 0049](0049-the-apply-guard-asks-on-an-apply-not-a-mention.md) and [ADR 0052](0052-the-ask-rules-no-longer-guard-a-rollback-to-install-ps1.md) in part (#265).
 
 ## What it covers

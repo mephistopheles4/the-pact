@@ -120,9 +120,15 @@ how every session in every repo behaves. So:
   `permissions.deny` and records the ones it added under `stopDeny`; off, it
   removes only rules both recorded and on that list. `parseRecord` refuses a
   `stopDeny` that is not a list of strings. The cleaner's switch adds
-  `claude rm *` the same way, under `cleanerDeny`. Each plan filters its record
-  by its own list. Neither is in the overlay or the allow-list, and the cloud
-  copy adds neither. Both sets of rules are a speed bump: a flag before the
+  `claude rm *` the same way, under `cleanerDeny`. The cleaner's switch also adds `CLEANER_ASK`'s two
+  rules (`*cleaner.mjs*remove*--override*`, as a `Bash(...)` and a `PowerShell(...)` rule) to
+  `permissions.ask`, recorded under `cleanerAsk` (#523, ADR 0151); `cleanerAskPlan` is `denyPlan`
+  over the ask list, `mergeSettings` applies it after the retired-ask filter, and `parseRecord`
+  refuses a `cleanerAsk` that is not a list of strings. With `settings.json` not strict JSON and the
+  cleaner on, a `WARN:` line names both rules. Each plan filters its record
+  by its own list. None of the three is in the overlay or the allow-list, and
+  the cloud copy adds none. The ask rules' misses are listed in ADR 0151. The
+  deny rules are a speed bump: a flag before the
   subcommand, a wrapped call and a flag placed between `claude daemon` and `stop` (a leading `--dangerously-skip-permissions` is the one Claude Code's docs name as still reaching the subcommand) get past them.
 - **The field check for the deny rules (#439),** run after the owner applies
   with `session-stop-deny` on or the cleaner on; a session reports the result
@@ -252,7 +258,7 @@ how every session in every repo behaves. So:
 ## Rolling back
 
 An older pact installs with that commit's own installer. **If the cleaner is
-on,** turn it off and apply first, so its deny rules leave `settings.json`; a
+on,** turn it off and apply first, so its deny rules and, from #523, its two ask rules leave `settings.json` (a pact from before #523 ignores `cleanerAsk` and leaves them); a
 pact from before #438 refuses a configuration that names it, and never removes
 those rules. Rolling back to a pact from before #439 has a second reason: an older installer drops the
 two `claude rm` rules from its record but leaves them in `settings.json`,

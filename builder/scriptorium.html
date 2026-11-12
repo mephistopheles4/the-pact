@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-EHn3Vu6DYLJY2ZmHbRRFgvVbYflZtC8ffQQmwi3O2mI='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-ibqwTEMok+E6MNBRIZLhwqqK0LDjKgF4nJ+Yv6knag4='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -3362,6 +3362,7 @@ const PACT = /* pact-data:begin */ {
   ],
   "settings": "{\n  \"permissions\": {\n    \"defaultMode\": \"auto\"\n  },\n  \"skipAutoPermissionPrompt\": true,\n  \"hooks\": {\n    \"PostToolUse\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"UserPromptSubmit\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"Stop\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"PreCompact\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"SessionStart\": [\n      {\n        \"matcher\": \"compact\",\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ]\n  }\n}\n",
   "cleanerDeny": "Bash(git worktree remove *)\nBash(git * worktree remove *)\nBash(git branch -d *)\nBash(git * branch -d *)\nBash(git branch -D *)\nBash(git * branch -D *)\nBash(git branch --delete *)\nBash(git * branch --delete *)\nBash(claude rm *)\nPowerShell(git worktree remove *)\nPowerShell(git * worktree remove *)\nPowerShell(git branch -d *)\nPowerShell(git * branch -d *)\nPowerShell(git branch -D *)\nPowerShell(git * branch -D *)\nPowerShell(git branch --delete *)\nPowerShell(git * branch --delete *)\nPowerShell(claude rm *)",
+  "cleanerAsk": "Bash(*cleaner.mjs*remove*--override*)\nPowerShell(*cleaner.mjs*remove*--override*)",
   "stopDeny": "Bash(claude stop *)\nBash(claude kill *)\nBash(claude daemon stop *)\nBash(claude respawn *)\nPowerShell(claude stop *)\nPowerShell(claude kill *)\nPowerShell(claude daemon stop *)\nPowerShell(claude respawn *)"
  },
  "presets": [
@@ -6059,7 +6060,7 @@ const ALWAYS_COMMAND = { name: 'scriptorium', what: 'Always installed: the build
 // The pact tools a save may list (#280), in the installer's order, each off unless ticked, with what it does.
 const OPT_TOOLS = Object.freeze([
   { name: 'poster', what: "Posts free text to GitHub as your gh account, edits what a session posted, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which a dry run with --review-folder shows." },
-  { name: 'cleaner', what: "Removes leftover worktrees under .claude/worktrees/ and their local branches, only those it named back and you said yes to; it never forces. Turning it on adds a rule to the rules file and deny rules on raw removal commands to settings.json." },
+  { name: 'cleaner', what: "Removes leftover worktrees under .claude/worktrees/ and their local branches, only those it named back and you said yes to; it forces only on an override pair you gave for that run. Turning it on adds a rule to the rules file, deny rules on raw removal commands and two ask rules on remove --override to settings.json." },
 ]);
 // #262 addendum 3: a save writes agent files and never deletes one, and every file in agents/ installs.
 const AGENTS_NOTE = 'An agent file a save writes is yours: an install never writes over it, and a save deletes nothing.';
@@ -8262,6 +8263,7 @@ function boot() {
           ...T.commands.map(c => fold(`/${c.name}`, c.name === ALWAYS_COMMAND.name ? 'Always installed.' : 'Installed only when you turn it on, under Settings.', c.text)),
           fold('The settings keys', 'Merged into ~/.claude/settings.json, keeping your other keys. The hooks block is the pact\'s auto-compact hook: the installer puts its script path and your window in place of the two tokens, and merges it by key, so your own hooks stay.', T.settings),
           fold("The cleaner's deny rules", 'Added to permissions.deny in ~/.claude/settings.json only while the cleaner is on, under Settings.', T.cleanerDeny),
+          fold("The cleaner's ask rules", 'Added to permissions.ask in ~/.claude/settings.json only while the cleaner is on, under Settings. They make Claude Code ask you before a remove --override runs, a speed bump and not a boundary.', T.cleanerAsk),
           fold("The stop switch's deny rules", 'Added to permissions.deny in ~/.claude/settings.json only while Session stop is on, under Settings.', T.stopDeny))),
     ));
     showDialog('pacttext');
