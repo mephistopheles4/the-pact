@@ -198,7 +198,7 @@ when no other row answers the sentence.
   is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
   security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
   `color:`.
-- **Labels** are your wording, never text from a report, and hold no link,
+- **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
