@@ -9,8 +9,7 @@ is a candidate to cut.
 A round is evidence the owner weighs, never a gate (ADR 0136). With the wording
 tests gone, it is what shows whether a rule's behaviour survives a cut or a
 reword. No change waits on a round, a pass never stands in for the review at
-Test, and CI stays the Test evidence. An eval run is not a probe under
-`docs/agents/changing-rules.md`.
+Test, and CI stays the Test evidence. An eval run is not a probe (see Probes, below).
 
 `gen.mjs` writes each case in `cases/` twice, as a plugin folder
 `claude plugin eval` can read: `<case>-with` carries the rules text as its
@@ -89,6 +88,27 @@ The front matter holds the case's own keys and no `append_system_prompt`; the
 generator adds that. Write down what each case should show before its run,
 and use no pact-only words in the prompt, so a difference shows clarity, not
 vocabulary.
+
+## Probes
+
+A change to an agent or a rule is proved by review and by use. It needs a
+planted probe only when the owner asks for one by name, at triage or in chat.
+Depth is the owner's dial: the owner may also ask for a security pair read or
+a closer look on any change. Silence means review and use.
+A probe's record lives on the issue, as comments, and its results go in the
+work's log entry in [`docs/log/`](../docs/log/).
+
+- **Post the expected result on the issue before running the probe.** Never
+  edit it after a run; post a correction as a new comment.
+- **Run it in a fresh interactive session, after installing,** not through
+  `claude -p`. A headless run has no human to approve anything, which changes
+  what the model does: the 2026-09-29 P5 probe failed headless and passed
+  interactively. See
+  [its log entry](../docs/log/older.md#handing-the-owner-the-trigger-built-installed-and-half-shown-to-work).
+- **A pass counts only once the probe has been seen to fail:** a control run,
+  or a planted bad case that it catches.
+- **Record every run verbatim,** pass or fail, with the agent's report, on the
+  issue.
 
 ## Claude Code version
 

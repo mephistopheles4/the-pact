@@ -139,7 +139,7 @@
 // own values, egress when the tools line holds more than the read tools. The
 // notice gains an "Agents set:" line. Since #262 no setting is marked: a
 // person may run any agent on any model, and the pact does not test them.
-// Adding an agent to CONFIGURABLE_AGENTS is a spec change (docs/agents/changing-rules.md).
+// Adding an agent to CONFIGURABLE_AGENTS is a spec change (AGENTS.md, Reviewing a change here).
 //
 // The project mode (#53, slice 5) renders the project rules file for a
 // project install. It reads the user file, for the user's effective values and
@@ -256,6 +256,13 @@ const AGENT_OUTPUT_PREFIX = 'agent-';
 // file names no route any more, so the renderer reads none from it. Without
 // this list data-lens, which has no other sign, would print as plain on its
 // AGENT line with no error.
+// A security-set lens is either lens of the security pair, or any other lens
+// that holds a shell or network tools, or guards the sensitive route or the
+// sensitive-work default. The gate finds most of them by signs in their own
+// files; this list holds those it can find by no other sign. The name
+// outlived the security set of practice cases, which #189 retired. Since ADR
+// 0069 the gate holds no text word for word: a rule in the pact's files holds
+// by review and by use.
 const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);
 // The sign of a security-set agent read from its own file: a risk-floor block.
 // No pact lens carries one since #262; the sign stays for an agent that does.
