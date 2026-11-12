@@ -10,6 +10,7 @@ import { existsSync, readdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { LEGACY_TABLE, NAMED_REFS, NAMED_TABLE, makeGh, post, scan } from '../../claude/tools/poster.mjs';
+import { postDoc, postOld, sent, sentWithAsk } from './poster-post.mjs';
 import { childEnv } from './gate-run.mjs';
 import { REPO, assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
@@ -115,7 +116,7 @@ function place(t, files, argv) {
 /** Post on `surface` through `w`, with a plain body and title unless given. */
 function run(t, surface, w, { body = 'A plain body.\n', title = 'A plain title\n', extra = [], env = {}, repo = TARGET, machine = MACHINE } = {}) {
   const argv = place(t, { 'body.md': body, 'title.txt': title }, [surface, '--repo', repo, '--body', '@body.md', ...SURFACE_ARGS[surface], ...extra]);
-  return post(argv, { gh: w.gh, env, ...machine });
+  return postOld(argv, { gh: w.gh, env, ...machine });
 }
 
 const last = r => r.lines.at(-1);
@@ -144,11 +145,11 @@ function assertNext(r, expected, code, result) {
 // ---------------------------------------------------------------- C1, C2: one call per surface, read back by its own id
 
 const POSTS = {
-  issue: ['repos/tester/sandbox/issues', { title: 'A plain title', body: 'A plain body.\n', labels: ['tier:thorough'] }, 'repos/tester/sandbox/issues/42', `${WEB}/issues/42`],
-  'pull-request': ['repos/tester/sandbox/pulls', { title: 'A plain title', body: 'A plain body.\n', head: 'feature/x', base: 'main', draft: false }, 'repos/tester/sandbox/pulls/7', `${WEB}/pull/7`],
-  'issue-comment': ['repos/tester/sandbox/issues/5/comments', { body: 'A plain body.\n' }, 'repos/tester/sandbox/issues/comments/9001', `${WEB}/issues/5#issuecomment-9001`],
-  'pull-request-review': ['repos/tester/sandbox/pulls/7/reviews', { body: 'A plain body.\n', event: 'COMMENT' }, 'repos/tester/sandbox/pulls/7/reviews/777', `${WEB}/pull/7#pullrequestreview-777`],
-  'review-thread-reply': ['repos/tester/sandbox/pulls/7/comments/55/replies', { body: 'A plain body.\n' }, 'repos/tester/sandbox/pulls/comments/8080', `${WEB}/pull/7#discussion_r8080`],
+  issue: ['repos/tester/sandbox/issues', { title: 'A plain title', body: sentWithAsk('A plain body.\n'), labels: ['tier:thorough'] }, 'repos/tester/sandbox/issues/42', `${WEB}/issues/42`],
+  'pull-request': ['repos/tester/sandbox/pulls', { title: 'A plain title', body: sentWithAsk('A plain body.\n'), head: 'feature/x', base: 'main', draft: false }, 'repos/tester/sandbox/pulls/7', `${WEB}/pull/7`],
+  'issue-comment': ['repos/tester/sandbox/issues/5/comments', { body: sent('A plain body.\n') }, 'repos/tester/sandbox/issues/comments/9001', `${WEB}/issues/5#issuecomment-9001`],
+  'pull-request-review': ['repos/tester/sandbox/pulls/7/reviews', { body: sent('A plain body.\n'), event: 'COMMENT' }, 'repos/tester/sandbox/pulls/7/reviews/777', `${WEB}/pull/7#pullrequestreview-777`],
+  'review-thread-reply': ['repos/tester/sandbox/pulls/7/comments/55/replies', { body: sent('A plain body.\n') }, 'repos/tester/sandbox/pulls/comments/8080', `${WEB}/pull/7#discussion_r8080`],
 };
 
 for (const [surface, [path, request, readPath, url]] of Object.entries(POSTS)) {
@@ -222,9 +223,9 @@ for (const [field, surface, tamper] of TAMPERS) {
 
 // #246 C3: the position and sizes, in characters
 test('a body mismatch names the first differing character and both sizes', t => {
-  const w = world({ tamper: x => ({ ...x, body: 'A plain b0dy.\n' }) });
+  const w = world({ tamper: x => ({ ...x, body: x.body.replace('plain body', 'plain b0dy') }) });
   const r = run(t, 'issue-comment', w);
-  assert.ok(r.lines.includes('MISMATCH body: first difference at character 10; sent 14 characters, read back 14 characters'), out(r));
+  assert.ok(r.lines.includes(`MISMATCH body: first difference at character 10; sent ${[...sent('A plain body.\n')].length} characters, read back ${[...sent('A plain body.\n')].length} characters`), out(r));
 });
 
 // #246 C3: a recased label is reported, not a mismatch
@@ -252,7 +253,7 @@ test('a repo GitHub says another account owns is refused after the repo read, wi
   const w = world({ owner: 'someone' });
   const r = run(t, 'issue-comment', w);
   assert.equal(r.code, 2, out(r));
-  assert.deepEqual(r.lines, ['REFUSED owner/github option --repo', 'RESULT: refused 1']);
+  assert.deepEqual(r.lines, ['REFUSED owner/github repo', 'RESULT: refused 1']);
   assert.deepEqual(w.calls.map(c => c.args.at(-1)), ['user', 'repos/tester/sandbox']);
 });
 
@@ -261,7 +262,7 @@ test("a repo whose owner GitHub writes in other capitals is refused", t => {
   const w = world({ owner: 'Tester' });
   const r = run(t, 'issue-comment', w);
   assert.equal(r.code, 2, out(r));
-  assert.ok(r.lines.includes('REFUSED owner/github option --repo'), out(r));
+  assert.ok(r.lines.includes('REFUSED owner/github repo'), out(r));
   assert.equal(w.calls.length, 2);
 });
 
@@ -273,7 +274,7 @@ for (const [what, gh] of [
   test(`a repo read that ${what} ends unavailable, exit 4, with no post`, t => {
     const w = world();
     const argv = place(t, { 'body.md': 'b\n' }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']);
-    const r = post(argv, { gh: gh(w), env: {}, ...MACHINE });
+    const r = postOld(argv, { gh: gh(w), env: {}, ...MACHINE });
     assert.equal(r.code, 4, out(r));
     assert.equal(last(r), 'RESULT: unavailable');
     assert.equal(w.calls.filter(c => c.args.includes('POST')).length, 0);
@@ -286,7 +287,7 @@ test('a repo owner that differs from the login only in case is refused', t => {
   const w = world();
   const r = run(t, 'issue-comment', w, { repo: 'Tester/sandbox' });
   assert.equal(r.code, 2, out(r));
-  assert.ok(r.lines.includes('REFUSED owner/repo option --repo'), out(r));
+  assert.ok(r.lines.includes('REFUSED owner/repo repo'), out(r));
   assert.equal(w.calls.length, 1);
 });
 
@@ -295,7 +296,7 @@ test('a repo owner that differs from the login only in case is refused', t => {
     const w = world();
     const r = run(t, 'issue-comment', w, { env: { [name]: 'x' } });
     assert.equal(r.code, 2, out(r));
-    assert.ok(r.lines.includes('REFUSED as/missing option --as'), out(r));
+    assert.ok(r.lines.includes('REFUSED as/missing as'), out(r));
     assert.equal(w.calls.length, 0);
   });
 }
@@ -367,7 +368,7 @@ for (const [where, fault, code, result, next, how = 'throw'] of [
       throw new Error('planted');
     };
     const argv = place(t, { 'body.md': 'b\n' }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']);
-    const r = post(argv, { gh, env: {}, ...OTHER });
+    const r = postOld(argv, { gh, env: {}, ...OTHER });
     assert.equal(r.code, code, r.lines.join('\n'));
     assert.equal(last(r), result);
     assert.ok(!r.lines.join('\n').includes('planted'));
@@ -424,14 +425,14 @@ test('a failed post call ends failed, exit 3, with only the first line of stderr
   assert.ok(!out(r).includes('second line'));
 });
 
-for (const [what, argv] of [
-  ["a live environment secret's value in the body", ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']],
-  ['a misspelled option', ['issue-comment', '--repo', TARGET, '--body', '@plain.md', '--issue', '5', '--lable', 'x']],
+for (const [what, run] of [
+  ["a live environment secret's value in the body", (t, io) => postOld(place(t, { 'body.md': `See ${ENV_SECRET}.\n` }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']), io)],
+  ['an old option', (t, io) => post(place(t, { 'body.md': 'A plain body.\n' }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5', '--lable', 'x']), io)],
 ]) {
   // #246 C6, C7: a refusal holds on a real post too, not only on a dry run
   test(`a real post with ${what} is refused before any gh call`, t => {
     const calls = [];
-    const r = post(place(t, { 'body.md': `See ${ENV_SECRET}.\n`, 'plain.md': 'A plain body.\n' }, argv), { gh: (...a) => (calls.push(a), { ok: false }), env: { MY_API_KEY: ENV_SECRET }, ...MACHINE });
+    const r = run(t, { gh: (...a) => (calls.push(a), { ok: false }), env: { MY_API_KEY: ENV_SECRET }, ...MACHINE });
     assert.equal(r.code, 2, out(r));
     assert.match(last(r), /^RESULT: refused [1-9]/);
     assert.equal(calls.length, 0);
@@ -458,7 +459,7 @@ test('a failed read-back ends unverified', t => {
   const w = world();
   const gh = (args, input) => (args.includes('repos/tester/sandbox/issues/comments/9001') ? { ok: false, stdout: '', stderr: 'HTTP 502 zzmarker' } : w.gh(args, input));
   const argv = place(t, { 'body.md': 'b\n' }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']);
-  const r = post(argv, { gh, env: {}, ...OTHER });
+  const r = postOld(argv, { gh, env: {}, ...OTHER });
   assertNext(r, LANDED_NEXT.link, 1, `RESULT: unverified ${WEB}/issues/5#issuecomment-9001`);
   assert.ok(!r.lines.at(-2).includes('zzmarker'));
 });
@@ -528,7 +529,7 @@ function runTree(tree, t) {
   const argv = place(t, files, JSON.parse(tree['argv.json']));
   const calls = [];
   const gh = (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' });
-  return adapt(post(argv, { gh, env: JSON.parse(tree['env.json'] ?? '{}'), ...MACHINE }), calls);
+  return adapt(postOld(argv, { gh, env: JSON.parse(tree['env.json'] ?? '{}'), ...MACHINE }), calls);
 }
 
 /** Every refusal row: exit 2, a count that matches its lines, no gh call, and none of the planted text in the output. */
@@ -554,50 +555,37 @@ const ISSUE_ARGV = (...labels) => ['issue', '--repo', TARGET, '--title-file', '@
   const base = () => ({ 'argv.json': JSON.stringify(PR_ARGV), 'body.md': 'A plain body.\n', 'title.txt': 'A plain title\n' });
   const run = runTree;
   const everyRow = refusedQuietly;
+  // The usage rows read the new command line, `<surface> --post <file> [--dry-run]`; the rows after them plant one fault in the post document (#524).
   const rows = [
-    { id: 'no-surface', plant: asSurface(PR_ARGV.slice(1)), fails: ['usage/surface'], why: 'the first word is an option' },
-    // #280 C2: the installed copy run with nothing refuses before any gh call.
-    { id: 'no-arguments', plant: asSurface([]), fails: ['usage/surface'], why: 'run with no arguments at all' },
-    { id: 'unknown-surface', plant: asSurface(['issues', ...PR_ARGV.slice(1)]), fails: ['usage/surface'], why: 'a misspelled surface' },
-    { id: 'misspelled-option', plant: addArgs('--lable', 'x'), fails: ['usage/unknown-option'], why: 'stacks posted unlabelled on --lable' },
-    { id: 'other-surface-option', plant: addArgs('--issue', '5'), fails: ['usage/unknown-option'], why: 'an option another surface takes' },
-    { id: 'equals-form', plant: addArgs('--label=x'), fails: ['usage/unknown-option'], why: 'the --name=value form is not read' },
-    { id: 'positional', plant: addArgs('stray'), fails: ['usage/argument'], why: 'a word that is no option' },
-    { id: 'flag-with-value', plant: tree => withArgv(tree, a => [...a, '--draft', 'yes']), fails: ['usage/argument'], why: 'a flag takes no value' },
-    { id: 'missing-value-last', plant: tree => withArgv(dropOpt('--base')(tree), a => [...a, '--base']), fails: ['usage/missing-value'], why: 'an option at the end with no value' },
-    { id: 'missing-value-next-option', plant: tree => withArgv(tree, a => a.map((x, i) => (x === 'main' && a[i - 1] === '--base' ? '--draft' : x))), fails: ['usage/missing-value'], why: 'stacks sent --base --body to the default branch' },
-    { id: 'repeated-body', plant: addArgs('--body', '@body.md'), fails: ['usage/repeated'], why: 'stacks took the last one silently' },
-    { id: 'repeated-head', plant: addArgs('--head', 'feature/y'), fails: ['usage/repeated'], why: 'a second head' },
-    { id: 'repeated-flag', plant: addArgs('--dry-run'), fails: ['usage/repeated'], why: 'a flag twice' },
-    { id: 'missing-base', plant: dropOpt('--base'), fails: ['usage/missing-option'], why: 'a pull request needs its base' },
-    { id: 'missing-repo', plant: dropOpt('--repo'), fails: ['usage/missing-option'], why: '--repo is never inferred' },
-    { id: 'repo-no-slash', plant: setOpt('--repo', 'tester'), fails: ['input/repo'], why: 'no name' },
-    { id: 'repo-empty-name', plant: setOpt('--repo', 'tester/'), fails: ['input/repo'], why: 'an empty name' },
-    { id: 'repo-underscore-owner', plant: setOpt('--repo', 'te_ster/sandbox'), fails: ['input/repo'], why: 'an owner takes no underscore' },
-    { id: 'repo-long-owner', plant: setOpt('--repo', `${'a'.repeat(40)}/sandbox`), fails: ['input/repo'], why: 'an owner over 39' },
-    { id: 'repo-dot-dot', plant: setOpt('--repo', 'tester/..'), fails: ['input/repo'], why: 'a name of two dots climbs the path' },
-    { id: 'repo-dot', plant: setOpt('--repo', 'tester/.'), fails: ['input/repo'], why: 'a name of one dot' },
-    { id: 'repo-space', plant: setOpt('--repo', 'tester/sand box'), fails: ['input/repo'], why: 'a space' },
-    { id: 'repo-long-name', plant: setOpt('--repo', `tester/${'n'.repeat(101)}`), fails: ['input/repo'], why: 'a name over 100' },
-    { id: 'login-space', plant: addArgs('--as', 'te ster'), fails: ['input/login'], why: 'a login with a space' },
-    { id: 'login-long', plant: addArgs('--as', 'a'.repeat(40)), fails: ['input/login'], why: 'a login over 39' },
-    { id: 'login-empty', plant: addArgs('--as', ''), fails: ['input/login'], why: 'an empty login' },
-    { id: 'branch-leading-dash', plant: setOpt('--head', '-main'), fails: ['input/branch'], why: 'a branch read as an option' },
-    { id: 'branch-dot-dot', plant: setOpt('--base', 'a..b'), fails: ['input/branch'], why: 'git refuses .. in a ref' },
-    { id: 'branch-space', plant: setOpt('--head', 'feat ure'), fails: ['input/branch'], why: 'a space' },
-    { id: 'branch-tilde', plant: setOpt('--head', 'feat~1'), fails: ['input/branch'], why: 'a revision suffix' },
+    { id: 'missing-base', plant: dropOpt('--base'), fails: ['post/missing'], why: 'a pull request needs its base' },
+    { id: 'missing-repo', plant: dropOpt('--repo'), fails: ['post/missing'], why: 'the repo is never inferred' },
+    { id: 'repo-no-slash', plant: setOpt('--repo', 'tester'), fails: ['post/pattern'], why: 'no name' },
+    { id: 'repo-empty-name', plant: setOpt('--repo', 'tester/'), fails: ['post/pattern'], why: 'an empty name' },
+    { id: 'repo-underscore-owner', plant: setOpt('--repo', 'te_ster/sandbox'), fails: ['post/pattern'], why: 'an owner takes no underscore' },
+    { id: 'repo-long-owner', plant: setOpt('--repo', `${'a'.repeat(40)}/sandbox`), fails: ['post/pattern'], why: 'an owner over 39' },
+    { id: 'repo-dot-dot', plant: setOpt('--repo', 'tester/..'), fails: ['post/pattern'], why: 'a name of two dots climbs the path' },
+    { id: 'repo-dot', plant: setOpt('--repo', 'tester/.'), fails: ['post/pattern'], why: 'a name of one dot' },
+    { id: 'repo-space', plant: setOpt('--repo', 'tester/sand box'), fails: ['post/pattern'], why: 'a space' },
+    { id: 'repo-long-name', plant: setOpt('--repo', `tester/${'n'.repeat(101)}`), fails: ['post/pattern'], why: 'a name over 100' },
+    { id: 'login-space', plant: addArgs('--as', 'te ster'), fails: ['post/pattern'], why: 'a login with a space' },
+    { id: 'login-long', plant: addArgs('--as', 'a'.repeat(40)), fails: ['post/pattern'], why: 'a login over 39' },
+    { id: 'login-empty', plant: addArgs('--as', ''), fails: ['post/pattern'], why: 'an empty login' },
+    { id: 'branch-leading-dash', plant: setOpt('--head', '-main'), fails: ['post/pattern'], why: 'a branch read as an option' },
+    { id: 'branch-dot-dot', plant: setOpt('--base', 'a..b'), fails: ['post/pattern'], why: 'git refuses .. in a ref' },
+    { id: 'branch-space', plant: setOpt('--head', 'feat ure'), fails: ['post/pattern'], why: 'a space' },
+    { id: 'branch-tilde', plant: setOpt('--head', 'feat~1'), fails: ['post/pattern'], why: 'a revision suffix' },
     { id: 'head-other-owner', plant: setOpt('--head', 'someone:feature/x'), fails: ['owner/head'], why: "a stranger's fork opened under the owner's account" },
-    { id: 'number-zero', plant: asSurface(COMMENT_ARGV('0')), fails: ['input/number'], why: 'zero' },
-    { id: 'number-leading-zero', plant: asSurface(COMMENT_ARGV('01')), fails: ['input/number'], why: 'a leading zero' },
-    { id: 'number-exponent', plant: asSurface(COMMENT_ARGV('1e3')), fails: ['input/number'], why: 'Number() reads 1e3 as 1000' },
-    { id: 'number-hex', plant: asSurface(COMMENT_ARGV('0x10')), fails: ['input/number'], why: 'Number() reads 0x10 as 16' },
-    { id: 'number-space', plant: asSurface(COMMENT_ARGV(' 12')), fails: ['input/number'], why: 'Number() trims a space' },
-    { id: 'number-negative', plant: asSurface(COMMENT_ARGV('-1')), fails: ['input/number'], why: 'a negative' },
-    { id: 'number-17-digits', plant: asSurface(COMMENT_ARGV('12345678901234567')), fails: ['input/number'], why: 'over sixteen digits' },
-    { id: 'number-unsafe', plant: asSurface(COMMENT_ARGV('9007199254740993')), fails: ['input/number'], why: 'sixteen digits past the safe integers' },
-    { id: 'label-long', plant: asSurface(ISSUE_ARGV('x'.repeat(51))), fails: ['input/label'], why: 'a label over 50' },
-    { id: 'label-slash', plant: asSurface(ISSUE_ARGV('a/b')), fails: ['input/label'], why: 'a character outside the set' },
-    { id: 'label-empty', plant: asSurface(ISSUE_ARGV('')), fails: ['input/label'], why: 'an empty label' },
+    { id: 'number-zero', plant: asSurface(COMMENT_ARGV('0')), fails: ['post/pattern'], why: 'zero' },
+    { id: 'number-leading-zero', plant: asSurface(COMMENT_ARGV('01')), fails: ['post/type'], why: 'a leading zero is no JSON number' },
+    { id: 'number-exponent', plant: asSurface(COMMENT_ARGV('1e3')), fails: ['post/type'], why: 'a string is not an integer, even one Number() reads as 1000' },
+    { id: 'number-hex', plant: asSurface(COMMENT_ARGV('0x10')), fails: ['post/type'], why: 'a string is not an integer, even one Number() reads as 16' },
+    { id: 'number-space', plant: asSurface(COMMENT_ARGV(' 12')), fails: ['post/type'], why: 'a string is not an integer, even one Number() trims' },
+    { id: 'number-negative', plant: asSurface(COMMENT_ARGV('-1')), fails: ['post/pattern'], why: 'a negative' },
+    { id: 'number-17-digits', plant: asSurface(COMMENT_ARGV('12345678901234567')), fails: ['post/pattern'], why: 'over sixteen digits' },
+    { id: 'number-unsafe', plant: asSurface(COMMENT_ARGV('9007199254740993')), fails: ['post/pattern'], why: 'sixteen digits past the safe integers' },
+    { id: 'label-long', plant: asSurface(ISSUE_ARGV('x'.repeat(51))), fails: ['post/pattern'], why: 'a label over 50' },
+    { id: 'label-slash', plant: asSurface(ISSUE_ARGV('a/b')), fails: ['post/pattern'], why: 'a character outside the set' },
+    { id: 'label-empty', plant: asSurface(ISSUE_ARGV('')), fails: ['post/pattern'], why: 'an empty label' },
     { id: 'body-directory', plant: tree => setOpt('--body', '@sub')({ ...tree, 'sub/x.md': 'x\n' }), fails: ['file/not-regular'], why: 'a directory' },
     { id: 'body-missing', plant: setOpt('--body', '@nothing.md'), fails: ['file/unreadable'], why: 'no such file' },
     { id: 'body-oversized', plant: tree => ({ ...tree, 'body.md': 'a'.repeat(256 * 1024 + 1) }), fails: ['file/size'], why: 'over 256 KiB' },
@@ -605,10 +593,12 @@ const ISSUE_ARGV = (...labels) => ['issue', '--repo', TARGET, '--title-file', '@
     { id: 'body-bom', plant: tree => ({ ...tree, 'body.md': Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('A plain body.\n')]) }), fails: ['file/bom'], why: 'a byte-order mark' },
     { id: 'body-empty', plant: tree => ({ ...tree, 'body.md': '' }), fails: ['file/empty'], why: 'nothing to post' },
     { id: 'body-over-limit', plant: tree => ({ ...tree, 'body.md': 'a'.repeat(65537) }), fails: ['text/body-length'], why: "over GitHub's 65,536 characters" },
-    { id: 'title-two-lines', plant: tree => ({ ...tree, 'title.txt': 'One\nTwo\n' }), fails: ['text/title-lines'], why: 'a title on two lines' },
-    { id: 'title-carriage-return', plant: tree => ({ ...tree, 'title.txt': 'One\rTwo' }), fails: ['text/title-lines'], why: 'a lone carriage return' },
-    { id: 'title-long', plant: tree => ({ ...tree, 'title.txt': 't'.repeat(257) }), fails: ['text/title-length'], why: 'a title over 256' },
-    { id: 'title-empty', plant: tree => ({ ...tree, 'title.txt': '' }), fails: ['file/empty'], why: 'an empty title file' },
+    { id: 'title-two-lines', plant: tree => ({ ...tree, 'title.txt': 'One\nTwo\n' }), fails: ['post/pattern'], why: 'a title on two lines' },
+    { id: 'title-carriage-return', plant: tree => ({ ...tree, 'title.txt': 'One\rTwo' }), fails: ['post/pattern'], why: 'a lone carriage return' },
+    { id: 'title-long', plant: tree => ({ ...tree, 'title.txt': 't'.repeat(121) }), fails: ['post/length'], why: 'a title over 120' },
+    { id: 'title-leading-space', plant: tree => ({ ...tree, 'title.txt': ' A title\n' }), fails: ['post/pattern'], why: 'a title with a leading space' },
+    { id: 'title-trailing-space', plant: tree => ({ ...tree, 'title.txt': 'A title \n' }), fails: ['post/pattern'], why: 'a title with a trailing space' },
+    { id: 'title-empty', plant: tree => ({ ...tree, 'title.txt': '' }), fails: ['post/length'], why: 'an empty title' },
   ];
   test('poster input: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) {
@@ -620,6 +610,76 @@ const ISSUE_ARGV = (...labels) => ['issue', '--repo', TARGET, '--title-file', '@
   }
   test('poster input: base passes after the rows', async t => assertPasses(await run(base(), t)));
 }
+
+// ---------------------------------------------------------------- #524 C1, C16: the command line is `<surface> --post <file> [--dry-run]`, or `schema`
+
+const ALL_SURFACES = ['issue', 'pull-request', 'issue-comment', 'pull-request-review', 'review-thread-reply', 'issue-edit', 'pull-request-edit', 'issue-comment-edit', 'review-thread-reply-edit'];
+const OLD_OPTIONS = ['repo', 'body', 'title-file', 'signed', 'reason', 'issue', 'pr', 'comment', 'head', 'base', 'draft', 'label', 'as'];
+const OLD_NEXT = 'NEXT: the poster takes a JSON post now: <surface> --post <file>. See node poster.mjs schema and the Posting section of ~/.claude/pact/review.md; never post with plain gh.';
+
+/** A poster run on raw arguments, with a gh that fails the test if it is called. */
+const raw = argv => post(argv, { gh: () => assert.fail('a usage fault calls no gh'), env: {}, ...MACHINE });
+const rules = r => r.lines.filter(l => l.startsWith('REFUSED ')).map(l => l.split(' ').slice(1).join(' '));
+
+// #524 C1, C16
+test('each old option, on every surface, is refused usage/unknown-option with the fixed NEXT line, and nothing is sent or echoed', () => {
+  for (const surface of ALL_SURFACES) {
+    for (const name of OLD_OPTIONS) {
+      const r = raw([surface, '--post', 'post.json', `--${name}`, 'zzvalue']);
+      assert.equal(r.code, 2, `${surface} --${name}: ${out(r)}`);
+      assert.deepEqual(rules(r), ['usage/unknown-option argument 4'], `${surface} --${name}`);
+      assert.deepEqual(r.lines.slice(-2), [OLD_NEXT, 'RESULT: refused 1'], `${surface} --${name}`);
+      assert.ok(!out(r).includes('zzvalue'), out(r));
+    }
+  }
+});
+
+// #524 C16: an old command line prints the one fixed line, whatever its arguments say
+test('an old command line is refused once per option, with one NEXT line that holds none of its arguments', () => {
+  const r = raw(['issue', '--repo', 'zzrepo/x', '--body', 'zzbody.md', '--title-file', 'zztitle.txt']);
+  assert.deepEqual(rules(r), ['usage/unknown-option argument 2', 'usage/unknown-option argument 4', 'usage/unknown-option argument 6', 'usage/missing-option option --post']);
+  assert.equal(r.lines.filter(l => l.startsWith('NEXT:')).length, 1);
+  assert.equal(r.lines.at(-2), OLD_NEXT);
+  assert.ok(!out(r).includes('zz'), out(r));
+});
+
+for (const [id, argv, expected] of [
+  ['no-surface', ['--post', 'post.json'], ['usage/surface argument 1']],
+  ['no-arguments', [], ['usage/surface argument 1']],
+  ['unknown-surface', ['issues', '--post', 'post.json'], ['usage/surface argument 1']],
+  ['equals-form', ['issue', '--post=post.json'], ['usage/unknown-option argument 2', 'usage/missing-option option --post']],
+  ['positional', ['issue', '--post', 'post.json', 'stray'], ['usage/argument argument 4']],
+  ['flag-with-value', ['issue', '--post', 'post.json', '--dry-run', 'yes'], ['usage/argument argument 5']],
+  ['missing-value-last', ['issue', '--post'], ['usage/missing-value option --post']],
+  ['missing-value-next-option', ['issue', '--post', '--dry-run'], ['usage/missing-value option --post']],
+  ['repeated-post', ['issue', '--post', 'a.json', '--post', 'b.json'], ['usage/repeated option --post']],
+  ['repeated-flag', ['issue', '--post', 'post.json', '--dry-run', '--dry-run'], ['usage/repeated option --dry-run']],
+  ['missing-post', ['issue', '--dry-run'], ['usage/missing-option option --post']],
+  ['schema-with-an-option', ['schema', '--dry-run'], ['usage/unknown-option argument 2']],
+  ['schema-with-a-word', ['schema', 'issue'], ['usage/argument argument 2']],
+]) {
+  // #246 C5, C6 (usage rows), #280 C2, #524 C1
+  test(`command line: ${id}`, () => {
+    const r = raw(argv);
+    assert.equal(r.code, 2, out(r));
+    assert.deepEqual(rules(r), expected);
+    assert.equal(last(r), `RESULT: refused ${expected.length}`);
+    // The NEXT line follows an unknown option only.
+    assert.equal(r.lines.some(l => l.startsWith('NEXT:')), expected.some(e => e.startsWith('usage/unknown-option')), out(r));
+  });
+}
+
+// #524 C10: `schema` prints a JSON Schema that refuses unknown fields, and sends nothing
+test('schema prints valid JSON whose top level refuses unknown fields, with no RESULT line, and calls no gh', () => {
+  const r = raw(['schema']);
+  assert.equal(r.code, 0);
+  assert.equal(r.lines.length, 1);
+  const schema = JSON.parse(r.lines[0]);
+  assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.quote.items.additionalProperties, false);
+  assert.equal(schema.properties.intent.additionalProperties, false);
+});
 
 // #246 C5: a link is refused before it is read (a file link where the account may make one, else a junction)
 test('a body file that is a link is refused, and gh is never called', t => {
@@ -634,9 +694,9 @@ test('a body file that is a link is refused, and gh is never called', t => {
     symlinkSync(join(dir, 'real'), link, 'junction');
   }
   const calls = [];
-  const r = post(['issue-comment', '--repo', TARGET, '--body', link, '--issue', '5'], { gh: (...a) => (calls.push(a), { ok: false }), env: {}, ...MACHINE });
+  const r = postOld(['issue-comment', '--repo', TARGET, '--body', link, '--issue', '5'], { gh: (...a) => (calls.push(a), { ok: false }), env: {}, ...MACHINE });
   assert.equal(r.code, 2, r.lines.join('\n'));
-  assert.ok(r.lines.includes('REFUSED file/link option --body'), r.lines.join('\n'));
+  assert.ok(r.lines.includes('REFUSED file/link body_file'), r.lines.join('\n'));
   assert.equal(calls.length, 0);
 });
 
@@ -662,8 +722,9 @@ const pageOnly = text => inBody('<!-- x\n\n' + text + '\n\n-->');
     { id: 'split-by-escape', plant: inBody(GH_TOKEN_SHAPE.replace('_', '\\_')), fails: ['secret/env'], why: 'a markdown escape the page hides' },
     { id: 'split-by-tag', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<b></b>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'an inline tag the page hides' },
     { id: 'encoded-in-comment', plant: inBody('<!-- ' + [...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('') + ' -->'), fails: ['secret/env'], why: 'the source still shows a comment' },
-    { id: 'after-open-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'an unclosed comment marker hides nothing' },
-    { id: 'split-by-bang-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x --!>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'a comment HTML parsers close at --!>' },
+    // An unclosed comment is now also refused as text/hidden-line (#524, P19): it would hide what follows it, the signature included.
+    { id: 'after-open-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env', 'text/hidden-line'], why: 'an unclosed comment marker hides nothing from the scan, and is refused itself' },
+    { id: 'split-by-bang-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x --!>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env', 'text/hidden-line'], why: 'a comment HTML parsers close at --!>, which the plain-sight check reads as open' },
     { id: 'hidden-zero-width', plant: inBody('a' + ZWSP + 'b'), fails: ['text/hidden'], why: 'the zero-width alphabet' },
     { id: 'hidden-word-joiner', plant: inBody('a' + String.fromCharCode(0x2063) + 'b'), fails: ['text/hidden'], why: 'an invisible separator' },
     { id: 'hidden-selector', plant: inBody('a' + String.fromCodePoint(0xe0100) + 'b'), fails: ['text/hidden'], why: 'a supplementary variation selector' },
@@ -730,7 +791,7 @@ test('plain words that look like the rules pass the scan', t => {
     '',
   ].join('\n');
   const argv = place(t, { 'body.md': body }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5', '--dry-run']);
-  const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: { MY_KEY: 'seven77', PATH: '/usr/bin:/bin', PWD: '/srv/work/project-dir' }, home: '/root', tmp: '/tmp', user: 'root', host: 'box' });
+  const r = postOld(argv, { gh: () => assert.fail('a dry run calls gh'), env: { MY_KEY: 'seven77', PATH: '/usr/bin:/bin', PWD: '/srv/work/project-dir' }, home: '/root', tmp: '/tmp', user: 'root', host: 'box' });
   assert.equal(r.code, 0, r.lines.join('\n'));
   assert.equal(last(r), 'RESULT: dry-run issue-comment');
 });
@@ -743,7 +804,7 @@ test('a token shape, a URL password and an email address post', t => {
   const r = run(t, 'issue', w, { body, title });
   assert.equal(r.code, 0, out(r));
   assert.equal(last(r), `RESULT: verified issue ${POSTS.issue[3]} as ${ME}`);
-  assert.deepEqual(JSON.parse(w.calls[2].input), { title: title.trim(), body, labels: ['tier:thorough'] });
+  assert.deepEqual(JSON.parse(w.calls[2].input), { title: title.trim(), body: sentWithAsk(body), labels: ['tier:thorough'] });
 });
 
 // #364 C1: with path/machine gone, the poster refuses no path: this machine's own home, temp, user and host names post too, in a body or a title, on either kind of machine
@@ -759,7 +820,7 @@ test("this machine's own home and temp folders, user name and host name post in 
   }
   // The whole poster, not only the scan: a dry run with this machine's paths in the title and the body.
   const argv = place(t, { 'body.md': `${machines[0].texts.join(' and ')}.\n`, 'title.txt': `Moved to ${machines[0].texts[0]}\n` }, ISSUE_ARGV('tier:thorough'));
-  const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
+  const r = postOld(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
   assert.equal(r.code, 0, r.lines.join('\n'));
   assert.match(last(r), /^RESULT: dry-run /);
 });
@@ -774,7 +835,7 @@ test("links to the owner's own repo, and emoji with joiners, pass", t => {
     '',
   ].join('\n');
   const argv = place(t, { 'body.md': body }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5', '--dry-run']);
-  const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
+  const r = postOld(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
   assert.equal(r.code, 0, r.lines.join('\n'));
 });
 
@@ -799,7 +860,7 @@ test('session ids, UUIDs and session links post, in a body or a title, on any su
   // The whole poster, not only the scan: a dry run of each surface, with the ids in the title and the body, the body ending with the harness trailer.
   for (const argv0 of [ISSUE_ARGV(), PR_ARGV]) {
     const argv = place(t, { 'body.md': `See ${texts.join(' and ')}.\n\n${TRAILER}`, 'title.txt': `About ${texts[1]}\n` }, argv0);
-    const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
+    const r = postOld(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
     assert.equal(r.code, 0, `${argv0[0]}: ${r.lines.join('\n')}`);
     assert.match(last(r), /^RESULT: dry-run /);
   }
@@ -808,10 +869,10 @@ test('session ids, UUIDs and session links post, in a body or a title, on any su
 // #246 C10: a dry run calls no gh and prints no body text
 test('a dry run prints the gh arguments and the request sizes, never the text', t => {
   const argv = place(t, { 'body.md': 'A plain body.\n', 'title.txt': 'A plain title\n' }, ISSUE_ARGV('tier:thorough'));
-  const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
+  const r = postOld(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
   assert.equal(r.code, 0);
   assert.ok(r.lines.includes('gh api --hostname github.com --method POST repos/tester/sandbox/issues --input -'), r.lines.join('\n'));
-  assert.ok(r.lines.includes('request: {"title":"<13 characters>","body":"<14 characters>","labels":["<13 characters>"]}'), r.lines.join('\n'));
+  assert.ok(r.lines.includes(`request: {"title":"<13 characters>","body":"<${[...sentWithAsk('A plain body.\n')].length} characters>","labels":["<13 characters>"]}`), r.lines.join('\n'));
   assert.ok(!/plain|thorough/.test(r.lines.join('\n')));
 });
 
@@ -819,16 +880,22 @@ test('a dry run prints the gh arguments and the request sizes, never the text', 
 test('the file run as a child ends with its result line, gh absent from PATH: a dry run passes, a post is unavailable', t => {
   const dir = tempDir(t, 'pact-poster-child-');
   const empty = join(dir, 'empty');
-  writeTree(dir, { 'body.md': 'A plain body.\n', 'empty/.keep': '' });
+  const doc = { repo: TARGET, kind: 'note', issue: 5, signer: 'test-524', body_file: 'body.md' };
+  writeTree(dir, { 'body.md': 'A plain body.\n', 'post.json': JSON.stringify(doc), 'empty/.keep': '' });
   const env = childEnv();
   for (const k of Object.keys(env)) if (k.toUpperCase() === 'PATH') delete env[k];
   env.PATH = empty;
-  const r = spawnSync(process.execPath, [POSTER, 'issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', '--dry-run'], { cwd: empty, env, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [POSTER, 'issue-comment', '--post', join(dir, 'post.json'), '--dry-run'], { cwd: empty, env, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.equal(r.stdout.trimEnd().split('\n').at(-1), 'RESULT: dry-run issue-comment');
   assert.equal(r.stderr, '');
   // Without --dry-run, main's own gh runner is called and can't find gh: nothing is sent.
-  const p = spawnSync(process.execPath, [POSTER, 'issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5'], { cwd: empty, env, encoding: 'utf8' });
+  const p = spawnSync(process.execPath, [POSTER, 'issue-comment', '--post', join(dir, 'post.json')], { cwd: empty, env, encoding: 'utf8' });
   assert.equal(p.status, 4, p.stdout + p.stderr);
   assert.equal(p.stdout.trimEnd().split('\n').at(-1), 'RESULT: unavailable');
+  // `schema` runs as the entry script too: valid JSON on standard output, nothing on standard error.
+  const s = spawnSync(process.execPath, [POSTER, 'schema'], { cwd: empty, env, encoding: 'utf8' });
+  assert.equal(s.status, 0, s.stdout + s.stderr);
+  assert.equal(JSON.parse(s.stdout).additionalProperties, false);
+  assert.equal(s.stderr, '');
 });

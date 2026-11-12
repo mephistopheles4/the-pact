@@ -1,5 +1,5 @@
 // The Lens dispositions table check in the poster's pre-post scan (#285, T2
-// of #280). Every case runs the poster's post() in-process as a dry run, with
+// of #280). Every case runs the poster's postOld() in-process as a dry run, with
 // a gh that fails any call, so a refusal is seen to send nothing. Each bad
 // case is a row, except the state-word cases (#336 C4), which share one
 // test, and the review comment's layout cases (#401), each its own test,
@@ -10,7 +10,8 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { DISPOSITIONS, post, scan, tableCheck } from '../../claude/tools/poster.mjs';
+import { DISPOSITIONS, scan, tableCheck } from '../../claude/tools/poster.mjs';
+import { postOld } from './poster-post.mjs';
 import { REPO, assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -52,7 +53,7 @@ function runBody(tree, t, env = {}) {
   const dir = tempDir(t, 'pact-poster-table-');
   writeTree(dir, tree);
   const calls = [];
-  const r = post(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', '--dry-run'], { gh: (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' }), env, ...MACHINE });
+  const r = postOld(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', '--dry-run'], { gh: (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' }), env, ...MACHINE });
   const lastLine = r.lines.at(-1) ?? '';
   return {
     code: r.code === 2 ? 1 : r.code,
@@ -68,7 +69,7 @@ function runBody(tree, t, env = {}) {
 function refusedQuietly(r) {
   assert.equal(r.real.code, 2, r.out);
   assert.equal(r.calls.length, 0, 'a refusal calls no gh');
-  for (const l of r.real.lines.slice(0, -1)) assert.match(l, /^REFUSED (?:table\/[a-z]+|fence\/unclosed) body [1-9][0-9]*:[1-9][0-9]*$/, r.out);
+  for (const l of r.real.lines.slice(0, -1)) assert.match(l, /^REFUSED (?:(?:table\/[a-z]+|fence\/unclosed) body [1-9][0-9]*:[1-9][0-9]*|text\/hidden-line body_file)$/, r.out);
   assert.ok(!r.out.includes(MARK), `the output quotes a cell: ${r.out}`);
 }
 
@@ -95,7 +96,7 @@ function refusedQuietly(r) {
     { id: 'auto-comma-as', plant: row(4, `| new ${MARK} F4 | adversarial-lens | fixed (auto, as ${MARK} asked) | none |`), fails: ['table/auto'], why: 'auto takes a colon, a bracket or ", reversed"' },
     { id: 'auto-no-comma', plant: row(5, `| new ${MARK} F5 | conventions-lens | fixed (auto reversed) | none |`), fails: ['table/auto'], why: 'reversed takes its comma' },
     { id: 'two-rules-in-one-cell', plant: row(3, '| | data-lens | skipped (auto, x) | none |'), fails: ['table/skipped', 'table/auto'], why: 'each rule a cell breaks is named' },
-    { id: 'in-a-fold', plant: swap(`${LABEL}\n\n${HEADER}`, `${LABEL}\n\n<details><summary>Table</summary>\n\n| Finding | Lens | Disposition | Rerun, if any |`), fails: ['table/header'], why: 'a fold hides nothing from the check' },
+    { id: 'in-a-fold', plant: swap(`${LABEL}\n\n${HEADER}`, `${LABEL}\n\n<details><summary>Table</summary>\n\n| Finding | Lens | Disposition | Rerun, if any |`), fails: ['table/header', 'text/hidden-line'], why: 'a fold hides nothing from the check, and one left open is refused itself (#524)' },
     { id: 'after-a-closed-fence', plant: swap(`${LABEL}\n`, `${LABEL}\n\n${FENCE3}text\na line\n${FENCE3}\n\n| Finding | Lens | Disposition | Rerun, if any |\n${SEP}\n`), fails: ['table/header'], why: 'a closed fence ends where it closes' },
     { id: 'fence-too-short', plant: asBody(body(LABEL, '', '<details><summary>a lens</summary>', '', `${FENCE3}text`, 'A report quoting', FENCE3, '### Lens dispositions', '', '| Finding | Lens | Disposition | Rerun, if any |', SEP, `| new ${MARK} | x-lens | fixed | none |`, FENCE3, '', '</details>')), fails: ['table/header', 'fence/unclosed'], why: 'a three-backtick line inside a three-backtick fence closes it, and the fence that closed it is left open (#401)' },
     { id: 'info-string-backtick', plant: asBody(body(LABEL, '', `${FENCE3}a${'`'}b`, '| Finding | Lens | Disposition | Rerun |', SEP, `| new ${MARK} | x-lens | changed | none |`)), fails: ['table/disposition'], why: 'a backtick run whose info string holds a backtick opens no fence' },
@@ -162,7 +163,7 @@ test('a real post with a broken table is refused before any gh call', t => {
   const dir = tempDir(t, 'pact-poster-table-');
   writeTree(dir, { 'body.md': body(LABEL, '', HEADER, SEP, '| new a | b | changed | c |') });
   const calls = [];
-  const r = post(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5'], { gh: (...a) => (calls.push(a), { ok: true, stdout: '{"login":"tester"}', stderr: '' }), env: {}, ...MACHINE });
+  const r = postOld(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5'], { gh: (...a) => (calls.push(a), { ok: true, stdout: '{"login":"tester"}', stderr: '' }), env: {}, ...MACHINE });
   assert.equal(r.code, 2, r.lines.join('\n'));
   assert.deepEqual(r.lines, ['REFUSED table/disposition body 5:15', 'RESULT: refused 1']);
   assert.equal(calls.length, 0);
@@ -219,7 +220,8 @@ test('a fence left open is refused at the fence', t => {
   // Each line a diagram never holds refuses on its own, though a later closer would close the fence: another fence, a fold's opening tag, its closing tag.
   const refusedAtOne = ['REFUSED fence/unclosed body 1:1', 'RESULT: refused 1'];
   assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, 'flowchart TB', `${FENCE4}text`, 'x', FENCE4, FENCE3) }, t).real.lines, refusedAtOne);
-  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '<details><summary>x</summary>', FENCE3) }, t).real.lines, refusedAtOne);
+  // The unclosed fold is also refused as hidden, for it would hide what follows (#524).
+  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '<details><summary>x</summary>', FENCE3) }, t).real.lines, ['REFUSED text/hidden-line body_file', ...refusedAtOne.slice(0, 1), 'RESULT: refused 2']);
   assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '</details>', FENCE3) }, t).real.lines, refusedAtOne);
   // A tilde fence, and a fence indented three spaces, are fences too.
   assert.deepEqual(runBody({ 'body.md': body('text', '', '~~~', 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:1', 'RESULT: refused 1']);
@@ -295,17 +297,19 @@ test('a hidden character or a live environment secret inside a fold or a fence i
 // #280 C7: the check is a line scan; a worst case at the size limit would hang a quadratic one. No clock here; nothing but the CI job limit stops a slow scan (see #496).
 test('a worst-case body at the 65,536-character limit is scanned line by line', t => {
   const unit = [`${FENCE3}a${'`'}b`, 'Lens dispositions', '| Finding | Lens | Disposition | Rerun |', SEP, '| new a | b | c (auto (auto (auto | d |', '|'.repeat(40), '~~~~', '| x |', '~~~~'].join('\n') + '\n';
-  const fill = s => s.repeat(Math.ceil(65536 / s.length)).slice(0, 65536);
+  // The poster adds its signature to the file's text, so the file fills what is left of the limit.
+  const LIMIT = 65536 - '\n\nSigned: test-524'.length;
+  const fill = s => s.repeat(Math.ceil(LIMIT / s.length)).slice(0, LIMIT);
   const head = body(LABEL, HEADER, SEP);
   const bodies = {
     'many short units': fill(unit),
     // One line as long as the limit allows: a cost per cell that grows with the line would show here.
-    'one line of pipes under a template header': head + '|'.repeat(65536 - head.length),
-    'one line of backticks and a line separator': fill('`').slice(0, 65534) + String.fromCharCode(0x2028) + 'x',
-    'one line of backticks and a lone carriage return': fill('`').slice(0, 65534) + '\rx',
+    'one line of pipes under a template header': head + '|'.repeat(LIMIT - head.length),
+    'one line of backticks and a line separator': fill('`').slice(0, LIMIT - 2) + String.fromCharCode(0x2028) + 'x',
+    'one line of backticks and a lone carriage return': fill('`').slice(0, LIMIT - 2) + '\rx',
   };
   for (const [name, text] of Object.entries(bodies)) {
-    assert.equal([...text].length, 65536, name);
+    assert.equal([...text].length, LIMIT, name);
     const r = runBody({ 'body.md': text }, t);
     // Any refusal here is the table check's, or the fence check's on the two bodies that end inside a fence (#401), so a size refusal can't stand in for it.
     assert.ok(r.fails.every(f => f.startsWith('table/') || (f === 'fence/unclosed' && name.startsWith('one line of backticks'))), `${name}: ${r.out.slice(0, 300)}`);

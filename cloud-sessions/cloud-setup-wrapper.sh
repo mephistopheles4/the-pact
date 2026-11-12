@@ -1250,18 +1250,22 @@ Ask each lens to report in this shape:
   posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
   and word, its headline, a link to the round comment), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
-  round, marks and head or revision, and a further read by its own title; and `Signed: status-<n>`. It holds no Lens
+  round, marks and head or revision, and a further read by its own title. Post
+  it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
+  the signature line nor `Edited:` lines, which are added for you; where no
+  tool adds them, write the signature line yourself as the body's last line.
+  It holds no Lens
   dispositions table, crossed findings, report, diagram, or heading or fold
   naming a lens, and never the words "owner decision": the edit checks would
   refuse every later edit. Find it among the comments your gh login wrote,
   read as JSON, holding the whole line `Signed: status-<n>` outside a fence or
   quote. None: post it. One: edit it, from its body and the round comments
-  read just before, keeping its signature line and dropping every `Edited:`
-  line, since the edit adds the newest; the reason reads `after <stage> round <n> (<your label>)` or
+  read just before, writing a `body_file` with no signature line and no
+  `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
   `after <stage> further read (<your label>)`. More than one: stop
   and tell me. Post the round comment first. If a status edit is refused
-  `edit/reasons` because the body kept old `Edited:` lines, rebuild it
-  without them. If
+  `post/owned-line` because the `body_file` kept a signature or an `Edited:`
+  line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
   hand-off that the status is stale, and never post a second status comment.
   The round comments stay the record; nothing reads the status comment back.
@@ -1317,31 +1321,65 @@ when no other row answers the sentence.
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image.
 - **Where to post.** In the work's record; with no record, in chat.
-- **Keep the record where the project keeps it.** Sign what you post there
-  with your session's short label. Open each issue, spec or ticket with my
-  ask, quoted exactly: the sentences that define the work or change its scope.
-  My examples become claims with measures. With no record, quote it in each
+- **Keep the record where the project keeps it.** Post with `signer` set to
+  your session's short label. Give each issue, ticket, spec, decision and pull
+  request my ask in `quote`, exactly (the sentences that define the work or
+  change its scope), with your read-back in `intent`. My examples still become
+  claims with measures. Where no tool renders `quote`, `intent` and `signer`
+  for you, write the quoted ask, your read-back and a `Signed: <label>` line
+  yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
+- **The read-back.**
+  - Work waits on a pending read-back at each seam (an issue's before the work
+    leaves Plan, a spec's before its proceed, a pull request's before its
+    merge), and under a standing goal it waits for me, since a goal holder's
+    reply never confirms.
+  - Before you post a kind with a quote, read back to me in chat the passages
+    you will quote and your intent, and post `confirmed` only on my yes in that
+    chat and otherwise `pending` (a `decision` from my chat is always
+    `confirmed`); a relay or a goal holder's reply never confirms a read-back,
+    and a lead relays only the span meant for the record, after its own read
+    before posting.
+  - When I later confirm or correct a pending read-back in chat, the session
+    that heard it first posts a `decision` (source `chat`, posted `confirmed`,
+    `answers` naming the item) quoting those words, then edits the original to
+    `confirmed` or `corrected` with that comment's id; a lead relaying my
+    answer has the session post a `decision` with source `relayed`, which
+    carries no mark and leaves the original pending until a session that heard
+    me confirms it.
+  - When my words trip the content scan or hold a personal detail, leave that
+    span out of the passage as `[left out]` and tell me in chat what you left
+    out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
-  `node ~/.claude/pact/tools/poster.mjs` in a POSIX shell, or
-  `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell. Write each piece
-  of free text to a file in a scratch folder outside the repo, and run the
-  poster from that folder, never from the repo. Sign a post you may edit with
-  a `Signed: <label>` line, and keep it when you edit. Sign every pull request
-  body `Signed: pr-<n>`, n the issue it works on, never the pull request's
-  own number, so any session can edit it with `pull-request-edit --pr <its
-  number> --signed pr-<the issue>`; with no issue, use your label. Edit the
-  status comment with `issue-comment-edit --signed status-<n>`. An edit never
-  removes text, except the status comment's old `Edited:` lines. An edit's
-  `--reason` names the kind of fix, never the text. A pull request body
+  `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
+  shell, or `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file>`
+  in PowerShell; `schema` in place of the surface prints the fields and the
+  kinds. Write each post as one JSON file, with its body in a `body_file`
+  beside it, both in a scratch folder outside the repo, and run the poster
+  from that folder, never from the repo. Name each create post's `kind`:
+  `spec` for a spec, `decision` for my decision, `lens-report` for a round
+  comment, `status` for the status comment, `note` for any other issue
+  comment; an issue, a pull request, a pull request review and a thread reply
+  take the kind named for them (`issue`, `pull-request`, `review`, `reply`).
+  The poster renders the ask, the read-back, the
+  signature and the reason lines itself, so your `body_file` holds none of
+  them. Sign every pull request `pr-<n>`, n the issue it works on, never the
+  pull request's own number, so any session can edit it with
+  `pull-request-edit`, `pr` its number and `signer` `pr-<the issue>`; with no
+  issue, use your label. Edit the status comment with `issue-comment-edit` and
+  `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
+  item, never from a kept file, and never removes text, except the status
+  comment's old `Edited:` lines. An edit's `reason` names the kind of fix,
+  never the text. A pull request body
   posted unsigned can't be edited through the poster: write only the changed
-  line to a file, run `issue-comment --repo <owner/name> --issue <the issue it works on> --body <file> --dry-run`
-  on it after the read before posting, and give me the line in chat to type
+  line to a file, run an `issue-comment` post of kind `note` on <the issue it works on> with that
+  file as its `body_file` and `--dry-run`
+  after the read before posting, and give me the line in chat to type
   on GitHub myself; never put a fix in the squash message, and never edit the
-  body with plain `gh`. Delete a
-  file once its post ends, whatever the result (verified, failed, unverified,
+  body with plain `gh`. Delete both files
+  once its post ends, whatever the result (verified, failed, unverified,
   mismatch or unavailable), or once you drop it; keep one refused for a lens
   report until I have answered, then delete it. Before the session ends,
   delete every such file still there, whatever my answer. `verified` means
@@ -1539,7 +1577,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 8168cf09962ceb23c6fb877b5b5aa4a491196270d1b4bb8b025b0e59b8fcb4f9 'pact/review.md'
+check_hash 8f27f0fe8a58e3f00836bf02ad600253afbc59f12147fed5e9613c0758525ef3 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1569,7 +1607,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 4f9ac39f3a7b"
+  echo "pact cloud copy d672bdb61c63"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

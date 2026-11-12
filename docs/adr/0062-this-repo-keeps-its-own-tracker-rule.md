@@ -23,6 +23,7 @@ The pact's gated `tracker-authors` clause is retired (ADR 0060), and the pact no
 Amended by [ADR 0075](0075-agents-md-holds-only-what-every-session-needs.md): the short form and the five always-on parts now sit in `docs/agents/issue-tracker.md`, behind a pointer line in `AGENTS.md`.
 
 - **Since #183:** with a token set, the login is announced, not confirmed, and where GraphQL is refused author reads go through a checker in code. See [ADR 0089](0089-tracker-authors-are-read-through-rest-where-graphql-is-refused.md). This decision still holds.
+- **Since #524:** the poster renders the "Owner decision, from chat" mark, and only for a `decision` whose passages are all from the session's chat. See [ADR 0152](0152-the-poster-takes-a-strict-json-post-with-quote-and-intent.md), which constrains this mark.
 
 ## How this was decided
 

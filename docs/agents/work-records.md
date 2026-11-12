@@ -14,8 +14,8 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **Plans:** a plan, its review rounds and its probe records live on the
   issue, as the body and comments. When a spec is cut into tickets, the spec
   stays on the parent issue and each ticket is its own sub-issue holding its
-  own plan and records; the ticket's PR closes the ticket, and the parent
-  closes with its last sub-issue
+  own plan and records; the ticket's PR closes the ticket, and the owner
+  closes the parent once its last sub-issue closes
   ([tickets as sub-issues](issue-tracker.md#tickets-as-sub-issues)).
   Nothing in the tree holds a plan. A record
   a check can run becomes a test or fixture beside the code it checks.
@@ -35,11 +35,14 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **Every PR carries the close-out checkbox.** GitHub fills a PR from
   [`.github/pull_request_template.md`](../../.github/pull_request_template.md) only
   in the web UI; `gh pr create --body` skips it. So a session that opens a PR
-  from the CLI makes the template's checkbox line the first line of its
-  `--body`, copied word for word, and its last line `Signed: pr-<n>` with
-  `<n>` replaced by the issue it works on, so any session can fix the body
-  through the poster (#503); a body left with `<n>` counts as unsigned. It ticks the box when the PR finishes the work, and leaves it
-  unticked otherwise.
+  from the CLI makes the template's checkbox line the first line of the
+  `body_file` its poster post names, copied word for word, and sets the post's
+  `signer` to `pr-<n>`, `<n>` being the issue it works on, so any session can
+  fix the body through the poster (#503). The poster renders the ask block
+  above the `body_file` and adds the `Signed: pr-<n>` line itself, so the
+  `body_file` holds neither; no check reads the checkbox line's position, and
+  GitHub renders a task item anywhere. It ticks the box when the PR finishes
+  the work, and leaves it unticked otherwise.
 - **Finding a decision or a log:** decisions start from the index
   [`docs/adr/README.md`](../../docs/adr/README.md), one line per file; add a line
   there with every new ADR. Logs have no index: their file names carry the date
