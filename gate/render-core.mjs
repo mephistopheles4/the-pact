@@ -279,8 +279,8 @@ const SECURITY_DOUBT = Object.freeze({
 // default), or the render refuses.
 const USAGE_TEMPLATE = n => [
   '- **Usage.** Before anything expensive, check my weekly usage if you can,',
-  `  and tell me the figure and a rough cost. When it is above ${n}%, wait for my`,
-  '  go-ahead. The call to cut or stop work over usage is mine.',
+  `  and tell me the figure and a rough cost. When it is above ${n}%, it's a`,
+  '  hard stop. The call to cut or stop work over usage is mine.',
 ];
 // A setting's project line, for the project rules file: it reads as the lower
 // of the project's value and the user's. `tighter` is the direction a project
@@ -341,7 +341,7 @@ const TOOL_PARTS = new Map([
   })],
   ['cleaner', Object.freeze({
     mark: 'tool-cleaner',
-    template: Object.freeze(['- **Remove worktrees only through the cleaner,** after my yes in chat.']),
+    template: Object.freeze(['- **Remove worktrees only through the cleaner:** a recoverable removal is a checkpoint, any other a hard stop.']),
   })],
 ]);
 
@@ -395,10 +395,10 @@ trade-off.
   doubtful one "security?", and its row is never \`auto\`.
 - **Accepted threat classes** live only in the project's threat model, one
   line each: what it covers, never the steps. A finding that fits one needs
-  nothing. A finding that fits none comes to me as a new class, and only a merge I confirm
-  in chat adds or widens one. A change that removes a control still comes to
-  me, and so does a change to the threat model's scope. With no threat model,
-  flag the risk and record nothing.`;
+  nothing. A finding that fits none comes to me as a new class, and only a merge
+  I confirm in chat, a hard stop, adds or widens one. A change that removes a
+  control still comes to me, and so does a change to the threat model's scope.
+  With no threat model, flag the risk and record nothing.`;
 
 // At most nine cost rows, like the qualities: the install reads the count as one digit.
 const COST_LIMITS_MAX = 9;
