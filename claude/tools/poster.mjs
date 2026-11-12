@@ -668,7 +668,9 @@ const readBack = intent => {
 };
 /** The intent block (S5.1 3): a corrected one shows the original struck through, paragraph by paragraph, then the correction. */
 const intentBlock = intent => {
-  const text = intent.status === 'corrected' ? `${intent.text.split(/\n{2,}/).map(p => `~~${p}~~`).join('\n\n')}\n\nCorrected read-back:\n\n${intent.corrected}` : intent.text;
+  // Line ends are made LF first, so a CRLF paragraph break still ends its strike span and the item reads the same whichever line ends the session wrote.
+  const original = lf(intent.text);
+  const text = intent.status === 'corrected' ? `${original.split(/\n{2,}/).map(p => `~~${p}~~`).join('\n\n')}\n\nCorrected read-back:\n\n${lf(intent.corrected)}` : original;
   return `## Understood intent\n\n${text}\n\n${readBack(intent)}`;
 };
 
@@ -2289,15 +2291,15 @@ function askChecks(plan, ask) {
  */
 function confirmChecks(plan, ask, login, io, ctx) {
   const refusals = [{ rule: 'edit/confirm', where: 'intent.comment' }];
+  // The item's own number, and the line a decision answering it carries. A review thread reply is no ask item, so no decision answers one: refused before any read.
+  const own = { 'issue-edit': ['issue', plan.issue], 'pull-request-edit': ['pull request', plan.pr], 'issue-comment-edit': ['comment', plan.comment] }[plan.surface];
+  if (own === undefined) return { refusals };
   const read = io.gh(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}/issues/comments/${plan.intent.comment}`, false));
   if (!read.ok) return { lines: [saidLine(read.stderr, ctx), 'RESULT: unavailable'] };
   const item = parseJson(read.stdout);
   const usable = isObject(item) && typeof item.user?.login === 'string' && typeof item.issue_url === 'string' && (item.body === null || typeof item.body === 'string');
   if (!usable) return { lines: ['the cited comment read could not be read', 'RESULT: unavailable'] };
   if (item.user.login !== login) return { refusals };
-  // The item's own number, and the line a decision answering it carries. A review thread reply is no ask item, so no decision answers one.
-  const own = { 'issue-edit': ['issue', plan.issue], 'pull-request-edit': ['pull request', plan.pr], 'issue-comment-edit': ['comment', plan.comment] }[plan.surface];
-  if (own === undefined) return { refusals };
   const number = plan.surface === 'pull-request-edit' ? plan.pr : plan.issue;
   if (item.issue_url.toLowerCase() !== `https://api.github.com/repos/${plan.repo.owner}/${plan.repo.name}/issues/${number}`.toLowerCase()) return { refusals };
   const body = item.body ?? '';

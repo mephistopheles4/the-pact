@@ -151,7 +151,11 @@ test('C8: an ask item must be edited with its quote and intent; quote or intent 
   // #524's own body opens `## The ask` and has no read-back line, so it is not an ask item.
   const legacy = `## The ask\n\n> Quoted from the owner.\n\n## Understood intent\n\nA read.\n\nA body.\n\nSigned: ${SIGNER}\n`;
   const crowded = ask().replace('Read-back: not yet confirmed.', 'Read-back: maybe.');
-  for (const body of [plain, legacy, crowded]) {
+  // Shapes that only look like an ask item: a read-back line inside a fence, with no blank line before it, and a mark with no blank line after it.
+  const fenced = ask({ intent: `\`\`\`\nRead-back: not yet confirmed.\n\`\`\`` }).replace('\n\nRead-back: not yet confirmed.\n\nA session', '\n\nA session');
+  const unspaced = ask({ intent: `${READ}\nRead-back: not yet confirmed.` }).replace('\n\nRead-back: not yet confirmed.\n\nA session', '\n\nA session');
+  const unmarked = ask({ lead: `${RELAYED_MARK}\n` });
+  for (const body of [plain, legacy, crowded, fenced, unspaced, unmarked]) {
     const v = world(items(body));
     const r = edit(t, 'issue-edit', v);
     assert.ok(refusedBy(r, 'post/field', 'quote') && refusedBy(r, 'post/field', 'intent'), text(r));
@@ -244,6 +248,22 @@ test('C9: a move citing a valid decision passes on each surface and renders the 
   const w = world(items(PENDING_ITEM, { 7001: { body: decisionBody({ intent: 'One.\n\nTwo.' }) } }));
   const r = edit(t, 'issue-edit', w, { intent: { ...CORRECT, corrected: 'One.\r\n\r\nTwo.' } });
   assert.equal(r.code, 0, text(r));
+  // The original read-back's paragraphs are struck one by one whichever line ends it was written with, and a later edit with the other line ends keeps the ask.
+  const two = ask({ intent: 'One.\n\nTwo.' });
+  const struck = ask({ intent: `~~One.~~\n\n~~Two.~~\n\nCorrected read-back:\n\n${BETTER}`, readback: 'Read-back: corrected in comment 7001.' });
+  for (const ends of ['\r\n', '\n']) {
+    const original = `One.${ends}${ends}Two.`;
+    const m = world(items(two, { 7001: { body: decisionBody({ intent: BETTER }) } }));
+    const mr = edit(t, 'issue-edit', m, { intent: { ...CORRECT, text: original } });
+    assert.equal(mr.code, 0, text(mr));
+    assert.ok(sentBody(m).includes('## Understood intent\n\n~~One.~~\n\n~~Two.~~\n\nCorrected read-back:\n\nThe better read.\n\nRead-back: corrected in comment 7001.'), JSON.stringify(sentBody(m)));
+    const k = world(items(struck));
+    const kr = edit(t, 'issue-edit', k, { intent: { ...CORRECT, text: original } });
+    assert.equal(kr.code, 0, text(kr));
+    const s = world(items(two));
+    assert.equal(edit(t, 'issue-edit', s, { intent: { text: original, status: 'pending' } }).code, 0);
+    assert.ok(!sentBody(s).includes('\r'), 'the ask is sent with LF line ends');
+  }
   // A confirmed or corrected item keeps its status on a later edit, and its reason lines.
   for (const [item, intent, expected] of [
     [CONFIRMED_IN_CHAT, { text: READ, status: 'confirmed' }, "Read-back: confirmed in this session's chat."],
@@ -306,14 +326,21 @@ test('C9: a cited comment that is missing, or whose read fails or is unusable, e
   const cases = [
     [world(items(PENDING_ITEM)), { ...CONFIRM, comment: 7999 }],
     [world(items(PENDING_ITEM), { fail: [`repos/${TARGET}/issues/comments/7001`] }), CONFIRM],
-    [world(items(PENDING_ITEM, { 7001: { user: null } })), CONFIRM],
+    [world(items(PENDING_ITEM, { 7001: { user: null } })), CONFIRM, 'the cited comment read could not be read'],
   ];
-  for (const [w, intent] of cases) {
+  for (const [w, intent, line] of cases) {
     const r = edit(t, 'issue-edit', w, { intent });
     assert.equal(r.code, 4, text(r));
     assert.equal(last(r), 'RESULT: unavailable');
+    if (line) assert.ok(r.lines.includes(line), `the guard names itself, not a crash: ${text(r)}`);
     assert.equal(patches(w).length, 0);
   }
+  // A review thread reply is no ask item a decision can answer: a move there is refused before any comment is read.
+  const reply = ask();
+  const thread = world(items(PENDING_ITEM, {}, { [`repos/${TARGET}/pulls/comments/8080`]: { id: 8080, body: reply, user: { login: ME }, in_reply_to_id: 55, pull_request_url: `${API}/pulls/7` }, [`repos/${TARGET}/pulls/comments/55`]: { id: 55, body: reply, user: { login: ME }, in_reply_to_id: null, pull_request_url: `${API}/pulls/7` } }), { fail: [`repos/${TARGET}/issues/comments/7001`] });
+  const moved = postDoc('review-thread-reply-edit', { repo: TARGET, signer: SIGNER, reason: REASON, body_file: 'body.md', pr: 7, comment: 8080, quote: [QUOTE], intent: CONFIRM }, (() => { const d = tempDir(t, 'pact-poster-ask-'); writeTree(d, { 'body.md': 'A new session part.\n' }); return d; })(), { gh: thread.gh, env: {}, ...MACHINE });
+  assert.ok(refusedBy(moved, 'edit/confirm', 'intent.comment'), text(moved));
+  assert.equal(reads(thread, 7001), 0);
 });
 
 // ---------------------------------------------------------------- C9a: the tracker comments an edit quotes
