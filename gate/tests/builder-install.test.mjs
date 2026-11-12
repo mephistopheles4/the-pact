@@ -171,7 +171,7 @@ function takeShipped(id) {
   return s;
 }
 
-// C5, S13: the level-1 preset leaves the switch on, so what the page saves leaves the key unset: the dry run says so, and the rules file holds the line.
+// #554 C5, S13: the level-1 preset leaves the switch on, so what the page saves leaves the key unset: the dry run says so, and the rules file holds the line.
 test('S13: the level-1 preset\'s saved configuration leaves checkpoint-stops unset: the dry run shows the NOTE, and the installed rules file holds the "Checkpoints wait" line', t => {
   const s = takeShipped('level-1-beginner');
   assert.equal(s.checkpointStops, true);
@@ -190,7 +190,7 @@ test('S13: the level-1 preset\'s saved configuration leaves checkpoint-stops uns
   assert.ok(rules.includes(WAITS), 'the rules file holds the line');
 });
 
-// C4, S13: a configuration that sets it false installs with no line, no NOTE, and the value in the notice and the dry run.
+// #554 C4, S13: a configuration that sets it false installs with no line, no NOTE, and the value in the notice and the dry run.
 test('S13: a saved checkpoint-stops false dry-runs as VALUE checkpoint-stops off with no NOTE, and installs with no "Checkpoints wait" line', t => {
   const s = takeShipped('level-3-full');
   assert.equal(s.checkpointStops, false);
@@ -210,7 +210,7 @@ test('S13: a saved checkpoint-stops false dry-runs as VALUE checkpoint-stops off
   assert.match(rules, /Values set: checkpoint-stops off\./);
 });
 
-// C4, S13: with no user file the default configuration renders, and it sets the switch false.
+// #554 C4, S13: with no user file the default configuration renders, and it sets the switch false.
 test('S13: the default configuration\'s dry run shows VALUE checkpoint-stops off and its NOTE, and the installed rules file holds no "Checkpoints wait" line', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -226,7 +226,7 @@ test('S13: the default configuration\'s dry run shows VALUE checkpoint-stops off
   assert.match(rules, /Values set: checkpoint-stops off\./);
 });
 
-// C3, S13: a project true dry-runs to the project line, whatever the user's value is; a project false is refused.
+// #554 C3, S13: a project true dry-runs to its VALUE and WARN lines, whatever the user's value is; a project false is refused.
 test('S13: a project with checkpoint-stops true dry-runs to its VALUE and WARN lines; a project false is refused', t => {
   const repo = makeRepo(t);
   const root = tempDir(t, 'pact-proj-');
@@ -246,7 +246,7 @@ test('S13: a project with checkpoint-stops true dry-runs to its VALUE and WARN l
   refused(project(false), /project-looser: .*checkpoint-stops false is never tighter than the user's value/);
 });
 
-// C5, S13: the installed kit's presets are the ones the page loads: level 1 sets the switch on, level 3 turns it off.
+// #554 C5, S13: the installed kit's presets are the ones the page loads: level 1 sets the switch on, level 3 turns it off.
 test('S13: the installed kit\'s level-1 preset loads with the switch on, and its level-3-full turns it off', t => {
   const repo = makeRepo(t);
   const h = home(t);

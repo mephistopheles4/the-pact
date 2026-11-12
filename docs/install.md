@@ -302,7 +302,7 @@ parts:
     WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.
   ```
 
-  The cleaner on also adds eighteen deny rules on raw worktree and branch
+  The cleaner on adds eighteen deny rules on raw worktree and branch
   removal commands and on `claude rm` to `settings.json`, each listed under
   `settings.json` as `+ permissions.deny`, and records the ones it added in
   `.pact-install.json`; turning it off removes only those, also listed. A
@@ -313,7 +313,7 @@ parts:
   everything left in it, so run it only after the cleaner has removed the
   worktree, or after checking the worktree yourself.
 
-  It also adds two ask rules on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
+  It adds two ask rules on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
   and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added under
   `cleanerAsk` in `.pact-install.json`; turning the cleaner off removes only those. They make Claude Code
   ask you before a `remove --override` runs, a speed bump and not a boundary: spellings that hide the
@@ -321,7 +321,7 @@ parts:
   untouched, so it adds neither the deny rules nor these, and the dry run and the apply print a `WARN:`
   line naming the two ask rules.
 
-  The poster on also adds its rule to the rules file, so the rendered hash
+  The poster on adds its rule to the rules file, so the rendered hash
   changes; `--review-folder` shows the rule. Taking the name out of the list
   deletes the poster and its rule at the next install. The rule names the
   poster under the default Claude home folder, so with `--claude-home`
@@ -452,7 +452,7 @@ Run the dry run again if you like. It should print `Nothing to do.`
 
 **Removing rules an older pact added.** The install takes out, by itself, the
 56 ask rules it holds as retired: the 52 an older pact set, and the four
-broad rules ADR 0049 retired. Some older pacts also
+broad rules ADR 0049 retired. Some older pacts
 added rules it doesn't know: two review rules,
 `PowerShell(*install.mjs*--rev*)` and `Bash(*nstall.mjs*--rev*)`, and the rules that guarded the PowerShell
 installer the pact used before the Node install. Do this after the install
@@ -573,7 +573,7 @@ notice line names it, as `session-stop-deny on` or `off`.
 - **If Brigade's stop is refused.** Brigade's `stop_background_session` runs
   `claude stop` from the mod's own process, which permission rules don't see.
   A Brigade restart that runs `claude respawn` the same way is assumed the same; a refusal on a restart has the same way out.
-  That is assumed, not measured. If the rule does catch it, the symptom is a
+  If the rule does catch it, the symptom is a
   permission refusal on Brigade's stop. The way out: set `session-stop-deny`
   to `false`, then a dry run and an apply on your word.
 - **Rolling back.** Set it to `false` and apply first, then take the key out
@@ -585,9 +585,9 @@ notice line names it, as `session-stop-deny on` or `off`.
 
 `checkpoint-stops` in `~/.claude/pact/config.json` is `true` or `false`, `true`
 when unset; the builder's Settings dialog shows it. `true` keeps the rules
-file's "Checkpoints wait" line, and `false` takes it out. Unset waits, as the
-dry run's NOTE says; the pact's default configuration sets `false`. A project
-may set `true`, never `false`.
+file's "Checkpoints wait" line, and `false` takes it out. With no `config.json`
+of your own, the pact's default configuration renders and sets `false`; a file
+of yours that leaves the key out waits. A project may set `true`, never `false`.
 
 ## The auto-compact window and its hooks
 
@@ -736,7 +736,7 @@ backup and prunes none, so copy what you want to keep first, and delete
 (the threat model's class The pact gets loosened).
 
 Every Node install reads and writes the same install record, so an older one
-can follow a newer one. An older commit's install also adds back to your
+can follow a newer one. An older commit's install adds back to your
 `settings.json` any ask rules it held. When you return to the newer pact, its
 install takes out the 56 it knows. After returning from an older commit that added them,
 also repeat the removal by hand in step 5.

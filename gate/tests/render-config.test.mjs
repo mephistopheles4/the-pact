@@ -603,7 +603,7 @@ const CHECKPOINTS_WAIT = [
 
 const stopsBytes = v => Buffer.from(`{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`);
 
-// C2: unset, the render holds the line, with its narrow free-hand exception and its read-back clause.
+// #554 C2: unset, the render holds the line, with its narrow free-hand exception and its read-back clause.
 test('checkpoint-stops unset: the render holds the "Checkpoints wait" line, with its free-hand exception and its read-back clause', t => {
   assert.ok(read(SOURCE).includes(CHECKPOINTS_WAIT), 'the source no longer holds the line');
   const withOther = render(t, homeWith(t, Buffer.from('{"schema": 1, "settings": {"usage-pause": 90}}\n')));
@@ -617,7 +617,7 @@ test('checkpoint-stops unset: the render holds the "Checkpoints wait" line, with
   assert.ok(none.bytes.toString('utf8').includes(CHECKPOINTS_WAIT));
 });
 
-// C2: true keeps the line, and the notice names the value.
+// #554 C2: true keeps the line, and the notice names the value.
 test('"checkpoint-stops": true prints VALUE checkpoint-stops on, keeps the line, and the notice says on', t => {
   const bytes = stopsBytes(true);
   const r = render(t, homeWith(t, bytes));
@@ -627,7 +627,7 @@ test('"checkpoint-stops": true prints VALUE checkpoint-stops on, keeps the line,
   assert.ok(r.bytes.toString('utf8').includes(CHECKPOINTS_WAIT));
 });
 
-// C2: false renders the part empty; only the notice's Values line differs from the expected render.
+// #554 C2: false renders the part empty; only the notice's Values line differs from the expected render.
 test('"checkpoint-stops": false renders the part empty, and the notice says off', t => {
   const bytes = stopsBytes(false);
   const r = render(t, homeWith(t, bytes));
@@ -639,18 +639,20 @@ test('"checkpoint-stops": false renders the part empty, and the notice says off'
   assert.ok(!text.includes('Checkpoints wait.') && !text.includes('a pending read-back waits'));
 });
 
-// C2: the switch takes a boolean and nothing else.
+// #554 C2: the switch takes a boolean and nothing else.
 test('bad case: checkpoint-stops takes no value but true or false', t => {
   for (const bad of ['1', '0', '"off"', '"false"', 'null', '[]', '{}']) {
     refusedWith(render(t, homeWith(t, stopsBytes(bad))), 'config-value', /checkpoint-stops must be true or false/);
   }
 });
 
+// #554 C2: render
 test('bad case: a checkpoint-stops part that no longer matches its template at the default refuses', t => {
   const src = read(SOURCE).replace('a pending read-back waits even then.', 'a pending read-back waits no more.');
   refusedWith(render(t, homeWith(t, stopsBytes(false)), sourceFile(t, src)), 'render', /checkpoint-stops: the template at its default no longer matches the source/);
 });
 
+// #554 C2: render
 test('bad case: a checkpoint-stops part emptied in the source refuses a configuration that sets it, so the line cannot be dropped unseen', t => {
   const src = read(SOURCE).replace(CHECKPOINTS_WAIT, '');
   refusedWith(render(t, homeWith(t, stopsBytes(true)), sourceFile(t, src)), 'render', /checkpoint-stops: the template at its default no longer matches the source/);

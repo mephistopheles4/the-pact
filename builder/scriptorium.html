@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-9U18mWYLLrQSXdMbvJmTmxRFMd0yOm+TtMGPHOy5wsQ='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-0CwEy4AMkC+JINL/CTi5cSRfL2im4xFfew4nSS1bkTg='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -6106,7 +6106,9 @@ const LANDING_PRESET = 'level-3-full';
 function startState() {
   const state = initialState();
   const landing = !PACT.ownParts && PACT.presets.find(p => p.id === LANDING_PRESET);
-  if (landing) takePreset(state, landing, presetPicks(landing));
+  // #554: a setting the builder file itself carries is the person's own, so the landing preset's pick of it is skipped.
+  const ownSetting = typeof PACT.ownSettings?.[PACT.checkpointStops.name] === 'boolean';
+  if (landing) takePreset(state, landing, presetPicks(landing).filter(k => !(ownSetting && k.startsWith('setting:'))));
   return state;
 }
 
@@ -6223,7 +6225,7 @@ function startPicks(preset) {
   return presetPicks(preset).filter(k => shipped || (!k.startsWith('agent:') && !k.startsWith('setting:') && k !== 'skills'));
 }
 
-/** The take view's sentence on why agent rows start unticked, or '' when they start ticked. */
+/** The take view's sentence on why agent and setting rows start unticked, or '' when they start ticked. */
 function takeNote(preset) {
   if (PACT.presets.includes(preset)) return '';
   // #554: a setting starts unticked as an agent file does.
@@ -7626,7 +7628,7 @@ function boot() {
         { class: 'av-tool-bar av-tool-bar--stack' },
         el('h3', { class: 'section-title', text: 'Checkpoints' }),
         checkpointsRow(),
-        el('p', { class: 'av-annot', text: 'On by default: each checkpoint waits for your word in chat. Unticked, a save writes checkpoint-stops false and checkpoints run as events: the session takes its own pick, logs it and goes on. Hard stops still wait for you. A project can switch this back on, and never off.' }),
+        el('p', { class: 'av-annot', text: 'Ticked, each checkpoint waits for your word in chat; a configuration that leaves checkpoint-stops out waits. The default configuration, which this page starts from, unticks it. Unticked, a save writes checkpoint-stops false and checkpoints run as events: the session takes its own pick, logs it and goes on. Hard stops still wait for you. A project can switch this back on, and never off.' }),
       ),
       el(
         'section',
@@ -7677,7 +7679,6 @@ function boot() {
    * tool, each off unless ticked. Until one is ticked or unticked, a save
    * leaves the folder's own tools list as it is.
    */
-  /** The stop switch (#439): one checkbox, off by default; on, a save writes session-stop-deny true. */
   /** The checkpoint-stops switch (#554): one checkbox, on by default; unticked, a save writes checkpoint-stops false. */
   function checkpointsRow() {
     const box = el('input', { type: 'checkbox', 'aria-label': 'Checkpoints wait' });
@@ -7689,6 +7690,7 @@ function boot() {
     });
     return el('label', { class: 'command-row av-check' }, box, el('code', { text: PACT.checkpointStops.name }), el('span', { class: 'av-annot', text: 'Checkpoints wait for your word' }));
   }
+  /** The stop switch (#439): one checkbox, off by default; on, a save writes session-stop-deny true. */
   function stopRow() {
     const box = el('input', { type: 'checkbox', 'aria-label': 'Deny raw claude stop' });
     box.checked = state.stopDeny === true;

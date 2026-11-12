@@ -449,6 +449,7 @@ test('the renderer lines: VALUE checkpoint-stops on and off parse on a home and 
   assert.throws(() => home(renderBase().in.replace('RESULT', 'VALUE checkpoint-stops on\nVALUE other-thing on\nRESULT')), e => e.rule === 'render-unknown-line');
 });
 
+// #554 C4: render-unknown-line
 test('the project render lines: a bad checkpoint-stops line is refused, and a twice-reported one too', () => {
   const run = extra => core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', `${extra}\nRESULT`).split('\n'), sha256);
   for (const bad of ['VALUE checkpoint-stops yes', 'VALUE checkpoint-stops true', 'VALUE checkpoint-stops ON', 'VALUE checkpoint-stops 60', 'VALUE checkpoint-stops on off']) assert.throws(() => run(bad), e => e.rule === 'project-render-unknown-line', bad);
@@ -474,6 +475,7 @@ test('the configuration block: a user configuration with checkpoint-stops unset 
   assert.deepEqual(notes(core.configBlock(parse(noneBase().in), H('a'), null)), []);
 });
 
+// #554 C4: the project block names the rule it applies
 test('the project block: a project checkpoint-stops names what it does, not the lower-of rule the numbers follow', () => {
   const p = core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', 'VALUE checkpoint-stops on\nRESULT').split('\n'), sha256);
   const warns = core.projectBlock({ kind: 'new' }, p).filter(l => l.startsWith('  WARN:'));
