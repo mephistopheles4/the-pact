@@ -5,32 +5,35 @@
 // A port of gh-post.ts, github-post.ts and github-body.ts from stacks, the
 // owner's other repository, read as text.
 //
-//   node poster.mjs <surface> --repo <owner/name> --body <file> [--as <login>] [options]
+//   node poster.mjs <surface> --post <file> [--dry-run]
+//   node poster.mjs schema
 //
-//     issue                 --title-file <file> [--label <name>]...
-//     pull-request          --title-file <file> --head <branch> --base <branch> [--draft]
-//     issue-comment         --issue <n>
-//     pull-request-review   --pr <n>
-//     review-thread-reply   --pr <n> --comment <review comment id>
+// A post is one JSON document (#524), checked against a strict schema that
+// `schema` prints: an unknown field, a wrong type, a pattern miss or an
+// over-length value is refused, and nothing is sent. The surfaces:
 //
-//   the edits (#413), each with --reason <file> --signed <label>:
-//     issue-edit                --issue <n>
-//     pull-request-edit         --pr <n>
-//     issue-comment-edit        --issue <n> --comment <id of the comment edited>
-//     review-thread-reply-edit  --pr <n> --comment <id of the reply edited>
+//     issue, pull-request, issue-comment, pull-request-review, review-thread-reply
+//     the edits (#413): issue-edit, pull-request-edit, issue-comment-edit,
+//                       review-thread-reply-edit
 //
-//   everywhere: --dry-run   prints the gh arguments and the request's sizes, sends nothing
+// Each create post names its `kind`, and a kind of an issue, pull request, spec
+// or decision carries the owner's `quote` and the session's `intent`, so a
+// reader can check the read-back against the owner's words. The poster builds
+// the body from fixed parts: the ask and intent blocks, the session's body from
+// the file the post names (`body_file`, in the post file's own folder), the
+// `Signed:` line and, on an edit, the reason lines. The post's text fields are
+// unverified: they catch accidents, and are not a control.
 //
 // An edit reads the item first and refuses one its login didn't write, one
-// not signed `Signed: <label>` or `Posted by <label>.`, a review record, a
-// decision mark, an item holding a leak the scan finds, and a body that
-// drops, forges or hides an earlier reason line. It sends the session's body
-// with `Edited: <reason> (<label>)` after it. A status edit
-// (`issue-comment-edit --signed status-<n>`, n the --issue) is the one
-// exception: its body holds no reason line, so only the newest is kept (#503).
+// not signed with the post's signer, a review record, a decision mark, an item
+// holding a leak the scan finds, and a body that drops, forges or hides an
+// earlier reason line. It carries the item's reason lines forward and adds
+// `Edited: <reason> (<signer>)`. A status edit (`issue-comment-edit` signed
+// `status-<n>`, n the issue) is the one exception: it carries none, so only the
+// newest is kept (#503).
 //
 // Every piece of free text comes from a file, so no prose reaches a command
-// line. Before anything is sent it checks every option and file, and scans the
+// line. Before anything is sent it checks every field and file, and scans the
 // exact text it would send for a live environment secret's value and hidden
 // text; it refuses no token shape, email address, path or session id (#326,
 // #364, #366, #441).
@@ -38,12 +41,14 @@
 // the review procedure's template (#280, T2), and refuses a body whose prose is
 // hard-wrapped, whose link has no scheme (#317, text/hard-wrap and
 // link/relative) or that leaves a fence open (#401, fence/unclosed); it never
-// rewrites a body. Before it posts, it checks that the repo's
-// owner is the gh login, by name and again by what GitHub returns for the repo
-// (owner/repo, owner/github). The scans are a backstop for accidents, not a
-// guard against a session that sets out to get past them.
+// rewrites a body. The owner's quote is skipped by the prose check. Before it
+// posts, it checks that the repo's owner is the gh login, by name and again by
+// what GitHub returns for the repo (owner/repo, owner/github), and reads each
+// tracker comment a quote cites (post/tracker). The scans are a backstop for
+// accidents, not a guard against a session that sets out to get past them.
 //
-// The last line is always a RESULT line on stdout:
+// The last line is always a RESULT line on stdout, except for `schema`, which
+// prints the schema and nothing else:
 //   0  RESULT: verified <surface> <url> as <login>
 //   1  RESULT: mismatch <url>     posted, but a field differs
 //   1  RESULT: unverified <url>   posted, but the read-back failed or was unusable
@@ -53,7 +58,8 @@
 //                                 itself failed before sending; nothing sent
 //   0  RESULT: dry-run <surface>
 // Exits 1 and 3 also print one NEXT: line, straight above the RESULT line,
-// that says what the session does next (#294).
+// that says what the session does next (#294). An old option is refused with
+// one fixed NEXT: line that names the new form (#524).
 // Output names rules, fields, positions and sizes, never the text itself; the
 // NEXT: line holds fixed words, a page and a login. It never retries.
 //
@@ -65,108 +71,62 @@
 import { spawnSync } from 'node:child_process';
 import { closeSync, fstatSync, lstatSync, mkdtempSync, openSync, readSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------- the surfaces
 
-const COMMON = Object.freeze(['repo', 'body', 'as', 'dry-run']);
-const FLAGS = new Set(['draft', 'dry-run']);
-const REPEATABLE = new Set(['label']);
+const FLAGS = new Set(['dry-run']);
+const OPTIONS = new Set(['post', 'dry-run']);
 
-/** Each surface's own options, and which of them it needs. */
+const REQ = 'req';
+const OPT = 'opt';
+const BYKIND = 'kind';
+const COMMON_FIELDS = { repo: REQ, as: OPT, signer: REQ, body_file: REQ };
+const CREATE_FIELDS = { kind: REQ, quote: BYKIND, intent: BYKIND };
+
+/**
+ * Each surface's own post fields: `req` is required, `opt` optional, `kind`
+ * decided by the post's kind. A field the schema knows and a surface leaves out
+ * is refused `post/field` there (#524, S3.1).
+ */
 export const SURFACES = Object.freeze({
-  issue: { options: ['title-file', 'label'], needs: ['title-file'] },
-  'pull-request': { options: ['title-file', 'head', 'base', 'draft'], needs: ['title-file', 'head', 'base'] },
-  'issue-comment': { options: ['issue'], needs: ['issue'] },
-  'pull-request-review': { options: ['pr'], needs: ['pr'] },
-  'review-thread-reply': { options: ['pr', 'comment'], needs: ['pr', 'comment'] },
-  'issue-edit': { options: ['issue', 'reason', 'signed'], needs: ['issue', 'reason', 'signed'] },
-  'pull-request-edit': { options: ['pr', 'reason', 'signed'], needs: ['pr', 'reason', 'signed'] },
-  'issue-comment-edit': { options: ['issue', 'comment', 'reason', 'signed'], needs: ['issue', 'comment', 'reason', 'signed'] },
-  'review-thread-reply-edit': { options: ['pr', 'comment', 'reason', 'signed'], needs: ['pr', 'comment', 'reason', 'signed'] },
+  issue: { ...CREATE_FIELDS, title: REQ, labels: OPT },
+  'pull-request': { ...CREATE_FIELDS, title: REQ, head: REQ, base: REQ, draft: OPT },
+  'issue-comment': { ...CREATE_FIELDS, issue: REQ, answers: OPT },
+  'pull-request-review': { ...CREATE_FIELDS, pr: REQ },
+  'review-thread-reply': { ...CREATE_FIELDS, pr: REQ, comment: REQ },
+  'issue-edit': { issue: REQ, reason: REQ },
+  'pull-request-edit': { pr: REQ, reason: REQ },
+  'issue-comment-edit': { issue: REQ, comment: REQ, reason: REQ },
+  'review-thread-reply-edit': { pr: REQ, comment: REQ, reason: REQ },
 });
+
+/** The fields a surface takes: the common ones and its own. */
+const fieldsOf = surface => ({ ...COMMON_FIELDS, ...SURFACES[surface] });
 
 /** The surfaces that edit a body the poster's login already posted (#413). */
 const EDITS = new Set(['issue-edit', 'pull-request-edit', 'issue-comment-edit', 'review-thread-reply-edit']);
 export const isEdit = surface => EDITS.has(surface);
 
-/** The documented command line for each surface, after `node poster.mjs`. */
-export const EXAMPLES = Object.freeze({
-  issue: 'issue --repo you/your-repo --title-file title.txt --body body.md --label bug',
-  'pull-request': 'pull-request --repo you/your-repo --title-file title.txt --body body.md --head my-branch --base main --draft',
-  'issue-comment': 'issue-comment --repo you/your-repo --body comment.md --issue 12 --as you',
-  'pull-request-review': 'pull-request-review --repo you/your-repo --body review.md --pr 34',
-  'review-thread-reply': 'review-thread-reply --repo you/your-repo --body reply.md --pr 34 --comment 5678',
-  'issue-edit': 'issue-edit --repo you/your-repo --body body.md --reason reason.txt --signed build-12 --issue 12',
-  'pull-request-edit': 'pull-request-edit --repo you/your-repo --body body.md --reason reason.txt --signed build-12 --pr 34',
-  'issue-comment-edit': 'issue-comment-edit --repo you/your-repo --body comment.md --reason reason.txt --signed build-12 --issue 12 --comment 4321',
-  'review-thread-reply-edit': 'review-thread-reply-edit --repo you/your-repo --body reply.md --reason reason.txt --signed build-12 --pr 34 --comment 8765',
+/**
+ * Each kind of create post: the surfaces it goes to, and whether it carries
+ * the owner's quote and the read-back (S4).
+ */
+export const KINDS = Object.freeze({
+  issue: { surfaces: ['issue'], quoted: true },
+  'pull-request': { surfaces: ['pull-request'], quoted: true },
+  spec: { surfaces: ['issue-comment'], quoted: true },
+  decision: { surfaces: ['issue-comment'], quoted: true },
+  status: { surfaces: ['issue-comment'], quoted: false },
+  'lens-report': { surfaces: ['issue-comment', 'pull-request-review'], quoted: false },
+  note: { surfaces: ['issue-comment'], quoted: false },
+  review: { surfaces: ['pull-request-review'], quoted: false },
+  reply: { surfaces: ['review-thread-reply'], quoted: false },
 });
 
 const FILE_MAX = 256 * 1024;
 const BODY_MAX = 65536;
-const TITLE_MAX = 256;
-const REASON_MAX = 200;
-
-// ---------------------------------------------------------------- the command line
-
-const OPTION_RE = /^--[a-z][a-z-]{0,30}$/;
-
-/**
- * The surface and options from an argument list, with every usage fault as a
- * refusal: an unknown surface or option, a word that is no option, a missing
- * value, a repeated single-value option, and a missing option the surface
- * needs. An option whose value is missing is kept as null, so it is not
- * also reported missing.
- */
-export function parseArgs(argv) {
-  const refusals = [];
-  const options = new Map();
-  const [surface, ...rest] = argv;
-  if (surface === undefined || !Object.hasOwn(SURFACES, surface)) {
-    refusals.push({ rule: 'usage/surface', where: 'argument 1' });
-    return { surface: null, options, refusals };
-  }
-  const known = new Set([...COMMON, ...SURFACES[surface].options]);
-  for (let i = 0; i < rest.length; i += 1) {
-    const token = rest[i];
-    const at = `argument ${i + 2}`;
-    if (!token.startsWith('--')) {
-      refusals.push({ rule: 'usage/argument', where: at });
-      continue;
-    }
-    const name = token.slice(2);
-    if (!OPTION_RE.test(token) || !known.has(name)) {
-      // Its value, if it has one, goes with it: one fault, not two.
-      refusals.push({ rule: 'usage/unknown-option', where: at });
-      if (rest[i + 1] !== undefined && !rest[i + 1].startsWith('--')) i += 1;
-      continue;
-    }
-    if (options.has(name) && !REPEATABLE.has(name)) {
-      refusals.push({ rule: 'usage/repeated', where: `option --${name}` });
-      if (!FLAGS.has(name) && rest[i + 1] !== undefined && !rest[i + 1].startsWith('--')) i += 1;
-      continue;
-    }
-    if (FLAGS.has(name)) {
-      options.set(name, true);
-      continue;
-    }
-    const value = rest[i + 1];
-    if (value === undefined || value.startsWith('--')) {
-      refusals.push({ rule: 'usage/missing-value', where: `option --${name}` });
-      if (!options.has(name)) options.set(name, REPEATABLE.has(name) ? [] : null);
-      continue;
-    }
-    i += 1;
-    if (REPEATABLE.has(name)) options.set(name, [...(options.get(name) ?? []), value]);
-    else options.set(name, value);
-  }
-  for (const name of ['repo', 'body', ...SURFACES[surface].needs]) {
-    if (!options.has(name)) refusals.push({ rule: 'usage/missing-option', where: `option --${name}` });
-  }
-  return { surface, options, refusals };
-}
 
 // ---------------------------------------------------------------- the input rules
 
@@ -176,6 +136,12 @@ const NUMBER_RE = /^[1-9][0-9]{0,15}$/;
 const BRANCH_RE = /^[A-Za-z0-9._/-]{1,255}$/;
 const LABEL_RE = /^[A-Za-z0-9 :._-]{1,50}$/;
 const SIGNED_RE = /^[a-z0-9][a-z0-9-]{0,49}$/;
+const HEAD_RE = /^(?:[A-Za-z0-9-]{1,39}:)?[A-Za-z0-9._/-]{1,255}$/;
+const ANSWERS_RE = /^(?:issue|pull request|comment) [1-9][0-9]{0,15}$/;
+const BODY_FILE_RE = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/;
+const WHEN_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const TITLE_RE_SOURCE = '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$';
+const ONE_LINE_RE_SOURCE = '^[^\\r\\n\\u2028\\u2029]*$';
 
 /** An owner and a name, or null. */
 export function parseRepo(s) {
@@ -252,92 +218,547 @@ export function readText(path) {
   return { text };
 }
 
+// ---------------------------------------------------------------- the schema (#524)
+
+const ID = Object.freeze({ type: 'integer', minimum: 1 });
+
 /**
- * What the command line asks to post, checked: the repo, login, numbers,
- * branches and labels by their rules, and the body and title files read
- * strictly. A title file may end with one line break, which is not part of
- * the title. Returns { plan, refusals }; the plan is whole only when there
- * are no refusals.
+ * The post document's schema, JSON Schema draft 2020-12, as `node poster.mjs
+ * schema` prints it. The validator below checks only the keywords this object
+ * uses. The rules that need code are named in the top-level description.
  */
-export function buildPlan(parsed) {
+export const SCHEMA = Object.freeze({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  title: 'A post for the pact poster',
+  description:
+    'One JSON document per post, strict: an unknown field, a wrong type, a pattern miss or an over-length value is refused. ' +
+    'Code beside the schema decides what a schema cannot: which fields each surface takes (post/field, post/missing), ' +
+    'the kind table (post/kind, post/signer, post/status), the quote rules (post/tracker, post/when, post/field), ' +
+    'the intent rules (post/status, post/owned-line, text/hidden-line), and the body file (file rules, post/owned-line). ' +
+    'The surfaces: issue, pull-request, issue-comment, pull-request-review, review-thread-reply, and the four edits ' +
+    '(issue-edit, pull-request-edit, issue-comment-edit, review-thread-reply-edit).',
+  type: 'object',
+  additionalProperties: false,
+  required: ['repo', 'signer', 'body_file'],
+  properties: {
+    repo: { type: 'string', maxLength: 140, pattern: REPO_RE.source },
+    as: { type: 'string', pattern: LOGIN_RE.source },
+    kind: { enum: Object.keys(KINDS) },
+    title: { type: 'string', minLength: 1, maxLength: 120, pattern: TITLE_RE_SOURCE },
+    labels: { type: 'array', maxItems: 10, items: { type: 'string', pattern: LABEL_RE.source } },
+    answers: { type: 'string', maxLength: 40, pattern: ANSWERS_RE.source },
+    head: { type: 'string', maxLength: 300, pattern: HEAD_RE.source },
+    base: { type: 'string', maxLength: 300, pattern: BRANCH_RE.source },
+    draft: { type: 'boolean' },
+    issue: ID,
+    pr: ID,
+    comment: ID,
+    signer: { type: 'string', pattern: SIGNED_RE.source },
+    quote: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 5,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['text', 'source', 'when'],
+        properties: {
+          text: { type: 'string', minLength: 1, maxLength: 4000 },
+          source: { enum: ['chat', 'relayed', 'tracker'] },
+          comment: ID,
+          via: { type: 'string', pattern: SIGNED_RE.source },
+          when: { type: 'string', pattern: WHEN_RE.source, 'x-rule': 'post/when' },
+        },
+      },
+    },
+    intent: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['text', 'status'],
+      properties: {
+        text: { type: 'string', minLength: 1, maxLength: 2000 },
+        status: { enum: ['pending', 'confirmed', 'corrected'] },
+        comment: ID,
+        corrected: { type: 'string', minLength: 1, maxLength: 2000 },
+      },
+    },
+    body_file: { type: 'string', pattern: BODY_FILE_RE.source },
+    reason: { type: 'string', minLength: 1, maxLength: 200, pattern: ONE_LINE_RE_SOURCE },
+  },
+});
+
+/** The documented post for each surface, as the post file's own JSON. */
+export const EXAMPLES = Object.freeze({
+  issue: {
+    repo: 'you/your-repo',
+    kind: 'issue',
+    title: 'A clear one-line title',
+    labels: ['bug'],
+    signer: 'plan-12',
+    quote: [{ text: 'The words the owner said, exactly.', source: 'chat', when: '2026-11-11' }],
+    intent: { text: 'What the session took those words to mean.', status: 'pending' },
+    body_file: 'body.md',
+  },
+  'pull-request': {
+    repo: 'you/your-repo',
+    kind: 'pull-request',
+    title: 'A clear one-line title',
+    head: 'my-branch',
+    base: 'main',
+    draft: true,
+    signer: 'pr-12',
+    quote: [{ text: 'The words the owner said, exactly.', source: 'chat', when: '2026-11-11' }],
+    intent: { text: 'What the session took those words to mean.', status: 'pending' },
+    body_file: 'body.md',
+  },
+  'issue-comment': { repo: 'you/your-repo', kind: 'note', issue: 12, as: 'you', signer: 'build-12', body_file: 'comment.md' },
+  'pull-request-review': { repo: 'you/your-repo', kind: 'review', pr: 34, signer: 'review-34', body_file: 'review.md' },
+  'review-thread-reply': { repo: 'you/your-repo', kind: 'reply', pr: 34, comment: 5678, signer: 'build-34', body_file: 'reply.md' },
+  'issue-edit': { repo: 'you/your-repo', issue: 12, signer: 'build-12', reason: 'fixed a wrong link', body_file: 'body.md' },
+  'pull-request-edit': { repo: 'you/your-repo', pr: 34, signer: 'pr-34', reason: 'fixed a wrong link', body_file: 'body.md' },
+  'issue-comment-edit': { repo: 'you/your-repo', issue: 12, comment: 4321, signer: 'build-12', reason: 'fixed a wrong link', body_file: 'comment.md' },
+  'review-thread-reply-edit': { repo: 'you/your-repo', pr: 34, comment: 8765, signer: 'build-34', reason: 'fixed a wrong link', body_file: 'reply.md' },
+});
+
+// ---------------------------------------------------------------- the command line
+
+const OPTION_RE = /^--[a-z][a-z-]{0,30}$/;
+
+/** The fixed line after an old option (S5.5): no argument the session gave reaches it. */
+export const OLD_OPTION_NEXT = 'NEXT: the poster takes a JSON post now: <surface> --post <file>. See node poster.mjs schema and the Posting section of ~/.claude/pact/review.md; never post with plain gh.';
+
+/**
+ * The surface and options from an argument list, with every usage fault as a
+ * refusal: an unknown surface or option (every option but `--post <file>` and
+ * `--dry-run`), a word that is no option, a missing value, a repeated option,
+ * and a missing `--post`. `schema` takes no option. An option whose value is
+ * missing is kept as null, so it is not also reported missing.
+ */
+export function parseArgs(argv) {
+  const refusals = [];
+  const options = new Map();
+  const [surface, ...rest] = argv;
+  const isSchema = surface === 'schema';
+  if (surface === undefined || (!isSchema && !Object.hasOwn(SURFACES, surface))) {
+    refusals.push({ rule: 'usage/surface', where: 'argument 1' });
+    return { surface: null, options, refusals };
+  }
+  for (let i = 0; i < rest.length; i += 1) {
+    const token = rest[i];
+    const at = `argument ${i + 2}`;
+    if (!token.startsWith('--')) {
+      refusals.push({ rule: 'usage/argument', where: at });
+      continue;
+    }
+    const name = token.slice(2);
+    if (isSchema || !OPTION_RE.test(token) || !OPTIONS.has(name)) {
+      // Its value, if it has one, goes with it: one fault, not two.
+      refusals.push({ rule: 'usage/unknown-option', where: at });
+      if (rest[i + 1] !== undefined && !rest[i + 1].startsWith('--')) i += 1;
+      continue;
+    }
+    if (options.has(name)) {
+      refusals.push({ rule: 'usage/repeated', where: `option --${name}` });
+      if (!FLAGS.has(name) && rest[i + 1] !== undefined && !rest[i + 1].startsWith('--')) i += 1;
+      continue;
+    }
+    if (FLAGS.has(name)) {
+      options.set(name, true);
+      continue;
+    }
+    const value = rest[i + 1];
+    if (value === undefined || value.startsWith('--')) {
+      refusals.push({ rule: 'usage/missing-value', where: `option --${name}` });
+      options.set(name, null);
+      continue;
+    }
+    i += 1;
+    options.set(name, value);
+  }
+  if (!isSchema && !options.has('post')) refusals.push({ rule: 'usage/missing-option', where: 'option --post' });
+  return { surface, options, refusals };
+}
+
+// ---------------------------------------------------------------- the validator
+
+const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const joinPath = (path, key) => (path === '' ? key : `${path}.${key}`);
+/** An unknown key is named by its path only when it can't carry text; else by its position among the keys. */
+const KEY_NAME_RE = /^[a-z_]{1,30}$/;
+
+/**
+ * Check `value` against `schema`, adding { rule, where } to `out`. The keywords
+ * it reads are the ones SCHEMA uses: type, required, properties,
+ * additionalProperties, enum, minLength, maxLength, pattern, minItems,
+ * maxItems, items and minimum. A wrong type is `post/type`; a missing
+ * required field `post/missing`; an enum or pattern miss `post/pattern` (or
+ * the schema's own `x-rule`); a length miss `post/length`; an unknown key
+ * `post/unknown`. Each `where` is a JSON path, never a value.
+ */
+function validate(schema, value, path, out) {
+  const bad = rule => out.push({ rule, where: path });
+  if (schema.type === 'string' || (schema.enum && schema.enum.every(e => typeof e === 'string'))) {
+    if (typeof value !== 'string') return bad('post/type');
+  }
+  if (schema.enum) {
+    if (!schema.enum.includes(value)) bad('post/pattern');
+    return;
+  }
+  switch (schema.type) {
+    case 'string': {
+      const n = chars(value);
+      if ((schema.minLength !== undefined && n < schema.minLength) || (schema.maxLength !== undefined && n > schema.maxLength)) return bad('post/length');
+      if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) bad(schema['x-rule'] ?? 'post/pattern');
+      return;
+    }
+    case 'integer':
+      if (typeof value !== 'number' || !Number.isInteger(value)) return bad('post/type');
+      if ((schema.minimum !== undefined && value < schema.minimum) || !Number.isSafeInteger(value) || !isNumber(String(value))) bad('post/pattern');
+      return;
+    case 'boolean':
+      if (typeof value !== 'boolean') bad('post/type');
+      return;
+    case 'array': {
+      if (!Array.isArray(value)) return bad('post/type');
+      if ((schema.minItems !== undefined && value.length < schema.minItems) || (schema.maxItems !== undefined && value.length > schema.maxItems)) return bad('post/length');
+      if (schema.items) value.forEach((item, i) => validate(schema.items, item, `${path}[${i}]`, out));
+      return;
+    }
+    case 'object': {
+      if (!isObject(value)) return bad('post/type');
+      const keys = Object.keys(value);
+      for (const name of schema.required ?? []) if (!Object.hasOwn(value, name)) out.push({ rule: 'post/missing', where: joinPath(path, name) });
+      keys.forEach((key, n) => {
+        if (!Object.hasOwn(schema.properties, key)) {
+          if (schema.additionalProperties === false) out.push({ rule: 'post/unknown', where: joinPath(path, KEY_NAME_RE.test(key) ? key : `$.${n + 1}`) });
+          return;
+        }
+        validate(schema.properties[key], value[key], joinPath(path, key), out);
+      });
+      return;
+    }
+    default:
+      throw new TypeError('no such type');
+  }
+}
+
+// ---------------------------------------------------------------- the post's own rules
+
+/** The date, `YYYY-MM-DD`, of a Date in UTC. */
+const utcDate = d => d.toISOString().slice(0, 10);
+
+/** Whether `when` names a real calendar day no later than `now`'s UTC date plus one day. */
+function realDay(when, now) {
+  if (!WHEN_RE.test(when)) return false;
+  const [y, m, d] = when.split('-').map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d));
+  if (day.getUTCFullYear() !== y || day.getUTCMonth() !== m - 1 || day.getUTCDate() !== d) return false;
+  return when <= utcDate(new Date(now.getTime() + 86400000));
+}
+
+const LEFT_OUT = '[left out]';
+const TRACKER_FLOOR = 20;
+const TRACKER_SPANS = 3;
+
+/** A tracker passage's text as the parts around its `[left out]` spans, and how many spans it holds. */
+function spansOf(text) {
+  const parts = text.replace(/\r\n|\r/g, '\n').split(LEFT_OUT);
+  return { parts, spans: parts.length - 1 };
+}
+
+/**
+ * The refusals a tracker passage's text earns without a read (P27): fewer
+ * than 20 characters outside its `[left out]` spans, two spans that touch, or
+ * more than three spans.
+ */
+function trackerShape(text) {
+  const { parts, spans } = spansOf(text);
+  const outside = parts.reduce((n, p) => n + chars(p), 0);
+  const touching = parts.slice(1, -1).some(p => p === '');
+  return outside < TRACKER_FLOOR || touching || spans > TRACKER_SPANS;
+}
+
+/** Whether every part of `text` around its spans appears in `comment` in order, each by a plain substring search (P20, P25). */
+function inComment(text, comment) {
+  const body = comment.replace(/\r\n|\r/g, '\n');
+  let at = 0;
+  for (const part of spansOf(text).parts) {
+    if (part === '') continue;
+    const found = body.indexOf(part, at);
+    if (found < 0) return false;
+    at = found + part.length;
+  }
+  return true;
+}
+
+const allChat = quote => quote.every(q => q.source === 'chat');
+
+/** The lines a field may not hold (S3.3, S5.3): each is read as the page shows it. */
+const FIXED_START = [
+  /^edited:/,
+  /^read-back:/,
+  /^answers:/,
+  /^corrected read-back:/,
+  /^said in this session's chat/,
+  /^relayed by /,
+  /^from the owner's comment/,
+  /^relayed owner words/,
+  /^#{1,6}[ \t]*(?:the ask|understood intent)[ \t]*#*$/,
+];
+const OWNED_SIGNATURE_RE = /^(?:signed: [a-z0-9][a-z0-9-]{0,49}|posted by [a-z0-9][a-z0-9-]{0,49}\.)$/;
+const HTML_HEADING_RE = /<h[1-6][\s/>]/i;
+const MARKER_RE = /^[ \t]*(?:>|[-*+](?=[ \t])|[0-9]{1,9}[.)](?=[ \t]))[ \t]*/;
+const OPENER_RE = /^(?:`{3,}|~{3,})/;
+
+/** A line read as the page shows it: format characters out, look-alikes folded, leading quote and list markers removed, trimmed, in lower case. */
+function pageLine(view) {
+  let s = view.replace(/\p{Cf}/gu, '');
+  s = [...s.normalize('NFKC')].map(c => LOOKALIKES.get(c) ?? c).join('').replace(/[‘’]/g, "'");
+  for (let prev = null; prev !== s;) {
+    prev = s;
+    s = s.replace(MARKER_RE, '');
+  }
+  return s.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/** Whether a line is an owned line (S5.3) in any of its views. */
+function isOwnedLine(line) {
+  return views(line).some(v => {
+    const s = pageLine(v);
+    return OWNED_SIGNATURE_RE.test(s) || FIXED_START.some(re => re.test(s)) || s.includes(DECISION);
+  });
+}
+
+/** Whether a line is a heading, a fence opener or an HTML heading, in any view, once its leading markers are gone. */
+function isHeadingLine(line) {
+  return views(line).some(v => {
+    const s = pageLine(v);
+    return HEADING_RE.test(s) || OPENER_RE.test(s) || HTML_HEADING_RE.test(v);
+  });
+}
+
+/**
+ * Whether a read-back field holds an owned line, a heading (ATX, setext or
+ * HTML), or a fence-opening run (P7, P17, P28). Every line counts, fenced or
+ * not, since a fence opener is itself refused.
+ */
+function intentOwned(text) {
+  const lines = linesOf(text);
+  return lines.some((line, i) => {
+    if (isOwnedLine(line) || isHeadingLine(line)) return true;
+    return line.trim() !== '' && SETEXT_RE.test(lines[i + 1] ?? '');
+  });
+}
+
+/** Whether the session's body file holds an owned line outside a fence (S5.3). */
+function bodyOwned(text) {
+  return unfenced(linesOf(text)).some(isOwnedLine);
+}
+
+/**
+ * The refusals for the shape of a post that parsed against the schema: the
+ * fields a surface takes, the kind table, the signer, the quote, and the
+ * intent. `now` is the poster's own clock.
+ */
+function postRules(doc, surface, now) {
+  const out = [];
+  const has = name => Object.hasOwn(doc, name);
+  const fields = fieldsOf(surface);
+  for (const name of Object.keys(SCHEMA.properties)) {
+    const rule = fields[name];
+    if (rule === undefined) {
+      if (has(name)) out.push({ rule: 'post/field', where: name });
+    } else if (rule === REQ && !has(name) && !SCHEMA.required.includes(name)) {
+      out.push({ rule: 'post/missing', where: name });
+    }
+  }
+  if (isEdit(surface)) return out;
+
+  const kind = doc.kind;
+  const row = typeof kind === 'string' && Object.hasOwn(KINDS, kind) ? KINDS[kind] : null;
+  if (row && !row.surfaces.includes(surface)) out.push({ rule: 'post/kind', where: 'kind' });
+  if (!row || !row.surfaces.includes(surface)) return out;
+  if (row.quoted) {
+    for (const name of ['quote', 'intent']) if (!has(name)) out.push({ rule: 'post/missing', where: name });
+  } else {
+    for (const name of ['quote', 'intent']) if (has(name)) out.push({ rule: 'post/field', where: name });
+  }
+  if (has('answers') && kind !== 'decision' && fields.answers !== undefined) out.push({ rule: 'post/field', where: 'answers' });
+  if (typeof doc.signer === 'string') {
+    const status = kind === 'status' ? typeof doc.issue === 'number' && doc.signer === `status-${doc.issue}` : !doc.signer.startsWith('status-');
+    if (!status) out.push({ rule: 'post/signer', where: 'signer' });
+  }
+  if (!row.quoted || !Array.isArray(doc.quote) || !isObject(doc.intent)) return out;
+
+  doc.quote.forEach((q, i) => {
+    const at = `quote[${i}]`;
+    if (!isObject(q)) return;
+    if (q.source === 'tracker') {
+      if (!Object.hasOwn(q, 'comment')) out.push({ rule: 'post/missing', where: `${at}.comment` });
+      else if (typeof q.text === 'string' && trackerShape(q.text)) out.push({ rule: 'post/tracker', where: `${at}.text` });
+    } else if (Object.hasOwn(q, 'comment')) out.push({ rule: 'post/field', where: `${at}.comment` });
+    if (q.source === 'relayed' && !Object.hasOwn(q, 'via')) out.push({ rule: 'post/missing', where: `${at}.via` });
+    else if (q.source !== 'relayed' && Object.hasOwn(q, 'via')) out.push({ rule: 'post/field', where: `${at}.via` });
+    if (typeof q.when === 'string' && WHEN_RE.test(q.when) && !realDay(q.when, now)) out.push({ rule: 'post/when', where: `${at}.when` });
+  });
+
+  const { intent } = doc;
+  if (intent.status === 'corrected') out.push({ rule: 'post/status', where: 'intent.status' });
+  if (Object.hasOwn(intent, 'comment')) out.push({ rule: 'post/field', where: 'intent.comment' });
+  if (Object.hasOwn(intent, 'corrected')) out.push({ rule: 'post/field', where: 'intent.corrected' });
+  const chat = doc.quote.every(q => isObject(q) && q.source === 'chat');
+  if (intent.status === 'confirmed' && !chat) out.push({ rule: 'post/status', where: 'intent.status' });
+  if (kind === 'decision' && chat && intent.status === 'pending') out.push({ rule: 'post/status', where: 'intent.status' });
+  for (const name of ['text', 'corrected']) {
+    if (typeof intent[name] === 'string' && intentOwned(intent[name])) out.push({ rule: 'post/owned-line', where: `intent.${name}` });
+  }
+  return out;
+}
+
+/** Whether a text opens an HTML comment or a fold it doesn't close, which would hide what follows it on the page. */
+function hidesAhead(text) {
+  const before = linesOf(text).map(blankCodeSpans).join('\n');
+  if (before.lastIndexOf('<!--') > before.lastIndexOf('-->')) return true;
+  // On the page a comment opened on a quoted line ends where the quote does, so its closer must sit in the same run of quoted lines (#524).
+  let run = [];
+  for (const line of [...before.split('\n'), '']) {
+    if (QUOTE_RE.test(line)) run.push(line);
+    else {
+      const joined = run.join('\n');
+      if (joined.lastIndexOf('<!--') > joined.lastIndexOf('-->')) return true;
+      run = [];
+    }
+  }
+  const count = re => (before.match(re) ?? []).length;
+  return count(/<details\b/gi) > count(/<\/details\s*>/gi);
+}
+
+// ---------------------------------------------------------------- rendering (S5)
+
+const MARK_CHAT = 'Owner decision, from chat.';
+const MARK_RELAYED = 'Relayed owner words, not a decision mark.';
+const quoteLines = (text, blank) => text.split(LINE_END_RE).map(l => (blank ? '' : l === '' ? '>' : `> ${l}`)).join('\n');
+const sourceLine = q => {
+  if (q.source === 'chat') return `Said in this session's chat, ${q.when}.`;
+  if (q.source === 'relayed') return `Relayed by ${q.via} from its chat, ${q.when}.`;
+  return `From the owner's comment ${q.comment}, ${q.when}.`;
+};
+const readBack = intent => {
+  if (intent.status === 'corrected') return `Read-back: corrected in comment ${intent.comment}.`;
+  if (intent.status === 'confirmed') return intent.comment === undefined ? "Read-back: confirmed in this session's chat." : `Read-back: confirmed in comment ${intent.comment}.`;
+  return 'Read-back: not yet confirmed.';
+};
+/** The intent block (S5.1 3): a corrected one shows the original struck through, paragraph by paragraph, then the correction. */
+const intentBlock = intent => {
+  const text = intent.status === 'corrected' ? `${intent.text.split(/\n{2,}/).map(p => `~~${p}~~`).join('\n\n')}\n\nCorrected read-back:\n\n${intent.corrected}` : intent.text;
+  return `## Understood intent\n\n${text}\n\n${readBack(intent)}`;
+};
+
+/**
+ * The body the poster sends, built from fixed parts, one blank line between
+ * each (S5.1): the decision mark and `Answers:` line, the ask block, the
+ * intent block, the session's body file, `Signed:`, and the reason lines.
+ * With `blankQuotes`, each quote line is empty, so a check that skips the
+ * owner's words reads the same lines at the same positions.
+ */
+export function renderBody(p, blankQuotes = false) {
+  const parts = [];
+  if (p.kind === 'decision') {
+    parts.push(allChat(p.quote) ? MARK_CHAT : MARK_RELAYED);
+    if (p.answers !== undefined) parts.push(`Answers: ${p.answers}.`);
+  }
+  if (p.quote !== undefined) {
+    parts.push(['## The ask', ...p.quote.map(q => `${quoteLines(q.text, blankQuotes)}\n\n${sourceLine(q)}`)].join('\n\n'));
+    parts.push(intentBlock(p.intent));
+  }
+  parts.push(p.sessionPart.replace(/(?:\r?\n)+$/, ''));
+  parts.push(`Signed: ${p.signer}`);
+  for (const line of p.reasons ?? []) parts.push(line);
+  return parts.join('\n\n');
+}
+
+/** The reason line an edit adds. */
+const reasonLine = (reason, label) => `Edited: ${reason} (${label})`;
+
+/**
+ * What the command line asks to post, checked: the post file read strictly
+ * and parsed, its shape checked against the schema and the poster's own
+ * rules, and its body file read from the post file's own folder. Returns
+ * { plan, refusals }; the plan is whole only when there are no refusals.
+ */
+export function buildPlan(parsed, now = new Date()) {
   const { surface, options } = parsed;
   const refusals = [];
-  const plan = { surface, labels: [], draft: options.get('draft') === true, dryRun: options.get('dry-run') === true };
-  const value = name => (typeof options.get(name) === 'string' ? options.get(name) : null);
-  const refuse = (rule, name) => refusals.push({ rule, where: `option --${name}` });
+  const plan = { surface, labels: [], draft: false, dryRun: options.get('dry-run') === true };
+  const file = options.get('post');
+  const r = readText(file);
+  if (r.rule) return { plan, refusals: [{ rule: r.rule, where: 'post file' }] };
+  let doc;
+  try {
+    doc = JSON.parse(r.text);
+  } catch {
+    return { plan, refusals: [{ rule: 'post/json', where: 'post file' }] };
+  }
+  if (!isObject(doc)) return { plan, refusals: [{ rule: 'post/json', where: 'post file' }] };
 
-  if (value('repo') !== null) {
-    plan.repo = parseRepo(value('repo'));
-    if (!plan.repo) refuse('input/repo', 'repo');
+  validate(SCHEMA, doc, '', refusals);
+  refusals.push(...postRules(doc, surface, now));
+  const bodyName = typeof doc.body_file === 'string' && BODY_FILE_RE.test(doc.body_file) && doc.body_file !== '.' && doc.body_file !== '..' ? doc.body_file : null;
+  if (typeof doc.body_file === 'string' && bodyName === null && !refusals.some(x => x.where === 'body_file')) refusals.push({ rule: 'post/pattern', where: 'body_file' });
+  if (typeof doc.head === 'string' && !refusals.some(x => x.where === 'head')) {
+    const colon = doc.head.indexOf(':');
+    const branch = colon < 0 ? doc.head : doc.head.slice(colon + 1);
+    if (!isBranch(branch)) refusals.push({ rule: 'post/pattern', where: 'head' });
   }
-  if (value('as') !== null) {
-    if (isLogin(value('as'))) plan.as = value('as');
-    else refuse('input/login', 'as');
+  if (typeof doc.base === 'string' && !isBranch(doc.base) && !refusals.some(x => x.where === 'base')) refusals.push({ rule: 'post/pattern', where: 'base' });
+  const repo = typeof doc.repo === 'string' ? parseRepo(doc.repo) : null;
+  if (typeof doc.repo === 'string' && !repo && !refusals.some(x => x.where === 'repo')) refusals.push({ rule: 'post/pattern', where: 'repo' });
+  if (typeof doc.reason === 'string' && doc.reason.replace(/\p{Cf}/gu, '').trim() === '' && !refusals.some(x => x.where === 'reason')) refusals.push({ rule: 'post/length', where: 'reason' });
+  if (typeof doc.head === 'string' && repo && !refusals.some(x => x.where === 'head')) {
+    const colon = doc.head.indexOf(':');
+    if (colon >= 0 && !isLogin(doc.head.slice(0, colon))) refusals.push({ rule: 'post/pattern', where: 'head' });
+    else if (colon >= 0 && doc.head.slice(0, colon) !== repo.owner) refusals.push({ rule: 'owner/head', where: 'head' });
   }
-  for (const name of ['issue', 'pr', 'comment']) {
-    if (value(name) === null) continue;
-    if (isNumber(value(name))) plan[name] = value(name);
-    else refuse('input/number', name);
+  if (refusals.length) return { plan, refusals };
+
+  plan.repo = repo;
+  if (doc.as !== undefined) plan.as = doc.as;
+  for (const name of ['issue', 'pr', 'comment']) if (doc[name] !== undefined) plan[name] = String(doc[name]);
+  if (doc.base !== undefined) plan.base = doc.base;
+  if (doc.head !== undefined) {
+    const colon = doc.head.indexOf(':');
+    plan.head = { sent: doc.head, branch: colon < 0 ? doc.head : doc.head.slice(colon + 1) };
   }
-  if (value('base') !== null) {
-    if (isBranch(value('base'))) plan.base = value('base');
-    else refuse('input/branch', 'base');
+  if (doc.labels !== undefined) plan.labels = [...doc.labels];
+  if (doc.draft !== undefined) plan.draft = doc.draft;
+  if (doc.title !== undefined) plan.title = doc.title;
+  if (doc.kind !== undefined) plan.kind = doc.kind;
+  if (doc.answers !== undefined) plan.answers = doc.answers;
+  if (doc.quote !== undefined) plan.quote = doc.quote;
+  if (doc.intent !== undefined) plan.intent = doc.intent;
+  plan.signer = doc.signer;
+  if (doc.reason !== undefined) plan.reason = doc.reason;
+
+  // The body file sits beside the post file and is read as strictly.
+  const body = readText(join(dirname(file), bodyName));
+  if (body.rule) return { plan, refusals: [{ rule: body.rule, where: 'body_file' }] };
+  const trimmed = body.text.replace(/(?:\r?\n)+$/, '');
+  if (trimmed.trim() === '') return { plan, refusals: [{ rule: 'file/empty', where: 'body_file' }] };
+  if (chars(body.text) > BODY_MAX) return { plan, refusals: [{ rule: 'text/body-length', where: 'body_file' }] };
+  // These refusals are held with the scan's, so one run tells every one of them.
+  plan.late = [];
+  if (bodyOwned(body.text)) plan.late.push({ rule: 'post/owned-line', where: 'body_file' });
+  if (hidesAhead(body.text)) plan.late.push({ rule: 'text/hidden-line', where: 'body_file' });
+  if (isObject(doc.intent)) {
+    for (const name of ['text', 'corrected']) if (typeof doc.intent[name] === 'string' && hidesAhead(doc.intent[name])) plan.late.push({ rule: 'text/hidden-line', where: `intent.${name}` });
   }
-  if (value('head') !== null) {
-    const head = value('head');
-    const colon = head.indexOf(':');
-    const owner = colon < 0 ? null : head.slice(0, colon);
-    const branch = colon < 0 ? head : head.slice(colon + 1);
-    if (!isBranch(branch) || (owner !== null && !isLogin(owner))) refuse('input/branch', 'head');
-    else if (owner !== null && plan.repo && owner !== plan.repo.owner) refuse('owner/head', 'head');
-    else plan.head = { sent: head, branch };
-  }
-  for (const label of options.get('label') ?? []) {
-    if (isLabel(label)) plan.labels.push(label);
-    else refuse('input/label', 'label');
-  }
-  if (value('body') !== null) {
-    const r = readText(value('body'));
-    if (r.rule) refuse(r.rule, 'body');
-    else if (chars(r.text) > BODY_MAX) refuse('text/body-length', 'body');
-    else plan.body = r.text;
-  }
-  if (value('title-file') !== null) {
-    const r = readText(value('title-file'));
-    if (r.rule) refuse(r.rule, 'title-file');
-    else {
-      const title = r.text.replace(/\r?\n$/, '');
-      if (title === '') refuse('file/empty', 'title-file');
-      else if (/[\r\n]/.test(title)) refuse('text/title-lines', 'title-file');
-      else if (chars(title) > TITLE_MAX) refuse('text/title-length', 'title-file');
-      else plan.title = title;
-    }
-  }
-  if (value('signed') !== null) {
-    if (isSigned(value('signed'))) plan.signed = value('signed');
-    else refuse('input/signed', 'signed');
-  }
-  if (value('reason') !== null) {
-    const r = readText(value('reason'));
-    if (r.rule) refuse(r.rule, 'reason');
-    else {
-      const reason = r.text.replace(/\r?\n$/, '');
-      if (reason.replace(/\p{Cf}/gu, '').trim() === '') refuse('file/empty', 'reason');
-      else if (/[\r\n]/.test(reason)) refuse('text/reason-lines', 'reason');
-      else if (chars(reason) > REASON_MAX) refuse('text/reason-length', 'reason');
-      else plan.reason = reason;
-    }
-  }
-  // An edit sends the session's body with its reason line after it (#413);
-  // the body as the session wrote it stays for the append-only check.
-  if (isEdit(surface) && plan.body !== undefined && plan.reason !== undefined && plan.signed !== undefined) {
-    plan.sessionBody = plan.body;
-    plan.body = composeEdit(plan.body, plan.reason, plan.signed);
-    if (chars(plan.body) > BODY_MAX) {
-      refuse('text/body-length', 'body');
-      delete plan.body;
-    }
-  }
+
+  plan.sessionPart = body.text;
+  plan.reasons = isEdit(surface) ? [reasonLine(plan.reason, plan.signer)] : [];
+  plan.body = renderBody(plan);
+  if (chars(plan.body) > BODY_MAX) return { plan, refusals: [{ rule: 'text/body-length', where: 'body' }] };
+  // Nothing before the signature may hide it on the page (P19); the named fields were told above.
+  if (!isEdit(surface) && !plan.late.some(x => x.rule === 'text/hidden-line') && hidesAhead(plan.body.slice(0, plan.body.lastIndexOf('\n\nSigned: ')))) plan.late.push({ rule: 'text/hidden-line', where: 'body' });
   return { plan, refusals };
 }
 
@@ -1515,24 +1936,42 @@ const RECORD_HEADER = Object.freeze(['finding', 'lens', 'disposition', 'rerun'])
 /** The review procedure's two data folds, by their summary's opening words; a continued part repeats them (#401). */
 const RECORD_FOLD_RE = /^\s*(?:lens\s+dispositions|crossed\s+findings)\b/i;
 const DECISION = 'owner decision';
-/** Look-alikes, from Cyrillic, Greek, Armenian and Latin, of the letters of "owner decision", folded to those letters before the match. */
-const LOOKALIKES = new Map([
-  ...[0x43e, 0x41e, 0x3bf, 0x39f, 0x585].map(c => [cp(c), 'o']),
-  ...[0x461, 0x51d, 0x51c].map(c => [cp(c), 'w']),
-  ...[0x578, 0x39d].map(c => [cp(c), 'n']),
-  ...[0x435, 0x415, 0x395, 0x4bd].map(c => [cp(c), 'e']),
-  ...[0x433, 0x280].map(c => [cp(c), 'r']),
-  ...[0x501, 0x500].map(c => [cp(c), 'd']),
-  ...[0x441, 0x421, 0x3f2, 0x3f9].map(c => [cp(c), 'c']),
-  ...[0x456, 0x406, 0x3b9, 0x399, 0x131, 0x4cf].map(c => [cp(c), 'i']),
-  ...[0x455, 0x405].map(c => [cp(c), 's']),
-]);
-
-/** The session's body with its reason line after it: a line break if the body lacks one, a blank line, the line. The breaks are CRLF when the body holds one. */
-export function composeEdit(body, reason, label) {
-  const nl = body.includes('\r\n') ? '\r\n' : '\n';
-  return `${body}${/\r?\n$/.test(body) ? '' : nl}${nl}Edited: ${reason} (${label})`;
-}
+/**
+ * Look-alikes, from Cyrillic, Greek, Armenian and Latin, of the Latin letters
+ * the owned lines and "owner decision" are written in, folded to those letters
+ * (lower case) before the match (#524: every letter of the owned lines, not
+ * only those of "owner decision").
+ */
+const LOOKALIKES = new Map(
+  Object.entries({
+    a: [0x430, 0x410, 0x391, 0x3b1],
+    b: [0x412, 0x392, 0x42c, 0x432],
+    c: [0x441, 0x421, 0x3f2, 0x3f9],
+    d: [0x501, 0x500],
+    e: [0x435, 0x415, 0x395, 0x4bd],
+    f: [0x3dd, 0x3dc],
+    g: [0x261, 0x581],
+    h: [0x43d, 0x41d, 0x397, 0x4bb, 0x4ba],
+    i: [0x456, 0x406, 0x3b9, 0x399, 0x131, 0x4cf],
+    j: [0x458, 0x408],
+    k: [0x43a, 0x41a, 0x3ba, 0x39a],
+    l: [0x4cf, 0x1c0],
+    m: [0x43c, 0x41c, 0x39c],
+    n: [0x578, 0x39d, 0x43f],
+    o: [0x43e, 0x41e, 0x3bf, 0x39f, 0x585],
+    p: [0x440, 0x420, 0x3c1, 0x3a1],
+    q: [0x51b, 0x51a],
+    r: [0x433, 0x280],
+    s: [0x455, 0x405],
+    t: [0x442, 0x422, 0x3c4, 0x3a4],
+    u: [0x3c5, 0x57d, 0x3a5],
+    v: [0x3bd, 0x475, 0x474],
+    w: [0x461, 0x51d, 0x51c],
+    x: [0x445, 0x425, 0x3c7, 0x3a7],
+    y: [0x443, 0x423, 0x3b3],
+    z: [0x3b6, 0x396],
+  }).flatMap(([letter, codes]) => codes.map(c => [cp(c), letter])),
+);
 
 /** A body's lines, ended at a line feed, a carriage return or both, as CommonMark and the table check end them. */
 const linesOf = text => text.split(LINE_END_RE);
@@ -1624,10 +2063,7 @@ function reasonsInSight(body) {
   const lines = linesOf(body);
   let end = lines.length;
   for (let seen = 0; end > 0 && seen < run; end -= 1) if (REASON_LINE_RE.test(lines[end - 1])) seen += 1;
-  const before = lines.slice(0, end).map(blankCodeSpans).join('\n');
-  if (before.lastIndexOf('<!--') > before.lastIndexOf('-->')) return false;
-  const count = re => (before.match(re) ?? []).length;
-  return count(/<details\b/gi) <= count(/<\/details\s*>/gi);
+  return !hidesAhead(lines.slice(0, end).join('\n'));
 }
 
 /** The views of a text the edit checks read: as written without format characters, its normalised copies (`copies`, #394), and each of those folded. */
@@ -1681,13 +2117,12 @@ function bodyRules(body, label, where) {
  * `status-<n>`, n the `--issue` value. A status edit drops the item's reason
  * lines, so its body carries none and the poster adds the newest.
  */
-export const isStatusEdit = plan => plan.surface === 'issue-comment-edit' && typeof plan.issue === 'string' && plan.signed === `status-${plan.issue}`;
+export const isStatusEdit = plan => plan.surface === 'issue-comment-edit' && typeof plan.issue === 'string' && plan.signer === `status-${plan.issue}`;
 
-/** The checks on the composed body, before gh is called. */
+/** The checks on the body as far as the post file builds it, before gh is called (S6.1a, stage one). */
 export function editBodyChecks(plan) {
-  const out = bodyRules(plan.body, plan.signed, 'option --body');
-  const shaped = isStatusEdit(plan) && unfenced(linesOf(plan.sessionBody ?? '')).some(l => REASON_SHAPE_RE.test(l.replace(/\p{Cf}/gu, '').trim()));
-  if (shaped || !reasonsInSight(plan.body)) out.push({ rule: 'edit/reasons', where: 'option --body' });
+  const out = bodyRules(plan.body, plan.signer, 'body_file');
+  if (!reasonsInSight(plan.body)) out.push({ rule: 'edit/reasons', where: 'body_file' });
   return out;
 }
 
@@ -1721,15 +2156,28 @@ export function editItemChecks(plan, item, login, ctx = {}) {
   if (plan.surface === 'issue-edit' && item.pull_request !== undefined && item.pull_request !== null) target = false;
   if (!target) refusals.push({ rule: 'edit/target', where: 'item' });
   // Another account's item is read no further, so its text never reaches the slow readers (#394 C27); an own item in the wrong place is still read, so a leak in it is still told.
-  if (item.user.login !== login) return { unusable: false, refusals };
+  if (item.user.login !== login) return { unusable: false, refusals, carried: [] };
   const body = item.body ?? '';
-  refusals.push(...bodyRules(body, plan.signed, 'item'));
+  refusals.push(...bodyRules(body, plan.signer, 'item'));
   if (scan([{ field: 'item', text: body }], { ...ctx, surface: plan.surface }).length) refusals.push({ rule: 'edit/leak', where: 'item' });
-  // A status edit keeps none of the item's reason lines; editBodyChecks refuses one in its body (#503).
-  const kept = trailingReasons(plan.sessionBody);
-  const had = isStatusEdit(plan) ? [] : trailingReasons(body);
-  if (kept.length !== had.length || kept.some((l, i) => l !== had[i])) refusals.push({ rule: 'edit/reasons', where: 'option --body' });
-  return { unusable: false, refusals };
+  // The poster carries the item's reason lines forward; a status edit keeps none of them (#503).
+  return { unusable: false, refusals, carried: isStatusEdit(plan) ? [] : trailingReasons(body) };
+}
+
+/**
+ * The checks on the whole body an edit will send, once the item is read and
+ * its reason lines carried (S6.1a, S6.3): its size, its signature, a record
+ * shape, a decision mark, and its reason lines, which must be the item's run
+ * and the new line, in plain sight.
+ */
+export function editFinalChecks(plan, body, carried) {
+  const out = [];
+  if (chars(body) > BODY_MAX) out.push({ rule: 'text/body-length', where: 'body' });
+  out.push(...bodyRules(body, plan.signer, 'body_file'));
+  const run = trailingReasons(body);
+  const want = [...carried, reasonLine(plan.reason, plan.signer)];
+  if (!reasonsInSight(body) || run.length !== want.length || run.some((l, i) => l !== want[i])) out.push({ rule: 'edit/reasons', where: 'body_file' });
+  return out;
 }
 
 // ---------------------------------------------------------------- the NEXT line
@@ -1911,6 +2359,16 @@ function editItem(plan, p, args, login, io, ctx, setPhase) {
   if (c.unusable) return { code: 4, lines: ['the item read could not be read', 'RESULT: unavailable'] };
   if (c.refusals.length) return refused(c.refusals);
 
+  // The second stage (S6.1a): the whole body, with the item's reason lines carried forward, is built and checked before the PATCH.
+  plan.reasons = [...c.carried, reasonLine(plan.reason, plan.signer)];
+  plan.body = renderBody(plan);
+  p.request = { body: plan.body };
+  const final = [
+    ...scan([{ field: 'body', text: plan.body }], { ...ctx, surface: plan.surface }),
+    ...editFinalChecks(plan, plan.body, c.carried),
+  ];
+  if (final.length) return refused(final);
+
   setPhase('sending');
   const sent = io.gh(args, JSON.stringify(p.request));
   if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr, ctx), editFailedNext(url), 'RESULT: failed'] };
@@ -1923,7 +2381,43 @@ function editItem(plan, p, args, login, io, ctx, setPhase) {
   return { code: 0, lines: [...back.notes, `RESULT: verified ${plan.surface} ${url} as ${login}`] };
 }
 
-const refused = refusals => ({ code: 2, lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), `RESULT: refused ${refusals.length}`] });
+const DRY_TRACKER = 'dry-run: no tracker comment was read; post/tracker did not run';
+const DRY_EDIT = 'dry-run: the item was not read; edit/ask, edit/status, edit/confirm, post/tracker, the reason carry and the content scan of the full body did not run';
+
+/**
+ * The tracker comments a quote cites, read before the post goes (S3.2): each
+ * must sit in this repo, be the login's own, and hold the passage's text.
+ * Returns { refusals } or, when a read fails or gives nothing usable,
+ * { lines } for an `unavailable` result. No text from a comment reaches output.
+ */
+function trackerChecks(plan, login, io, ctx) {
+  const refusals = [];
+  const seen = new Map();
+  const prefix = `https://api.github.com/repos/${plan.repo.owner}/${plan.repo.name}/issues/`.toLowerCase();
+  for (const [i, q] of plan.quote.entries()) {
+    if (q.source !== 'tracker') continue;
+    let item = seen.get(q.comment);
+    if (item === undefined) {
+      const read = io.gh(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}/issues/comments/${q.comment}`, false));
+      if (!read.ok) return { lines: [saidLine(read.stderr, ctx), 'RESULT: unavailable'] };
+      item = parseJson(read.stdout);
+      const usable = isObject(item) && typeof item.user?.login === 'string' && typeof item.issue_url === 'string' && (item.body === null || typeof item.body === 'string');
+      if (!usable) return { lines: ['the tracker comment read could not be read', 'RESULT: unavailable'] };
+      seen.set(q.comment, item);
+    }
+    const url = item.issue_url.toLowerCase();
+    const sits = url.startsWith(prefix) && isNumber(url.slice(prefix.length));
+    // Another author's comment, or one in another repo, is read no further.
+    if (item.user.login !== login || !sits) refusals.push({ rule: 'post/tracker', where: `quote[${i}].comment` });
+    else if (!inComment(q.text, item.body ?? '')) refusals.push({ rule: 'post/tracker', where: `quote[${i}].text` });
+  }
+  return { refusals };
+}
+
+const refused = refusals => ({
+  code: 2,
+  lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...(refusals.some(r => r.rule === 'usage/unknown-option') ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${refusals.length}`],
+});
 
 /**
  * One run of the poster: `argv` after the script's name, and `io` holding
@@ -1940,20 +2434,27 @@ export function post(argv, io) {
   try {
     const parsed = parseArgs(argv);
     if (parsed.refusals.length) return refused(parsed.refusals);
-    const { plan, refusals } = buildPlan(parsed);
+    if (parsed.surface === 'schema') return { code: 0, lines: [JSON.stringify(SCHEMA, null, 2)] };
+    const { plan, refusals } = buildPlan(parsed, io.now ?? new Date());
     if (refusals.length) return refused(refusals);
+    // Each text field is scanned as its own field too, so a refusal names it (S5.3).
     const fields = [];
     if (plan.title !== undefined) fields.push({ field: 'title', text: plan.title });
-    plan.labels.forEach((text, i) => fields.push({ field: `label ${i + 1}`, text }));
+    plan.labels.forEach((text, i) => fields.push({ field: `labels[${i}]`, text }));
+    (plan.quote ?? []).forEach((q, i) => fields.push({ field: `quote[${i}].text`, text: q.text }));
+    if (plan.intent !== undefined) {
+      fields.push({ field: 'intent.text', text: plan.intent.text });
+      if (plan.intent.corrected !== undefined) fields.push({ field: 'intent.corrected', text: plan.intent.corrected });
+    }
     if (plan.reason !== undefined) fields.push({ field: 'reason', text: plan.reason });
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env };
     // The table check and the prose checks run after the content scan, on the
-    // body only. Past the first fifty, the table refusals are counted, not
-    // listed, so the result line stays in view.
-    const hits = scan(fields, { ...ctx, surface: plan.surface });
+    // body only; the prose check skips the owner's quote. Past the first fifty,
+    // the table refusals are counted, not listed, so the result line stays in view.
+    const hits = [...plan.late, ...scan(fields, { ...ctx, surface: plan.surface })];
     const tables = tableCheck(plan.body);
-    const prose = [...fenceCheck(plan.body), ...proseCheck(plan.body)];
+    const prose = [...fenceCheck(plan.body), ...proseCheck(renderBody(plan, true))];
     if (tables.length > TABLE_LISTED) {
       const r = refused([...hits, ...tables.slice(0, TABLE_LISTED), ...prose]);
       return { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length + prose.length}`] };
@@ -1968,17 +2469,22 @@ export function post(argv, io) {
     const p = postOf(plan);
     near = p.near;
     const args = ghArgs(edit ? 'PATCH' : 'POST', p.path, true);
-    if (plan.dryRun) return { code: 0, lines: [`gh ${args.join(' ')}`, `request: ${JSON.stringify(sizes(p.request))}`, `RESULT: dry-run ${plan.surface}`] };
+    const tracked = (plan.quote ?? []).some(q => q.source === 'tracker');
+    if (plan.dryRun) {
+      // A dry run reads nothing, so what needs a read did not run, and it says so (S3.2, S6.1a).
+      const skipped = edit ? DRY_EDIT : tracked ? DRY_TRACKER : null;
+      return { code: 0, lines: [`gh ${args.join(' ')}`, `request: ${JSON.stringify(sizes(p.request))}`, ...(skipped ? [skipped] : []), `RESULT: dry-run ${plan.surface}`] };
+    }
 
     const token = envValue(io.env, 'GH_TOKEN') || envValue(io.env, 'GITHUB_TOKEN');
-    if (token && plan.as === undefined) return refused([{ rule: 'as/missing', where: 'option --as' }]);
+    if (token && plan.as === undefined) return refused([{ rule: 'as/missing', where: 'as' }]);
 
     const who = io.gh(ghArgs('GET', 'user', false));
     const login = who.ok ? parseJson(who.stdout)?.login : undefined;
     if (!isLogin(login)) return { code: 4, lines: [...(who.ok ? ['the login read gave no login'] : [saidLine(who.stderr, ctx)]), 'RESULT: unavailable'] };
     const wrong = [];
-    if (plan.as !== undefined && plan.as !== login) wrong.push({ rule: 'as/differs', where: 'option --as' });
-    if (plan.repo.owner !== login) wrong.push({ rule: 'owner/repo', where: 'option --repo' });
+    if (plan.as !== undefined && plan.as !== login) wrong.push({ rule: 'as/differs', where: 'as' });
+    if (plan.repo.owner !== login) wrong.push({ rule: 'owner/repo', where: 'repo' });
     if (wrong.length) return refused(wrong);
 
     // The owner GitHub gives for the repo, which follows a rename or a
@@ -1986,9 +2492,14 @@ export function post(argv, io) {
     const repoRead = io.gh(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}`, false));
     const owner = repoRead.ok ? parseJson(repoRead.stdout)?.owner?.login : undefined;
     if (!isLogin(owner)) return { code: 4, lines: [...(repoRead.ok ? ['the repo read gave no owner'] : [saidLine(repoRead.stderr, ctx)]), 'RESULT: unavailable'] };
-    if (owner !== login) return refused([{ rule: 'owner/github', where: 'option --repo' }]);
+    if (owner !== login) return refused([{ rule: 'owner/github', where: 'repo' }]);
     checkedLogin = login;
     if (edit) return editItem(plan, p, args, login, io, ctx, s => { phase = s; });
+    if (tracked) {
+      const t = trackerChecks(plan, login, io, ctx);
+      if (t.lines) return { code: 4, lines: t.lines };
+      if (t.refusals.length) return refused(t.refusals);
+    }
 
     phase = 'sending';
     const sent = io.gh(args, JSON.stringify(p.request));

@@ -1,14 +1,14 @@
 // The poster's two prose checks (#317): text/hard-wrap and link/relative. The
 // poster refuses a body whose prose was wrapped at a column limit, or whose
 // link has no scheme, because GitHub shows each line break and leaves a
-// relative target as written. Every case runs the poster's post() in-process
+// relative target as written. Every case runs the poster's postOld() in-process
 // with a gh that fails any call, so a refusal is seen to send nothing. The
 // passing shapes (C3) are all in the table's base body; the table takes only
 // must-refuse rows.
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { post } from '../../claude/tools/poster.mjs';
+import { postOld } from './poster-post.mjs';
 import { assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -168,7 +168,7 @@ function runBody(tree, t, extra = ['--dry-run']) {
   const dir = tempDir(t, 'pact-poster-prose-');
   writeTree(dir, tree);
   const calls = [];
-  const r = post(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', ...extra], { gh: (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' }), env: {}, ...MACHINE });
+  const r = postOld(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', ...extra], { gh: (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' }), env: {}, ...MACHINE });
   const lastLine = r.lines.at(-1) ?? '';
   return {
     code: r.code === 2 ? 1 : r.code,
