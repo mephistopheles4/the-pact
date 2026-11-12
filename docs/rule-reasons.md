@@ -50,7 +50,7 @@ This file is never installed.
 | Publishing a weakness in someone else's software | Push protection matches credentials only, so a weakness page can reach a public branch. A hard stop: it waits until its maker's tracker holds it, or the owner says in chat it may be published. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Work that won't converge | Two rounds without converging, or off the plan, get the options named and a pick. No tool counts rounds. |
-| A standing goal | What sets one, and that no checkpoint then waits but a pending read-back where they wait. The harness's goal command only keeps a session going; narrowing, and a started session holding none, are the pact's. |
+| A standing goal | What sets one, and that no checkpoint then waits. The harness's goal command only keeps a session going; narrowing, and a started session holding none, are the pact's. |
 | A free hand | Nothing else lets a session take its own picks on offers, the route and design questions short of a goal. |
 | Usage still holds | A goal parks the work before usage runs out, a hard stop. The harness doesn't. |
 | Usage | A pause on weekly usage. The harness has no such pause. |

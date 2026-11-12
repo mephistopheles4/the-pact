@@ -303,13 +303,13 @@ const CHECKPOINTS_TEMPLATE = on => (on
   ? [
       '- **Checkpoints wait.** Each checkpoint waits for my word in chat, except under',
       '  a standing goal, and under a free hand for a lens offer, the sensitive route',
-      '  or an intent or design question; a pending read-back waits even then.',
+      '  or an intent or design question.',
     ]
   : []);
 // Its project line: a project may set it on whatever the user's value is, and
 // the line holds whatever the user later sets. A project may never set it off.
 const CHECKPOINTS_PROJECT_LINE = () =>
-  '- **Checkpoints wait.** In this project, each checkpoint waits for my word in chat, except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question; a pending read-back waits even then.';
+  '- **Checkpoints wait.** In this project, each checkpoint waits for my word in chat, except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question.';
 // `def: null` marks a setting with no default: its part is empty in the
 // source, and a project may set it whatever the user's file says.
 const SETTINGS = new Map([
