@@ -1,16 +1,10 @@
 # Running and writing the gate's tests
 
-Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change or cut a gate test.
+Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change or cut a gate test. `AGENTS.md`'s "Running the gate's tests" gives the commands, the athanor default and what counts as a pass; this adds the rest.
 
 ## Running the gate's tests
 
-- **One runner, three tiers.** Run the gate's tests through
-  [`gate/tests/run.mjs`](../../gate/tests/run.mjs), from the repo root, with
-  `NODE_OPTIONS` cleared in the shell first, as for the install script. In
-  PowerShell:
-  `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs <tier>`
-  In a POSIX shell:
-  `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>`
+- **The tiers.** Run them through [`gate/tests/run.mjs`](../../gate/tests/run.mjs), from the repo root, with `NODE_OPTIONS` cleared in the shell first, as for the install script.
   - **`full`** runs every top-level test file. This is "the full suite".
   - **`fast`** runs every test file that doesn't run the install script. The
     runner finds the install tier from each file's imports on every run.
@@ -18,7 +12,9 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
     prints why it picked each file. It's the only tier that reads git.
     - **The changed paths:** what differs from where your branch left
       `--base` (default: the branch `main`), committed, staged or not, plus
-      untracked files git doesn't ignore.
+      untracked files git doesn't ignore. Add `--base <ref>` when your branch
+      starts from somewhere other than `main`. A base that starts with a dash,
+      or one that isn't a commit, exits 2.
     - **What they pick:** a changed test runs itself, and a changed helper
       runs every test that imports it. A test that names a changed path runs
       too. A payload path also runs the install smoke file. Any change to the
@@ -26,7 +22,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
     - **A path no rule maps** is printed as unmapped. `fast` covers it, plus
       the install smoke file for a payload path.
     - **What an agent-file change picks.** The test helpers are split by
-      what they touch (ADR 0034), so an agent file picks only the tests that
+      what they touch, so an agent file picks only the tests that
       read agents: those that import `payload.mjs` or read them themselves.
       Of the install files, that's the smoke set and nine others, 10 of 18.
     - **Some changes still cost about a full suite.** The pact's rules file,
@@ -38,7 +34,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
       than after every edit.
 
   All three cap the run at four test files at once, which keeps it from
-  starving other sessions (ADR 0029). Never run the suite without the cap.
+  starving other sessions. Never run the suite without the cap.
 - **It fails closed.** It hands the Node running it an explicit file list, so
   it needs no glob and works the same in any shell, on Node 24 or later, the
   floor below. An empty pick, an odd test-file name or a usage error
@@ -55,32 +51,20 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   installer's link, path or file handling is input validation: the change
   matches the sensitive-work list, and the skip goes to the owner. A line out
   of the list's shape refuses the run by its line number.
-- **A run passes only when it exits 0 and its last line is the runner's
-  result line ending in `pass`.** An exit 0 with no result line is not a pass.
-- **Run the tests on the current Node LTS** (Node 24, "Krypton", as of
-  2026-10-08); `mise use -g node@24` gets it (ADR 0087). The install needs
-  it too.
-  The Linux run in a container (#96) is in
-  [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs `full`
-  on Node 24.
-- **While building, run `athanor run fast`** ([Athanor](#athanor)). Run no
-  host `changed` pick while athanor works: host runs slow the owner's machine,
-  and CI's two jobs cover both platforms (#550). The hook refuses it. When
-  athanor can't run, the `fast` fallback covers building. `changed` still
-  exists for that case: add `--base <ref>` when your branch starts from
-  somewhere other than `main`. A base that starts with a dash, or one that
-  isn't a commit, exits 2. athanor can't run `changed`: its synthetic commit
-  has no base to diff against.
-- **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
-  locally after a rebase or merge that brought in other work, and after a
-  final change set. It doesn't run before and after each
-  change.
+- **Node.** Run the tests on Node 24 or later; `mise use -g node@24`
+  gets it. The install needs it too. The Linux run in a container is in
+  [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs
+  `full` on Node 24.
+- **`changed` on the host is for when athanor can't run.** The hook refuses it
+  while athanor works, because host runs slow the owner's machine and CI's two
+  jobs cover both platforms. When athanor can't run, `fast` with the fallback
+  covers building. athanor can't run `changed` itself ([Athanor](#athanor)).
 - **Test evidence is CI's two jobs passing on the reviewed head:** `gate` on
-  Linux and `gate-windows` on Windows, each running `full` (ADR 0095). CI runs
+  Linux and `gate-windows` on Windows, each running `full`. CI runs
   only on a pull request or a push to `main`, so the session pushes its branch
-  and opens a draft PR before Test. The Test record cites both jobs' run links
-  and names each run's commit as GitHub shows it, which must be the head it
-  cites. No local `full` at Test is kept as evidence.
+  and opens a draft PR before Test. The Test record names each run's commit as
+  GitHub shows it, which must be the head it cites. No local `full` at Test is
+  kept as evidence, and a `changed` run never is.
 - **Before any push,** the session reads every commit the push publishes,
   from the merge base, for a secret's value or a personal detail, as the
   review procedure reads a post. If it finds one, it keeps the branch local
@@ -91,28 +75,25 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 - **When `gate-windows` fails on code a change doesn't touch, or never
   reports** (a flaky test, an outage, a retired image label), the session
   re-runs it once at most, then stops and brings the owner the choice:
-  re-run, move the image label in a spec change, or drop the required check
-  (#348, spec S7).
-- **A changed-files run is never Test evidence.**
+  re-run, move the image label in a spec change, or drop the required check.
 - **Test output is posted only from record mode.** `--record <file>` writes
   everything printed, plus the result line, as printed, to a file outside the
-  repo. No path or name is replaced or checked for (ADR 0145), and a user or host
-  name, inside a path or on its own, is no longer a personal detail for the read
+  repo. No path or name is replaced or checked for, and a user or host
+  name, inside a path or on its own, is not a personal detail for the read
   before posting.
   The record is the whole output, so a post never carries a hand-picked
   excerpt. Two checks stay: a record path inside the
   repo, checked as a real path, exits 2; a record that can't be written exits
   3 with `record refused`. Keep raw reporter output, such as a junit file,
-  outside the repo.
-- **Read a `changed` record before you post it.** Its `pick:` and `unmapped:`
-  lines name your changed and untracked files. If one of them shouldn't be
-  shared, post a `fast` or `full` record instead.
+  outside the repo. A `changed` record's `pick:` and `unmapped:` lines name
+  your changed and untracked files: if one of them shouldn't be shared, post a
+  `fast` or `full` record instead.
 
 ## Athanor
 
 [athanor](https://github.com/mephistopheles4/athanor), the owner's Docker
 test runner, runs the suite in a fresh, offline Linux container on any
-Docker host, Windows included (ADR 0096). A run waits for one of athanor's
+Docker host, Windows included. A run waits for one of athanor's
 machine-wide slots (2 by default) before it starts. The slots count athanor
 runs only, never a host run of `gate/tests/run.mjs`.
 
@@ -124,18 +105,14 @@ runs only, never a host run of `gate/tests/run.mjs`.
   `athanor.json`. Its version, `0.1.0`, doesn't tell the builds apart. An
   older copy stops with exit 125 and asks for an `athanor` key in a
   `package.json`: leave that file out, and ask the owner to update athanor,
-  since an install is the owner's.
+  since an install is the owner's. Run on the host when athanor can't run:
+  no Docker, or an older copy.
 - **It passes when athanor exits 0 and the runner's result line ends in
   `pass`.** athanor prints one line of its own after the runner's result
   line, so the result line is the last but one.
-- **It is the default for local runs** (#369): `fast` while building, and
-  `full` after a rebase or merge that brought in other work and after a final
-  change set. An install relies on CI's `gate` and `gate-windows` passing on
-  the commit it installs (#494). Run on the host when athanor can't run: no Docker, or an older
-  copy.
 - **The image is the Linux run's** in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/): Node 24
-  pinned by digest, git, jq (for the cloud setup's settings merge, #482), no
+  pinned by digest, git, jq (for the cloud setup's settings merge), no
   PowerShell, and a user that isn't root. athanor
   replaces its `CMD`, so the Linux run's own way in, which clones a git
   bundle of one commit, is unchanged.
@@ -156,18 +133,17 @@ runs only, never a host run of `gate/tests/run.mjs`.
   [the one exception](issue-tracker.md#whose-text-counts) for running a PR's
   code calls for. All five of that exception's conditions still hold.
 - **Limits:** 4 CPUs, to match the runner's cap of four test files, 4 GB of
-  memory and 10 minutes. `full` took under a minute on 2026-10-22. A run past
+  memory and 10 minutes. `full` takes under a minute. A run past
   the limit ends with 137 (memory) or 124 (time).
 
 ### The hook
 
-A PreToolUse hook holds sessions to athanor (#383, ADR 0104), ported from
-grimoire's agent check guard. `.claude/settings.json` runs
+A PreToolUse hook holds sessions to athanor. `.claude/settings.json` runs
 [`.claude/hooks/athanor-guard.mjs`](../../.claude/hooks/athanor-guard.mjs)
 before every Bash and PowerShell call, with a 15 s timeout.
 
 - **What it refuses:** a host run of `gate/tests/run.mjs` with the tier `fast`,
-  `full` or `changed` (#550), in the forms the docs use and a few wrappers more (`env -u
+  `full` or `changed`, in the forms the docs use and a few wrappers more (`env -u
   NODE_OPTIONS`, the PowerShell form's `$env:NODE_OPTIONS = $null;`, `&`,
   `time`, `timeout`, a quoted or absolute path), past any comment, while
   `athanor --version` exits 0 and prints a version within 5 s. Its refusal is
@@ -242,7 +218,7 @@ before every Bash and PowerShell call, with a 15 s timeout.
   process. Keep the loop at the file's top level, never in a branch or a
   function, where it may run nothing; the bare `{ }` block only gives each
   set of rows its own `base`, `run` and `rows`. No guard checks the loop
-  or the row shape since #272: the review reads each new loop and row.
+  or the row shape: the review reads each new loop and row.
 - **How a case runs the module.** In-process, through its core: call
   `runCore` from [`gate/tests/gate-run.mjs`](../../gate/tests/gate-run.mjs), or
   `renderStage` and `runSeamA`, which use it. Keep a case a child run when it
@@ -254,13 +230,13 @@ before every Bash and PowerShell call, with a 15 s timeout.
   or for a happy path.
 - **Each test file holds one layer:** install cases, or cases that never
   install. The install harness fails a test in an install-tier file that
-  neither runs the install script nor calls `t.skip()`, naming it (ADR 0033).
+  neither runs the install script nor calls `t.skip()`, naming it.
   A subtest's installs count toward the test it runs in.
   A test that runs the script without `install()` goes through the harness's
   `spawnNodeInstall`, so it counts. A test that only reads the script's code
   belongs in a file that never installs, and imports `install-core.mjs` or
   reads the file.
-- **Import helpers by what they touch** (ADR 0034), and take only what the
+- **Import helpers by what they touch,** and take only what the
   test uses. `text.mjs` touches nothing; `tree.mjs` touches the files a test
   names; `gate-files.mjs` reads the gate's own files; `payload.mjs` reads the
   payload, agents included; `gate-run.mjs` runs gate modules; and
@@ -269,8 +245,8 @@ before every Bash and PowerShell call, with a 15 s timeout.
   payload. A helper touches no file and starts no process when imported; the
   import guard checks every helper.
 - **Cutting an install case.** Cut an end-to-end install case only when an
-  in-process row already checks its decision, and name that row on the issue
-  (ADR 0047). Keep at least one end-to-end case that drives each of the
+  in-process row already checks its decision, and name that row on the issue.
+  Keep at least one end-to-end case that drives each of the
   install runner's checks (in `gate/install-run.mjs`) to refuse. Never cut a
   case that checks a refused install wrote nothing.
 - **A test names what it backs.** The rules in this bullet and the three below

@@ -3,8 +3,7 @@
 Read this when you plan, close out or record work: plans, ADRs, logs, the PR checkbox and the README's figures.
 
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
-  [`docs/agents/issue-tracker.md`](issue-tracker.md). `main` was
-  first pushed on 2026-09-30. Cite a commit by its short
+  [`docs/agents/issue-tracker.md`](issue-tracker.md). Cite a commit by its short
   hash; GitHub links it only once the commit is on the remote.
 - **A session assigns the issue it takes.** When it starts work on an issue,
   it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
@@ -24,7 +23,7 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   to the pact text or the gate becomes one dated narrative in
   [`docs/log/`](../../docs/log/), ending in a **Record** list of the issue comments
   that hold the verbatim plan, reviews and probe records. Other work writes
-  neither. Work that finished before #52 keeps its commit citations. The PR
+  neither. The PR
   that finishes a piece of work carries what it owes, and a session doesn't
   report the work as finished until that is merged. If that PR can't carry
   them, for example a security-set record merged before the narrative is
@@ -38,7 +37,7 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   from the CLI makes the template's checkbox line the first line of the
   `body_file` its poster post names, copied word for word, and sets the post's
   `signer` to `pr-<n>`, `<n>` being the issue it works on, so any session can
-  fix the body through the poster (#503). The poster renders the ask block
+  fix the body through the poster. The poster renders the ask block
   above the `body_file` and adds the `Signed: pr-<n>` line itself, so the
   `body_file` holds neither; no check reads the checkbox line's position, and
   GitHub renders a task item anywhere. It ticks the box when the PR finishes

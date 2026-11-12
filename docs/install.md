@@ -28,13 +28,13 @@ install, because the install copies the rules as your clone's last commit
 holds them:
 
 - **They keep the work's record where your project keeps it,** often an issue
-  tracker. A session reads tiers, approvals and decisions there. Since #261 the pact carries no rule on whose
+  tracker. A session reads tiers, approvals and decisions there. The pact carries no rule on whose
   text counts there: it leaves that to judgment. Before you use the rules on
   a tracker where others can comment, keep that tracker private, or write
   your own rule into the repo's `AGENTS.md` or a doc it points to, as this repo does.
 - **They post every review report on the tracker, word for word,** security
   findings included. So choose: keep the tracker private, or accept that those
-  findings are public until they are fixed. Since #441 the pact has no rule
+  findings are public until they are fixed. The pact has no rule
   on secrets or personal details in posts, unless the repo's own `AGENTS.md`
   or a doc it points to adds one, as this repo's does.
 
@@ -64,9 +64,7 @@ cd the-pact
 
 Run every later step from this folder, the repo root. The install copies from
 the clone's last commit, never from files you have changed but not committed.
-So commit any edit you make to the rules before step 4. If you edited the
-"Totals only" paragraph in an earlier clone, drop that edit: the paragraph is
-gone, and no session collects totals now (#189).
+So commit any edit you make to the rules before step 4.
 
 ## 3. Where the install keeps backups
 
@@ -82,8 +80,7 @@ changes nothing. An agent of yours that shares a pact agent's name is left as
 it is, and so is a pact agent you edit after an install: the pact manages only
 the agent files it wrote and still holds as it wrote them.
 
-- **Backups start with the first apply after #272.** An install made earlier
-  has none, so keep your own copies of `~/.claude/CLAUDE.md`,
+- **An install from before backups has none,** so keep your own copies of `~/.claude/CLAUDE.md`,
   `~/.claude/settings.json` and `~/.claude/agents/` until you are sure you won't
   uninstall: no backup holds the files your first install replaced.
 - **Every apply takes one,** an apply with nothing to do included. The
@@ -143,7 +140,7 @@ parts:
   installs nothing.
 - **`Not checked: what the pact's files say.`** The check covers install
   mechanics only: what each file is, where it goes, and that it is clean
-  text. Read the pact's files as you would any skill you install (ADR 0069).
+  text. Read the pact's files as you would any skill you install.
 - **`Drift:`.** On a later install, the number of installed files you have
   edited since the last one. If it isn't 0, stop: `--apply` refuses, and you
   would lose those edits. On a first install it is 0.
@@ -161,8 +158,8 @@ parts:
   write, such as your own agent with a pact agent's name, or one it wrote
   that you have changed since. The install never overwrites, deletes or
   records them, and a changed pact agent is not drift. Delete your file to
-  get the pact's back at the next install (ADR 0071).
-- **A retired agent's name (#302).** The pact retired `good-enough-lens`, and
+  get the pact's back at the next install.
+- **A retired agent's name.** The pact retired `good-enough-lens`, and
   three warnings name it, each with fixed words and never your text:
   - `WARN: agents/good-enough-lens.md is named for good-enough-lens, an
     agent the pact retired; ...` appears on every dry run while that file is in
@@ -185,17 +182,17 @@ parts:
     opt-in prompt (`skipAutoPermissionPrompt`). To keep auto mode off, set
     `defaultMode` back after the install. Every later `--apply` sets it to
     `auto` again, and its dry run warns you first;
-  - takes out the ask rules (`permissions.ask`) an older pact added. Since
-    #265 the pact sets no ask rules, bar one exception: the cleaner's two
-    (#523), added only while the cleaner is on. Claude Code guards its own folder and
+  - takes out the ask rules (`permissions.ask`) an older pact added. The
+    pact sets no ask rules, bar one exception: the cleaner's two,
+    added only while the cleaner is on. Claude Code guards its own folder and
     `~/.claude.json`, and in auto mode its classifier weighs the rest. The
     dry run's `- permissions.ask:` lines name each rule it removes, matched
     exactly, and a `NOTE:` line counts them (the cleaner's two ask rules print
     the same kind of line when you turn the cleaner off, and the `NOTE:` line
     does not count them). A rule of your own that only looks like one stays. Every install removes these exact strings again, so
     a rule you want back must differ from the listed text. The install's apply, a `gh` command on rulesets or branch
-    protection, and a dry run that writes to a review folder no longer prompt
-    you (ADR 0063);
+    protection, and a dry run that writes to a review folder never prompt
+    you;
   - sets `autoCompactWindow` and merges the pact's five hook entries by key,
     while `auto-compact-window` is on. Their lines print in the
     `auto-compact-window:` block under this one, with each hook event added,
@@ -217,7 +214,7 @@ parts:
 - **`Configuration:`.** With no `~/.claude/pact/config.json` of your own,
   the pact's default configuration renders: Level 3 · Full, the builder's
   shipped preset. The block names it with its digest, the rendered hash the
-  apply command carries, and a `WARN` line per part it edits (ADR 0094). If
+  apply command carries, and a `WARN` line per part it edits. If
   the last install had your own configuration and the file is gone now, a
   line says so. To keep the pact's own text instead, write a configuration of
   your own: `{"schema": 1}` alone renders the pact's text with only the
@@ -227,7 +224,7 @@ parts:
   default. The default's workflow names six skills from `addyosmani/agent-skills` on
   the stages (`spec-driven-development`, `incremental-implementation`,
   `test-driven-development`, `code-review-and-quality`,
-  `shipping-and-launch` and `documentation-and-adrs`), and its `skills` list names their folders at a pinned commit, so the dry run shows a `skills:` block; the cloud setup fetches them from #183 T4b on. Two of them suggest registry audit commands (`npm audit` and the like), which send a project's dependency list to the package registry when a session runs one. At home they are
+  `shipping-and-launch` and `documentation-and-adrs`), and its `skills` list names their folders at a pinned commit, so the dry run shows a `skills:` block; the cloud setup fetches them. Two of them suggest registry audit commands (`npm audit` and the like), which send a project's dependency list to the package registry when a session runs one. At home they are
   optional: the install never fetches them, and a session uses one only if
   you installed it yourself, or if a repo you work in carries a skill of that
   name, which is then the one used. Install them yourself, or write a
@@ -250,7 +247,7 @@ parts:
   edit no part. A project may hold its own `qualities` list, which takes the
   place of yours in that repo, and with it its own `costLimits` list, which
   takes the place of your cost limits there; its dry run leads with a `WARN:
-  SECURITY DEFAULTS:` line saying so, with the row count of each (ADR 0068).
+  SECURITY DEFAULTS:` line saying so, with the row count of each.
   A project with its own `qualities` and no `costLimits` gets a `NOTE:` line
   after it: none of its qualities names your cost limits, so they limit the
   review itself there. Each quality
@@ -269,7 +266,7 @@ parts:
   `/scriptorium` and `/scry`, each `on` or `off`, and `(not in this commit)` for one the
   commit doesn't hold yet. `/scriptorium` reads `on, always: part of the
   pact, with the builder kit under pact/builder/`: it builds your own
-  Scriptorium page, and installs whenever the commit holds it (ADR 0070).
+  Scriptorium page, and installs whenever the commit holds it.
   The others are off until you turn them on: list a name in the `commands`
   key of `~/.claude/pact/config.json`, for example
   `"commands": ["make-it-so", "finis"]`, or tick it in the builder's
@@ -295,7 +292,7 @@ parts:
     ships it.
 - **`Tools:`.** The pact's own tools, the poster and the cleaner, each `on` or
   `off`, and `(not in this commit)` for one the commit doesn't hold. A tool
-  is off unless you turn it on (ADR 0074): list its name in the `tools` key of
+  is off unless you turn it on: list its name in the `tools` key of
   `~/.claude/pact/config.json`, as `"tools": ["poster"]`, or tick it under
   Pact tools in the builder's Settings. A preset or a shared builder file
   never turns one on. Each tool that is on gets a `WARN` line, word for word:
@@ -316,7 +313,7 @@ parts:
   everything left in it, so run it only after the cleaner has removed the
   worktree, or after checking the worktree yourself.
 
-  It also adds two ask rules (#523) on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
+  It also adds two ask rules on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
   and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added under
   `cleanerAsk` in `.pact-install.json`; turning the cleaner off removes only those. They make Claude Code
   ask you before a `remove --override` runs, a speed bump and not a boundary: spellings that hide the
@@ -347,7 +344,7 @@ parts:
   `{"repo": "owner/name", "commit": "<40 hex>", "paths": ["<folder>", ...]}`:
   one entry per repo, a full commit id, and at most 100 paths in all, whose
   last segments, the skills' names, are unique. They are for the cloud setup
-  to fetch, once it reads a configuration (#183 T4b); until then nothing
+  to fetch, once it reads a configuration; until then nothing
   fetches them. This install fetches and installs none, and a session here
   uses one only if you installed it yourself, or if a repo you work in carries a skill of that name, which it then uses. The block names your repos, so
   share a dry run by its verdict and counts only. A bad list refuses (`config-skills`).
@@ -361,12 +358,12 @@ The dry run names your home folder and your Node's path, which hold your
 user name, and the names of your own settings. Post its verdict and counts on
 a tracker, never its raw output.
 
-A dry run no longer asks first, and it runs `gate/install.mjs` as it stands
+A dry run asks nothing first, and it runs `gate/install.mjs` as it stands
 in your working folder, uncommitted edits included. So on a branch that
 changes the installer, run it with `--claude-home` pointing at a throwaway
 folder: a bug in the code under edit then stays away from your real Claude
 home, though hostile code could still ignore the option. Nothing prompts
-before a dry run or an apply (ADR 0063).
+before a dry run or an apply.
 
 The last lines print the apply command to run next.
 
@@ -454,8 +451,8 @@ it, delete it, and run the dry run again.
 Run the dry run again if you like. It should print `Nothing to do.`
 
 **Removing rules an older pact added.** The install takes out, by itself, the
-56 ask rules it holds as retired (ADR 0063): the 52 the pact set until #265,
-and the four broad rules ADR 0049 retired. Some pacts from before #217 also
+56 ask rules it holds as retired: the 52 an older pact set, and the four
+broad rules ADR 0049 retired. Some older pacts also
 added rules it doesn't know: two review rules,
 `PowerShell(*install.mjs*--rev*)` and `Bash(*nstall.mjs*--rev*)`, and the rules that guarded the PowerShell
 installer the pact used before the Node install. Do this after the install
@@ -534,8 +531,8 @@ configuration (see below).
 To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default; `false`
-turns it off, #501), and `usage-pause-session`, the 5-hour session line, unset
-by default (#142). The builder's Settings dialog holds both. A third, `session-stop-deny`, and a
+turns it off), and `usage-pause-session`, the 5-hour session line, unset
+by default. The builder's Settings dialog holds both. A third, `session-stop-deny`, and a
 fourth, `auto-compact-window`, are described in the next two sections. The canvas edits the workflow, Settings
 the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
@@ -544,7 +541,7 @@ session.
 
 ## The session stop switch
 
-`session-stop-deny` in `~/.claude/pact/config.json` (#439, ADR 0148) is
+`session-stop-deny` in `~/.claude/pact/config.json` is
 `true` or `false`, `false` when unset, and the builder's Settings dialog shows
 it as Session stop. A project configuration may not set it, and a project
 install never adds its rules. It has no part in the rules file; only the
@@ -587,8 +584,8 @@ notice line names it, as `session-stop-deny on` or `off`.
 ## The auto-compact window and its hooks
 
 Every install, and every cloud session, sets Claude Code's auto-compact
-window and installs a small hook that carries a session through compaction
-(#482, ADR 0140). It needs Claude Code 2.1.318 or later, Node 24 or later (the
+window and installs a small hook that carries a session through compaction.
+It needs Claude Code 2.1.318 or later, Node 24 or later (the
 installer's own floor) and `node` on the PATH.
 
 - **The setting.** `auto-compact-window` in `~/.claude/pact/config.json` is
@@ -623,7 +620,7 @@ installer's own floor) and `node` on the PATH.
   leave empty), the script, and an `autoCompactWindow` the pact set; a value
   you set by hand stays, with a note.
 - **The cloud.** The cloud copy takes no configuration, so it always sets
-  400000 and has no Off. To turn it off there, revert the cloud part of #482
+  400000 and has no Off. To turn it off there, revert the cloud part of this setting
   (`gen.mjs`'s `--compact on`, the hooks block in `tpl-config-tail.sh`), run
   `node cloud-sessions/gen.mjs`, and merge that on the owner's word. After
   that merge, paste the merged `cloud-sessions/cloud-setup-wrapper.sh` into the
@@ -642,7 +639,7 @@ installer's own floor) and `node` on the PATH.
 
 An older pact installs with that commit's own installer. Rollback is
 supported only to commits on the published `main` from the Node install's
-cutover (#166, commit `6821d68`) on. Before you check a commit out, check it,
+cutover (commit `6821d68`) on. Before you check a commit out, check it,
 with no checkout:
 
 1. **Resolve it to its full id:** `git rev-parse --verify "<commit>^{commit}"`.
@@ -658,65 +655,81 @@ with no checkout:
 
 If any check fails, don't check the commit out, and never run, or let a
 session run, an installer from it: nothing prompts before such an installer
-runs (the threat model's class The pact gets loosened). From a commit that passes, check out exactly
-that id and run only `gate/install.mjs`, dry run first.
+runs (the threat model's class The pact gets loosened). A commit that passes: do the steps below at the
+current commit first, then check it out.
 
-**Rolling back to before the thin gate (#261).** Its parent commit's install
-deletes `pact/review.md`, which its payload lacks, and overwrites `CLAUDE.md`
-with the rules it held. Run its dry run first and check that it lists exactly
-those two.
+**Rolling back to before `pact/review.md` existed.** The install at the parent
+of the commit that added it deletes `pact/review.md`, which its payload lacks,
+and overwrites `CLAUDE.md` with the rules it held. Run its dry run first and
+check that it lists exactly those two.
 
-A pact from before #262 and #142 refuses a configuration that edits `tiers`,
-`sensitive`, `workflow`, `lenses` or `qualities`, sets `usage-pause-session`,
-sets an agent's model to anything but `opus` or `sonnet`, its effort above
-`high`, or any setting for `scout`, so take those out first. A pact from
-before #278 also refuses an edit to `cost-limits`, and an older builder refuses
-a builder file that holds a `costLimits` key or an Enough on a quality row.
-A pact from before #278 also refuses a project configuration with a `costLimits` key (`project-key`)
-or a quality row with `enough` or `enoughCosts` (`project-qualities`).
-It does not refuse a Qualities block with an Enough column: it installs that
-text as written, and the column then names costs no part defines, which an
-older lens reads with no one rule and no security bar. Remove the column, the
-edit, the project keys and those builder-file fields first. Its install
-deletes `commands/scriptorium.md` and the builder kit, which its payload
-lacks; a configuration that lists `scriptorium` in `commands` refuses there.
+**Take out what the older pact doesn't know, first.** An older pact refuses a
+configuration key or value it doesn't know, and its dry run names each one:
+take out what it names, then run it again. The older the commit, the more it
+refuses. What an old enough pact refuses:
 
-A pact from before #501 refuses `"usage-pause": false` (`config-value`), so set a
-number, or take the key out, first.
+- an edit to `tiers`, `sensitive`, `workflow`, `lenses`, `qualities` or
+  `cost-limits`. A pact from before configuration edits existed refuses a
+  file that has any, `moves` included, so empty the edit list for it;
+- `usage-pause-session`, and `"usage-pause": false` (set a number, or take the
+  key out);
+- an agent setting: a model other than `opus` or `sonnet`, an effort above
+  `high`, or any setting for `scout`; a pact from before agent settings
+  existed refuses an `agents` key at all, and the first to take one refuses a
+  setting for any lens but `integrity-lens`;
+- the keys `skills` (in a configuration or a builder file), `tools` and
+  `commands`. An older install deletes what its own payload lacks: the poster
+  and the commands the record lists, and `commands/scriptorium.md` and the
+  builder kit. At a commit from before the builder kit, a configuration that
+  lists `scriptorium` in `commands` refuses;
+- in a project's configuration, the `costLimits` key (`project-key`) and the
+  `enough` and `enoughCosts` fields (`project-qualities`); in a builder file,
+  the `costLimits` key and an Enough on a quality row.
 
-A pact from before the default configuration (#183 T4a) refuses a
-configuration or builder file with a `skills` key, so take the key out first.
-With no configuration of yours, it renders the pact's plain text again in
-place of the default. Its dry run names the last install's configuration digest, then says no configuration, lists `CLAUDE.md` under Overwrite and the default's kit files under Delete, and prints no line naming the `workflow` part.
+One thing an older pact does not refuse: an Enough column in a Qualities
+block. A pact from before the Enough column installs that text as written, and
+the column then names costs no part defines, which an older lens reads with no
+one rule and no security bar. If the commit you roll back to predates the
+column, remove it first.
 
-A pact from before the pact tools (#280) refuses a configuration with a
-`tools` key, so take the key out first. Its install then deletes the poster
-the record lists, as it does any file its own payload lacks.
+Three settings leave rules or files that an older installer can't remove. For
+each, turn it off and apply at the newer commit first, then take its key out
+of the configuration:
 
-A pact from before the auto-compact window (#482) refuses a configuration
-with an `auto-compact-window` key, and its install keeps your live hook
-entries but deletes the hook script it doesn't know, so every session would
-call a missing file. Set `auto-compact-window` to `0` and install, then take
-the key out of the configuration, then roll back. Stop if `settings.json`
-still holds a hook that calls `pact/hooks/compact-handoff.mjs` after that
-install; the older installer's own warning about any `hooks` key is not that.
+- **The cleaner** (take `cleaner` out of `tools`): an older installer never
+  removes its deny rules, which include the two `claude rm` rules, or its two
+  ask rules, so they would stay in `settings.json`, where they look like your
+  own. A pact from before the `claude rm` rules also drops those two from its
+  record and leaves them there.
+- **`session-stop-deny`** (set it to `false`): an older installer refuses the
+  key, even as `false`, and ignores `stopDeny`, so its eight rules stay in
+  `settings.json`.
+- **The auto-compact window** (set `auto-compact-window` to `0`): an older
+  installer keeps your live hook entries but deletes the hook script it
+  doesn't know, so every session would call a missing file. Stop if
+  `settings.json` still holds a hook that calls `pact/hooks/compact-handoff.mjs`
+  after that apply; the older installer's own warning about any `hooks` key
+  is not that.
 
-A pact from before the cleaner (#438) refuses a configuration that names
-`cleaner`, and never removes the cleaner's deny rules, so turn the cleaner off
-and apply before you roll back. The same goes for a pact from before #523: its installer ignores `cleanerAsk`
-and would leave the two ask rules in `settings.json`, so turn the cleaner off and apply at the new commit first. A pact from before the stop switch (#439)
-refuses a configuration that names `session-stop-deny` and ignores `stopDeny`,
-so set it to `false`, apply, then take the key out of the configuration; and an older installer leaves the
-two `claude rm` rules in `settings.json` while dropping them from its record.
+With no configuration of yours, a pact from before the default configuration
+renders the pact's plain text again in place of the default. Its dry run names
+the last install's configuration digest, then says no configuration, lists
+`CLAUDE.md` under Overwrite and the default's kit files under Delete, and
+prints no line naming the `workflow` part.
 
-A pact from before the pact commands (#203) refuses a configuration with a
-`commands` key, so take the key out first. Its install then deletes the
-commands the record lists, as it does any file its own payload lacks.
+**Then check out.** Check out exactly that id and run only `gate/install.mjs`,
+dry run first.
+
+**Backups.** A rollback to a commit from before backups existed takes no
+backup and prunes none, so copy what you want to keep first, and delete
+`pact/backups` by hand once you are sure. An older installer never touches
+`pact/backups` unless the install record was rewritten to list a path there
+(the threat model's class The pact gets loosened).
 
 Every Node install reads and writes the same install record, so an older one
 can follow a newer one. An older commit's install also adds back to your
 `settings.json` any ask rules it held. When you return to the newer pact, its
-install takes out the 56 it knows. After returning from a commit before #217,
+install takes out the 56 it knows. After returning from an older commit that added them,
 also repeat the removal by hand in step 5.
 
 ## Known limits

@@ -33,9 +33,10 @@ By default, auth, crypto, input validation and data migrations are sensitive wor
 
 ## Creating the labels
 
-The five roles exist on the tracker (created 2026-09-29; this repo got no default labels, so `wontfix` was created too). The three tier labels were created 2026-09-30. For reference:
+The five roles and the three tier labels exist on the tracker. To recreate them:
 
 ```bash
+gh label create wontfix --description "Will not be actioned"
 gh label create needs-triage --description "Maintainer needs to evaluate this issue" --color fef2c0
 gh label create needs-info --description "Waiting on reporter for more information" --color f9d0c4
 gh label create ready-for-agent --description "Fully specified; an agent can start it unasked" --color c2e0c6
@@ -45,4 +46,3 @@ gh label create tier:standard --description "Standard tier: short spec on the is
 gh label create tier:thorough --description "Thorough tier: full spec, review, tickets, one build session each" --color d93f0b
 ```
 
-The colours match stacks.
