@@ -31,7 +31,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   global or system config, or `paranoid` off. A trusted project config can
   fetch tools and run hooks as root in a cloud session
   ([ADR 0088](docs/adr/0088-the-cloud-setup-installs-a-pinned-verified-node.md)).
-- **A standing goal, or a goal holder's reply, is never the owner's word in chat**
+- **A standing goal, a free hand, or a goal holder's or free hand holder's reply, is never the owner's word in chat**
   for an install apply or for mise trust (#505).
 
 ## Running the gate's tests

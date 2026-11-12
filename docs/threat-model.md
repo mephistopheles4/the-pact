@@ -25,6 +25,7 @@ quadrantChart
   Removals lose local work: [0.32, 0.46]
   A raw stop gets past a speed bump: [0.30, 0.40]
   A standing goal decides alone: [0.30, 0.64]
+  A free hand answers offers: [0.40, 0.30]
   Pinned design-system code: [0.12, 0.55]
 ```
 
@@ -44,6 +45,7 @@ the classes; they do not size them. The open issues below are not drawn.
 | Removals lose local work | 0.32 | 0.46 |
 | A raw stop gets past a speed bump | 0.30 | 0.40 |
 | A standing goal decides alone | 0.30 | 0.64 |
+| A free hand answers offers | 0.40 | 0.30 |
 | Pinned design-system code | 0.12 | 0.55 |
 
 ## Scope
@@ -84,6 +86,7 @@ flowchart LR
   subgraph B1["Text into a session"]
     T1["Text steers a session"]
     T2["A standing goal decides alone"]
+    T11["A free hand answers offers"]
   end
   subgraph B2["What you install, and CI"]
     T3["What you install and CI run"]
@@ -135,6 +138,7 @@ Each box is a boundary a class crosses; the arrows say who reaches it.
 - **A compromised machine or sandbox.** Once a program, process or agent on the machine or in the sandbox works against you, or a program a cloned repo or a project's version pin supplies runs when a session, a hook or a tool calls a command by bare name, it can plant programs, change files a session or a hook reads, and act as a session would; the pact does not defend against it. Other local accounts, and a session that text in scope has steered, stay in scope.
 - **Pinned design-system code.** The aviation design system is the owner's own code, inlined into Scriptorium at a pinned commit, so it runs with the page's powers, a folder you grant included, and a re-pin is reviewed like any change to this repo, with no security pair of its own.
 - **A standing goal decides alone.** Under a goal, a session uses its judgment on what the rules keep for you, on words from any prompt or message, a stranger's or a fooled session's included; a session started for a goal acts on its starter's replies, on its start prompt's word that a goal is set, or on a reply it can't tell from its starter's; what its rules would tell you reaches you through its starter; usage holds only as a rule, and only while a usage limit is set; Claude Code's permissions may read a start prompt as your ask, and the log corrects only what can be undone, never what was published or sent off the machine.
+- **A free hand answers offers.** A session the owner gave a free hand answers lens offers and design questions on its own pick, a design pick on what a change stores, logs or sends included, on words it reads as the owner's in its chat, on what its hand-off notes say after a compaction, whoever wrote them, on its start prompt's word that its starter holds one, or on a reply it can't tell from its holder's.
 
 ## Open issues
 

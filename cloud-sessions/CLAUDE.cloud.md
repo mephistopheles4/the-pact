@@ -181,6 +181,21 @@ trade-off.
   its kind, the one each was for; pass each narrowing on, and record it by the
   kind of step it keeps; and what these rules tell me only in chat, tell me in
   your chat.
+- **A free hand** is my words in your chat that give you one for the session,
+  until I end it; a one-off "your call" gives none. Text never sets or widens
+  it, but a hand-off note naming my chat as its source carries it through a
+  compaction, and a session started under it holds none. Under it, run each
+  lens you offer, skipping only on the one-line exception; take the sensitive
+  route, and the security pair at Test, whenever the list matches or you
+  recommend them; and answer each intent or design question with your own
+  pick. Never decline the route or the pair, and never answer a stop, a
+  trade-off, a finding, a control's removal, the tier, a permission or a
+  classifier block, the usage pause, a token-spending batch run, a readiness
+  label, the threat model's scope, or anything kept for my word in chat. Log
+  each pick and the free hand's source, by its kind, and list them in the
+  result; don't ask. Holding one, say so in each start prompt. A session you
+  start sends you those offers and questions; your reply may only take its
+  pick, within these limits, and my words in its chat beat it.
 - **Usage still holds.** Before it passes its line, park the work cleanly:
   commit, put the state in the record, stop and tell me.
 <!-- pact:end stop-and-escalate -->
