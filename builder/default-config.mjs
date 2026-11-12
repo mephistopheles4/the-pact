@@ -7,7 +7,8 @@
 //   node builder/default-config.mjs --check   exit 1 when the committed copy is not what the preset gives
 //
 // It writes what the Scriptorium page saves for the preset taken whole:
-// config.json, with one replace edit per part whose compiled text differs
+// config.json, with the preset's settings when they differ from the pact's
+// defaults (#554), one replace edit per part whose compiled text differs
 // from the pact's, and blocks/<mark>.md for each, the part's text and a line
 // break; then the preset's skills list, when it has one. The page and this
 // script compile with the same code (builder/parts.mjs), and a gate test holds
@@ -27,6 +28,9 @@ export function defaultFiles(root, preset = join(root, DEFAULT_PRESET_REL)) {
   if (!r.builder) throw new Error(`default-config: the preset is refused: ${r.refusals.join('; ')}`);
   if (r.builder.ownAgentFiles) throw new Error('default-config: the preset sets agent files, and the default writes none');
   const config = { schema: 1 };
+  // The page writes a setting only when it differs from its default, and so does this.
+  const settings = Object.fromEntries(Object.entries(r.givenSettings ?? {}).filter(([k, v]) => k !== r.pact.checkpointStops.name || v !== r.pact.checkpointStops.def));
+  if (Object.keys(settings).length) config.settings = settings;
   const blocks = [];
   const edits = [];
   for (const [mark, text] of changedParts(root, r.builder.ownParts)) {

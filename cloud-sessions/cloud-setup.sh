@@ -582,6 +582,9 @@ offer I can take or leave in a second. Then carry on with what I chose.
 - **Always mine:** a spec's proceed, fix or kill; the ticket cut; accepting,
   closing and merging; anything published. Each waits for my confirm in chat.
 - **Keep the record** as the Posting section of `~/.claude/pact/review.md` says.
+- **Checkpoints wait.** Each checkpoint waits for my word in chat, except under
+  a standing goal, and under a free hand for a lens offer, the sensitive route
+  or an intent or design question; a pending read-back waits even then.
 
 ## How much checking
 
@@ -1613,7 +1616,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 816906235ec22a7ba17ea86985381ad00d205cbfbcf4ce0b0ebba920c080ad07 'CLAUDE.md'
+check_hash cb93b41654fed45663dd7101eb860c6b0143e834620b4f67437d217c144f3ab8 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1654,7 +1657,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 04c89b745078"
+  echo "pact cloud copy 164449679a26"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

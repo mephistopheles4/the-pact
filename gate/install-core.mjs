@@ -451,10 +451,11 @@ export function checkVerdict(report, what) {
 const RETIRED_BLOCK_RE = /^RETIRED-NAME block (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) ([a-z-]+)$/;
 const EDIT_RE =/^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
-const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
+// #554: and checkpoint-stops as on or off; the renderer prints a project's value only as on, but the parser takes both words, as the home one does.
+const VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(checkpoint-stops) (on|off))$/;
 // #482: a home render may also report the auto-compact window; a project render never does.
 // #439: and the stop switch, as the word on or off.
-const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off))$/;
+const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off)|(checkpoint-stops) (on|off))$/;
 // The auto-compact window (#482): the install's own copy of the default in gate/render-core.mjs, as it keeps PACT_TOOLS. A test holds them equal.
 export const AUTO_COMPACT_DEFAULT = 400000;
 const AUTO_COMPACT_MIN = 100000;
@@ -464,6 +465,10 @@ const AUTO_COMPACT_STEP = 10000;
 export const compactWindowOk = n => n === 0 || (Number.isInteger(n) && n >= AUTO_COMPACT_MIN && n <= AUTO_COMPACT_MAX && (n - AUTO_COMPACT_MIN) % AUTO_COMPACT_STEP === 0);
 /** The window the install uses: the reported value, else the default. 0 is off. */
 export const compactWindow = parsed => (parsed.values.has('auto-compact-window') ? Number(parsed.values.get('auto-compact-window')) : AUTO_COMPACT_DEFAULT);
+// The checkpoint switch (#554): its setting name, and the two dry-run NOTEs that say what an unset or a default value means for the rules file.
+const CHECKPOINT_STOPS = 'checkpoint-stops';
+const CHECKPOINTS_UNSET_NOTE = 'checkpoint-stops is unset: checkpoints wait; set it false to make them events';
+const CHECKPOINTS_DEFAULT_NOTE = 'the default configuration makes checkpoints events; set checkpoint-stops true in your configuration to make them wait';
 /** Whether the stop switch is on (#439): only a reported `VALUE session-stop-deny on`; no line means off. */
 export const stopSwitchOn = parsed => parsed.values.get('session-stop-deny') === 'on';
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
@@ -549,8 +554,8 @@ export function parseRenderLines(lines, { project, hash }) {
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
     } else if ((m = HOME_VALUE_RE.exec(l))) {
-      const name = m[1] ?? m[3] ?? m[5] ?? m[7];
-      const value = m[2] ?? m[4] ?? m[6] ?? m[8];
+      const name = m[1] ?? m[3] ?? m[5] ?? m[7] ?? m[9];
+      const value = m[2] ?? m[4] ?? m[6] ?? m[8] ?? m[10];
       if (name === 'auto-compact-window' && !compactWindowOk(Number(value))) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (values.has(name)) refuse('render-value-twice', 'the renderer reported one setting twice.');
       values.set(name, value);
@@ -735,8 +740,9 @@ export function parseProjectRenderLines(lines, hash) {
       if (digest) refuse('project-render-two-digests', 'the project render reported two configuration digests.');
       digest = m[1];
     } else if ((m = VALUE_RE.exec(l))) {
-      if (values.has(m[1])) refuse('project-render-value-twice', 'the project render reported one setting twice.');
-      values.set(m[1], m[2]);
+      const name = m[1] ?? m[3];
+      if (values.has(name)) refuse('project-render-value-twice', 'the project render reported one setting twice.');
+      values.set(name, m[2] ?? m[4]);
     } else if ((m = /^QUALITIES ([1-9])$/.exec(l))) {
       // A project's own qualities list (#262 S25): its row count, one row per ISO/IEC 25010:2023 quality at most.
       if (qualities) refuse('project-render-two-qualities', 'the project render reported two qualities lines.');
@@ -821,7 +827,7 @@ export function projectBlock(state, parsed) {
     `  record ${PROJECT_RECORD_REL}: holds only the rules file's name and hash`,
     `  configuration digest: ${parsed.digest}`,
     `  rendered project rules file: sha256 ${parsed.projectHash}`,
-    ...[...parsed.values].map(([k, v]) => `  WARN: the project configuration sets ${k} to ${v}; the rules file reads it as the lower of that and the user's value.`),
+    ...[...parsed.values].map(([k, v]) => (k === CHECKPOINT_STOPS ? `  WARN: the project configuration sets ${k} to ${v}; checkpoints wait in this project whatever the user's value is.` : `  WARN: the project configuration sets ${k} to ${v}; the rules file reads it as the lower of that and the user's value.`)),
     ...parsed.retiredNames.map(a => `  WARN: the project configuration's qualities list names ${a}, an agent the pact retired; take the name out of the list.`),
     ...(parsed.unnamedCosts.length ? [unnamedCostsLine(parsed.unnamedCosts)] : []),
     '  Nothing is installed in the Claude home folder, and no agents go into the project.',
@@ -1630,6 +1636,7 @@ export function configBlock(parsed, rulesHash, record) {
     if (last.has('user')) out.push(`  the last install had your own configuration; ${CONFIG_REL} is gone now, so the pact's default renders in its place`);
     out.push(`  rendered rules file: sha256 ${rulesHash}`);
     for (const [k, v] of parsed.values) out.push(`  WARN: the pact's default configuration sets ${k} to ${v}.`);
+    if (parsed.values.get(CHECKPOINT_STOPS) === 'off') out.push(`  NOTE: ${CHECKPOINTS_DEFAULT_NOTE}`);
     for (const [k, e] of parsed.edits) out.push(`  WARN: the pact's default configuration edits ${k} (${e.op}).`);
     out.push(`  To keep the pact's own text instead, write a ${CONFIG_REL} of your own; docs/install.md says how.`);
     return out;
@@ -1641,6 +1648,7 @@ export function configBlock(parsed, rulesHash, record) {
   out.push(`  configuration digest: ${parsed.digest}`);
   out.push(`  rendered rules file: sha256 ${rulesHash}`);
   for (const [k, v] of parsed.values) out.push(k === 'usage-pause' && v === 'off' ? '  WARN: the user configuration turns usage-pause off.' : `  WARN: the user configuration sets ${k} to ${v}.`);
+  if (!parsed.values.has(CHECKPOINT_STOPS)) out.push(`  NOTE: ${CHECKPOINTS_UNSET_NOTE}`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
   for (const [name, a] of parsed.agentSets) out.push(`  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`);
   for (const r of parsed.retiredNames) out.push(`  WARN: the user configuration's ${r.mark} block names ${r.agent}, an agent the pact retired; take the name out of the block, and where it sat in the spec pair put unstated-lens in its place.`);

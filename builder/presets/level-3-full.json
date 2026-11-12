@@ -1,6 +1,9 @@
 {
   "schema": 1,
   "title": "Level 3 · Full",
+  "settings": {
+    "checkpoint-stops": false
+  },
   "tiers": [
     {
       "id": "quick",

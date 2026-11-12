@@ -1,6 +1,9 @@
 {
   "schema": 1,
   "title": "Ultra Code",
+  "settings": {
+    "checkpoint-stops": false
+  },
   "tiers": [
     {
       "id": "quick",

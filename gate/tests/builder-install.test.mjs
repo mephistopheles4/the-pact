@@ -11,7 +11,8 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { PAGE_REL } from '../../builder/build.mjs';
 import { REPO } from './text.mjs';
-import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { applyBound, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { tempDir } from './tree.mjs';
 
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');
 const PAGE_NAME = basename(PAGE_REL);
@@ -26,7 +27,7 @@ const sha256 = b => createHash('sha256').update(b).digest('hex');
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][2][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, addAgent });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, addAgent, takePreset, presetPicks, presetFromText });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -153,4 +154,120 @@ test('an added agent and an edited prompt the page saves are yours: the install 
   for (const name of ['my-reviewer', 'scout']) assert.equal(readFileSync(join(h, 'agents', `${name}.md`), 'utf8'), files.find(f => f.path === `agents/${name}.md`).text);
   const recorded = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).files.map(f => f.path);
   assert.ok(!recorded.includes('agents/my-reviewer.md') && !recorded.includes('agents/scout.md'), recorded.join(', '));
+});
+
+// ------------------------------------------------------------ checkpoint-stops (#554, S13 T1)
+
+const UNSET_NOTE = /^ {2}NOTE: checkpoint-stops is unset: checkpoints wait; set it false to make them events\r?$/m;
+const DEFAULT_NOTE = /^ {2}NOTE: the default configuration makes checkpoints events; set checkpoint-stops true in your configuration to make them wait\r?$/m;
+const WAITS = '- **Checkpoints wait.** Each checkpoint waits for my word in chat';
+
+/** The shipped preset `id` taken whole into a fresh page state, as the page's Take does. */
+function takeShipped(id) {
+  const s = L.initialState();
+  const p = L.PACT.presets.find(x => x.id === id);
+  assert.ok(p, `no shipped preset ${id}`);
+  L.takePreset(s, p, L.presetPicks(p));
+  return s;
+}
+
+// #554 C5, S13: the level-1 preset leaves the switch on, so what the page saves leaves the key unset: the dry run says so, and the rules file holds the line.
+test('S13: the level-1 preset\'s saved configuration leaves checkpoint-stops unset: the dry run shows the NOTE, and the installed rules file holds the "Checkpoints wait" line', t => {
+  const s = takeShipped('level-1-beginner');
+  assert.equal(s.checkpointStops, true);
+  const repo = makeRepo(t);
+  const h = home(t);
+  const files = saveInto(h, s);
+  assert.equal(JSON.parse(files[0].text).settings, undefined, 'the page writes no setting for it');
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, UNSET_NOTE, dry.out);
+  assert.doesNotMatch(dry.stdout, /^render\| VALUE checkpoint-stops/m, dry.out);
+  assert.doesNotMatch(dry.stdout, DEFAULT_NOTE, dry.out);
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
+  assert.equal(r.code, 0, r.out);
+  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+  assert.ok(rules.includes(WAITS), 'the rules file holds the line');
+});
+
+// #554 C4, S13: a configuration that sets it false installs with no line, no NOTE, and the value in the notice and the dry run.
+test('S13: a saved checkpoint-stops false dry-runs as VALUE checkpoint-stops off with no NOTE, and installs with no "Checkpoints wait" line', t => {
+  const s = takeShipped('level-3-full');
+  assert.equal(s.checkpointStops, false);
+  const repo = makeRepo(t);
+  const h = home(t);
+  const files = saveInto(h, s);
+  assert.deepEqual(JSON.parse(files[0].text).settings, { 'checkpoint-stops': false });
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^render\| VALUE checkpoint-stops off\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets checkpoint-stops to off\.\r?$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, UNSET_NOTE, dry.out);
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
+  assert.equal(r.code, 0, r.out);
+  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+  assert.ok(!rules.includes('Checkpoints wait.'), 'no such line');
+  assert.match(rules, /Values set: checkpoint-stops off\./);
+});
+
+// #554 C4, S13: with no user file the default configuration renders, and it sets the switch false.
+test('S13: the default configuration\'s dry run shows VALUE checkpoint-stops off and its NOTE, and the installed rules file holds no "Checkpoints wait" line', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^render\| VALUE checkpoint-stops off\r?$/m, dry.out);
+  assert.match(dry.stdout, DEFAULT_NOTE, dry.out);
+  assert.doesNotMatch(dry.stdout, UNSET_NOTE, dry.out);
+  const r = applyBound(repo, h);
+  assert.equal(r.code, 0, r.out);
+  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+  assert.ok(!rules.includes('Checkpoints wait.'), 'no such line');
+  assert.match(rules, /Values set: checkpoint-stops off\./);
+});
+
+// #554 C3, S13: a project true dry-runs to its VALUE and WARN lines, whatever the user's value is; a project false is refused.
+test('S13: a project with checkpoint-stops true dry-runs to its VALUE and WARN lines; a project false is refused', t => {
+  const repo = makeRepo(t);
+  const root = tempDir(t, 'pact-proj-');
+  const ch = join(root, 'home', '.claude');
+  mkdirSync(join(ch, 'pact'), { recursive: true });
+  writeFileSync(join(ch, 'pact', 'config.json'), '{"schema": 1, "settings": {"checkpoint-stops": false}}\n');
+  const project = value => {
+    const p = join(root, 'home', `proj-${value}`);
+    mkdirSync(join(p, '.claude'), { recursive: true });
+    writeFileSync(join(p, '.claude', 'pact-config.json'), `{"schema": 1, "settings": {"checkpoint-stops": ${value}}}\n`);
+    return install(repo, ch, { extra: ['--project-folder', p] });
+  };
+  const ok = project(true);
+  assert.equal(ok.code, 0, ok.out);
+  assert.match(ok.stdout, /^render\| VALUE checkpoint-stops on\r?$/m, ok.out);
+  assert.match(ok.stdout, /^ {2}WARN: the project configuration sets checkpoint-stops to on; checkpoints wait in this project whatever the user's value is\.\r?$/m, ok.out);
+  refused(project(false), /project-looser: .*checkpoint-stops false is never tighter than the user's value/);
+});
+
+// #554 C5, S13: the installed kit's presets are the ones the page loads: level 1 sets the switch on, level 3 turns it off.
+test('S13: the installed kit\'s level-1 preset loads with the switch on, and its level-3-full turns it off', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
+  const kitPresets = join(h, 'pact', 'builder', 'builder', 'presets');
+  const load = name => {
+    const r = L.presetFromText(readFileSync(join(kitPresets, name), 'utf8'));
+    assert.ok(r.preset, r.refuse);
+    return r.preset;
+  };
+  const levelOne = load('level-1-beginner.json');
+  assert.deepEqual(levelOne.settings, { 'checkpoint-stops': true });
+  const s1 = L.initialState();
+  L.takePreset(s1, levelOne, L.presetPicks(levelOne));
+  assert.equal(s1.checkpointStops, true);
+  const levelThree = load('level-3-full.json');
+  assert.deepEqual(levelThree.settings, { 'checkpoint-stops': false });
+  const s3 = L.initialState();
+  L.takePreset(s3, levelThree, L.presetPicks(levelThree));
+  assert.equal(s3.checkpointStops, false);
+  // Taking level 1 after level 3 turns the switch back on.
+  L.takePreset(s3, levelOne, L.presetPicks(levelOne));
+  assert.equal(s3.checkpointStops, true);
 });

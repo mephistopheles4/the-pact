@@ -1,6 +1,6 @@
 # Installing, and changing what installs
 
-Read this before you install, roll back, change configuration, tools or a project install, or touch the builder page or the cloud copy. `AGENTS.md`'s "Installing" gives the owner's go-ahead and the dry-run-first rule; [install](../install.md) is the how-to for the owner; this adds what a session needs.
+Read this before you install, roll back, change configuration, tools or a project install, or touch the builder page or the cloud copy. `AGENTS.md`'s "Installing" gives the go-ahead and dry-run-first rules; [install](../install.md) is the owner's how-to; this adds what a session needs.
 
 ## Changes here reach every project
 
@@ -21,12 +21,12 @@ how every session in every repo behaves. So:
   working tree) in a temp folder and starts the runner from there, so every
   check runs committed code. The runner runs the pact's own check, seam A, on
   the staged files, and copies only the files that check listed. It refuses
-  when the check fails or can't run. The dry run also shows the Node it used
+  when the check fails or can't run. The dry run shows the Node it used
   and whether the gate changed since the last install. The gate checks
   install mechanics only: what each file is and where it goes, that each
   agent file still parses, the text scanner, and the settings overlay. What
   the pact's files say is vetted like any skill, by the owner reading them.
-  The gate's tests run through one runner; see [gate tests](gate-tests.md).
+  Gate tests: [gate tests](gate-tests.md).
 - **`--apply` refuses** on drift or a dirty working tree, and needs `--commit`,
   the full commit id the dry run printed; it refuses if HEAD names another
   commit. The dry run prints the whole apply command; run it as printed.
@@ -48,9 +48,9 @@ how every session in every repo behaves. So:
 - **Configuration.** With no `~/.claude/pact/config.json`, a home install
   renders the pact's default from `builder/default-config/`.
   The owner's settings live in `~/.claude/pact/config.json`
-  (an example is [`examples/pact-config/config.json`](../../examples/pact-config/config.json)).
+  (example: [`examples/pact-config/config.json`](../../examples/pact-config/config.json)).
   Its edits to open parts take their text from block files in
-  `~/.claude/pact/blocks/` (examples are in
+  `~/.claude/pact/blocks/` (examples:
   [`examples/pact-config/blocks/`](../../examples/pact-config/blocks/)).
   The installer reads them, never writes, deletes or lists them, and renders
   them into the rules file. The dry run's Configuration block shows each
@@ -65,8 +65,8 @@ how every session in every repo behaves. So:
   part. An edit to any of the six but `moves` gets
   the dry run's security-defaults line, before every other warning: it names
   the parts and says whether the configuration changed since the last
-  install. A Qualities edit with no Enough column also gets a note line after
-  it, since the Cost limits then limit the review itself. The
+  install. A Qualities edit with no Enough column gets a note line after
+  it: the Cost limits then limit the review itself. The
   `usage-pause-session` setting sets the 5-hour session limit beside the
   weekly `usage-pause`; unset, the rules file has no session line.
   `usage-pause` also takes `false`, which renders no weekly line. Rolling back
@@ -74,7 +74,7 @@ how every session in every repo behaves. So:
 - **The auto-compact window.** `auto-compact-window` is 0
   (off) or 100000 to 1000000 tokens in steps of 10000, 400000 when unset, and
   no project may set it. It has no part in the rules file, so the rules text is
-  the same at any value. With it on the install also copies
+  the same at any value. With it on the install copies
   `claude/hooks/compact-handoff.mjs` to `pact/hooks/` and merges the overlay's
   `hooks` block by key: a pact entry is an inner hook equal to the overlay's
   for that event, its window aside, so the five are updated in place (only
@@ -95,15 +95,14 @@ how every session in every repo behaves. So:
 - **The session stop switch.** `session-stop-deny` is
   `true` or `false`, `false` when unset, and no project may set it (a project
   configuration that names it is refused). It has no part in the rules file;
-  only the notice line names it, `session-stop-deny on` or `off`, and the
-  renderer prints `VALUE session-stop-deny on` or `off`, the only two words
-  the install's parser takes for it. On, the install adds `STOP_DENY`'s eight
+  the notice names it, and the renderer prints `VALUE session-stop-deny on` or
+  `off`, the only two words the install's parser takes. On, the install adds `STOP_DENY`'s eight
   rules (`claude stop *`, `claude kill *`, `claude daemon stop *` and
   `claude respawn *`, each as a `Bash(...)` and a `PowerShell(...)` rule) to
   `permissions.deny` and records the ones it added under `stopDeny`; off, it
   removes only rules both recorded and on that list. `parseRecord` refuses a
   `stopDeny` that is not a list of strings. The cleaner's switch adds
-  `claude rm *` the same way, under `cleanerDeny`. The cleaner's switch also adds `CLEANER_ASK`'s two
+  `claude rm *` the same way, under `cleanerDeny`. It adds `CLEANER_ASK`'s two
   rules (`*cleaner.mjs*remove*--override*`, as a `Bash(...)` and a `PowerShell(...)` rule) to
   `permissions.ask`, recorded under `cleanerAsk`; `cleanerAskPlan` is `denyPlan`
   over the ask list, `mergeSettings` applies it after the retired-ask filter, and `parseRecord`
@@ -112,13 +111,13 @@ how every session in every repo behaves. So:
   by its own list. None of the three is in the overlay or the allow-list, and
   the cloud copy adds none. The ask rules' misses are listed in ADR 0151. The
   deny rules are a speed bump: a flag before the
-  subcommand, a wrapped call and a flag placed between `claude daemon` and `stop` (a leading `--dangerously-skip-permissions` is the one Claude Code's docs name as still reaching the subcommand) get past them.
+  subcommand, a wrapped call and a flag between `claude daemon` and `stop` (a leading `--dangerously-skip-permissions` is the one Claude Code's docs name as still reaching the subcommand) get past them.
 - **The field check for the deny rules,** run after the owner applies
   with `session-stop-deny` on or the cleaner on; a session reports the result
   and does not apply for the owner. While `session-stop-deny` is on, a
   session's harmless `claude stop not-a-real-id`, `claude kill not-a-real-id`
   and `claude respawn not-a-real-id` are refused by permission and Brigade's
-  `stop_background_session` still works. A session never respawns a session for real. Never probe `claude daemon stop` or
+  `stop_background_session` still works. Never respawn a live session. Never probe `claude daemon stop` or
   `claude respawn --all`: if the rule did not fire, the probe ends every
   hosted session's turn. While the cleaner is on, a
   harmless `claude rm not-a-real-id` is refused by permission. Check only
@@ -126,6 +125,10 @@ how every session in every repo behaves. So:
   stop is refused, set `session-stop-deny` to `false` and apply on the owner's
   word, and open an issue with what was seen; if a rule did not refuse, open an
   issue.
+- **The checkpoints switch.** `checkpoint-stops` is `true` or `false`, `true`
+  when your file leaves it out; `false` empties its part's "Checkpoints wait" line. A project may
+  set `true`, never `false`. The dry run prints a NOTE for an unset value, and
+  another under the default configuration, which sets `false`.
 - **The auto-compact field checks,** run by the owner in the first sessions after an
   install; a session reports them and does not run them for the owner.
   *Compaction point:* on Windows CLI, a session compacts near 365000 to 370000
@@ -136,7 +139,7 @@ how every session in every repo behaves. So:
   compaction:* the first turn after compaction shows the "own notes" line and
   the file's text, and the summary names the file; fails if either is
   missing. *Surfaces:* the same three on the Desktop Code tab, a `claude --bg`
-  session, a cloud session and an Opus session; the Windows run also watches
+  session, a cloud session and an Opus session; the Windows run watches
   whether a `node` in a cloned project's folder is run before the PATH's.
   *On any failure:* at home, set `auto-compact-window` to `0` and install; in
   the cloud, revert the cloud part of the auto-compact setting (see the
@@ -178,7 +181,7 @@ how every session in every repo behaves. So:
   which every install puts in place with the builder kit under
   `~/.claude/pact/builder/`. It reads their skills, commands, agents and
   configuration, keeps the result in `~/.claude/pact/builder.json`, and
-  renders a page that carries those lists in plain text. The kit also reads
+  renders a page that carries those lists in plain text. The kit reads
   the person's own presets from `~/.claude/pact/presets/`, a folder the
   install never writes, lists or deletes, and the page lists them under
   "Your presets" with their agent rows unticked; a clone's run reads none.

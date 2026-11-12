@@ -189,7 +189,8 @@ test('with the poster off, the rules file is the no-configuration render byte fo
   assert.equal(noNotice(onText).replace(`${T2}\n`, ''), none, 'on, the render differs only by the part');
   assert.equal(onText.split(T2).length, 2, 'the part holds T2 text once, byte for byte');
   const after = onText.slice(onText.indexOf(KEEP_RECORD));
-  assert.match(after, /^- \*\*Keep the record\*\*[^\n]*\n- \*\*Post through the poster,\*\*/, 'straight after the record bullet');
+  // The checkpoint-stops part may sit between them: it is part of the no-configuration render, and a configuration that turns it off drops it.
+  assert.match(after, /^- \*\*Keep the record\*\*[^\n]*\n(?:- \*\*Checkpoints wait\.\*\*[^\n]*\n(?: {2}[^\n]*\n)*)?- \*\*Post through the poster,\*\*/, 'after the record bullet, with at most the checkpoints line between');
 });
 
 // render, #280 C6: the renderer fills the part only where the source holds it, and holds it empty.

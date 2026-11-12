@@ -7,8 +7,8 @@ home folder (`~/.claude`), and merges its settings into yours. It takes about
 five minutes.
 
 Read the README's [Who it's for](../README.md#who-its-for) first. The rules
-are written for one person's setup, and installing them changes how every
-Claude Code session on your machine behaves.
+are written for one person's setup, and installing them changes every
+Claude Code session on your machine.
 
 **Where these steps were tried:**
 
@@ -302,7 +302,7 @@ parts:
     WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.
   ```
 
-  The cleaner on also adds eighteen deny rules on raw worktree and branch
+  The cleaner on adds eighteen deny rules on raw worktree and branch
   removal commands and on `claude rm` to `settings.json`, each listed under
   `settings.json` as `+ permissions.deny`, and records the ones it added in
   `.pact-install.json`; turning it off removes only those, also listed. A
@@ -313,7 +313,7 @@ parts:
   everything left in it, so run it only after the cleaner has removed the
   worktree, or after checking the worktree yourself.
 
-  It also adds two ask rules on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
+  It adds two ask rules on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
   and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added under
   `cleanerAsk` in `.pact-install.json`; turning the cleaner off removes only those. They make Claude Code
   ask you before a `remove --override` runs, a speed bump and not a boundary: spellings that hide the
@@ -321,7 +321,7 @@ parts:
   untouched, so it adds neither the deny rules nor these, and the dry run and the apply print a `WARN:`
   line naming the two ask rules.
 
-  The poster on also adds its rule to the rules file, so the rendered hash
+  The poster on adds its rule to the rules file, so the rendered hash
   changes; `--review-folder` shows the rule. Taking the name out of the list
   deletes the poster and its rule at the next install. The rule names the
   poster under the default Claude home folder, so with `--claude-home`
@@ -452,7 +452,7 @@ Run the dry run again if you like. It should print `Nothing to do.`
 
 **Removing rules an older pact added.** The install takes out, by itself, the
 56 ask rules it holds as retired: the 52 an older pact set, and the four
-broad rules ADR 0049 retired. Some older pacts also
+broad rules ADR 0049 retired. Some older pacts
 added rules it doesn't know: two review rules,
 `PowerShell(*install.mjs*--rev*)` and `Bash(*nstall.mjs*--rev*)`, and the rules that guarded the PowerShell
 installer the pact used before the Node install. Do this after the install
@@ -532,8 +532,8 @@ To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default; `false`
 turns it off), and `usage-pause-session`, the 5-hour session line, unset
-by default. The builder's Settings dialog holds both. A third, `session-stop-deny`, and a
-fourth, `auto-compact-window`, are described in the next two sections. The canvas edits the workflow, Settings
+by default. The builder's Settings dialog holds both. Three more, `session-stop-deny`,
+`auto-compact-window` and `checkpoint-stops`, have a section each. The canvas edits the workflow, Settings
 the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
 session line set. For a builder of your own, type `/scriptorium` in any
@@ -557,10 +557,10 @@ notice line names it, as `session-stop-deny on` or `off`.
   are both recorded and one of those eight, listed as `- permissions.deny`; an
   identical rule you wrote yourself stays. The cloud copy adds none of them.
 - **Who turns it on.** Turn it on if you run Brigade (the session-manager
-  mod), so that a session can't stop another session with a raw
-  `claude stop` and stops go through Brigade's own tool.
+  mod), so that stops go through Brigade's own tool, not a raw
+  `claude stop` from a session.
 - **Why a switch.** The pact can't tell whether Brigade is installed, and the
-  rules block a raw stop, kill, supervisor stop or respawn that a session runs. It is off unless you
+  rules block a raw stop, kill, supervisor stop or respawn. It is off unless you
   turn it on. The cleaner's `claude rm` rules are separate: they come with the
   cleaner.
 - **A speed bump, not a gate.** Each rule is a suffix only: the command, then
@@ -573,13 +573,21 @@ notice line names it, as `session-stop-deny on` or `off`.
 - **If Brigade's stop is refused.** Brigade's `stop_background_session` runs
   `claude stop` from the mod's own process, which permission rules don't see.
   A Brigade restart that runs `claude respawn` the same way is assumed the same; a refusal on a restart has the same way out.
-  That is assumed, not measured. If the rule does catch it, the symptom is a
+  If the rule does catch it, the symptom is a
   permission refusal on Brigade's stop. The way out: set `session-stop-deny`
   to `false`, then a dry run and an apply on your word.
 - **Rolling back.** Set it to `false` and apply first, then take the key out
   of the configuration. An older installer refuses a configuration that names
   it, even as `false`, and ignores `stopDeny`, so the eight rules would stay in
   `settings.json` looking like your own.
+
+## The checkpoints setting
+
+`checkpoint-stops` in `~/.claude/pact/config.json` is `true` or `false`, `true`
+when unset; the builder's Settings dialog shows it. `true` keeps the rules
+file's "Checkpoints wait" line, and `false` takes it out. With no `config.json`
+of your own, the pact's default configuration renders and sets `false`; a file
+of yours that leaves the key out waits. A project may set `true`, never `false`.
 
 ## The auto-compact window and its hooks
 
@@ -598,7 +606,7 @@ installer's own floor) and `node` on the PATH.
   and five hook entries in `settings.json` that call it with `node`: on
   `PostToolUse`, `UserPromptSubmit`, `Stop`, `PreCompact` and `SessionStart`
   (matcher `compact`). Your own hooks, and other tools' hooks, stay as they
-  are, in the order they were: a pact entry is a hook exactly like the one the
+  were: a pact entry is a hook exactly like the one the
   overlay carries (its window aside) that calls the installed script. It is
   updated in place, and only it: a command of yours in the same entry stays. A
   missing one is added after the event's other entries, and a second copy is
@@ -615,7 +623,7 @@ installer's own floor) and `node` on the PATH.
   reads. The `--autocompact` flag overrides the setting and the hook can't see
   it. The nudge line assumes the window you set: a model whose own context cap
   is lower, or an override the hook can't see, can compact a session before
-  the nudge comes (every model has a 1M window today).
+  the nudge comes.
 - **Off.** `0` removes the pact's hook entries (and an event or `hooks` they
   leave empty), the script, and an `autoCompactWindow` the pact set; a value
   you set by hand stays, with a note.
@@ -671,8 +679,9 @@ refuses. What an old enough pact refuses:
 - an edit to `tiers`, `sensitive`, `workflow`, `lenses`, `qualities` or
   `cost-limits`. A pact from before configuration edits existed refuses a
   file that has any, `moves` included, so empty the edit list for it;
-- `usage-pause-session`, and `"usage-pause": false` (set a number, or take the
-  key out);
+- `usage-pause-session`, `checkpoint-stops` (in a configuration, a project's
+  or a builder file's `settings`), and `"usage-pause": false` (set a number,
+  or take the key out);
 - an agent setting: a model other than `opus` or `sonnet`, an effort above
   `high`, or any setting for `scout`; a pact from before agent settings
   existed refuses an `agents` key at all, and the first to take one refuses a
@@ -727,7 +736,7 @@ backup and prunes none, so copy what you want to keep first, and delete
 (the threat model's class The pact gets loosened).
 
 Every Node install reads and writes the same install record, so an older one
-can follow a newer one. An older commit's install also adds back to your
+can follow a newer one. An older commit's install adds back to your
 `settings.json` any ask rules it held. When you return to the newer pact, its
 install takes out the 56 it knows. After returning from an older commit that added them,
 also repeat the removal by hand in step 5.
