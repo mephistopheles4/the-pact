@@ -55,6 +55,10 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   gets it. The install needs it too. The Linux run in a container is in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs
   `full` on Node 24.
+- **`changed` on the host is for when athanor can't run.** The hook refuses it
+  while athanor works, because host runs slow the owner's machine and CI's two
+  jobs cover both platforms; `fast` with the fallback covers building then.
+  athanor can't run `changed` itself ([Athanor](#athanor)).
 - **Test evidence is CI's two jobs passing on the reviewed head:** `gate` on
   Linux and `gate-windows` on Windows, each running `full`. CI runs
   only on a pull request or a push to `main`, so the session pushes its branch
@@ -138,14 +142,15 @@ A PreToolUse hook holds sessions to athanor. `.claude/settings.json` runs
 [`.claude/hooks/athanor-guard.mjs`](../../.claude/hooks/athanor-guard.mjs)
 before every Bash and PowerShell call, with a 15 s timeout.
 
-- **What it refuses:** a host run of `gate/tests/run.mjs` with the tier `fast`
-  or `full`, in the forms the docs use and a few wrappers more (`env -u
+- **What it refuses:** a host run of `gate/tests/run.mjs` with the tier `fast`,
+  `full` or `changed`, in the forms the docs use and a few wrappers more (`env -u
   NODE_OPTIONS`, the PowerShell form's `$env:NODE_OPTIONS = $null;`, `&`,
   `time`, `timeout`, a quoted or absolute path), past any comment, while
   `athanor --version` exits 0 and prints a version within 5 s. Its refusal is
   fixed text that names `athanor run fast`, `athanor run` and the fallback.
-- **What it passes, silently:** `changed`, which athanor can't run; `--list`,
-  which runs nothing; a run with `--host-fallback=<reason>`; every other
+- **What it passes, silently:** `--list`, which runs nothing; a `fast` or
+  `full` run with `--host-fallback=<reason>` (`changed` has no fallback: the
+  runner rejects the flag there); every other
   command; and everything while athanor is missing, a shim dangles, or the
   probe fails or hangs. A bare `node --test` is out of its reach, as it is
   out of the runner's cap, and so is a run wrapped in `bash -c`,
@@ -265,8 +270,8 @@ before every Bash and PowerShell call, with a 15 s timeout.
   fails loudly, with an error the owner sees and can recover from, needs no
   test of its own. A gate check's bad case is not covered by this: a refusal
   test catches the check itself vanishing, and a vanished check passes
-  everything in silence. The rule in ["What every change here needs"](changing-rules.md#what-every-change-here-needs), that
-  each check a change adds or tightens needs a bad case it is seen to catch,
+  everything in silence. The rule in ["Reviewing a change here"](../../AGENTS.md#reviewing-a-change-here) in
+  `AGENTS.md`, that each check a change adds or tightens needs a bad case it is seen to catch,
   stands unchanged.
 - **Minus-one.** A test whose caught broken versions another test already
   catches, on the same function and the same class of input, is a cut
