@@ -311,7 +311,7 @@ test('a worst-case body at the 65,536-character limit is scanned line by line', 
   for (const [name, text] of Object.entries(bodies)) {
     assert.equal([...text].length, LIMIT, name);
     const r = runBody({ 'body.md': text }, t);
-    // Any refusal here is the table check's, or the fence check's on the two bodies that end inside a fence (#401), so a size refusal can't stand in for it. The unit body also opens comments and folds it never closes (#524).
+    // Any refusal here is the table check's, or the fence check's on the two bodies that end inside a fence (#401), so a size refusal can't stand in for it.
     assert.ok(r.fails.every(f => f.startsWith('table/') || (f === 'fence/unclosed' && name.startsWith('one line of backticks'))), `${name}: ${r.out.slice(0, 300)}`);
     if (name === 'many short units') assert.ok(r.fails.length > 0, 'the units are refused');
   }

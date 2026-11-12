@@ -143,7 +143,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - Plans and reviews live on the issue. The PR's `body_file` opens with the
   template's checkbox line, word for word, then `Tests: +<added> −<cut>`. The
   poster renders the ask above it and adds the signature, `pr-<n>`, n the
-  issue it works on, from the post's `signer`.
+  issue it works on, from the post's `signer`. With no poster, end the body
+  with `Signed: pr-<n>` yourself.
 - An ADR, indexed, only when a decision reverses or constrains something; a
   dated log only for a change to the pact text or the gate. Each merges with
   the PR. More: [work records](docs/agents/work-records.md).

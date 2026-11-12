@@ -1250,7 +1250,9 @@ Ask each lens to report in this shape:
   newest first**, a link to each round comment named by its title line's stage,
   round, marks and head or revision, and a further read by its own title. Post
   it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
-  the signature line nor `Edited:` lines, which are added for you. It holds no Lens
+  the signature line nor `Edited:` lines, which are added for you; where no
+  tool adds them, write the signature line yourself as the body's last line.
+  It holds no Lens
   dispositions table, crossed findings, report, diagram, or heading or fold
   naming a lens, and never the words "owner decision": the edit checks would
   refuse every later edit. Find it among the comments your gh login wrote,
@@ -1321,7 +1323,9 @@ when no other row answers the sentence.
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
   change its scope), with your read-back in `intent`. My examples still become
-  claims with measures. With no record, quote it in each
+  claims with measures. Where no tool renders `quote`, `intent` and `signer`
+  for you, write the quoted ask, your read-back and a `Signed: <label>` line
+  yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
 - **The read-back.**
@@ -1571,7 +1575,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash ab4c0d6ef6c8ae08db5192de83bf05c94e95a767d5efdd31996acfc140fc4f87 'pact/review.md'
+check_hash 8f27f0fe8a58e3f00836bf02ad600253afbc59f12147fed5e9613c0758525ef3 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1601,7 +1605,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy b1b5677bd2c8"
+  echo "pact cloud copy d672bdb61c63"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

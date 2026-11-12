@@ -306,8 +306,11 @@ test('C9: a move citing a decision that is not the right one is refused edit/con
   }
   // A decision on another issue or pull request, cited for a pull request's edit; and the answers of another surface.
   const v = world(items(PENDING_ITEM));
-  assert.ok(refusedBy(edit(t, 'pull-request-edit', v, { intent: { ...CONFIRM, comment: 7001 } }), 'edit/confirm', 'intent.comment'));
-  assert.ok(refusedBy(edit(t, 'issue-comment-edit', v, { intent: { ...CONFIRM, comment: 7001 } }), 'edit/confirm', 'intent.comment'));
+  for (const surface of ['pull-request-edit', 'issue-comment-edit']) {
+    const r = edit(t, surface, v, { intent: { ...CONFIRM, comment: 7001 } });
+    assert.ok(refusedBy(r, 'edit/confirm', 'intent.comment'), surface);
+    assert.ok(!text(r).includes('planted-words-xyz'), surface);
+  }
   assert.equal(patches(v).length, 0);
   // The direction of the move: a correction must equal the decision's text and differ from the item's.
   for (const [what, intent, decision] of [
@@ -318,6 +321,7 @@ test('C9: a move citing a decision that is not the right one is refused edit/con
     const r = edit(t, 'issue-edit', w, { intent });
     assert.ok(refusedBy(r, 'edit/confirm', 'intent.comment'), `${what}: ${text(r)}`);
     assert.equal(patches(w).length, 0);
+    assert.ok(!text(r).includes('planted-words-xyz'), what);
   }
 });
 

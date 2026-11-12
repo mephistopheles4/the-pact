@@ -98,7 +98,9 @@ Ask each lens to report in this shape:
   newest first**, a link to each round comment named by its title line's stage,
   round, marks and head or revision, and a further read by its own title. Post
   it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
-  the signature line nor `Edited:` lines, which are added for you. It holds no Lens
+  the signature line nor `Edited:` lines, which are added for you; where no
+  tool adds them, write the signature line yourself as the body's last line.
+  It holds no Lens
   dispositions table, crossed findings, report, diagram, or heading or fold
   naming a lens, and never the words "owner decision": the edit checks would
   refuse every later edit. Find it among the comments your gh login wrote,
@@ -169,7 +171,9 @@ when no other row answers the sentence.
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
   change its scope), with your read-back in `intent`. My examples still become
-  claims with measures. With no record, quote it in each
+  claims with measures. Where no tool renders `quote`, `intent` and `signer`
+  for you, write the quoted ask, your read-back and a `Signed: <label>` line
+  yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
 - **The read-back.**
