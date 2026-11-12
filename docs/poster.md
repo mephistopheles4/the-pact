@@ -25,8 +25,16 @@ In this page, "a session" is the Claude Code session running the poster, and
 Each shell gets its own command form, as `review.md` gives them:
 
 - **A POSIX shell** (Git Bash, Linux, macOS):
-  `node ~/.claude/pact/tools/poster.mjs <surface> [options]`
-- **PowerShell:** `node "$HOME/.claude/pact/tools/poster.mjs" <surface> [options]`
+  `node ~/.claude/pact/tools/poster.mjs <surface> --post <file> [--dry-run]`
+- **PowerShell:**
+  `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file> [--dry-run]`
+
+Those two forms and `schema` (below) are the only ones. Any other option is
+refused `usage/unknown-option`, on every surface and on the edits too, with no
+window where an old form still works, and one fixed `NEXT:` line says the poster
+takes a JSON post now and points to `node poster.mjs schema` and the Posting
+section of `~/.claude/pact/review.md`. The line holds no argument the session
+gave.
 
 Run it from a scratch folder outside the repo: a new, empty folder the session
 made for its posts, never a repo, the temp folder's root or a folder other
@@ -43,13 +51,25 @@ sits behind Claude Code's workspace trust, as a repo's hooks do (threat
 model, The pact gets loosened).
 
 Every piece of free text comes from a file, so no prose reaches a command
-line. Write the body, any title and any edit's reason to files in the scratch
-folder. As
-`review.md` says, delete a file once its post ends, whatever the result
-(verified, failed, unverified, mismatch or unavailable), or once you drop it.
-Keep a file holding a lens report that the poster refused until the owner has
+line. A post is one JSON file, the post file, and its body is a second file
+the post names, `body_file`, in the post file's own folder. Write both to the
+scratch folder. A round comment runs to tens of thousands of characters, and a
+body written as one escaped JSON string is where a mistake would land, which
+is why the body is a file and only the short text (title, quote, read-back,
+reason) is inline. As `review.md` says, delete both files once their post
+ends, whatever the result (verified, failed, unverified, mismatch or
+unavailable), or once you drop it: they hold the owner's exact words. Keep a
+file holding a lens report that the poster refused until the owner has
 answered, then delete it. Before the session ends, delete every such file
 still there, whatever the owner's answer.
+
+`node poster.mjs schema` prints the schema as JSON Schema (draft 2020-12),
+sends nothing and exits 0. It is one frozen object in `poster.mjs`, so the
+install still copies one file. The validator is built from node built-ins and
+reads only the keywords the schema uses. The rest is code beside it, each with
+its own refusal: which fields a surface takes, the kind table, the quote and
+read-back rules, the edit rules and the body file. The schema's own description
+names them.
 
 **When a session dies, its files stay.** Nothing deletes a file the session
 didn't. A lens report kept after a refusal for hidden characters or a live
@@ -61,77 +81,172 @@ transcript; for a secret, rotating it is the fix, as for posted text.
 
 ## Surfaces
 
-| Surface | What it makes | Its own options |
+| Surface | What it makes | Its own post fields |
 | --- | --- | --- |
-| `issue` | An issue, with any labels | `--title-file`, and `--label` once per label |
-| `pull-request` | A pull request from a branch in the same repo | `--title-file`, `--head`, `--base`, and `--draft` |
-| `issue-comment` | A comment on an issue or a pull request's conversation | `--issue` |
-| `pull-request-review` | A review that only comments, never approving or asking for changes, with a body and no line comments | `--pr` |
-| `review-thread-reply` | A reply in an existing line-comment thread on a pull request | `--pr` and `--comment`, the id of the thread's review comment |
-| `issue-edit` | A new body for an issue | `--issue`, `--reason` and `--signed` |
-| `pull-request-edit` | A new body for a pull request | `--pr`, `--reason` and `--signed` |
-| `issue-comment-edit` | A new body for a comment on an issue or a pull request's conversation | `--issue`, `--comment`, the id of the comment edited, `--reason` and `--signed` |
-| `review-thread-reply-edit` | A new body for a reply in a line-comment thread | `--pr`, `--comment`, the id of the reply edited, `--reason` and `--signed` |
+| `issue` | An issue, with any labels | `kind`, `title`, `labels`, `quote`, `intent` |
+| `pull-request` | A pull request from a branch in the same repo | `kind`, `title`, `head`, `base`, `draft`, `quote`, `intent` |
+| `issue-comment` | A comment on an issue or a pull request's conversation | `kind`, `issue`, `answers` (a `decision` only), `quote`, `intent` |
+| `pull-request-review` | A review that only comments, never approving or asking for changes, with a body and no line comments | `kind`, `pr`, `quote`, `intent` |
+| `review-thread-reply` | A reply in an existing line-comment thread on a pull request | `kind`, `pr`, `comment` (the id of the thread's review comment), `quote`, `intent` |
+| `issue-edit` | A new body for an issue | `issue`, `reason`, `quote`, `intent` |
+| `pull-request-edit` | A new body for a pull request | `pr`, `reason`, `quote`, `intent` |
+| `issue-comment-edit` | A new body for a comment on an issue or a pull request's conversation | `issue`, `comment` (the id of the comment edited), `reason`, `quote`, `intent` |
+| `review-thread-reply-edit` | A new body for a reply in a line-comment thread | `pr`, `comment` (the id of the reply edited), `reason`, `quote`, `intent` |
 
-`issue` has no `--parent` option. A session that needs a sub-issue link asks
-the owner to set it on GitHub.
+Every surface also takes `repo`, `signer` and `body_file`, and may take `as`.
+`quote` and `intent` are required or refused by kind on a create post, and on
+an edit the item decides (Edits, below). The issue surface has no parent
+field. A session that needs a sub-issue link asks the owner to set it on
+GitHub.
 
-`--comment` names the comment being answered on `review-thread-reply`, and
-the comment being edited on the two comment edits.
+The documented post for each surface, as the poster's own `EXAMPLES` hold them
+as JSON objects. Each goes in its own post file, beside the `body_file` it
+names:
 
-The documented command line for each, as the poster's own `EXAMPLES` hold
-them:
-
-```text
-node poster.mjs issue --repo you/your-repo --title-file title.txt --body body.md --label bug
-node poster.mjs pull-request --repo you/your-repo --title-file title.txt --body body.md --head my-branch --base main --draft
-node poster.mjs issue-comment --repo you/your-repo --body comment.md --issue 12 --as you
-node poster.mjs pull-request-review --repo you/your-repo --body review.md --pr 34
-node poster.mjs review-thread-reply --repo you/your-repo --body reply.md --pr 34 --comment 5678
-node poster.mjs issue-edit --repo you/your-repo --body body.md --reason reason.txt --signed build-12 --issue 12
-node poster.mjs pull-request-edit --repo you/your-repo --body body.md --reason reason.txt --signed build-12 --pr 34
-node poster.mjs issue-comment-edit --repo you/your-repo --body comment.md --reason reason.txt --signed build-12 --issue 12 --comment 4321
-node poster.mjs review-thread-reply-edit --repo you/your-repo --body reply.md --reason reason.txt --signed build-12 --pr 34 --comment 8765
+```json
+{ "repo": "you/your-repo", "kind": "issue", "title": "A clear one-line title", "labels": ["bug"], "signer": "plan-12", "quote": [{ "text": "The words the owner said, exactly.", "source": "chat", "when": "2026-11-11" }], "intent": { "text": "What the session took those words to mean.", "status": "pending" }, "body_file": "body.md" }
+{ "repo": "you/your-repo", "kind": "pull-request", "title": "A clear one-line title", "head": "my-branch", "base": "main", "draft": true, "signer": "pr-12", "quote": [{ "text": "The words the owner said, exactly.", "source": "chat", "when": "2026-11-11" }], "intent": { "text": "What the session took those words to mean.", "status": "pending" }, "body_file": "body.md" }
+{ "repo": "you/your-repo", "kind": "note", "issue": 12, "as": "you", "signer": "build-12", "body_file": "comment.md" }
+{ "repo": "you/your-repo", "kind": "review", "pr": 34, "signer": "review-34", "body_file": "review.md" }
+{ "repo": "you/your-repo", "kind": "reply", "pr": 34, "comment": 5678, "signer": "build-34", "body_file": "reply.md" }
+{ "repo": "you/your-repo", "issue": 12, "signer": "build-12", "reason": "fixed a wrong link", "body_file": "body.md" }
+{ "repo": "you/your-repo", "pr": 34, "signer": "pr-34", "reason": "fixed a wrong link", "body_file": "body.md" }
+{ "repo": "you/your-repo", "issue": 12, "comment": 4321, "signer": "build-12", "reason": "fixed a wrong link", "body_file": "comment.md" }
+{ "repo": "you/your-repo", "pr": 34, "comment": 8765, "signer": "build-34", "reason": "fixed a wrong link", "body_file": "reply.md" }
 ```
+
+They are the nine examples, one per surface in the table's order; the
+`EXAMPLES` map holds the same objects, and a test runs each as a dry run.
+
+### Kinds
+
+A create post declares a `kind`, and a fixed table ties each kind to the
+surfaces it may go to and to its quote and read-back:
+
+| Kind | Surfaces | `quote` and `intent` | Rendered mark |
+| --- | --- | --- | --- |
+| `issue` | `issue` | required | none |
+| `pull-request` | `pull-request` | required | none |
+| `spec` | `issue-comment` | required | none |
+| `decision` | `issue-comment` | required | `Owner decision, from chat.` when every passage's source is `chat`, else `Relayed owner words, not a decision mark.` |
+| `status` | `issue-comment` | refused | none |
+| `lens-report` | `issue-comment`, `pull-request-review` | refused | none |
+| `note` | `issue-comment` | refused | none |
+| `review` | `pull-request-review` | refused | none |
+| `reply` | `review-thread-reply` | refused | none |
+
+A kind on a surface outside its row is refused `post/kind`, and `quote` or
+`intent` on a kind that refuses them is refused `post/field`. A `status` post
+needs `signer` to be `status-<issue>`, and a signer starting `status-` is
+refused on every other kind (`post/signer`). A `decision` with the chat mark is
+posted `confirmed` (`post/status` otherwise), since the owner's words in the
+session's chat are the decision; a relayed `decision` carries no mark, stays
+editable and may be `pending`.
+
+### The quote and the read-back
+
+`quote` is 1 to 5 passages, each the owner's words verbatim with a `source`
+and a `when` (a date, `YYYY-MM-DD`, no later than tomorrow in UTC):
+
+- `chat`: the owner typed it in this session's chat.
+- `relayed`: a lead session passed it on from its own chat; `via` names that
+  lead by its session label, and is refused on any other source.
+- `tracker`: it comes from an owner comment on the tracker; `comment` is that
+  comment's id, and is refused on any other source. The poster reads it
+  before it sends, refuses `post/tracker` unless the comment is in the same repo,
+  by the `gh` login, and holds the passage's text, with each `[left out]` span
+  matched by a plain substring search, and ends `unavailable` if the read fails.
+
+A `[left out]` span is how a passage drops words that trip the content scan or
+hold a personal detail. The text outside its spans must be 20 characters or
+more, no two spans touch, and a passage holds at most three. The session
+tells the owner in chat what it left out.
+
+`intent` is the session's read-back of the quote, with a `status`:
+`pending`, `confirmed` or `corrected`. A create post takes `pending`, or
+`confirmed` only when every passage's source is `chat`
+(`post/status` otherwise): a relay or a goal holder's reply never confirms a
+read-back. `corrected` and `intent.comment` are refused on a create post. The
+poster renders the read-back line itself:
+
+- `Read-back: not yet confirmed.` for `pending`
+- `Read-back: confirmed in this session's chat.` for a `confirmed` create post
+- `Read-back: confirmed in comment <id>.` and `Read-back: corrected in comment <id>.`
+  after an edit moves the status, with the struck original and the corrected
+  text for a correction
+
+`intent.text` and `intent.corrected` are refused `post/owned-line` when a line
+holds a heading, a fence opening, an HTML heading tag or one of the poster's
+owned lines (below), read as the page shows it. An unclosed HTML comment or fold in the body before the signature is refused `text/hidden-line`.
+
+### How the poster builds the body
+
+The poster owns these parts and renders them in this order, one blank line
+between each: for a `decision`, the mark line and the `Answers:` line when
+`answers` names the item (`issue <n>`, `pull request <n>` or `comment <id>`);
+`## The ask` with each passage as a block quote and a source line;
+`## Understood intent` with the read-back and its line; the `body_file` text;
+`Signed: <signer>`; on an edit, the reason lines. So this repo's PR checkbox line
+opens the `body_file`, not the whole PR body.
+
+The **owned lines** are the lines the poster writes: a `Signed:` or `Posted by`
+signature line, a reason line, a decision mark, a line starting `Read-back:`,
+`## The ask`, `## Understood intent`, the three source-line openings,
+`Corrected read-back:` and a line starting `Answers:`. A `body_file` that holds
+one outside a fence is refused `post/owned-line`. The prose check skips the
+quote's lines, since they are the owner's words verbatim, so a hard-wrapped
+quote posts while the same wrap in the `body_file` is refused `text/hard-wrap`.
 
 ### Edits
 
 An edit replaces the body of something the poster's login posted, and nothing
-else: no title, label or state. A review's body can't be edited. Start the new
-body from the item's current body, read with `gh api repos/<owner/name>/<path>
---jq .body`, where the path is `issues/<n>`, `pulls/<n>`,
-`issues/comments/<id>` or `pulls/comments/<id>`, and keep its signature line
-and every `Edited:` line as they are, except on a status edit (below). The poster sends that body with one
-reason line after it, as its own paragraph:
+else: no title, label or state. A review's body can't be edited. Read the
+item's current body with `gh api repos/<owner>/<name>/<path> --jq .body`,
+where the path is `issues/<n>`, `pulls/<n>`, `issues/comments/<id>` or
+`pulls/comments/<id>`, and write the `body_file` as the session's part of it:
+the text between the poster's own parts, with no signature line and no
+`Edited:` line, since the poster adds both. The post names the item (`issue`,
+`pr`, `comment`), the item's own `signer` and a `reason`, and the poster
+renders the new body as it renders any other (How the poster builds the body),
+ending with the item's reason lines carried forward in order and one new line,
+as its own paragraph:
 
 ```text
-Edited: <reason> (<label>)
+Edited: <reason> (<signer>)
 ```
 
-The reason is the `--reason` file's one line; the label is `--signed`. The
-line breaks it adds follow the body's: CRLF when the body holds one, else LF.
-A reason names the kind of fix ("fixed a wrong link"), never the text taken
-out.
+The line breaks it adds follow the body's: CRLF when the body holds one, else
+LF. A reason names the kind of fix ("fixed a wrong link"), never the text
+taken out, and is one line of at most 200 characters.
+
+An edit runs in two stages. Before any `gh` call it runs the shape, kind and
+owned-line checks and the per-field scans. After the login, the `as` check and
+the read of the item, and before it sends, it runs the item's checks, the
+reason carry, the content scan of the whole rendered body and the body bound.
+So a dry run of an edit reads nothing and prints one fixed line saying which
+checks did not run (`edit/ask`, `edit/status`, `edit/confirm`, `post/tracker`,
+the reason carry and the content scan of the full body): an edit isn't checked
+in full until it is sent.
 
 Before it sends, the poster reads the item and refuses the edit, with nothing
 sent, when:
 
-- **another account wrote it** (`edit/author`), or it isn't where the options
-  say (`edit/target`): a comment on another issue or pull request, an issue
+- **another account wrote it** (`edit/author`), or it isn't where the post
+  says (`edit/target`): a comment on another issue or pull request, an issue
   number that is a pull request's, or a thread's first comment, which the
   poster never makes. An item another account wrote is read no further, so
   its text never reaches the slower checks below (#394);
-- **it isn't signed by `--signed`** (`edit/unsigned`), on the item or on the
-  new body. A signature line is a whole line, outside a fence, a quote and a
-  closed HTML comment, that is exactly `Signed: <label>` or `Posted by <label>.`; a
+- **it isn't signed by `signer`** (`edit/unsigned`), on the item or on the
+  rendered body. A signature line is a whole line, outside a fence, a quote
+  and a closed HTML comment, that is exactly `Signed: <label>` or `Posted by <label>.`; a
   body that also holds another label's signature line is refused too. A bare
   label is never a signature, so a post signed only with its label, or a pull
-  request body with no signature line, can't be edited. Sign a post you may
-  need to edit with a `Signed: <label>` line, and a pull request body
-  `Signed: pr-<n>`, n the issue it works on, or with no issue the session's
-  label. For a body already posted
+  request body with no signature line, can't be edited. A body the poster
+  posts always carries its `signer` as the `Signed:` line, and a pull request
+  body is signed `pr-<n>`, n the issue it works on, or with no issue the
+  session's label. For a body already posted
   unsigned, the owner types the fix on GitHub, from a changed line the
-  session scanned with `issue-comment --dry-run` (`claude/review.md`, The
+  session scanned with an `issue-comment` post of kind `note` and `--dry-run` (`claude/review.md`, The
   poster);
 - **it is a review record** (`edit/record`, best effort), on the item or the
   new body: a heading or a fold's summary that names a word ending in
@@ -146,68 +261,134 @@ sent, when:
   the text as written and on each normalised copy the content scan reads, each
   also with its links and marks folded, with a fixed set of look-alike letters
   folded first.
-  Text that only mentions the words can't be edited either;
+  Text that only mentions the words can't be edited either, and that includes a
+  quote whose own words hold them: a post that quotes the words "owner
+  decision" is uneditable;
 - **it holds what the content scan refuses** (`edit/leak`): a hidden
   character or a live environment secret's value. An edit can't remove it, since GitHub's
   history keeps every version, so tell the owner instead;
 - **the new body drops, changes, adds or hides a reason line**
-  (`edit/reasons`): the body must end in exactly the item's reason lines, in
-  order. As a best effort, no other line may read as one, and nothing above
-  them may open an HTML comment or a fold it doesn't close. Reason lines pile
-  up, as the record of each change. A **status edit**, `issue-comment-edit`
-  with `--signed status-<n>` and n the `--issue` value, is the one exception
-  (#503): its body must hold no line that reads as a reason line, the item's
-  are not compared, nothing above the new line may open a comment or fold it
-  doesn't close, and the poster adds the newest, so the comment ends in
+  (`edit/reasons`): the rendered body must end in exactly the item's reason
+  lines, in order, then the new line. A `body_file` never holds a reason line
+  (`post/owned-line`), nothing above them may open an HTML comment or a fold
+  it doesn't close, and reason lines pile up, as the record of each change. A
+  **status edit**, `issue-comment-edit` with `signer` `status-<n>` and n the
+  `issue` value, is the one exception (#503): the item's reason lines are not
+  compared or carried, and the poster adds the newest, so the comment ends in
   exactly one.
 
 The author, target, signature, leak and append-only reason checks are the
 edit's controls; on a status edit the append-only check is removed, accepted
-by the owner (decision 180, ADR 0144), and the no-reason-line check that
-stands in its place is a best-effort reading, like the "in plain sight" part. The record and decision checks, and the reason lines' "in
-plain sight" part, are a best-effort backstop: they guess at how GitHub
-renders a body, and a form their readings don't see passes (What the scans
-don't cover).
+by the owner (decision 180, ADR 0144). The record and decision checks, and the
+reason lines' "in plain sight" part, are a best-effort backstop: they guess at
+how GitHub renders a body, and a form their readings don't see passes (What the
+scans don't cover).
 
-The scans that read a post read the edit too: the reason, and the body with
-its reason line.
+The scans that read a post read the edit too: the reason, and the whole
+rendered body with its reason line.
 
 The routine use of `issue-comment-edit` is the review procedure's status
 comment, signed `status-<n>` and edited after each round (#412); it holds none
 of what `edit/record` and `edit/decision` refuse, and as a status edit it ends
 in its newest reason line only (#503).
 
-Since #394 the edit checks read more forms of the text, so an edit of a post
-that passed before can now be refused. For `edit/record` or `edit/decision`,
-reword, or post a new comment. A new `edit/leak` means the item may already
-show a hidden character or a secret's value on the page, and its history keeps it: tell the
-owner, and never edit around it.
+#### Ask items and the read-back
+
+An item is an **ask item** when its body starts with `## The ask` and a blank
+line (after the mark line and one `Answers:` line, for a `decision`), a
+`## Understood intent` line follows, and the first line after it that reads as
+a read-back line comes before the body part. An edit of an ask item carries
+the `quote` and `intent` the item holds, and the poster checks that they match
+the item's own, byte for byte (`edit/ask`): a posted quote can't be changed
+through the poster. A session rebuilds `quote` and `intent` from the posted
+item, never from a kept file. A `status` edit and an item that isn't an ask
+item carry neither, and a `quote` or `intent` on them is refused
+`post/field`.
+
+**An older ask-shaped item is not an ask item.** A body written before the
+switch that opens `## The ask` but has no read-back line, such as #524's own,
+fails the strict test, so an edit replaces it whole and its ask can't be
+carried over. Don't edit one through the poster: post a comment, or ask the
+owner to edit it by hand.
+
+An edit may move an ask item's read-back from `pending` to `confirmed` or to
+`corrected`, and no other move (`edit/status`). Such a **read-back edit** gives
+`intent.comment`, the id of a `decision` comment that heard the owner, and the
+poster reads that comment before it sends and refuses `edit/confirm` unless it
+meets all of these:
+
+- its author is the `gh` login, and it is on the item's own issue or pull
+  request, in the same repo;
+- it is an ask item whose first line is `Owner decision, from chat.` and whose
+  read-back line is `Read-back: confirmed in this session's chat.`;
+- its `Answers:` line names the edited item (`issue <n>`, `pull request <n>`
+  or `comment <id>`);
+- on a move to `confirmed`, its intent text equals the item's; on a move to
+  `corrected`, its intent text equals the edit's `intent.corrected` and
+  differs from the item's;
+- it has exactly one signature label.
+
+A comment by another author is read no further, no text from the cited comment
+reaches the output, and a failed or unusable read ends `unavailable` with
+nothing sent. The poster appends `, heard by <label>` to the reason, taking
+the label from the cited decision's signature, after the reason's own bound
+is checked. A later correction of a corrected item is a new `decision`
+comment: the item keeps its first correction, and the work follows the newest
+decision.
+
+The session that heard the owner first posts the `decision` (source `chat`,
+posted `confirmed`, `answers` naming the item), then edits the original with
+that comment's id.
 
 A repo's own rule can still say a text is never edited. In this repo, a
 probe's expected result and its run records stay as posted after a run
 (`docs/agents/changing-rules.md`, A probe the owner asks for); a correction
 there is a new comment.
 
-## Options
+## The post fields
 
-Every surface takes `--repo` and `--body`, and may take `--as` and
-`--dry-run`. An option's value is checked against a pattern. Of the options,
-only `--label`'s values are also scanned, with the title and the body.
+Every surface takes one JSON post file, `--post <file>`, a regular file, not a
+link, at most 256 KiB, valid UTF-8 with no byte-order mark, not empty,
+parsed with `JSON.parse`. A parse failure, or a top level that isn't an object,
+is refused `post/json`, and the parser's message is never printed. The poster
+reads own keys only, so `__proto__`, `constructor` and `toString` are unknown
+fields. A field's value is checked against its type and pattern. The text
+fields are also scanned, each as its own field, so a refusal names it:
+`title`, each label, each passage's `text`, `intent.text` and
+`intent.corrected`.
 
-| Option | Value | Checked by |
+| Field | Value | Checked by |
 | --- | --- | --- |
-| `--repo` | `owner/name`; the owner must be the `gh` login, by name and by what GitHub returns for the repo | `input/repo`, `owner/repo`, `owner/github` |
-| `--body` | A file: a regular file, not a link, at most 256 KiB, valid UTF-8 with no byte-order mark, not empty; the body at most 65,536 characters | the `file/` rules, `text/body-length` |
-| `--as` | A login the `gh` login must equal; needed when `GH_TOKEN` or `GITHUB_TOKEN` is set | `input/login`, `as/differs`, `as/missing` |
-| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. The content scan, the table check, the fence check and the wrap and link checks all run; `gh` doesn't, so the login and owner checks don't, and nor does the `--as` check: a dry run can pass where the real run is refused | none |
-| `--title-file` | A file read as `--body` is; one line, which may end with one line break, at most 256 characters | the `file/` rules, `text/title-lines`, `text/title-length` |
-| `--label` | A label name: letters, digits, spaces and `:._-`, at most 50 characters; once per label. A label the repo doesn't have is created by GitHub, and stays | `input/label` |
-| `--head` | A branch, or `owner:branch` with the repo's own owner | `input/branch`, `owner/head` |
-| `--base` | A branch | `input/branch` |
-| `--draft` | No value; opens the pull request as a draft | none |
-| `--issue`, `--pr`, `--comment` | A positive whole number | `input/number` |
-| `--reason` | An edit's reason: a file read as `--title-file` is; one line, which may end with one line break, at most 200 characters | the `file/` rules, `text/reason-lines`, `text/reason-length` |
-| `--signed` | The editing session's label: a lowercase letter or digit, then lowercase letters, digits and hyphens, at most 50 characters | `input/signed` |
+| `repo` | `owner/name`; the owner must be the `gh` login, by name and by what GitHub returns for the repo | `post/pattern`, `owner/repo`, `owner/github` |
+| `as` | A login the `gh` login must equal; needed when `GH_TOKEN` or `GITHUB_TOKEN` is set | `post/pattern`, `as/differs`, `as/missing` |
+| `kind` | One of the nine kinds (Kinds, above); not on an edit | `post/pattern`, `post/kind`, `post/field` |
+| `title` | One line of 1 to 120 characters, no space at either end | `post/length`, `post/pattern` |
+| `labels` | 0 to 10 label names: letters, digits, spaces and `:._-`, at most 50 characters. A label the repo doesn't have is created by GitHub, and stays | `post/pattern` |
+| `answers` | `issue <n>`, `pull request <n>` or `comment <id>`; a `decision` only | `post/pattern`, `post/field` |
+| `head`, `base` | A branch; `head` may be `owner:branch` with the repo's own owner | `post/pattern`, `owner/head` |
+| `draft` | A boolean; opens the pull request as a draft | `post/type` |
+| `issue`, `pr`, `comment` | A positive whole number, a JSON number | `post/type`, `post/pattern` |
+| `signer` | The session's label: a lowercase letter or digit, then lowercase letters, digits and hyphens, at most 50 characters | `post/pattern`, `post/signer`, `edit/unsigned` |
+| `quote` | 1 to 5 passages (The quote and the read-back) | `post/missing`, `post/when`, `post/tracker`, `post/field` |
+| `intent` | The read-back: `text` of 1 to 2,000 characters, a `status`, and on an edit `comment` and `corrected` | `post/status`, `post/owned-line`, `text/hidden-line` |
+| `body_file` | A bare file name in the post file's own folder (no slash, backslash or colon, not `.` or `..`), read like the post file; its text at most 65,536 characters, and the whole rendered body too | the `file/` rules, `post/pattern`, `post/owned-line`, `text/body-length` |
+| `reason` | An edit's reason: one line of at most 200 characters | `post/length`, `post/pattern` |
+
+`--dry-run` takes no value. It prints the `gh` arguments and the request with
+each text replaced by its size, and sends nothing. The post checks, the content
+scan, the table check, the fence check and the wrap and link checks all run;
+`gh` doesn't, so the login and owner checks don't, nor does the `as` check,
+nor the tracker read: a create post's dry run prints one fixed line saying so
+(`post/tracker did not run`). A dry run can pass where the real run is refused.
+
+A wrong type is refused `post/type`, a missing required field `post/missing`, a
+pattern or enum miss `post/pattern`, an over-length value `post/length`, and a
+field no surface knows `post/unknown`. A field the schema knows and the
+surface or kind refuses is `post/field`. Each refusal's `where` names the
+field by its JSON path, such as `quote[1].when`, never its value; an unknown
+key is named by its path only when it can't carry text, else by position.
+Two duplicate keys in a post file keep the last, which the poster accepts: the
+scan and the read-back both read only what is rendered.
 
 ## Results and exit codes
 
@@ -225,20 +406,20 @@ page and login are the ones the poster checked before it sent, never text from
 
 | Exit | Last line | What it means | What a session does |
 | --- | --- | --- | --- |
-| 0 | `RESULT: verified <surface> <url> as <login>` | What landed is what was sent | Deletes the body file |
+| 0 | `RESULT: verified <surface> <url> as <login>` | What landed is what was sent | Deletes the post file and the body file |
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
 | 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the body file; tells the owner which field |
 | 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
 | 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for hidden characters or a live environment secret's value stays local, unedited, and the owner is told where it is, in chat; a table, wrap, link or fence refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
-| 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
-| 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as `review.md` sayes file says. `gh auth status` and the network are what to check |
+| 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the post file and the body file; checks whether it landed, as below; never posts again on its own |
+| 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the post file and the body file; stops and tells the owner, as `review.md` says. `gh auth status` and the network are what to check |
 
 An edit ends the same ways, with its own words. Its link is the item's,
 known before it sends. Its exit 1 `NEXT:` line says the edit landed and must
 never be sent again. Its exit 3 line names the item and says to look there for
 the reason line. A failed or unusable read of the item, a 404 included,
 is exit 4, with nothing sent. A dry run of an edit doesn't read the item, so
-the item's checks don't run.
+the item's checks don't run, and it says so (Edits).
 
 A fault inside the poster ends as exit 4 before it sends, exit 3 while it
 sends, and exit 1 after. A label GitHub gives back in another capitalisation
@@ -270,40 +451,47 @@ nothing sent.
 | --- | --- |
 | `usage/surface` | The first argument is missing or no surface |
 | `usage/argument` | A word that is no option |
-| `usage/unknown-option` | An option the surface doesn't take |
-| `usage/repeated` | A single-value option given twice |
-| `usage/missing-value` | An option with no value after it |
-| `usage/missing-option` | An option the surface needs is missing |
-| `input/repo` | `--repo` isn't `owner/name` |
-| `input/login` | `--as` isn't a GitHub login |
-| `input/number` | `--issue`, `--pr` or `--comment` isn't a positive whole number |
-| `input/branch` | `--head` or `--base` isn't a branch name |
-| `input/label` | A `--label` isn't a label name |
-| `owner/head` | `--head` names another owner than the repo's |
+| `usage/unknown-option` | Any option but `--post <file>` and `--dry-run`, or any option after `schema`; one fixed `NEXT:` line follows |
+| `usage/repeated` | `--post` or `--dry-run` given twice |
+| `usage/missing-value` | `--post` with no file after it |
+| `usage/missing-option` | `--post` is missing |
+| `owner/head` | `head` names another owner than the repo's |
 | `owner/repo` | The repo's owner, by name, isn't the `gh` login |
 | `owner/github` | The owner GitHub returns for the repo isn't the `gh` login: the name was renamed or moved |
-| `as/missing` | A token is set in the environment and `--as` isn't given |
-| `as/differs` | `--as` isn't the `gh` login |
+| `as/missing` | A token is set in the environment and `as` isn't given |
+| `as/differs` | `as` isn't the `gh` login |
+| `post/json` | The post file isn't JSON, or its top level isn't an object; `where` is always `post file` |
+| `post/unknown` | A field no surface knows, `__proto__`, `constructor` and `toString` included |
+| `post/field` | A field the schema knows but this surface or kind refuses (`kind` on an edit, `reason` on a create, `labels` on a pull request, `answers` off a `decision`, `quote` or `intent` where the kind or item refuses them, `quote[n].comment` off a `tracker` passage, `via` off a `relayed` one) |
+| `post/missing` | A required field is missing |
+| `post/type` | A field has the wrong type |
+| `post/pattern` | A value misses its pattern or enum, such as a `body_file` of `..`, `a/b`, `a\b`, `c:x` or a link name |
+| `post/length` | A value is over its bound or under its minimum |
+| `post/kind` | A kind on a surface outside its row of the kind table |
+| `post/signer` | A `status` post whose `signer` isn't `status-<issue>`, or another kind signed `status-<n>` |
+| `post/status` | A create post of `corrected`, one of `confirmed` with a `relayed` or `tracker` passage, or a chat-marked `decision` posted `pending` |
+| `post/when` | A passage's `when` isn't a real date, carries a time of day, or is after tomorrow in UTC |
+| `post/tracker` | A `tracker` passage whose comment is another author's, in another repo, doesn't hold the passage's text, or whose text outside its `[left out]` spans is under 20 characters, with touching spans or more than three; `where` is `quote[n].comment` or `quote[n].text`, and none of the comment's text is printed |
+| `post/owned-line` | A `body_file` outside a fence, or `intent.text` or `intent.corrected`, holds a line the poster owns, or the intent fields hold a heading, a fence opening or an HTML heading |
+| `text/hidden-line` | The rendered body, before its `Signed:` line, opens an HTML comment or a fold it doesn't close |
 | `file/unreadable` | The file can't be read |
 | `file/link` | The file is a link |
 | `file/not-regular` | The file isn't a regular file, or it was replaced by another file while it was read |
 | `file/size` | The file is over 256 KiB |
 | `file/utf8` | The file isn't valid UTF-8 |
 | `file/bom` | The file starts with a byte-order mark |
-| `file/empty` | The file, or the title, is empty |
-| `text/body-length` | The body is over 65,536 characters |
-| `text/title-lines` | The title runs over more than one line |
-| `text/title-length` | The title is over 256 characters |
-| `input/signed` | `--signed` isn't a session label |
-| `text/reason-lines` | The reason runs over more than one line |
-| `text/reason-length` | The reason is over 200 characters |
+| `file/empty` | The post file or the body file is empty |
+| `text/body-length` | The `body_file` text, or the whole rendered body, is over 65,536 characters |
 | `edit/author` | The item's author isn't the `gh` login |
-| `edit/target` | The item isn't where the options say, or is a pull request read as an issue, or a thread's first comment |
-| `edit/unsigned` | The item or the new body has no signature line for `--signed`, or has one for another label |
+| `edit/target` | The item isn't where the post says, or is a pull request read as an issue, or a thread's first comment |
+| `edit/unsigned` | The item or the rendered body has no signature line for `signer`, or has one for another label |
 | `edit/record` | The item or the new body is a review record |
 | `edit/decision` | The item or the new body holds the words "owner decision" |
 | `edit/leak` | The item holds what the content scan refuses: a hidden character or a live environment secret's value |
-| `edit/reasons` | The new body doesn't end in exactly the item's reason lines, holds another line that reads as one, or opens a comment or fold above them it doesn't close; on a status edit, it holds any line that reads as a reason line, or opens a comment or fold it doesn't close |
+| `edit/reasons` | The rendered body doesn't end in exactly the item's reason lines and the new one, or opens a comment or fold above them it doesn't close; on a status edit, it holds more than the newest |
+| `edit/ask` | An edit of an ask item whose `quote` or `intent` differs from the item's own: a passage's text, source, comment or `when`, or the read-back text |
+| `edit/status` | A read-back move other than staying, or `pending` to `confirmed` or `corrected`; or a move with no `intent.comment`; or a kept status whose comment or corrected text differs |
+| `edit/confirm` | The cited decision isn't the `gh` login's, isn't on the item's own issue or pull request, isn't a chat-marked confirmed ask item, doesn't name the item in `Answers:`, has an intent text the move doesn't match, or doesn't hold exactly one signature label; `where` is `intent.comment`, and none of the comment's text is printed |
 | `secret/env` | The value of a secret environment variable; the line names the variable, never the value |
 | `text/hidden` | A hidden character |
 | `table/header` | A Lens dispositions table's header row isn't exactly `\| Finding \| Lens \| Disposition \| Rerun \|` |
@@ -318,9 +506,10 @@ nothing sent.
 
 ## What the scans cover
 
-The content scan reads the title, each label and the body as written and as
-normalised copies, each meant to show the text as a reader sees it on
-GitHub's page (#394, ADR 0122):
+The content scan reads the title, each label, each passage's `text`,
+`intent.text` and `intent.corrected`, each as its own field so a refusal names
+it, and the whole rendered body, as written and as normalised copies, each
+meant to show the text as a reader sees it on GitHub's page (#394, ADR 0122):
 
 - **The floor,** two copies built as before #394, one with HTML comments
   dropped and one with their contents kept: invisible characters, markdown
@@ -420,7 +609,27 @@ kept by hand from the poster's source; no test holds them.
   a look-alike letter from another script, a renderer other than GitHub's
   comments, or a raw-HTML or markdown structure the page copy reads
   differently from GitHub's page.
-- **Option values other than `--label`,** which are checked against patterns, not scanned.
+- **A quote's provenance.** The fields are unverified (threat model, Who
+  counts as you): `source` is the session's own word, so the rule that only a
+  `chat` source can confirm a read-back catches a mistaken relay, not a session
+  set on getting past it, and a `tracker` passage is checked only against the
+  comment it cites, which the poster can't tell from a session's own post under
+  the same login. A `[left out]` span is the session's word that it left words
+  out, and nothing checks that. A post that quotes the owner is a record of what
+  the session said the owner said.
+- **A misquote or a leaked span, once posted.** A posted quote can't be changed
+  through the poster: an edit of an ask item must keep its quote and read-back
+  as they are. The owner edits or deletes it by hand, GitHub's history keeps the
+  old text, and a later session's edit carries the quote as the item now holds
+  it.
+- **An older ask-shaped item.** One that opens `## The ask` but has no read-back
+  line isn't an ask item, so the poster can't carry its ask through an edit
+  (Edits).
+- **Windows file names.** A `body_file` name that ends in a dot or names a
+  device is not refused (noted as a hardening candidate, #524).
+- **Fields the schema doesn't check beyond their pattern,** which are checked
+  against patterns and bounds, not scanned: `repo`, `as`, `signer`, `head`,
+  `base` and `via`.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
   leading `|`, and any table inside a fence.
@@ -448,7 +657,7 @@ kept by hand from the poster's source; no test holds them.
   Who counts as you); on a status comment, which keeps only its newest reason
   line, GitHub's history alone shows the earlier ones, and the round comments
   stay the record. A pull request body signed `pr-<n>` shares its label with
-  every pull request on issue n, so a wrong `--pr` among them passes too.
+  every pull request on issue n, so a wrong `pr` among them passes too.
 - **The best-effort checks' gaps.** The record, decision and "in plain sight"
   checks read the source text, not GitHub's rendered page, so a form their
   readings don't see passes: a look-alike letter outside the fixed set; a
