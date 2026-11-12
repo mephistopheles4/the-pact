@@ -174,7 +174,8 @@ tells the owner in chat what it left out.
 `pending`, `confirmed` or `corrected`. A create post takes `pending`, or
 `confirmed` only when every passage's source is `chat`
 (`post/status` otherwise): a relay or a goal holder's reply never confirms a
-read-back. Whether work waits on a pending one is `review.md`'s rule. `corrected` and `intent.comment` are refused on a create post. The
+read-back. No work waits on a pending one (`review.md`). `corrected` and
+`intent.comment` are refused on a create post. The
 poster renders the read-back line itself:
 
 - `Read-back: not yet confirmed.` for `pending`

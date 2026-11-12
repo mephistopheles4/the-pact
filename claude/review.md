@@ -255,16 +255,12 @@ when no other row answers the sentence.
   why goes to me in chat; such a pick that would leave a security path open is
   a hard stop. With no record, log in chat and in the result.
 - **The read-back.**
-  - Where neither your rules file nor this project's has a "Checkpoints wait"
-    line, checkpoints are events: a pending read-back blocks no seam, with or
-    without a standing goal. Post it `pending`, log the intent you went ahead
-    on, within the Checkpoint log's limits, and go on; I confirm or correct it
-    later.
-  - When your rules file or this project's says checkpoints wait, work waits
-    on a pending read-back at each seam (an issue's before the work leaves
-    Plan, a spec's before its proceed, a pull request's before its merge), and
-    under a standing goal it still waits for me, since a goal holder's reply
-    never confirms.
+  - A pending read-back makes no work wait, at any seam, whether or not
+    checkpoints wait and with or without a standing goal. Post it `pending`,
+    log the intent you went ahead on, within the Checkpoint log's limits, and
+    go on; I confirm or correct it later. A correction sends the work back to
+    the stage it touches. Once the work is merged, published or installed, the
+    correction is a new change, and you tell me what can't be undone.
   - Before you post a kind with a quote, read back to me in chat the passages
     you will quote and your intent, and post `confirmed` only on my yes in that
     chat, never on a checkpoint pick, and otherwise `pending` (a `decision`
@@ -277,7 +273,9 @@ when no other row answers the sentence.
     `confirmed` or `corrected` with that comment's id; a lead relaying my
     answer has the session post a `decision` with source `relayed`, which
     carries no mark and leaves the original pending until a session that heard
-    me confirms it.
+    me confirms it; an item left pending after a relayed answer stays pending
+    and holds up no work, and the relayed `decision` records only what was
+    relayed.
   - When my words trip the content scan, hold a personal detail or, in a
     public record, the why of a security ask, leave that span out of the
     passage as `[left out]` and tell me in chat what you left out.

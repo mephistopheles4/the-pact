@@ -597,7 +597,7 @@ test('bad case: the session limit takes no false', t => {
 const CHECKPOINTS_WAIT = [
   '- **Checkpoints wait.** Each checkpoint waits for my word in chat, except under',
   '  a standing goal, and under a free hand for a lens offer, the sensitive route',
-  '  or an intent or design question; a pending read-back waits even then.',
+  '  or an intent or design question.',
   '',
 ].join('\n');
 
@@ -611,7 +611,8 @@ test('checkpoint-stops unset: the render holds the "Checkpoints wait" line, with
   const text = withOther.bytes.toString('utf8');
   assert.ok(text.includes(CHECKPOINTS_WAIT), 'a configuration that leaves the setting out keeps the line');
   const flat = text.replace(/\s+/g, ' ');
-  for (const clause of ['except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question', 'a pending read-back waits even then']) assert.ok(flat.includes(clause), clause);
+  for (const clause of ['except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question.']) assert.ok(flat.includes(clause), clause);
+  assert.ok(!flat.includes('a pending read-back waits'), 'the render holds no read-back wait');
   // The no-configuration render holds it too.
   const none = render(t, tempDir(t, 'pact-render-nohome-'));
   assert.ok(none.bytes.toString('utf8').includes(CHECKPOINTS_WAIT));
@@ -650,7 +651,7 @@ test('bad case: checkpoint-stops takes no value but true or false', t => {
 
 // #554 C2: render
 test('bad case: a checkpoint-stops part that no longer matches its template at the default refuses', t => {
-  const src = read(SOURCE).replace('a pending read-back waits even then.', 'a pending read-back waits no more.');
+  const src = read(SOURCE).replace('or an intent or design question.', 'or an intent or design question, or a lens offer.');
   refusedWith(render(t, homeWith(t, stopsBytes(false)), sourceFile(t, src)), 'render', /checkpoint-stops: the template at its default no longer matches the source/);
 });
 

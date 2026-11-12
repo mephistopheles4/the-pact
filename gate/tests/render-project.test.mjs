@@ -117,7 +117,7 @@ test('bad case: session-stop-deny in a project configuration refuses, naming the
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": 1}}\n')), 'project-value', /session-stop-deny must be true or false/);
 });
 
-const STOPS_LINE = "- **Checkpoints wait.** In this project, each checkpoint waits for my word in chat, except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question; a pending read-back waits even then.";
+const STOPS_LINE = "- **Checkpoints wait.** In this project, each checkpoint waits for my word in chat, except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question.";
 const stopsProject = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`;
 const stopsUser = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`;
 
@@ -128,6 +128,7 @@ for (const [label, user] of [['no user file', undefined], ['a user file that lea
     const r = render(t, userHome(t, user), project(t, pbytes));
     assert.equal(r.code, 0, r.out);
     assert.equal(r.bytes.toString('utf8'), expectedFile(60).replace(/\n$/, `\n${STOPS_LINE}\n`));
+    assert.ok(!r.bytes.toString('utf8').replace(/\s+/g, ' ').includes('a pending read-back waits'), 'the render holds no read-back wait');
     assert.deepEqual(r.stdout.split('\n').filter(l => l.startsWith('VALUE ')), ['VALUE usage-pause 60', 'VALUE checkpoint-stops on']);
     assert.match(r.stdout, new RegExp(`^PROJECT ${sha256(pbytes)}$`, 'm'), r.out);
     assert.deepEqual(readdirSync(r.dir), [OUTPUT]);
