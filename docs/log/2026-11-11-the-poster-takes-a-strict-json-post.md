@@ -27,3 +27,5 @@ The ask, in short: the pact is supposed to quote the owner on everything they sa
 - T1 Test round 1: https://github.com/mephistopheles4/the-pact/pull/529#issuecomment-6812266920
 - T1 Test round 1, the security reports (continued): https://github.com/mephistopheles4/the-pact/pull/529#issuecomment-6812267523
 - T2 Test round 1: https://github.com/mephistopheles4/the-pact/pull/532#issuecomment-6812772683
+- T3 Test round 1: https://github.com/mephistopheles4/the-pact/issues/537#issuecomment-6813279152
+- T3 Test round 2 (final): https://github.com/mephistopheles4/the-pact/issues/537#issuecomment-6813279732

@@ -50,7 +50,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
+import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
@@ -266,6 +266,7 @@ function pactText(root, src, renderSrc) {
     commands: commands.map(f => ({ name: f.slice(0, -3), text: read(`claude/commands/${f}`) })),
     settings: read('claude/settings.overlay.json'),
     cleanerDeny: CLEANER_DENY.join('\n'),
+    cleanerAsk: CLEANER_ASK.join('\n'),
     stopDeny: STOP_DENY.join('\n'),
   };
 }

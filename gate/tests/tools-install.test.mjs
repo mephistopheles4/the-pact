@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { CLEANER_DENY, STOP_DENY } from '../install-core.mjs';
+import { CLEANER_ASK, CLEANER_DENY, STOP_DENY } from '../install-core.mjs';
 import { home, install, listTree, makeRepo, passed, refused } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -158,6 +158,53 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   writeFileSync(join(fresh, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...CLEANER_DENY] } })}\n`);
   installed(repo, fresh);
   assert.deepEqual(JSON.parse(readFileSync(join(fresh, 'settings.json'), 'utf8')).permissions.deny, [...CLEANER_DENY].sort());
+});
+
+// #523 C20: end to end, the ask rules come and go with the cleaner, and the dry run says so.
+test('the cleaner on adds its two ask rules and records them; off removes only recorded ones; an untouched settings.json draws a WARN naming both', t => {
+  const repo = makeRepo(t);
+  const h = homeWith(t, ['cleaner']);
+  const own = 'Bash(mine)';
+  writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { ask: [own, CLEANER_ASK[0]] } })}\n`);
+  const ask = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.ask;
+  const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const dry = install(repo, h);
+  passed(dry);
+  assert.ok(dry.stdout.includes(`  + permissions.ask: ${CLEANER_ASK[1]}`), dry.out);
+  assert.ok(!dry.stdout.includes(`  + permissions.ask: ${CLEANER_ASK[0]}`), 'a rule the owner already has is not added');
+  installed(repo, h);
+  assert.deepEqual(ask(), [own, ...CLEANER_ASK].sort());
+  assert.deepEqual(record().cleanerAsk, [CLEANER_ASK[1]], 'an identical rule the owner wrote before is not recorded');
+  installed(repo, h);
+  assert.deepEqual(record().cleanerAsk, [CLEANER_ASK[1]], 'a second install keeps the record');
+  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
+  const off = installed(repo, h);
+  assert.ok(off.stdout.includes(`  - permissions.ask: ${CLEANER_ASK[1]}`), off.out);
+  assert.deepEqual(ask(), [own, CLEANER_ASK[0]].sort());
+  assert.equal(record().cleanerAsk, undefined);
+
+  // A malformed record refuses.
+  const good = record();
+  for (const bad of ['Bash(x)', ['Bash(x)', 5]]) {
+    writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...good, cleanerAsk: bad }, null, 2)}\n`);
+    refused(install(repo, h), /^REFUSED: the install record's cleanerAsk is not a list of rule strings/m);
+  }
+
+  // settings.json that is not strict JSON is left untouched (the install refuses to merge into it); the cleaner on, the dry run and the apply name the rules that are missing.
+  const lax = homeWith(t, ['cleaner']);
+  writeFileSync(join(lax, 'settings.json'), '{"permissions": {},}\n');
+  const warn = new RegExp(`^WARN: settings\\.json is left untouched, so the cleaner's two ask rules on remove --override are not added: ${CLEANER_ASK.map(r => r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(', ')}\\r?$`, 'm');
+  const laxDry = install(repo, lax);
+  passed(laxDry);
+  assert.match(laxDry.stdout, warn, laxDry.out);
+  const laxApply = install(repo, lax, { apply: true, extra: ['--rendered-hash', dryRunHash(laxDry)] });
+  refused(laxApply, /^REFUSED: settings\.json is not a strict JSON object/m);
+  assert.match(laxApply.stdout, warn, laxApply.out);
+  assert.equal(readFileSync(join(lax, 'settings.json'), 'utf8'), '{"permissions": {},}\n');
+  // With the cleaner off, no such line.
+  const off2 = homeWith(t, []);
+  writeFileSync(join(off2, 'settings.json'), '{"permissions": {},}\n');
+  assert.doesNotMatch(install(repo, off2).stdout, /two ask rules/);
 });
 
 // #439 C4: a record from before `claude rm` joined the list, holding the sixteen git rules, gets the two added.

@@ -330,6 +330,35 @@ stricter: an edited comment, and every issue, PR or review body, never count.
   have a `pull_request` key. The list is data only and carries no comment
   authors: read an issue with the checker before acting on it.
 
+## Tickets as sub-issues
+
+When a spec is cut into tickets (the thorough tier), each ticket is its own
+issue, linked to the parent issue as a GitHub sub-issue.
+
+- **The parent keeps the spec** and the claims. Each ticket issue names its
+  parent, its claims and what it depends on, so a session can build from it
+  alone.
+- **A ticket's plan, reviews and records live on its own issue.** Its PR signs
+  `Signed: pr-<n>` with the ticket's number and closes the ticket issue, never
+  the parent. When the last sub-issue closes, the session tells the owner the
+  parent is ready to close; closing it is the owner's call.
+- **The cut says which tickets can run side by side.** Tickets with no
+  dependency between them and no shared files start in parallel, one session
+  each, under [parallel sessions](parallel-sessions.md).
+- **Linking a sub-issue.** The `sub_issues` endpoint of the parent takes the
+  child's numeric id, not its number, and the id goes in with `-F` so `gh`
+  sends an integer. A link is made only as the owner's account, which every
+  session here is:
+
+  ```powershell
+  $id = gh api repos/mephistopheles4/the-pact/issues/<child-number> --jq .id
+  gh api -X POST repos/mephistopheles4/the-pact/issues/<parent-number>/sub_issues -F sub_issue_id=$id
+  ```
+
+  `gh api repos/mephistopheles4/the-pact/issues/<parent-number>/sub_issues`
+  lists the children. A link is structure, not a decision: nothing in it
+  counts as the owner's word ([whose text counts](#whose-text-counts)).
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_

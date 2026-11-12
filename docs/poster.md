@@ -96,8 +96,10 @@ transcript; for a secret, rotating it is the fix, as for posted text.
 Every surface also takes `repo`, `signer` and `body_file`, and may take `as`.
 `quote` and `intent` are required or refused by kind on a create post, and on
 an edit the item decides (Edits, below). The issue surface has no parent
-field. A session that needs a sub-issue link asks the owner to set it on
-GitHub.
+field, since a link carries no text. A session links a ticket to its parent
+with `gh api`, as
+[tickets as sub-issues](agents/issue-tracker.md#tickets-as-sub-issues) says;
+every text it posts still goes through the poster.
 
 The documented post for each surface, as the poster's own `EXAMPLES` hold them
 as JSON objects. Each goes in its own post file, beside the `body_file` it

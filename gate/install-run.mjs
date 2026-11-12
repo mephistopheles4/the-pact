@@ -289,6 +289,8 @@ async function main() {
   const stopOn = project ? false : core.stopSwitchOn(parsed);
   let deny = { add: [], drop: [], record: record ? record.cleanerDeny : [] };
   let stopRecord = record ? record.stopDeny : [];
+  // #523: the cleaner's ask rules, in a record key of their own (cleanerAsk), with the cleaner's switch.
+  let askPlan = { add: [], drop: [], record: record ? record.cleanerAsk : [] };
   let settings;
   let changes = [];
   let notes = [];
@@ -298,19 +300,22 @@ async function main() {
   if (liveSettings === null) {
     settings = 'not a strict JSON object: left untouched';
     notes = ['WARN: settings.json is not a strict JSON object (a comment, a trailing comma or another root); the merge leaves it untouched, and nothing in it was checked.'];
+    // #523: the cleaner on, its ask rules are not added to a file left untouched; say which.
+    if (toolsOn.includes('cleaner')) notes.push(`WARN: settings.json is left untouched, so the cleaner's two ask rules on remove --override are not added: ${core.CLEANER_ASK.map(core.formatPlain).join(', ')}`);
   } else {
     const cleanerPlan = core.cleanerDenyPlan(liveSettings, toolsOn, record ? record.cleanerDeny : []);
     const stopPlan = core.stopDenyPlan(liveSettings, stopOn, record ? record.stopDeny : []);
     // deny.record is the cleaner's record only; the stop switch's is kept in stopRecord.
     deny = { ...core.joinDeny(cleanerPlan, stopPlan), record: cleanerPlan.record };
     stopRecord = stopPlan.record;
-    merged = core.mergeSettings(liveSettings, overlay, deny, compact);
+    askPlan = core.cleanerAskPlan(liveSettings, toolsOn, record ? record.cleanerAsk : []);
+    merged = core.mergeSettings(liveSettings, overlay, deny, compact, askPlan);
     if (liveBytes === null) settings = 'would be created from the overlay';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
       notes = core.liveSettingsLines(liveSettings, overlay, compact);
     }
-    changes = core.settingsChanges(liveSettings, overlay, deny);
+    changes = core.settingsChanges(liveSettings, overlay, deny, askPlan);
     compactBlock = core.compactLines(liveSettings, overlay, compact);
   }
   const settingsWill = settings.startsWith('would');
@@ -416,7 +421,7 @@ async function main() {
     io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, stopDeny: stopRecord, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
+  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, cleanerAsk: askPlan.record, stopDeny: stopRecord, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;

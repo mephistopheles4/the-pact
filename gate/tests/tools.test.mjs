@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS, STOP_DENY } from '../install-core.mjs';
-import { CLEANER_DENY as SHARED_DENY, PACT_TOOLS, STOP_DENY as SHARED_STOP } from '../shared.mjs';
+import { CLEANER_ASK, CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS, STOP_DENY } from '../install-core.mjs';
+import { CLEANER_ASK as SHARED_ASK, CLEANER_DENY as SHARED_DENY, PACT_TOOLS, STOP_DENY as SHARED_STOP } from '../shared.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
 import { REPO, assertFails, assertPasses, moduleResult } from './text.mjs';
@@ -238,6 +238,32 @@ test('the cleaner\'s deny rules are the eighteen fixed rules', () => {
   // #464 T8: the copy the page shows is this one.
   assert.deepEqual([...SHARED_DENY], [...CLEANER_DENY]);
   assert.ok(Object.isFrozen(SHARED_DENY));
+});
+
+// #523 C19: the cleaner's two ask rules, pinned, held equal in both files, and matching the spellings the docs give.
+test('the cleaner\'s ask rules are the two fixed rules, equal in both files, and match the override\'s spellings under a glob where * is any run of characters', () => {
+  assert.deepEqual([...CLEANER_ASK], ['Bash(*cleaner.mjs*remove*--override*)', 'PowerShell(*cleaner.mjs*remove*--override*)']);
+  assert.ok(Object.isFrozen(CLEANER_ASK));
+  assert.deepEqual([...SHARED_ASK], [...CLEANER_ASK]);
+  assert.ok(Object.isFrozen(SHARED_ASK));
+  const glob = rule => {
+    const inner = /^(?:Bash|PowerShell)\((.*)\)$/.exec(rule)[1];
+    return new RegExp(`^${inner.split('*').map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`, 's');
+  };
+  const pair = 'a=0123456789abcdef';
+  const hit = [
+    `node "$HOME/.claude/pact/tools/cleaner.mjs" remove --override ${pair}`,
+    `node "C:/x/.claude/pact/tools/cleaner.mjs" remove --override ${pair}`,
+    `env -u NODE_OPTIONS node ~/.claude/pact/tools/cleaner.mjs remove --yes 0123456789 --override ${pair}`,
+    `node.exe C:\\x\\cleaner.mjs remove --override ${pair}`,
+    `& node "C:/x/cleaner.mjs" remove --override ${pair}`,
+    `$env:NODE_OPTIONS = $null; node "C:/x/cleaner.mjs" remove --override ${pair}`,
+  ];
+  const miss = ['node "$HOME/.claude/pact/tools/cleaner.mjs" show', 'node "$HOME/.claude/pact/tools/cleaner.mjs" remove --yes 0123456789'];
+  for (const rule of CLEANER_ASK) {
+    for (const c of hit) assert.ok(glob(rule).test(c), `${rule} should match ${c}`);
+    for (const c of miss) assert.ok(!glob(rule).test(c), `${rule} should not match ${c}`);
+  }
 });
 
 // #439 C9: the stop switch's eight rules, pinned, and held equal in both files.

@@ -1018,6 +1018,44 @@ test('the changes are told from the overlay\'s side, rules escaped, and a live v
   assert.deepEqual(core.settingsChanges(core.readSettings('{"b":{"y":2,"x":1}}'), core.readSettings('{"b":{"x":1,"y":2}}')), [], 'a reorder is no change');
 });
 
+// #523 C20: the cleaner's ask plan works as the deny plan does, over the ask list and the cleanerAsk record.
+test('the ask plan: on, it adds the two rules and records them, a second run adds nothing; off, it drops only rules both recorded and fixed, and the owner\'s identical rule stays', () => {
+  const live = core.readSettings(json({ permissions: { ask: ['Bash(mine)'] } }));
+  const on = core.cleanerAskPlan(live, ['cleaner'], []);
+  assert.deepEqual(on, { add: [...core.CLEANER_ASK], drop: [], record: [...core.CLEANER_ASK] });
+  const had = core.readSettings(json({ permissions: { ask: ['Bash(mine)', ...core.CLEANER_ASK] } }));
+  assert.deepEqual(core.cleanerAskPlan(had, ['cleaner'], [...core.CLEANER_ASK]), { add: [], drop: [], record: [...core.CLEANER_ASK] }, 'a second run adds nothing');
+  // Off drops both recorded rules.
+  assert.deepEqual(core.cleanerAskPlan(had, [], [...core.CLEANER_ASK]), { add: [], drop: [...core.CLEANER_ASK], record: [] });
+  // The owner's identical rule, never recorded, stays: the bad case.
+  const owned = core.readSettings(json({ permissions: { ask: [core.CLEANER_ASK[0]] } }));
+  const first = core.cleanerAskPlan(owned, ['cleaner'], []);
+  assert.deepEqual(first.add, [core.CLEANER_ASK[1]]);
+  assert.deepEqual(first.record, [core.CLEANER_ASK[1]], 'the rule the owner wrote is not recorded');
+  assert.deepEqual(core.cleanerAskPlan(owned, [], first.record), { add: [], drop: [], record: [] }, 'off: the owner\'s rule stays, and the other was never there');
+  assert.deepEqual(core.cleanerAskPlan(owned, [], []), { add: [], drop: [], record: [] });
+  // The merge puts the added rules in the ask list, sorted, after the retired filter, and drops only the dropped.
+  const overlay = core.readSettings(json({ permissions: { defaultMode: 'auto' } }));
+  const merged = JSON.parse(core.settingsText(core.mergeSettings(live, overlay, undefined, undefined, on)));
+  assert.deepEqual(merged.permissions.ask, ['Bash(mine)', ...core.CLEANER_ASK].sort());
+  const dropped = JSON.parse(core.settingsText(core.mergeSettings(had, overlay, undefined, undefined, { add: [], drop: [...core.CLEANER_ASK], record: [] })));
+  assert.deepEqual(dropped.permissions.ask, ['Bash(mine)']);
+  // The dry run's lines.
+  assert.deepEqual(core.settingsChanges(live, overlay, undefined, on).filter(l => l.includes('permissions.ask')), core.CLEANER_ASK.map(r => `  + permissions.ask: ${r}`));
+  assert.deepEqual(core.settingsChanges(had, overlay, undefined, { add: [], drop: [...core.CLEANER_ASK], record: [] }).filter(l => l.includes('permissions.ask')), core.CLEANER_ASK.map(r => `  - permissions.ask: ${r}`));
+});
+
+// #523 C20: the record's reader takes cleanerAsk as a list of strings and refuses anything else.
+test('the install record\'s cleanerAsk is a list of rule strings, or the record is refused', () => {
+  const rec = extra => json({ commit: 'c', files: [{ path: 'x', sha256: H('a') }], ...extra });
+  assert.deepEqual(core.parseRecord(rec({ cleanerAsk: [...core.CLEANER_ASK] })).cleanerAsk, [...core.CLEANER_ASK]);
+  assert.deepEqual(core.parseRecord(rec({})).cleanerAsk, []);
+  for (const bad of ['Bash(x)', ['Bash(x)', 5]]) assert.throws(() => core.parseRecord(rec({ cleanerAsk: bad })), /cleanerAsk is not a list of rule strings/);
+  const text = core.recordText({ commit: 'c', digest: null, userHash: null, blockHashes: new Map(), repoFiles: new Map(), gateNow: new Map(), cleanerAsk: [...core.CLEANER_ASK] });
+  assert.deepEqual(JSON.parse(text).cleanerAsk, [...core.CLEANER_ASK]);
+  assert.equal(Object.hasOwn(JSON.parse(core.recordText({ commit: 'c', digest: null, userHash: null, blockHashes: new Map(), repoFiles: new Map(), gateNow: new Map() })), 'cleanerAsk'), false);
+});
+
 // #265 C3: the merge takes the pact's retired ask rules out of the live list,
 // matched exactly, and leaves the owner's own rules, look-alikes included.
 test('the merge drops every retired ask rule, exactly, and keeps the owner\'s own', () => {
