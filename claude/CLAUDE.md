@@ -210,12 +210,12 @@ trade-off.
   recommend them; and answer each intent or design question with your own
   pick. Never decline the route or the pair, and never answer a stop, a
   trade-off, a finding, a control's removal, the tier, a permission or a
-  classifier block, a token-spending batch run, a readiness label, the threat
-  model's scope, or anything kept for my word in chat. Log each pick and the
-  free hand's source, by its kind, and list them in the result; don't ask.
-  Holding one, say so in each start prompt. A session you start sends you
-  those offers and questions; your reply may only take its pick, within these
-  limits, and my words in its chat beat it.
+  classifier block, the usage pause, a token-spending batch run, a readiness
+  label, the threat model's scope, or anything kept for my word in chat. Log
+  each pick and the free hand's source, by its kind, and list them in the
+  result; don't ask. Holding one, say so in each start prompt. A session you
+  start sends you those offers and questions; your reply may only take its
+  pick, within these limits, and my words in its chat beat it.
 - **Usage still holds.** Before it passes its line, park the work cleanly:
   commit, put the state in the record, stop and tell me.
 <!-- pact:end stop-and-escalate -->

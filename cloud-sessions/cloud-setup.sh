@@ -743,12 +743,12 @@ trade-off.
   recommend them; and answer each intent or design question with your own
   pick. Never decline the route or the pair, and never answer a stop, a
   trade-off, a finding, a control's removal, the tier, a permission or a
-  classifier block, a token-spending batch run, a readiness label, the threat
-  model's scope, or anything kept for my word in chat. Log each pick and the
-  free hand's source, by its kind, and list them in the result; don't ask.
-  Holding one, say so in each start prompt. A session you start sends you
-  those offers and questions; your reply may only take its pick, within these
-  limits, and my words in its chat beat it.
+  classifier block, the usage pause, a token-spending batch run, a readiness
+  label, the threat model's scope, or anything kept for my word in chat. Log
+  each pick and the free hand's source, by its kind, and list them in the
+  result; don't ask. Holding one, say so in each start prompt. A session you
+  start sends you those offers and questions; your reply may only take its
+  pick, within these limits, and my words in its chat beat it.
 - **Usage still holds.** Before it passes its line, park the work cleanly:
   commit, put the state in the record, stop and tell me.
 <!-- pact:end stop-and-escalate -->
@@ -1526,7 +1526,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 2c0a712462e5450d2b6fa3b685c131188846a7899d1705635083041b069f2818 'CLAUDE.md'
+check_hash c4d4ccb1bc5d99d073a23e34b595f89a549514c4f3bbd4a4ca5384baf077f733 'CLAUDE.md'
 check_hash e69fe55c1ff76fb6c1c374e6cee3774ed07183351674928d42a906de8cfc5852 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1567,7 +1567,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy b298ae2f90f6"
+  echo "pact cloud copy 4f9ac39f3a7b"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
