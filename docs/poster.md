@@ -73,8 +73,10 @@ transcript; for a secret, rotating it is the fix, as for posted text.
 | `issue-comment-edit` | A new body for a comment on an issue or a pull request's conversation | `--issue`, `--comment`, the id of the comment edited, `--reason` and `--signed` |
 | `review-thread-reply-edit` | A new body for a reply in a line-comment thread | `--pr`, `--comment`, the id of the reply edited, `--reason` and `--signed` |
 
-`issue` has no `--parent` option. A session that needs a sub-issue link asks
-the owner to set it on GitHub.
+`issue` has no `--parent` option, since a link carries no text. A session
+links a ticket to its parent with `gh api`, as
+[tickets as sub-issues](agents/issue-tracker.md#tickets-as-sub-issues) says;
+every text it posts still goes through the poster.
 
 `--comment` names the comment being answered on `review-thread-reply`, and
 the comment being edited on the two comment edits.
