@@ -103,8 +103,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - Each check a change adds or tightens in the gate's code (`gate/` but its
   tests, `.github/workflows/`, `.github/dependabot.yml`) needs a bad case it
   is seen to catch. Deleting or loosening a check, or changing a built-in
-  default that bounds anything, such as the renderer's list of agents a
-  configuration may set, is a spec change. The QA pair reads every change to
+  default that bounds anything, is a spec change, and so is loosening the
+  cleaner's checks or the deny rules. The QA pair reads every change to
   the gate's tests, the test runner and its helpers included, at Test; such a
   change is never one line.
 - **`.claude/settings.json` and `.claude/hooks/` run in every session**

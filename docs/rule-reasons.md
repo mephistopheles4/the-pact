@@ -29,7 +29,7 @@ This file is never installed.
 | Always mine | The owner's map of decisions. The harness defers to durable authorization, and this list is that authorization's limits. Installing a new program is not on the list. The pact install (dry run, then apply on the owner's go-ahead) and mise trust stay, in `AGENTS.md`. |
 | Keep the record | Points to review.md's Posting section, which no tool loads. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent. |
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
-| Remove worktrees only through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (threat model, Removals lose local work). |
+| Remove worktrees only through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (the Safety quality; `AGENTS.md`, Reviewing a change here). |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |

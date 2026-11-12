@@ -94,7 +94,7 @@ the agent files it wrote and still holds as it wrote them.
   macOS can still widen them, and `ls -le` shows one. On Windows they take the
   `~/.claude` folder's access list, as the `settings.json` beside them does, so
   they reach no reader that file doesn't, though they hold its older contents
-  (Local copies on disk, in the [threat model](threat-model.md)). To see who that list lets in,
+  (the machine's, per the [threat model](threat-model.md#scope)'s scope). To see who that list lets in,
   or to narrow it, open the folder's Properties in Explorer and its Security
   tab, or run `icacls "$env:USERPROFILE\.claude"` in PowerShell. A list for you
   alone holds your account, SYSTEM and Administrators.
