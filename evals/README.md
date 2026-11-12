@@ -9,7 +9,7 @@ is a candidate to cut.
 A round is evidence the owner weighs, never a gate (ADR 0136). With the wording
 tests gone, it is what shows whether a rule's behaviour survives a cut or a
 reword. No change waits on a round, a pass never stands in for the review at
-Test, and CI stays the Test evidence. An eval run is not a probe, below.
+Test, and CI stays the Test evidence. An eval run is not a probe (see Probes, below).
 
 `gen.mjs` writes each case in `cases/` twice, as a plugin folder
 `claude plugin eval` can read: `<case>-with` carries the rules text as its
