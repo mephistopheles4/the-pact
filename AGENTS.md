@@ -157,9 +157,10 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   each agent stay within their word budgets in
   `gate/tests/rule-budget.test.mjs`; raising one is a spec change.
 - **The agent-facing docs say what holds now:** the docs
-  `gate/tests/doc-budget.test.mjs` lists; a new one joins that list. How a
-  rule came to be (issue and ADR cites as history, "since", "was retired",
-  dated trails) goes in an ADR or a dated log, not in them. Each stays within
+  `gate/tests/doc-budget.test.mjs` lists; a new doc a session must read joins
+  that list. How a rule came to be (issue and ADR cites as history, "since",
+  "was retired", dated trails) goes on the issue, or in an ADR or a dated log
+  when one is owed, not in them. Each stays within
   its word budget there; raising one is a spec change.
 
 ## The tracker

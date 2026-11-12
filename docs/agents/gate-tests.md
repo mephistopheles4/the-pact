@@ -51,14 +51,14 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   installer's link, path or file handling is input validation: the change
   matches the sensitive-work list, and the skip goes to the owner. A line out
   of the list's shape refuses the run by its line number.
-- **Node.** Run the tests on Node 24; `mise use -g node@24`
+- **Node.** Run the tests on Node 24 or later; `mise use -g node@24`
   gets it. The install needs it too. The Linux run in a container is in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs
   `full` on Node 24.
 - **`changed` on the host is for when athanor can't run.** The hook refuses it
   while athanor works, because host runs slow the owner's machine and CI's two
-  jobs cover both platforms; `fast` with the fallback covers building then.
-  athanor can't run `changed` itself ([Athanor](#athanor)).
+  jobs cover both platforms. When athanor can't run, `fast` with the fallback
+  covers building. athanor can't run `changed` itself ([Athanor](#athanor)).
 - **Test evidence is CI's two jobs passing on the reviewed head:** `gate` on
   Linux and `gate-windows` on Windows, each running `full`. CI runs
   only on a pull request or a push to `main`, so the session pushes its branch

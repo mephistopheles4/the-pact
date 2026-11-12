@@ -1,8 +1,8 @@
 # The agent-facing docs keep no history and stay within a word budget
 
-The repo's agent-facing docs (the files `gate/tests/doc-budget.test.mjs` lists) say what holds now. How a rule came to be (issue and ADR cites as history, "since X", "was retired", creation dates, dated decision trails) goes in an ADR or a dated log, not in them. Each doc stays within a word budget, the smallest multiple of 50 above its size when the budget was set, so adding to a doc means cutting from it; raising a budget is a spec change. A doc that a session must read joins the list when it is added.
+The repo's agent-facing docs (the files `gate/tests/doc-budget.test.mjs` lists) say what holds now. How a rule came to be (issue and ADR cites as history, "since X", "was retired", creation dates, dated decision trails) goes on the issue, or in an ADR or a dated log when one is owed, not in them. Each doc stays within a word budget, the smallest multiple of 50 above its size when the budget was set, so adding to a doc means cutting from it; raising a budget is a spec change. A doc that a session must read joins the list when it is added.
 
-#548 cut the history from the docs and added the test. A rule that is stated once has one home: rollback lives in `docs/install.md`, the goal rules in `claude/CLAUDE.md`, the gate's test commands in `AGENTS.md`.
+#548 cut the history from the docs and added the test. A rule that was stated in more than one doc now has one home: rollback lives in `docs/install.md`, the goal rules in `claude/CLAUDE.md`, the gate's test commands in `AGENTS.md`.
 
 ## Why
 
@@ -16,4 +16,4 @@ The docs had grown by accretion: each change added its issue number and a line o
 
 ## How this was decided
 
-- **2026-11-12.** The owner asked, in a lead session's chat and relayed into #548, for one cleanup session per repo for this. The reading of what counts as history, the two clean docs added to the budget list and this ADR were the build session's own picks. Built by build-548.
+- **2026-11-12.** The owner asked, in a lead session's chat and relayed into #548, for one cleanup session per repo for this. The reading of what counts as history, the two docs that needed no cut (`docs/agents/domain.md` and `docs/agents/parallel-sessions.md`) added to the budget list and this ADR were the build session's own picks. Built by build-548.

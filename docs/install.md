@@ -655,8 +655,8 @@ with no checkout:
 
 If any check fails, don't check the commit out, and never run, or let a
 session run, an installer from it: nothing prompts before such an installer
-runs (the threat model's class The pact gets loosened). From a commit that passes, check out exactly
-that id and run only `gate/install.mjs`, dry run first.
+runs (the threat model's class The pact gets loosened). A commit that passes: do the steps below at the
+current commit first, then check it out.
 
 **Rolling back to before `pact/review.md` existed.** The install at the parent
 of the commit that added it deletes `pact/review.md`, which its payload lacks,
@@ -716,6 +716,9 @@ renders the pact's plain text again in place of the default. Its dry run names
 the last install's configuration digest, then says no configuration, lists
 `CLAUDE.md` under Overwrite and the default's kit files under Delete, and
 prints no line naming the `workflow` part.
+
+**Then check out.** Check out exactly that id and run only `gate/install.mjs`,
+dry run first.
 
 **Backups.** A rollback to a commit from before backups existed takes no
 backup and prunes none, so copy what you want to keep first, and delete

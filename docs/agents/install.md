@@ -241,14 +241,14 @@ An older pact installs with that commit's own installer.
   stop to ask the owner. Check first, because an older commit's own
   `AGENTS.md` presents a PowerShell installer as the route, and nothing but
   these checks stands before one (the threat model's class The pact gets loosened).
-  From a commit that passes, check out exactly that id and run only
-  `gate/install.mjs`, dry run first.
-- **Take out what the older pact doesn't know first,** as that section lists:
+- **Then, at the current commit, take out what the older pact doesn't know,** as that section lists:
   keys it refuses, and the three settings (the cleaner, `session-stop-deny`,
   the auto-compact window) to turn off and apply before the rollback. Stop and
   ask when `settings.json` still holds a hook that calls
   `pact/hooks/compact-handoff.mjs` after the apply that turned the window off
   (the older installer's own warning about any `hooks` key is not that), or
   when a field check above fails.
+- **Then check out** exactly that id and run only `gate/install.mjs`, dry run
+  first.
 - **Backups:** the same section says what a rollback does to
   `pact/backups`.
