@@ -73,9 +73,9 @@ Ask each lens to report in this shape:
   changes the spec gets its own rounds.
 - **One review comment per round.** Open it with a title line,
   `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
-  N being the rows that need my decision (an `open`, trade-off, `security?` or
-  Owner's-call row, as Lens dispositions says), not a drafted fix waiting on my
-  word. Write `, reopened` on the first
+  N being the rows that need my decision, each a checkpoint (an `open`,
+  trade-off, `security?` or Owner's-call row, as Lens dispositions says), not a
+  drafted fix waiting on my word. Write `, reopened` on the first
   round after a reopen and `, final` on the round a Review rounds cost
   declares final, and leave out both otherwise; a further read outside the
   count is titled
