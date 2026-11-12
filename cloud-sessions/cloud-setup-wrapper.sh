@@ -844,7 +844,7 @@ __CLAUDE_CONFIG_EOF__
 write_config 'agents/data-lens.md' <<'__CLAUDE_CONFIG_EOF__'
 ---
 name: data-lens
-description: Reviews a spec or a diff for where its data can leak. Read-only. Not for break-ins, buildability, claims or style.
+description: Reviews a spec or a diff for where its data can leak. Not for break-ins, buildability, claims or style.
 tools: [Read, Glob, Grep]
 model: opus
 effort: high
@@ -855,7 +855,7 @@ effort: high
 Your question: what data does this change touch, and where can it leak? Data means secrets, personal data, and anything the owner wouldn't want read.
 
 1. **Threat model, first.** Read the handed guide; name the project's threat model at the base, or say none. A leak wholly on the machine, that a named control holds, or fitting an accepted class needs no finding; any other is one, as is a new boundary, a removed or weakened control, or a class or scope change.
-2. **Red step.** Per part: data it could expose, to whom.
+2. **Red step.** Per part: what data it could expose, to whom.
 3. **Inventory.** Per item: kind, stored where, flows where, read by whom, leak point.
 4. **Encryption.** Even on the machine, a secret in source or a log, or a secret or personal item stored or sent unencrypted past a boundary, is `high`.
 5. **Approved flows.** Each outward flow names what approves it, or `not approved`, which is `high`.
@@ -1617,7 +1617,7 @@ check_hash 816906235ec22a7ba17ea86985381ad00d205cbfbcf4ce0b0ebba920c080ad07 'CLA
 check_hash fe00246d3107d436ad3833f34c1e2537672d8892cc0337177fbd7789d4789af2 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
-check_hash 7918d69d1a24897e51d53b63bf256f5a3323a5b8c7c68674889146c8a21eece5 'agents/data-lens.md'
+check_hash 5d175680c4ba2acba3d0c7c167efc9eb6aa0edc641d0696315ab4be7e9944230 'agents/data-lens.md'
 check_hash 2b168f8be60d7ccda8d0af9ec1742033dbe73d2121bf2863810399d9857925b3 'agents/executability-lens.md'
 check_hash 55615b0c699ac326c5384071787ac32e3ff7e3c4b458e2912313f557a51393a6 'agents/integrity-lens.md'
 check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'agents/reader-lens.md'
@@ -1654,7 +1654,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy ec5a5dbe3be3"
+  echo "pact cloud copy ad4d141dc229"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
