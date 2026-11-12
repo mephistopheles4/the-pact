@@ -42,8 +42,9 @@ This file is never installed.
 | One rule | No finding is dropped silently at a limit. Nothing else routes findings. |
 | The security bar | When a security fix is due. No tool weighs a fix's cost against its risk. |
 | An empty limit | Who decides an unset limit. Nothing else would. |
-| A security finding | The definition the sorter uses. The classifier judges actions, not findings. |
-| Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
+| A security finding | The definition the sorter uses, and that a finding is placed on a boundary as review.md's Threat model section says, so a path wholly on the machine is no finding. The classifier judges actions, not findings, and the threat model holds boundaries, not how to place a finding on one (#542, [ADR 0153](adr/0153-threat-models-are-boundaries-first-and-capped.md)). |
+| Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. The fix-in-passing clause moved to the guide's step 4, where the other exceptions to "needs nothing" sit (#542, ADR 0153, citing [ADR 0132](adr/0132-the-threat-model-holds-accepted-threat-classes.md)). |
+| Publishing a weakness in someone else's software | Review.md's Threat model section keeps it unpublished until its maker's public tracker holds it or the owner has reported it privately. Secret scanning and push protection match credentials, and the read before a push checks only for secrets and personal details, so a weakness page reached a public branch in grimoire (#208, #542). |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. |
 | A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. It also says how later words narrow a goal (the owner's words in any chat; text only by keeping a step), a gap that "keep going until I end it" leaves, since no other guardrail narrows a goal in place (#505). |
