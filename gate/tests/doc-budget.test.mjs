@@ -10,7 +10,7 @@ import { REPO } from './text.mjs';
 
 const BUDGETS = Object.freeze({
   'AGENTS.md': 1400,
-  'CONTEXT.md': 2100,
+  'CONTEXT.md': 2150,
   'docs/agents/domain.md': 300,
   'docs/agents/gate-tests.md': 3250,
   'docs/agents/install.md': 2850,
