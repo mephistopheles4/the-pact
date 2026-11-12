@@ -1311,23 +1311,27 @@ when no other row answers the sentence.
   claims with measures. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
-- **The read-back.** Before you post a kind with a quote, read back to me in
-  chat the passages you will quote and your intent, and post `confirmed` only
-  on my yes in that chat and otherwise `pending`; a relay or a goal holder's
-  reply never confirms a read-back, and a lead relays only the span meant for
-  the record, after its own read before posting. When I later confirm or
-  correct a pending read-back in chat, the session that heard it first posts
-  a `decision` (source `chat`, posted `confirmed`, `answers` naming the item)
-  quoting those words, then edits the original to `confirmed` or `corrected`
-  with that comment's id; a lead relaying my answer has the session post a
-  `decision` with source `relayed`, which carries no mark and leaves the
-  original pending until a session that heard me confirms it. Work waits on a
-  pending read-back at each seam (an issue's before the work leaves Plan, a
-  spec's before its proceed, a pull request's before its merge), and under a
-  standing goal it waits for me, since a goal holder's reply never confirms.
-  When my words trip the content scan or hold a personal detail, leave that
-  span out of the passage as `[left out]` and tell me in chat what you left
-  out.
+- **The read-back.**
+  - Work waits on a pending read-back at each seam (an issue's before the work
+    leaves Plan, a spec's before its proceed, a pull request's before its
+    merge), and under a standing goal it waits for me, since a goal holder's
+    reply never confirms.
+  - Before you post a kind with a quote, read back to me in chat the passages
+    you will quote and your intent, and post `confirmed` only on my yes in that
+    chat and otherwise `pending` (a `decision` from my chat is always
+    `confirmed`); a relay or a goal holder's reply never confirms a read-back,
+    and a lead relays only the span meant for the record, after its own read
+    before posting.
+  - When I later confirm or correct a pending read-back in chat, the session
+    that heard it first posts a `decision` (source `chat`, posted `confirmed`,
+    `answers` naming the item) quoting those words, then edits the original to
+    `confirmed` or `corrected` with that comment's id; a lead relaying my
+    answer has the session post a `decision` with source `relayed`, which
+    carries no mark and leaves the original pending until a session that heard
+    me confirms it.
+  - When my words trip the content scan or hold a personal detail, leave that
+    span out of the passage as `[left out]` and tell me in chat what you left
+    out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
   `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
@@ -1336,8 +1340,9 @@ when no other row answers the sentence.
   kinds. Write each post as one JSON file, with its body in a `body_file`
   beside it, both in a scratch folder outside the repo, and run the poster
   from that folder, never from the repo. Name each create post's `kind`:
-  `lens-report` for a round comment, `status` for the status comment, `note`
-  for any other comment. The poster renders the ask, the read-back, the
+  `spec` for a spec, `decision` for my decision, `lens-report` for a round
+  comment, `status` for the status comment, `note` for any other comment; an
+  issue or a pull request takes the kind named for its surface. The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
   them. Sign every pull request `pr-<n>`, n the issue it works on, never the
   pull request's own number, so any session can edit it with
@@ -1551,7 +1556,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
-check_hash a1259ebd0654afc5a291a6b0f888b7b4ec67273177c449fe58ce41ffc43f6fc6 'pact/review.md'
+check_hash b6f794f8a2eb88bc4960b458bdffe94ab3db0f045520dd7f851199e84b38e8d8 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1581,7 +1586,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 31d69b2e552d"
+  echo "pact cloud copy ba70294a249d"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

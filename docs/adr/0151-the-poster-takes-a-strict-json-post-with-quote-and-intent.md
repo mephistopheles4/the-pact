@@ -25,7 +25,7 @@ Refinements:
 - **R5.** One render order for every kind, so this repo's PR checkbox line opens the `body_file`, not the whole PR body.
 - **R6.** `docs/rule-reasons.md` gains no row: it covers only the rules file, which doesn't change. This departs from #524's ask, and the reasons are here.
 - **R7.** No caller of the poster outside this repo was found. One that appears before the install is updated in the same install window, and the install waits for it.
-- **S3.6.** `JSON.parse` keeps the last of two duplicate keys. The poster accepts that: the scan and the read-back both read only what is rendered.
+- **S3.6.** `JSON.parse` keeps the last of two duplicate keys. The poster accepts that: the scan and the check of what landed both read only what is rendered.
 
 ## Why
 

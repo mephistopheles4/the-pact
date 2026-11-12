@@ -172,23 +172,27 @@ when no other row answers the sentence.
   claims with measures. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
-- **The read-back.** Before you post a kind with a quote, read back to me in
-  chat the passages you will quote and your intent, and post `confirmed` only
-  on my yes in that chat and otherwise `pending`; a relay or a goal holder's
-  reply never confirms a read-back, and a lead relays only the span meant for
-  the record, after its own read before posting. When I later confirm or
-  correct a pending read-back in chat, the session that heard it first posts
-  a `decision` (source `chat`, posted `confirmed`, `answers` naming the item)
-  quoting those words, then edits the original to `confirmed` or `corrected`
-  with that comment's id; a lead relaying my answer has the session post a
-  `decision` with source `relayed`, which carries no mark and leaves the
-  original pending until a session that heard me confirms it. Work waits on a
-  pending read-back at each seam (an issue's before the work leaves Plan, a
-  spec's before its proceed, a pull request's before its merge), and under a
-  standing goal it waits for me, since a goal holder's reply never confirms.
-  When my words trip the content scan or hold a personal detail, leave that
-  span out of the passage as `[left out]` and tell me in chat what you left
-  out.
+- **The read-back.**
+  - Work waits on a pending read-back at each seam (an issue's before the work
+    leaves Plan, a spec's before its proceed, a pull request's before its
+    merge), and under a standing goal it waits for me, since a goal holder's
+    reply never confirms.
+  - Before you post a kind with a quote, read back to me in chat the passages
+    you will quote and your intent, and post `confirmed` only on my yes in that
+    chat and otherwise `pending` (a `decision` from my chat is always
+    `confirmed`); a relay or a goal holder's reply never confirms a read-back,
+    and a lead relays only the span meant for the record, after its own read
+    before posting.
+  - When I later confirm or correct a pending read-back in chat, the session
+    that heard it first posts a `decision` (source `chat`, posted `confirmed`,
+    `answers` naming the item) quoting those words, then edits the original to
+    `confirmed` or `corrected` with that comment's id; a lead relaying my
+    answer has the session post a `decision` with source `relayed`, which
+    carries no mark and leaves the original pending until a session that heard
+    me confirms it.
+  - When my words trip the content scan or hold a personal detail, leave that
+    span out of the passage as `[left out]` and tell me in chat what you left
+    out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
   `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
@@ -197,8 +201,9 @@ when no other row answers the sentence.
   kinds. Write each post as one JSON file, with its body in a `body_file`
   beside it, both in a scratch folder outside the repo, and run the poster
   from that folder, never from the repo. Name each create post's `kind`:
-  `lens-report` for a round comment, `status` for the status comment, `note`
-  for any other comment. The poster renders the ask, the read-back, the
+  `spec` for a spec, `decision` for my decision, `lens-report` for a round
+  comment, `status` for the status comment, `note` for any other comment; an
+  issue or a pull request takes the kind named for its surface. The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
   them. Sign every pull request `pr-<n>`, n the issue it works on, never the
   pull request's own number, so any session can edit it with

@@ -116,7 +116,13 @@ names:
 ```
 
 They are the nine examples, one per surface in the table's order; the
-`EXAMPLES` map holds the same objects, and a test runs each as a dry run.
+`EXAMPLES` map holds the same objects, and a test runs each as a dry run. This
+block is kept equal to the map by hand, since no test reads this page. The four
+edit examples edit an item that is not an ask item. An edit of an ask item
+(any issue, pull request, spec or decision posted with a quote) also carries
+that item's own `quote` and `intent`, copied from the item (Edits). A
+`pull-request-edit` signs `pr-<n>`, n the issue the pull request works on, as
+the create example does.
 
 ### Kinds
 
@@ -185,14 +191,20 @@ The poster owns these parts and renders them in this order, one blank line
 between each: for a `decision`, the mark line and the `Answers:` line when
 `answers` names the item (`issue <n>`, `pull request <n>` or `comment <id>`);
 `## The ask` with each passage as a block quote and a source line;
-`## Understood intent` with the read-back and its line; the `body_file` text;
+`## Understood intent` with the intent text and its read-back line; the `body_file` text;
 `Signed: <signer>`; on an edit, the reason lines. So this repo's PR checkbox line
 opens the `body_file`, not the whole PR body.
 
 The **owned lines** are the lines the poster writes: a `Signed:` or `Posted by`
 signature line, a reason line, a decision mark, a line starting `Read-back:`,
-`## The ask`, `## Understood intent`, the three source-line openings,
-`Corrected read-back:` and a line starting `Answers:`. A `body_file` that holds
+`## The ask`, `## Understood intent`, a source line, `Corrected read-back:` and
+a line starting `Answers:`. The source line follows its passage, and is one of:
+
+- `Said in this session's chat, <when>.` for a `chat` passage
+- `Relayed by <via> from its chat, <when>.` for a `relayed` one
+- `From the owner's comment <comment>, <when>.` for a `tracker` one
+
+A `body_file` that holds
 one outside a fence is refused `post/owned-line`. The prose check skips the
 quote's lines, since they are the owner's words verbatim, so a hard-wrapped
 quote posts while the same wrap in the `body_file` is refused `text/hard-wrap`.
@@ -388,7 +400,7 @@ surface or kind refuses is `post/field`. Each refusal's `where` names the
 field by its JSON path, such as `quote[1].when`, never its value; an unknown
 key is named by its path only when it can't carry text, else by position.
 Two duplicate keys in a post file keep the last, which the poster accepts: the
-scan and the read-back both read only what is rendered.
+scan and the check of what landed both read only what is rendered.
 
 ## Results and exit codes
 
@@ -408,8 +420,8 @@ page and login are the ones the poster checked before it sent, never text from
 | --- | --- | --- | --- |
 | 0 | `RESULT: verified <surface> <url> as <login>` | What landed is what was sent | Deletes the post file and the body file |
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
-| 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the body file; tells the owner which field |
-| 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
+| 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the post file and the body file; tells the owner which field |
+| 1 | `RESULT: unverified <url>` | Posted, but the check of what landed failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the post file and the body file; opens the URL and tells the owner |
 | 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for hidden characters or a live environment secret's value stays local, unedited, and the owner is told where it is, in chat; a table, wrap, link or fence refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
 | 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the post file and the body file; checks whether it landed, as below; never posts again on its own |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the post file and the body file; stops and tells the owner, as `review.md` says. `gh auth status` and the network are what to check |
