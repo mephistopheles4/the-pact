@@ -582,8 +582,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
 ## How Claude helps
 
 - **Always mine:** a spec's proceed, fix or kill; the ticket cut; accepting,
-  closing and merging; installs; anything published. Each waits for my confirm
-  in chat.
+  closing and merging; anything published. Each waits for my confirm in chat.
 - **Keep the record** as the Posting section of `~/.claude/pact/review.md` says.
 
 ## How much checking
@@ -1566,7 +1565,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash c4d4ccb1bc5d99d073a23e34b595f89a549514c4f3bbd4a4ca5384baf077f733 'CLAUDE.md'
+check_hash e7344ebb98c59eedf0d1b093234d58d4844a94d9fe9afa15b8d5b229a0ed0e31 'CLAUDE.md'
 check_hash e69fe55c1ff76fb6c1c374e6cee3774ed07183351674928d42a906de8cfc5852 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1607,7 +1606,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy d672bdb61c63"
+  echo "pact cloud copy 7e4f4ea3b4b3"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
