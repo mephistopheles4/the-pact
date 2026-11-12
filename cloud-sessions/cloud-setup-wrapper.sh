@@ -1341,8 +1341,10 @@ when no other row answers the sentence.
   beside it, both in a scratch folder outside the repo, and run the poster
   from that folder, never from the repo. Name each create post's `kind`:
   `spec` for a spec, `decision` for my decision, `lens-report` for a round
-  comment, `status` for the status comment, `note` for any other comment; an
-  issue or a pull request takes the kind named for its surface. The poster renders the ask, the read-back, the
+  comment, `status` for the status comment, `note` for any other issue
+  comment; an issue, a pull request, a pull request review and a thread reply
+  take the kind named for them (`issue`, `pull-request`, `review`, `reply`).
+  The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
   them. Sign every pull request `pr-<n>`, n the issue it works on, never the
   pull request's own number, so any session can edit it with
@@ -1556,7 +1558,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
-check_hash b6f794f8a2eb88bc4960b458bdffe94ab3db0f045520dd7f851199e84b38e8d8 'pact/review.md'
+check_hash ab4c0d6ef6c8ae08db5192de83bf05c94e95a767d5efdd31996acfc140fc4f87 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1586,7 +1588,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy ba70294a249d"
+  echo "pact cloud copy 49f8c34ac023"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

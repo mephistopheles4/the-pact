@@ -202,8 +202,10 @@ when no other row answers the sentence.
   beside it, both in a scratch folder outside the repo, and run the poster
   from that folder, never from the repo. Name each create post's `kind`:
   `spec` for a spec, `decision` for my decision, `lens-report` for a round
-  comment, `status` for the status comment, `note` for any other comment; an
-  issue or a pull request takes the kind named for its surface. The poster renders the ask, the read-back, the
+  comment, `status` for the status comment, `note` for any other issue
+  comment; an issue, a pull request, a pull request review and a thread reply
+  take the kind named for them (`issue`, `pull-request`, `review`, `reply`).
+  The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
   them. Sign every pull request `pr-<n>`, n the issue it works on, never the
   pull request's own number, so any session can edit it with
