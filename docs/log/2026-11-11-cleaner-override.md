@@ -18,4 +18,9 @@ The merge widens an accepted threat class and loosens git's refusals, so it wait
 
 - The ask: https://github.com/mephistopheles4/the-pact/issues/523
 - Spec revision 5: https://github.com/mephistopheles4/the-pact/issues/523#issuecomment-6811653817
+- Spec round 1 on revision 1: https://github.com/mephistopheles4/the-pact/issues/523#issuecomment-6810858639
+- Spec round 2 on revision 2, final: https://github.com/mephistopheles4/the-pact/issues/523#issuecomment-6811036123
+- Spec round 1, reopened, on revision 3: https://github.com/mephistopheles4/the-pact/issues/523#issuecomment-6811365796
+- Spec round 2, reopened, on revision 4, final: https://github.com/mephistopheles4/the-pact/issues/523#issuecomment-6811623678
+- Test round 1 on b4e5a51: https://github.com/mephistopheles4/the-pact/issues/523#issuecomment-6812803026
 - Draft PR: https://github.com/mephistopheles4/the-pact/pull/530
