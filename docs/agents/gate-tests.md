@@ -63,13 +63,14 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   The Linux run in a container (#96) is in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs `full`
   on Node 24.
-- **While building, run `athanor run fast`** ([Athanor](#athanor)). For a
-  quicker pick on the host, run `changed`:
-  `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
-  `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell. Add
-  `--base <ref>` when your branch starts from somewhere other than `main`. A
-  base that starts with a dash, or one that isn't a commit, exits 2. athanor
-  can't run `changed`: its synthetic commit has no base to diff against.
+- **While building, run `athanor run fast`** ([Athanor](#athanor)). Run no
+  host `changed` pick while athanor works: host runs slow the owner's machine,
+  and CI's two jobs cover both platforms (#550). The hook refuses it. When
+  athanor can't run, the `fast` fallback covers building. `changed` still
+  exists for that case: add `--base <ref>` when your branch starts from
+  somewhere other than `main`. A base that starts with a dash, or one that
+  isn't a commit, exits 2. athanor can't run `changed`: its synthetic commit
+  has no base to diff against.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
   locally after a rebase or merge that brought in other work, and after a
   final change set. It doesn't run before and after each
@@ -165,14 +166,15 @@ grimoire's agent check guard. `.claude/settings.json` runs
 [`.claude/hooks/athanor-guard.mjs`](../../.claude/hooks/athanor-guard.mjs)
 before every Bash and PowerShell call, with a 15 s timeout.
 
-- **What it refuses:** a host run of `gate/tests/run.mjs` with the tier `fast`
-  or `full`, in the forms the docs use and a few wrappers more (`env -u
+- **What it refuses:** a host run of `gate/tests/run.mjs` with the tier `fast`,
+  `full` or `changed` (#550), in the forms the docs use and a few wrappers more (`env -u
   NODE_OPTIONS`, the PowerShell form's `$env:NODE_OPTIONS = $null;`, `&`,
   `time`, `timeout`, a quoted or absolute path), past any comment, while
   `athanor --version` exits 0 and prints a version within 5 s. Its refusal is
   fixed text that names `athanor run fast`, `athanor run` and the fallback.
-- **What it passes, silently:** `changed`, which athanor can't run; `--list`,
-  which runs nothing; a run with `--host-fallback=<reason>`; every other
+- **What it passes, silently:** `--list`, which runs nothing; a `fast` or
+  `full` run with `--host-fallback=<reason>` (`changed` has no fallback: the
+  runner rejects the flag there); every other
   command; and everything while athanor is missing, a shim dangles, or the
   probe fails or hangs. A bare `node --test` is out of its reach, as it is
   out of the runner's cap, and so is a run wrapped in `bash -c`,

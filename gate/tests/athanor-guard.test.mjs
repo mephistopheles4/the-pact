@@ -68,10 +68,9 @@ for (const tool of ['Bash', 'PowerShell']) {
 }
 
 // Claim 2: what passes with athanor present.
-test('athanor guard: changed, --list, a named fallback and other commands pass with athanor present', async () => {
+test('athanor guard: --list, a named fallback and other commands pass with athanor present', async () => {
   const passes = [
-    'env -u NODE_OPTIONS node gate/tests/run.mjs changed',
-    '$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed --base origin/main',
+    'node gate/tests/run.mjs changed --list',
     'node gate/tests/run.mjs full --list',
     'env -u NODE_OPTIONS node gate/tests/run.mjs full --host-fallback=no docker here',
     'env -u NODE_OPTIONS node gate/tests/run.mjs fast "--host-fallback=no docker here"',
@@ -101,6 +100,22 @@ test('athanor guard: an empty reason, the space form, or the flag in another seg
   }
 });
 
+// #550: a host changed run is refused while athanor works, and no fallback
+// frees it (the runner rejects the flag on changed); it passes without athanor.
+test('athanor guard: a host changed run is refused while athanor works, fallback or not, and passes without athanor', async () => {
+  for (const command of [
+    'env -u NODE_OPTIONS node gate/tests/run.mjs changed',
+    '$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed --base origin/main',
+    "$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed --host-fallback='no docker here'",
+    'node gate/tests/run.mjs changed --host-fallback=no-docker',
+  ]) {
+    const refusal = await ask(command);
+    assert.ok(refusal, command);
+    assert.match(refusal.reason, /athanor run fast/);
+    assert.equal(await ask(command, { athanorPresent: missing }), null, command);
+  }
+});
+
 // Claim 3, decided: athanor missing, or a probe that throws, passes.
 test('athanor guard: every form passes while athanor is missing, or when the probe throws', async () => {
   for (const form of FORMS) assert.equal(await ask(form, { athanorPresent: missing }), null, form);
@@ -111,7 +126,7 @@ test('athanor guard: every form passes while athanor is missing, or when the pro
 test('athanor guard: the probe runs only for a guarded command', async () => {
   let probes = 0;
   const athanorPresent = async () => (probes++, true);
-  for (const c of ['ls -la', 'node gate/tests/run.mjs changed', 'git commit -m "node gate/tests/run.mjs fast"']) await ask(c, { athanorPresent });
+  for (const c of ['ls -la', 'node gate/tests/run.mjs changed --list', 'git commit -m "node gate/tests/run.mjs fast"']) await ask(c, { athanorPresent });
   assert.equal(probes, 0);
   await ask('node gate/tests/run.mjs fast', { athanorPresent });
   assert.equal(probes, 1);
@@ -249,7 +264,8 @@ test('athanor guard script: every pass is silent, exit 0 and nothing on either s
   const cases = [
     [call('node gate/tests/run.mjs fast --host-fallback=no-docker'), working],
     [call('ls -la'), working],
-    [call('node gate/tests/run.mjs changed'), working],
+    [call('node gate/tests/run.mjs changed --list'), working],
+    [call('node gate/tests/run.mjs changed'), fake(t, 'dangling')],
     [call('node gate/tests/run.mjs fast'), tempDir(t, 'pact-empty-')],
     [call('node gate/tests/run.mjs fast'), fake(t, 'dangling')],
     [{ tool_name: 'Read', tool_input: { file_path: 'x' } }, working],

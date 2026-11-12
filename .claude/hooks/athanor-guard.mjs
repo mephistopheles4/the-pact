@@ -8,6 +8,8 @@
 // nothing showed it, so this refuses a host `fast` or `full` run while athanor
 // is on the machine, and says how to name the fallback:
 // `--host-fallback=<reason>` on the same command, which the runner prints.
+// A host `changed` run is refused too (#550) and has no fallback: the runner
+// rejects the flag on `changed`, and `athanor run fast` replaces it.
 // Ported from grimoire's agent check guard (grimoire issue 377).
 //
 // It reads the command as data, never runs it, and never changes it. It runs
@@ -32,7 +34,7 @@ const REFUSAL = [
   "Run the gate's tests through athanor: `athanor run fast` while building, `athanor run` for the full suite.",
   'A host run of `fast` or `full` is the fallback only when athanor can\'t run (no Docker, a copy older than 4121c28, or a run that ends 124, 125 or 137).',
 "If that is why you are here, rerun the same command with `--host-fallback='<reason>'`, the reason quoted, so PowerShell keeps it one argument, and short, in your own plain words (no path, token or pasted error text), and say in your report that you used the fallback.",
-  '`changed` and `--list` run on the host as they are. AGENTS.md, "Running the gate\'s tests", has the rest.',
+  'A host `changed` run is refused while athanor works and has no fallback: build with `athanor run fast`, and let CI\'s two jobs be the evidence. `--list` runs on the host as it is. AGENTS.md, "Running the gate\'s tests", has the rest.',
 ].join(' ');
 
 const FLAG = '--host-fallback=';
@@ -162,7 +164,7 @@ const WRAPPERS = new Set(['&', 'time', 'call']);
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const NODE = /^node(?:\.exe)?$/i;
 const RUNNER = /(?:^|\/)gate\/tests\/run\.mjs$/i;
-const GUARDED = new Set(['fast', 'full']);
+const GUARDED = new Set(['fast', 'full', 'changed']);
 // node's options that take their value as the next word, and those that run
 // code of their own in place of a script.
 const VALUED = new Set(['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions']);
@@ -171,8 +173,9 @@ const EVAL = new Set(['-e', '--eval', '-p', '--print']);
 // What one segment is: not a guarded host run, a guarded host run, or one
 // with a named fallback. A guarded run is node on a path ending in
 // gate/tests/run.mjs as whole path parts, in either slash, with the tier fast
-// or full after it and no --list. The runner takes the flag in its = form
-// only, so the space form frees nothing.
+// full or changed after it and no --list. The runner takes the flag in its =
+// form only, so the space form frees nothing, and it rejects the flag on
+// changed, so a named fallback frees only fast and full.
 function classify(tokens) {
   let i = 0;
   for (;;) {
@@ -207,6 +210,7 @@ function classify(tokens) {
   if (!runner(tokens[at])) return 'other';
   const args = tokens.slice(at + 1);
   if (!args.some(t => GUARDED.has(t)) || args.includes('--list')) return 'other';
+  if (args.includes('changed')) return 'run';
   return args.some(t => t.startsWith(FLAG) && t.slice(FLAG.length).trim() !== '') ? 'named' : 'run';
 }
 
