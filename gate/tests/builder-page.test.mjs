@@ -439,8 +439,8 @@ test('bad case: a pinned block changed in the pact source makes the committed pa
   const root = buildRoot(t, r => {
     const p = join(r, 'claude', 'CLAUDE.md');
     const was = readFileSync(p, 'utf8');
-    assert.ok(was.includes('your pick, and wait.'));
-    writeFileSync(p, was.replace('your pick, and wait.', 'your pick, and stop.'));
+    assert.ok(was.includes('stop) and your pick.'));
+    writeFileSync(p, was.replace('stop) and your pick.', 'stop) and your word.'));
   });
   assert.notEqual(buildPage(root, PAGE), PAGE);
 });

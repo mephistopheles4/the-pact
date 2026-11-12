@@ -189,8 +189,7 @@ test('with the poster off, the rules file is the no-configuration render byte fo
   assert.equal(noNotice(onText).replace(`${T2}\n`, ''), none, 'on, the render differs only by the part');
   assert.equal(onText.split(T2).length, 2, 'the part holds T2 text once, byte for byte');
   const after = onText.slice(onText.indexOf(KEEP_RECORD));
-  // The checkpoint-stops part may sit between them: it is part of the no-configuration render, and a configuration that turns it off drops it.
-  assert.match(after, /^- \*\*Keep the record\*\*[^\n]*\n(?:- \*\*Checkpoints wait\.\*\*[^\n]*\n(?: {2}[^\n]*\n)*)?- \*\*Post through the poster,\*\*/, 'after the record bullet, with at most the checkpoints line between');
+  assert.match(after, /^- \*\*Keep the record\*\*[^\n]*\n- \*\*Post through the poster,\*\*/, 'straight after the record bullet');
 });
 
 // render, #280 C6: the renderer fills the part only where the source holds it, and holds it empty.
@@ -214,7 +213,7 @@ test('with the poster off, the rules file is the no-configuration render byte fo
 // ------------------------------------------------------------ the cleaner's part and deny rules (#438)
 
 // #464 T4: the how-to moved into the cleaner's own printed output.
-const CLEANER_PART = '- **Remove worktrees only through the cleaner,** after my yes in chat.';
+const CLEANER_PART = '- **Remove worktrees only through the cleaner:** a recoverable removal is a checkpoint, any other a hard stop.';
 
 // #438 C14
 test('with the cleaner on, the rules file holds its part after the poster\'s; off, it is the no-configuration render', t => {
@@ -224,7 +223,11 @@ test('with the cleaner on, the rules file holds its part after the poster\'s; of
   assert.equal(on.code, 0, on.out);
   assert.equal(noNotice(rendered(on)).replace(`${T2}\n${CLEANER_PART}\n`, ''), none, 'on, the render differs only by the two parts, the cleaner\'s second');
   assert.equal(noNotice(rendered(renderWith(t, '{"schema": 1, "tools": []}'))), none);
-  assert.ok(!none.includes('cleaner'), 'off, no rule names the cleaner');
+  assert.ok(!none.includes('through the cleaner'), 'off, no part names the cleaner');
+  // #557: the one mention sits inside the Hard stops bullet, for what it can't restore.
+  const stops = (none.split(/\n- \*\*Hard stops\*\*/)[1] ?? '').split(/\n- \*\*/)[0].replace(/\s+/g, ' ');
+  assert.match(stops, /the cleaner can't restore/, 'off, the Hard stops bullet names the cleaner, for what it can\'t restore');
+  assert.equal(none.split('cleaner').length - 1, 1, 'off, the cleaner is named once, and that is in the Hard stops bullet');
 });
 
 // #438 C13: the fixed list, pinned.

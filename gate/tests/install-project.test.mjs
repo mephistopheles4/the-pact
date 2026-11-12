@@ -84,7 +84,7 @@ function expectedRules(n) {
     '',
     "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
     '',
-    `- **Usage pause.** In this project, wait for my go-ahead when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`,
+    `- **Usage pause.** In this project, it's a hard stop when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`,
     '',
   ].join('\n');
 }

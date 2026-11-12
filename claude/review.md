@@ -63,7 +63,7 @@ Ask each lens to report in this shape:
   security pair, a repo's required lenses or a
   typed skill's lenses would read anything
   after the final round, that read still runs, outside the count,
-  with the Guards' "gone round twice" as its brake, and its findings go by the
+  with the rules file's "Work that won't converge" as its brake, and its findings go by the
   row's At the limit; this is how those lenses keep running, so the Cost
   limits opening's trade-off does not arise for them there. The stage closes,
   and nothing is accepted or merged, only once
@@ -73,20 +73,22 @@ Ask each lens to report in this shape:
   changes the spec gets its own rounds.
 - **One review comment per round.** Open it with a title line,
   `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
-  N being the rows that need my decision (an `open`, trade-off or `security?`
-  row), not a drafted fix waiting on my word. Write `, reopened` on the first
+  N being the rows that need my decision (an `open`, trade-off, `security?` or
+  Owner's-call row, as Lens dispositions says), not a drafted fix waiting on my
+  word. Write `, reopened` on the first
   round after a reopen and `, final` on the round a Review rounds cost
   declares final, and leave out both otherwise; a further read outside the
   count is titled
   `## <stage> further read on <head or spec revision>: <verdict>, <N> for you`.
   Then a signal table, one row per
-  lens that ran: the lens, its signal (the mark of its most severe `open`
-  finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
+  lens that ran: the lens, its signal (the mark of its most severe `open` or
+  Owner's-call finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
   diagrams, then a count line with one count per Disposition word, summing to
   the table's rows. Write this opening last, from the final Lens dispositions
   table.
   For a pair, then put the places both lenses flagged, then each lens's own
-  findings, each with its severity mark, then the table, then each report verbatim in its own fold.
+  findings, each with its severity mark (a report kept local, as Posting says,
+  has the line `security finding, see chat`), then the table, then each report verbatim in its own fold.
 - **One status comment per record.** After each round's comment, post or edit
   one status comment on the same issue or pull request, so I see the latest
   round without reading them all. Its label is `status-<n>`, n the issue's or
@@ -95,7 +97,8 @@ Ask each lens to report in this shape:
   <n>[, reopened][, final]` or `after <stage> further read`, N as in the
   round's title line; the round's signal table, copied as
   posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
-  and word, its headline, a link to the round comment), or "None"; **Rounds,
+  and word, its headline, a link to the round comment; for a report kept local,
+  `security finding, see chat` in their place), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
   round, marks and head or revision, and a further read by its own title. Post
   it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
@@ -109,8 +112,8 @@ Ask each lens to report in this shape:
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: stop
-  and tell me. Post the round comment first. If a status edit is refused
+  `after <stage> further read (<your label>)`. More than one: that
+  is a hard stop; tell me. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -154,11 +157,11 @@ security ruling, or publish a weakness in someone else's software.
    class (step 5). A change that adds text to files sessions load, or
    writes a secret or personal detail into text sessions read, fits no class
    either, and is reviewed with the change.
-5. **Bring me** a new boundary, a residual no class covers, a change that
-   removes or weakens a control, a change to the scope, and every
-   `security?` row.
+5. **Bring me,** as a checkpoint, a new boundary, a residual no class covers,
+   a change that removes or weakens a control, and every `security?` row; a
+   change to the scope or the classes is a hard stop.
 
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published; a standing goal, a free hand, or a goal holder's or free hand holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
+A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published, so publishing it sooner is a hard stop; a standing goal, a free hand, or a goal holder's or free hand holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the
@@ -211,11 +214,19 @@ when no other row answers the sentence.
 
 - **Read before you post.** Read every report and comment for a secret or a
   personal detail, or a weakness in someone else's software that The threat
-  model section keeps unpublished, before posting it.
+  model section keeps unpublished, before posting it, and every commit before
+  a push others can read.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
-  renders as a mention, link or image.
+  renders as a mention, link or image. In a public record, a report holding a
+  security finding your pick leaves open (an Owner's-call row) stays local, as
+  a withheld lens's does: no fold; its line in the signal table, the round's
+  findings and the status comment reads `security finding, see chat`, and its
+  signal keeps its mark, as Lens dispositions says; it has no part in any
+  diagram and no entry in the places both lenses flagged, and the state and
+  open questions at a phase boundary name only the marker; it goes to me in
+  chat.
 - **Where to post.** In the work's record; with no record, in chat.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
@@ -226,16 +237,39 @@ when no other row answers the sentence.
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
+- **Checkpoint log.** Log each checkpoint you settle in the work's record, as
+  your own pick under your own label, never as mine: a one-line why, the goal
+  or free hand you ran under (its work and where it came from, by kind), each
+  narrowing I typed there (by the kind of step it keeps), and a flag: the line
+  opens `Checkpoint (flagged):`, except the forms below. A pick
+  that leaves a security path open is flagged big: in a public record its line
+  is exactly "Owner's call: security, see chat", with the why in chat; in a
+  private record, one only I can read (a record anyone but me can read counts
+  as public), the line opens "Owner's call: security"
+  and carries the why. The why also goes in a note under
+  `~/.claude/pact/private/`, either way. A pick that would put a
+  withheld lens report or its findings, a secret, a weakness not yet public,
+  the cleaner's tags or blocks, or anything else these rules keep out of the
+  record, in the record has the line exactly "withheld,
+  see chat", with no opener or flag, which wins over the security line, and the
+  why goes to me in chat; such a pick that would leave a security path open is
+  a hard stop. With no record, log in chat and in the result.
 - **The read-back.**
-  - Work waits on a pending read-back at each seam (an issue's before the work
-    leaves Plan, a spec's before its proceed, a pull request's before its
-    merge), and under a standing goal it waits for me, since a goal holder's
-    reply never confirms.
+  - Where neither your rules file nor this project's has a "Checkpoints wait"
+    line, checkpoints are events: a pending read-back blocks no seam, with or
+    without a standing goal. Post it `pending`, log the intent you went ahead
+    on, within the Checkpoint log's limits, and go on; I confirm or correct it
+    later.
+  - When your rules file or this project's says checkpoints wait, work waits
+    on a pending read-back at each seam (an issue's before the work leaves
+    Plan, a spec's before its proceed, a pull request's before its merge), and
+    under a standing goal it still waits for me, since a goal holder's reply
+    never confirms.
   - Before you post a kind with a quote, read back to me in chat the passages
     you will quote and your intent, and post `confirmed` only on my yes in that
-    chat and otherwise `pending` (a `decision` from my chat is always
-    `confirmed`); a relay or a goal holder's reply never confirms a read-back,
-    and a lead relays only the span meant for the record, after its own read
+    chat, never on a checkpoint pick, and otherwise `pending` (a `decision`
+    from my chat is always `confirmed`); a relay or a goal holder's reply never
+    confirms a read-back, and a lead relays only the span meant for the record, after its own read
     before posting.
   - When I later confirm or correct a pending read-back in chat, the session
     that heard it first posts a `decision` (source `chat`, posted `confirmed`,
@@ -244,9 +278,9 @@ when no other row answers the sentence.
     answer has the session post a `decision` with source `relayed`, which
     carries no mark and leaves the original pending until a session that heard
     me confirms it.
-  - When my words trip the content scan or hold a personal detail, leave that
-    span out of the passage as `[left out]` and tell me in chat what you left
-    out.
+  - When my words trip the content scan, hold a personal detail or, in a
+    public record, the why of a security ask, leave that span out of the
+    passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
   `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
@@ -288,7 +322,7 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, stop and tell me.
+  can't explain, that is a hard stop: tell me.
 
 ## Lens dispositions
 
@@ -314,3 +348,11 @@ markup:
 Mark one you took on your own recommendation `auto`, as in
 `fixed (auto: chose X because Y)`, or `fixed (auto)`. One I reverse is marked
 `(auto, reversed)`.
+
+A security or `security?` finding you settle is never `auto`. When your pick
+leaves its path open, the Disposition reads `taken (session's pick, Owner's
+call: security)`; otherwise it takes its usual word. Such an Owner's-call row
+counts as an `open` one in the round's N, the status comment's Open for you and
+the lens's signal mark. In a public record its Finding cell reads its state
+word, then `security finding, see chat`, with no severity mark, in place of the
+finding.

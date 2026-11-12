@@ -17,7 +17,7 @@ import { read, tempDir, writeTree } from './tree.mjs';
 const WIN = process.platform === 'win32';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const EXAMPLE = join(REPO, 'examples', 'pact-config', 'config.json');
-const USAGE_75 = 'When it is above 75%, wait for my';
+const USAGE_75 = "When it is above 75%, it's a";
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const digestOf = bytes => sha256(`user ${sha256(bytes)}\n`).slice(0, 12);
@@ -63,7 +63,7 @@ function refusedWith(r, rule, reason) {
 /** The configured render the tests expect: the value in the usage line, the notice in its slot, open marks gone. */
 function expected(srcText, digest, value) {
   assert.equal(srcText.split(USAGE_75).length, 2, 'the source no longer holds the usage line once');
-  let s = value === undefined ? srcText : srcText.replace(USAGE_75, `When it is above ${value}%, wait for my`);
+  let s = value === undefined ? srcText : srcText.replace(USAGE_75, `When it is above ${value}%, it's a`);
   const slot = '<!-- pact:begin config-notice -->\n<!-- pact:end config-notice -->\n';
   assert.equal(s.split(slot).length, 2, 'the source no longer holds the empty notice slot once');
   const notice = [
@@ -136,7 +136,7 @@ test('a session value renders the session line after the weekly one, and the not
   assert.match(r.stdout, /^VALUE usage-pause-session 80$/m, r.out);
   const session = [
     '- **Session usage.** Before anything expensive, also give my 5-hour session',
-    "  figure. When it is above 80%, wait for my go-ahead. If you can't see the",
+    "  figure. When it is above 80%, it's a hard stop. If you can't see the",
     '  figure, say so in one line and carry on under the weekly rule.',
     '',
   ].join('\n');
@@ -400,7 +400,7 @@ test('bad case: a usage-pause part that no longer matches its template at the de
 
 // #261 C10
 test('bad case: a usage-pause part with a line more than its template refuses', t => {
-  const src = read(SOURCE).replace('  go-ahead. The call to cut or stop work over usage is mine.\n', '  go-ahead. The call to cut or stop work over usage is mine.\n  Extra.\n');
+  const src = read(SOURCE).replace('  hard stop. The call to cut or stop work over usage is mine.\n', '  hard stop. The call to cut or stop work over usage is mine.\n  Extra.\n');
   refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'render', /usage-pause: the template at its default no longer matches the source/);
 });
 
@@ -455,8 +455,8 @@ test('bad case: a render larger than 1 MiB refuses, though its source is within 
     '<!-- pact:end config-notice -->',
     '<!-- pact:begin usage-pause -->',
     '- **Usage.** Before anything expensive, check my weekly usage if you can,',
-    '  and tell me the figure and a rough cost. When it is above 75%, wait for my',
-    '  go-ahead. The call to cut or stop work over usage is mine.',
+    "  and tell me the figure and a rough cost. When it is above 75%, it's a",
+    '  hard stop. The call to cut or stop work over usage is mine.',
     '<!-- pact:end usage-pause -->',
     '',
   ].join('\n');
@@ -543,7 +543,7 @@ test('the configuration file is opened once and read once, and a large file is r
   const got = big.seen.filter(l => l.startsWith('read ')).reduce((n, l) => n + Number(l.split(' ')[2]), 0);
   assert.ok(got <= 64 * 1024 + 1, `read ${got} bytes of a 1 MiB file`);
 });
-const USAGE_LINES = '- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, wait for my\n  go-ahead. The call to cut or stop work over usage is mine.\n';
+const USAGE_LINES = "- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, it's a\n  hard stop. The call to cut or stop work over usage is mine.\n";
 
 // #501 C1: the weekly limit takes an explicit false as off; the usage part renders empty.
 test('"usage-pause": false renders the usage part empty, and the notice says off', t => {
@@ -615,6 +615,8 @@ test('checkpoint-stops unset: the render holds the "Checkpoints wait" line, with
   // The no-configuration render holds it too.
   const none = render(t, tempDir(t, 'pact-render-nohome-'));
   assert.ok(none.bytes.toString('utf8').includes(CHECKPOINTS_WAIT));
+  // #557 S4.1: the line sits straight after the Checkpoints bullet.
+  assert.match(none.bytes.toString('utf8'), /- \*\*Checkpoints\.\*\*(?:(?!\n- )[^])*\n- \*\*Checkpoints wait\.\*\*/, 'the line follows the Checkpoints bullet');
 });
 
 // #554 C2: true keeps the line, and the notice names the value.

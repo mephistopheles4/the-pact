@@ -420,7 +420,7 @@ test('cloud copy: CLAUDE.cloud.md carries no configuration and the shipped usage
   // every render; only a filled notice or digest would be a configuration.
   assert.doesNotMatch(cloud, /Configuration in effect/);
   assert.doesNotMatch(cloud, /Config: [0-9a-f]{12}/);
-  assert.match(cloud, /When it is above 75%, wait for my/);
+  assert.match(cloud, /When it is above 75%, it's a/);
   for (const name of RETIRED) assert.doesNotMatch(cloud, new RegExp(`(?<![\\w-])${name}(?![\\w-])`), name);
 });
 

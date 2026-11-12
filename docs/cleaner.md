@@ -40,11 +40,13 @@ The ask rule on the override matches any text that holds `cleaner.mjs`,
   tag from a run without it never passes a run with it.
 
 The rules file tells a session to remove worktrees only through the cleaner,
-after your yes in chat. `show`'s own last lines tell it the rest: show you the
-name-back as printed, in a fenced code block, in chat only, so no name's marks
-can restyle it, give a record only the result line's counts, never the tags or
-the name-back, and run `remove` only after your own yes to it in chat; with an
-override tag, a third line says who may pass it.
+as a checkpoint when the removal is recoverable, else a hard stop. `show`'s own
+last lines tell it the rest: show you the name-back as printed, in a fenced
+code block, in chat only, so no name's marks can restyle it, give a record only
+the result line's counts, never the tags or the name-back, and run `remove`
+with `--recoverable` as a checkpoint, any other `remove` only after your own
+yes to it in chat; with an override tag, a third line, a hard stop, says who may
+pass it.
 
 ## What it keeps
 

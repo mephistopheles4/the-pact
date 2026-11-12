@@ -279,23 +279,23 @@ const SECURITY_DOUBT = Object.freeze({
 // default), or the render refuses.
 const USAGE_TEMPLATE = n => [
   '- **Usage.** Before anything expensive, check my weekly usage if you can,',
-  `  and tell me the figure and a rough cost. When it is above ${n}%, wait for my`,
-  '  go-ahead. The call to cut or stop work over usage is mine.',
+  `  and tell me the figure and a rough cost. When it is above ${n}%, it's a`,
+  '  hard stop. The call to cut or stop work over usage is mine.',
 ];
 // A setting's project line, for the project rules file: it reads as the lower
 // of the project's value and the user's. `tighter` is the direction a project
 // may move it: 'lower' means a smaller number is stricter.
 const USAGE_PROJECT_LINE = n =>
-  `- **Usage pause.** In this project, wait for my go-ahead when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+  `- **Usage pause.** In this project, it's a hard stop when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
 // The 5-hour session limit (#142). It has no default: unset, its part stays
 // empty, so the render is byte-for-byte what it is without the setting.
 const SESSION_TEMPLATE = n => [
   '- **Session usage.** Before anything expensive, also give my 5-hour session',
-  `  figure. When it is above ${n}%, wait for my go-ahead. If you can't see the`,
+  `  figure. When it is above ${n}%, it's a hard stop. If you can't see the`,
   '  figure, say so in one line and carry on under the weekly rule.',
 ];
 const SESSION_PROJECT_LINE = n =>
-  `- **Session usage pause.** In this project, wait for my go-ahead when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+  `- **Session usage pause.** In this project, it's a hard stop when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
 // The checkpoint-stops switch's part (#554): the line that keeps each checkpoint
 // as a stop. On, the part holds it; off, the part renders empty. The source
 // holds it at the default, on.
@@ -341,7 +341,7 @@ const TOOL_PARTS = new Map([
   })],
   ['cleaner', Object.freeze({
     mark: 'tool-cleaner',
-    template: Object.freeze(['- **Remove worktrees only through the cleaner,** after my yes in chat.']),
+    template: Object.freeze(['- **Remove worktrees only through the cleaner:** a recoverable removal is a checkpoint, any other a hard stop.']),
   })],
 ]);
 
@@ -395,10 +395,10 @@ trade-off.
   doubtful one "security?", and its row is never \`auto\`.
 - **Accepted threat classes** live only in the project's threat model, one
   line each: what it covers, never the steps. A finding that fits one needs
-  nothing. A finding that fits none comes to me as a new class, and only a merge I confirm
-  in chat adds or widens one. A change that removes a control still comes to
-  me, and so does a change to the threat model's scope. With no threat model,
-  flag the risk and record nothing.`;
+  nothing. A finding that fits none comes to me as a new class, and only a merge
+  I confirm in chat, a hard stop, adds or widens one. A change that removes a
+  control still comes to me, and so does a change to the threat model's scope.
+  With no threat model, flag the risk and record nothing.`;
 
 // At most nine cost rows, like the qualities: the install reads the count as one digit.
 const COST_LIMITS_MAX = 9;

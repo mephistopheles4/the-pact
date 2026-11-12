@@ -212,8 +212,8 @@ test('with no configuration the diff is empty, and with a values-only one it sho
       '+',
       `+**Configuration in effect.** This file was rendered with the configuration \`${sha256(`user ${sha256(Buffer.from(config))}\n`).slice(0, 12)}\`.`,
       '+Values set: usage-pause 90. Parts edited: none.',
-      '-  and tell me the figure and a rough cost. When it is above 75%, wait for my',
-      '+  and tell me the figure and a rough cost. When it is above 90%, wait for my',
+      "-  and tell me the figure and a rough cost. When it is above 75%, it's a",
+      "+  and tell me the figure and a rough cost. When it is above 90%, it's a",
     ],
   );
   assert.equal(applyDiff(withoutOpenMarks(read(SOURCE)), d), r.bytes.toString('utf8'));

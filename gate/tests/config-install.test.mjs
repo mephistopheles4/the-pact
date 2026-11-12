@@ -113,8 +113,8 @@ test('bad case: an unreadable configuration file refuses, and -Apply writes noth
 /** The rules file a configuration with usage-pause `value` should install, built here from the repo's source. */
 function expectedRules(repo, bytes, value) {
   let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8');
-  const usage = 'When it is above 75%, wait for my';
-  const swapped = s.replace(usage, `When it is above ${value}%, wait for my`);
+  const usage = "When it is above 75%, it's a";
+  const swapped = s.replace(usage, `When it is above ${value}%, it's a`);
   assert.notEqual(swapped, s, 'the usage line was found and replaced');
   s = swapped;
   const slot = '<!-- pact:begin config-notice -->\n';
