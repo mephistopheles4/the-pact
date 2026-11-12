@@ -16,3 +16,12 @@ The owner confirms at merge: the two widened classes, the weakened guide (step 5
 
 - The ask: https://github.com/mephistopheles4/the-pact/issues/554
 - The ticket: https://github.com/mephistopheles4/the-pact/issues/557
+- Spec revision 3: https://github.com/mephistopheles4/the-pact/issues/554#issuecomment-6827788060
+- Design round 1, reopened, on revision 2: https://github.com/mephistopheles4/the-pact/issues/554#issuecomment-6827764580
+- Design round 2 on revision 3, final: https://github.com/mephistopheles4/the-pact/issues/554#issuecomment-6828042684
+- Spec revision 4: https://github.com/mephistopheles4/the-pact/issues/554#issuecomment-6828327908
+- Closing read on revision 4: https://github.com/mephistopheles4/the-pact/issues/554#issuecomment-6828323286
+- Spec revision 5: https://github.com/mephistopheles4/the-pact/issues/554#issuecomment-6828374470
+- Spec correction: https://github.com/mephistopheles4/the-pact/issues/554#issuecomment-6829635988
+- Test rounds 1 and 2 on f0e3232, final: https://github.com/mephistopheles4/the-pact/issues/557#issuecomment-6831733151
+- Their lens reports: https://github.com/mephistopheles4/the-pact/issues/557#issuecomment-6831734212 and https://github.com/mephistopheles4/the-pact/issues/557#issuecomment-6831735147
