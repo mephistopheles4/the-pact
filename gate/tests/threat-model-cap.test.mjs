@@ -1,4 +1,4 @@
-// The threat model's word cap (#544, the spec's S10): docs/threat-model.md stays
+// The threat model's word cap (#544, the spec's S10): the threat model stays
 // at or under 3,000 words, so a session reads all of it. The count is the
 // whole file split on whitespace, mermaid included, as the rule budget counts.
 // Raising the cap changes a built-in default that bounds something, so it is a

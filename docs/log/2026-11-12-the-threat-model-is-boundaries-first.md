@@ -6,6 +6,8 @@ Local copies on disk, Removals lose local work, A raw stop gets past a speed bum
 
 `gate/tests/threat-model-cap.test.mjs` fails the file above 3,000 words, counted as the rule budget counts, and is seen to fail on a copy padded one word past the cap. `docs/rule-reasons.md`, `docs/install.md`, `docs/agents/issue-tracker.md` and `evals/cases/threat-new/prompt.md` follow the new class names; the tracker doc gains a pointer to the threat model.
 
+Test round 1 and 2's findings are folded in: pact rules sit under each boundary's Residual, each "Also accepted" line names its class, the machine line keeps its conditions, and the poster is described by what it refuses. The six 2026-10-11 logs are folded into `docs/log/older.md`, as the rule for a session that writes a log says.
+
 **Rolling back:** revert the PR. No install is needed: no `claude/` file changed.
 
 ## Record

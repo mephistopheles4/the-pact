@@ -23,7 +23,7 @@ flowchart LR
   outside["Strangers, outside PRs, clones, fetched pages, heard speech"]
   upstream["Plugins, upstream pins, CI dependencies, a design-system pin"]
   owner["Changes headed for main or ~/.claude"]
-  session["A session, steered or careless"]
+  session["A steered session"]
   readers["Readers of the tracker and other sessions"]
 
   subgraph B1["Text into a session"]
@@ -67,8 +67,9 @@ prompt, a mic transcript, a file someone hands a session to load.
 
 - **Harness.** Claude Code's permission prompts, which don't hold in auto mode
   or under `bypassPermissions`; its classifier in auto mode, which an
-  installed mod that approves a call skips; folder trust. The pact's overlay
-  sets auto mode as the default.
+  installed mod that approves a call skips; folder trust, which asks once and
+  stops holding when the owner trusts the folder. The pact's overlay sets auto
+  mode as the default.
 - **Harness, installed by the pact.** Deny rules on raw `git worktree remove`,
   `git branch -d`, `-D` and `--delete`, and `claude rm`, and an ask rule on a
   `cleaner.mjs remove --override` call, on only while the cleaner is on (off
@@ -77,13 +78,14 @@ prompt, a mic transcript, a file someone hands a session to load.
   deny rule is a speed bump: another spelling gets past it. The ask rule is
   passed by `bypassPermissions`, a mod, or a spelling outside its pattern.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
-  what git keeps; the owner's yes rests on a rule it can't tell, a removal
-  past its rules has only the classifier in the way, and a forced one rests on
-  the printed rule
+  what git keeps. It can't tell whether the owner said yes; a rule ties each
+  removal to that yes. A removal that gets past the deny rules meets only the
+  classifier. A forced removal rests on the rule the cleaner prints
   ([ADR 0151](adr/0151-the-cleaner-forces-only-on-an-override-tag.md)). The
   install's text scanner and the builder page's refusal of hidden characters
-  check the files they take, for hidden and control characters, not wording. The tracker author checker
-  (`gate/tracker-authors.mjs`) reads who wrote what where GraphQL is refused.
+  check the files they take for hidden and control characters, not wording.
+  The tracker author checker (`gate/tracker-authors.mjs`) reads who wrote what
+  where GraphQL is refused, and trusts a clone's `origin` by its path.
   No detector for injected wording is built
   ([ADR 0150](adr/0150-text-steering-is-accepted-and-no-detector-is-built.md)).
 
@@ -91,17 +93,18 @@ prompt, a mic transcript, a file someone hands a session to load.
 answers offers. Rules it rests on, each a control: whose-text-counts
 (`docs/agents/issue-tracker.md`); the owner-only steps (approval, installs,
 mise trust, merges, anything published, worktree removals); the stop and
-removal rules above. A change that loosens the cleaner's checks, the deny
-rules or the gates is a spec change. Not accepted, so for the owner: a control
-that works without the session's cooperation failing.
+removal rules above. A change that loosens the cleaner's checks or the pact's
+deny rules is a spec change. Not accepted, so bring it to the owner: the
+failure of a control that works without the session's cooperation.
 
-Also accepted here: a goal's log corrects only what can be undone, never what
-was published or sent; what a goal session's rules would tell the owner
-reaches them through its starter; usage holds only as a rule, and only while a
-limit is set; Claude Code's permissions may read a start prompt as the owner's ask; a
-session started for a goal or a free hand acts on its starter's reply, on its
-start prompt's word, or on a reply it can't tell from its starter's; a free
-hand's design pick can cover what a change stores, logs or sends.
+Also accepted. A standing goal decides alone: its log corrects only what can
+be undone, never what was published or sent; what its rules would tell the
+owner reaches them through its starter; usage holds only as a rule, and only
+while a limit is set; Claude Code's permissions may read a start prompt as the
+owner's ask. A standing goal decides alone and A free hand answers offers: a
+session started for either acts on its starter's reply, on its start prompt's
+word, or on a reply it can't tell from its starter's. A free hand answers
+offers: its design pick can cover what a change stores, logs or sends.
 
 ### Code that runs
 
@@ -119,18 +122,21 @@ into Scriptorium.
   is a pull request, read like any change.
 - **The pact's tools.** `gate/tests/workflow.test.mjs` holds both workflows to
   an exact allow-list: a read-only token, no secrets, no `pull_request_target`,
-  and `security-events: write` in one job only, skipped for Dependabot. The
-  Scriptorium page's policy (`builder/build.mjs`) sets `default-src 'none'` and
-  `connect-src 'none'`, so it blocks loads and connections, not navigation,
-  pop-ups or writes into a folder you grant it; each pin is held by hash.
+  and `security-events: write` in one job only, skipped for Dependabot. It
+  holds only while the test itself is unchanged; a change to it is read like
+  any change. The Scriptorium page's policy (`builder/build.mjs`) sets
+  `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
+  connections, not navigation, pop-ups or writes into a folder the owner
+  grants it; each pin is held by hash.
 - **Harness.** Folder trust and permission prompts, as above.
 
 **Residual:** What you install and CI run; Pinned design-system code. Rule it
 rests on, a control: never trust a project's mise config without the owner's
-word (`AGENTS.md`). Also accepted: the cloud setup's pins are git SHA-1 ids; pinned plugins send what
-they send by design; the gate's test files are not scanned; the code-scanning
-token can read and dismiss alerts on `main`; each design-system re-pin is
-reviewed like any change to this repo.
+word (`AGENTS.md`). Also accepted. What you install and CI run: the cloud
+setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
+the gate's test files are not scanned; the code-scanning token can read and
+dismiss alerts on `main`. Pinned design-system code: each re-pin is reviewed
+like any change to this repo.
 
 ### Merges and installs
 
@@ -144,12 +150,13 @@ reviewed like any change to this repo.
   is the review.
 - **The pact's tools.** The install gate (`gate/install.mjs`) runs a dry run
   first, applies only with the commit id the dry run printed, takes only plain
-  files and safe paths, and checks install mechanics only.
+  files and safe paths, and checks install mechanics only: the owner vets the
+  pact's text.
 
 **Residual:** The pact gets loosened; Review rests on rules. Rules they rest
 on, each a control: a merge waits for the owner's confirm in chat; an install
 apply and mise trust wait for the owner's word in chat, which a standing goal
-or a free hand never stands in for. Also accepted: a
+or a free hand never stands in for. Also accepted. Review rests on rules: a
 read-only lens takes the base on trust; the table check doesn't pair a state
 word with a disposition; a lens launched as a teammate, against the procedure,
 can pass what it read to, or write tasks for, the owner's other sessions and
@@ -167,18 +174,19 @@ connector call.
 
 - **GitHub.** Secret scanning and push protection on the repo, which match
   known token shapes, and which a pusher can override.
-- **The pact's tools.** The poster, when on: one strict JSON post checked
-  against a schema, a scan of the text for a live environment secret's value
-  and hidden text, and edits only of what its login wrote, which catches
-  accidents only. Its text fields catch accidents and are not a control, and
-  permission rules on `gh` don't see its calls.
+- **The pact's tools.** The poster, when on, refuses a post that fails its
+  strict JSON schema or whose text holds a live environment secret's value or
+  hidden text, and refuses an edit of what its login didn't write. That holds
+  for posts sent through it, and permission rules on `gh` don't see its calls.
+  Its text fields and edit checks catch accidents only and are not a control.
 
 **Residual:** Posts are public; Who counts as you. Rule they rest on, a
 control: read every commit before a push, and the post before it is sent, for
-a secret or a personal detail. Also accepted: a lens can
+a secret or a personal detail. Also accepted. Posts are public: a lens can
 send a secret out through a post, a builder file keeps what was typed into it,
-a foreign token or a commit's email can read as the owner, and a message to a
-cloud or Remote Control session leaves the machine when a session sends it.
+and a message to a cloud or Remote Control session leaves the machine when a
+session sends it. Who counts as you: a foreign token or a commit's email can
+read as the owner.
 
 ## Scope
 
@@ -192,28 +200,28 @@ session's sandbox, a service a project deploys, and that service's users'
 devices are not the machine. What starts and ends on the machine is no
 finding: other local accounts, unencrypted copies (the install's backups,
 kept-local reports, hand-off notes, the private notes folder), a program
-already running as you that nothing in scope started, supplied or steered, and
-loss of work with no attacker. What the machine makes from outside input stays
-outside input. In a cloud session those copies sit in Anthropic's sandbox, out
-of scope with Anthropic's servers. The machine's own antivirus, account
-isolation and disk encryption hold it. Also out: your own edits and your own
-account's edit in the browser; Claude Code, Anthropic's models and servers,
-and GitHub; the provider of a synced or backed-up copy, though
+already running as the owner that nothing in scope started, supplied or
+steered, and loss of work with no attacker. In a cloud session these copies
+sit in Anthropic's sandbox: not the machine, but out of scope as Anthropic's.
+What the machine makes from outside input stays outside input. The machine's
+own antivirus, account isolation and disk encryption hold it. Also out: the
+owner's own edits and own account's edit in the browser; Claude Code,
+Anthropic's models and servers, and GitHub; the provider of a synced or backed-up copy, though
 [`install.md`](install.md)'s rule to never sync, share or commit the backups
 folder still holds.
 
 **Root of trust:** the owner's GitHub account. Whoever controls it counts as
-you.
+the owner.
 
 ## Accepted threat classes
 
-Each boundary's "Also accepted" lines belong to that boundary's classes.
+Each "Also accepted" line above details what the class it names covers; it is not a class of its own.
 
 - **Text steers a session.** Any text a session or lens reads can move it, and in auto mode it can act before the owner sees it; the rules that keep steps for the owner can be broken, raw `gh` posts past the poster included.
 - **A standing goal decides alone.** Under a goal a session uses its own judgment on what the rules keep for the owner, acting on words from any prompt or message, or on replies it can't tell from its starter's.
 - **A free hand answers offers.** A session given a free hand answers lens offers and design questions on its own pick, on words it reads as the owner's, or on what its hand-off notes say after a compaction, whoever wrote them.
-- **What you install and CI run.** Plugins and skills, the cloud setup's pins, a trusted mise config, a program a clone supplies by bare name, and the gate's unscanned test files run with the owner's rights or a write token.
-- **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder you grant included, and a re-pin is reviewed like any change, with no security pair of its own.
+- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, and the gate's unscanned test files run with the owner's rights or a write token.
+- **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
 - **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
