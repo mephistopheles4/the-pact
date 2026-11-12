@@ -438,6 +438,23 @@ test('C9a: the whole body, with the item\'s reason lines carried, is held to the
   assert.equal(edit(t, s, ok, { body: 'x'.repeat(65536 - fixed - 10) }).code, 0);
 });
 
+// #524 S6.1a stage 2: the content scan runs once on the whole body, which only the item read can build
+test('C9a: a live edit whose full render trips the content scan is refused after the item read, and no PATCH is sent', t => {
+  const s = 'issue-comment-edit';
+  // The secret starts in the body file and ends in the item's carried reason line, so neither alone holds it.
+  const secret = `zzzq\n\nSigned: ${LABEL}\n\nEdited: first (other-session)`;
+  const env = { MY_API_TOKEN: secret };
+  const w = world({ store: items(`Text.\n\nSigned: ${LABEL}\n\nEdited: first (other-session)`) });
+  const r = edit(t, s, w, { body: 'New zzzq\n', env });
+  assert.ok(refusedBy(r, 'secret/env', 'body'), text(r));
+  assert.equal(patches(w).length, 0);
+  assert.ok(w.calls.some(c => c.args.includes(PATHS[s])), 'the item was read first');
+  assert.ok(!r.lines.join('\n').includes('zzzq'));
+  // Stage one, alone, passes it: the body file by itself holds no secret.
+  const dry = edit(t, s, world(), { body: 'New zzzq\n', env, dry: true });
+  assert.equal(dry.code, 0, text(dry));
+});
+
 // #413 C11
 test('C11: mismatch, unverified, failed and unavailable, each with its NEXT line', t => {
   const s = 'issue-comment-edit';

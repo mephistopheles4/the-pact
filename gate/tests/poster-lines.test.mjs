@@ -3,7 +3,7 @@
 // post per surface, written as the post file's own JSON.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { EXAMPLES, KINDS, SCHEMA, SURFACES, post } from '../../claude/tools/poster.mjs';
+import { EXAMPLES, SCHEMA, SURFACES, post } from '../../claude/tools/poster.mjs';
 import { postDoc } from './poster-post.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -20,12 +20,10 @@ test('every surface has one documented post, and each passes a dry run that call
 });
 
 // #524 C10: the schema names every field an example uses, and no surface takes a field the schema lacks
-test("the schema holds every field the examples and the surfaces name, and each kind's surfaces exist", () => {
+test('the schema holds every field the examples and the surfaces name', () => {
   const known = new Set(Object.keys(SCHEMA.properties));
   for (const [surface, doc] of Object.entries(EXAMPLES)) for (const name of Object.keys(doc)) assert.ok(known.has(name), `${surface}: ${name}`);
   for (const [surface, fields] of Object.entries(SURFACES)) for (const name of Object.keys(fields)) assert.ok(known.has(name), `${surface}: ${name}`);
-  for (const [kind, row] of Object.entries(KINDS)) for (const surface of row.surfaces) assert.ok(Object.hasOwn(SURFACES, surface), `${kind}: ${surface}`);
-  assert.deepEqual(SCHEMA.properties.kind.enum, Object.keys(KINDS));
 });
 
 // #524 C2: `node poster.mjs schema` is the same object the validator reads

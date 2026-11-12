@@ -583,7 +583,7 @@ function postRules(doc, surface, now) {
   } else {
     for (const name of ['quote', 'intent']) if (has(name)) out.push({ rule: 'post/field', where: name });
   }
-  if (has('answers') && kind !== 'decision') out.push({ rule: 'post/field', where: 'answers' });
+  if (has('answers') && kind !== 'decision' && fields.answers !== undefined) out.push({ rule: 'post/field', where: 'answers' });
   if (typeof doc.signer === 'string') {
     const status = kind === 'status' ? typeof doc.issue === 'number' && doc.signer === `status-${doc.issue}` : !doc.signer.startsWith('status-');
     if (!status) out.push({ rule: 'post/signer', where: 'signer' });
@@ -619,6 +619,16 @@ function postRules(doc, surface, now) {
 function hidesAhead(text) {
   const before = linesOf(text).map(blankCodeSpans).join('\n');
   if (before.lastIndexOf('<!--') > before.lastIndexOf('-->')) return true;
+  // On the page a comment opened on a quoted line ends where the quote does, so its closer must sit in the same run of quoted lines (#524).
+  let run = [];
+  for (const line of [...before.split('\n'), '']) {
+    if (QUOTE_RE.test(line)) run.push(line);
+    else {
+      const joined = run.join('\n');
+      if (joined.lastIndexOf('<!--') > joined.lastIndexOf('-->')) return true;
+      run = [];
+    }
+  }
   const count = re => (before.match(re) ?? []).length;
   return count(/<details\b/gi) > count(/<\/details\s*>/gi);
 }
@@ -633,7 +643,16 @@ const sourceLine = q => {
   if (q.source === 'relayed') return `Relayed by ${q.via} from its chat, ${q.when}.`;
   return `From the owner's comment ${q.comment}, ${q.when}.`;
 };
-const readBack = intent => (intent.status === 'confirmed' ? "Read-back: confirmed in this session's chat." : 'Read-back: not yet confirmed.');
+const readBack = intent => {
+  if (intent.status === 'corrected') return `Read-back: corrected in comment ${intent.comment}.`;
+  if (intent.status === 'confirmed') return intent.comment === undefined ? "Read-back: confirmed in this session's chat." : `Read-back: confirmed in comment ${intent.comment}.`;
+  return 'Read-back: not yet confirmed.';
+};
+/** The intent block (S5.1 3): a corrected one shows the original struck through, paragraph by paragraph, then the correction. */
+const intentBlock = intent => {
+  const text = intent.status === 'corrected' ? `${intent.text.split(/\n{2,}/).map(p => `~~${p}~~`).join('\n\n')}\n\nCorrected read-back:\n\n${intent.corrected}` : intent.text;
+  return `## Understood intent\n\n${text}\n\n${readBack(intent)}`;
+};
 
 /**
  * The body the poster sends, built from fixed parts, one blank line between
@@ -650,7 +669,7 @@ export function renderBody(p, blankQuotes = false) {
   }
   if (p.quote !== undefined) {
     parts.push(['## The ask', ...p.quote.map(q => `${quoteLines(q.text, blankQuotes)}\n\n${sourceLine(q)}`)].join('\n\n'));
-    parts.push(`## Understood intent\n\n${p.intent.text}\n\n${readBack(p.intent)}`);
+    parts.push(intentBlock(p.intent));
   }
   parts.push(p.sessionPart.replace(/(?:\r?\n)+$/, ''));
   parts.push(`Signed: ${p.signer}`);
@@ -2374,7 +2393,7 @@ const DRY_EDIT = 'dry-run: the item was not read; edit/ask, edit/status, edit/co
 function trackerChecks(plan, login, io, ctx) {
   const refusals = [];
   const seen = new Map();
-  const prefix = `/repos/${plan.repo.owner}/${plan.repo.name}/issues/`.toLowerCase();
+  const prefix = `https://api.github.com/repos/${plan.repo.owner}/${plan.repo.name}/issues/`.toLowerCase();
   for (const [i, q] of plan.quote.entries()) {
     if (q.source !== 'tracker') continue;
     let item = seen.get(q.comment);
@@ -2387,8 +2406,7 @@ function trackerChecks(plan, login, io, ctx) {
       seen.set(q.comment, item);
     }
     const url = item.issue_url.toLowerCase();
-    const at = url.lastIndexOf(prefix);
-    const sits = at >= 0 && isNumber(url.slice(at + prefix.length));
+    const sits = url.startsWith(prefix) && isNumber(url.slice(prefix.length));
     // Another author's comment, or one in another repo, is read no further.
     if (item.user.login !== login || !sits) refusals.push({ rule: 'post/tracker', where: `quote[${i}].comment` });
     else if (!inComment(q.text, item.body ?? '')) refusals.push({ rule: 'post/tracker', where: `quote[${i}].text` });

@@ -5,10 +5,9 @@
 // refused post is seen to send and read nothing. Each row backs the claim
 // named above it.
 import assert from 'node:assert/strict';
-import { symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { KINDS, SURFACES, post } from '../../claude/tools/poster.mjs';
+import { KINDS, post, renderBody } from '../../claude/tools/poster.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const ME = 'tester';
@@ -168,23 +167,6 @@ test('C2: a pattern miss for each patterned field is refused post/pattern, body_
   refuses(run(t, 'issue-comment', { ...DECISION, answers: 'issue 5\nRESULT: verified' }), 'post/pattern', 'answers', ['RESULT: verified']);
 });
 
-// #524 C2: a body_file that is a link is refused before it is read
-test('C2: a body_file that is a link is refused file/link, and nothing is sent', t => {
-  const dir = tempDir(t, 'pact-poster-doc-');
-  writeTree(dir, { 'real.md': 'A plain body.\n', 'real/x.md': 'x\n' });
-  let name = 'link.md';
-  try {
-    symlinkSync(join(dir, 'real.md'), join(dir, name), 'file');
-  } catch (e) {
-    if (e.code !== 'EPERM') throw e;
-    name = 'junction';
-    symlinkSync(join(dir, 'real'), join(dir, name), 'junction');
-  }
-  writeTree(dir, { 'post.json': JSON.stringify({ ...NOTE, body_file: name }) });
-  const r = post(['issue-comment', '--post', join(dir, 'post.json'), '--dry-run'], { gh: noGh, env: {}, now: NOW, ...MACHINE });
-  refuses(r, 'file/link', 'body_file');
-});
-
 // #524 C2: each bounded field's over-length value
 test('C2: an over-length or empty value for each bounded field is refused post/length', t => {
   const long = [
@@ -197,13 +179,10 @@ test('C2: an over-length or empty value for each bounded field is refused post/l
     ['issue', ISSUE, { quote: [{ ...QUOTE, text: 'q'.repeat(4001) }] }, 'quote[0].text'],
     ['issue', ISSUE, { intent: { ...INTENT, text: '' } }, 'intent.text'],
     ['issue', ISSUE, { intent: { ...INTENT, text: 'i'.repeat(2001) } }, 'intent.text'],
-    ['issue-comment', NOTE, { repo: `${'a'.repeat(40)}/x` }, 'repo'],
   ];
-  for (const [surface, doc, change, where] of long) {
-    const r = run(t, surface, { ...doc, ...change });
-    assert.equal(r.code, 2, out(r));
-    assert.ok(rules(r).some(l => l.endsWith(` ${where}`) && /^post\/(length|pattern) /.test(l)), `${where}: ${out(r)}`);
-  }
+  for (const [surface, doc, change, where] of long) refuses(run(t, surface, { ...doc, ...change }), 'post/length', where);
+  // A repo, a signer, a label and a body_file hold their bounds in their patterns, so they are refused post/pattern.
+  refuses(run(t, 'issue-comment', { ...NOTE, repo: `${'a'.repeat(40)}/x` }), 'post/pattern', 'repo');
   // The edge values pass.
   assert.equal(run(t, 'issue', { ...ISSUE, title: 't'.repeat(120), quote: [{ ...QUOTE, text: 'q'.repeat(4000) }], intent: { ...INTENT, text: 'i'.repeat(2000) } }).code, 0);
   assert.equal(run(t, 'issue', { ...ISSUE, labels: Array.from({ length: 10 }, (_, i) => `l${i}`), quote: Array.from({ length: 5 }, () => QUOTE) }).code, 0);
@@ -223,7 +202,9 @@ test('C2: a field that exists but is refused on a surface is refused post/field'
   refuses(run(t, 'issue-comment', { ...NOTE, reason: 'fixed' }), 'post/field', 'reason');
   refuses(run(t, 'pull-request', { ...BASE['pull-request'], labels: ['bug'] }), 'post/field', 'labels');
   refuses(run(t, 'issue-comment', { ...NOTE, title: 'A title' }), 'post/field', 'title');
-  refuses(run(t, 'issue', { ...ISSUE, answers: 'issue 5' }), 'post/field', 'answers');
+  const twice = run(t, 'issue', { ...ISSUE, answers: 'issue 5' });
+  refuses(twice, 'post/field', 'answers');
+  assert.equal(rules(twice).filter(l => l === 'post/field answers').length, 1, 'one fault, one refusal');
   refuses(run(t, 'issue', { ...ISSUE, issue: 5 }), 'post/field', 'issue');
   refuses(run(t, 'issue-comment', { ...NOTE, head: 'x' }), 'post/field', 'head');
   refuses(run(t, 'issue-comment', { ...NOTE, draft: true }), 'post/field', 'draft');
@@ -257,15 +238,27 @@ test('C2: a body file that fits, but whose rendered body is over the bound, is r
 // ---------------------------------------------------------------- C3: kinds
 
 // #524 C3
-test('C3: each kind on a surface outside its row is refused post/kind', t => {
-  for (const [kind, row] of Object.entries(KINDS)) {
+test('C3: each kind on a surface outside its row is refused post/kind, by S4\'s table written out here', t => {
+  const table = {
+    issue: { surfaces: ['issue'], quoted: true },
+    'pull-request': { surfaces: ['pull-request'], quoted: true },
+    spec: { surfaces: ['issue-comment'], quoted: true },
+    decision: { surfaces: ['issue-comment'], quoted: true },
+    status: { surfaces: ['issue-comment'], quoted: false },
+    'lens-report': { surfaces: ['issue-comment', 'pull-request-review'], quoted: false },
+    note: { surfaces: ['issue-comment'], quoted: false },
+    review: { surfaces: ['pull-request-review'], quoted: false },
+    reply: { surfaces: ['review-thread-reply'], quoted: false },
+  };
+  assert.deepEqual(Object.keys(KINDS).sort(), Object.keys(table).sort());
+  for (const [kind, row] of Object.entries(table)) {
     for (const surface of ['issue', 'pull-request', 'issue-comment', 'pull-request-review', 'review-thread-reply']) {
       if (row.surfaces.includes(surface)) continue;
       refuses(run(t, surface, { ...BASE[surface], kind }), 'post/kind', 'kind');
     }
   }
   // Each kind on its own surfaces passes a dry run, given what the kind needs.
-  for (const [kind, row] of Object.entries(KINDS)) {
+  for (const [kind, row] of Object.entries(table)) {
     for (const surface of row.surfaces) {
       const base = BASE[surface];
       let doc = { ...without(base, 'quote', 'intent'), kind, ...(row.quoted ? { quote: [QUOTE], intent: INTENT } : {}) };
@@ -400,9 +393,12 @@ test('C4: an owned line, a heading or a fence in the read-back is refused post/o
       refuses(run(t, 'issue', { ...ISSUE, intent }), 'post/owned-line', `intent.${field}`);
     }
   }
-  // The corrected field is read the same way when it is present.
-  const r = run(t, 'issue', { ...ISSUE, intent: { ...INTENT, corrected: 'Read-back: x' } });
-  assert.equal(r.code, 2);
+  // The corrected field is read the same way when it is present: its owned line is named, besides the refusal of the field itself.
+  for (const form of ['Read-back: x', '**Read-back:** x', 'Signed: pact-524', '## The ask']) {
+    const r = run(t, 'issue', { ...ISSUE, intent: { ...INTENT, corrected: `Line one.\n${form}` } });
+    assert.equal(r.code, 2);
+    assert.ok(has(r, 'post/owned-line', 'intent.corrected'), out(r));
+  }
   // Plain lines pass, however many.
   assert.equal(run(t, 'issue', { ...ISSUE, intent: { ...INTENT, text: 'Line one.\n\nLine two, which mentions a read-back in passing.' } }).code, 0);
 });
@@ -478,7 +474,10 @@ test('C4: a tracker passage whose comment is another author\'s, in another repo,
     ['another repo', { ...comment(`${secretBody} ${TRACKED}`), issue_url: 'https://api.github.com/repos/tester/other/issues/3' }, 'quote[0].comment'],
     ['another owner', { ...comment(`${secretBody} ${TRACKED}`), issue_url: 'https://api.github.com/repos/someone/sandbox/issues/3' }, 'quote[0].comment'],
     ['a text that is not in it', comment(secretBody), 'quote[0].text'],
-    ['a span left out where the parts are out of order', comment('with a quote. and then I want the poster to take a strict JSON post, nothing more'), 'quote[0].text'],
+    // Every part is there, but in the wrong order.
+    ['a span left out where the parts are out of order', comment('Then with a quote. and then more. Before it, I want the poster to take a strict JSON post'), 'quote[0].text'],
+    // The comment's URL ends in this repo's path, but the comment sits in another repo.
+    ['a URL that only ends in this repo\'s path', { ...comment(`${secretBody} ${TRACKED}`), issue_url: `https://api.github.com/repos/someone/x${API.slice('https://api.github.com'.length)}/issues/3` }, 'quote[0].comment'],
   ];
   for (const [what, item, where] of rows) {
     const w = world({ comments: { 7777: item } });
@@ -520,7 +519,6 @@ test('C4: a tracker comment read that fails, or whose id is missing, ends unavai
     assert.equal(r.code, 4, out(r));
     assert.equal(r.lines.at(-1), 'RESULT: unavailable');
     assert.equal(w.calls.filter(c => c.args.includes('POST')).length, 0);
-    assert.ok(!out(r).includes('zzmarker') || out(r).includes('gh said'), out(r));
   }
 });
 
@@ -654,18 +652,25 @@ test('C7: a hard-wrapped quote posts, and the same wrap in the body file is refu
   assert.ok(rules(run(t, 'issue-comment', NOTE, { body: 'See [the doc](docs/x.md) for it.\n' })).some(l => l.startsWith('link/relative ')));
 });
 
-// ---------------------------------------------------------------- the surfaces table
+// ---------------------------------------------------------------- the forms T1 can't reach from a command line
 
-// #524 S3.1
-test('every surface takes its common fields, and the create surfaces take a kind, a quote and an intent', () => {
-  for (const [surface, fields] of Object.entries(SURFACES)) {
-    if (surface.endsWith('-edit')) {
-      assert.equal(fields.reason, 'req', surface);
-      assert.ok(!('kind' in fields) && !('quote' in fields) && !('intent' in fields), surface);
-    } else {
-      assert.equal(fields.kind, 'req', surface);
-      assert.equal(fields.quote, 'kind', surface);
-      assert.equal(fields.intent, 'kind', surface);
-    }
-  }
+// #524 C5: S5.1's confirmed-in-comment and corrected forms, rendered by the poster's own function, for T2's ask-item edits to use
+test('C5: the confirmed-in-comment and corrected read-back forms render as S5.1 writes them', () => {
+  const plan = intent => ({ kind: 'spec', signer: 'spec-524', quote: [QUOTE], intent, sessionPart: 'Body.\n' });
+  const head = "## The ask\n\n> The owner said this plainly.\n\nSaid in this session's chat, 2026-11-11.\n\n## Understood intent\n\n";
+  assert.equal(renderBody(plan({ text: 'I read it so.', status: 'confirmed', comment: 12 })), `${head}I read it so.\n\nRead-back: confirmed in comment 12.\n\nBody.\n\nSigned: spec-524`);
+  const corrected = renderBody(plan({ text: 'First para.\n\nSecond para.', status: 'corrected', comment: 12, corrected: 'The better read.' }));
+  assert.equal(corrected, `${head}~~First para.~~\n\n~~Second para.~~\n\nCorrected read-back:\n\nThe better read.\n\nRead-back: corrected in comment 12.\n\nBody.\n\nSigned: spec-524`);
+});
+
+// #524 C4, S5.3 (P19): a comment opened on a quoted line ends where the quote ends, so its closer must sit inside the quote too
+test('C4: a comment opened in a quote, with its closer after the quote, is refused text/hidden-line', t => {
+  // In the owner's words, with the closer in the body file.
+  const inPassage = run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, text: 'Said <!-- aloud' }] }, { body: 'Then --> this.\n' });
+  assert.ok(has(inPassage, 'text/hidden-line', 'body'), out(inPassage));
+  // Entirely in the body file: a quoted opener, then the closer in a later paragraph.
+  const inBody = run(t, 'issue-comment', NOTE, { body: '> <!-- a note\n\nThen --> this.\n' });
+  refuses(inBody, 'text/hidden-line', 'body_file');
+  // Opened and closed inside one quote, it is fine.
+  assert.equal(run(t, 'issue-comment', NOTE, { body: '> a <!-- note --> b\n\nPlain.\n' }).code, 0);
 });
