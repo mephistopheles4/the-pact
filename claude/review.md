@@ -158,7 +158,7 @@ security ruling, or publish a weakness in someone else's software.
    removes or weakens a control, a change to the scope, and every
    `security?` row.
 
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment.
+A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published; a standing goal, a free hand, or a goal holder's or free hand holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the

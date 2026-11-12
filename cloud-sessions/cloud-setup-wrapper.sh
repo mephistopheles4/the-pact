@@ -771,7 +771,7 @@ effort: high
 
 Your question: how could someone break this change?
 
-1. **Threat model, first.** Read the handed guide; name the project's threat model at the base, or say none. A path wholly on the machine, that a named control holds, or fitting an accepted class needs no finding; any other is one, as is a new boundary, a removed or weakened control, or a class or scope change.
+1. **Threat model, first.** Read the handed guide; name the project's threat model at the base, or say none. A path the guide clears, that a named control holds, or fitting an accepted class needs no finding; any other is one, as is a new boundary, a removed or weakened control, or a class or scope change.
 2. **Red step.** Who could reach each part, and what would they want?
 3. **Attack paths.** Each one: entry point, what the attacker controls, steps past each control, gain; confirmed or hypothesis, with its likelihood.
 4. **Checklist.** Walk the paths through STRIDE (spoofing, tampering, repudiation, information disclosure, denial of service, elevation of privilege) and the OWASP ASVS 5.0.0 chapters the change touches: V1 Encoding, V2 Validation and Logic, V3 Web Frontend, V4 API, V5 Files, V6 Authentication, V7 Sessions, V8 Authorization, V9 Tokens, V10 OAuth, V11 Cryptography, V12 Communication, V13 Configuration, V14 Data Protection, V15 Architecture, V16 Logging and Errors, V17 WebRTC.
@@ -854,7 +854,7 @@ effort: high
 
 Your question: what data does this change touch, and where can it leak? Data means secrets, personal data, and anything the owner wouldn't want read.
 
-1. **Threat model, first.** Read the handed guide; name the project's threat model at the base, or say none. A leak wholly on the machine, that a named control holds, or fitting an accepted class needs no finding; any other is one, as is a new boundary, a removed or weakened control, or a class or scope change.
+1. **Threat model, first.** Read the handed guide; name the project's threat model at the base, or say none. A leak the guide clears, that a named control holds, or fitting an accepted class needs no finding; any other is one, as is a new boundary, a removed or weakened control, or a class or scope change.
 2. **Red step.** Per part: what data it could expose, to whom.
 3. **Inventory.** Per item: kind, stored where, flows where, read by whom, leak point.
 4. **Encryption.** Even on the machine, a secret in source or a log, or a secret or personal item stored or sent unencrypted past a boundary, is `high`.
@@ -1311,7 +1311,7 @@ security ruling, or publish a weakness in someone else's software.
    removes or weakens a control, a change to the scope, and every
    `security?` row.
 
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment.
+A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published; a standing goal, a free hand, or a goal holder's or free hand holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the
@@ -1616,17 +1616,17 @@ check_hash() {
   fi
 }
 check_hash 816906235ec22a7ba17ea86985381ad00d205cbfbcf4ce0b0ebba920c080ad07 'CLAUDE.md'
-check_hash fe00246d3107d436ad3833f34c1e2537672d8892cc0337177fbd7789d4789af2 'agents/adversarial-lens.md'
+check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
-check_hash 5d175680c4ba2acba3d0c7c167efc9eb6aa0edc641d0696315ab4be7e9944230 'agents/data-lens.md'
+check_hash 6644241bb266517b880984a09877857f966245122a9d1acd8cfe84047e4e27ed 'agents/data-lens.md'
 check_hash 2b168f8be60d7ccda8d0af9ec1742033dbe73d2121bf2863810399d9857925b3 'agents/executability-lens.md'
 check_hash 55615b0c699ac326c5384071787ac32e3ff7e3c4b458e2912313f557a51393a6 'agents/integrity-lens.md'
 check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'agents/reader-lens.md'
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 6e4b0737800feefcd79f2aa5f310639bf0f5b8fc312e7ed715a69a8b92f7f3a2 'pact/review.md'
+check_hash 7d6c91bb3b6482fbfbaa4a8a426c5fb6cc248cd29ffa39af27a11c9a91bcddb1 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1656,7 +1656,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 7f6d083233ce"
+  echo "pact cloud copy 04c89b745078"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

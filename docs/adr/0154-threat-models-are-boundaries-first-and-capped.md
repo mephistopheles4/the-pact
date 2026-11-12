@@ -18,7 +18,7 @@ The owner's words, in chat with the session leading the work: "anything inside t
 
 - **The protected set grows by one rule.** The guide is cut or weakened only by the protected-set route (`AGENTS.md`). The security lenses' four carried rules are untouched, byte for byte.
 - **Outside input stays outside.** A cloned repo's file, an installed plugin, and what anything on the machine makes from outside input are not the machine's. The narrowing does not launder them. A path on the machine still counts when the project's threat model holds it in scope or it touches the sensitive-work list.
-- **A weakness in someone else's software** is published only once its maker's public tracker holds it or the owner says in chat that it may be published. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment.
+- **A weakness in someone else's software** is published only once its maker's public tracker holds it or the owner says in chat that it may be published. A standing goal, a free hand, or a holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and the session tells the owner in chat where it is. The security lenses' step 1 defers to the guide ("a path the guide clears"), so the guide's machine exception reaches them.
 - **The lens text is trimmed to fit 300 words each.** No budget is raised.
 - **No claim measures whether the guide changes behaviour.** It is noted, not built.
 - **The install, `cloud-sessions/cloud-setup-wrapper.sh` included, applies only on the owner's go-ahead in chat.** Cloud sessions keep the old rules and lenses until the owner pastes the rebuilt wrapper.
