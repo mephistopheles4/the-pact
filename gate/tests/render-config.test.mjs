@@ -603,16 +603,15 @@ const CHECKPOINTS_WAIT = [
 
 const stopsBytes = v => Buffer.from(`{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`);
 
-// #554 C2: unset, the render holds the line, with its narrow free-hand exception and its read-back clause.
-test('checkpoint-stops unset: the render holds the "Checkpoints wait" line, with its free-hand exception and its read-back clause', t => {
+// #554 C2: unset, the render holds the line, with its narrow free-hand exception. #562 C4: and no read-back wait.
+test('checkpoint-stops unset: the render holds the "Checkpoints wait" line, with its free-hand exception and no read-back wait', t => {
   assert.ok(read(SOURCE).includes(CHECKPOINTS_WAIT), 'the source no longer holds the line');
   const withOther = render(t, homeWith(t, Buffer.from('{"schema": 1, "settings": {"usage-pause": 90}}\n')));
   assert.equal(withOther.code, 0, withOther.out);
   const text = withOther.bytes.toString('utf8');
   assert.ok(text.includes(CHECKPOINTS_WAIT), 'a configuration that leaves the setting out keeps the line');
   const flat = text.replace(/\s+/g, ' ');
-  for (const clause of ['except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question.']) assert.ok(flat.includes(clause), clause);
-  assert.ok(!flat.includes('a pending read-back waits'), 'the render holds no read-back wait');
+  for (const wait of ['a pending read-back waits', 'where checkpoints wait, a pending read-back']) assert.ok(!flat.includes(wait), `the render holds no "${wait}"`);
   // The no-configuration render holds it too.
   const none = render(t, tempDir(t, 'pact-render-nohome-'));
   assert.ok(none.bytes.toString('utf8').includes(CHECKPOINTS_WAIT));

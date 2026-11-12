@@ -122,7 +122,7 @@ const stopsProject = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}
 const stopsUser = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`;
 
 for (const [label, user] of [['no user file', undefined], ['a user file that leaves it unset', '{"schema": 1, "settings": {"usage-pause": 90}}\n'], ['a user true', stopsUser(true)], ['a user false', stopsUser(false)]]) {
-  // #554 C3: checkpoint-stops is a switch whose tighter value is true: a project may set true over any user value, never false.
+  // #554 C3: checkpoint-stops is a switch whose tighter value is true: a project may set true over any user value, never false. #562 C4: the line holds no read-back wait.
   test(`checkpoint-stops: a project true beside a usage value installs over ${label}: both project lines, in the settings order, the values, the hashes`, t => {
     const pbytes = Buffer.from('{"schema": 1, "settings": {"checkpoint-stops": true, "usage-pause": 60}}\n');
     const r = render(t, userHome(t, user), project(t, pbytes));

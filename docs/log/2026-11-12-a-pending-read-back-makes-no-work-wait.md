@@ -12,5 +12,7 @@
 
 - The issue and spec (revision 4): https://github.com/mephistopheles4/the-pact/issues/562
 - The owner's decision: https://github.com/mephistopheles4/the-pact/issues/562#issuecomment-6835827055
+- Spec round 1 on revision 2: https://github.com/mephistopheles4/the-pact/issues/562#issuecomment-6836064847
+- Spec round 2 on revision 3, final: https://github.com/mephistopheles4/the-pact/issues/562#issuecomment-6836184757
 - The build hand-off: https://github.com/mephistopheles4/the-pact/issues/562#issuecomment-6836221711
 - Head chef follow-up: https://github.com/mephistopheles4/grimoire/issues/618
