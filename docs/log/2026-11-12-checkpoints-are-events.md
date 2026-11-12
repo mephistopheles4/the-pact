@@ -6,7 +6,7 @@
 
 `AGENTS.md`'s protected-set items 1 and 2 say a lens offer, the tier and the route are checkpoints and never a decline of the route or the pair. `docs/threat-model.md` merges the goal and free-hand classes into "A session takes checkpoints alone", rewrites "Text steers a session" and the Residuals of the first and third boundaries to point at the hard stops and the checkpoint rule, and redraws the chart and the flowchart. `docs/rule-reasons.md`, `CONTEXT.md`, `docs/reference.md`, `docs/cleaner.md` and `docs/poster.md` follow; six evals get new criteria.
 
-The owner confirms at merge: the two widened classes, the weakened guide (step 5) and the two weakened controls (the merge rule and the removal rule), all named in the ADR. The merge is itself a hard stop, since it edits a threat model's classes.
+The owner confirms at merge: the two widened classes, the weakened guide (step 5), the marker as a searchable index and the four weakened controls (the merge rule, the removal rule, approval and the `/scriptorium` save), all named in the ADR. The merge is itself a hard stop, since it edits a threat model's classes.
 
 `tools.test.mjs` holds strict adjacency again between the record bullet and the poster's part, since the `checkpoint-stops` mark moved to follow the Checkpoints bullet. The generated files (`cloud-sessions/`, `builder/scriptorium.html`, `builder/default-config/`) are refreshed from the new text.
 

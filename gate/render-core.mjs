@@ -286,16 +286,16 @@ const USAGE_TEMPLATE = n => [
 // of the project's value and the user's. `tighter` is the direction a project
 // may move it: 'lower' means a smaller number is stricter.
 const USAGE_PROJECT_LINE = n =>
-  `- **Usage pause.** In this project, wait for my go-ahead when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+  `- **Usage pause.** In this project, it's a hard stop when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
 // The 5-hour session limit (#142). It has no default: unset, its part stays
 // empty, so the render is byte-for-byte what it is without the setting.
 const SESSION_TEMPLATE = n => [
   '- **Session usage.** Before anything expensive, also give my 5-hour session',
-  `  figure. When it is above ${n}%, wait for my go-ahead. If you can't see the`,
+  `  figure. When it is above ${n}%, it's a hard stop. If you can't see the`,
   '  figure, say so in one line and carry on under the weekly rule.',
 ];
 const SESSION_PROJECT_LINE = n =>
-  `- **Session usage pause.** In this project, wait for my go-ahead when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+  `- **Session usage pause.** In this project, it's a hard stop when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
 // The checkpoint-stops switch's part (#554): the line that keeps each checkpoint
 // as a stop. On, the part holds it; off, the part renders empty. The source
 // holds it at the default, on.

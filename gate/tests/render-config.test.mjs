@@ -136,7 +136,7 @@ test('a session value renders the session line after the weekly one, and the not
   assert.match(r.stdout, /^VALUE usage-pause-session 80$/m, r.out);
   const session = [
     '- **Session usage.** Before anything expensive, also give my 5-hour session',
-    "  figure. When it is above 80%, wait for my go-ahead. If you can't see the",
+    "  figure. When it is above 80%, it's a hard stop. If you can't see the",
     '  figure, say so in one line and carry on under the weekly rule.',
     '',
   ].join('\n');
@@ -615,6 +615,8 @@ test('checkpoint-stops unset: the render holds the "Checkpoints wait" line, with
   // The no-configuration render holds it too.
   const none = render(t, tempDir(t, 'pact-render-nohome-'));
   assert.ok(none.bytes.toString('utf8').includes(CHECKPOINTS_WAIT));
+  // #557 S4.1: the line sits straight after the Checkpoints bullet.
+  assert.match(none.bytes.toString('utf8'), /- \*\*Checkpoints\.\*\*(?:(?!\n- )[^])*\n- \*\*Checkpoints wait\.\*\*/, 'the line follows the Checkpoints bullet');
 });
 
 // #554 C2: true keeps the line, and the notice names the value.

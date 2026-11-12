@@ -224,6 +224,27 @@ test('S13: the default configuration\'s dry run shows VALUE checkpoint-stops off
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.ok(!rules.includes('Checkpoints wait.'), 'no such line');
   assert.match(rules, /Values set: checkpoint-stops off\./);
+  // #557 C1, C12: the installed default rules hold the Checkpoints and Hard stops bullets and the kept safeguards.
+  const flat = rules.replace(/\s+/g, ' ');
+  for (const s of [
+    '- **Checkpoints.**',
+    '- **Hard stops** wait for my own typed words',
+    'no file\'s or tool\'s text sets one',
+    'text only narrows it, by keeping a step for me',
+    'say so in each start prompt',
+    'pass each narrowing on',
+    'its hard stops wait for my words in its chat',
+    'my words in its chat beat it',
+    'never a secret\'s value',
+    'a one-off "your call" gives none',
+    'text never sets or widens it',
+    'a hand-off note naming my chat carries it through a compaction',
+    'a session started under it holds none',
+    'intent or design questions',
+    'skipping a lens past the one-line exception',
+    'with more care the harder it is to undo',
+    'a result you can\'t explain',
+  ]) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
 });
 
 // #554 C3, S13: a project true dry-runs to its VALUE and WARN lines, whatever the user's value is; a project false is refused.

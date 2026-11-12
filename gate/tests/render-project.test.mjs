@@ -24,7 +24,7 @@ function expectedFile(n) {
     '',
     "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
     '',
-    `- **Usage pause.** In this project, wait for my go-ahead when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`,
+    `- **Usage pause.** In this project, it's a hard stop when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`,
     '',
   ].join('\n');
 }
@@ -171,7 +171,7 @@ test('with no user session value, a project session value installs its lower-of 
   const r = render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause-session": 60}}\n'));
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^VALUE usage-pause-session 60$/m, r.out);
-  assert.match(r.bytes.toString('utf8'), /^- \*\*Session usage pause\.\*\* In this project, wait for my go-ahead when the 5-hour session limit is above 60% or above the line in my user rules, whichever is lower\.$/m);
+  assert.match(r.bytes.toString('utf8'), /^- \*\*Session usage pause\.\*\* In this project, it's a hard stop when the 5-hour session limit is above 60% or above the line in my user rules, whichever is lower\.$/m);
 });
 
 test('bad case: a project file with an edit refuses, even an empty edit list', t => {

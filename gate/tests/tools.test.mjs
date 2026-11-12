@@ -224,7 +224,10 @@ test('with the cleaner on, the rules file holds its part after the poster\'s; of
   assert.equal(noNotice(rendered(on)).replace(`${T2}\n${CLEANER_PART}\n`, ''), none, 'on, the render differs only by the two parts, the cleaner\'s second');
   assert.equal(noNotice(rendered(renderWith(t, '{"schema": 1, "tools": []}'))), none);
   assert.ok(!none.includes('through the cleaner'), 'off, no part names the cleaner');
-  assert.equal(none.split('cleaner').length - 1, 1, 'off, only the hard stops name it, for what it can\'t restore');
+  // #557: the one mention sits inside the Hard stops bullet, for what it can't restore.
+  const stops = (none.split(/\n- \*\*Hard stops\*\*/)[1] ?? '').split(/\n- \*\*/)[0].replace(/\s+/g, ' ');
+  assert.match(stops, /the cleaner can't restore/, 'off, the Hard stops bullet names the cleaner, for what it can\'t restore');
+  assert.equal(none.split('cleaner').length - 1, 1, 'off, the cleaner is named once, and that is in the Hard stops bullet');
 });
 
 // #438 C13: the fixed list, pinned.

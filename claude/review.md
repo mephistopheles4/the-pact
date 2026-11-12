@@ -73,20 +73,22 @@ Ask each lens to report in this shape:
   changes the spec gets its own rounds.
 - **One review comment per round.** Open it with a title line,
   `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
-  N being the rows that need my decision (an `open`, trade-off or `security?`
-  row), not a drafted fix waiting on my word. Write `, reopened` on the first
+  N being the rows that need my decision (an `open`, trade-off, `security?` or
+  Owner's-call row, as Lens dispositions says), not a drafted fix waiting on my
+  word. Write `, reopened` on the first
   round after a reopen and `, final` on the round a Review rounds cost
   declares final, and leave out both otherwise; a further read outside the
   count is titled
   `## <stage> further read on <head or spec revision>: <verdict>, <N> for you`.
   Then a signal table, one row per
-  lens that ran: the lens, its signal (the mark of its most severe `open`
-  finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
+  lens that ran: the lens, its signal (the mark of its most severe `open` or
+  Owner's-call finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
   diagrams, then a count line with one count per Disposition word, summing to
   the table's rows. Write this opening last, from the final Lens dispositions
   table.
   For a pair, then put the places both lenses flagged, then each lens's own
-  findings, each with its severity mark, then the table, then each report verbatim in its own fold.
+  findings, each with its severity mark (a report kept local, as Posting says,
+  has the line `security finding, see chat`), then the table, then each report verbatim in its own fold.
 - **One status comment per record.** After each round's comment, post or edit
   one status comment on the same issue or pull request, so I see the latest
   round without reading them all. Its label is `status-<n>`, n the issue's or
@@ -95,7 +97,8 @@ Ask each lens to report in this shape:
   <n>[, reopened][, final]` or `after <stage> further read`, N as in the
   round's title line; the round's signal table, copied as
   posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
-  and word, its headline, a link to the round comment), or "None"; **Rounds,
+  and word, its headline, a link to the round comment; for a report kept local,
+  `security finding, see chat` in their place), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
   round, marks and head or revision, and a further read by its own title. Post
   it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
@@ -211,11 +214,15 @@ when no other row answers the sentence.
 
 - **Read before you post.** Read every report and comment for a secret or a
   personal detail, or a weakness in someone else's software that The threat
-  model section keeps unpublished, before posting it.
+  model section keeps unpublished, before posting it, and every commit before
+  a push others can read.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
-  renders as a mention, link or image.
+  renders as a mention, link or image. In a public record, a report holding a
+  security finding your pick leaves open (an Owner's-call row) stays local, as
+  a withheld one does: no fold, and its line in the round's findings and the
+  status comment reads `security finding, see chat`; it goes to me in chat.
 - **Where to post.** In the work's record; with no record, in chat.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
@@ -231,11 +238,13 @@ when no other row answers the sentence.
   or free hand you ran under (its work and where it came from, by kind), each
   narrowing I typed there (by the kind of step it keeps), and a flag. A pick
   that leaves a security path open is flagged big: in a public record its line
-  is exactly "Owner's call: security, see chat", with the why in chat and in a
-  note under `~/.claude/pact/private/`; in a private record the line opens
-  "Owner's call: security" and carries the why. A pick that would put a
-  withheld lens report or its findings, a secret, a weakness not yet public or
-  the cleaner's tags or blocks in the record has the line exactly "withheld,
+  is exactly "Owner's call: security, see chat", with the why in chat; in a
+  private record, one only I can read, the line opens "Owner's call: security"
+  and carries the why. The why also goes in a note under
+  `~/.claude/pact/private/`, either way. A pick that would put a
+  withheld lens report or its findings, a secret, a weakness not yet public,
+  the cleaner's tags or blocks, or anything else these rules keep out of the
+  record, in the record has the line exactly "withheld,
   see chat", with no opener or flag, which wins over the security line, and the
   why goes to me in chat; such a pick that would leave a security path open is
   a hard stop. With no record, log in chat and in the result.
@@ -243,7 +252,8 @@ when no other row answers the sentence.
   - Where neither your rules file nor this project's has a "Checkpoints wait"
     line, checkpoints are events: a pending read-back blocks no seam, with or
     without a standing goal. Post it `pending`, log the intent you went ahead
-    on, and go on; I confirm or correct it later.
+    on, within the Checkpoint log's limits, and go on; I confirm or correct it
+    later.
   - When your rules file or this project's says checkpoints wait, work waits
     on a pending read-back at each seam (an issue's before the work leaves
     Plan, a spec's before its proceed, a pull request's before its merge), and
@@ -262,9 +272,9 @@ when no other row answers the sentence.
     answer has the session post a `decision` with source `relayed`, which
     carries no mark and leaves the original pending until a session that heard
     me confirms it.
-  - When my words trip the content scan or hold a personal detail, leave that
-    span out of the passage as `[left out]` and tell me in chat what you left
-    out.
+  - When my words trip the content scan, hold a personal detail or, in a
+    public record, the why of a security ask, leave that span out of the
+    passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
   `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
@@ -335,6 +345,8 @@ Mark one you took on your own recommendation `auto`, as in
 
 A security or `security?` finding you settle is never `auto`. When your pick
 leaves its path open, the Disposition reads `taken (session's pick, Owner's
-call: security)`; otherwise it takes its usual word. In a public record the
-Finding cell keeps its state word and severity mark, then reads `security
-finding, see chat` in place of the finding.
+call: security)`; otherwise it takes its usual word. Such an Owner's-call row
+counts as an `open` one in the round's N, the status comment's Open for you and
+the lens's signal mark. In a public record its Finding cell reads its state
+word, then `security finding, see chat`, with no severity mark, in place of the
+finding.

@@ -40,8 +40,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   or `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>` in a POSIX shell.
   `full` is the full suite; `fast` leaves out the install tests; `changed`
   adds what your change can reach (`--base <ref>`, `--list`).
-- **Local runs go through athanor by default** (the owner's Docker test
-  runner): `athanor run` runs `full`, and
+- **Local runs go through athanor by default:** `athanor run` runs `full`, and
   `athanor run fast` runs `fast`. Run on the host only when athanor can't
   run.
 - **A hook holds you to that** (`.claude/settings.json`, ADR 0104): while
@@ -53,7 +52,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   you used the fallback. The runner prints the reason.
   [The hook](docs/agents/gate-tests.md#the-hook).
 - **While building, run `athanor run fast`.** Run no host `changed` pick
-  while athanor works; CI's two jobs are the evidence.
+  while athanor works.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
   locally after a rebase or merge that brought in other work, and after a
   final change set (through athanor). An install relies on CI's two jobs
@@ -62,9 +61,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   the reviewed head, so push the branch and open a draft PR before Test. The
   Test record cites both run links and each run's commit, which is the head.
   Before any push, read every commit it publishes for a secret or a personal
-  detail. Details:
-  [gate tests](docs/agents/gate-tests.md). A `changed` run is never Test
-  evidence.
+  detail. A `changed` run is never Test evidence.
 - Read a change to `.github/`, the lockdown test
   (`gate/tests/workflow.test.mjs`), `.claude/settings.json` or
   `.claude/hooks/` before pushing it.
@@ -72,12 +69,12 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   result line ending in `pass`.
 - **Post test output only from record mode** (`--record <file>`); read a
   `changed` record's `pick:` and `unmapped:` lines first. Keep raw reporter
-  output, such as a junit file, outside the repo.
+  output outside the repo.
 - **An athanor run** needs athanor at commit `4121c28` or later; an older
   copy exits 125 asking for a `package.json`: ask the owner to update it, and
   run on the host meanwhile. It passes when athanor exits 0 and the runner's
-  result line, the last but one, ends in `pass`. It is never Test evidence,
-  and nothing from it is posted. [Athanor](docs/agents/gate-tests.md#athanor).
+  result line, the last but one, ends in `pass`. It is never Test evidence.
+  [Athanor](docs/agents/gate-tests.md#athanor).
 - Tier picks, and writing a gate test: [gate tests](docs/agents/gate-tests.md).
 
 ## In the same change
@@ -113,6 +110,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   them closely, as for `cloud-sessions/`. Settings you save from Claude Code
   for this repo go to local scope, `.claude/settings.local.json`, never to
   `.claude/settings.json`.
+- **Read closely** (a merge touching one is a hard stop): `claude/tools/`,
+  `gate/install*.mjs`, `docs/agents/issue-tracker.md` (whose text counts), the
+  protected set below, `gate/tests/workflow.test.mjs`, `.github/`.
 - **The protected set** (the offers paragraph, the sensitive-work default and
   the security lenses' carried rules) is cut or weakened, and the lens roster
   changed, only by a spec change read by the spec pair and the security pair.

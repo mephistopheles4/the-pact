@@ -556,7 +556,7 @@ write_config 'CLAUDE.md' <<'__CLAUDE_CONFIG_EOF__'
 ## The moves
 
 The moves are my practices, with or without AI. They keep my judgment above
-the tools and the agents.
+the tools and agents.
 
 - **Sense the work.**
   What kind of work is it, how big, how risky, and do I know enough to plan
@@ -595,7 +595,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   value); the usage pause; a post or message to anyone but me, beyond the work's
   record and branches in my repos; making anything public, or a merge that
   deploys or might; a merge touching hooks, settings, CI, root setup, or what
-  the base branch's rules say to read closely; merging a pull request I didn't
+  the base branch's rules say to read closely, or cutting such a rule; merging a pull request I didn't
   open or a commit not mine; marking outside text ready for an agent; a merge
   editing a threat model's classes, boundaries or scope; trusting a project's
   config; getting past a permission prompt or classifier block; a check you
@@ -626,12 +626,12 @@ run. A flag or an offer I haven't answered stays open, in one line, in every
 hand-off and in the result. If you find it later, say so in one line at the
 next hand-off or result, and keep saying it until I answer.
 
-Your effort is the one set at the start: take it as given, and never judge it
+Your effort is the one set at the start: take it as given, never judge it
 or stop the work over it.
 
 ## Workflow
 
-Each stage: what each tier sets, the lenses to offer, and where the work goes
+Each stage: what each tier sets, the lenses to offer, where the work goes
 next.
 
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
@@ -666,7 +666,7 @@ or the read before posting.
 
 ## Qualities
 
-My qualities, each with its measure and its lens. A project's own list
+My qualities, each with its measure and lens. A project's own list
 replaces this one.
 
 | Quality | Measure | Lens | Enough |
@@ -687,7 +687,7 @@ Size the work and write acceptance claims from these measures.
 other, the side taken, and the driver that decides it.
 
 **Business drivers.** The spec's driver holds, else the one under "Business
-drivers" in the project's AGENTS.md or CLAUDE.md. With none, flag it once and
+drivers" in the project's AGENTS.md or CLAUDE.md. With none, flag it and
 lean to what is cheaper to reverse; I decide. A driver in a spec carries no
 private terms.
 
@@ -1228,20 +1228,22 @@ Ask each lens to report in this shape:
   changes the spec gets its own rounds.
 - **One review comment per round.** Open it with a title line,
   `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
-  N being the rows that need my decision (an `open`, trade-off or `security?`
-  row), not a drafted fix waiting on my word. Write `, reopened` on the first
+  N being the rows that need my decision (an `open`, trade-off, `security?` or
+  Owner's-call row, as Lens dispositions says), not a drafted fix waiting on my
+  word. Write `, reopened` on the first
   round after a reopen and `, final` on the round a Review rounds cost
   declares final, and leave out both otherwise; a further read outside the
   count is titled
   `## <stage> further read on <head or spec revision>: <verdict>, <N> for you`.
   Then a signal table, one row per
-  lens that ran: the lens, its signal (the mark of its most severe `open`
-  finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
+  lens that ran: the lens, its signal (the mark of its most severe `open` or
+  Owner's-call finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
   diagrams, then a count line with one count per Disposition word, summing to
   the table's rows. Write this opening last, from the final Lens dispositions
   table.
   For a pair, then put the places both lenses flagged, then each lens's own
-  findings, each with its severity mark, then the table, then each report verbatim in its own fold.
+  findings, each with its severity mark (a report kept local, as Posting says,
+  has the line `security finding, see chat`), then the table, then each report verbatim in its own fold.
 - **One status comment per record.** After each round's comment, post or edit
   one status comment on the same issue or pull request, so I see the latest
   round without reading them all. Its label is `status-<n>`, n the issue's or
@@ -1250,7 +1252,8 @@ Ask each lens to report in this shape:
   <n>[, reopened][, final]` or `after <stage> further read`, N as in the
   round's title line; the round's signal table, copied as
   posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
-  and word, its headline, a link to the round comment), or "None"; **Rounds,
+  and word, its headline, a link to the round comment; for a report kept local,
+  `security finding, see chat` in their place), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
   round, marks and head or revision, and a further read by its own title. Post
   it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
@@ -1366,11 +1369,15 @@ when no other row answers the sentence.
 
 - **Read before you post.** Read every report and comment for a secret or a
   personal detail, or a weakness in someone else's software that The threat
-  model section keeps unpublished, before posting it.
+  model section keeps unpublished, before posting it, and every commit before
+  a push others can read.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
-  renders as a mention, link or image.
+  renders as a mention, link or image. In a public record, a report holding a
+  security finding your pick leaves open (an Owner's-call row) stays local, as
+  a withheld one does: no fold, and its line in the round's findings and the
+  status comment reads `security finding, see chat`; it goes to me in chat.
 - **Where to post.** In the work's record; with no record, in chat.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
@@ -1386,11 +1393,13 @@ when no other row answers the sentence.
   or free hand you ran under (its work and where it came from, by kind), each
   narrowing I typed there (by the kind of step it keeps), and a flag. A pick
   that leaves a security path open is flagged big: in a public record its line
-  is exactly "Owner's call: security, see chat", with the why in chat and in a
-  note under `~/.claude/pact/private/`; in a private record the line opens
-  "Owner's call: security" and carries the why. A pick that would put a
-  withheld lens report or its findings, a secret, a weakness not yet public or
-  the cleaner's tags or blocks in the record has the line exactly "withheld,
+  is exactly "Owner's call: security, see chat", with the why in chat; in a
+  private record, one only I can read, the line opens "Owner's call: security"
+  and carries the why. The why also goes in a note under
+  `~/.claude/pact/private/`, either way. A pick that would put a
+  withheld lens report or its findings, a secret, a weakness not yet public,
+  the cleaner's tags or blocks, or anything else these rules keep out of the
+  record, in the record has the line exactly "withheld,
   see chat", with no opener or flag, which wins over the security line, and the
   why goes to me in chat; such a pick that would leave a security path open is
   a hard stop. With no record, log in chat and in the result.
@@ -1398,7 +1407,8 @@ when no other row answers the sentence.
   - Where neither your rules file nor this project's has a "Checkpoints wait"
     line, checkpoints are events: a pending read-back blocks no seam, with or
     without a standing goal. Post it `pending`, log the intent you went ahead
-    on, and go on; I confirm or correct it later.
+    on, within the Checkpoint log's limits, and go on; I confirm or correct it
+    later.
   - When your rules file or this project's says checkpoints wait, work waits
     on a pending read-back at each seam (an issue's before the work leaves
     Plan, a spec's before its proceed, a pull request's before its merge), and
@@ -1417,9 +1427,9 @@ when no other row answers the sentence.
     answer has the session post a `decision` with source `relayed`, which
     carries no mark and leaves the original pending until a session that heard
     me confirms it.
-  - When my words trip the content scan or hold a personal detail, leave that
-    span out of the passage as `[left out]` and tell me in chat what you left
-    out.
+  - When my words trip the content scan, hold a personal detail or, in a
+    public record, the why of a security ask, leave that span out of the
+    passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
   `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
@@ -1490,9 +1500,11 @@ Mark one you took on your own recommendation `auto`, as in
 
 A security or `security?` finding you settle is never `auto`. When your pick
 leaves its path open, the Disposition reads `taken (session's pick, Owner's
-call: security)`; otherwise it takes its usual word. In a public record the
-Finding cell keeps its state word and severity mark, then reads `security
-finding, see chat` in place of the finding.
+call: security)`; otherwise it takes its usual word. Such an Owner's-call row
+counts as an `open` one in the round's N, the status comment's Open for you and
+the lens's signal mark. In a public record its Finding cell reads its state
+word, then `security finding, see chat`, with no severity mark, in place of the
+finding.
 __CLAUDE_CONFIG_EOF__
 
 # Portable settings, from the-pact claude/settings.overlay.json. Plugin keys are absent here and always kept from the file.
@@ -1641,7 +1653,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash c0fb57b651fe75af288dfb19a35a1fc09028b843ad43fd71440a045c39383fbd 'CLAUDE.md'
+check_hash 7deb00bcec77f49a0135f37b441e13cbd4f954fa66a56ddc75ebbd8b993265c1 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1652,7 +1664,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 8d5a926dd691e6b5935314d8ae34d127e44ccae6548fc64c74f7944debe84697 'pact/review.md'
+check_hash 8aff0ed88c6b7e24591fe74d1f304c4d4108d747036d145cd75552c54f6eea2a 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1682,7 +1694,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy aa99e9727125"
+  echo "pact cloud copy f6a35c422f67"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

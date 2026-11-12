@@ -5,7 +5,7 @@
 ## The moves
 
 The moves are my practices, with or without AI. They keep my judgment above
-the tools and the agents.
+the tools and agents.
 
 <!-- pact:begin moves -->
 - **Sense the work.**
@@ -48,7 +48,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   value); the usage pause; a post or message to anyone but me, beyond the work's
   record and branches in my repos; making anything public, or a merge that
   deploys or might; a merge touching hooks, settings, CI, root setup, or what
-  the base branch's rules say to read closely; merging a pull request I didn't
+  the base branch's rules say to read closely, or cutting such a rule; merging a pull request I didn't
   open or a commit not mine; marking outside text ready for an agent; a merge
   editing a threat model's classes, boundaries or scope; trusting a project's
   config; getting past a permission prompt or classifier block; a check you
@@ -87,12 +87,12 @@ hand-off and in the result. If you find it later, say so in one line at the
 next hand-off or result, and keep saying it until I answer.
 <!-- pact:end sensitive -->
 
-Your effort is the one set at the start: take it as given, and never judge it
+Your effort is the one set at the start: take it as given, never judge it
 or stop the work over it.
 
 ## Workflow
 
-Each stage: what each tier sets, the lenses to offer, and where the work goes
+Each stage: what each tier sets, the lenses to offer, where the work goes
 next.
 
 <!-- pact:begin workflow -->
@@ -131,7 +131,7 @@ or the read before posting.
 
 ## Qualities
 
-My qualities, each with its measure and its lens. A project's own list
+My qualities, each with its measure and lens. A project's own list
 replaces this one.
 
 <!-- pact:begin qualities -->
@@ -154,7 +154,7 @@ Size the work and write acceptance claims from these measures.
 other, the side taken, and the driver that decides it.
 
 **Business drivers.** The spec's driver holds, else the one under "Business
-drivers" in the project's AGENTS.md or CLAUDE.md. With none, flag it once and
+drivers" in the project's AGENTS.md or CLAUDE.md. With none, flag it and
 lean to what is cheaper to reverse; I decide. A driver in a spec carries no
 private terms.
 
