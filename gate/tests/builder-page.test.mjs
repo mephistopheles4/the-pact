@@ -1968,7 +1968,9 @@ test('stub page: a builder file that sets checkpoint-stops shows the note at boo
     return P.ids.presets.text;
   };
   assert.match(await opened({ schema: 1, tiers: ONE_TIER, settings: { 'checkpoint-stops': false } }), note, 'the take view carries the note');
-  assert.doesNotMatch(await opened({ schema: 1, tiers: ONE_TIER }), note);
+  const clean = await opened({ schema: 1, tiers: ONE_TIER });
+  assert.match(clean, /Take from/, 'the take view opened');
+  assert.doesNotMatch(clean, note);
 });
 
 // #564 S5.1, S5.1a, S7.2e: any other settings content is refused, in the build and in the page.
