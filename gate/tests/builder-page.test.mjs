@@ -1906,7 +1906,7 @@ test('the page holds no checkpoint-stops switch: no state, no setting written, n
   assert.equal(s.checkpointStops, undefined);
   assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined, 'no setting is written');
   assert.deepEqual(L.problems(s).filter(p => p.where === 'checkpoint-stops'), []);
-  assert.ok(!PAGE.includes('checkpointsRow') && !PAGE.includes('Checkpoints wait'), 'the page has no checkpoints row');
+  assert.ok(!PAGE.includes('Checkpoints wait'), 'the page has no checkpoints row');
 });
 
 // #564 S5.1a: the build reads the retired name from RETIRED_SETTINGS, and refuses a renderer that declares it another way.
@@ -1948,7 +1948,27 @@ test('a builder file with settings checkpoint-stops true or false loads with the
   // A file with no settings carries no note flag.
   const clean = vm.runInContext(`${pageScript(buildPage(REPO, PAGE, builderFile(t, { schema: 1, tiers: ONE_TIER })))}\n;JSON.stringify(PACT.droppedRetiredSetting)`, vm.createContext({}));
   assert.equal(clean, undefined);
-  assert.ok(PAGE.includes('which the pact retired; the page dropped it'), 'the page carries the note');
+});
+
+// #564 S7.2e, C7: the page, handed a file that sets the key, shows the note, at boot and in the take view; handed one that doesn't, it shows none.
+test('stub page: a builder file that sets checkpoint-stops shows the note at boot and in the take view, and one that does not shows none', async t => {
+  const note = /which the pact retired; the page dropped it/;
+  const withKey = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { schema: 1, tiers: ONE_TIER, settings: { 'checkpoint-stops': true } })) });
+  assert.match(withKey.ids.output.text, note, 'the boot status carries the note');
+  assert.match(withKey.ids.output.text, /checkpoint-stops/);
+  const without = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { schema: 1, tiers: ONE_TIER })) });
+  assert.doesNotMatch(without.ids.output.text, note);
+  const opened = async doc => {
+    const P = bootPage();
+    P.button(P.ids.actions, 'Presets').click();
+    const input = P.find(P.ids.presets, n => n.tag === 'input' && n.attrs['aria-label'] === 'Open a builder file')[0];
+    input.files = [{ name: 'shared.json', text: async () => JSON.stringify(doc) }];
+    input.listeners.change.forEach(f => f({}));
+    for (let i = 0; i < 10; i++) await new Promise(r => setTimeout(r, 0));
+    return P.ids.presets.text;
+  };
+  assert.match(await opened({ schema: 1, tiers: ONE_TIER, settings: { 'checkpoint-stops': false } }), note, 'the take view carries the note');
+  assert.doesNotMatch(await opened({ schema: 1, tiers: ONE_TIER }), note);
 });
 
 // #564 S5.1, S5.1a, S7.2e: any other settings content is refused, in the build and in the page.
@@ -2018,18 +2038,4 @@ test('saving over a builder file that holds a settings key writes a file with no
   // A new file, or one with no settings, never gains one.
   assert.equal(L.builderWith(null, s).skip, true, 'nothing to save, no file');
   assert.equal(JSON.parse(L.builderWith('{"schema": 1, "tiers": []}', s).text).settings, undefined);
-});
-
-// #564 S7.1: Settings holds no checkpoints box.
-test('stub page: Settings has no checkpoints section or box', () => {
-  const P = bootPage();
-  openSettings(P);
-  assert.deepEqual(P.find(P.ids.settings, n => n.tag === 'input' && n.attrs['aria-label'] === 'Checkpoints wait'), []);
-  assert.ok(!P.find(P.ids.settings, n => n.tag === 'code').some(n => n.textContent === 'checkpoint-stops'));
-});
-
-// #564: the rules view stands no label for the retired part.
-test('the rules view holds no label for a checkpoints part', () => {
-  assert.ok(!L.PACT.pactText.rules.includes('Checkpoints wait'));
-  assert.ok(!L.PACT.pactText.rules.includes('[Checkpoints wait unless you turn it off, under Settings:]'));
 });

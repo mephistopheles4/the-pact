@@ -455,7 +455,7 @@ const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/
 // #482: a home render may also report the auto-compact window; a project render never does.
 // #439: and the stop switch, as the word on or off.
 const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off))$/;
-// The settings the pact retired (#564): the install's own copy of RETIRED_SETTINGS in gate/render-core.mjs, as it keeps AGENT_NAMES. A test holds them equal.
+// The settings the pact retired (#564): the install's own copy of RETIRED_SETTINGS in gate/render-core.mjs, as it keeps AGENT_NAMES. Each copy is pinned to the same value by its own test (install-core and builder-page).
 // The render reports each one a file sets as `RETIRED-SETTING <name> <true|false>`, at most once; the line changes nothing in the rules file.
 export const RETIRED_SETTINGS = Object.freeze(['checkpoint-stops']);
 const RETIRED_SETTING_RE = /^RETIRED-SETTING ([a-z-]+) (true|false)$/;

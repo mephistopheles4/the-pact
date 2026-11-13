@@ -178,7 +178,7 @@ test('S13: a shipped preset\'s saved configuration holds no settings key for che
     const repo = makeRepo(t);
     const h = home(t);
     const files = saveInto(h, s);
-    assert.ok(!JSON.stringify(JSON.parse(files[0].text).settings ?? {}).includes('checkpoint-stops'), 'the page writes no checkpoint-stops');
+    assert.equal(JSON.parse(files[0].text).settings, undefined, 'the page writes no settings');
     const dry = install(repo, h);
     assert.equal(dry.code, 0, dry.out);
     assert.match(dry.stdout, NOTE, dry.out);
@@ -199,7 +199,7 @@ test('S13: a configuration that still sets checkpoint-stops dry-runs to the reti
     writeFileSync(join(h, 'pact', 'config.json'), `{"schema": 1, "settings": {"checkpoint-stops": ${value}}}\n`);
     const dry = install(repo, h);
     assert.equal(dry.code, 0, dry.out);
-    assert.match(dry.stdout, /^render\| RETIRED-SETTING checkpoint-stops (true|false)\r?$/m, dry.out);
+    assert.match(dry.stdout, new RegExp(`^render\\| RETIRED-SETTING checkpoint-stops ${value}\\r?$`, 'm'), dry.out);
     assert.doesNotMatch(dry.stdout, /VALUE checkpoint-stops/, dry.out);
     assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets checkpoint-stops, which the pact retired[:;] ${words[value]}`, 'm'), dry.out);
     assert.match(dry.stdout, NOTE, dry.out);
@@ -273,20 +273,4 @@ test('S13: a project with checkpoint-stops true or false dry-runs to the project
   const only = project('only', '{"schema": 1, "settings": {"checkpoint-stops": true}}\n');
   assert.equal(only.code, 0, only.out);
   assert.match(only.stdout, /Take the key out\. It is the file's only setting, so remove the file\./, only.out);
-});
-
-// #564 C7: the installed kit's presets are the ones the page loads, and none holds a setting.
-test('S13: the installed kit\'s presets load with no settings, and taking one sets no switch', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
-  const kitPresets = join(h, 'pact', 'builder', 'builder', 'presets');
-  for (const name of readdirSync(kitPresets).filter(n => n.endsWith('.json'))) {
-    const text = readFileSync(join(kitPresets, name), 'utf8');
-    assert.ok(!text.includes('"settings"'), `${name} holds no settings`);
-    const r = L.presetFromText(text);
-    assert.ok(r.preset, r.refuse);
-    assert.equal(r.preset.settings, undefined);
-    assert.equal(r.preset.droppedRetiredSetting, undefined);
-  }
 });

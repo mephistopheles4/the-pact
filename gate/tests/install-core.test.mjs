@@ -489,6 +489,11 @@ test('the dry run: a retired checkpoint-stops draws the WARN in the spec\'s word
   // Only the key in the file: the WARN adds the remove-the-file sentence.
   const only = core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'RETIRED-SETTING checkpoint-stops true').split('\n'), sha256);
   assert.deepEqual(warns(core.projectBlock({ kind: 'new' }, only)), ["  WARN: the project configuration sets checkpoint-stops, which the pact retired: checkpoints no longer wait in this project. Take the key out. It is the file's only setting, so remove the file."]);
+  // A file that holds the key and a qualities or a cost-limits list, but no value line, is not "only the key": the sentence stays off.
+  for (const other of ['QUALITIES 3', 'COST-LIMITS 2']) {
+    const beside = core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', `RETIRED-SETTING checkpoint-stops true\n${other}`).split('\n'), sha256);
+    assert.deepEqual(warns(core.projectBlock({ kind: 'new' }, beside)), ['  WARN: the project configuration sets checkpoint-stops, which the pact retired: checkpoints no longer wait in this project. Take the key out.'], other);
+  }
 });
 
 
