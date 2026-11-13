@@ -383,7 +383,7 @@ test('wait label: every exemption still matches a unit that would fail', () => {
   } });
   const rows = [
     { id: 'rules-source', rel: 'claude/CLAUDE.md', plant: s => s + bad, says: 'claude/CLAUDE.md: "This one needs my yes."' },
-    { id: 'rules-source-mark', rel: 'claude/CLAUDE.md', plant: s => s.replace('<!-- pact:begin checkpoint-stops -->\n', () => '<!-- pact:begin checkpoint-stops -->\nThis one needs my yes.\n'), says: 'claude/CLAUDE.md: "This one needs my yes."' },
+    { id: 'rules-source-mark', rel: 'claude/CLAUDE.md', plant: s => s.replace('<!-- pact:begin usage-pause -->\n', () => '<!-- pact:begin usage-pause -->\nThis one needs my yes.\n'), says: 'claude/CLAUDE.md: "This one needs my yes."' },
     { id: 'review', rel: 'claude/review.md', plant: s => s + bad, says: 'claude/review.md: "This one needs my yes."' },
     { id: 'command', rel: 'claude/commands/finis.md', plant: s => s + bad, says: 'claude/commands/finis.md: "This one needs my yes."' },
     { id: 'agent', rel: 'claude/agents/scout.md', plant: s => s + bad, says: 'claude/agents/scout.md: "This one needs my yes."' },
@@ -391,7 +391,6 @@ test('wait label: every exemption still matches a unit that would fail', () => {
     { id: 'usage-template', ...swap('gate/render-core.mjs', "'  hard stop. The call to cut", "'  go-ahead. The call to cut"), says: 'gate/render-core.mjs USAGE_TEMPLATE:' },
     { id: 'usage-project-line', ...swap('gate/render-core.mjs', "it's a hard stop when the weekly limit", 'it needs my yes when the weekly limit'), says: 'gate/render-core.mjs USAGE_PROJECT_LINE:' },
     { id: 'session-template', ...swap('gate/render-core.mjs', "it's a hard stop. If you can't", "it needs my yes. If you can't"), says: 'gate/render-core.mjs SESSION_TEMPLATE:' },
-    { id: 'checkpoints-template', ...swap('gate/render-core.mjs', "'- **Checkpoints wait.** Each checkpoint waits for my word", "'- **It waits.** Each one waits for my word"), says: 'gate/render-core.mjs CHECKPOINTS_TEMPLATE:' },
     // A setting added to the map with a template of its own is read, because the names come from the map.
     { id: 'new-setting-template', ...swap('gate/render-core.mjs', 'const SETTINGS = new Map([', "const NEWSET_TEMPLATE = ['- It needs my yes.'];\nconst SETTINGS = new Map([\n  ['newset', Object.freeze({ mark: null, template: NEWSET_TEMPLATE, projectLine: null })],"), says: 'gate/render-core.mjs NEWSET_TEMPLATE: "- It needs my yes."' },
     // The label deleted, with no phrase swapped in: the unit holds "I confirm" and nothing that labels it.

@@ -99,16 +99,6 @@ test('the page saves for the default preset exactly the files the generator writ
   assert.deepEqual(JSON.parse(defaultFiles(root(t, withPresetSkills(SKILLS)))[0].text).skills, SKILLS);
 });
 
-// #554 C5: a setting equal to its default is dropped, as the page drops it.
-test('the generator writes no settings for a default preset that sets checkpoint-stops true', t => {
-  const withStops = value => r => {
-    const p = join(r, DEFAULT_PRESET_REL);
-    writeFileSync(p, `${JSON.stringify({ ...JSON.parse(readFileSync(p, 'utf8')), settings: { 'checkpoint-stops': value } }, null, 2)}\n`);
-  };
-  assert.deepEqual(JSON.parse(defaultFiles(root(t, withStops(false)))[0].text).settings, { 'checkpoint-stops': false });
-  assert.equal(JSON.parse(defaultFiles(root(t, withStops(true)))[0].text).settings, undefined);
-});
-
 // #183 T4a C1: the default's workflow carries the six skills in its Skills column.
 test('with no configuration of the person\'s, the default renders, and its workflow names the six skills in the "Skills, and when" column', t => {
   const r = render(t, tempDir(t, 'pact-default-home-'), join(REPO, DEFAULT_CONFIG_DIR));

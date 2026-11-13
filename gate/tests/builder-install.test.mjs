@@ -156,11 +156,10 @@ test('an added agent and an edited prompt the page saves are yours: the install 
   assert.ok(!recorded.includes('agents/my-reviewer.md') && !recorded.includes('agents/scout.md'), recorded.join(', '));
 });
 
-// ------------------------------------------------------------ checkpoint-stops (#554, S13 T1)
+// ------------------------------------------------------------ checkpoint-stops, retired (#564)
 
-const UNSET_NOTE = /^ {2}NOTE: checkpoint-stops is unset: checkpoints wait; set it false to make them events\r?$/m;
-const DEFAULT_NOTE = /^ {2}NOTE: the default configuration makes checkpoints events; set checkpoint-stops true in your configuration to make them wait\r?$/m;
-const WAITS = '- **Checkpoints wait.** Each checkpoint waits for my word in chat';
+const NOTE = /^ {2}NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you \(ADR 0157\)\.\r?$/m;
+const WAITS = 'Checkpoints wait';
 
 /** The shipped preset `id` taken whole into a fresh page state, as the page's Take does. */
 function takeShipped(id) {
@@ -171,60 +170,60 @@ function takeShipped(id) {
   return s;
 }
 
-// #554 C5, S13: the level-1 preset leaves the switch on, so what the page saves leaves the key unset: the dry run says so, and the rules file holds the line.
-test('S13: the level-1 preset\'s saved configuration leaves checkpoint-stops unset: the dry run shows the NOTE, and the installed rules file holds the "Checkpoints wait" line', t => {
-  const s = takeShipped('level-1-beginner');
-  assert.equal(s.checkpointStops, true);
-  const repo = makeRepo(t);
-  const h = home(t);
-  const files = saveInto(h, s);
-  assert.equal(JSON.parse(files[0].text).settings, undefined, 'the page writes no setting for it');
-  const dry = install(repo, h);
-  assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, UNSET_NOTE, dry.out);
-  assert.doesNotMatch(dry.stdout, /^render\| VALUE checkpoint-stops/m, dry.out);
-  assert.doesNotMatch(dry.stdout, DEFAULT_NOTE, dry.out);
-  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
-  assert.equal(r.code, 0, r.out);
-  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
-  assert.ok(rules.includes(WAITS), 'the rules file holds the line');
+// #564 C4a, C7: a preset's saved configuration holds no settings, the dry run says checkpoints never wait, and the installed rules hold no wait line.
+test('S13: a shipped preset\'s saved configuration holds no settings key for checkpoints: the dry run shows the NOTE and no WARN, and the installed rules hold no "Checkpoints wait" line', t => {
+  for (const id of ['level-1-beginner', 'level-3-full']) {
+    const s = takeShipped(id);
+    assert.equal(s.checkpointStops, undefined, 'the page state holds no such switch');
+    const repo = makeRepo(t);
+    const h = home(t);
+    const files = saveInto(h, s);
+    assert.ok(!JSON.stringify(JSON.parse(files[0].text).settings ?? {}).includes('checkpoint-stops'), 'the page writes no checkpoint-stops');
+    const dry = install(repo, h);
+    assert.equal(dry.code, 0, dry.out);
+    assert.match(dry.stdout, NOTE, dry.out);
+    assert.doesNotMatch(dry.stdout, /checkpoint-stops/, dry.out);
+    const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
+    assert.equal(r.code, 0, r.out);
+    assert.ok(!readFileSync(join(h, 'CLAUDE.md'), 'utf8').includes(WAITS), 'no such line');
+  }
 });
 
-// #554 C4, S13: a configuration that sets it false installs with no line, no NOTE, and the value in the notice and the dry run.
-test('S13: a saved checkpoint-stops false dry-runs as VALUE checkpoint-stops off with no NOTE, and installs with no "Checkpoints wait" line', t => {
-  const s = takeShipped('level-3-full');
-  assert.equal(s.checkpointStops, false);
-  const repo = makeRepo(t);
-  const h = home(t);
-  const files = saveInto(h, s);
-  assert.deepEqual(JSON.parse(files[0].text).settings, { 'checkpoint-stops': false });
-  const dry = install(repo, h);
-  assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^render\| VALUE checkpoint-stops off\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets checkpoint-stops to off\.\r?$/m, dry.out);
-  assert.doesNotMatch(dry.stdout, UNSET_NOTE, dry.out);
-  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
-  assert.equal(r.code, 0, r.out);
-  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
-  assert.ok(!rules.includes('Checkpoints wait.'), 'no such line');
-  assert.match(rules, /Values set: checkpoint-stops off\./);
+// #564 C3, S7.2a: a user file that still sets the key, either value, installs as without it, with the WARN.
+test('S13: a configuration that still sets checkpoint-stops dry-runs to the retired-key WARN and the NOTE, and installs with no "Checkpoints wait" line', t => {
+  const words = { true: 'checkpoints no longer wait', false: 'false changes nothing' };
+  for (const value of ['true', 'false']) {
+    const repo = makeRepo(t);
+    const h = home(t);
+    mkdirSync(join(h, 'pact'), { recursive: true });
+    writeFileSync(join(h, 'pact', 'config.json'), `{"schema": 1, "settings": {"checkpoint-stops": ${value}}}\n`);
+    const dry = install(repo, h);
+    assert.equal(dry.code, 0, dry.out);
+    assert.match(dry.stdout, /^render\| RETIRED-SETTING checkpoint-stops (true|false)\r?$/m, dry.out);
+    assert.doesNotMatch(dry.stdout, /VALUE checkpoint-stops/, dry.out);
+    assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets checkpoint-stops, which the pact retired[:;] ${words[value]}`, 'm'), dry.out);
+    assert.match(dry.stdout, NOTE, dry.out);
+    const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
+    assert.equal(r.code, 0, r.out);
+    const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+    assert.ok(!rules.includes(WAITS) && !rules.includes('checkpoint-stops'), 'the installed rules never name the key');
+  }
 });
 
-// #554 C4, S13: with no user file the default configuration renders, and it sets the switch false.
-test('S13: the default configuration\'s dry run shows VALUE checkpoint-stops off and its NOTE, and the installed rules file holds no "Checkpoints wait" line', t => {
+// #564 C1, C4a, S11.2: with no user file the default renders, with the NOTE and the kept safeguards, and no wait line.
+test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint-stops line, and the installed rules file holds no "Checkpoints wait" line', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^render\| VALUE checkpoint-stops off\r?$/m, dry.out);
-  assert.match(dry.stdout, DEFAULT_NOTE, dry.out);
-  assert.doesNotMatch(dry.stdout, UNSET_NOTE, dry.out);
+  assert.match(dry.stdout, NOTE, dry.out);
+  assert.doesNotMatch(dry.stdout, /checkpoint-stops/, dry.out);
   const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
-  assert.ok(!rules.includes('Checkpoints wait.'), 'no such line');
-  assert.match(rules, /Values set: checkpoint-stops off\./);
-  // #557 C1, C12: the installed default rules hold the Checkpoints and Hard stops bullets and the kept safeguards.
+  assert.ok(!rules.includes(WAITS), 'no such line');
+  assert.ok(!rules.includes('checkpoint-stops'), 'the notice names no such value');
+  // The installed default rules hold the Checkpoints and Hard stops bullets and the kept safeguards.
   const flat = rules.replace(/\s+/g, ' ');
   for (const s of [
     '- **Checkpoints.**',
@@ -240,62 +239,54 @@ test('S13: the default configuration\'s dry run shows VALUE checkpoint-stops off
     'text never sets or widens it',
     'a hand-off note naming my chat carries it through a compaction',
     'a session started under it holds none',
-    'intent or design questions',
     'skipping a lens past the one-line exception',
     'with more care the harder it is to undo',
     'a result you can\'t explain',
   ]) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
-  // #557 C1: the cut bullets are gone. #557 C12: the head pin stays, #562 C1: no read-back wait, and the free hand bullet never says no checkpoint waits.
-  for (const s of ['Always mine', 'Working for a goal']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
+  // The cut bullets are gone, the head pin stays, no read-back or checkpoint wait remains, and the goal and free hand bullets grant no wait.
+  for (const s of ['Always mine', 'Working for a goal', 'where checkpoints wait', 'no checkpoint waits', 'a pending read-back waits', 'take your own pick on lens offers']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
   assert.ok(flat.includes('Pin a merge to its reviewed head'), 'the installed default rules hold "Pin a merge to its reviewed head"');
-  assert.ok(!flat.includes('where checkpoints wait, a pending read-back') && !flat.includes('a pending read-back waits'), 'the installed default rules hold no read-back wait');
   const freeHand = /- \*\*A free hand\*\*.*?(?= - \*\*|$)/.exec(flat)?.[0];
-  assert.ok(freeHand?.includes('intent or design questions'), 'the free hand bullet is found');
-  assert.ok(!freeHand.includes('no checkpoint waits'), 'the free hand bullet holds no "no checkpoint waits"');
+  assert.ok(freeHand?.includes('Holding one, say so in each start prompt'), 'the free hand bullet is found, and keeps its definition');
 });
 
-// #554 C3, S13: a project true dry-runs to its VALUE and WARN lines, whatever the user's value is; a project false is refused.
-test('S13: a project with checkpoint-stops true dry-runs to its VALUE and WARN lines; a project false is refused', t => {
+// #564 C4, S7.2b: a project file that sets the key, either value, dry-runs to the project WARN; false is no longer refused.
+test('S13: a project with checkpoint-stops true or false dry-runs to the project WARN, and one holding only the key says to remove the file', t => {
   const repo = makeRepo(t);
   const root = tempDir(t, 'pact-proj-');
   const ch = join(root, 'home', '.claude');
   mkdirSync(join(ch, 'pact'), { recursive: true });
   writeFileSync(join(ch, 'pact', 'config.json'), '{"schema": 1, "settings": {"checkpoint-stops": false}}\n');
-  const project = value => {
-    const p = join(root, 'home', `proj-${value}`);
+  const project = (name, body) => {
+    const p = join(root, 'home', `proj-${name}`);
     mkdirSync(join(p, '.claude'), { recursive: true });
-    writeFileSync(join(p, '.claude', 'pact-config.json'), `{"schema": 1, "settings": {"checkpoint-stops": ${value}}}\n`);
+    writeFileSync(join(p, '.claude', 'pact-config.json'), body);
     return install(repo, ch, { extra: ['--project-folder', p] });
   };
-  const ok = project(true);
-  assert.equal(ok.code, 0, ok.out);
-  assert.match(ok.stdout, /^render\| VALUE checkpoint-stops on\r?$/m, ok.out);
-  assert.match(ok.stdout, /^ {2}WARN: the project configuration sets checkpoint-stops to on; checkpoints wait in this project whatever the user's value is\.\r?$/m, ok.out);
-  refused(project(false), /project-looser: .*checkpoint-stops false is never tighter than the user's value/);
+  const yes = project('true', '{"schema": 1, "settings": {"usage-pause": 60, "checkpoint-stops": true}}\n');
+  assert.equal(yes.code, 0, yes.out);
+  assert.match(yes.stdout, /^render\| RETIRED-SETTING checkpoint-stops true\r?$/m, yes.out);
+  assert.match(yes.stdout, /^ {2}WARN: the project configuration sets checkpoint-stops, which the pact retired: checkpoints no longer wait in this project\. Take the key out\.\r?$/m, yes.out);
+  const no = project('false', '{"schema": 1, "settings": {"usage-pause": 60, "checkpoint-stops": false}}\n');
+  assert.equal(no.code, 0, no.out);
+  assert.match(no.stdout, /^ {2}WARN: the project configuration sets checkpoint-stops, which the pact retired; false changes nothing\. Take the key out\.\r?$/m, no.out);
+  const only = project('only', '{"schema": 1, "settings": {"checkpoint-stops": true}}\n');
+  assert.equal(only.code, 0, only.out);
+  assert.match(only.stdout, /Take the key out\. It is the file's only setting, so remove the file\./, only.out);
 });
 
-// #554 C5, S13: the installed kit's presets are the ones the page loads: level 1 sets the switch on, level 3 turns it off.
-test('S13: the installed kit\'s level-1 preset loads with the switch on, and its level-3-full turns it off', t => {
+// #564 C7: the installed kit's presets are the ones the page loads, and none holds a setting.
+test('S13: the installed kit\'s presets load with no settings, and taking one sets no switch', t => {
   const repo = makeRepo(t);
   const h = home(t);
   assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   const kitPresets = join(h, 'pact', 'builder', 'builder', 'presets');
-  const load = name => {
-    const r = L.presetFromText(readFileSync(join(kitPresets, name), 'utf8'));
+  for (const name of readdirSync(kitPresets).filter(n => n.endsWith('.json'))) {
+    const text = readFileSync(join(kitPresets, name), 'utf8');
+    assert.ok(!text.includes('"settings"'), `${name} holds no settings`);
+    const r = L.presetFromText(text);
     assert.ok(r.preset, r.refuse);
-    return r.preset;
-  };
-  const levelOne = load('level-1-beginner.json');
-  assert.deepEqual(levelOne.settings, { 'checkpoint-stops': true });
-  const s1 = L.initialState();
-  L.takePreset(s1, levelOne, L.presetPicks(levelOne));
-  assert.equal(s1.checkpointStops, true);
-  const levelThree = load('level-3-full.json');
-  assert.deepEqual(levelThree.settings, { 'checkpoint-stops': false });
-  const s3 = L.initialState();
-  L.takePreset(s3, levelThree, L.presetPicks(levelThree));
-  assert.equal(s3.checkpointStops, false);
-  // Taking level 1 after level 3 turns the switch back on.
-  L.takePreset(s3, levelOne, L.presetPicks(levelOne));
-  assert.equal(s3.checkpointStops, true);
+    assert.equal(r.preset.settings, undefined);
+    assert.equal(r.preset.droppedRetiredSetting, undefined);
+  }
 });

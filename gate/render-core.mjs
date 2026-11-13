@@ -102,7 +102,9 @@
 //   CONFIG none                       or   CONFIG user <sha256 of the file>  (or CONFIG default <sha256>)
 //                                          DIGEST <12 hex>
 //                                          VALUE <setting> <number>   (one per value set)
-//                                          EDIT <mark> remove                        (one per edit,
+//                                          RETIRED-SETTING <name> <true|false>   (one per retired setting the file
+//                                          sets, #564; it has no VALUE line and changes nothing in the render)
+//                                          EDIT <mark> remove                       (one per edit,
 //                                          EDIT <mark> <op> <sha256> <block path>     in edit order)
 //                                          RETIRED-NAME block <mark> <agent>   (after the EDIT lines: one per
 //                                          edited part whose block names a retired agent, #302; the project
@@ -163,7 +165,8 @@
 //   PROJECT <sha256 of the project file>
 //   DIGEST <12 hex>
 //   VALUE <setting> <number>          (one per project value)
-//   QUALITIES <n>                     (with a qualities list: its row count)
+//   RETIRED-SETTING <name> <true|false>   (one per retired setting the project file sets, #564; the user file's is not reported here)
+//   QUALITIES <n>                    (with a qualities list: its row count)
 //   RETIRED-NAME qualities <agent>    (one per retired agent the qualities list names, #302)
 //   COST-LIMITS <n>                   (with a costLimits list: its row count)
 //   COST-LIMITS-UNNAMED <p> <p> ...   (only when some cost rows are named by no quality's Enough cell (its level or an enoughCosts name), #299, #318:
@@ -184,7 +187,7 @@ import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, PACT_TOOLS, Refused, Report, SEGME
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, a spec
 // change like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'checkpoint-stops', 'tool-poster', 'tool-cleaner', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'tool-cleaner', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 // The open marks an edit may target: every open mark but the notice slot, a
 // setting's part and a tool's part.
 const EDITABLE = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
@@ -296,20 +299,6 @@ const SESSION_TEMPLATE = n => [
 ];
 const SESSION_PROJECT_LINE = n =>
   `- **Session usage pause.** In this project, it's a hard stop when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
-// The checkpoint-stops switch's part (#554): the line that keeps each checkpoint
-// as a stop. On, the part holds it; off, the part renders empty. The source
-// holds it at the default, on.
-const CHECKPOINTS_TEMPLATE = on => (on
-  ? [
-      '- **Checkpoints wait.** Each checkpoint waits for my word in chat, except under',
-      '  a standing goal, and under a free hand for a lens offer, the sensitive route',
-      '  or an intent or design question.',
-    ]
-  : []);
-// Its project line: a project may set it on whatever the user's value is, and
-// the line holds whatever the user later sets. A project may never set it off.
-const CHECKPOINTS_PROJECT_LINE = () =>
-  '- **Checkpoints wait.** In this project, each checkpoint waits for my word in chat, except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question.';
 // `def: null` marks a setting with no default: its part is empty in the
 // source, and a project may set it whatever the user's file says.
 const SETTINGS = new Map([
@@ -319,9 +308,13 @@ const SETTINGS = new Map([
   ['auto-compact-window', Object.freeze({ mark: null, min: 100000, max: 1000000, step: 10000, off: 0, def: 400000, template: null, tighter: null, projectLine: null })],
   // #439: the stop switch, `true` or `false`, off by default. It has no part in the rules file (mark: null), so only the notice line changes. A project may not set it.
   ['session-stop-deny', Object.freeze({ kind: 'switch', mark: null, def: false, template: null, tighter: null, projectLine: null })],
-  // #554: checkpoints wait unless a configuration turns this off. `tighter: 'true'` means a project may set it true over any user value, and never false.
-  ['checkpoint-stops', Object.freeze({ kind: 'switch', mark: 'checkpoint-stops', def: true, template: CHECKPOINTS_TEMPLATE, tighter: 'true', projectLine: CHECKPOINTS_PROJECT_LINE })],
 ]);
+// The settings the pact retired (#564). A key naming one, in a user or a project
+// file, is ignored, never refused: it has no value line, no part and no project
+// line, and the render prints one RETIRED-SETTING line for it. Any value but
+// true or false is refused. Only these constants are ever printed. The install
+// keeps its own copy of the names, a test holds them equal, and the builder reads this list for its page.
+const RETIRED_SETTINGS = Object.freeze(['checkpoint-stops']);
 
 /** Whether `v` is a value the setting takes: `true` or `false` for a switch; else a whole number in its range (on its step, if it has one), or its off value. */
 function settingOk(v, spec) {
@@ -863,12 +856,13 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
     if (skills === null) ok = false;
   }
   const values = [];
+  let retired = [];
   if (Object.hasOwn(doc, 'settings')) {
     if (!isObject(doc.settings)) {
       fail('config-settings', 'settings must be an object');
       ok = false;
     } else {
-      if (Object.keys(doc.settings).some(k => !SETTINGS.has(k))) {
+      if (Object.keys(doc.settings).some(k => !SETTINGS.has(k) && !RETIRED_SETTINGS.includes(k))) {
         fail('config-settings', 'settings holds a name that is not a setting');
         ok = false;
       }
@@ -881,10 +875,36 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
           ok = false;
         }
       }
+      retired = checkRetired(doc.settings, fail, 'config-value');
+      if (retired === null) ok = false;
     }
   }
-  return ok ? { values, edits, agents, commands, tools, skills } : null;
+  return ok ? { values, retired, edits, agents, commands, tools, skills } : null;
 }
+
+/**
+ * The retired settings `settings` names, checked: [[name, true|false], ...] in
+ * RETIRED_SETTINGS order, or null after recording a refusal under `rule`. The
+ * reason is fixed text and names the setting by its constant, so a bad value
+ * is never echoed.
+ */
+function checkRetired(settings, fail, rule) {
+  const out = [];
+  let ok = true;
+  for (const name of RETIRED_SETTINGS) {
+    if (!Object.hasOwn(settings, name)) continue;
+    const v = settings[name];
+    if (v === true || v === false) out.push([name, v]);
+    else {
+      fail(rule, `${name} must be true or false`);
+      ok = false;
+    }
+  }
+  return ok ? out : null;
+}
+
+/** The RETIRED-SETTING header lines for `retired`: constants and a boolean only. */
+const retiredSettingLines = retired => retired.map(([k, v]) => `RETIRED-SETTING ${k} ${v ? 'true' : 'false'}`);
 
 /**
  * The skills list (#183 T4a), checked: [{ repo, commit, path }], one per
@@ -1328,23 +1348,18 @@ function checkProject(buf, effective, report) {
     fail('project-settings', 'settings must be an object');
     return null;
   }
-  if (Object.keys(settings).some(k => !SETTINGS.has(k))) {
+  if (Object.keys(settings).some(k => !SETTINGS.has(k) && !RETIRED_SETTINGS.includes(k))) {
     fail('project-settings', 'settings holds a name that is not a setting');
     ok = false;
   }
+  const retired = checkRetired(settings, fail, 'project-value');
+  if (retired === null) ok = false;
   for (const [name, spec] of SETTINGS) {
     if (!Object.hasOwn(settings, name)) continue;
     const v = settings[name];
     if (!settingOk(v, spec)) {
       fail('project-value', settingRule(name, spec));
       ok = false;
-    } else if (spec.tighter === 'true') {
-      // A switch tighter when on: any user value accepts a project true, and a project false never is.
-      if (v === true) values.push([name, v]);
-      else {
-        fail('project-looser', `${name} false is never tighter than the user's value`);
-        ok = false;
-      }
     } else if (spec.tighter !== 'lower') {
       fail('project-direction', `${name} has no tightening direction, so a project may not set it`);
       ok = false;
@@ -1367,11 +1382,12 @@ function checkProject(buf, effective, report) {
   }
   // A refused costLimits skips the name check, so its refusal is not echoed once for every Enough name.
   if (qualities && (costLimits || !Object.hasOwn(doc, 'costLimits')) && !resolveEnoughCosts(qualities, costLimits, fail)) ok = false;
-  if (ok && !values.length && !qualities && !costLimits) {
+  // A retired key counts as content: a project whose file holds only it still installs, so its old project line is replaced.
+  if (ok && !values.length && !retired.length && !qualities && !costLimits) {
     fail('project-empty', 'the project configuration sets no value, no qualities and no costLimits, so there is nothing to install');
     ok = false;
   }
-  return ok ? { values, qualities, costLimits } : null;
+  return ok ? { values, retired, qualities, costLimits } : null;
 }
 
 /** The project mode: see the header. */
@@ -1398,7 +1414,7 @@ function runProject(out, home, projectFolder, report) {
   }
   const checked = checkProject(proj.buf, effective, report);
   if (checked === null) return;
-  const { values, qualities, costLimits } = checked;
+  const { values, retired, qualities, costLimits } = checked;
   // The positions (1-based) of the cost rows no quality's Enough cell names (#299, #318); digits only, never a cost's text.
   // The cell's segments are the level and the resolved cost names, since neither can hold the joining dot.
   const named = new Set((qualities ?? []).flatMap(q => enoughCell(q).split('·').map(costKey).filter(k => k)));
@@ -1418,6 +1434,7 @@ function runProject(out, home, projectFolder, report) {
     `PROJECT ${projHash}`,
     `DIGEST ${digest}`,
     ...values.map(([k, v]) => `VALUE ${k} ${valueText(v)}`),
+    ...retiredSettingLines(retired),
     ...(qualities ? [`QUALITIES ${qualities.length}`] : []),
     ...(qualities ? RETIRED_AGENTS.filter(a => qualities.some(q => q.lenses.some(l => retiredIn(l).includes(a)))).map(a => `RETIRED-NAME qualities ${a}`) : []),
     ...(costLimits ? [`COST-LIMITS ${costLimits.length}`] : []),
@@ -1485,7 +1502,7 @@ function run(argv, report) {
   else {
     const checked = checkConfig(config.buf, report, shown);
     if (checked === null) return;
-    const { values } = checked;
+    const { values, retired } = checked;
     const edits = readBlocks(blocksRoot, checked.edits, report, blocksWhere);
     if (edits === null) return;
     // An agent file is read only when a setting names its agent.
@@ -1499,6 +1516,8 @@ function run(argv, report) {
     // A block is prose, so a retired agent's name in one is a warning, never a refusal; the line holds constants only (#302).
     const retiredLines = edits.flatMap(e => (e.retired ?? []).map(a => `RETIRED-NAME block ${e.mark} ${a}`));
     head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${valueText(v)}`), ...editLines, ...retiredLines);
+    // A retired setting's line follows the VALUE lines (#564). It is put in after the push, which the gate tests plant faults by anchoring on.
+    head.splice(2 + values.length, 0, ...retiredSettingLines(retired));
     // The pact's default names itself on its CONFIG line, the first in head (#183 T4a). The push keeps the
     // literal `CONFIG user ${hash}`: the gate tests plant renderer faults by anchoring on that text.
     if (kind === 'default') head[0] = `CONFIG default ${hash}`;

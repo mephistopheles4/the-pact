@@ -1,9 +1,6 @@
 {
   "schema": 1,
   "title": "Level 3 · Superpowers skills",
-  "settings": {
-    "checkpoint-stops": false
-  },
   "tiers": [
     {
       "id": "quick",
