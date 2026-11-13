@@ -255,12 +255,12 @@ when no other row answers the sentence.
   why goes to me in chat; such a pick that would leave a security path open is
   a hard stop. With no record, log in chat and in the result.
 - **The read-back.**
-  - A pending read-back makes no work wait, at any seam, whether or not
-    checkpoints wait and with or without a standing goal. Post it `pending`,
-    log the intent you went ahead on, within the Checkpoint log's limits, and
-    go on; I confirm or correct it later. A correction sends the work back to
-    the stage it touches. Once the work is merged, published or installed, the
-    correction is a new change, and you tell me what can't be undone.
+  - A pending read-back makes no work wait, at any seam, with or without a
+    standing goal. Post it `pending`, log the intent you went ahead on, within
+    the Checkpoint log's limits, and go on; I confirm or correct it later. A
+    correction sends the work back to the stage it touches. Once the work is
+    merged, published or installed, the correction is a new change, and you
+    tell me what can't be undone.
   - Before you post a kind with a quote, read back to me in chat the passages
     you will quote and your intent, and post `confirmed` only on my yes in that
     chat, never on a checkpoint pick, and otherwise `pending` (a `decision`

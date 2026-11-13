@@ -311,13 +311,14 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     { id: 'value-stop-capitals', plant: rep('RESULT', 'VALUE session-stop-deny ON\nRESULT'), fails: ['render-unknown-line'], why: 'on in capitals' },
     { id: 'value-stop-two-words', plant: rep('RESULT', 'VALUE session-stop-deny on off\nRESULT'), fails: ['render-unknown-line'], why: 'two words after the setting' },
     { id: 'value-stop-twice', plant: rep('RESULT', 'VALUE session-stop-deny on\nVALUE session-stop-deny off\nRESULT'), fails: ['render-value-twice'], why: 'the stop switch twice' },
-    // #554 C4: the home parser takes checkpoint-stops as on or off, and nothing else.
-    { id: 'value-checkpoint-yes', plant: rep('RESULT', 'VALUE checkpoint-stops yes\nRESULT'), fails: ['render-unknown-line'], why: 'a word the checkpoint switch does not take' },
-    { id: 'value-checkpoint-raw-false', plant: rep('RESULT', 'VALUE checkpoint-stops false\nRESULT'), fails: ['render-unknown-line'], why: 'the raw false the renderer must not print' },
-    { id: 'value-checkpoint-capitals', plant: rep('RESULT', 'VALUE checkpoint-stops OFF\nRESULT'), fails: ['render-unknown-line'], why: 'off in capitals' },
-    { id: 'value-checkpoint-two-words', plant: rep('RESULT', 'VALUE checkpoint-stops off on\nRESULT'), fails: ['render-unknown-line'], why: 'two words after the setting' },
-    { id: 'value-checkpoint-number', plant: rep('RESULT', 'VALUE checkpoint-stops 1\nRESULT'), fails: ['render-unknown-line'], why: 'a number for a switch' },
-    { id: 'value-checkpoint-twice', plant: rep('RESULT', 'VALUE checkpoint-stops on\nVALUE checkpoint-stops off\nRESULT'), fails: ['render-value-twice'], why: 'the checkpoint switch twice' },
+    // #564 C6, S7.2d: the retired setting is no VALUE; its RETIRED-SETTING line takes the retired name with true or false, once.
+    { id: 'value-checkpoint-on', plant: rep('RESULT', 'VALUE checkpoint-stops on\nRESULT'), fails: ['render-unknown-line'], why: 'the retired setting as a value (on)' },
+    { id: 'value-checkpoint-off', plant: rep('RESULT', 'VALUE checkpoint-stops off\nRESULT'), fails: ['render-unknown-line'], why: 'the retired setting as a value (off)' },
+    { id: 'retired-setting-other-name', plant: rep('RESULT', 'RETIRED-SETTING other-thing true\nRESULT'), fails: ['render-unknown-line'], why: 'a retired-setting line for another name' },
+    { id: 'retired-setting-word-value', plant: rep('RESULT', 'RETIRED-SETTING checkpoint-stops on\nRESULT'), fails: ['render-unknown-line'], why: 'the retired setting with a word the render never prints' },
+    { id: 'retired-setting-capitals', plant: rep('RESULT', 'RETIRED-SETTING checkpoint-stops TRUE\nRESULT'), fails: ['render-unknown-line'], why: 'true in capitals' },
+    { id: 'retired-setting-two-words', plant: rep('RESULT', 'RETIRED-SETTING checkpoint-stops true false\nRESULT'), fails: ['render-unknown-line'], why: 'two words after the setting' },
+    { id: 'retired-setting-twice', plant: rep('RESULT', 'RETIRED-SETTING checkpoint-stops true\nRETIRED-SETTING checkpoint-stops false\nRESULT'), fails: ['render-retired-setting-twice'], why: 'the retired setting twice' },
     { id: 'value-off-capitals', plant: rep('usage-pause 90', 'usage-pause OFF'), fails: ['render-unknown-line'], why: 'off in capitals' },
     { id: 'value-off-twice-on-line', plant: rep('usage-pause 90', 'usage-pause off off'), fails: ['render-unknown-line'], why: 'two words after the setting' },
     { id: 'value-raw-false', plant: rep('usage-pause 90', 'usage-pause false'), fails: ['render-unknown-line'], why: 'the raw false the renderer must not print' },
@@ -370,6 +371,7 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     { id: 'value', plant: rep('RESULT', 'VALUE usage-pause 90\nRESULT'), fails: ['render-none-extras'], why: 'a value with no configuration' },
     { id: 'edit', plant: rep('RESULT', 'EDIT moves remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
     { id: 'retired-name', plant: rep('RESULT', 'RETIRED-NAME block moves good-enough-lens\nRESULT'), fails: ['render-none-extras'], why: 'a retired name in a block with no configuration (#302 C3)' },
+    { id: 'retired-setting', plant: rep('RESULT', 'RETIRED-SETTING checkpoint-stops true\nRESULT'), fails: ['render-none-extras'], why: 'a retired setting with no configuration (#564 C6)' },
     { id: 'agent', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-none-extras'], why: 'an agent setting with no configuration' },
     { id: 'no-config-line', plant: rep('CONFIG none\n', ''), fails: ['render-counts'], why: 'no configuration line at all' },
     { id: 'two-none-lines', plant: rep('CONFIG none', 'CONFIG none\nCONFIG none'), fails: ['render-counts'], why: 'two configuration lines, both none' },
@@ -436,51 +438,64 @@ test('the renderer lines: the stop switch is on only for VALUE session-stop-deny
   assert.throws(() => core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE session-stop-deny on').split('\n'), sha256), e => e.rule === 'project-render-unknown-line');
 });
 
-// #554 C4: the home and project parsers read VALUE checkpoint-stops on and off, which no other setting's line is mistaken for.
-test('the renderer lines: VALUE checkpoint-stops on and off parse on a home and a project render, as the words the renderer prints', () => {
+// #564 C6: the home and project parsers read RETIRED-SETTING for the retired name, true or false, and no VALUE line for it.
+test('the renderer lines: RETIRED-SETTING checkpoint-stops true and false parse on a home and a project render, and change no value', () => {
   const home = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
-  for (const word of ['on', 'off']) {
-    assert.equal(home(renderBase().in.replace('RESULT', `VALUE checkpoint-stops ${word}\nRESULT`)).values.get('checkpoint-stops'), word);
-    const proj = core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', `VALUE checkpoint-stops ${word}\nRESULT`).split('\n'), sha256);
-    assert.equal(proj.values.get('checkpoint-stops'), word);
+  for (const word of ['true', 'false']) {
+    const h = home(renderBase().in.replace('RESULT', `RETIRED-SETTING checkpoint-stops ${word}\nRESULT`));
+    assert.equal(h.retiredSettings.get('checkpoint-stops'), word);
+    assert.equal(h.values.has('checkpoint-stops'), false);
+    const proj = core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', `RETIRED-SETTING checkpoint-stops ${word}\nRESULT`).split('\n'), sha256);
+    assert.equal(proj.retiredSettings.get('checkpoint-stops'), word);
     assert.equal(proj.values.get('usage-pause'), '60');
   }
-  // A VALUE line for no setting the install knows is still refused, beside a good checkpoint line.
-  assert.throws(() => home(renderBase().in.replace('RESULT', 'VALUE checkpoint-stops on\nVALUE other-thing on\nRESULT')), e => e.rule === 'render-unknown-line');
+  assert.equal(home(renderBase().in).retiredSettings.size, 0);
+  assert.deepEqual([...core.RETIRED_SETTINGS], ['checkpoint-stops']);
 });
 
-// #554 C4: render-unknown-line
-test('the project render lines: a bad checkpoint-stops line is refused, and a twice-reported one too', () => {
-  const run = extra => core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', `${extra}\nRESULT`).split('\n'), sha256);
-  for (const bad of ['VALUE checkpoint-stops yes', 'VALUE checkpoint-stops true', 'VALUE checkpoint-stops ON', 'VALUE checkpoint-stops 60', 'VALUE checkpoint-stops on off']) assert.throws(() => run(bad), e => e.rule === 'project-render-unknown-line', bad);
-  assert.throws(() => run('VALUE checkpoint-stops on\nVALUE checkpoint-stops on'), e => e.rule === 'project-render-value-twice');
+// #564 C4, S3.3: a project render holding only the retired setting still counts as content.
+test('the project render lines: a project whose only content is the retired setting passes, and one with nothing is refused', () => {
+  const onlyRetired = projRenderBase().in.replace('VALUE usage-pause 60', 'RETIRED-SETTING checkpoint-stops false');
+  const p = core.parseProjectRenderLines(onlyRetired.split('\n'), sha256);
+  assert.equal(p.values.size, 0);
+  assert.equal(p.retiredSettings.get('checkpoint-stops'), 'false');
+  assert.throws(() => core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60\n', '').split('\n'), sha256), e => e.rule === 'project-render-counts');
 });
 
-// #554 C4: the dry run's NOTE, for a user configuration that leaves checkpoint-stops unset and for the default that turns it off.
-test('the configuration block: a user configuration with checkpoint-stops unset gets the NOTE, a set one none, and the default that sets it off gets its own', () => {
-  const UNSET = '  NOTE: checkpoint-stops is unset: checkpoints wait; set it false to make them events';
-  const DEFAULT = '  NOTE: the default configuration makes checkpoints events; set checkpoint-stops true in your configuration to make them wait';
+// #564 C4a, S4.2a, S7.2b2: every home dry run prints the one fixed NOTE, and no other NOTE of the old switch.
+test('the configuration block: no configuration, the default and a user configuration each print the fixed NOTE once', () => {
+  const NOTE = "  NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you (ADR 0157).";
   const parse = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
   const notes = b => b.filter(l => l.startsWith('  NOTE:'));
-  const withValue = (text, word) => text.replace('RESULT', `VALUE checkpoint-stops ${word}\nRESULT`);
-  const unset = parse(renderBase().in);
-  assert.deepEqual(notes(core.configBlock(unset, H('a'), null)), [UNSET]);
-  for (const word of ['on', 'off']) assert.deepEqual(notes(core.configBlock(parse(withValue(renderBase().in, word)), H('a'), null)), [], word);
   const asDefault = text => text.replace(`CONFIG user ${U}`, `CONFIG default ${U}`).replace(`DIGEST ${D}`, `DIGEST ${digestOf(`default ${U}\nblock a.md ${H('e')}\n`)}`);
-  assert.deepEqual(notes(core.configBlock(parse(asDefault(withValue(renderBase().in, 'off'))), H('a'), null)), [DEFAULT]);
-  // A default that leaves it unset, or sets it on, is no default that makes checkpoints events.
-  assert.deepEqual(notes(core.configBlock(parse(asDefault(renderBase().in)), H('a'), null)), []);
-  assert.deepEqual(notes(core.configBlock(parse(asDefault(withValue(renderBase().in, 'on'))), H('a'), null)), []);
-  // No configuration at all renders the source, which holds the line: no note.
-  assert.deepEqual(notes(core.configBlock(parse(noneBase().in), H('a'), null)), []);
+  assert.deepEqual(notes(core.configBlock(parse(noneBase().in), H('a'), null)), [NOTE], 'no configuration');
+  assert.deepEqual(notes(core.configBlock(parse(renderBase().in), H('a'), null)), [NOTE], 'a user configuration');
+  assert.deepEqual(notes(core.configBlock(parse(asDefault(renderBase().in)), H('a'), null)), [NOTE], 'the default');
+  for (const word of ['true', 'false']) assert.deepEqual(notes(core.configBlock(parse(renderBase().in.replace('RESULT', `RETIRED-SETTING checkpoint-stops ${word}\nRESULT`)), H('a'), null)), [NOTE], word);
 });
 
-// #554 C4: the project block names the rule it applies
-test('the project block: a project checkpoint-stops names what it does, not the lower-of rule the numbers follow', () => {
-  const p = core.parseProjectRenderLines(projRenderBase().in.replace('RESULT', 'VALUE checkpoint-stops on\nRESULT').split('\n'), sha256);
-  const warns = core.projectBlock({ kind: 'new' }, p).filter(l => l.startsWith('  WARN:'));
-  assert.deepEqual(warns, ["  WARN: the project configuration sets usage-pause to 60; the rules file reads it as the lower of that and the user's value.", "  WARN: the project configuration sets checkpoint-stops to on; checkpoints wait in this project whatever the user's value is."]);
+// #564 C3, S4.3: the WARN for a user, a default and a project configuration, each value, in the spec's words.
+test('the dry run: a retired checkpoint-stops draws the WARN in the spec\'s words, for a user, the default and a project, true and false', () => {
+  const parse = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
+  const warns = b => b.filter(l => l.includes('checkpoint-stops'));
+  const asDefault = text => text.replace(`CONFIG user ${U}`, `CONFIG default ${U}`).replace(`DIGEST ${D}`, `DIGEST ${digestOf(`default ${U}\nblock a.md ${H('e')}\n`)}`);
+  const withRetired = (text, word) => text.replace('RESULT', `RETIRED-SETTING checkpoint-stops ${word}\nRESULT`);
+  assert.deepEqual(warns(core.configBlock(parse(withRetired(renderBase().in, 'true')), H('a'), null)), ['  WARN: the user configuration sets checkpoint-stops, which the pact retired: checkpoints no longer wait. Take the key out.']);
+  assert.deepEqual(warns(core.configBlock(parse(withRetired(renderBase().in, 'false')), H('a'), null)), ['  WARN: the user configuration sets checkpoint-stops, which the pact retired; false changes nothing. Take the key out.']);
+  assert.deepEqual(warns(core.configBlock(parse(asDefault(withRetired(renderBase().in, 'true'))), H('a'), null)), ["  WARN: the pact's default configuration sets checkpoint-stops, which the pact retired: checkpoints no longer wait. Take the key out."]);
+  const proj = word => core.parseProjectRenderLines(withRetired(projRenderBase().in, word).split('\n'), sha256);
+  assert.deepEqual(warns(core.projectBlock({ kind: 'new' }, proj('true'))), ['  WARN: the project configuration sets checkpoint-stops, which the pact retired: checkpoints no longer wait in this project. Take the key out.']);
+  assert.deepEqual(warns(core.projectBlock({ kind: 'new' }, proj('false'))), ['  WARN: the project configuration sets checkpoint-stops, which the pact retired; false changes nothing. Take the key out.']);
+  // Only the key in the file: the WARN adds the remove-the-file sentence.
+  const only = core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'RETIRED-SETTING checkpoint-stops true').split('\n'), sha256);
+  assert.deepEqual(warns(core.projectBlock({ kind: 'new' }, only)), ["  WARN: the project configuration sets checkpoint-stops, which the pact retired: checkpoints no longer wait in this project. Take the key out. It is the file's only setting, so remove the file."]);
+  // A file that holds the key and a qualities or a cost-limits list, but no value line, is not "only the key": the sentence stays off.
+  for (const other of ['QUALITIES 3', 'COST-LIMITS 2']) {
+    const beside = core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', `RETIRED-SETTING checkpoint-stops true\n${other}`).split('\n'), sha256);
+    assert.deepEqual(warns(core.projectBlock({ kind: 'new' }, beside)), ['  WARN: the project configuration sets checkpoint-stops, which the pact retired: checkpoints no longer wait in this project. Take the key out.'], other);
+  }
 });
+
 
 test('the renderer lines: the parse gives the hashes, the configuration, the edits, the values and the agent settings', () => {
   const p = core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 });
@@ -545,6 +560,10 @@ const projRenderBase = () => ({ in: [`RENDERED ${H('a')}`, `CONFIG user ${U}`, `
     // #302 C3: a retired name in a qualities list is a warning line, once, and only for a retired agent.
     { id: 'retired-name-twice', plant: rep('RESULT', 'RETIRED-NAME qualities good-enough-lens\nRETIRED-NAME qualities good-enough-lens\nRESULT'), fails: ['project-render-two-retired'], why: 'one retired name reported twice' },
     { id: 'retired-name-not-retired', plant: rep('RESULT', 'RETIRED-NAME qualities scout\nRESULT'), fails: ['project-render-unknown-line'], why: 'a live agent is no retired name' },
+    { id: 'value-checkpoint', plant: rep('RESULT', 'VALUE checkpoint-stops on\nRESULT'), fails: ['project-render-unknown-line'], why: 'the retired setting as a value in a project render (#564 C6)' },
+    { id: 'retired-setting-other-name', plant: rep('RESULT', 'RETIRED-SETTING other-thing true\nRESULT'), fails: ['project-render-unknown-line'], why: 'a retired-setting line for another name' },
+    { id: 'retired-setting-bad-value', plant: rep('RESULT', 'RETIRED-SETTING checkpoint-stops on\nRESULT'), fails: ['project-render-unknown-line'], why: 'the retired setting with a word the render never prints' },
+    { id: 'retired-setting-twice', plant: rep('RESULT', 'RETIRED-SETTING checkpoint-stops true\nRETIRED-SETTING checkpoint-stops false\nRESULT'), fails: ['project-render-retired-setting-twice'], why: 'the retired setting twice' },
     { id: 'retired-name-no-qualities', plant: rep('RESULT', 'RETIRED-NAME qualities good-enough-lens\nRESULT'), fails: ['project-render-retired-no-qualities'], why: 'no qualities list to name it in' },
     { id: 'qualities-zero', plant: rep('RESULT', 'QUALITIES 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'a list holds a row' },
     { id: 'qualities-too-many', plant: rep('RESULT', 'QUALITIES 10\nRESULT'), fails: ['project-render-unknown-line'], why: 'at most nine rows, one per quality' },
@@ -1294,7 +1313,7 @@ test('the configurable agents and the banned settings are the renderer\'s and se
 test('the configuration block: a removed configuration, changed and new files, and warnings, a security-set lens\'s as plain as any (#262)', () => {
   const record = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: H('0') }, { kind: 'block', path: 'gone.md', sha256: H('9') }] }));
   const none = core.parseRenderLines(noneBase().in.split('\n'), { project: false, hash: sha256 });
-  assert.deepEqual(core.configBlock(none, H('a'), record), ['  no configuration', '  the last install had a configuration; this install removes it from the rules file']);
+  assert.deepEqual(core.configBlock(none, H('a'), record), ['  no configuration', "  NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you (ADR 0157).", '  the last install had a configuration; this install removes it from the rules file']);
   const p = core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 });
   const b = core.configBlock(p, H('a'), record);
   assert.equal(b[0], `  user file pact/config.json: sha256 ${U}, CHANGED since the last install`);

@@ -451,11 +451,21 @@ export function checkVerdict(report, what) {
 const RETIRED_BLOCK_RE = /^RETIRED-NAME block (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) ([a-z-]+)$/;
 const EDIT_RE =/^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
-// #554: and checkpoint-stops as on or off; the renderer prints a project's value only as on, but the parser takes both words, as the home one does.
-const VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(checkpoint-stops) (on|off))$/;
+const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 // #482: a home render may also report the auto-compact window; a project render never does.
 // #439: and the stop switch, as the word on or off.
-const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off)|(checkpoint-stops) (on|off))$/;
+const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off))$/;
+// The settings the pact retired (#564): the install's own copy of RETIRED_SETTINGS in gate/render-core.mjs, as it keeps AGENT_NAMES. Each copy is pinned to the same value by its own test (install-core and builder-page).
+// The render reports each one a file sets as `RETIRED-SETTING <name> <true|false>`, at most once; the line changes nothing in the rules file.
+export const RETIRED_SETTINGS = Object.freeze(['checkpoint-stops']);
+const RETIRED_SETTING_RE = /^RETIRED-SETTING ([a-z-]+) (true|false)$/;
+/** The retired setting `l` reports, as [name, 'true'|'false'], or null when `l` is no such line: an unknown name is refused by the caller. */
+function retiredSettingOf(l) {
+  const m = RETIRED_SETTING_RE.exec(l);
+  if (!m) return null;
+  const name = RETIRED_SETTINGS.find(s => s === m[1]);
+  return name ? [name, m[2]] : null;
+}
 // The auto-compact window (#482): the install's own copy of the default in gate/render-core.mjs, as it keeps PACT_TOOLS. A test holds them equal.
 export const AUTO_COMPACT_DEFAULT = 400000;
 const AUTO_COMPACT_MIN = 100000;
@@ -465,10 +475,13 @@ const AUTO_COMPACT_STEP = 10000;
 export const compactWindowOk = n => n === 0 || (Number.isInteger(n) && n >= AUTO_COMPACT_MIN && n <= AUTO_COMPACT_MAX && (n - AUTO_COMPACT_MIN) % AUTO_COMPACT_STEP === 0);
 /** The window the install uses: the reported value, else the default. 0 is off. */
 export const compactWindow = parsed => (parsed.values.has('auto-compact-window') ? Number(parsed.values.get('auto-compact-window')) : AUTO_COMPACT_DEFAULT);
-// The checkpoint switch (#554): its setting name, and the two dry-run NOTEs that say what an unset or a default value means for the rules file.
-const CHECKPOINT_STOPS = 'checkpoint-stops';
-const CHECKPOINTS_UNSET_NOTE = 'checkpoint-stops is unset: checkpoints wait; set it false to make them events';
-const CHECKPOINTS_DEFAULT_NOTE = 'the default configuration makes checkpoints events; set checkpoint-stops true in your configuration to make them wait';
+// The one NOTE every home dry run prints (#564): whoever loses the wait is told at the install's hard stop.
+const CHECKPOINTS_NOTE = "NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you (ADR 0157).";
+/** The WARN a retired setting draws in a dry run: `where` is "the user configuration", "the pact's default configuration" or "the project configuration"; fixed words only, since the value is `true` or `false`. */
+function retiredSettingWarn(name, value, where, project) {
+  const tail = value === 'true' ? `: checkpoints no longer wait${project ? ' in this project' : ''}` : '; false changes nothing';
+  return `  WARN: ${where} sets ${name}, which the pact retired${tail}. Take the key out.`;
+}
 /** Whether the stop switch is on (#439): only a reported `VALUE session-stop-deny on`; no line means off. */
 export const stopSwitchOn = parsed => parsed.values.get('session-stop-deny') === 'on';
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
@@ -505,6 +518,7 @@ export function parseRenderLines(lines, { project, hash }) {
   const edits = new Map();
   const blockHashes = new Map();
   const retiredNames = [];
+  const retiredSettings = new Map();
   const agentSets = new Map();
   let commands = null;
   let tools = null;
@@ -554,11 +568,14 @@ export function parseRenderLines(lines, { project, hash }) {
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
     } else if ((m = HOME_VALUE_RE.exec(l))) {
-      const name = m[1] ?? m[3] ?? m[5] ?? m[7] ?? m[9];
-      const value = m[2] ?? m[4] ?? m[6] ?? m[8] ?? m[10];
+      const name = m[1] ?? m[3] ?? m[5] ?? m[7];
+      const value = m[2] ?? m[4] ?? m[6] ?? m[8];
       if (name === 'auto-compact-window' && !compactWindowOk(Number(value))) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (values.has(name)) refuse('render-value-twice', 'the renderer reported one setting twice.');
       values.set(name, value);
+    } else if ((m = retiredSettingOf(l))) {
+      if (retiredSettings.has(m[0])) refuse('render-retired-setting-twice', 'the renderer reported one retired setting twice.');
+      retiredSettings.set(m[0], m[1]);
     } else if ((m = COMMANDS_RE.exec(l))) {
       if (commands) refuse('render-commands-twice', 'the renderer reported two commands lines.');
       const names = m[1] === 'none' ? [] : m[1].split(',');
@@ -583,7 +600,7 @@ export function parseRenderLines(lines, { project, hash }) {
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
   if (config.kind === 'none') {
-    if (digest || values.size || edits.size || agentSets.size || retiredNames.length) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit, a retired name or an agent setting with no configuration.');
+    if (digest || values.size || edits.size || agentSets.size || retiredNames.length || retiredSettings.size) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit, a retired name or an agent setting with no configuration.');
     if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
     if (tools.length) refuse('render-none-extras', 'the renderer reported a pact tool with no configuration.');
     if (skills.length) refuse('render-none-extras', 'the renderer reported a skill source with no configuration.');
@@ -594,7 +611,7 @@ export function parseRenderLines(lines, { project, hash }) {
     for (const e of edits.values()) if (e.path) text += `block ${e.path} ${e.sha256}\n`;
     if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('render-digest', "the renderer's configuration digest is missing or does not match the configuration hashes it reported.");
   }
-  return { renderHash, diffHash, config, digest, values, edits, blockHashes, retiredNames, agentSets, commands, tools, skills };
+  return { renderHash, diffHash, config, digest, values, edits, blockHashes, retiredNames, retiredSettings, agentSets, commands, tools, skills };
 }
 
 /**
@@ -720,6 +737,7 @@ export function parseProjectRenderLines(lines, hash) {
   let user = null;
   let userSeen = false;
   const values = new Map();
+  const retiredSettings = new Map();
   let qualities = 0;
   let costLimits = 0;
   let unnamedCosts = null;
@@ -740,9 +758,11 @@ export function parseProjectRenderLines(lines, hash) {
       if (digest) refuse('project-render-two-digests', 'the project render reported two configuration digests.');
       digest = m[1];
     } else if ((m = VALUE_RE.exec(l))) {
-      const name = m[1] ?? m[3];
-      if (values.has(name)) refuse('project-render-value-twice', 'the project render reported one setting twice.');
-      values.set(name, m[2] ?? m[4]);
+      if (values.has(m[1])) refuse('project-render-value-twice', 'the project render reported one setting twice.');
+      values.set(m[1], m[2]);
+    } else if ((m = retiredSettingOf(l))) {
+      if (retiredSettings.has(m[0])) refuse('project-render-retired-setting-twice', 'the project render reported one retired setting twice.');
+      retiredSettings.set(m[0], m[1]);
     } else if ((m = /^QUALITIES ([1-9])$/.exec(l))) {
       // A project's own qualities list (#262 S25): its row count, one row per ISO/IEC 25010:2023 quality at most.
       if (qualities) refuse('project-render-two-qualities', 'the project render reported two qualities lines.');
@@ -769,10 +789,11 @@ export function parseProjectRenderLines(lines, hash) {
     if (unnamedCosts.at(-1) > costLimits) refuse('project-render-unnamed-range', 'the project render reported an unnamed Cost limits row past the last row.');
   }
   if (retiredNames.length && !qualities) refuse('project-render-retired-no-qualities', 'the project render reported a retired name with no qualities list.');
-  if (!projectHash || !userSeen || !fileHash || (!values.size && !qualities && !costLimits)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value, a qualities list or a Cost limits list.');
+  // A retired setting counts as content: a project file holding only it still installs (#564).
+  if (!projectHash || !userSeen || !fileHash || (!values.size && !retiredSettings.size && !qualities && !costLimits)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value, a retired setting, a qualities list or a Cost limits list.');
   const text = `${user ? `user ${user}\n` : ''}project ${fileHash}\n`;
   if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('project-render-digest', "the project render's configuration digest is missing or does not match the hashes it reported.");
-  return { projectHash, fileHash, digest, user, values, qualities, costLimits, unnamedCosts: unnamedCosts ?? [], retiredNames };
+  return { projectHash, fileHash, digest, user, values, retiredSettings, qualities, costLimits, unnamedCosts: unnamedCosts ?? [], retiredNames };
 }
 
 /**
@@ -827,7 +848,8 @@ export function projectBlock(state, parsed) {
     `  record ${PROJECT_RECORD_REL}: holds only the rules file's name and hash`,
     `  configuration digest: ${parsed.digest}`,
     `  rendered project rules file: sha256 ${parsed.projectHash}`,
-    ...[...parsed.values].map(([k, v]) => (k === CHECKPOINT_STOPS ? `  WARN: the project configuration sets ${k} to ${v}; checkpoints wait in this project whatever the user's value is.` : `  WARN: the project configuration sets ${k} to ${v}; the rules file reads it as the lower of that and the user's value.`)),
+    ...[...parsed.values].map(([k, v]) => `  WARN: the project configuration sets ${k} to ${v}; the rules file reads it as the lower of that and the user's value.`),
+    ...[...parsed.retiredSettings].map(([k, v]) => retiredSettingWarn(k, v, 'the project configuration', true) + (parsed.values.size || parsed.qualities || parsed.costLimits ? '' : " It is the file's only setting, so remove the file.")),
     ...parsed.retiredNames.map(a => `  WARN: the project configuration's qualities list names ${a}, an agent the pact retired; take the name out of the list.`),
     ...(parsed.unnamedCosts.length ? [unnamedCostsLine(parsed.unnamedCosts)] : []),
     '  Nothing is installed in the Claude home folder, and no agents go into the project.',
@@ -1627,6 +1649,7 @@ export function configBlock(parsed, rulesHash, record) {
   const out = [];
   if (parsed.config.kind === 'none') {
     out.push('  no configuration');
+    out.push(`  ${CHECKPOINTS_NOTE}`);
     if (last.size) out.push('  the last install had a configuration; this install removes it from the rules file');
     return out;
   }
@@ -1636,7 +1659,8 @@ export function configBlock(parsed, rulesHash, record) {
     if (last.has('user')) out.push(`  the last install had your own configuration; ${CONFIG_REL} is gone now, so the pact's default renders in its place`);
     out.push(`  rendered rules file: sha256 ${rulesHash}`);
     for (const [k, v] of parsed.values) out.push(`  WARN: the pact's default configuration sets ${k} to ${v}.`);
-    if (parsed.values.get(CHECKPOINT_STOPS) === 'off') out.push(`  NOTE: ${CHECKPOINTS_DEFAULT_NOTE}`);
+    for (const [k, v] of parsed.retiredSettings) out.push(retiredSettingWarn(k, v, "the pact's default configuration", false));
+    out.push(`  ${CHECKPOINTS_NOTE}`);
     for (const [k, e] of parsed.edits) out.push(`  WARN: the pact's default configuration edits ${k} (${e.op}).`);
     out.push(`  To keep the pact's own text instead, write a ${CONFIG_REL} of your own; docs/install.md says how.`);
     return out;
@@ -1648,7 +1672,8 @@ export function configBlock(parsed, rulesHash, record) {
   out.push(`  configuration digest: ${parsed.digest}`);
   out.push(`  rendered rules file: sha256 ${rulesHash}`);
   for (const [k, v] of parsed.values) out.push(k === 'usage-pause' && v === 'off' ? '  WARN: the user configuration turns usage-pause off.' : `  WARN: the user configuration sets ${k} to ${v}.`);
-  if (!parsed.values.has(CHECKPOINT_STOPS)) out.push(`  NOTE: ${CHECKPOINTS_UNSET_NOTE}`);
+  for (const [k, v] of parsed.retiredSettings) out.push(retiredSettingWarn(k, v, 'the user configuration', false));
+  out.push(`  ${CHECKPOINTS_NOTE}`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
   for (const [name, a] of parsed.agentSets) out.push(`  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`);
   for (const r of parsed.retiredNames) out.push(`  WARN: the user configuration's ${r.mark} block names ${r.agent}, an agent the pact retired; take the name out of the block, and where it sat in the spec pair put unstated-lens in its place.`);

@@ -532,8 +532,7 @@ To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default; `false`
 turns it off), and `usage-pause-session`, the 5-hour session line, unset
-by default. The builder's Settings dialog holds both. Three more, `session-stop-deny`,
-`auto-compact-window` and `checkpoint-stops`, have a section each. The canvas edits the workflow, Settings
+by default. The builder's Settings dialog holds both. Two more, `session-stop-deny` and `auto-compact-window`, have a section each. `checkpoint-stops` is retired: no checkpoint waits, and a configuration or project file that still sets it gets a dry-run WARN and the key is ignored. The canvas edits the workflow, Settings
 the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
 session line set. For a builder of your own, type `/scriptorium` in any
@@ -580,14 +579,6 @@ notice line names it, as `session-stop-deny on` or `off`.
   of the configuration. An older installer refuses a configuration that names
   it, even as `false`, and ignores `stopDeny`, so the eight rules would stay in
   `settings.json` looking like your own.
-
-## The checkpoints setting
-
-`checkpoint-stops` in `~/.claude/pact/config.json` is `true` or `false`, `true`
-when unset; the builder's Settings dialog shows it. `true` keeps the rules
-file's "Checkpoints wait" line, and `false` takes it out. With no `config.json`
-of your own, the pact's default configuration renders and sets `false`; a file
-of yours that leaves the key out waits. A project may set `true`, never `false`.
 
 ## The auto-compact window and its hooks
 

@@ -117,37 +117,53 @@ test('bad case: session-stop-deny in a project configuration refuses, naming the
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": 1}}\n')), 'project-value', /session-stop-deny must be true or false/);
 });
 
-const STOPS_LINE = "- **Checkpoints wait.** In this project, each checkpoint waits for my word in chat, except under a standing goal, and under a free hand for a lens offer, the sensitive route or an intent or design question.";
 const stopsProject = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`;
 const stopsUser = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`;
 
-for (const [label, user] of [['no user file', undefined], ['a user file that leaves it unset', '{"schema": 1, "settings": {"usage-pause": 90}}\n'], ['a user true', stopsUser(true)], ['a user false', stopsUser(false)]]) {
-  // #554 C3: checkpoint-stops is a switch whose tighter value is true: a project may set true over any user value, never false. #562 C4: the line holds no read-back wait.
-  test(`checkpoint-stops: a project true beside a usage value installs over ${label}: both project lines, in the settings order, the values, the hashes`, t => {
-    const pbytes = Buffer.from('{"schema": 1, "settings": {"checkpoint-stops": true, "usage-pause": 60}}\n');
-    const r = render(t, userHome(t, user), project(t, pbytes));
+// #564 C4, S7.2b: a project true or false beside other content is ignored: no project line, the RETIRED-SETTING line, the file of the project without the key.
+for (const v of ['true', 'false']) {
+  test(`checkpoint-stops: a project ${v} beside a usage value is ignored: no project line, one RETIRED-SETTING line, the file of the project without the key`, t => {
+    const pbytes = Buffer.from(`{"schema": 1, "settings": {"checkpoint-stops": ${v}, "usage-pause": 60}}\n`);
+    const r = render(t, userHome(t), project(t, pbytes));
     assert.equal(r.code, 0, r.out);
-    assert.equal(r.bytes.toString('utf8'), expectedFile(60).replace(/\n$/, `\n${STOPS_LINE}\n`));
-    assert.ok(!r.bytes.toString('utf8').replace(/\s+/g, ' ').includes('a pending read-back waits'), 'the render holds no read-back wait');
-    assert.deepEqual(r.stdout.split('\n').filter(l => l.startsWith('VALUE ')), ['VALUE usage-pause 60', 'VALUE checkpoint-stops on']);
+    assert.equal(r.bytes.toString('utf8'), expectedFile(60));
+    assert.ok(!r.bytes.toString('utf8').includes('Checkpoints wait'));
+    assert.deepEqual(r.stdout.split('\n').filter(l => l.startsWith('VALUE ') || l.startsWith('RETIRED-SETTING ')), ['VALUE usage-pause 60', `RETIRED-SETTING checkpoint-stops ${v}`]);
     assert.match(r.stdout, new RegExp(`^PROJECT ${sha256(pbytes)}$`, 'm'), r.out);
     assert.deepEqual(readdirSync(r.dir), [OUTPUT]);
   });
 }
 
-// #554 C3: a project false is a loosening, whatever the user's value.
-test('bad case: a project checkpoint-stops false refuses as a loosening, over any user value', t => {
-  for (const user of [undefined, stopsUser(true), stopsUser(false)]) {
-    refusedWith(render(t, userHome(t, user), project(t, stopsProject(false))), 'project-looser', /checkpoint-stops false is never tighter than the user's value/);
+// #564 S3.3: a project render reports only the project file's key.
+test('checkpoint-stops: the user file sets it and the project does not: no line; both set it: one line, the project\'s', t => {
+  const user = render(t, userHome(t, stopsUser(true)), project(t, projectFile(60)));
+  assert.equal(user.code, 0, user.out);
+  assert.doesNotMatch(user.stdout, /RETIRED-SETTING/, user.out);
+  const both = render(t, userHome(t, stopsUser(true)), project(t, '{"schema": 1, "settings": {"checkpoint-stops": false, "usage-pause": 60}}\n'));
+  assert.equal(both.code, 0, both.out);
+  assert.deepEqual(both.stdout.split('\n').filter(l => l.startsWith('RETIRED-SETTING ')), ['RETIRED-SETTING checkpoint-stops false']);
+});
+
+// #564 S3.3: a project file whose only content is the key still renders, with no setting line, so the install replaces the old line.
+test('checkpoint-stops: a project file holding only the key renders a project rules file with no setting line', t => {
+  for (const v of ['true', 'false']) {
+    const r = render(t, userHome(t), project(t, stopsProject(v)));
+    assert.equal(r.code, 0, r.out);
+    assert.equal(r.bytes.toString('utf8'), expectedFile(60).split('\n').slice(0, 4).concat(['']).join('\n'));
+    assert.match(r.stdout, new RegExp(`^RETIRED-SETTING checkpoint-stops ${v}$`, 'm'), r.out);
+    assert.doesNotMatch(r.stdout, /^VALUE /m, r.out);
   }
 });
 
-// #554 C3: project-value
-test('bad case: a project checkpoint-stops that is no boolean refuses', t => {
-  for (const bad of ['1', '0', '"true"', 'null', '[]']) {
-    refusedWith(render(t, userHome(t), project(t, stopsProject(bad))), 'project-value', /checkpoint-stops must be true or false/);
+// #564 C5: project-value, and the value is not echoed.
+test('bad case: a project checkpoint-stops that is no boolean refuses with the fixed message, never echoing the value', t => {
+  for (const bad of ['1', '0', '"offbeat"', '"true"', 'null', '[]']) {
+    const r = render(t, userHome(t), project(t, stopsProject(bad)));
+    refusedWith(r, 'project-value', /checkpoint-stops must be true or false/);
+    assert.doesNotMatch(r.stdout, /RETIRED-SETTING|offbeat/);
   }
 });
+
 
 test('bad case: a project value looser than the user\'s but tighter than the default refuses', t => {
   refusedWith(render(t, userHome(t, userFile(50)), project(t, projectFile(60))), 'project-looser', /usage-pause 60 is not tighter than the user's effective value, 50/);

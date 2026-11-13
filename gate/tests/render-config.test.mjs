@@ -591,71 +591,49 @@ test('bad case: the session limit takes no false', t => {
   refusedWith(render(t, homeWith(t, Buffer.from('{"schema": 1, "settings": {"usage-pause-session": false}}\n'))), 'config-value', /usage-pause-session must be a whole number from 0 to 100/);
 });
 
-// ------------------------------------------------------------ checkpoint-stops: a switch with a part in the rules file, on by default
+// ------------------------------------------------------------ checkpoint-stops: a retired setting (#564)
 
-// The part the source holds at the default, written out here so the expected render is the test's own.
-const CHECKPOINTS_WAIT = [
-  '- **Checkpoints wait.** Each checkpoint waits for my word in chat, except under',
-  '  a standing goal, and under a free hand for a lens offer, the sensitive route',
-  '  or an intent or design question.',
-  '',
-].join('\n');
+const stopsBytes = v => Buffer.from(`{"schema": 1, "settings": {"usage-pause": 90, "checkpoint-stops": ${v}}}\n`);
+const WITHOUT = Buffer.from('{"schema": 1, "settings": {"usage-pause": 90}}\n');
+const maskDigest = (text, bytes) => text.replaceAll(digestOf(bytes), 'DIGEST');
 
-const stopsBytes = v => Buffer.from(`{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`);
+// #564 C3, S7.2a: true and false are ignored; the file the render writes is the render of the same configuration without the key.
+for (const v of ['true', 'false']) {
+  test(`"checkpoint-stops": ${v} is ignored: a RETIRED-SETTING line, no VALUE line, and the rules file of the configuration without the key`, t => {
+    const bytes = stopsBytes(v);
+    const r = render(t, homeWith(t, bytes));
+    assert.equal(r.code, 0, r.out);
+    const lines = r.stdout.split('\n');
+    assert.deepEqual(lines.filter(l => /checkpoint-stops/.test(l)), [`RETIRED-SETTING checkpoint-stops ${v}`]);
+    assert.equal(lines.indexOf(`RETIRED-SETTING checkpoint-stops ${v}`), lines.indexOf('VALUE usage-pause 90') + 1, 'the line follows the VALUE lines');
+    assert.doesNotMatch(r.stdout, /^VALUE checkpoint-stops/m, r.out);
+    const text = r.bytes.toString('utf8');
+    assert.ok(!text.includes('Checkpoints wait') && !text.includes('checkpoint-stops'), 'the rules file never names the key');
+    const plain = render(t, homeWith(t, WITHOUT));
+    assert.equal(maskDigest(text, bytes), maskDigest(plain.bytes.toString('utf8'), WITHOUT));
+    assert.equal(maskDigest(r.diff.toString('utf8'), bytes), maskDigest(plain.diff.toString('utf8'), WITHOUT));
+  });
+}
 
-// #554 C2: unset, the render holds the line, with its narrow free-hand exception. #562 C4: and no read-back wait.
-test('checkpoint-stops unset: the render holds the "Checkpoints wait" line, with its free-hand exception and no read-back wait', t => {
-  assert.ok(read(SOURCE).includes(CHECKPOINTS_WAIT), 'the source no longer holds the line');
-  const withOther = render(t, homeWith(t, Buffer.from('{"schema": 1, "settings": {"usage-pause": 90}}\n')));
-  assert.equal(withOther.code, 0, withOther.out);
-  const text = withOther.bytes.toString('utf8');
-  assert.ok(text.includes(CHECKPOINTS_WAIT), 'a configuration that leaves the setting out keeps the line');
-  const flat = text.replace(/\s+/g, ' ');
-  for (const wait of ['a pending read-back waits', 'where checkpoints wait, a pending read-back']) assert.ok(!flat.includes(wait), `the render holds no "${wait}"`);
-  // The no-configuration render holds it too.
-  const none = render(t, tempDir(t, 'pact-render-nohome-'));
-  assert.ok(none.bytes.toString('utf8').includes(CHECKPOINTS_WAIT));
-  // #557 S4.1: the line sits straight after the Checkpoints bullet.
-  assert.match(none.bytes.toString('utf8'), /- \*\*Checkpoints\.\*\*(?:(?!\n- )[^])*\n- \*\*Checkpoints wait\.\*\*/, 'the line follows the Checkpoints bullet');
-});
-
-// #554 C2: true keeps the line, and the notice names the value.
-test('"checkpoint-stops": true prints VALUE checkpoint-stops on, keeps the line, and the notice says on', t => {
-  const bytes = stopsBytes(true);
-  const r = render(t, homeWith(t, bytes));
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^VALUE checkpoint-stops on$/m, r.out);
-  assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', 'checkpoint-stops on'));
-  assert.ok(r.bytes.toString('utf8').includes(CHECKPOINTS_WAIT));
-});
-
-// #554 C2: false renders the part empty; only the notice's Values line differs from the expected render.
-test('"checkpoint-stops": false renders the part empty, and the notice says off', t => {
-  const bytes = stopsBytes(false);
-  const r = render(t, homeWith(t, bytes));
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^VALUE checkpoint-stops off$/m, r.out);
-  assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace(CHECKPOINTS_WAIT, '').replace('usage-pause 75', 'checkpoint-stops off'));
-  const text = r.bytes.toString('utf8');
-  assert.ok(text.includes('Values set: checkpoint-stops off.'));
-  assert.ok(!text.includes('Checkpoints wait.') && !text.includes('a pending read-back waits'));
-});
-
-// #554 C2: the switch takes a boolean and nothing else.
-test('bad case: checkpoint-stops takes no value but true or false', t => {
-  for (const bad of ['1', '0', '"off"', '"false"', 'null', '[]', '{}']) {
-    refusedWith(render(t, homeWith(t, stopsBytes(bad))), 'config-value', /checkpoint-stops must be true or false/);
+// #564 C5, S7.2c: only a boolean passes, and a refused value is never echoed.
+test('bad case: checkpoint-stops takes no value but true or false, and the value is not printed', t => {
+  for (const bad of ['1', '0', '"offbeat"', '"true"', 'null', '[]', '{}']) {
+    const r = render(t, homeWith(t, stopsBytes(bad)));
+    refusedWith(r, 'config-value', /checkpoint-stops must be true or false/);
+    assert.doesNotMatch(r.stdout, /RETIRED-SETTING|offbeat/);
   }
 });
 
-// #554 C2: render
-test('bad case: a checkpoint-stops part that no longer matches its template at the default refuses', t => {
-  const src = read(SOURCE).replace('or an intent or design question.', 'or an intent or design question, or a lens offer.');
-  refusedWith(render(t, homeWith(t, stopsBytes(false)), sourceFile(t, src)), 'render', /checkpoint-stops: the template at its default no longer matches the source/);
+// #564 C1: no render of the source holds the wait line or the mark.
+test('no render of the source holds "Checkpoints wait" or the checkpoint-stops mark', t => {
+  const none = render(t, tempDir(t, 'pact-render-nohome-'));
+  const text = none.bytes.toString('utf8');
+  assert.ok(!text.includes('Checkpoints wait') && !text.includes('checkpoint-stops'));
+  assert.ok(!read(SOURCE).includes('Checkpoints wait') && !read(SOURCE).includes('checkpoint-stops'));
 });
 
-// #554 C2: render
-test('bad case: a checkpoint-stops part emptied in the source refuses a configuration that sets it, so the line cannot be dropped unseen', t => {
-  const src = read(SOURCE).replace(CHECKPOINTS_WAIT, '');
-  refusedWith(render(t, homeWith(t, stopsBytes(true)), sourceFile(t, src)), 'render', /checkpoint-stops: the template at its default no longer matches the source/);
+// #564 S3.5: an edit may not target the retired mark.
+test('bad case: an edit that targets checkpoint-stops is refused as an unknown mark', t => {
+  const bytes = Buffer.from('{"schema": 1, "edits": [{"mark": "checkpoint-stops", "op": "remove"}]}\n');
+  refusedWith(render(t, homeWith(t, bytes)), 'edit-mark', /an unknown mark/);
 });

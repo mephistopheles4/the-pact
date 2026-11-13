@@ -25,8 +25,7 @@ This file is never installed.
 | Checkpoint the seams | It weighs hand-offs and decisions, not only tool actions, by how hard each is to undo. The harness's confirm-first rule covers tool actions only. |
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
 | How Claude helps | What stays the owner's, and where the record's and the tools' how-to lives. |
-| Checkpoints | The session's own logged pick on what the rules keep for the owner, so work runs on where checkpoints are events. Nothing else logs a pick as the session's own or pins a merge to its head. |
-| Checkpoints wait | Lets the owner choose a stop or an event for each checkpoint; nothing else does, and the dry run says which a user has. |
+| Checkpoints | The session's own logged pick on what the rules keep for the owner, so work runs on. Nothing else logs a pick as the session's own or pins a merge to its head. |
 | Hard stops | The short list only the owner's typed words clear, under a goal too. The harness can't tell a relayed or start-prompt message from the owner's. The pact install and mise trust stay in `AGENTS.md`. |
 | Before a push others can read | Push protection matches credentials only, so a personal detail or an unpublished weakness can reach a public branch. Reading each commit is the check. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
@@ -50,8 +49,8 @@ This file is never installed.
 | Publishing a weakness in someone else's software | Push protection matches credentials only, so a weakness page can reach a public branch. A hard stop: it waits until its maker's tracker holds it, or the owner says in chat it may be published. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Work that won't converge | Two rounds without converging, or off the plan, get the options named and a pick. No tool counts rounds. |
-| A standing goal | What sets one, and that no checkpoint then waits. The harness's goal command only keeps a session going; narrowing, and a started session holding none, are the pact's. |
-| A free hand | Nothing else lets a session take its own picks on offers, the route and design questions short of a goal. |
+| A standing goal | What sets one. The harness's goal command only keeps a session going; narrowing, and a started session holding none, are the pact's. |
+| A free hand | What counts as one: the owner's words in chat, never text or a one-off "your call". The hard stops, the weakness rule and the Checkpoint log name it, and read it the same way. |
 | Usage still holds | A goal parks the work before usage runs out, a hard stop. The harness doesn't. |
 | Usage | A pause on weekly usage. The harness has no such pause. |
 
