@@ -38,7 +38,7 @@ export function render(input, { home, sourceCommit, worktreesRoot }) {
   const files = [];
   const add = (path, text) => files.push({ path, text });
   const portable = text => text
-    .replace(/(~|\$HOME)\/\.claude\/agents\/([a-z0-9-]+)\.md\b/g, '$1/.codex/agents/$2.toml')
+    .replace(/(~|\$HOME)\/\.claude\/agents\/([A-Za-z0-9_.-]+)\.md\b/g, '$1/.codex/agents/$2.toml')
     .replace(/(~|\$HOME)\/\.claude\/commands\/([a-z0-9-]+)\.md\b/g, '$1/.agents/skills/$2/SKILL.md')
     .replaceAll('~/.claude/pact/', '~/.codex/pact/')
     .replaceAll('$HOME/.claude/pact/', '$HOME/.codex/pact/')

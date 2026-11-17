@@ -41,12 +41,18 @@ test('Codex hooks replace their script registration when Node or window changes'
 });
 
 test('Codex command and agent references point to installed entrypoints', () => {
-  const files = render({ rules: 'Read ~/.claude/commands/scry.md and $HOME/.claude/commands/finis.md; ~/.claude/agents/reader-lens.md and $HOME/.claude/agents/reader-lens.md.', review: '', agents: [], commands: [], resources: [] }, { home: '/fixture', sourceCommit: 'a'.repeat(40) });
+  const names = ['reader-lens', 'reader_lens', 'Scry', 'reader.lens'];
+  const references = names.flatMap(name => [`~/.claude/agents/${name}.md`, `$HOME/.claude/agents/${name}.md`]).join(' ');
+  const agents = names.map(name => ({ name, description: 'Fixture', effort: 'low', body: 'Read the change.' }));
+  const files = render({ rules: 'Read ~/.claude/commands/scry.md and $HOME/.claude/commands/finis.md; ' + references, review: '', agents, commands: [], resources: [] }, { home: '/fixture', sourceCommit: 'a'.repeat(40) });
   const text = files.find(f => f.path.endsWith('/workflow.md')).text;
   assert.match(text, /~\/\.agents\/skills\/scry\/SKILL\.md/);
   assert.match(text, /\$HOME\/\.agents\/skills\/finis\/SKILL\.md/);
-  assert.match(text, /~\/\.codex\/agents\/reader-lens\.toml/);
-  assert.match(text, /\$HOME\/\.codex\/agents\/reader-lens\.toml/);
+  for (const name of names) {
+    assert.ok(files.some(f => f.path === `.codex/agents/${name}.toml`));
+    assert.ok(text.includes(`~/.codex/agents/${name}.toml`));
+    assert.ok(text.includes(`$HOME/.codex/agents/${name}.toml`));
+  }
 });
 
 test('Codex home-variable inventory paths match tilde translations', () => {
