@@ -35,7 +35,8 @@ export function tool(name, { repository = root, searchPath = process.env.PATH ??
     if (repositoryPath(repository, file)) continue;
     try {
       const candidate = realpathSync(file);
-      if (!repositoryPath(canonicalRoot, candidate) && statSync(candidate).isFile()) return candidate;
+      // Preserve the invocation name used by mise-style symlink dispatchers.
+      if (!repositoryPath(canonicalRoot, candidate) && statSync(candidate).isFile()) return file;
     } catch {}
   }
   throw Error('required executable unavailable');

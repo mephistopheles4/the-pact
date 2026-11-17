@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { win32, posix, delimiter, join } from 'node:path';
 import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tempDir } from './tree.mjs';
 import * as installer from '../../codex/install.mjs';
 
@@ -25,7 +26,16 @@ test('Codex executable lookup resolves checkout and PATH aliases before exclusio
   symlinkSync(repository, alias, kind); symlinkSync(outside, externalAlias, kind);
   assert.equal(installer.tool('fixture', { repository, searchPath: [join(alias, 'bin'), outside].join(delimiter) }), realpathSync(join(outside, filename)));
   assert.throws(() => installer.tool('fixture', { repository: alias, searchPath: join(repository, 'bin') }), /unavailable/);
-  assert.equal(installer.tool('fixture', { repository, searchPath: externalAlias }), realpathSync(join(outside, filename)));
+  assert.equal(installer.tool('fixture', { repository, searchPath: externalAlias }), join(externalAlias, filename));
+  if (process.platform !== 'win32') {
+    const shim = join(outside, 'dispatch-fixture');
+    symlinkSync(process.execPath, shim);
+    const selected = installer.tool('dispatch-fixture', { repository, searchPath: outside });
+    assert.equal(selected, shim);
+    const invoked = spawnSync(selected, ['-e', 'process.stdout.write(process.argv0)'], { encoding: 'utf8' });
+    assert.equal(invoked.status, 0, invoked.stderr);
+    assert.equal(invoked.stdout, shim);
+  }
   if (process.platform === 'win32') assert.throws(() => installer.tool('fixture', { repository: repository.toUpperCase(), searchPath: join(alias, 'bin') }), /unavailable/);
 });
 

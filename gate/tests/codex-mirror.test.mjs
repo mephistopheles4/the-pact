@@ -40,11 +40,13 @@ test('Codex hooks replace their script registration when Node or window changes'
   assert.deepEqual(mergeHooks(merged, next), merged);
 });
 
-test('Codex command references point to installed skill entrypoints', () => {
-  const files = render({ rules: 'Read ~/.claude/commands/scry.md and $HOME/.claude/commands/finis.md.', review: '', agents: [], commands: [], resources: [] }, { home: '/fixture', sourceCommit: 'a'.repeat(40) });
+test('Codex command and agent references point to installed entrypoints', () => {
+  const files = render({ rules: 'Read ~/.claude/commands/scry.md and $HOME/.claude/commands/finis.md; ~/.claude/agents/reader-lens.md and $HOME/.claude/agents/reader-lens.md.', review: '', agents: [], commands: [], resources: [] }, { home: '/fixture', sourceCommit: 'a'.repeat(40) });
   const text = files.find(f => f.path.endsWith('/workflow.md')).text;
   assert.match(text, /~\/\.agents\/skills\/scry\/SKILL\.md/);
   assert.match(text, /\$HOME\/\.agents\/skills\/finis\/SKILL\.md/);
+  assert.match(text, /~\/\.codex\/agents\/reader-lens\.toml/);
+  assert.match(text, /\$HOME\/\.codex\/agents\/reader-lens\.toml/);
 });
 
 test('Codex home-variable inventory paths match tilde translations', () => {
