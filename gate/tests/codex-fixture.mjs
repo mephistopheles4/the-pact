@@ -24,7 +24,7 @@ export function codexFixture(t) {
   git(['init', '-qb', 'main']); git(['remote', 'add', 'origin', 'https://github.com/mephistopheles4/the-pact.git']);
   put('CLAUDE.md', '# Customized pact\nOpus, low; Sonnet, high\nKeep every guard.\n## Workflow\n`fixture-a`: used; `grimoire:eagle-eye`: offered\n', true);
   put('pact/review.md', 'Read ~/.claude/pact/private/\n', true);
-  for (const name of ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']) put(`agents/${name}.md`, readFileSync(join(repo, `claude/agents/${name}.md`)), true);
+  for (const name of ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']) put(`agents/${name}.md`, `---\nname: ${name}\ndescription: Fixture role\neffort: medium\n---\nKeep the fixture role.\n`, true);
   for (const name of ['finis', 'make-it-so', 'scry', 'scriptorium']) put(`commands/${name}.md`, readFileSync(join(repo, `claude/commands/${name}.md`)), true);
   for (const name of ['poster', 'cleaner']) put(`pact/tools/${name}.mjs`, readFileSync(join(repo, `claude/tools/${name}.mjs`)), true);
   put('pact/config.json', JSON.stringify({ schema: 1, tools: ['poster', 'cleaner'] })); mkdirSync(join(source, 'pact/blocks'));
