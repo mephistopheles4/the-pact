@@ -27,7 +27,7 @@ export function patchConfig(text, values) {
   const added = Object.entries(values).filter(([k]) => !seen.has(k)).map(([k, v]) => `${k} = ${JSON.stringify(v)}`);
   return [...added, ...output].join('\n');
 }
-export function render(input, { home, sourceCommit }) {
+export function render(input, { home, sourceCommit, worktreesRoot }) {
   const files = [];
   const add = (path, text) => files.push({ path, text });
   const portable = text => text.replaceAll('~/.claude/pact/', '~/.codex/pact/').replaceAll('$HOME/.claude/pact/', '$HOME/.codex/pact/').replaceAll('~/.claude/skills/', '~/.agents/skills/').replaceAll('~/.claude/commands/', '~/.agents/skills/').replaceAll('~/.claude/agents/', '~/.codex/agents/').replaceAll('grimoire:eagle-eye', 'eagle-eye');
@@ -47,6 +47,6 @@ export function render(input, { home, sourceCommit }) {
     if (r.path.startsWith('.agents/skills/') && r.path.endsWith('.md')) files.push({ path: r.path, text: portable((r.bytes ?? Buffer.from(r.text)).toString()) });
     else files.push(r);
   }
-  add('.codex/pact/mirror-source.json', JSON.stringify({ schema: 1, sourceCommit, nativeSubagentIsolation: 'weaker; explicitly accepted by owner', model: 'gpt-6.1-sol' }, null, 2) + '\n');
+  add('.codex/pact/mirror-source.json', JSON.stringify({ schema: 1, sourceCommit, nativeSubagentIsolation: 'weaker; explicitly accepted by owner', model: 'gpt-6.1-sol', worktreesRoot }, null, 2) + '\n');
   return files;
 }

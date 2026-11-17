@@ -112,7 +112,12 @@ export function snapshot(home, codeRoot, nodePath) {
   let guidance = existsSync(guidancePath) ? readFileSync(plainPath(guidancePath), 'utf8') : '';
   if (!guidance.includes('/workflows/scriptorium/workflow.md')) guidance += '\nBefore engineering work, read and follow ~/.codex/workflows/scriptorium/workflow.md.\n';
   resources.push({ path: '.codex/AGENTS.md', text: guidance });
-  const files = render({ rules, review, agents, commands, resources }, { home, sourceCommit: record.commit });
+  let worktreesRoot = join(home, '.codex/worktrees');
+  for (let p = resolve(codeRoot); ; p = dirname(p)) {
+    if (basename(p).toLowerCase() === 'worktrees' && basename(dirname(p)).toLowerCase() === '.codex') { worktreesRoot = p; break; }
+    if (dirname(p) === p) break;
+  }
+  const files = render({ rules, review, agents, commands, resources }, { home, sourceCommit: record.commit, worktreesRoot });
   // Accident check only. Raw settings and credentials are never an output file.
   const secrets = Object.entries(settings.env ?? {}).filter(([k, v]) => /secret|token|key|password/i.test(k) && typeof v === 'string' && v.length > 8).map(([, v]) => v);
   if (files.some(f => secrets.some(s => (f.bytes ?? Buffer.from(f.text)).includes(Buffer.from(s))))) throw Error('secret-bearing output refused');

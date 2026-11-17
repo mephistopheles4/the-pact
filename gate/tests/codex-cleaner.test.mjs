@@ -23,7 +23,10 @@ test('Codex cleaner retains active worktrees, then removes a clean archived work
     assert.equal(r.status, 0, r.stderr); return r.stdout;
   };
   git(['init', '-q', '-b', 'main']); writeFileSync(join(repo, 'a'), 'a'); git(['add', '.']); git(['commit', '-qm', 'initial']);
-  const worktree = join(home, '.codex/worktrees/abcd/repo');
+  const worktreesRoot = join(root, '.codex/worktrees');
+  const worktree = join(worktreesRoot, 'abcd/repo');
+  mkdirSync(join(home, '.codex/pact'), { recursive: true });
+  writeFileSync(join(home, '.codex/pact/mirror-source.json'), JSON.stringify({ schema: 1, worktreesRoot }));
   git(['worktree', 'add', '-qb', 'codex/test', worktree]);
   const db = new DatabaseSync(join(home, '.codex/state_5.sqlite'));
   try {

@@ -1,7 +1,15 @@
 // Read-only Codex active-thread inventory. Unknown/missing schema refuses cleanup.
 import { DatabaseSync } from 'node:sqlite';
-import { lstatSync, existsSync, realpathSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { lstatSync, existsSync, realpathSync, readFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+
+export function codexWorktrees(home) {
+  const manifest = join(home, '.codex/pact/mirror-source.json');
+  const root = existsSync(manifest) ? JSON.parse(readFileSync(manifest, 'utf8')).worktreesRoot : null;
+  if (!root) return join(home, '.codex/worktrees');
+  if (!isAbsolute(root) || basename(root).toLowerCase() !== 'worktrees' || basename(dirname(root)).toLowerCase() !== '.codex') throw Error('Codex worktree root is invalid');
+  return resolve(root);
+}
 
 export function codexSessionCwds(home) {
   const dir = join(home, '.codex'), file = join(dir, 'state_5.sqlite');
