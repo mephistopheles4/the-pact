@@ -16,9 +16,10 @@ It amends [0155](0155-checkpoints-are-events-hard-stops-wait.md) and [0157](0157
 
 ## Trade-off
 
-Nothing reliably tells the owner's voice or words from words that only look like them, and a spoken yes in a transcript is no more checkable than a typed one. The owner took hands-free over that check. What helps is the record: the poster makes a session state its intent, the quote and its source, so a misread or an injected instruction can be traced afterwards. That is mitigation, not defense.
+Nothing reliably tells the owner's voice or words from words that only look like them, and a spoken yes in a transcript is no more checkable than a typed one. The owner took hands-free over that check. What helps is the record: the poster makes a session state its intent, the quote and its source, so a misread or an injected instruction can be looked into afterwards. The record can't tell a spoken quote from a typed one, so that is mitigation, not defense.
 
 ## Consequences
 
-- A weakened control: the typed-only channel for hard stops goes. The threat model's accepted class "Text steers a session" already covers a session misreading text as the owner's; its text is unchanged.
+- **A weakened control, for the owner at merge:** the typed-only channel goes for every hard stop, among them an install apply, a publish, a post beyond the record and a secret. The threat model's accepted class "Text steers a session" covers a session misreading text as the owner's; its text is unchanged.
+- **The threat model's text is left as it is.** Settling how spoken input sits against its boundaries would edit a boundary and add a rule, which the owner declined; judgment decides. The owner may reopen it.
 - **Rollback:** revert the merge, rerun `node builder/build.mjs` and `node cloud-sessions/gen.mjs`, and reinstall from the dry run after the four checks in [Roll back to an older version](../install.md#roll-back-to-an-older-version).
