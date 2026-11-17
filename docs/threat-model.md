@@ -91,7 +91,7 @@ prompt, a mic transcript, a file someone hands a session to load.
 
 **Residual:** Text steers a session; A session takes checkpoints alone. Rules it
 rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`);
-the hard stops, the steps that wait for the owner's own typed words (an install
+the hard stops, the steps that wait for the owner's own words (an install
 apply, mise trust, a merge on their list, anything made public or sent beyond
 the record, a deletion nothing can restore); the stop and removal rules above.
 A change that loosens the cleaner's checks or the pact's deny rules is a spec
@@ -160,7 +160,7 @@ like any change to this repo.
 
 **Residual:** The pact gets loosened; Review rests on rules. Rules they rest
 on, each a control: an install apply and mise trust wait for the owner's own
-typed words (hard stops), which a standing goal or a free hand never stands in
+words (hard stops), which a standing goal or a free hand never stands in
 for; a merge on the hard-stop list waits for the same; any other merge is a
 checkpoint, where checkpoints are events the session's own logged pick, pinned
 to its reviewed head. Also accepted. Review rests on rules: a

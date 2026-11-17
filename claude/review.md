@@ -240,7 +240,7 @@ when no other row answers the sentence.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record, as
   your own pick under your own label, never as mine: a one-line why, the goal
   or free hand you ran under (its work and where it came from, by kind), each
-  narrowing I typed there (by the kind of step it keeps), and a flag: the line
+  narrowing I gave there (by the kind of step it keeps), and a flag: the line
   opens `Checkpoint (flagged):`, except the forms below. A pick
   that leaves a security path open is flagged big: in a public record its line
   is exactly "Owner's call: security, see chat", with the why in chat; in a
