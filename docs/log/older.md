@@ -2608,3 +2608,151 @@ The owner asked to drop the ask rules: "I don't even need the prompts anymore", 
 - The build record and claims C1 to C8: 6114838145.
 - Move 4's reports: the QA pair (6114904109), `unstated-lens`, whose cross failed its block-count check (6114904276), the standards pair (6114904413) and the security pair (6114904582); the Lens dispositions: 6114943962.
 - The PR: #268.
+
+## The moves as the owner's practices, and the rules file rewritten from a prototype
+
+**2026-10-12.** #238 set out to fix the owner's most repeated correction: sessions read the moves as a pipeline Claude runs, one move after another. They are the owner's practices, there to keep human judgment in the loop. The rules file was rewritten from an approved prototype, in two tickets: T1, the thin gate and the new rules file (#261, PR #263), and T2, which grew into #262, the whole Scriptorium command, in three phases. #238 closed when #262's phase 1 landed (PR #271); this entry is written in phase 2's PR, which finishes the last ticket #238 cut.
+
+### What it set out to do
+
+The owner, from chat on #238: the rules text caused the misreading. Its words said "the moves are mine", but its structure said the opposite: "Four moves run, in order, at every seam", tiers defined as the set of moves the work goes through, and each move written as instructions to Claude with long procedures attached. The fix: the moves written as the owner's practices with no order, a short "How Claude helps", tiers as how much checking the work needs, procedures moved out, and prototype first when intent is unclear.
+
+### What was built
+
+- **The spec went through nine revisions.** Revisions 1 to 6 patched the old file. The owner then stopped the patching ("stop patching the rules file") and asked for a prototype of the whole file written fresh. Round 3 of that prototype was approved, and revisions 7 to 9 specified the build from it.
+- **T1, #261 (PR #263): the thin gate and the new rules file.** The gate checks what can run and with what power, not the rules file's wording; two pinned blocks remain; the moves, "How Claude helps", the tier table and the Guards are the new text (ADR 0061).
+- **Two side tickets** cleared the way: the cross script was dropped for a crossing template (#264, PR #269, ADR 0064), and the pact stopped setting ask rules (#265, PR #268, ADR 0063).
+- **T2, #262 phase 1 (PR #271): lenses are offers.** The defaults sentence gave way to the offers paragraph; sensitive work is flagged with its why and the sensitive route recommended, with the security pair offered once more at Test; a Workflow section; the lens table became a roster (ADR 0065).
+- **T2, #262 phase 2 (this PR): the parts and the builder.** The four parts Scriptorium builds became editable in a home configuration behind a security-defaults line; the builder page edits them on #143's prototype v3 canvas; the session usage limit joined the weekly one (#142, folded in) (ADR 0066).
+- **Phase 2's addenda, each from the owner in chat.**
+  - Every agent can be set on any Claude Code model, `scout` included, and no setting is marked (ADR 0067).
+  - Qualities, from #273: a fifth part, quality rows handed to each lens, and a project's own list (ADR 0068).
+  - The gate checks install mechanics only; the pact is vetted like a skill (ADR 0069).
+  - An agent file the pact didn't write is the person's, left as is (ADR 0071), after addendum 3's `pact/agents/` folder was reverted.
+  - Presets and shared results are builder files, taken through a per-section checklist; six presets ship, and the page starts from Level 3 · Full (ADR 0070).
+- **T2, #262 phase 3 (this PR): the command.** The builder became part of the pact: `/scriptorium` installs for everyone with the builder kit under `~/.claude/pact/builder/`, the repo skill is gone, and the page sets the opt-in pact commands, finishing #203's T3 (ADR 0070).
+- **After the end-of-PR review,** the owner dropped this repo's own security route: work here takes the pact's tiers and sensitive route from the workflow (ADR 0072). A shared file's agent files start unticked in the Presets checklist.
+
+### What the build found
+
+- **Patching didn't converge.** Six revisions of edits to the old file kept its structure, and the structure was the problem. A fresh prototype read by the owner settled in three rounds what six revisions hadn't.
+- **The owner skipped #238's three trial sessions** (from chat, 2026-10-11): the new rules are proved by use, and a march through the moves, or a missed nudge, in an ordinary session opens a rewording ticket.
+- **The opt-in builder was reversed.** #203 planned the kit to install only when the configuration listed `scriptorium`. Mid-build the owner decided the builder is part of the pact, so it installs for everyone; the kit's import check went with ADR 0069.
+- **The old skill's preset model had drifted from the page.** Its presets added text after a move's slot, while the page had moved to skills on workflow stages. The command was written fresh, and a builder file that would make a save overwrite a person's own part edit now stops the command: `build.mjs --texts` lets it compare byte for byte.
+- **Phase 2's canvas couldn't draw SVG links.** The page's own content check refuses any `scheme://` text, which an SVG element needs for its namespace. The links are drawn on a 2D canvas instead, with the same look, and the check stays as it was.
+
+### Record
+
+- The problem and the owner's framing: #238's body.
+- The approved prototype and the owner's decision on it: mephistopheles4/the-pact#238 (comments 6113223073, 6113223446).
+- The spec, revision 9, and its proceed: #238 (6113620527, 6113645106); its reviews and dispositions (6113466635, 6113494428, 6113552604, 6113594749, 6113594926, 6113620696).
+- The hand-off naming T1 and T2: #238 (6113665486, 6113665625, 6113677757).
+- The owner's decision to skip the trial sessions: #238 (6115126155); to close: #238 (6124654367).
+- T1: #261, PR #263. T2: #262, its spec rev 4 (6123659870) with update 1 (6123794198) and proceed (6123821620); phase 1, PR #271, with its move-4 dispositions (6124562507); phases 2 and 3, PR #274.
+- Phase 2's addenda on #262: agent settings (6127495644) and the unmarked-settings decision (6128002230); qualities (6128138734); the gate thinning (6128478804); agents the owner writes (6130229396) and its correction (6130866205); presets (6131858145). The build's state note: 6128218939.
+
+## Scriptorium tidied, and the qualities no longer ranked
+
+**2026-10-13.** #279 began as one layout ask, the pact commands shown as an accordion like the parts. While prototyping #278's Cost limits in a copy of Scriptorium, the owner added three more: a square + for Add agent, one height for every field, and tag pickers that keep their select. Asked what the Qualities ranking did, the answer was nothing, so its removal joined #279 too. The owner set the tier: quick.
+
+### What was built (PR #282)
+
+- **Pact commands are an accordion,** the first section in Settings, with the same checkboxes, the locked `/scriptorium` and "Leave as is" as before.
+- **Add agent is a square +** beside the name box. Its accessible name stays "Add agent", and its error message keeps its own line.
+- **One control height.** The design system has no input or select, so the page sets `--control-h` from the spacing scale (36px) for text inputs, number inputs, selects and the square button.
+- **Tag pickers** show their chips above the select, as the Tools field does, fill their row, and keep the select when every option is chosen, disabled and reading "nothing left to add".
+- **The qualities are a list, not a ranking** (ADR 0073, amending ADR 0068). "ranked" left the rules file, a project's fixed sentence, the glossary, the README and the install how-to, and Scriptorium dropped the numbers and the ↑ ↓ buttons on Qualities. Nothing had acted on the order: no rule said what it did, and no lens saw it.
+
+### What the review found
+
+The QA pair read the layout fixes. `integrity-lens` found the page test no longer checked the + button's accessible name; the test now finds it by "Add agent" and checks it shows "+". `behaviour-lens` found the error message squeezing the name box and the roster's tag pickers no longer filling their row; both were fixed before merge.
+
+### Notes for next time
+
+- In a cloud container the installer's tests need the `GIT_CONFIG_*` variables unset, and the `changed` tier needs `--base origin/main` when the local `main` is behind; otherwise it runs the full suite.
+- The poster's "gh absent from PATH" test fails in a container with a GitHub token set, on `main` as well.
+
+### Record
+
+- The ask and its tier: #279's body; the owner's decisions to tier it quick and add the ranking removal and the + button: mephistopheles4/the-pact#279 (comment 6148771381).
+- Why the ranking went: the #278 record, mephistopheles4/the-pact#278 (comment 6148773586).
+- The QA pair's review and dispositions: mephistopheles4/the-pact#282 (comment 6149289326).
+
+## A small AGENTS.md
+
+**2026-10-16.** `AGENTS.md`, the file every session in this repo loads, had grown to 578 lines, most of it detail only some changes need and much of it a description of what the install script, the test runner and the gate's tests already enforce. The owner asked for it to be rewritten extremely small, with the rules in linked docs. On 2026-10-16 the owner folded in the "move 4" wording sweep: ADR 0060 had made the moves unnumbered practices, yet live text still called the Test stage "move 4". The owner set the tier: standard, not on the sensitive route.
+
+### What was built (#270)
+
+- **`AGENTS.md` is 100 lines,** with the "Running the gate's tests" heading and the four runner commands that the run-guards test checks, the `## Agent skills` block, and one pointer line to the tracker rule.
+- **Five docs under `docs/agents/`** took the rest, moved with their meaning unchanged: install, gate tests, changing rules (the probe rule and the protected set, word for word), parallel sessions and work records.
+- **The tracker rule moved whole** to `docs/agents/issue-tracker.md` (ADR 0075, amending ADR 0062), with the threat model repointed and its note that the control is now one link from the loaded file.
+- **The sweep:** "move 4" became "Test" in the nine lens contracts' live lines (each with a patch version and a changelog row), the threat model, the README figure's kickers and the gate's comments. Dated history, the old pact's planted mark names and Scriptorium's list positions stayed.
+
+### What was weighed
+
+- Whether the five tracker parts stay in the loaded file: the owner chose one home and a pointer line, accepting a weaker control.
+- Whether the moved docs should drop what the code enforces: no, the docs keep their sections whole and the PR's table names each check.
+- Whether the security pair reads the spec: the owner declined; one offer at Test stayed open.
+
+### Record
+
+The verbatim spec, its lens reviews and the owner's decisions are comments on #270:
+
+- [The spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/270#issuecomment-6215593363)
+- [The spec pair's crossing](https://github.com/mephistopheles4/the-pact/issues/270#issuecomment-6215593699)
+- [The unstated-lens crossing](https://github.com/mephistopheles4/the-pact/issues/270#issuecomment-6215594022)
+- [Owner decision, from chat](https://github.com/mephistopheles4/the-pact/issues/270#issuecomment-6215623297)
+- [The move-4 sweep added to the scope](https://github.com/mephistopheles4/the-pact/issues/270#issuecomment-6215156659)
+
+## Pact tools are opt-in, and the poster is proved live
+
+**2026-10-16.** The poster (#246) was built to post to GitHub under the owner's account and read the post back. As planned, every install would have carried it. The owner wanted the pact's tools chosen the way its commands are, and a check on the Lens dispositions table, which sessions fill by hand and which had drifted in 7 of the 11 tables posted since 2026-10-12 (#280). The owner set the tier: thorough, on the sensitive route, Opus at high, cut into three tickets, each its own session.
+
+### What was built (#280)
+
+- **T1, the `tools` list (#284, PR #290).** A pact tool is off unless the home configuration's `tools` list names it; no project configuration, preset or shared builder file can turn one on. The poster moved to `claude/tools/poster.mjs` and installs to `pact/tools/poster.mjs`. The dry run warns for each tool that is on, Scriptorium gained a "Pact tools" section, and the rules file gains the poster's rule only while it is on (ADR 0074).
+- **T2, the table check and the owner lookup (#285, PR #292).** Before it posts, the poster checks the shape of any Lens dispositions table outside a fence against the review procedure's template, and confirms with GitHub that the gh login owns the repo, so a renamed or moved repo can't carry a post elsewhere (ADR 0076).
+- **T3, the live proof and close-out (#286).** The poster's reference page, `docs/poster.md`, with a test that holds it to the poster's own lists; R3 and R13 name the poster's scans as a backstop only some installs have, with the read before posting kept for everyone; the install with the poster on; and the live proof on the private sandbox.
+
+### What the live proof showed
+
+Every create surface posted and read back as sent from a scratch folder: an issue, a CRLF body, a recased label (a `NOTE`, not a mismatch), a misspelled label (GitHub created it), a draft pull request, a review and a reply in a line-comment thread. A malformed table was refused with nothing sent, then fixed in place and posted. The two command forms ran in Git Bash, PowerShell 7.6 and Windows PowerShell 5.1, in this worktree session and in a plain one, and the POSIX form ran in the Linux container from #96 with no network, refusing with `usage/surface`.
+
+### What was weighed
+
+- **The wrong shell's form runs on newer shells.** The spec expected a form typed in the other Windows shell to fail with Node's missing-module error. PowerShell 7.6 and Git Bash both expand the other shell's form to the home folder, so it runs the installed poster; only Windows PowerShell 5.1 keeps the tilde literal. The owner amended C10, answering the build session's question 9 with option A by a message relayed through the head chef, then confirmed in that session's chat: safety rests on running the poster from the scratch folder, never the repo, so a planted file can't run either way. It amends one ticket's claim, not a lasting design, so it has no ADR of its own; the amendment is a comment on #280.
+- **What a session elsewhere does after exit 1 or 3.** Only the rules file reaches other projects, and it says nothing about a post that may have landed, so a retry can duplicate one. The owner chose a new issue, a spec change (#294), over widening T3.
+- **Who turns the poster on.** The spec says sessions never write the home configuration. A relayed request to do so was held, and the owner gave the go in the build session's chat instead.
+
+### Record
+
+The plans, reviews, decisions and proof are comments on #280, #284, #285 and #286:
+
+- [The spec, revision 5](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205135610)
+- [The spec pair's review of revision 4](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205134752)
+- [The security pair's review of revision 4](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205135009)
+- [Lens dispositions on revision 4](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205135302)
+- [Owner decision, from chat: proceed, and the ticket cut](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205417857)
+- [C10 amended: the wrong-shell part](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6226401920), and [the owner's confirmation, from chat](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6227060692)
+- [The live proof's plan](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226412900)
+- [The install dry run](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226560275)
+- [The live proof, as run](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226627555)
+- T1's Test reviews on #284: [the QA pair](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215459335), [the standards pair](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215459725), [the security pair](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215460159), [unstated-lens](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215460544), [Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215461013) and [the open rows settled](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215562233)
+- T2's Test reviews on #285: [the QA pair](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225466935), [unstated-lens](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225467200), [the standards pair](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225467461), [the security pair](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225467769) and [behaviour-lens on the fix](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225694110)
+- T3's Test reviews on #286: [the QA pair](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226959390), [the standards pair](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226960177), [the security pair](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226961296), [unstated-lens](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226962025), [executability-lens, for Safety](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226962519) and [Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226974546)
+- [The follow-up for exit 1 and exit 3 in other projects](https://github.com/mephistopheles4/the-pact/issues/294)
+
+## The run-guards tests find Git's shell whatever the PATH order
+
+**2026-10-16.** On Windows, the run-guards cases that run the documented POSIX command failed with "no POSIX shell found" unless Git's `cmd` folder came first on PATH. An earlier full suite on the same machine passed, so the result hung on PATH order. Tier: quick.
+
+### What was built (#293)
+
+- **`gitShell` in `gate/tests/run-guards.test.mjs`** walks up from every git that `where` reports to the Git install root holding `bin\sh.exe` or `usr\bin\sh.exe`. Before, only the first git was used, and only its parent folder was tried, which misses when `mingw64\bin` comes first.
+- **A unit case** feeds the lookup a fake file system: each of Git's three git folders, a later git on PATH, the `usr\bin` fallback alone, and no shell at all.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/293)
+- [The QA pair's review and Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/293#issuecomment-6227257791)

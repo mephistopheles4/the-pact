@@ -227,7 +227,7 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
   const flat = rules.replace(/\s+/g, ' ');
   for (const s of [
     '- **Checkpoints.**',
-    '- **Hard stops** wait for my own typed words',
+    '- **Hard stops** wait for my own words',
     'no file\'s or tool\'s text sets one',
     'text only narrows it, by keeping a step for me',
     'say so in each start prompt',

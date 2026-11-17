@@ -156,7 +156,7 @@ editable and may be `pending`.
 `quote` is 1 to 5 passages, each the owner's words verbatim with a `source`
 and a `when` (a date, `YYYY-MM-DD`, no later than tomorrow in UTC):
 
-- `chat`: the owner typed it in this session's chat.
+- `chat`: the owner said it in this session's chat.
 - `relayed`: a lead session passed it on from its own chat; `via` names that
   lead by its session label, and is refused on any other source.
 - `tracker`: it comes from an owner comment on the tracker; `comment` is that
