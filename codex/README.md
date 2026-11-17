@@ -36,6 +36,12 @@ trust state or bypasses review. Raw removal rules are a speed bump, not a
 security boundary. Because the native pre-tool hook cannot ask for approval,
 cleaner overrides are refused there and must be run directly by the owner.
 
+The existing Athanor and Node mise shims are reused, not copied or overwritten.
+A native testing hook delegates to the reviewed guard in projects configured
+with `athanor.json`. Its host probe disables automatic tool installation.
+Sandbox access failures require a host-access retry, not a new tool install or
+mise trust. Hook scripts use the verified Node executable from the dry run.
+
 The cleaner reuses the upstream Git, recovery and fresh-tag checks, selects
 Codex-managed worktrees, and treats every unarchived chat as active. An unknown
 or unavailable local thread-inventory schema refuses cleanup. No credentials,

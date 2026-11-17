@@ -7,6 +7,10 @@ command skills, and preserves existing Codex settings and unrelated hooks.
 The cleaner keeps its upstream recovery and fresh-tag logic, with Codex worktree
 and conservative active-thread discovery. The native hook adapter uses supported
 event output and never grants permission or records hook trust.
+The requested Athanor integration reuses existing mise shims and the reviewed
+testing guard, adapting native shell input without running code from a project's
+hook folder. Host probing disables automatic tool installation; a sandbox access
+failure does not establish that the host lacks the tools.
 
 Private plans bind code, sources, payload and destination bytes. Apply checks
 the required CI workflow on the reviewed head, backs up changed files, verifies

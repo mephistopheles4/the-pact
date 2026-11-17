@@ -11,6 +11,10 @@ test('Codex source fixture retains full skills and reports missing source resour
   assert.equal(s.files.filter(r => /^\.agents\/skills\/[^/]+\/SKILL\.md$/.test(r.path)).length, 7);
   assert.equal(s.skillCount, 2); assert.equal(s.supportingSkills, 1);
   assert.equal(s.files.filter(r => r.path.startsWith('.codex/agents/')).length, 9);
+  const hooks = JSON.parse(s.files.find(r => r.path === '.codex/hooks.json').text);
+  assert.equal(hooks.hooks.PreToolUse.flatMap(g => g.hooks).filter(h => h.command.includes('athanor-hook.mjs')).length, 1);
+  assert.ok(s.files.find(r => r.path === '.codex/pact/hooks/athanor-guard.source.mjs'));
+  assert.match(s.files.find(r => r.path === '.codex/pact/hooks/athanor-hook.mjs').text, /from '\.\/athanor-guard.source\.mjs'/);
   assert.equal(s.files.find(r => r.path === '.agents/references/definition-of-done.md').bytes.toString(), 'Fixture shared requirement.\n');
   unlinkSync(join(f.source, 'references/definition-of-done.md'));
   assert.equal(snapshot(f.home, f.code, process.execPath).warnings.length, 1);

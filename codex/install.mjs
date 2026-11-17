@@ -43,8 +43,9 @@ async function main() {
   if (!/(?:\/mephistopheles4\/the-pact|:mephistopheles4\/the-pact)(?:\.git)?$/.test(origin)) throw Error('unexpected repository origin');
   const head = run('git', ['rev-parse', 'HEAD']);
   const code = [];
-  for (const name of readdirSync(join(root, 'codex')).filter(n => n.endsWith('.mjs')).sort()) {
-    const rel = 'codex/' + name, bytes = readFileSync(join(root, rel));
+  const codeFiles = [...readdirSync(join(root, 'codex')).filter(n => n.endsWith('.mjs')).map(n => 'codex/' + n), '.claude/hooks/athanor-guard.mjs'].sort();
+  for (const rel of codeFiles) {
+    const bytes = readFileSync(join(root, rel));
     const committed = spawnSync(tool('git'), ['show', `HEAD:${rel}`], { cwd: root, windowsHide: true });
     if (committed.status !== 0 || !bytes.equals(committed.stdout)) throw Error('adapter code must be committed and unchanged');
     code.push([rel, sha(bytes)]);
@@ -53,6 +54,7 @@ async function main() {
   const { plan, apply, rollback, digest, verifyPlan } = await import('./transaction.mjs');
   const { reviewPath } = await import('./review-path.mjs');
   const { verifyCI } = await import('./ci.mjs');
+  const { probeAthanor } = await import('../.claude/hooks/athanor-guard.mjs');
   review = reviewPath(review, home, root);
   const planFile = join(review, 'plan.json');
   if (mode === 'rollback') {
@@ -68,12 +70,14 @@ async function main() {
   const checks = JSON.parse(run('gh', ['api', `repos/mephistopheles4/the-pact/commits/${head}/check-runs?per_page=100&filter=latest`])).check_runs;
   if (!Array.isArray(checks)) throw Error('CI read invalid');
   const ciRuns = verifyCI(checks, head, id => JSON.parse(run('gh', ['api', `repos/mephistopheles4/the-pact/actions/runs/${id}`])));
+  const athanorReady = await probeAthanor({ env: { ...process.env, MISE_AUTO_INSTALL: '0' } });
   if (mode === 'dry-run') {
     if (existsSync(planFile)) throw Error('review plan already exists; use a fresh review directory');
     mkdirSync(review, { recursive: true, mode: 0o700 });
     writeFileSync(planFile, JSON.stringify(p, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
     const report = `Codex mirror: ${p.counts.add} add; ${p.counts.replace} replace; ${p.counts.unchanged} unchanged\nSkills: ${source.skillCount} direct, ${source.supportingSkills} supporting; lenses: 9; commands: 4\n${ciRuns.map(r => `CI ${r.name}: ${r.url} @ ${r.head}\n`).join('')}Live writes: 0\nReview digest: ${id}\nDifferences: native subagent isolation accepted; commands use skill invocation; cleaner override is owner-run; hooks need native review and trust after installation.\n${source.warnings.map(w => 'SOURCE WARNING: ' + w + '\n').join('')}Rollback: private backup.json with prior file bytes; refuses subsequent owner edits.\nAPPLY argv: ${JSON.stringify([process.execPath, join(root, 'codex/install.mjs'), 'apply', '--review-dir', review, '--digest', id])}\nRESULT: pass\n`;
-    writeFileSync(join(review, 'dry-run.txt'), report, { mode: 0o600 }); say(report.trimEnd()); return;
+    const completeReport = `Athanor shim: ${athanorReady ? 'available; automatic installation disabled' : 'unavailable to this process; verify host access before diagnosing missing tools'}\n` + report;
+    writeFileSync(join(review, 'dry-run.txt'), completeReport, { mode: 0o600 }); say(completeReport.trimEnd()); return;
   }
   const reviewed = JSON.parse(readFileSync(planFile, 'utf8'));
   verifyPlan(reviewed, p, options['--digest']);

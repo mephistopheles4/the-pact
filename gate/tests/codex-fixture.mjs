@@ -17,6 +17,8 @@ export function codexFixture(t) {
   };
   mkdirSync(join(home, '.codex/visualizations'), { recursive: true }); mkdirSync(code); mkdirSync(bin);
   cpSync(join(repo, 'codex'), join(code, 'codex'), { recursive: true });
+  mkdirSync(join(code, '.claude/hooks'), { recursive: true });
+  copyFileSync(join(repo, '.claude/hooks/athanor-guard.mjs'), join(code, '.claude/hooks/athanor-guard.mjs'));
   const env = { ...process.env, HOME: home, USERPROFILE: home, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-global'), GIT_AUTHOR_NAME: 'fixture', GIT_COMMITTER_NAME: 'fixture', GIT_AUTHOR_EMAIL: 'fixture@example.invalid', GIT_COMMITTER_EMAIL: 'fixture@example.invalid' };
   delete env.NODE_OPTIONS;
   for (const k of Object.keys(env)) if (/^GIT_(DIR|WORK_TREE|INDEX_FILE|COMMON_DIR|CONFIG_PARAMETERS|CONFIG_COUNT)$/i.test(k)) delete env[k];
