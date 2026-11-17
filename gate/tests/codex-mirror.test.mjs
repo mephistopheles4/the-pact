@@ -47,6 +47,24 @@ test('Codex command references point to installed skill entrypoints', () => {
   assert.match(text, /\$HOME\/\.agents\/skills\/finis\/SKILL\.md/);
 });
 
+test('Codex home-variable inventory paths match tilde translations', () => {
+  const input = { rules: '$HOME/.claude/skills/example/ $HOME/.claude/agents/ $HOME/.claude/commands/', review: '', agents: [], commands: [], resources: [] };
+  const text = render(input, { home: '/fixture', sourceCommit: 'a'.repeat(40) }).find(f => f.path.endsWith('/workflow.md')).text;
+  assert.match(text, /\$HOME\/\.agents\/skills\/example\//);
+  assert.match(text, /\$HOME\/\.codex\/agents\//);
+  assert.match(text, /\$HOME\/\.agents\/skills\//);
+  assert.doesNotMatch(text, /\$HOME\/\.claude\//);
+});
+
+test('Codex generated session-start handoff runs only after compaction', () => {
+  const original = { hooks: { SessionStart: [{ matcher: '^startup$', hooks: [{ type: 'command', command: 'unrelated' }] }] } };
+  const merged = mergeHooks(original, { type: 'command', command: 'pact-hook', statusMessage: 'Pact handoff' });
+  assert.deepEqual(merged.hooks.SessionStart[0], original.hooks.SessionStart[0]);
+  assert.equal(merged.hooks.SessionStart[1].matcher, '^compact$');
+  assert.equal(merged.hooks.PreToolUse[0].matcher, 'Bash');
+  assert.equal(merged.hooks.PreCompact[0].matcher, undefined);
+});
+
 test('Codex config edit preserves unrelated tables and refuses ambiguous duplicate keys', () => {
   const input = 'model = "old"\n\n[mcp_servers.x]\nurl = "https://example.invalid"\n';
   const output = patchConfig(input, { model: 'gpt-6.1-sol', model_auto_compact_token_limit: 400000 });

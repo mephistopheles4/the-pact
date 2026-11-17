@@ -1,6 +1,6 @@
 // Target rendering only. Owner inputs are supplied by source.mjs, never committed.
 export const HOOK_EVENTS = ['PreToolUse', 'PostModelRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart'];
-export function mergeHooks(original, handler, { events = HOOK_EVENTS, matcher = 'Bash' } = {}) {
+export function mergeHooks(original, handler, { events = HOOK_EVENTS, matchers = { PreToolUse: 'Bash', SessionStart: '^compact$' } } = {}) {
   const result = structuredClone(original);
   result.hooks ??= {};
   // A stable native marker identifies our registration across Node/window
@@ -12,7 +12,7 @@ export function mergeHooks(original, handler, { events = HOOK_EVENTS, matcher = 
       const hooks = group.hooks.filter(h => !owns(h));
       return hooks.length ? [{ ...group, hooks }] : [];
     });
-    groups.push({ ...(event === 'PreToolUse' ? { matcher } : {}), hooks: [handler] });
+    groups.push({ ...(matchers[event] ? { matcher: matchers[event] } : {}), hooks: [handler] });
     result.hooks[event] = groups;
   }
   return result;
@@ -37,7 +37,7 @@ export function patchConfig(text, values) {
 export function render(input, { home, sourceCommit, worktreesRoot }) {
   const files = [];
   const add = (path, text) => files.push({ path, text });
-  const portable = text => text.replace(/(~|\$HOME)\/\.claude\/commands\/([a-z0-9-]+)\.md\b/g, '$1/.agents/skills/$2/SKILL.md').replaceAll('~/.claude/pact/', '~/.codex/pact/').replaceAll('$HOME/.claude/pact/', '$HOME/.codex/pact/').replaceAll('~/.claude/skills/', '~/.agents/skills/').replaceAll('~/.claude/commands/', '~/.agents/skills/').replaceAll('~/.claude/agents/', '~/.codex/agents/').replaceAll('grimoire:eagle-eye', 'eagle-eye');
+  const portable = text => text.replace(/(~|\$HOME)\/\.claude\/commands\/([a-z0-9-]+)\.md\b/g, '$1/.agents/skills/$2/SKILL.md').replaceAll('~/.claude/pact/', '~/.codex/pact/').replaceAll('$HOME/.claude/pact/', '$HOME/.codex/pact/').replace(/(~|\$HOME)\/\.claude\/(skills|commands|agents)\//g, (_path, home, kind) => home + (kind === 'agents' ? '/.codex/agents/' : '/.agents/skills/')).replaceAll('grimoire:eagle-eye', 'eagle-eye');
   const note = `# Codex mirror\n\nThis is the owner's installed Pact mirrored from ${sourceCommit}. Planning and building use GPT-6.1 Sol at the source stage efforts. Native Codex subagents inherit parent permissions; the owner explicitly accepted their weaker isolation. Source tool lists remain procedural restrictions, not mechanical enforcement. A missing required tool is reported, never rebuilt by a security lens. Weekly usage is checked when available; an unavailable reading is stated.\n\nCommands are explicit-only skills: use $make-it-so, $finis, $scry and $scriptorium. Existing permissions still hold. Model/effort entries are preferences applied through supported controls, not a way to switch this chat's model.\n\n`;
   const athanor = 'For projects configured with athanor.json, use the existing Athanor and Node mise shims. A failure inside the Codex sandbox does not establish that host tools are missing: retry through the supported host-access approval with MISE_AUTO_INSTALL=0 before diagnosing installation. The native testing hook reuses the reviewed Athanor guard. It neither changes mise trust nor grants execution permission.\n\n';
   add('.codex/workflows/scriptorium/workflow.md', note + athanor + portable(input.rules).replace('## How Claude helps', '## How the assistant helps').replaceAll('Opus', 'GPT-6.1 Sol').replaceAll('Sonnet', 'GPT-6.1 Sol'));

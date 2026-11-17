@@ -4,7 +4,7 @@ import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { digest } from './transaction.mjs';
 import { render, mergeHooks, patchConfig } from './mirror.mjs';
 import { portCleaner } from './cleaner-port.mjs';
-import { plainPath } from './review-path.mjs';
+import { plainPath, within } from './review-path.mjs';
 
 export function workflowSkills(rules) {
   const section = rules.split('## Workflow')[1]?.split('\n## ')[0] ?? '';
@@ -76,12 +76,18 @@ export function snapshot(home, codeRoot, nodePath) {
     tree(root, '.agents/skills/' + name);
     const skillText = read(join(root, 'SKILL.md')).toString();
     for (const match of skillText.matchAll(/skills\/([a-z0-9-]+)\/SKILL\.md/g)) queue.push(match[1]);
-    for (const match of skillText.matchAll(/((?:\.\.\/)+)([a-z0-9-]+)\/SKILL\.md/g)) {
+    for (const match of skillText.matchAll(/((?:\.\.?\/)+(?:[A-Za-z0-9_.-]+\/)*SKILL\.md)\b/g)) {
+      const reference = match[1], local = resolve(root, reference);
+      if (reference.startsWith('./')) {
+        if (!within(root, local) || !captured.has(local)) throw Error('relative skill dependency requires an explicit target mapping');
+        continue;
+      }
       // A sibling skill is installed under its own stable name. Anything that
       // cannot retain that relative relationship needs an explicit mapping.
-      const sibling = join(source, 'skills', match[2]);
-      if (match[1] !== '../' || !existsSync(sibling) || !existsSync(resolve(root, match[0])) || realpathSync(dirname(resolve(root, match[0]))) !== realpathSync(sibling)) throw Error('relative skill dependency requires an explicit target mapping');
-      queue.push(match[2]);
+      const name = reference.match(/^\.\.\/([a-z0-9-]+)\/SKILL\.md$/)?.[1];
+      const sibling = name && join(source, 'skills', name);
+      if (!sibling || !existsSync(sibling) || !existsSync(local) || realpathSync(dirname(local)) !== realpathSync(sibling)) throw Error('relative skill dependency requires an explicit target mapping');
+      queue.push(name);
     }
     const frontmatter = skillText.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
     for (const match of frontmatter.matchAll(/^\s*skill:\s*["']?([a-z0-9-]+)/gm)) queue.push(match[1]);
@@ -118,7 +124,7 @@ export function snapshot(home, codeRoot, nodePath) {
   let merged = mergeHooks(existingHooks, handler);
   const athanorHook = join(home, '.codex/pact/hooks/athanor-hook.mjs').replaceAll('\\', '/');
   const athanorHandler = { type: 'command', command: `"${nodePath.replaceAll('\\', '/')}" "${athanorHook}"`, timeout: 15, statusMessage: 'Pact Athanor guard' };
-  merged = mergeHooks(merged, athanorHandler, { events: ['PreToolUse'], matcher: 'Bash|PowerShell|exec_command' });
+  merged = mergeHooks(merged, athanorHandler, { events: ['PreToolUse'], matchers: { PreToolUse: 'Bash|PowerShell|exec_command' } });
   resources.push({ path: '.codex/hooks.json', text: JSON.stringify(merged, null, 2) + '\n' });
   const configPath = join(home, '.codex/config.toml');
   const originalConfig = existsSync(configPath) ? readFileSync(plainPath(configPath), 'utf8') : '';

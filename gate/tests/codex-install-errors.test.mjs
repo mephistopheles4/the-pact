@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { win32, posix } from 'node:path';
+import { win32, posix, delimiter, join } from 'node:path';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tempDir } from './tree.mjs';
 import * as installer from '../../codex/install.mjs';
 
 test('Codex executable lookup excludes the checkout but accepts sibling and other-drive tools', () => {
@@ -10,6 +12,21 @@ test('Codex executable lookup excludes the checkout but accepts sibling and othe
   assert.equal(installer.repositoryPath(root, 'H:\\work\\the-pact-other\\git.exe', win32), false);
   assert.equal(installer.repositoryPath('/work/repo', '/work/repo/bin/git', posix), true);
   assert.equal(installer.repositoryPath('/work/repo', '/work/Repo/bin/git', posix), false);
+});
+
+test('Codex executable lookup resolves checkout and PATH aliases before exclusion', t => {
+  const root = tempDir(t), repository = join(root, 'checkout'), outside = join(root, 'tools');
+  mkdirSync(join(repository, 'bin'), { recursive: true }); mkdirSync(outside);
+  const filename = process.platform === 'win32' ? 'fixture.exe' : 'fixture';
+  writeFileSync(join(repository, 'bin', filename), 'checkout program');
+  writeFileSync(join(outside, filename), 'external program');
+  const alias = join(root, 'checkout-alias'), externalAlias = join(root, 'external-alias');
+  const kind = process.platform === 'win32' ? 'junction' : 'dir';
+  symlinkSync(repository, alias, kind); symlinkSync(outside, externalAlias, kind);
+  assert.equal(installer.tool('fixture', { repository, searchPath: [join(alias, 'bin'), outside].join(delimiter) }), realpathSync(join(outside, filename)));
+  assert.throws(() => installer.tool('fixture', { repository: alias, searchPath: join(repository, 'bin') }), /unavailable/);
+  assert.equal(installer.tool('fixture', { repository, searchPath: externalAlias }), realpathSync(join(outside, filename)));
+  if (process.platform === 'win32') assert.throws(() => installer.tool('fixture', { repository: repository.toUpperCase(), searchPath: join(alias, 'bin') }), /unavailable/);
 });
 
 test('Codex failure report distinguishes incomplete recovery without exposing raw errors', () => {

@@ -26,13 +26,17 @@ export function failureReport(error) {
   };
   return { code: 2, lines: ['REFUSED: input, code, destination or required CI verification did not pass. Nothing may be applied from this run.', 'RESULT: refused'] };
 }
-function tool(name) {
-  for (const raw of (process.env.PATH ?? '').split(delimiter)) {
+export function tool(name, { repository = root, searchPath = process.env.PATH ?? '' } = {}) {
+  const canonicalRoot = realpathSync(repository);
+  for (const raw of searchPath.split(delimiter)) {
     const dir = raw.replace(/^"|"$/g, '');
     if (!isAbsolute(dir)) continue;
     const file = join(dir, process.platform === 'win32' ? name + '.exe' : name);
-    if (repositoryPath(root, file)) continue;
-    try { if (statSync(file).isFile()) return file; } catch {}
+    if (repositoryPath(repository, file)) continue;
+    try {
+      const candidate = realpathSync(file);
+      if (!repositoryPath(canonicalRoot, candidate) && statSync(candidate).isFile()) return candidate;
+    } catch {}
   }
   throw Error('required executable unavailable');
 }

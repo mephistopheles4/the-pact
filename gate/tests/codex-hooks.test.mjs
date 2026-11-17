@@ -30,7 +30,7 @@ test('Codex compact handoff uses native token usage and supported JSON context',
 });
 
 test('Codex handoff stays non-blocking on corrupt state, retains removal denial and restores the actual session note', t => {
-  const root = tempDir(t), hooks = join(root, 'hooks'), handoff = join(root, 'handoff'), sid = 'fixture-session';
+  const root = tempDir(t), hooks = join(root, 'hooks'), handoff = join(root, 'handoff'), sid = 'thr_fixture-session';
   mkdirSync(hooks); mkdirSync(handoff);
   const script = join(hooks, 'hook.mjs');
   writeFileSync(script, readFileSync(new URL('../../codex/hooks.mjs', import.meta.url)));
@@ -59,5 +59,5 @@ test('Codex handoff stays non-blocking on corrupt state, retains removal denial 
   assert.match(context, /The actual session note/); assert.match(context, /cut at 8 KB/);
   const pre = run({ hook_event_name: 'PreCompact' });
   const preContext = JSON.parse(pre.stdout).hookSpecificOutput.additionalContext;
-  assert.match(preContext, /fixture-session\.md/); assert.doesNotMatch(preContext, /<session_id>/);
+  assert.match(preContext, /thr_fixture-session\.md/); assert.doesNotMatch(preContext, /<session_id>/);
 });

@@ -74,3 +74,21 @@ test('Codex source captures relative sibling skill dependencies and refuses unma
   f.put('skills/fixture-a/SKILL.md', '---\nname: fixture-a\ndescription: Fixture\n---\nRead ../../unmapped/SKILL.md.\n');
   assert.throws(() => snapshot(f.home, f.code, process.execPath), /relative skill dependency/);
 });
+
+test('Codex source preserves captured local skill links and refuses missing or nested sibling links', t => {
+  const f = codexFixture(t);
+  const entry = ref => '---\nname: fixture-a\ndescription: Fixture\n---\nRead ' + ref + '.\n';
+  f.put('skills/fixture-a/local/SKILL.md', 'A local captured entrypoint.\n');
+  f.put('skills/fixture-a/SKILL.md', entry('./local/SKILL.md'));
+  const local = snapshot(f.home, f.code, process.execPath);
+  assert.ok(local.files.find(r => r.path === '.agents/skills/fixture-a/local/SKILL.md'));
+  f.put('skills/fixture-a/SKILL.md', entry('./SKILL.md'));
+  assert.doesNotThrow(() => snapshot(f.home, f.code, process.execPath));
+  f.put('skills/fixture-a/SKILL.md', entry('../SKILL.md'));
+  assert.throws(() => snapshot(f.home, f.code, process.execPath), /relative skill dependency/);
+  f.put('skills/fixture-a/SKILL.md', entry('./missing/SKILL.md'));
+  assert.throws(() => snapshot(f.home, f.code, process.execPath), /relative skill dependency/);
+  f.put('skills/fixture-relative/nested/SKILL.md', 'A nested sibling entrypoint.\n');
+  f.put('skills/fixture-a/SKILL.md', entry('../fixture-relative/nested/SKILL.md'));
+  assert.throws(() => snapshot(f.home, f.code, process.execPath), /relative skill dependency/);
+});

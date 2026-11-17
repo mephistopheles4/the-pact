@@ -40,7 +40,7 @@ function main() {
   }
   if (input.agent_id !== undefined && input.agent_id !== null) return;
   const sid = input.session_id;
-  if (typeof sid !== 'string' || !/^[A-Za-z0-9-]{1,64}$/.test(sid)) return;
+  if (typeof sid !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(sid)) return;
   const dir = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'handoff');
   const file = join(dir, `${sid}.usage.json`);
   let previous = {};
