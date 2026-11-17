@@ -4,7 +4,7 @@ import { render, mergeHooks, patchConfig, HOOK_EVENTS } from '../../codex/mirror
 
 test('Codex mirror preserves customized workflow and source effort while mapping stage models', () => {
   const input = { rules: '# The pact\nOpus, low; Sonnet, high\nKeep the full guard.\n', review: 'Read ~/.claude/pact/private/', agents: [{ name: 'reader-lens', description: 'Read text', effort: 'medium', body: 'One question.' }], commands: [{ name: 'scriptorium', description: 'Inventory', body: 'Read ~/.claude/skills/ and ~/.claude/agents/.' }], resources: [{ path: '.agents/skills/example/SKILL.md', text: 'Read ~/.claude/pact/review.md' }, { path: '.agents/skills/example/pixel.bin', bytes: Buffer.from([0, 255, 23]) }] };
-  const files = render(input, { home: '/home/owner', sourceCommit: 'a'.repeat(40) });
+  const files = render(input, { home: '/tmp/fixture-home', sourceCommit: 'a'.repeat(40) });
   const rules = files.find(f => f.path.endsWith('/workflow.md')).text;
   assert.match(rules, /GPT-6.1 Sol, low; GPT-6.1 Sol, high/);
   assert.match(rules, /Keep the full guard/);
