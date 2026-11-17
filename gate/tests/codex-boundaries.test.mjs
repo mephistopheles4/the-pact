@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { tempDir } from './tree.mjs';
-import { reviewPath } from '../../codex/review-path.mjs';
+import { plainPath, reviewPath } from '../../codex/review-path.mjs';
 import { verifyCI } from '../../codex/ci.mjs';
 
 test('Codex private review rejects repository paths, network roots and directory aliases', t => {
@@ -16,6 +16,20 @@ test('Codex private review rejects repository paths, network roots and directory
   symlinkSync(repo, join(allowed, 'alias'), process.platform === 'win32' ? 'junction' : 'dir');
   assert.throws(() => reviewPath(join(allowed, 'alias/run'), home, repo), /linked/);
   if (process.platform === 'win32') assert.throws(() => reviewPath(join(repo.toUpperCase(), 'private'), home, repo), /repository/);
+});
+
+// Installing: safe paths reject dangling links before private review files are written.
+test('Codex private paths refuse dangling link ancestors while allowing missing plain directories', t => {
+  const home = tempDir(t), repo = tempDir(t), allowed = join(home, '.codex/visualizations');
+  mkdirSync(allowed, { recursive: true });
+  const missing = join(allowed, 'missing/run');
+  assert.equal(plainPath(missing), missing);
+  assert.equal(reviewPath(missing, home, repo), missing);
+  const alias = join(allowed, 'dangling');
+  symlinkSync(join(home, 'absent'), alias, process.platform === 'win32' ? 'junction' : 'dir');
+  assert.throws(() => plainPath(alias), /linked/);
+  assert.throws(() => plainPath(join(alias, 'run')), /linked/);
+  assert.throws(() => reviewPath(join(alias, 'run'), home, repo), /linked/);
 });
 
 test('Codex CI rejects matching names from another app or workflow', () => {

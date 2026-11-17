@@ -1,6 +1,6 @@
 // Read owner inputs only. This module never writes a source or a live target.
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { digest } from './transaction.mjs';
 import { render, mergeHooks, patchConfig } from './mirror.mjs';
 import { portCleaner } from './cleaner-port.mjs';
@@ -28,8 +28,16 @@ export function snapshot(home, codeRoot, nodePath) {
   }
   const settings = json(join(source, 'settings.json'));
   for (const groups of Object.values(settings.hooks ?? {})) for (const group of groups) for (const handler of group.hooks ?? []) {
-    const invocation = [handler.command, ...(handler.args ?? [])].join(' ');
-    if (!/compact-handoff\.mjs|orca-agent-hook\.exe|[\\/]\.orca[\\/]agent-hooks[\\/]/.test(invocation)) throw Error('custom Claude hook requires an explicit target mapping');
+    // These are the two reviewed source invocation forms. A filename anywhere
+    // in a command does not establish that the whole invocation is supported.
+    const program = handler.command;
+    const node = typeof program === 'string' && !/[\s;&|<>`$"']/.test(program) && (/^node(?:\.exe)?$/i.test(program) || (isAbsolute(program) && /^node(?:\.exe)?$/i.test(basename(program))));
+    const args = handler.args;
+    const compact = node && Array.isArray(args) && args.length === 2 && typeof args[0] === 'string' && args[0].replaceAll('\\', '/') === join(source, 'pact/hooks/compact-handoff.mjs').replaceAll('\\', '/') && /^[0-9]+$/.test(String(args[1])) && String(args[1]) === String(settings.autoCompactWindow ?? 400000);
+    const orca = typeof program === 'string' ? program.match(/^(?:"([^"\r\n]+)"|([^\s"'\r\n]+)) claude$/) : null;
+    const executable = orca?.[1] ?? orca?.[2];
+    const integration = executable && isAbsolute(executable) && basename(executable) === 'orca-agent-hook.exe' && !/[;&|<>`$]/.test(executable) && (!args || (Array.isArray(args) && args.length === 0));
+    if (handler.type !== 'command' || (!compact && !integration)) throw Error('unsupported source hook invocation requires an explicit target mapping');
   }
   const config = json(join(source, 'pact/config.json'));
   if (JSON.stringify([...(config.tools ?? [])].sort()) !== JSON.stringify(['cleaner', 'poster'])) throw Error('this scoped mirror requires the reviewed poster and cleaner configuration');
@@ -68,6 +76,13 @@ export function snapshot(home, codeRoot, nodePath) {
     tree(root, '.agents/skills/' + name);
     const skillText = read(join(root, 'SKILL.md')).toString();
     for (const match of skillText.matchAll(/skills\/([a-z0-9-]+)\/SKILL\.md/g)) queue.push(match[1]);
+    for (const match of skillText.matchAll(/((?:\.\.\/)+)([a-z0-9-]+)\/SKILL\.md/g)) {
+      // A sibling skill is installed under its own stable name. Anything that
+      // cannot retain that relative relationship needs an explicit mapping.
+      const sibling = join(source, 'skills', match[2]);
+      if (match[1] !== '../' || !existsSync(sibling) || !existsSync(resolve(root, match[0])) || realpathSync(dirname(resolve(root, match[0]))) !== realpathSync(sibling)) throw Error('relative skill dependency requires an explicit target mapping');
+      queue.push(match[2]);
+    }
     const frontmatter = skillText.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
     for (const match of frontmatter.matchAll(/^\s*skill:\s*["']?([a-z0-9-]+)/gm)) queue.push(match[1]);
     if (!sharedChecked && skillText.includes('../../references/definition-of-done.md')) {
@@ -99,11 +114,11 @@ export function snapshot(home, codeRoot, nodePath) {
   const codexHooks = join(home, '.codex/hooks.json');
   const existingHooks = existsSync(codexHooks) ? JSON.parse(readFileSync(plainPath(codexHooks))) : { hooks: {} };
   const hookFile = join(home, '.codex/pact/hooks/codex-handoff.mjs').replaceAll('\\', '/');
-  const handler = { type: 'command', command: `"${nodePath.replaceAll('\\', '/')}" "${hookFile}" ${settings.autoCompactWindow ?? 400000}`, timeout: 10 };
-  const merged = mergeHooks(existingHooks, handler);
+  const handler = { type: 'command', command: `"${nodePath.replaceAll('\\', '/')}" "${hookFile}" ${settings.autoCompactWindow ?? 400000}`, timeout: 10, statusMessage: 'Pact handoff' };
+  let merged = mergeHooks(existingHooks, handler);
   const athanorHook = join(home, '.codex/pact/hooks/athanor-hook.mjs').replaceAll('\\', '/');
-  const athanorHandler = { type: 'command', command: `"${nodePath.replaceAll('\\', '/')}" "${athanorHook}"`, timeout: 15 };
-  if (!merged.hooks.PreToolUse.some(g => g.hooks?.some(h => h.command === athanorHandler.command))) merged.hooks.PreToolUse.push({ matcher: 'Bash|PowerShell|exec_command', hooks: [athanorHandler] });
+  const athanorHandler = { type: 'command', command: `"${nodePath.replaceAll('\\', '/')}" "${athanorHook}"`, timeout: 15, statusMessage: 'Pact Athanor guard' };
+  merged = mergeHooks(merged, athanorHandler, { events: ['PreToolUse'], matcher: 'Bash|PowerShell|exec_command' });
   resources.push({ path: '.codex/hooks.json', text: JSON.stringify(merged, null, 2) + '\n' });
   const configPath = join(home, '.codex/config.toml');
   const originalConfig = existsSync(configPath) ? readFileSync(plainPath(configPath), 'utf8') : '';

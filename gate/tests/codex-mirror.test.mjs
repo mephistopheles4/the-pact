@@ -29,6 +29,24 @@ test('Codex hooks merge preserves unrelated handlers and does not duplicate its 
   assert.deepEqual(mergeHooks(merged, own), merged);
 });
 
+test('Codex hooks replace their script registration when Node or window changes', () => {
+  const old = { type: 'command', command: '"/old/node" "/fixture/.codex/pact/hooks/codex-handoff.mjs" 400000', statusMessage: 'Pact handoff' };
+  const next = { type: 'command', command: '"/new/node" "/fixture/.codex/pact/hooks/codex-handoff.mjs" 300000', timeout: 10, statusMessage: 'Pact handoff' };
+  const unrelated = { type: 'command', command: '"/other/node" "/fixture/other-hook.mjs"' };
+  const original = { hooks: { SessionStart: [{ matcher: 'compact', hooks: [old, unrelated] }] } };
+  const merged = mergeHooks(original, next);
+  assert.deepEqual(merged.hooks.SessionStart.flatMap(g => g.hooks), [unrelated, next]);
+  assert.equal(merged.hooks.SessionStart[0].matcher, 'compact');
+  assert.deepEqual(mergeHooks(merged, next), merged);
+});
+
+test('Codex command references point to installed skill entrypoints', () => {
+  const files = render({ rules: 'Read ~/.claude/commands/scry.md and $HOME/.claude/commands/finis.md.', review: '', agents: [], commands: [], resources: [] }, { home: '/fixture', sourceCommit: 'a'.repeat(40) });
+  const text = files.find(f => f.path.endsWith('/workflow.md')).text;
+  assert.match(text, /~\/\.agents\/skills\/scry\/SKILL\.md/);
+  assert.match(text, /\$HOME\/\.agents\/skills\/finis\/SKILL\.md/);
+});
+
 test('Codex config edit preserves unrelated tables and refuses ambiguous duplicate keys', () => {
   const input = 'model = "old"\n\n[mcp_servers.x]\nurl = "https://example.invalid"\n';
   const output = patchConfig(input, { model: 'gpt-6.1-sol', model_auto_compact_token_limit: 400000 });

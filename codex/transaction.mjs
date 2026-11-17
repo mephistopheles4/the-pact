@@ -4,6 +4,21 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSyn
 import { dirname, join, resolve } from 'node:path';
 
 export const digest = value => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex');
+export class RollbackRequiredError extends AggregateError {
+  constructor(errors, review) {
+    super(errors, 'installation recovery is incomplete', { cause: errors[0] });
+    this.code = 'ROLLBACK_REQUIRED';
+    this.backupPath = join(review, 'backup.json');
+    try { this.backupDigest = digest(readFileSync(this.backupPath)); }
+    catch { this.backupDigest = null; }
+    const diagnostics = join(review, 'recovery-error.json');
+    try {
+      atomic(diagnostics, JSON.stringify({ schema: 1, backupPath: this.backupPath, backupDigest: this.backupDigest,
+        errors: errors.map(error => ({ name: error.name, message: error.message, stack: error.stack })) }));
+      this.diagnosticsPath = diagnostics;
+    } catch { /* Keep the recovery signal and backup even if diagnostics cannot be saved. */ }
+  }
+}
 export function verifyPlan(reviewed, current, expected) {
   if (expected !== digest(reviewed) || digest(reviewed) !== digest(current)) throw Error('reviewed input, code, payload or destination drift');
 }
@@ -63,7 +78,8 @@ export function apply(root, p, expected, review) {
       if (current(pth) !== row.after) throw Error('installed verification failed');
     }
   } catch (error) {
-    rollback(root, review);
+    try { rollback(root, review); }
+    catch (recoveryError) { throw new RollbackRequiredError([error, recoveryError], review); }
     throw error;
   }
   return backup;

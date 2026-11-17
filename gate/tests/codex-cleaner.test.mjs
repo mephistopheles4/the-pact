@@ -13,6 +13,31 @@ test('Codex cleaner refuses unavailable active-session inventory', t => {
   assert.throws(() => codexSessionCwds(tempDir(t)), /inventory unavailable/);
 });
 
+// Reviewing a change here: unknown archive representations must never hide an active worktree.
+test('Codex cleaner validates archive schema and every row before filtering active sessions', t => {
+  const home = tempDir(t);
+  mkdirSync(join(home, '.codex'));
+  const db = new DatabaseSync(join(home, '.codex/state_5.sqlite'));
+  try {
+    db.exec('CREATE TABLE threads (cwd TEXT, archived INTEGER)');
+    const insert = db.prepare('INSERT INTO threads VALUES (?, ?)');
+    insert.run('active', 0); insert.run('archived', 1);
+    assert.deepEqual(codexSessionCwds(home), ['active']);
+    for (const value of [null, 'false', 'true', 2, -1, 0.5]) {
+      insert.run('unknown', value);
+      assert.throws(() => codexSessionCwds(home), /schema changed/);
+      db.exec("DELETE FROM threads WHERE cwd = 'unknown'");
+    }
+    db.exec('DROP TABLE threads; CREATE TABLE threads (cwd TEXT, archived TEXT)');
+    assert.throws(() => codexSessionCwds(home), /schema changed/);
+    db.prepare('INSERT INTO threads VALUES (?, ?)').run('unknown', '0');
+    assert.throws(() => codexSessionCwds(home), /schema changed/);
+    db.exec('DROP TABLE threads; CREATE TABLE threads (cwd TEXT, archived INTEGER)');
+    db.prepare('INSERT INTO threads VALUES (?, ?)').run('active-again', 0);
+    assert.deepEqual(codexSessionCwds(home), ['active-again']);
+  } finally { db.close(); }
+});
+
 test('Codex cleaner retains active worktrees, then removes a clean archived worktree with a fresh tag', async t => {
   const root = tempDir(t), home = tempDir(t), repo = join(root, 'repo');
   mkdirSync(repo); mkdirSync(join(home, '.codex'), { recursive: true });

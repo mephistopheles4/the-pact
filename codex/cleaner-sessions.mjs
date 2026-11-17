@@ -20,8 +20,10 @@ export function codexSessionCwds(home) {
   if (!existsSync(file)) throw Error('Codex session inventory unavailable');
   const db = new DatabaseSync(file, { readOnly: true });
   try {
-    const rows = db.prepare('SELECT cwd FROM threads WHERE archived = 0').all();
-    if (!rows.every(r => typeof r.cwd === 'string')) throw Error('Codex session inventory schema changed');
-    return rows.map(r => r.cwd);
+    const archive = db.prepare('PRAGMA table_info(threads)').all().find(column => column.name === 'archived');
+    if (archive?.type.toUpperCase() !== 'INTEGER') throw Error('Codex session inventory schema changed');
+    const rows = db.prepare('SELECT cwd, archived FROM threads').all();
+    if (!rows.every(r => typeof r.cwd === 'string' && (r.archived === 0 || r.archived === 1))) throw Error('Codex session inventory schema changed');
+    return rows.filter(r => r.archived === 0).map(r => r.cwd);
   } finally { db.close(); }
 }

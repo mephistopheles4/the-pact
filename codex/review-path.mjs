@@ -1,11 +1,13 @@
-import { existsSync, lstatSync, realpathSync } from 'node:fs';
+import { lstatSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 
 const fold = p => process.platform === 'win32' ? p.toLowerCase() : p;
 export function plainPath(value) {
   const result = resolve(value);
   for (let p = result; ; p = dirname(p)) {
-    if (existsSync(p) && (lstatSync(p).isSymbolicLink() || fold(realpathSync(p)) !== fold(p))) throw Error('linked path refused');
+    let entry;
+    try { entry = lstatSync(p); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (entry && (entry.isSymbolicLink() || fold(realpathSync(p)) !== fold(p))) throw Error('linked path refused');
     if (dirname(p) === p) break;
   }
   return result;

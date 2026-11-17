@@ -42,3 +42,35 @@ test('Codex actual CLI dry run makes zero live writes; stale source refuses; app
   assert.equal(reverted.status, 0, reverted.stdout + reverted.stderr);
   assert.equal(existsSync(join(f.home, '.codex/config.toml')), false);
 });
+
+test('Codex source refuses unsupported full hook invocations rather than matching filenames', t => {
+  const f = codexFixture(t), path = join(f.source, 'settings.json');
+  const settings = JSON.parse(readFileSync(path));
+  const compact = { type: 'command', command: 'node', args: [join(f.source, 'pact/hooks/compact-handoff.mjs'), '400000'] };
+  const orca = { type: 'command', command: join(f.home, 'orca-agent-hook.exe') + ' claude' };
+  for (const handler of [compact, orca]) {
+    settings.hooks = { PostToolUse: [{ hooks: [handler] }] };
+    writeFileSync(path, JSON.stringify(settings));
+    assert.doesNotThrow(() => snapshot(f.home, f.code, process.execPath));
+  }
+  for (const handler of [
+    { ...compact, args: [...compact.args, '--extra'] },
+    { ...compact, command: 'echo compact-handoff.mjs' },
+    { ...orca, command: orca.command + ' && other-command' },
+    { ...orca, args: ['extra'] },
+  ]) {
+    settings.hooks = { PostToolUse: [{ hooks: [handler] }] };
+    writeFileSync(path, JSON.stringify(settings));
+    assert.throws(() => snapshot(f.home, f.code, process.execPath), /source hook invocation/);
+  }
+});
+
+test('Codex source captures relative sibling skill dependencies and refuses unmapped relatives', t => {
+  const f = codexFixture(t);
+  f.put('skills/fixture-a/SKILL.md', '---\nname: fixture-a\ndescription: Fixture\n---\nRead ../fixture-relative/SKILL.md.\n');
+  f.put('skills/fixture-relative/SKILL.md', '---\nname: fixture-relative\ndescription: Relative helper\n---\nKeep helper.\n');
+  const s = snapshot(f.home, f.code, process.execPath);
+  assert.ok(s.files.find(r => r.path === '.agents/skills/fixture-relative/SKILL.md'));
+  f.put('skills/fixture-a/SKILL.md', '---\nname: fixture-a\ndescription: Fixture\n---\nRead ../../unmapped/SKILL.md.\n');
+  assert.throws(() => snapshot(f.home, f.code, process.execPath), /relative skill dependency/);
+});

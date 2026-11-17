@@ -24,6 +24,10 @@ folder. Review the backup digest printed after apply before running
 `rollback --review-dir <folder> --digest <backup-digest>`. Rollback refuses files
 edited since installation.
 
+Run installation and rollback while other processes leave the target settings
+alone. Digest checks observe files at specific points; atomic replacement does
+not provide a filesystem compare-and-swap against concurrent edits.
+
 The target maps stage models to Sol and retains source effort levels. Native
 subagents inherit parent permissions; source tool lists remain instructions,
 not Claude isolation. Commands become explicit-only skills. The builder kit

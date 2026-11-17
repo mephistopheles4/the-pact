@@ -4,7 +4,7 @@ import fs, { mkdirSync, readFileSync, writeFileSync, existsSync, linkSync, symli
 import { syncBuiltinESMExports } from 'node:module';
 import { join } from 'node:path';
 import { tempDir } from './tree.mjs';
-import { plan, apply, rollback, digest, verifyPlan } from '../../codex/transaction.mjs';
+import { plan, apply, rollback, digest, verifyPlan, RollbackRequiredError } from '../../codex/transaction.mjs';
 
 function fixture(t) {
   const root = tempDir(t, 'pact-codex-');
@@ -71,4 +71,50 @@ test('Codex transaction restores replacement bytes after a deterministic mid-app
   assert.throws(() => apply(f.home, p, digest(p), f.review), /fixture write failure/);
   assert.equal(readFileSync(join(f.home, 'AGENTS.md'), 'utf8'), 'original owner bytes');
   assert.equal(existsSync(join(f.home, 'new.txt')), false);
+});
+
+test('Codex failed recovery preserves both errors and the usable private backup', t => {
+  const f = fixture(t); writeFileSync(join(f.home, 'AGENTS.md'), 'original owner bytes');
+  const p = plan(f.home, [...f.files, { path: 'new.txt', text: 'addition' }], {});
+  const original = fs.renameSync, installError = Error('fixture install failure'), recoveryError = Error('fixture recovery failure');
+  let installed = false;
+  t.mock.method(fs, 'renameSync', (from, to) => {
+    if (to === join(f.home, 'new.txt')) throw installError;
+    if (to === join(f.home, 'AGENTS.md') && installed) throw recoveryError;
+    const result = original(from, to);
+    if (to === join(f.home, 'AGENTS.md')) installed = true;
+    return result;
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  assert.throws(() => apply(f.home, p, digest(p), f.review), error => {
+    assert.equal(error.code, 'ROLLBACK_REQUIRED');
+    assert.deepEqual(error.errors, [installError, recoveryError]);
+    assert.equal(error.cause, installError);
+    assert.equal(error.backupPath, join(f.review, 'backup.json'));
+    assert.equal(error.backupDigest, digest(readFileSync(error.backupPath)));
+    assert.equal(error.diagnosticsPath, join(f.review, 'recovery-error.json'));
+    const diagnostics = JSON.parse(readFileSync(error.diagnosticsPath));
+    assert.deepEqual(diagnostics.errors.map(e => e.message), [installError.message, recoveryError.message]);
+    assert.ok(diagnostics.errors.every(e => e.name === 'Error' && e.stack.includes(e.message)));
+    return true;
+  });
+  assert.equal(readFileSync(join(f.home, 'AGENTS.md'), 'utf8'), 'mirror\n');
+  assert.equal(existsSync(join(f.review, 'rolled-back.json')), false);
+  t.mock.restoreAll(); syncBuiltinESMExports();
+  rollback(f.home, f.review);
+  assert.equal(readFileSync(join(f.home, 'AGENTS.md'), 'utf8'), 'original owner bytes');
+});
+
+test('Codex unavailable private diagnostics cannot hide the recovery failure', t => {
+  const f = fixture(t), originalError = Error('fixture failure');
+  t.mock.method(fs, 'renameSync', () => { throw Error('fixture diagnostics unavailable'); });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const error = new RollbackRequiredError([originalError], f.review);
+  assert.equal(error.code, 'ROLLBACK_REQUIRED');
+  assert.deepEqual(error.errors, [originalError]);
+  assert.equal(error.cause, originalError);
+  assert.equal(error.diagnosticsPath, undefined);
+  assert.equal(existsSync(join(f.review, 'recovery-error.json')), false);
 });

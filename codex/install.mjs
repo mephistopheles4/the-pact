@@ -4,19 +4,34 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { delimiter, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as path from 'node:path';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sha = b => createHash('sha256').update(b).digest('hex');
 const say = s => process.stdout.write(s + '\n');
+export function repositoryPath(repository, file, paths = path) {
+  const fold = value => paths.sep === '\\' ? value.toLowerCase() : value;
+  const rel = paths.relative(fold(repository), fold(paths.resolve(file)));
+  return rel === '' || (rel !== '..' && !rel.startsWith('..' + paths.sep) && !paths.isAbsolute(rel));
+}
+export function failureReport(error) {
+  if (error?.code === 'ROLLBACK_REQUIRED') return {
+    code: 3,
+    lines: ['ROLLBACK REQUIRED: recovery did not finish; live files may still contain installation changes.',
+      `Backup: ${error.backupPath}`, `Backup digest: ${error.backupDigest ?? 'unavailable; inspect the private backup before recovery'}`,
+      ...(error.diagnosticsPath ? [`Private diagnostics: ${error.diagnosticsPath}`] : []),
+      'Keep this private backup and review recovery before retrying the installer.', 'RESULT: rollback required'],
+  };
+  return { code: 2, lines: ['REFUSED: input, code, destination or required CI verification did not pass. Nothing may be applied from this run.', 'RESULT: refused'] };
+}
 function tool(name) {
   for (const raw of (process.env.PATH ?? '').split(delimiter)) {
     const dir = raw.replace(/^"|"$/g, '');
     if (!isAbsolute(dir)) continue;
     const file = join(dir, process.platform === 'win32' ? name + '.exe' : name);
-    const rel = relative(root.toLowerCase(), resolve(file).toLowerCase());
-    if (rel && !rel.startsWith('..')) continue;
+    if (repositoryPath(root, file)) continue;
     try { if (statSync(file).isFile()) return file; } catch {}
   }
   throw Error('required executable unavailable');
@@ -51,7 +66,7 @@ async function main() {
     code.push([rel, sha(bytes)]);
   }
   const { snapshot } = await import('./source.mjs');
-  const { plan, apply, rollback, digest, verifyPlan } = await import('./transaction.mjs');
+  const { plan, apply, rollback, digest, verifyPlan, RollbackRequiredError } = await import('./transaction.mjs');
   const { reviewPath } = await import('./review-path.mjs');
   const { verifyCI } = await import('./ci.mjs');
   const { probeAthanor } = await import('../.claude/hooks/athanor-guard.mjs');
@@ -60,7 +75,10 @@ async function main() {
   if (mode === 'rollback') {
     const backup = readFileSync(join(review, 'backup.json'));
     if (sha(backup) !== options['--digest']) throw Error('reviewed backup digest required');
-    say(`ROLLBACK: ${rollback(home, review)} files restored`); say('RESULT: pass'); return;
+    let restored;
+    try { restored = rollback(home, review); }
+    catch (error) { throw new RollbackRequiredError([error], review); }
+    say(`ROLLBACK: ${restored} files restored`); say('RESULT: pass'); return;
   }
   const source = snapshot(home, root, process.execPath);
   const ancestor = spawnSync(tool('git'), ['merge-base', '--is-ancestor', source.sourceCommit, head], { cwd: root, windowsHide: true });
@@ -85,4 +103,6 @@ async function main() {
   say(`APPLIED: ${backup.completed.length} files; backup digest ${sha(readFileSync(join(review, 'backup.json')))}`);
   say('Review the new hooks in Codex Settings > Hooks before relying on them.'); say('RESULT: pass');
 }
-main().catch(() => { say('REFUSED: input, code, destination or required CI verification did not pass. Nothing may be applied from this run.'); say('RESULT: refused'); process.exitCode = 2; });
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(error => { const report = failureReport(error); report.lines.forEach(say); process.exitCode = report.code; });
+}
