@@ -322,14 +322,6 @@ test('bad case: no review file in the stage', t => {
   expectFail(t, {}, 'review-file', root => rmSync(join(root, 'claude', 'review.md')));
 });
 
-// #578
-test('the tracker file installs to tracker.md and nowhere else', t => {
-  const r = expectPass(t, {});
-  const lines = r.stdout.split('\n').filter(l => l.includes(' claude/tracker.md '));
-  assert.equal(lines.length, 1, r.out);
-  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/tracker\.md tracker\.md$/);
-});
-
 // tracker-file
 test('bad case: no tracker file in the stage', t => {
   expectFail(t, {}, 'tracker-file', root => rmSync(join(root, 'claude', 'tracker.md')));

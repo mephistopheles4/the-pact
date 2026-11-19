@@ -4,7 +4,7 @@
 
 ## Decision
 
-The pact now carries one rule for Linear text, `claude/tracker.md`, installed as `~/.claude/tracker.md` and pointed to from `review.md`'s Posting. A repo opts in with a pair, its `origin` repo name and a team key, in the owner's local `~/.claude/pact/linear.json`. With no pair or no pinned file, the rule is silent and the repo's own tracker rule holds. A repo's GitHub rule stays in force until that repo's lock ticket closes.
+The pact now carries one rule for Linear text, `claude/tracker.md`, installed as `~/.claude/tracker.md` and pointed to from `review.md`'s Posting. A repo opts in with a pair, its `origin` path (owner and repo name) and a team key, in the owner's local `~/.claude/pact/linear.json`. With no pair or no pinned file, the rule is silent and the repo's own tracker rule holds. A repo's GitHub rule stays in force until that repo's lock ticket closes.
 
 Under the rule, only the owner's own typing counts as the owner's. A comment, issue body, label or workflow state counts when the named read shows the owner's user id as author or actor, every provenance field null, and no edit by anyone else. The pact app's posts, bot writes and migrated items are data. The "Owner decision, from chat" mark is dropped in Linear. A cloud session reads Linear as data and hands its posts back through its starter. Linear is a public record under Posting.
 

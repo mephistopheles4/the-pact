@@ -851,9 +851,9 @@ test('the commands on: the listed ones, and scriptorium whenever the commit hold
 });
 
 // #261 C3
-test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes to its one fixed path', () => {
-  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', null]]);
+test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file and the tracker file go to their fixed paths', () => {
+  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/tracker.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['claude/tracker.md', 'tracker.md'], ['familiars/x.md', null]]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
