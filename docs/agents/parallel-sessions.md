@@ -26,4 +26,4 @@ apply to a session that resolves a ticket in such a chain.
   process. Where no session tool can reach it, ask the owner.
 - **Re-read a shared file just before you write it,** such as the chain's
   tracking issue.
-- **The assignee is for visibility.** Claims go by the rules above.
+- **The assignee is for visibility.** Claims go by the rules above, on Linear too, where the app's assignee is visibility only.

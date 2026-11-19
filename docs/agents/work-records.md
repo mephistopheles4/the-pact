@@ -5,6 +5,10 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
   [`docs/agents/issue-tracker.md`](issue-tracker.md). Cite a commit by its short
   hash; GitHub links it only once the commit is on the remote.
+- **On Linear,** a repo with a pair in `~/.claude/pact/linear.json` keeps work
+  items, plans and records on items cited `<KEY>-<n>`, under
+  `~/.claude/tracker.md`. I move an item's workflow state by hand; a session
+  asks me in a status comment.
 - **A session assigns the issue it takes.** When it starts work on an issue,
   it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
   is done, it removes itself with `--remove-assignee @me`.
