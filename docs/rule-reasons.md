@@ -54,6 +54,8 @@ This file is never installed.
 | Usage still holds | A goal parks the work before usage runs out, a hard stop. The harness doesn't. |
 | Usage | A pause on weekly usage. The harness has no such pause. |
 
+The Linear rule: Linear credits any key holder's text to the owner; nothing else shows who typed.
+
 ## What no read looks for
 
 No read before a post looks for a path on this machine, and the read before a push looks for neither its paths nor its names ([ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). A user or host name, inside a path or on its own, is not a personal detail for the read before posting ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)). A rewrite of either read adds no path item.

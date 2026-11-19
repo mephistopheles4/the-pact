@@ -55,6 +55,9 @@ const OVERLAY = 'claude/settings.overlay.json';
 // The review procedure file (#261): one file, by exact path, to one fixed live path.
 const REVIEW_FILE = 'claude/review.md';
 const REVIEW_DEST = 'pact/review.md';
+// The Linear tracker rule (#578): one file, by exact path, to the Claude home folder's root.
+const TRACKER_FILE = 'claude/tracker.md';
+const TRACKER_DEST = 'tracker.md';
 // The pact's hook script (#482): exactly claude/hooks/<name>.mjs, installed to pact/hooks/<name>.mjs only with --compact on.
 const PACT_HOOKS = Object.freeze(['compact-handoff']);
 // Settings that run a command, load code or reach a tool server. Refused by
@@ -552,6 +555,8 @@ function classify(root, report) {
         // The unrendered rules, copied by the install for the builder kit only.
       } else if (rel === REVIEW_FILE) {
         installs.push({ file: rel, dest: REVIEW_DEST, review: true });
+      } else if (rel === TRACKER_FILE) {
+        installs.push({ file: rel, dest: TRACKER_DEST, tracker: true });
       } else if (rel === OVERLAY) {
         overlay = true;
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
@@ -584,6 +589,7 @@ function classify(root, report) {
     else if (!(seg[1] === '.gitkeep' || seg[1].endsWith('.contract.md') || seg[1].endsWith('.practice-test.md'))) report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   if (!installs.some(i => i.review)) report.fail('review-file', REVIEW_FILE, null, 'the review procedure file is missing');
+  if (!installs.some(i => i.tracker)) report.fail('tracker-file', TRACKER_FILE, null, 'the tracker rule file is missing');
   return { agents, commands, tools, hooks, installs, kit, overlay };
 }
 

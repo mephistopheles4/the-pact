@@ -32,6 +32,7 @@ function seamStage(root, files = {}) {
   writeTree(root, {
     'claude/CLAUDE.md': read(SOURCE),
     'claude/review.md': read(join(REPO, 'claude', 'review.md')),
+    'claude/tracker.md': read(join(REPO, 'claude', 'tracker.md')),
     'AGENTS.md': read(join(REPO, 'AGENTS.md')),
     ...realAgents(),
     'claude/settings.overlay.json': realOverlay(),
