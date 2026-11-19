@@ -38,18 +38,13 @@ This file is never installed.
 | Lenses are offers | An offer is a checkpoint, never a decline of the sensitive route or the pair, or a skip past the one-line exception. |
 | Qualities | The owner's quality list, with the lens that checks each. No tool measures them. |
 | Trade-off points | What a spec must record about trade-offs, which driver decides, and the default when none is written. No tool reads a spec or weighs a trade-off. |
-| Cost limits | What review may spend, and what happens at each limit. The harness meters usage, not review. |
-| One rule | No finding is dropped silently at a limit. Nothing else routes findings. |
+| Cost limits | What review may spend, and what happens at each limit: no finding is dropped silently, and an unset limit is the owner's. The harness meters usage, not review. |
 | The security bar | When a security fix is due. No tool weighs a fix's cost against its risk. |
-| An empty limit | Who decides an unset limit. Nothing else would. |
-| A security finding | The definition the sorter uses, and that it places a finding on a boundary as the guide says, so a path wholly on the machine is no finding. The classifier judges actions, not findings. |
-| Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
 | Publishing a weakness in someone else's software | Push protection matches credentials only, so a weakness page can reach a public branch. A hard stop: it waits until its maker's tracker holds it, or the owner says in chat it may be published. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Work that won't converge | Two rounds without converging, or off the plan, get the options named and a pick. No tool counts rounds. |
 | A standing goal | What sets one. The harness's goal command only keeps a session going; narrowing, and a started session holding it, are the pact's. |
-| Usage still holds | A goal parks the work before usage runs out, a hard stop. The harness doesn't. |
-| Usage | A pause on weekly usage. The harness has no such pause. |
+| Usage | A pause on weekly usage, with the work parked before it. The harness has neither. |
 
 ## What no read looks for
 

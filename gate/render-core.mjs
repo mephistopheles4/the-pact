@@ -283,7 +283,8 @@ const SECURITY_DOUBT = Object.freeze({
 const USAGE_TEMPLATE = n => [
   '- **Usage.** Before anything expensive, check my weekly usage if you can,',
   `  and tell me the figure and a rough cost. When it is above ${n}%, it's a`,
-  '  hard stop. The call to cut or stop work over usage is mine.',
+  '  hard stop; park the work cleanly before then: commit, and put the state in',
+  '  the record. The call to cut or stop work over usage is mine.',
 ];
 // A setting's project line, for the project rules file: it reads as the lower
 // of the project's value and the user's. `tighter` is the direction a project
@@ -369,29 +370,14 @@ quality's Enough names a level and the costs it answers to; those costs hold
 back that quality's lenses. A cost no Enough names limits the review itself,
 counted each round. The security pair, a repo's required lenses and a typed
 skill's lenses count toward it, but a pair it would hold back comes to me as a
-trade-off.
+trade-off. A finding past a cost limit goes that cost's "At the limit" way;
+one past an Enough level alone, or one that spends an empty limit, which is my
+judgment, comes to me as a trade-off. Name the cost or level, the limit and
+the quality. A cost routes a finding, never removes it, and I can override any
+cost.
 
-- **One rule.** A finding past a cost limit goes that cost's "At the limit" way;
-  one past an Enough level alone comes to me as a trade-off. Name the cost or
-  level, the limit and the quality. A cost routes a finding, never removes it,
-  and I can override any cost.
 - **The security bar.** A security fix is due unless its cost is grossly out
-  of proportion to the risk it closes, and I see both.
-- **An empty limit** is my judgment: a finding that spends that cost comes to
-  me as a trade-off.
-- **A security finding** names an attacker in scope in the project's threat
-  model as it stood before the change (the file its agent instructions name,
-  else \`docs/threat-model.md\`), placed as review.md's Threat model section
-  said before the change, or touches the sensitive-work list, auth meaning
-  authentication and authorization. With no threat model, the list
-  decides. The session that sorts the findings decides; another lens marks a
-  doubtful one "security?", and its row is never \`auto\`.
-- **Accepted threat classes** live only in the project's threat model, one
-  line each: what it covers, never the steps. A finding that fits one needs
-  nothing. A finding that fits none comes to me as a new class, and only a merge
-  I confirm in chat, a hard stop, adds or widens one. A change that removes a
-  control still comes to me, and so does a change to the threat model's scope.
-  With no threat model, flag the risk and record nothing.`;
+  of proportion to the risk it closes, and I see both.`;
 
 // At most nine cost rows, like the qualities: the install reads the count as one digit.
 const COST_LIMITS_MAX = 9;

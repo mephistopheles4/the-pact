@@ -575,8 +575,9 @@ test('a fourth tier compiles into its own column, and offers and the route name 
   p.sensitive.tier = 'expert';
   assert.deepEqual(partsProblems(p), []);
   const out = compileParts(p);
-  assert.match(out.tiers, /^\| \*\*Expert\*\* \| Work only I can judge \| Opus, max \| Opus, high \|$/m);
-  assert.match(out.workflow.split('\n')[0], /^\| Stage \| Quick \| Standard \| Thorough \| Expert \| Sensitive route \|/);
+  assert.match(out.tiers, /^\| \*\*Expert\*\* \| Work only I can judge \|$/m);
+  assert.match(out.workflow.split('\n')[0], /^\| Stage \| Quick \| Standard \| Thorough \| Expert \| Lenses offered, and when \|/);
+  assert.match(out.workflow, /^\| Plan \| in the session, no plan \| Opus, medium \| Opus, high \| Opus, max \| none \|/m);
   assert.match(out.workflow, /`executability-lens`, `unstated-lens`: at standard and thorough;/);
   assert.match(out.sensitive.replace(/\s+/g, " "), /data migrations: expert, planned/);
   p.workflowGraph.offers[0].tiers = ['thorough', 'expert'];
@@ -1531,7 +1532,7 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   assert.match(both.stdout + both.stderr, /both claude\/CLAUDE\.md and claude\/rules\.source\.md/);
 });
 
-// The protected set, item 2: a shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken.
+// A shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken, which the sensitive paragraph names.
 // A preset's workflow names its own tiers, so it carries them: taken after another preset, it never keeps that one's tiers.
 test('every shipped preset carries its tiers and a workflow that offers the security pair on the sensitive route and once more when it was not taken', () => {
   const presets = shippedPresets(REPO, pactData(REPO));
@@ -1545,6 +1546,7 @@ test('every shipped preset carries its tiers and a workflow that offers the secu
     const declined = all.workflowGraph.offers.find(o => o.when === 'sensitive-declined');
     const stage = all.workflowGraph.stages.find(st => st.id === declined.stage).name;
     assert.match(compileParts(all).sensitive.replace(/\s+/g, ' '), new RegExp(`once more at ${stage} when`), p.id);
+    assert.doesNotMatch(compileParts(all).workflow, /route wasn't taken/, `${p.id}: the paragraph alone names that offer`);
   }
 });
 

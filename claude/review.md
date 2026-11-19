@@ -47,9 +47,14 @@ Ask each lens to report in this shape:
 
 ## Handling the reports
 
-- **You decide** which findings are security findings, by the rules file's
-  Cost limits. A security or `security?` finding comes to me and is never
-  `auto`.
+- **You decide** which findings are security findings. A security finding
+  names an attacker in scope in the project's threat model as it stood before
+  the change (the file its agent instructions name, else
+  `docs/threat-model.md`), placed as the Threat model section below said
+  before the change, or touches the rules file's sensitive-work list, auth
+  meaning authentication and authorization. With no threat model, the list
+  decides. Another lens marks a doubtful one "security?". A security or
+  `security?` finding comes to me and is never `auto`.
 - **A stage's rounds.** A lens that errors, returns no report or comes back
   inconclusive runs again inside its round. Every report stays in the record
   and its findings carry in; a withheld one stays local, as Posting says, yet
