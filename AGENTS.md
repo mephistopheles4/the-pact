@@ -84,8 +84,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   covers (Claude Code, the threat model, the poster, the cleaner, the gate,
   hooks). A rule nobody can write one for is a duplicate and goes. A rule the
   threat model names as a control never counts as covered by it, since the
-  threat model relies on it. The rules file stays within its word budget in
-  `gate/tests/rule-budget.test.mjs`; raising it is a spec change.
+  threat model relies on it. The rules file and
+  each agent stay within their word budgets in
+  `gate/tests/rule-budget.test.mjs`; raising one is a spec change.
 - **The agent-facing docs say what holds now:** the docs
   `gate/tests/doc-budget.test.mjs` lists; a new doc a session must read joins
   that list. How a rule came to be (issue and ADR cites as history, "since",
