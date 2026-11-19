@@ -400,7 +400,7 @@ test('bad case: a usage-pause part that no longer matches its template at the de
 
 // #261 C10
 test('bad case: a usage-pause part with a line more than its template refuses', t => {
-  const src = read(SOURCE).replace('  hard stop. The call to cut or stop work over usage is mine.\n', '  hard stop. The call to cut or stop work over usage is mine.\n  Extra.\n');
+  const src = read(SOURCE).replace('  the record. The call to cut or stop work over usage is mine.\n', '  the record. The call to cut or stop work over usage is mine.\n  Extra.\n');
   refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'render', /usage-pause: the template at its default no longer matches the source/);
 });
 
@@ -456,7 +456,8 @@ test('bad case: a render larger than 1 MiB refuses, though its source is within 
     '<!-- pact:begin usage-pause -->',
     '- **Usage.** Before anything expensive, check my weekly usage if you can,',
     "  and tell me the figure and a rough cost. When it is above 75%, it's a",
-    '  hard stop. The call to cut or stop work over usage is mine.',
+    '  hard stop; park the work cleanly before then: commit, and put the state in',
+    '  the record. The call to cut or stop work over usage is mine.',
     '<!-- pact:end usage-pause -->',
     '',
   ].join('\n');
@@ -543,7 +544,7 @@ test('the configuration file is opened once and read once, and a large file is r
   const got = big.seen.filter(l => l.startsWith('read ')).reduce((n, l) => n + Number(l.split(' ')[2]), 0);
   assert.ok(got <= 64 * 1024 + 1, `read ${got} bytes of a 1 MiB file`);
 });
-const USAGE_LINES = "- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, it's a\n  hard stop. The call to cut or stop work over usage is mine.\n";
+const USAGE_LINES = "- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, it's a\n  hard stop; park the work cleanly before then: commit, and put the state in\n  the record. The call to cut or stop work over usage is mine.\n";
 
 // #501 C1: the weekly limit takes an explicit false as off; the usage part renders empty.
 test('"usage-pause": false renders the usage part empty, and the notice says off', t => {

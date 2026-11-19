@@ -26,33 +26,25 @@ This file is never installed.
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
 | How Claude helps | What stays the owner's, and where the record's and the tools' how-to lives. |
 | Checkpoints | The session's own logged pick on what the rules keep for the owner, so work runs on. Nothing else logs a pick as the session's own or pins a merge to its head. |
-| Hard stops | The short list only the owner's own words clear, under a goal too, typed or spoken: nothing tells the owner's voice from another's, and the poster's record only traces a misread. The harness can't tell a relayed or start-prompt message from the owner's. The pact install and mise trust stay in `AGENTS.md`. |
-| Before a push others can read | Push protection matches credentials only, so a personal detail or an unpublished weakness can reach a public branch. Reading each commit is the check. |
+| Hard stops | The list the owner's words in chat clear, typed or spoken; under a standing goal or at autonomy level 3 each is a logged, flagged checkpoint instead. Nothing tells the owner's voice from another's, and the harness can't tell relayed or quoted text from the owner's. The pact install and mise trust stay in `AGENTS.md`. |
+| Before a push others can read | Push protection matches credentials only, so an unpublished weakness can reach a public branch. Checking each commit is the check. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
-| Keep the record | Points to review.md's Posting section, which no tool loads. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent. |
+| Before you run a lens or post to the record, read `~/.claude/pact/review.md` | Points to the procedure and the record's rules, which no tool loads: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent. |
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
 | Remove worktrees only through the cleaner | It can't tell the owner's yes: a recoverable removal is a checkpoint, any other deletion a hard stop (the Safety quality; `AGENTS.md`, Reviewing a change here). |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |
-| Lenses are offers | The protected set: an offer is a checkpoint, never a decline of the pair or a skip past the one-line exception. |
-| Before you run a lens or post to the record, read `~/.claude/pact/review.md` | Points to the procedure, which no tool loads. |
+| Lenses are offers | An offer is a checkpoint, never a decline of the sensitive route or the pair, or a skip past the one-line exception. |
 | Qualities | The owner's quality list, with the lens that checks each. No tool measures them. |
-| Trade-off points | What a spec must record about trade-offs. No tool reads a spec. |
-| Business drivers | Which driver decides, and the default when none is written. No tool weighs a trade-off. |
-| Cost limits | What review may spend, and what happens at each limit. The harness meters usage, not review. |
-| One rule | No finding is dropped silently at a limit. Nothing else routes findings. |
+| Trade-off points | What a spec must record about trade-offs, which driver decides, and the default when none is written. No tool reads a spec or weighs a trade-off. |
+| Cost limits | What review may spend, and what happens at each limit: no finding is dropped silently, and an unset limit is the owner's. The harness meters usage, not review. |
 | The security bar | When a security fix is due. No tool weighs a fix's cost against its risk. |
-| An empty limit | Who decides an unset limit. Nothing else would. |
-| A security finding | The definition the sorter uses, and that it places a finding on a boundary as the guide says, so a path wholly on the machine is no finding. The classifier judges actions, not findings. |
-| Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
 | Publishing a weakness in someone else's software | Push protection matches credentials only, so a weakness page can reach a public branch. A hard stop: it waits until its maker's tracker holds it, or the owner says in chat it may be published. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Work that won't converge | Two rounds without converging, or off the plan, get the options named and a pick. No tool counts rounds. |
-| A standing goal | What sets one. The harness's goal command only keeps a session going; narrowing, and a started session holding none, are the pact's. |
-| A free hand | What counts as one: the owner's words in chat, never text or a one-off "your call". The hard stops, the weakness rule and the Checkpoint log name it, and read it the same way. |
-| Usage still holds | A goal parks the work before usage runs out, a hard stop. The harness doesn't. |
-| Usage | A pause on weekly usage. The harness has no such pause. |
+| A standing goal | What sets one. The harness's goal command only keeps a session going; narrowing, and a started session holding it, are the pact's. |
+| Usage | A pause on weekly usage, with the work parked before it. The harness has neither. |
 
 ## What no read looks for
 

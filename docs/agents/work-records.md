@@ -1,15 +1,12 @@
 # Where work lives
 
-Read this when you plan, close out or record work: plans, ADRs, logs, the PR checkbox and the README's figures.
+Read this when you plan, close out or record work: plans, ADRs, logs and the PR checkbox.
 
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
   [`docs/agents/issue-tracker.md`](issue-tracker.md). Cite a commit by its short
   hash; GitHub links it only once the commit is on the remote.
-- **A session assigns the issue it takes.** When it starts work on an issue,
-  it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
-  is done, it removes itself with `--remove-assignee @me`.
-- **The assignee is for visibility.** Claims go by
-  [parallel sessions](parallel-sessions.md).
+- **Assign the issue you take,** and unassign it if you stop before the work
+  is done.
 - **Plans:** a plan, its review rounds and its probe records live on the
   issue, as the body and comments. When a spec is cut into tickets, the spec
   stays on the parent issue and each ticket is its own sub-issue holding its
@@ -32,23 +29,12 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   into [`docs/log/older.md`](../../docs/log/older.md), one level down under its
   own title, and repoints the links to it. No test checks those links.
 - **Every PR carries the close-out checkbox.** GitHub fills a PR from
-  [`.github/pull_request_template.md`](../../.github/pull_request_template.md) only
-  in the web UI; `gh pr create --body` skips it. So a session that opens a PR
-  from the CLI makes the template's checkbox line the first line of the
-  `body_file` its poster post names, copied word for word, and sets the post's
-  `signer` to `pr-<n>`, `<n>` being the issue it works on, so any session can
-  fix the body through the poster. The poster renders the ask block
-  above the `body_file` and adds the `Signed: pr-<n>` line itself, so the
-  `body_file` holds neither; no check reads the checkbox line's position, and
-  GitHub renders a task item anywhere. It ticks the box when the PR finishes
-  the work, and leaves it unticked otherwise.
+  [`.github/pull_request_template.md`](../../.github/pull_request_template.md)
+  only in the web UI, so a PR's `body_file` opens with the template's
+  checkbox line, word for word, and its post's `signer` is `pr-<n>`, n the
+  issue it works on. The poster adds the ask and the `Signed:` line. Tick the
+  box when the PR finishes the work, and leave it unticked otherwise.
 - **Finding a decision or a log:** decisions start from the index
   [`docs/adr/README.md`](../../docs/adr/README.md), one line per file; add a line
   there with every new ADR. Logs have no index: their file names carry the date
   and the topic, and folded logs are titled in `docs/log/older.md`.
-- **The README's figures:** after a change to a source in `docs/img/src/`, rerun
-  `node docs/img/build.mjs`. `gate/tests/readme-figures.test.mjs` fails while an
-  SVG is stale and when a line overflows its box; no test checks the figures'
-  words.
-- **Vocabulary:** [`CONTEXT.md`](../../CONTEXT.md), created when a term first needs
-  pinning down. See [`docs/agents/domain.md`](domain.md).

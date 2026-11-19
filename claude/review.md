@@ -9,7 +9,9 @@ lenses to offer, and when.
   sections numbered `S1`, `S2` and on, or a diff with the acceptance claims
   numbered `C1`, `C2` and on), the request, the working folder, and the base:
   the commit the work started from, by its short hash. For a diff, hand the
-  diff from the base. Tell each lens which other lenses ran.
+  diff from the base. Tell each lens which other lenses ran. A follow-up round
+  also gets the diff since the last round and the findings it raised then,
+  numbered `E1`, `E2` and on.
 - **With them,** hand the report template below, the rules file's Qualities
   and Cost limits rows, and the project's "Review rules" section, if it has
   one, and, to the security pair, the Threat model section below as it stood
@@ -17,8 +19,6 @@ lenses to offer, and when.
 - **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
   another lens's report. Launch it as a plain subagent, never as a named
   teammate, so it gets no messaging or task tool beyond its own tool list.
-- **A follow-up** round also gets the diff since the last round and the
-  findings it raised then, numbered `E1`, `E2` and on.
 
 ## The report template
 
@@ -47,78 +47,44 @@ Ask each lens to report in this shape:
 
 ## Handling the reports
 
-- **You decide** which findings are security findings, by the rules file's
-  Cost limits. A security or `security?` finding comes to me and is never
-  `auto`.
-- **A stage's rounds.** Under a Review rounds cost, a lens that errors or
-  returns no report, or comes back inconclusive, runs again inside its round,
-  and a further read runs again the same way; every report it returned stays
-  in the record and its findings carry in, but a withheld one stays local, as
-  Posting says: its text appears in no post, yet its
-  findings still count, and a high
-  security finding among them reopens the stage; route them before that
-  read's comment is posted, and until they are routed, name them in chat,
-  never in the record, in every hand-off; a withheld read has reported once I
-  have answered it in chat. A report that Posting refused is never rerun. If the
-  security pair, a repo's required lenses or a
-  typed skill's lenses would read anything
-  after the final round, that read still runs, outside the count,
-  with the rules file's "Work that won't converge" as its brake, and its findings go by the
-  row's At the limit; this is how those lenses keep running, so the Cost
-  limits opening's trade-off does not arise for them there. The stage closes,
-  and nothing is accepted or merged, only once
-  every further read has reported. A security or `security?` finding of any severity past the limit
-  keeps the security bar. A high security finding reopens the stage: its count
-  starts again, and its next round runs the security pair. A ticket that
-  changes the spec gets its own rounds.
-- **One review comment per round.** Open it with a title line,
-  `## <stage> round <n>[, reopened] on <head or spec revision>[, final]: <verdict>, <N> for you`,
-  N being the rows that need my decision, each a checkpoint (an `open`,
-  trade-off, `security?` or Owner's-call row, as Lens dispositions says), not a
-  drafted fix waiting on my word. Write `, reopened` on the first
-  round after a reopen and `, final` on the round a Review rounds cost
-  declares final, and leave out both otherwise; a further read outside the
-  count is titled
-  `## <stage> further read on <head or spec revision>: <verdict>, <N> for you`.
-  Then a signal table, one row per
-  lens that ran: the lens, its signal (the mark of its most severe `open` or
-  Owner's-call finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
-  diagrams, then a count line with one count per Disposition word, summing to
-  the table's rows. Write this opening last, from the final Lens dispositions
-  table.
-  For a pair, then put the places both lenses flagged, then each lens's own
-  findings, each with its severity mark (a report kept local, as Posting says,
-  has the line `security finding, see chat`), then the table, then each report verbatim in its own fold.
-- **One status comment per record.** After each round's comment, post or edit
-  one status comment on the same issue or pull request, so I see the latest
-  round without reading them all. Its label is `status-<n>`, n the issue's or
-  pull request's number, never a session's, so any session can edit it. It
-  holds, in order: a title line, `## Status: <N> for you, after <stage> round
-  <n>[, reopened][, final]` or `after <stage> further read`, N as in the
-  round's title line; the round's signal table, copied as
-  posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
-  and word, its headline, a link to the round comment; for a report kept local,
-  `security finding, see chat` in their place), or "None"; **Rounds,
-  newest first**, a link to each round comment named by its title line's stage,
-  round, marks and head or revision, and a further read by its own title. Post
-  it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
-  the signature line nor `Edited:` lines, which are added for you; where no
-  tool adds them, write the signature line yourself as the body's last line.
-  It holds no Lens
-  dispositions table, crossed findings, report, diagram, or heading or fold
-  naming a lens, and never the words "owner decision": the edit checks would
-  refuse every later edit. Find it among the comments your gh login wrote,
-  read as JSON, holding the whole line `Signed: status-<n>` outside a fence or
-  quote. None: post it. One: edit it, from its body and the round comments
-  read just before, writing a `body_file` with no signature line and no
-  `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: that
-  is a hard stop; tell me. Post the round comment first. If a status edit is refused
-  `post/owned-line` because the `body_file` kept a signature or an `Edited:`
-  line, rebuild it without them. If
-  the status edit fails or is refused, the record stays whole: say in the
-  hand-off that the status is stale, and never post a second status comment.
-  The round comments stay the record; nothing reads the status comment back.
+- **You decide** which findings are security findings. A security finding
+  names an attacker in scope in the project's threat model as it stood before
+  the change (the file its agent instructions name, else
+  `docs/threat-model.md`), placed as the Threat model section below said
+  before the change, or touches the rules file's sensitive-work list, auth
+  meaning authentication and authorization. With no threat model, the list
+  decides. Another lens marks a doubtful one "security?". A security or
+  `security?` finding comes to me and is never `auto`.
+- **A stage's rounds.** A lens that errors, returns no report or comes back
+  inconclusive runs again inside its round. Every report stays in the record
+  and its findings carry in; a withheld one stays local, as Posting says, yet
+  its findings still count. A report Posting refused is never rerun. A read
+  the security pair, a repo's required lenses or a typed skill's lenses owe
+  after the final round still runs, outside the count, with the rules file's
+  "Work that won't converge" as its brake, and its findings go by the row's At
+  the limit. Nothing is accepted or merged until every such read has
+  reported. A security or `security?` finding past a limit keeps the security
+  bar. A high security finding reopens the stage: its count starts again, and
+  its next round runs the security pair. A ticket that changes the spec gets
+  its own rounds.
+- **One review comment per round.** Title it with the stage, the round (or
+  "further read"), whether it is reopened or final, the head or spec revision,
+  the verdict, and N, the rows that need my decision, each a checkpoint: an
+  `open`, trade-off or `security?` row. Then a signal table, one row per lens
+  that ran: the lens, the mark of its most severe `open` finding (⚪ when none
+  is open) and one line in your own words. Then the diagrams, then a count line
+  with one count per Disposition word. Write this opening last, from the final
+  Lens dispositions table. For a pair, then put the places both lenses
+  flagged, then each lens's own findings with their severity marks, then the
+  table, then each report verbatim in its own fold.
+- **One status comment per record,** on the same issue or pull request, so I
+  see where things stand without reading every round: the latest round's title
+  and signal table, a line for each row open for me with a link to its round,
+  and a link to each round, newest first. Post it as kind `status`, signed
+  `status-<n>`, n the issue's or pull request's number, so any session can find
+  it by its `Signed: status-<n>` line and edit it; post the round comment
+  first. If the edit fails or is refused, say in the hand-off that the status
+  is stale, and never post a second one.
 
 ## The threat model
 
@@ -130,20 +96,7 @@ security ruling, or publish a weakness in someone else's software.
    none, the sensitive-work list decides and steps 2 to 5 don't apply. With
    no list of boundaries, use its scope's in-scope lines as the boundaries
    and the controls it names.
-2. **Place the finding on a boundary:** where something comes in from
-   outside (tracker text, an outside pull request, a clone, an install or
-   update, a fetched page, CI, heard speech) or where an act goes out (a
-   merge, an install, a publish, a post, data off the machine). The machine
-   is the owner's computer, or a sandbox run on it, and a local tool's data on
-   a user's own computer is that user's machine. A cloud session's sandbox,
-   a service a project deploys, and that service's users' devices are not
-   the machine, and data that service keeps for its users is past a
-   boundary. Where input came from decides, not where it sits: a cloned
-   repo's file or an installed plugin is outside input, and so is what
-   anything on the machine makes from outside input. What starts and ends
-   on the machine (a program, process, account, file or memory made there)
-   is the machine's, and no finding, unless the project's threat model holds
-   it in scope, or it touches the sensitive-work list.
+2. **Place the finding on a boundary** the threat model's scope names.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
@@ -161,7 +114,7 @@ security ruling, or publish a weakness in someone else's software.
    a change that removes or weakens a control, and every `security?` row; a
    change to the scope or the classes is a hard stop.
 
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published, so publishing it sooner is a hard stop; a standing goal, a free hand, or a goal holder's or free hand holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
+A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published, so publishing it sooner is a hard stop. Until then keep it out of every post, and tell me in chat.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the
@@ -170,45 +123,16 @@ model already holds.
 
 ## Diagrams
 
-Draw them generously: they are how I understand a round quickly. Each review
-comment has 1 to 3. A round with few findings or none still gets one, drawing how
-the change works now, or what the spec covers. Before you pick a type, write the
-one sentence the diagram must explain: what I need to understand to decide, or to
-trust the result. It is the diagram's heading. The type follows the sentence:
+Each review comment has 1 to 3 Mermaid diagrams, even a round with few findings
+or none. Head each with the one sentence it must explain: what I need to
+understand to decide, or to trust the result. Pick the type that best answers
+that sentence, and a flowchart only when no other type does.
 
-| The question | Mermaid type |
-| --- | --- |
-| How did it fail, or how does it work now? | sequence diagram |
-| How does the state change? | state diagram |
-| What should I weigh? | quadrant chart, severity against likelihood, only when the lenses give both and the points really separate |
-| What happened across rounds? | timeline |
-| What does the data hold? | ER diagram |
-| What does a spec's structure or its claims cover? | mindmap or flowchart |
-| Where does it sit? | flowchart, boundaries as dashed boxes, each finding pinned on its part; only when location is the point |
-
-A flowchart is never the default: a comment holds at most one, and use it only
-when no other row answers the sentence.
-
-- **The block.** Each diagram sits under its sentence, written exactly as
-  `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
-  `</div>`.
-- **Pins,** on flowcharts only, carry one colour meaning: an `open` finding takes
-  its severity's colour, `high` `#cf222e33`, `medium` `#bc4c0033`, `low`
-  `#d4a72c33`; a fixed one `#2da44e33`; every other row gets no pin. The border
-  is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
-  security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
-  `color:`.
 - **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
   diagram that draws it, so it can't read as done.
-- **A withheld lens** has no part in a diagram or the title line's counts: those
-  cover posted findings only, and the title line says so. Its signal row says
-  only `withheld, see chat`, nothing about what was held back, and it carries
-  no severity mark or colour.
-- **A place that can't draw them** gets the title line, signal table and count line as plain text,
-  with no diagram.
 
 ## Posting
 
@@ -216,111 +140,61 @@ when no other row answers the sentence.
   personal detail, or a weakness in someone else's software that The threat
   model section keeps unpublished, before posting it, and every commit before
   a push others can read.
-- **Verbatim reports go in a fold,** a details element whose summary names the
-  lens and its verdict, holding the report in a fenced `text` block one
-  backtick longer than the report's longest run of backticks, so nothing in it
-  renders as a mention, link or image. In a public record, a report holding a
-  security finding your pick leaves open (an Owner's-call row) stays local, as
-  a withheld lens's does: no fold; its line in the signal table, the round's
-  findings and the status comment reads `security finding, see chat`, and its
-  signal keeps its mark, as Lens dispositions says; it has no part in any
-  diagram and no entry in the places both lenses flagged, and the state and
-  open questions at a phase boundary name only the marker; it goes to me in
-  chat.
-- **Where to post.** In the work's record; with no record, in chat.
-- **Keep the record where the project keeps it.** Post with `signer` set to
-  your session's short label. Give each issue, ticket, spec, decision and pull
-  request my ask in `quote`, exactly (the sentences that define the work or
-  change its scope), with your read-back in `intent`. My examples still become
-  claims with measures. Where no tool renders `quote`, `intent` and `signer`
-  for you, write the quoted ask, your read-back and a `Signed: <label>` line
-  yourself, as plain text. With no record, quote it in each
-  hand-off. At a phase boundary, put the state and the open questions in the
-  record, and propose a fresh session.
-- **Checkpoint log.** Log each checkpoint you settle in the work's record, as
-  your own pick under your own label, never as mine: a one-line why, the goal
-  or free hand you ran under (its work and where it came from, by kind), each
-  narrowing I gave there (by the kind of step it keeps), and a flag: the line
-  opens `Checkpoint (flagged):`, except the forms below. A pick
-  that leaves a security path open is flagged big: in a public record its line
-  is exactly "Owner's call: security, see chat", with the why in chat; in a
-  private record, one only I can read (a record anyone but me can read counts
-  as public), the line opens "Owner's call: security"
-  and carries the why. The why also goes in a note under
-  `~/.claude/pact/private/`, either way. A pick that would put a
-  withheld lens report or its findings, a secret, a weakness not yet public,
-  the cleaner's tags or blocks, or anything else these rules keep out of the
-  record, in the record has the line exactly "withheld,
-  see chat", with no opener or flag, which wins over the security line, and the
-  why goes to me in chat; such a pick that would leave a security path open is
-  a hard stop. With no record, log in chat and in the result.
+- **Verbatim reports go in a fold,** each in its own, fenced so nothing in it
+  renders as a mention, link or image. A withheld report stays local: no fold,
+  no part in any diagram, count or the places both lenses flagged, and its
+  line in the signal table, the findings and the status comment reads only
+  `withheld, see chat`, with no mark. It goes to me in chat.
+- **Keep the record where the project keeps it;** with no record, in chat.
+  Post with `signer` set to your session's short label. Give each issue,
+  ticket, spec, decision and pull request my ask in `quote`, exactly (the
+  sentences that define the work or change its scope), with your read-back in
+  `intent`. My examples still become claims with measures. Where no tool
+  renders `quote`, `intent` and `signer` for you, write the quoted ask, your
+  read-back and a `Signed: <label>` line yourself, as plain text. With no
+  record, quote it in each hand-off. At a phase boundary, put the state and
+  the open questions in the record, and propose a fresh session.
+- **Checkpoint log.** Log each checkpoint you settle in the work's record as
+  your own pick, never as mine, on a line that opens `Checkpoint (flagged):`,
+  with a one-line why, the goal you ran under and each narrowing I gave. A
+  pick that would put in the record what these rules keep out of it (a
+  withheld report or its findings, a weakness not yet public, the cleaner's
+  tags or blocks) has the line exactly "withheld, see chat" instead, and the
+  why goes to me in chat. With no record, log in chat and in the result.
 - **The read-back.**
-  - A pending read-back makes no work wait, at any seam, with or without a
-    standing goal. Post it `pending`, log the intent you went ahead on, within
-    the Checkpoint log's limits, and go on; I confirm or correct it later. A
-    correction sends the work back to the stage it touches. Once the work is
-    merged, published or installed, the correction is a new change, and you
-    tell me what can't be undone.
   - Before you post a kind with a quote, read back to me in chat the passages
-    you will quote and your intent, and post `confirmed` only on my yes in that
-    chat, never on a checkpoint pick, and otherwise `pending` (a `decision`
-    from my chat is always `confirmed`); a relay or a goal holder's reply never
-    confirms a read-back, and a lead relays only the span meant for the record, after its own read
-    before posting.
-  - When I later confirm or correct a pending read-back in chat, the session
-    that heard it first posts a `decision` (source `chat`, posted `confirmed`,
-    `answers` naming the item) quoting those words, then edits the original to
-    `confirmed` or `corrected` with that comment's id; a lead relaying my
-    answer has the session post a `decision` with source `relayed`, which
-    carries no mark and leaves the original pending until a session that heard
-    me confirms it; an item left pending after a relayed answer stays pending
-    and holds up no work, and the relayed `decision` records only what was
-    relayed.
+    you will quote and your intent. Post `confirmed` only on my yes in that
+    chat, never on a checkpoint pick, else `pending`; a `decision` from my chat
+    is always `confirmed`.
+  - A pending read-back makes no work wait, at any seam: log the intent you
+    went ahead on and go on. When I later confirm or correct it in chat, post
+    a `decision` (source `chat`, `answers` naming the item) quoting my words,
+    then edit the original to `confirmed` or `corrected` with that comment's
+    id. A correction sends the work back to the stage it touches; once the
+    work is merged, published or installed, it is a new change, and you tell
+    me what can't be undone.
   - When my words trip the content scan, hold a personal detail or, in a
     public record, the why of a security ask, leave that span out of the
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
-  repo your gh login owns, post to GitHub, or edit what you posted, with
+  repo your gh login owns, post or edit with
   `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
   shell, or `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file>`
-  in PowerShell; `schema` in place of the surface prints the fields and the
-  kinds. Write each post as one JSON file, with its body in a `body_file`
-  beside it, both in a scratch folder outside the repo, and run the poster
-  from that folder, never from the repo. Name each create post's `kind`:
-  `spec` for a spec, `decision` for my decision, `lens-report` for a round
-  comment, `status` for the status comment, `note` for any other issue
-  comment; an issue, a pull request, a pull request review and a thread reply
-  take the kind named for them (`issue`, `pull-request`, `review`, `reply`).
-  The poster renders the ask, the read-back, the
-  signature and the reason lines itself, so your `body_file` holds none of
-  them. Sign every pull request `pr-<n>`, n the issue it works on, never the
-  pull request's own number, so any session can edit it with
-  `pull-request-edit`, `pr` its number and `signer` `pr-<the issue>`; with no
-  issue, use your label. Edit the status comment with `issue-comment-edit` and
-  `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
-  item, never from a kept file, and never removes text, except the status
-  comment's old `Edited:` lines. An edit's `reason` names the kind of fix,
-  never the text. A pull request body
-  posted unsigned can't be edited through the poster: write only the changed
-  line to a file, run an `issue-comment` post of kind `note` on <the issue it works on> with that
-  file as its `body_file` and `--dry-run`
-  after the read before posting, and give me the line in chat to type
-  on GitHub myself; never put a fix in the squash message, and never edit the
-  body with plain `gh`. Delete both files
-  once its post ends, whatever the result (verified, failed, unverified,
-  mismatch or unavailable), or once you drop it; keep one refused for a lens
-  report until I have answered, then delete it. Before the session ends,
-  delete every such file still there, whatever my answer. `verified` means
-  what landed is what was sent. Its scan, for hidden characters and a live
-  environment-secret value, is the only check on a secret; the read before
-  posting still comes first. When it refuses your own prose or a Lens
-  dispositions table, fix it in place and post again; never fold, fence, quote,
-  relabel or move a table to get past the check, and never rerun a lens for
-  it. A lens report it refuses for hidden characters or a live
-  environment-secret value stays local: tell me where it is, in chat only, and
-  never post it or edit it to get past the scan. If it ends unavailable,
-  refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me.
+  in PowerShell; `schema` in place of the surface lists the fields and kinds.
+  Write each post as one JSON file, its body in a `body_file` beside it, both
+  in a scratch folder outside the repo, and run the poster from that folder.
+  It renders the ask, the read-back, the signature and the reason lines, so
+  your `body_file` holds none of them. Sign a pull request `pr-<n>`, n the
+  issue it works on, so any session can edit it. An edit's `reason` names the
+  kind of fix, never the text. A pull request body posted unsigned can't be
+  edited through the poster: give me the changed line in chat to type on
+  GitHub myself, and never edit it with plain `gh`. Delete both files once the
+  post ends or you drop it, and any left before the session ends. Never work
+  around a refusal, and never rerun a lens for one: fix your own prose or
+  table in place, and keep a lens report refused for hidden characters or a
+  secret local, telling me in chat where it is. If it ends unavailable, or
+  refuses for a reason no text fix clears or you can't explain, that is a hard
+  stop: tell me.
 
 ## Lens dispositions
 
@@ -347,10 +221,4 @@ Mark one you took on your own recommendation `auto`, as in
 `fixed (auto: chose X because Y)`, or `fixed (auto)`. One I reverse is marked
 `(auto, reversed)`.
 
-A security or `security?` finding you settle is never `auto`. When your pick
-leaves its path open, the Disposition reads `taken (session's pick, Owner's
-call: security)`; otherwise it takes its usual word. Such an Owner's-call row
-counts as an `open` one in the round's N, the status comment's Open for you and
-the lens's signal mark. In a public record its Finding cell reads its state
-word, then `security finding, see chat`, with no severity mark, in place of the
-finding.
+A security or `security?` finding you settle is never `auto`.

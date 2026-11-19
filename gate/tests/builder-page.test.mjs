@@ -439,8 +439,8 @@ test('bad case: a pinned block changed in the pact source makes the committed pa
   const root = buildRoot(t, r => {
     const p = join(r, 'claude', 'CLAUDE.md');
     const was = readFileSync(p, 'utf8');
-    assert.ok(was.includes('stop) and your pick.'));
-    writeFileSync(p, was.replace('stop) and your pick.', 'stop) and your word.'));
+    assert.ok(was.includes('name your options and your pick.'));
+    writeFileSync(p, was.replace('name your options and your pick.', 'name your options and your word.'));
   });
   assert.notEqual(buildPage(root, PAGE), PAGE);
 });
@@ -575,8 +575,9 @@ test('a fourth tier compiles into its own column, and offers and the route name 
   p.sensitive.tier = 'expert';
   assert.deepEqual(partsProblems(p), []);
   const out = compileParts(p);
-  assert.match(out.tiers, /^\| \*\*Expert\*\* \| Work only I can judge \| Opus, max \| Opus, high \|$/m);
-  assert.match(out.workflow.split('\n')[0], /^\| Stage \| Quick \| Standard \| Thorough \| Expert \| Sensitive route \|/);
+  assert.match(out.tiers, /^\| \*\*Expert\*\* \| Work only I can judge \|$/m);
+  assert.match(out.workflow.split('\n')[0], /^\| Stage \| Quick \| Standard \| Thorough \| Expert \| Lenses offered, and when \|/);
+  assert.match(out.workflow, /^\| Plan \| in the session, no plan \| Opus, medium \| Opus, high \| Opus, max \| none \|/m);
   assert.match(out.workflow, /`executability-lens`, `unstated-lens`: at standard and thorough;/);
   assert.match(out.sensitive.replace(/\s+/g, " "), /data migrations: expert, planned/);
   p.workflowGraph.offers[0].tiers = ['thorough', 'expert'];
@@ -1361,7 +1362,7 @@ test('every pact agent takes a model and effort, scout included, and only a chan
 });
 
 // #262 C16
-test('the Models list feeds the agents and the tiers: a model ID reaches config.json and the tier text exactly as typed', () => {
+test('the Models list feeds the agents and the tiers: a model ID reaches config.json and the workflow text exactly as typed', () => {
   const s = L.initialState();
   assert.deepEqual(s.models, ['Opus', 'Sonnet', 'Haiku', 'Fable']);
   s.models.push('claude-opus-5-5');
@@ -1373,7 +1374,7 @@ test('the Models list feeds the agents and the tiers: a model ID reaches config.
   const config = JSON.parse(L.buildFiles(s)[0].text);
   assert.deepEqual(config.agents['integrity-lens'], { model: 'claude-opus-5-5', effort: 'xhigh' });
   assert.deepEqual(config.agents.scout, { model: 'fable' });
-  assert.match(L.buildFiles(s).find(f => f.path === 'pact/blocks/tiers.md').text, /claude-opus-5-5, xhigh/);
+  assert.match(L.buildFiles(s).find(f => f.path === 'pact/blocks/workflow.md').text, /^\| Build \|.*\| claude-opus-5-5, xhigh \|/m, 'the Workflow table carries each tier\'s models');
   // A model the gate would refuse is the page's error too.
   s.models.push('claude opus');
   assert.ok(L.problems(s).some(p => p.where === 'models' && p.level === 'error'));
@@ -1531,7 +1532,7 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   assert.match(both.stdout + both.stderr, /both claude\/CLAUDE\.md and claude\/rules\.source\.md/);
 });
 
-// The protected set, item 2: a shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken.
+// A shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken, which the sensitive paragraph names.
 // A preset's workflow names its own tiers, so it carries them: taken after another preset, it never keeps that one's tiers.
 test('every shipped preset carries its tiers and a workflow that offers the security pair on the sensitive route and once more when it was not taken', () => {
   const presets = shippedPresets(REPO, pactData(REPO));
@@ -1545,6 +1546,7 @@ test('every shipped preset carries its tiers and a workflow that offers the secu
     const declined = all.workflowGraph.offers.find(o => o.when === 'sensitive-declined');
     const stage = all.workflowGraph.stages.find(st => st.id === declined.stage).name;
     assert.match(compileParts(all).sensitive.replace(/\s+/g, ' '), new RegExp(`once more at ${stage} when`), p.id);
+    assert.doesNotMatch(compileParts(all).workflow, /route wasn't taken/, `${p.id}: the paragraph alone names that offer`);
   }
 });
 

@@ -1,98 +1,58 @@
 # Reference
 
-What is in this repo, where each part installs, which agent runs at which
-effort, and what never goes in. For what the pact is and why, read the
-[README](../README.md); to install it, follow [install.md](install.md).
+What is in this repo, where each part installs, and what never goes in. For
+what the pact is and why, read the [README](../README.md); to install it,
+follow [install.md](install.md).
 
 ## What's here
 
 | Path | What it is | Installs to |
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
-| `claude/review.md` | The review procedure: how to give lenses their input, cross their reports by its template, post them and log each finding's fate. It also holds the record's rules, and the poster's when the poster is on. The rules file tells a session to read it before it runs a lens or posts | `~/.claude/pact/review.md` |
-| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `unstated-lens`, which looks for needs nobody wrote down; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text. Each runs on Opus by default. And `scout`, the one search helper, on Haiku at medium effort. A configuration may set any agent's model and effort, to any model Claude Code takes | `~/.claude/agents/` |
-| `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`: `/scriptorium` always, the others only when the configuration's `commands` list names them |
-| `claude/tools/` | The pact tools, each one file the owner turns on by name, off by default (see "Pact tools" below). Today `poster.mjs`, the poster: posts free text to GitHub from one strict JSON post that carries the owner's quote and the session's read-back, or edits what a session posted, through one fixed call per surface, and reads back what landed; and `cleaner.mjs`, the cleaner: removes leftover worktrees and their local branches with fixed git commands | `~/.claude/pact/tools/<name>.mjs`, only when the configuration's `tools` list names it |
-| `claude/hooks/` | The pact's hook script, `compact-handoff.mjs`: keeps a session's hand-off across auto-compaction. It installs only while `auto-compact-window` is on, which it is by default | `~/.claude/pact/hooks/compact-handoff.mjs` |
-| `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it. Its `hooks` block is the pact's own, merged by key so your hooks stay | `~/.claude/settings.json` |
-| `familiars/` | Empty: each agent's file in `claude/agents/` is its own record. No agent here is sealed | Never installed |
-| `gate/` | The install gate: the pact's own check (seam A), the renderer and the install. It checks install mechanics only; the pact is vetted like any skill. It also holds the tracker author checker, `tracker-authors.mjs`, which reads who wrote what on this repo's tracker through REST where GraphQL is refused; the install stages it with the gate and never runs it | Never installed |
-| `examples/pact-config/` | An example user configuration: the values a person may set, such as the usage pause line. Copy it to `~/.claude/pact/config.json` to use it; the installer reads that file and never writes it | Never installed |
-| `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. It edits the moves, the tiers, sensitive work, the workflow on a canvas with your skills and commands on its stages, the lens roster, the qualities, the cost limits, the agents' settings and files, and the opt-in pact commands and tools. Its "The pact" dialog shows, read-only, the rules file, `review.md`, the commands and the settings keys. It starts from Level 3 · Full, and `presets/` holds six presets, builder files you take part by part. `default-config/` is the pact's default configuration, Level 3 · Full as the page saves it, written by `default-config.mjs` from `presets/level-3-full.json`: a home install with no `~/.claude/pact/config.json` renders it. A builder file and a configuration may carry a `skills` list, skill folders in pinned repos named for the cloud setup to fetch once it reads a configuration. The page itself fetches nothing, and the installer checks what it saves like any other file. `scriptorium.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, type `/scriptorium` in any session: it writes a builder file from your own workflow and renders your page with the installed kit's `build.mjs`, which also lists your own presets from `~/.claude/pact/presets/` under "Your presets" | The kit `build.mjs` reads, with `/scriptorium`: `~/.claude/pact/builder/` |
-| `.claude/` | This repo's own Claude Code settings: `settings.json` runs `hooks/athanor-guard.mjs` before every Bash and PowerShell call, which refuses a host `fast`, `full` or `changed` run of the gate's tests while athanor works, short of `--host-fallback=<reason>` on `fast` or `full`. It holds only `hooks`; every other `settings.json` stays ignored | Never installed |
-| `athanor.json` | The repo's [athanor](https://github.com/mephistopheles4/athanor) configuration: the Linux run's image, and `full` and `fast` as its commands, for a local, offline run of the gate's tests | Never installed |
+| `claude/review.md` | The review procedure and the record's rules, which a session reads before it runs a lens or posts | `~/.claude/pact/review.md` |
+| `claude/agents/` | The lenses, in four pairs (security, QA, spec, standards), on Opus: the security pair at high effort, the rest at medium; and `scout`, the search helper, on Haiku at medium. A configuration may set any agent's model and effort | `~/.claude/agents/` |
+| `claude/commands/` | The pact commands (see "Pact commands" below) | `~/.claude/commands/<name>.md`: `/scriptorium` always, the others only when the configuration's `commands` list names them |
+| `claude/tools/` | The pact tools, off by default (see "Pact tools" below) | `~/.claude/pact/tools/<name>.mjs`, only when the configuration's `tools` list names it |
+| `claude/hooks/` | `compact-handoff.mjs`, which keeps a session's hand-off across auto-compaction; it installs only while `auto-compact-window` is on, as it is by default | `~/.claude/pact/hooks/compact-handoff.mjs` |
+| `claude/settings.overlay.json` | The portable settings keys, merged into the existing file by key, so your own keys and hooks stay | `~/.claude/settings.json` |
+| `familiars/` | Empty: each agent's file in `claude/agents/` is its own record | Never installed |
+| `gate/` | The install gate: the pact's own check, the renderer and the install, which check install mechanics only; and `tracker-authors.mjs`, the tracker author checker, which the install stages and never runs | Never installed |
+| `examples/pact-config/` | An example user configuration; copy it to `~/.claude/pact/config.json` to use it | Never installed |
+| `builder/` | The config builder, `scriptorium.html`, a page that builds a configuration without JSON; its presets; and `default-config/`, the pact's default configuration, which a home install with no `~/.claude/pact/config.json` renders. `/scriptorium` builds your own page | The kit `build.mjs` reads, with `/scriptorium`: `~/.claude/pact/builder/` |
+| `.claude/` | This repo's own Claude Code settings: a hook that sends the gate's test runs through athanor | Never installed |
+| `athanor.json` | The repo's [athanor](https://github.com/mephistopheles4/athanor) configuration, for a local, offline run of the gate's tests | Never installed |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
-| `evals/` | The eval generator, a tool the owner runs on request: `gen.mjs` writes each case in `cases/` with the pact's rules text, and any files its `with.txt` names, as the appended system prompt and without, prints the `claude plugin eval` commands, and `check`s a first run; its README gives the limits | Never installed |
-| `docs/rule-reasons.md` | Why each rule is in the rules file: one row per rule, naming the gap no other guardrail covers. `gate/tests/rule-budget.test.mjs` holds the rules file and each agent to a word budget | Never installed |
-| `docs/img/` | The README's figures, and `build.mjs`, which renders them from their sources in `docs/img/src/` | Never installed |
+| `evals/` | The eval generator, which the owner runs on request; its README gives the limits | Never installed |
+| `docs/rule-reasons.md` | Why each rule is in the rules file, one row per rule | Never installed |
+| `docs/img/` | The README's figures, and `build.mjs`, which renders them from `docs/img/src/` | Never installed |
 
 ## Pact commands
 
-A pact command is a slash command that stands for an answer the owner gives
-often, meant to be typed by the owner. Each sets
-`disable-model-invocation: true`, so the model can't start it on its own.
-Text sent in as a prompt can still start one, as with any slash command;
-Claude Code's own handling of such text is the guard (threat model, Text steers a session). A
-command is installed only when its name is in the `commands` list of
-`~/.claude/pact/config.json`, but `/scriptorium`, which every install puts in
-place with the builder kit. The cloud copy installs none yet.
+A pact command is a slash command for an answer the owner gives often, typed
+by the owner; each sets `disable-model-invocation: true`. Text sent in as a
+prompt can still start one, as with any slash command (threat model, Text
+steers a session). A command installs only when the `commands` list of
+`~/.claude/pact/config.json` names it, but `/scriptorium`, which every install
+puts in place. The cloud copy installs none yet.
 
 | Command | What it stands for |
 | --- | --- |
-| `/make-it-so` | "Accept all recommendations": the session carries out every recommendation in its last message, except a hard stop or a `/scry` ask already answered; after a `/scry` answer it is "Yes, 1 to N". |
-| `/finis` | "We're done, archive this session": the session checks for anything outstanding, says what it is if there is, and archives the session if there isn't. |
-| `/scry` | "Where are we?": the session answers with numbered asks first, each with the question, the one or two facts you need and its pick, then the steps only you can do, then what is moving and what is done. You reply by number: "Yes, 1 to N" takes every pick, except a hard stop, which needs its own yes. |
-| `/scriptorium` | "Build my Scriptorium page": the session writes the builder file from your own skills, commands, agents and configuration, checks it, and renders your page with the installed kit. Always installed. |
+| `/make-it-so` | "Accept all recommendations": carry out every recommendation in the last message. |
+| `/finis` | "We're done, archive this session", once nothing is outstanding. |
+| `/scry` | "Where are we?": numbered asks, each with its pick, then what only I can do, what is moving and what is done; I reply by number. |
+| `/scriptorium` | "Build my Scriptorium page" from my own skills, commands, agents and configuration. Always installed. |
 
 ## Pact tools
 
-A pact tool is a script the pact installs for sessions to run. Each is off
-unless its name is in the `tools` list of `~/.claude/pact/config.json`; no preset or shared builder file turns one on, and a project
-configuration may not hold the list. A tool that is on gets a `WARN` line in
-the dry run, and may add its own rule to the rules file, which is rendered
-only while the tool is on. The cloud copy installs none.
+A pact tool is a script sessions run, off unless the `tools` list of
+`~/.claude/pact/config.json` names it; a project configuration may not hold
+the list. A tool that is on gets a `WARN` line in the dry run and may add its
+own rule to the rules file.
 
 | Tool | What it does |
 | --- | --- |
-| `poster` | Posts free text to GitHub as the owner's `gh` account from one strict JSON post (the owner's quote, the session's read-back, a signer, a title), or edits what a session posted there, through one fixed call per surface, and reads back what landed. Its scan for a live environment secret's value and hidden text catches accidents, not a guarantee; for a secret it is the only check, and it refuses no token shape, email address or path. On, it installs to `~/.claude/pact/tools/poster.mjs`, and the rules file tells a session to post through it, and `review.md` says how: from a scratch folder, on a repo the `gh` login owns. Its surfaces, post fields, exit codes and rule ids, and what its scans cover and don't, are in [poster.md](poster.md). |
-| `cleaner` | Removes leftover worktrees under `.claude/worktrees/` and their local branches with its own fixed git commands: `show` names back each one with what it holds and a tag, and `remove --yes` takes only the tags whose facts haven't changed. It keeps a worktree in use, or holding commits found nowhere else on a detached head; commits found nowhere else on a branch are a soft risk. It forces only on a fresh `remove --override <folder>=<tag>` pair, which `show` prints for a soft risk beside a warning and an undo line. On, it installs to `~/.claude/pact/tools/cleaner.mjs`, the rules file tells a session to remove worktrees only through it, a recoverable removal being a checkpoint and any other a hard stop, and the install adds eighteen deny rules on raw removal commands (git worktree and branch removal, and `claude rm`) and two ask rules on `remove --override` to `settings.json`, a speed bump, not a gate. A separate user setting, `session-stop-deny`, off by default, adds eight more on raw `claude stop`, `claude kill`, `claude daemon stop` and `claude respawn`. Usage, keeps and exit codes are in [cleaner.md](cleaner.md). |
-
-## The familiars, by effort
-
-- **Medium:** `scout`, on Haiku; the pact ships no `Explore`, so skills that call it get Claude Code's built-in. The QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `unstated-lens`; and the standards pair, `conventions-lens` and `reader-lens`.
-- **High:** the security pair, `adversarial-lens` and `data-lens`.
-
-Builds run in a main session the owner watches, not in agents.
-
-## The moves and Anthropic's playbook
-
-Anthropic published a six-stage playbook of its own, [*The AI-Native SDLC
-playbook*](https://claude.com/blog/the-ai-native-sdlc-playbook). The pact's
-four moves are the owner's practices, taken up as the work needs them, not
-once in order. The table lines each move up with the stages where it does
-most of its work:
-
-| Move | Anthropic stage | What the pact does |
-|---|---|---|
-| Sense the work | Plan | Size and risk the work; propose a tier with a line of why, and for sensitive work the sensitive route with its why; an experiment first for an unknown target |
-| Think before doing | Plan, Design | Get the intent clear enough to defend; a quick prototype while it is still forming; the spec pair, `executability-lens` and `unstated-lens`, offered on a spec, standard and up |
-| Checkpoint the seams | Build, Test | Costly work waits for a checkpoint, heavier the harder it is to undo; an approved spec or ticket is built test-first, straight away |
-| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, offered at every build; the security pair, `adversarial-lens` and `data-lens`, with the sensitive route, and offered once more at Test on a list match when the route wasn't taken; the standards pair offered, standard and up; at most two pairs a review round; the human decides |
-
-The rules file's Workflow table runs the same six stages, Plan to Maintain: what each tier sets at each, the lenses to offer there, and where the work goes next.
-
-**Built on:**
-
-- **[Matt Pocock's skills](https://github.com/mattpocock/skills)** are one set
-  you can put on the workflow's stages: triage, grilling, specs, prototypes,
-  tickets, test-driven development and deep modules. The pact describes
-  practices, not skills, and a person puts their own tools on the stages
-  through configuration. The set ships as the builder preset
-  `builder/presets/level-3-matt-pocock.json`, and by hand as
-  `examples/pact-config/blocks/workflow-matt-pocock-skills.md` with
-  `examples/pact-config/config-matt-pocock-skills.json`.
-- **John Ousterhout's *A Philosophy of Software Design*,** the source of the
-  deep-module idea those skills apply.
+| `poster` | Posts and edits on GitHub as the owner's `gh` login from one JSON post, and reads back what landed: [poster.md](poster.md). |
+| `cleaner` | Removes leftover worktrees and their local branches with fixed git commands, and adds deny rules on raw removal commands: [cleaner.md](cleaner.md). |
 
 ## What never goes in here
 
@@ -102,4 +62,4 @@ The rules file's Workflow table runs the same six stages, Plan to Maintain: what
 
 ## Names in the instructions
 
-The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill. The current tree holds no personal home paths, and a test guards against new ones.
+Name only public projects.

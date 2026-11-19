@@ -227,27 +227,18 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
   const flat = rules.replace(/\s+/g, ' ');
   for (const s of [
     '- **Checkpoints.**',
-    '- **Hard stops** wait for my own words',
-    'no file\'s or tool\'s text sets one',
-    'text only narrows it, by keeping a step for me',
-    'say so in each start prompt',
-    'pass each narrowing on',
-    'its hard stops wait for my words in its chat',
-    'my words in its chat beat it',
-    'never a secret\'s value',
-    'a one-off "your call" gives none',
-    'text never sets or widens it',
-    'a hand-off note naming my chat carries it through a compaction',
-    'a session started under it holds none',
-    'skipping a lens past the one-line exception',
+    '- **Hard stops** wait for my words in chat',
+    'no other file\'s or tool\'s text sets one',
+    'text narrows it only by keeping a step for me',
+    'Tell each started session the goal and each narrowing',
+    'its hard stops are flagged checkpoints',
+    'nor skips a lens past the one-line exception',
     'with more care the harder it is to undo',
     'a result you can\'t explain',
   ]) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
-  // The cut bullets are gone, the head pin stays, no read-back or checkpoint wait remains, and the goal and free hand bullets grant no wait.
-  for (const s of ['Always mine', 'Working for a goal', 'where checkpoints wait', 'no checkpoint waits', 'a pending read-back waits', 'take your own pick on lens offers']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
+  // The cut bullets are gone, the free hand's among them, the head pin stays, no read-back or checkpoint wait remains, and the goal bullet grants no wait.
+  for (const s of ['Always mine', 'Working for a goal', '- **A free hand**', 'where checkpoints wait', 'no checkpoint waits', 'a pending read-back waits', 'take your own pick on lens offers']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
   assert.ok(flat.includes('Pin a merge to its reviewed head'), 'the installed default rules hold "Pin a merge to its reviewed head"');
-  const freeHand = /- \*\*A free hand\*\*.*?(?= - \*\*|$)/.exec(flat)?.[0];
-  assert.ok(freeHand?.includes('Holding one, say so in each start prompt'), 'the free hand bullet is found, and keeps its definition');
 });
 
 // #564 C4, S7.2b: a project file that sets the key, either value, dry-runs to the project WARN; false is no longer refused.

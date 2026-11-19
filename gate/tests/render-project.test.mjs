@@ -408,7 +408,7 @@ test('a project qualities list with no Enough field renders the three-column tab
 test('the fixed text a project\'s Cost limits render under is the home part\'s, byte for byte', t => {
   const out = render(t, userHome(t), project(t, cFile(C_ROWS))).bytes.toString('utf8');
   assert.ok(out.includes(`\n${homeFixedText()}\n`), 'the home part\'s fixed text appears whole');
-  assert.ok(homeFixedText().length > 1500, 'the extract found the whole text');
+  assert.ok(homeFixedText().startsWith('A cost names what is counted, its limit,') && homeFixedText().endsWith('of proportion to the risk it closes, and I see both.'), 'the extract found the whole text');
 });
 
 // #288 C3, C4, C5, C6, C9: each shape or reference refusal, with its rule id, and nothing written.

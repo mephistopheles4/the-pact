@@ -96,7 +96,7 @@ export const DEFAULT_PARTS = Object.freeze({
   moves: [
     { lead: 'Sense the work', text: 'What kind of work is it, how big, how risky, and do I know enough to plan it? Size sets how much checking it needs. A target I can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it.' },
     { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right.' },
-    { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly waits for a checkpoint. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy." },
+    { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly gets a checkpoint. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy." },
     { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
   ],
   tiers: [
@@ -154,7 +154,7 @@ export const DEFAULT_PARTS = Object.freeze({
   // The cost limits (#278): what the work may spend to reach the qualities, and what happens at each limit.
   costLimits: [
     { cost: 'Tests added', counted: 'Tests that earn no claim: none backs one, it repeats one that already does, or it pins how the work is done rather than what it does.', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
-    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as a note; never built unasked' },
+    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as review.md defines them', limit: '0', atLimit: 'Reported as a note; never built unasked' },
     { cost: 'Follow-up issues', counted: 'Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
     { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' },
     { cost: 'Review rounds', counted: 'Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own', limit: '2, the second declared final', atLimit: "A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage" },
@@ -305,8 +305,9 @@ function compileMoves(p) {
 
 const tierName = (p, id) => (p.tiers.find(t => t.id === id) || { name: id }).name.toLowerCase();
 
+// The tiers part names each tier and what it fits; the Workflow table carries each tier's models.
 function compileTiers(p) {
-  return [row(['Tier', 'Fits', 'Plan', 'Build']), rule(4), ...p.tiers.map(t => row([`**${t.name}**`, t.fits, t.plan, t.build]))].join('\n');
+  return [row(['Tier', 'Fits']), rule(2), ...p.tiers.map(t => row([`**${t.name}**`, t.fits]))].join('\n');
 }
 
 /** The stage that holds the offer made when the sensitive route wasn't taken, by name; Test when none does. */
@@ -382,16 +383,16 @@ export function compileWorkflow(p) {
   const order = stagesInOrder(g);
   // A Skills column only when a skill is on the graph, so the pact's default table stays as it is.
   const skills = (g.skills || []).filter(k => k.on !== false && g.stages.some(st => st.id === k.stage));
-  const head = row(['Stage', ...p.tiers.map(t => t.name), 'Sensitive route', 'Lenses offered, and when', ...(skills.length ? ['Skills, and when'] : []), 'Other ways out']);
+  // The sensitive paragraph sets the route's models and its one offer when the route wasn't taken, so the table carries neither.
+  const head = row(['Stage', ...p.tiers.map(t => t.name), 'Lenses offered, and when', ...(skills.length ? ['Skills, and when'] : []), 'Other ways out']);
   const rows = order.map(st => row([
     st.name,
     ...p.tiers.map((_, i) => stageCell(p, st, i)),
-    stageCell(p, st, null),
-    g.offers.filter(o => o.stage === st.id && o.on !== false).map(o => offerText(p, o)).join('; ') || 'none',
+    g.offers.filter(o => o.stage === st.id && o.on !== false && o.when !== 'sensitive-declined').map(o => offerText(p, o)).join('; ') || 'none',
     ...(skills.length ? [skills.filter(k => k.stage === st.id).map(k => skillText(p, k)).join('; ') || 'none'] : []),
     g.links.filter(l => l.from === st.id && l.when && l.on !== false).map(l => linkText(g, l, order)).join('; '),
   ]));
-  return [head, rule(p.tiers.length + 4 + (skills.length ? 1 : 0)), ...rows].join('\n');
+  return [head, rule(p.tiers.length + 3 + (skills.length ? 1 : 0)), ...rows].join('\n');
 }
 
 export function compileLenses(p) {
