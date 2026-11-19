@@ -439,8 +439,8 @@ test('bad case: a pinned block changed in the pact source makes the committed pa
   const root = buildRoot(t, r => {
     const p = join(r, 'claude', 'CLAUDE.md');
     const was = readFileSync(p, 'utf8');
-    assert.ok(was.includes('stop) and your pick.'));
-    writeFileSync(p, was.replace('stop) and your pick.', 'stop) and your word.'));
+    assert.ok(was.includes('name your options and your pick.'));
+    writeFileSync(p, was.replace('name your options and your pick.', 'name your options and your word.'));
   });
   assert.notEqual(buildPage(root, PAGE), PAGE);
 });
@@ -1362,7 +1362,7 @@ test('every pact agent takes a model and effort, scout included, and only a chan
 });
 
 // #262 C16
-test('the Models list feeds the agents and the tiers: a model ID reaches config.json and the tier text exactly as typed', () => {
+test('the Models list feeds the agents and the tiers: a model ID reaches config.json and the workflow text exactly as typed', () => {
   const s = L.initialState();
   assert.deepEqual(s.models, ['Opus', 'Sonnet', 'Haiku', 'Fable']);
   s.models.push('claude-opus-5-5');
@@ -1374,7 +1374,7 @@ test('the Models list feeds the agents and the tiers: a model ID reaches config.
   const config = JSON.parse(L.buildFiles(s)[0].text);
   assert.deepEqual(config.agents['integrity-lens'], { model: 'claude-opus-5-5', effort: 'xhigh' });
   assert.deepEqual(config.agents.scout, { model: 'fable' });
-  assert.match(L.buildFiles(s).find(f => f.path === 'pact/blocks/tiers.md').text, /claude-opus-5-5, xhigh/);
+  assert.match(L.buildFiles(s).find(f => f.path === 'pact/blocks/workflow.md').text, /^\| Build \|.*\| claude-opus-5-5, xhigh \|/m, 'the Workflow table carries each tier\'s models');
   // A model the gate would refuse is the page's error too.
   s.models.push('claude opus');
   assert.ok(L.problems(s).some(p => p.where === 'models' && p.level === 'error'));
