@@ -146,7 +146,7 @@ test('bad case: the copy list holds no PowerShell script', () => {
   assert.deepEqual(COPY_FILES.filter(f => f.endsWith('.ps1')), []);
 });
 
-// Running the gate's tests: a payload path also runs the install smoke file;
+// ADR 0030: a payload path also runs the install smoke file;
 // one of the copy list's single files is payload too.
 test("changed: one of the copy list's single files is a payload path", () => {
   const r = changedPicks(changedTree(), ['AGENTS.md']);
@@ -204,7 +204,7 @@ test('changed: a new ADR picks a test that names its folder', () => {
   assert.deepEqual([...r.files.keys()], ['adr-reader.test.mjs']);
 });
 
-// Running the gate's tests: an unmapped payload path runs the fast tier and the smoke set.
+// ADR 0030: an unmapped payload path runs the fast tier and the smoke set.
 test('changed: an unmapped path runs the fast tier, plus the smoke set under the copy list, and is listed', () => {
   const root = changedPicks(changedTree(), ['CONTEXT.md']);
   assert.deepEqual([...root.files.keys()], ['plain.test.mjs']);
@@ -291,7 +291,7 @@ test('pathNames: the file name and every run of two or more segments', () => {
   assert.deepEqual(pathNames('AGENTS.md'), ['agents.md']);
 });
 
-// Running the gate's tests: a test that names a changed path runs, and the
+// ADR 0030: a test that names a changed path runs, and the
 // changed tier finds such a name through this reader and the import reader.
 test('the literal reader: comments are skipped, template pieces kept, a regex holding a quote is not a string', () => {
   assert.deepEqual(stringLiterals("// 'no'\nconst a = 'x'; /* \"no\" */ const b = `p${a}q`; const r = /'/; const c = \"y\";"), ['x', 'p', 'q', 'y']);
