@@ -12,13 +12,6 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
-## `ready-for-agent` and `ready-for-human`
-
-These two say whether a session can start the issue's next move without the owner.
-
-- **`ready-for-agent`**: a session can start the issue's next move without asking.
-- **`ready-for-human`**: an owner decision or owner-only action is open that the issue doesn't settle. It is the tracker's form of the pact's "Needs a human" gate.
-
 ## Tier labels
 
 Every issue carries one process tier, as a label. A tier says how much checking the work needs (see "How much checking" in [`claude/CLAUDE.md`](../../claude/CLAUDE.md)); it is not the model's effort setting. Triage sets it. An issue with no tier label is not yet triaged.
@@ -29,20 +22,4 @@ Every issue carries one process tier, as a label. A tier says how much checking 
 | `tier:standard` | A short spec on the issue, read for what is unstated; one build session, ending with tests and the lenses the diff calls for offered, the QA pair always among them. |
 | `tier:thorough` | A spec read before the owner approves it, cut into tickets, each its own sub-issue of the spec's issue; one build session per ticket, each ending with tests and the lenses the diff calls for offered, the QA pair always among them. |
 
-By default, auth, crypto, input validation and data migrations are sensitive work: the session recommends the sensitive route, `tier:thorough` with the security pair, and the owner takes it or not. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
-
-## Creating the labels
-
-The five roles and the three tier labels exist on the tracker. To recreate them:
-
-```bash
-gh label create wontfix --description "Will not be actioned"
-gh label create needs-triage --description "Maintainer needs to evaluate this issue" --color fef2c0
-gh label create needs-info --description "Waiting on reporter for more information" --color f9d0c4
-gh label create ready-for-agent --description "Fully specified; an agent can start it unasked" --color c2e0c6
-gh label create ready-for-human --description "Requires human implementation" --color bfd4f2
-gh label create tier:quick --description "Quick tier: build, then verify, in one session" --color c5def5
-gh label create tier:standard --description "Standard tier: short spec on the issue, then one build session" --color fbca04
-gh label create tier:thorough --description "Thorough tier: full spec, review, tickets, one build session each" --color d93f0b
-```
-
+The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
