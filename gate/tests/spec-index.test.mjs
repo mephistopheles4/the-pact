@@ -1,7 +1,7 @@
-// The spec index check (#581, C8): docs/spec/README.md names every spec file
-// in its folder under "## All specs", once, and holds both its sections. The
-// parse rules are in the spec on #581 (S4). Whose text counts is not this
-// check's job: it reads the working tree.
+// The spec index check: the spec index names every spec file in its folder
+// under "## All specs", once, and holds both its sections. The parse rules are
+// in the spec on #581 (S4). Whose text counts is not this check's job: it
+// reads the working tree.
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -44,7 +44,8 @@ test('spec index: the real docs/spec folder is whole', () => {
 });
 
 // #581 C8b
-test('spec index: a spec file with no line is a problem', () => {
+test('spec index: a spec file with no line is a problem, and only top-level .md files but README are spec files', () => {
+  assert.deepEqual(specFiles(['README.md', '0001-a.md', 'notes.txt', 'sub']), ['0001-a.md']);
   assert.deepEqual(indexProblems(['0001-a.md', '0002-b.md', '0003-c.md'], README), ['0003-c.md: no line under "## All specs"']);
 });
 
@@ -65,7 +66,8 @@ test('spec index: a missing section and a missing README are problems', () => {
 test('spec index: a well-formed index passes: history line, CRLF, a link under both sections, no specs', () => {
   assert.deepEqual(indexProblems(['0001-a.md', '0002-b.md'], README), []);
   assert.deepEqual(indexProblems(['0001-a.md', '0002-b.md'], README.replace(/\n/g, '\r\n')), []);
-  const both = README.replace('None yet.', '1. [0001-a](0001-a.md) — read first');
+  const both = README.replace('None yet.', '- [0001-a](0001-a.md) — read first');
   assert.deepEqual(indexProblems(['0001-a.md', '0002-b.md'], both), []);
+  assert.deepEqual(indexProblems(['0001-a.md', '0002-b.md'], `${README}\n## Later\n\n- [0001-a](0001-a.md) — beyond the section\n`), []);
   assert.deepEqual(indexProblems([], ['# Specs', READ_FIRST, 'None yet.', ALL, 'None yet.'].join('\n')), []);
 });
