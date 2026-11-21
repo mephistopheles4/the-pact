@@ -33,7 +33,7 @@ By default, auth, crypto, input validation and data migrations are sensitive wor
 
 ## Linear
 
-The same labels live on the one Linear team. I create them; a session asks me in a status comment to change one.
+The same labels live on the repo's Linear team. The owner creates them; a session asks in a status comment to change one.
 
 ## Creating the labels
 

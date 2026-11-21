@@ -282,10 +282,7 @@ when no other row answers the sentence.
 - **Linear.** In a cloud session, or when the repo has a pair in
   `~/.claude/pact/linear.json`, read `~/.claude/tracker.md` before you read from
   or post to Linear, and its rule holds there. Linear is my private record: secrets
-  and others' weaknesses stay out of it. A status there is a new comment each
-  round, never an edit, signed `status-<KEY>-<n>`, and a pull request is signed
-  `pr-<KEY>-<n>`. The app can't change an existing item, so ask me in the status
-  comment to move its state, and I do it by hand.
+  and others' weaknesses stay out of it.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
   `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
