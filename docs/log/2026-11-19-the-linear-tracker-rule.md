@@ -11,4 +11,5 @@ The rule was first written with an authorship read and later cut to the line abo
 ## Record
 
 - The ticket: https://github.com/mephistopheles4/the-pact/issues/578
-- The spec, revision 4: https://github.com/mephistopheles4/the-pact/issues/574#issuecomment-7009608463
+- The spec, revision 4: https://github.com/mephistopheles4/the-pact/issues/574#issuecomment-7009608463; the pointer line and the later direction: revision 7, https://github.com/mephistopheles4/the-pact/issues/574#issuecomment-7066540744
+- The review rounds and checkpoints: https://github.com/mephistopheles4/the-pact/issues/578#issuecomment-7025542469 and https://github.com/mephistopheles4/the-pact/issues/578#issuecomment-7067439476
