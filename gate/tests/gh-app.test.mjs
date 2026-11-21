@@ -91,6 +91,25 @@ test('mintToken: the same world with nothing planted mints, owner matched case-i
   assert.match(await mint(w, 'git', `${OWNER.toUpperCase()}/Sandbox`), /^ghs_/);
 });
 
+// GitHub's stateless installation tokens (ghs_APPID_JWT) are about 520 characters with dots: they are opaque to the helper.
+test('a stateless installation token is minted, cached, reused, handed to git and revoked by setup', async t => {
+  const w = world(t);
+  w.state.stateless = true;
+  const token = await mint(w);
+  assert.ok(token.length > 500 && token.includes('.'), 'the fake issues the long dotted format');
+  const calls = w.spy.fetches.length;
+  assert.equal(await mint(w), token, 'reused from the cache');
+  assert.equal(w.spy.fetches.length, calls, 'no call on a cache hit');
+  const v = world(t);
+  v.state.stateless = true;
+  assert.equal(await ask(v, GOOD_ASK), 0);
+  assert.match(printed(v).out, /^username=x-access-token\npassword=ghs_\d+_\S{500,}\n$/);
+  const s = fresh(t);
+  s.state.stateless = true;
+  assert.equal(await main(setupArgs(s), s.io), 0, printed(s).err);
+  assert.equal(s.state.revoked.length, 1, 'the test token was revoked');
+});
+
 // C2 (r3 U-F12): the pin is checked on a miss only, so a cached token costs no API call.
 test('mintToken reuses a cached token until five minutes before it expires, with no call at all', async t => {
   const w = world(t);
@@ -659,6 +678,39 @@ test('a re-run that fails after the key swap puts back the prior key and entry',
   assert.ok(existsSync(key));
 });
 
+test('a rollback that cannot put the old key back still puts back the pin and the gitconfig, and says it was incomplete', async t => {
+  const { w, oldPin, code, key } = await rerun(t);
+  writeFileSync(gitconfigFile(w), 'old gitconfig\n');
+  w.state.git = () => ({ status: 0, stdout: '\n!wrong\n', stderr: '' });
+  const write = w.io.credStore.write;
+  let keyWrites = 0;
+  w.io.credStore.write = (tgt, b) => {
+    if (tgt === KEY && ++keyWrites === 2) throw new Error('store failed');
+    return write(tgt, b);
+  };
+  assert.equal(await code(), 1);
+  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), oldPin);
+  assert.equal(readFileSync(gitconfigFile(w), 'utf8'), 'old gitconfig\n');
+  assert.match(printed(w).err, /the rollback was incomplete/);
+  assert.ok(existsSync(key));
+});
+
+test('setup revokes its test token when the bot lookup throws, and says so if it cannot', async t => {
+  for (const revokeFails of [false, true]) {
+    const w = fresh(t);
+    const real = w.io.fetch;
+    w.io.fetch = async (url, init) => {
+      if (String(url).includes('/users/') && String(url).includes('%5Bbot%5D')) throw new Error('timeout');
+      if (revokeFails && init?.method === 'DELETE') return { status: 500, text: async () => '' };
+      return real(url, init);
+    };
+    assert.equal(await main(setupArgs(w), w.io), 1);
+    if (revokeFails) assert.match(printed(w).err, /the test token revoke was not confirmed/);
+    else assert.equal(w.state.revoked.length, 1, 'the test token was revoked');
+    untouched(w);
+  }
+});
+
 // The cache and the settings check, where nothing can be listed or read.
 test('forget says so when the token cache cannot be listed, and still removes the key', async t => {
   const w = world(t);
@@ -705,6 +757,22 @@ test('forget refuses while the settings env points GIT_CONFIG_GLOBAL at the gitc
     assert.ok(existsSync(gitconfigFile(w)));
     assert.equal(w.state.revoked.length, 0);
   }
+});
+
+test('forget does not say forgotten when the pin cannot be written or the gitconfig cannot be deleted', async t => {
+  const pinFails = world(t);
+  writeFileSync(gitconfigFile(pinFails), 'x\n');
+  pinFails.io.fs = { ...pinFails.io.fs, renameSync: () => { throw Object.assign(new Error('denied'), { code: 'EPERM' }); } };
+  assert.equal(await main(['forget', '--provider', 'claude'], pinFails.io), 1);
+  assert.equal(printed(pinFails).err, `gh-app: ${REASONS.left}\n`);
+  assert.doesNotMatch(printed(pinFails).out, /forgotten/);
+
+  const cfgFails = world(t);
+  writeFileSync(gitconfigFile(cfgFails), 'x\n');
+  const real = cfgFails.io.fs.unlinkSync;
+  cfgFails.io.fs = { ...cfgFails.io.fs, unlinkSync: p => { if (String(p).endsWith('.gitconfig')) throw Object.assign(new Error('denied'), { code: 'EPERM' }); return real(p); } };
+  assert.equal(await main(['forget', '--provider', 'claude'], cfgFails.io), 1);
+  assert.equal(printed(cfgFails).err, `gh-app: ${REASONS.left}\n`);
 });
 
 test('forget with an expired cached token (401 on revoke) completes', async t => {

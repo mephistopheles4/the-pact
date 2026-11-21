@@ -29,7 +29,7 @@ import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const PROVIDERS = Object.freeze(['claude', 'codex', 'antigravity']);
@@ -37,7 +37,8 @@ const API = 'https://api.github.com';
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38})$/;
 const LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
-const TOKEN_RE = /^[A-Za-z0-9_]{20,255}$/;
+// An installation token is opaque: the stateless ghs_APPID_JWT format is about 520 characters with dots, the older one 40.
+const TOKEN_RE = /^[A-Za-z0-9_.-]{20,2048}$/;
 const SKEW_MS = 5 * 60 * 1000;
 export const CLAIM_PERMISSIONS = Object.freeze({ contents: 'write', pull_requests: 'write', issues: 'write', workflows: 'write', actions: 'read', checks: 'read', statuses: 'read', metadata: 'read' });
 export const SETS = Object.freeze({
@@ -73,6 +74,7 @@ export const REASONS = Object.freeze({
   app: 'the app does not match: id, owner, permissions or events differ from the pinned set',
   gitconfig: 'the gitconfig could not be written or did not read back as expected',
   git: 'git failed',
+  left: 'the key and tokens are gone, but the pin entry or the gitconfig could not be removed; remove it and run forget again',
   settings: "the settings env still points at this provider's gitconfig; turn the switch off and apply first",
   mode: 'unknown mode',
   gh: 'that gh command is not allowed here',
@@ -646,7 +648,14 @@ async function setup(io, { provider, appId, keyPath }) {
   const testToken = jsonOf(test).token;
   if (typeof testToken !== 'string' || !TOKEN_RE.test(testToken)) return refuse('shape');
   guard(io, testToken);
-  const botRes = await api(io, 'GET', `/users/${slug}%5Bbot%5D`, { auth: testToken });
+  let botRes;
+  try {
+    botRes = await api(io, 'GET', `/users/${slug}%5Bbot%5D`, { auth: testToken });
+  } catch (e) {
+    // The test token is live: revoke it before the lookup's failure goes on.
+    if ((await revoke(io, testToken)) !== 'revoked') say(io, 'setup: the test token revoke was not confirmed; it lives at most an hour', 'err');
+    throw e;
+  }
   const revoked = await revoke(io, testToken);
   if (botRes.status !== 200) return refuse('net');
   const bot = jsonOf(botRes);
@@ -671,21 +680,29 @@ async function setup(io, { provider, appId, keyPath }) {
       if (!back.ok || got.length !== 2 || got[0] !== '' || got[1] !== wantHelper) refuse('gitconfig');
     }
   } catch (e) {
-    try {
+    // Each put-back is tried on its own, so one that fails never leaves the others replaced.
+    let incomplete = false;
+    const attempt = f => {
+      try {
+        f();
+      } catch {
+        incomplete = true;
+      }
+    };
+    attempt(() => {
       if (before.key) io.credStore.write(keyTarget(provider), before.key);
       else io.credStore.delete(keyTarget(provider));
-      for (const [path, text] of [[pinPath(io.home), before.pin], [gitconfigPath(io.home, provider), before.gitconfig]]) {
-        if (text === null) {
-          try {
-            io.fs.unlinkSync(path);
-          } catch {
-            // never written
-          }
-        } else writeText(io, path, text);
-      }
-    } catch {
-      // the restore is best effort; the refusal below still prints
+    });
+    for (const [path, text] of [[pinPath(io.home), before.pin], [gitconfigPath(io.home, provider), before.gitconfig]]) {
+      if (text === null) {
+        try {
+          io.fs.unlinkSync(path);
+        } catch {
+          // never written
+        }
+      } else attempt(() => writeText(io, path, text));
     }
+    if (incomplete) say(io, 'setup: the rollback was incomplete; run status, then setup again', 'err');
     say(io, `setup: the key file is still at ${keyPath}`, 'err');
     throw e instanceof Refusal ? e : new Refusal('refused');
   }
@@ -783,20 +800,30 @@ async function forget(io, provider) {
   } catch {
     refuse('store');
   }
+  let pin = null;
   try {
-    const pin = readPin(io);
-    delete pin.apps[provider];
-    writeText(io, pinPath(io.home), `${JSON.stringify(pin, null, 2)}\n`);
+    pin = readPin(io);
   } catch {
     // no pin file, or one that is not the pinned shape, is left for the owner
   }
+  // A failed write to a valid pin, or a gitconfig that exists but cannot be deleted, is not "forgotten".
+  let left = false;
+  if (pin) {
+    try {
+      delete pin.apps[provider];
+      writeText(io, pinPath(io.home), `${JSON.stringify(pin, null, 2)}\n`);
+    } catch {
+      left = true;
+    }
+  }
   try {
     io.fs.unlinkSync(gitconfigPath(io.home, provider));
-  } catch {
-    // none written
+  } catch (e) {
+    if (e?.code !== 'ENOENT') left = true;
   }
-  say(io, `forget: ${provider} forgotten`);
   cacheLines(io, 'forget', dropped);
+  if (left) refuse('left');
+  say(io, `forget: ${provider} forgotten`);
 }
 
 // ---------------------------------------------------------------- status
@@ -828,7 +855,8 @@ function urlApplies(url, owner, name) {
 async function status(io, provider, repoDir) {
   const run = makeRun(io);
   const gitEnv = cleanEnv(io.env);
-  const git = args => run('git', repoDir ? ['-C', repoDir, ...args] : args, { env: gitEnv });
+  // git runs from a fresh empty folder, so a relative --repo is resolved against the caller's folder first.
+  const git = args => run('git', repoDir ? ['-C', resolve(repoDir), ...args] : args, { env: gitEnv });
   let pin = null;
   let pinned = false;
   try {
@@ -923,7 +951,18 @@ async function status(io, provider, repoDir) {
     return v !== '' && raw.toLowerCase().startsWith(v.toLowerCase());
   });
   say(io, `url rewrite applies: ${rewritten ? 'yes' : 'no'}`);
-  const target = `https://github.com/${owner}/${name}`;
+  // URL-specific settings match the address git really uses (a .git suffix included); its user info is left out, and it is never printed.
+  let target = `https://github.com/${owner}/${name}`;
+  try {
+    const u = new URL(url);
+    if (u.protocol === 'https:' && u.hostname.toLowerCase() === 'github.com') {
+      u.username = '';
+      u.password = '';
+      target = u.href.replace(/\/$/, '');
+    }
+  } catch {
+    // not an https address: the reconstructed one stands
+  }
   const ssl = git(['config', '--type=bool', '--get-urlmatch', 'http.sslVerify', target]);
   const noVerify = (ssl.ok && ssl.stdout.trim() === 'false') || lowerEnv(io.env, 'GIT_SSL_NO_VERIFY') !== undefined;
   say(io, `http.sslVerify off: ${noVerify ? 'yes' : 'no'}`);

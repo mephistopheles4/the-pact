@@ -3,7 +3,7 @@
 // fake world (gh-app-world.mjs) with a scripted git.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { main } from '../../claude/tools/gh-app.mjs';
 import { BOT, IDS, NODE, OWNER, leakSurface, printed, world } from './gh-app-world.mjs';
@@ -183,6 +183,24 @@ test('status reads the push address and asks git for rewrites with a pattern git
   const rewrite = gits.find(a => a.includes('--get-regexp') && a.at(-1).startsWith('^url'));
   assert.ok(rewrite, 'the rewrite lookup runs');
   assert.doesNotMatch(rewrite.at(-1), /\(\?/, 'no Perl-style group');
+});
+
+test('status matches URL-specific settings against the real push address, .git suffix kept and user info left out', async t => {
+  const w = world(t);
+  gitWith(w, { helpers: GOOD, remote: `https://x-access-token:${CANARY}@github.com/${OWNER}/sandbox.git` });
+  await main(['status', '--provider', 'claude'], w.io);
+  const urlmatch = w.spy.spawns.filter(s => s.file === 'git' && s.args.includes('--get-urlmatch')).map(s => s.args.at(-1));
+  assert.equal(urlmatch.length, 2);
+  for (const target of urlmatch) assert.equal(target, `https://github.com/${OWNER}/sandbox.git`);
+  assert.ok(!leakSurface(w).includes(CANARY), 'no credential in argv or output');
+});
+
+test('status resolves a relative --repo against the caller\'s folder before git runs from its empty one', async t => {
+  const w = world(t);
+  gitWith(w, { helpers: GOOD });
+  await main(['status', '--provider', 'claude', '--repo', 'some/repo'], w.io);
+  const first = w.spy.spawns.find(s => s.file === 'git');
+  assert.deepEqual(first.args.slice(0, 2), ['-C', resolve('some/repo')]);
 });
 
 test('status reads a helper as the pact\'s only when its text is the exact line the gitconfig writes', async t => {

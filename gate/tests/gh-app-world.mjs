@@ -30,7 +30,10 @@ const text = v => JSON.stringify(v);
 const res = (status, body) => ({ status, text: async () => (body === undefined ? '' : typeof body === 'string' ? body : text(body)) });
 
 /** A new token string the helper's shape check accepts: built from random pieces at run time. */
-const newToken = () => `ghs_${randomBytes(24).toString('hex')}`;
+const newToken = stateless => (stateless
+  // GitHub's stateless format: ghs_APPID_JWT, about 520 characters, two dots.
+  ? `ghs_${IDS.app}_${randomBytes(30).toString('base64url')}.${randomBytes(300).toString('base64url')}.${randomBytes(60).toString('base64url')}`
+  : `ghs_${randomBytes(24).toString('hex')}`);
 
 /**
  * One fake world: a home folder, a fake GitHub, an in-memory credential store
@@ -56,6 +59,7 @@ export function world(t, { platform = 'win32', env = {}, pin = true, key = true,
     revoked: [],
     revokeStatus: null,
     mintStatus: 201,
+    stateless: false,
     mintOverride: null,
     ghReadFails: new Set(),
     gh: () => ({ status: 0, stdout: '', stderr: '' }),
@@ -83,7 +87,8 @@ export function world(t, { platform = 'win32', env = {}, pin = true, key = true,
     if (u.host !== 'api.github.com' || u.protocol !== 'https:') return res(500, {});
     const auth = (init.headers?.Authorization ?? '').replace(/^Bearer /, '');
     const path = decodeURIComponent(u.pathname);
-    const isJwt = auth.split('.').length === 3;
+    // An issued installation token in the stateless format has two dots too, so it is told from an App JWT by being known.
+    const isJwt = auth.split('.').length === 3 && !knownTokens.has(auth);
     let jwt = null;
     if (isJwt) {
       const [h, c, s] = auth.split('.');
@@ -104,7 +109,7 @@ export function world(t, { platform = 'win32', env = {}, pin = true, key = true,
     if (rec.method === 'POST' && path === `/app/installations/${state.installation.id}/access_tokens`) {
       if (state.mintStatus !== 201) return res(state.mintStatus, {});
       if (state.mintOverride !== null) return res(201, state.mintOverride);
-      const token = newToken();
+      const token = newToken(state.stateless);
       knownTokens.add(token);
       const expires = new Date(state.now + 3600 * 1000).toISOString();
       const names = rec.body?.repositories;
