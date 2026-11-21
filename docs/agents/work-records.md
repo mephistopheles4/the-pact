@@ -16,7 +16,7 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   own plan and records; the ticket's PR closes the ticket, and the owner
   closes the parent once its last sub-issue closes
   ([tickets as sub-issues](issue-tracker.md#tickets-as-sub-issues)).
-  Nothing in the tree holds a plan. A record
+  The tree holds specs (`docs/spec/`), never a plan. A record
   a check can run becomes a test or fixture beside the code it checks.
 - **When the work finishes:** a decision that reverses or constrains something
   becomes one ADR in [`docs/adr/`](../../docs/adr/), with its reasoning. A change
