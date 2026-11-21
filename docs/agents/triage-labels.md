@@ -31,6 +31,10 @@ Every issue carries one process tier, as a label. A tier says how much checking 
 
 By default, auth, crypto, input validation and data migrations are sensitive work: the session recommends the sensitive route, `tier:thorough` with the security pair, and the owner takes it or not. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
 
+## Linear
+
+The same labels live on the repo's Linear team. The owner creates them; a session asks in a status comment to change one.
+
 ## Creating the labels
 
 The five roles and the three tier labels exist on the tracker. To recreate them:

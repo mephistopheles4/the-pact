@@ -57,6 +57,8 @@ test('seam A passes on the repo payload, and lists every file it would install',
     'agents/unstated-lens.md',
     // The review procedure file (#261), at its one fixed live path.
     'pact/review.md',
+    // The Linear tracker rule (#578), at the home folder's root.
+    'tracker.md',
   ]);
   for (const l of installs) assert.match(l, /^INSTALL [0-9a-f]{64} \S+ \S+$/);
 });
@@ -320,6 +322,11 @@ test('bad case: no review file in the stage', t => {
   expectFail(t, {}, 'review-file', root => rmSync(join(root, 'claude', 'review.md')));
 });
 
+// tracker-file
+test('bad case: no tracker file in the stage', t => {
+  expectFail(t, {}, 'tracker-file', root => rmSync(join(root, 'claude', 'tracker.md')));
+});
+
 // unclassified, #261 C3: the classifier takes exactly the review file beyond today's kinds.
 // unclassified
 test('bad case: a second unknown file beside the review file is still refused', t => {
@@ -330,6 +337,9 @@ test('bad case: a second unknown file beside the review file is still refused', 
 const ZWSP = String.fromCodePoint(0x200b);
 test('bad case: an invisible character in the review file', t => {
   expectFail(t, { [RV]: review(`Read this, and cross${ZWSP} the reports.`) }, 'invisible');
+});
+test('bad case: an invisible character in the tracker file', t => {
+  expectFail(t, { 'claude/tracker.md': `# Tracker\n\nRead this, and cross${ZWSP} the reports.\n` }, 'invisible');
 });
 test('bad case: an invisible character in a pact command', t => {
   expectFail(t, { 'claude/commands/finis.md': `---\ndescription: Wrap up.\ndisable-model-invocation: true\n---\n\nWrap${ZWSP} up.\n` }, 'invisible');

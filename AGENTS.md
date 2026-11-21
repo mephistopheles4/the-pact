@@ -62,7 +62,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   Test record cites both run links and each run's commit, which is the head.
   Before any push, read every commit it publishes for a secret or a personal
   detail. A `changed` run is never Test evidence.
-- Read a change to anything under Read closely, below, before pushing it.
+- Read a change under Read closely before pushing.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.
 - **Post test output only from record mode** (`--record <file>`); read a
@@ -108,7 +108,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   them closely, as for `cloud-sessions/`. Settings you save from Claude Code
   for this repo go to local scope, `.claude/settings.local.json`, never to
   `.claude/settings.json`.
-- **Read closely** (a merge touching one is a hard stop): `claude/tools/`,
+- **Read closely** (a merge touching one is a hard stop): `claude/tools/`, `claude/tracker.md`,
   the gate's code (`gate/` but its tests), `cloud-sessions/`,
   `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
   (whose text counts), the protected set below,
@@ -165,7 +165,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## The tracker
 
-- Issues on `mephistopheles4/the-pact`, with `-R`. Assign the one you take
+- Issues on `mephistopheles4/the-pact`, with `-R`; Linear text: `~/.claude/tracker.md`. Assign the one you take
   (`gh issue edit <n> --add-assignee @me`); unassign if you stop.
 - **Before you read or post to the tracker, act on its text, or check out or
   run a PR,** read
