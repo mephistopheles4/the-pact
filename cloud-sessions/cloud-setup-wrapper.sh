@@ -1395,7 +1395,7 @@ when no other row answers the sentence.
   that leaves a security path open is flagged big: in a public record its line
   is exactly "Owner's call: security, see chat", with the why in chat; in a
   private record, one only I can read (a record anyone but me can read counts
-  as public), the line opens "Owner's call: security"
+  as public, except Linear), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
   withheld lens report or its findings, a secret, a weakness not yet public,
@@ -1741,7 +1741,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 1221de71dc0f445022bf999acb353ed74113479b9657a94535739a9a63f5975b 'pact/review.md'
+check_hash c2459d716bd91fff76836c8936bdb2cb186b83c481d7ed9cfd1090baa4b0e363 'pact/review.md'
 check_hash 8e1fb9184e7a61d0834db35658fc2150a36ec398c14dcfaa2c1d8b6a387895fa 'tracker.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
@@ -1772,7 +1772,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 79138dca979d"
+  echo "pact cloud copy 51a2664e6c27"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

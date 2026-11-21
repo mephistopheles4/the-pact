@@ -245,7 +245,7 @@ when no other row answers the sentence.
   that leaves a security path open is flagged big: in a public record its line
   is exactly "Owner's call: security, see chat", with the why in chat; in a
   private record, one only I can read (a record anyone but me can read counts
-  as public), the line opens "Owner's call: security"
+  as public, except Linear), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
   withheld lens report or its findings, a secret, a weakness not yet public,
