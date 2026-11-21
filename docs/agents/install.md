@@ -125,6 +125,7 @@ how every session in every repo behaves. So:
   stop is refused, set `session-stop-deny` to `false` and apply on the owner's
   word, and open an issue with what was seen; if a rule did not refuse, open an
   issue.
+- **The agent identity switch.** Read [agent-identity](../agent-identity.md) first.
 - **The retired checkpoints key.** `checkpoint-stops` set to `true` or `false` in a configuration, a project file or a builder file is ignored, with a dry-run WARN or a page note. Any other value is refused.
 - **The auto-compact field checks,** run by the owner in the first sessions after an
   install; a session reports them and does not run them for the owner.

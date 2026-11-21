@@ -6,9 +6,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { CLEANER_ASK, CLEANER_DENY, STOP_DENY } from '../install-core.mjs';
+import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, identityGitconfigText } from '../install-core.mjs';
 import { home, install, listTree, makeRepo, passed, refused } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -362,4 +362,134 @@ test('settings.json that is not strict JSON: the dry run plans no stop rule and 
   refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /settings\.json is not a strict JSON object/);
   assert.equal(readFileSync(recordFile, 'utf8'), before, 'the record is untouched');
   assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), bad, 'settings.json is untouched');
+});
+
+// ---------------------------------------------------------------- the agent-identity switch (#603, S7; C5, C8)
+
+const APP = { app_id: 2000001, slug: 'example-owner-claude', bot_login: 'example-owner-claude[bot]', bot_id: 3000001 };
+const PIN = `${JSON.stringify({ owner: { login: 'example-owner', id: 1000001 }, apps: { claude: APP } })}\n`;
+const GH_APP_LIVE = ['pact', 'tools', 'gh-app.mjs'];
+const ENV_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT'];
+
+/** The text setup writes for the claude app in this home folder, under the Node the install runs under. */
+const gitconfigFor = h => identityGitconfigText({ userHome: dirname(h), claudeHome: h, nodePath: process.execPath, app: APP, xdg: existsSync(join(dirname(h), '.config', 'git', 'config')) });
+
+/** A Claude home folder whose configuration sets the identity switch, with setup's two files as asked: `pin` and `gitconfig` are the text to write, or null to leave the file out. */
+function identityHome(t, on, { pin = PIN, gitconfig = gitconfigFor, tools = [], env } = {}) {
+  const h = home(t);
+  mkdirSync(join(h, 'pact'), { recursive: true });
+  setIdentity(h, on, tools);
+  if (pin !== null) writeFileSync(join(h, 'pact', 'github.json'), pin);
+  const g = typeof gitconfig === 'function' ? gitconfig(h) : gitconfig;
+  if (g !== null) writeFileSync(join(h, 'pact', 'gh-app-claude.gitconfig'), g);
+  if (env !== undefined) writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ env })}\n`);
+  return h;
+}
+function setIdentity(h, on, tools = []) {
+  const doc = { schema: 1, tools, ...(on === undefined ? {} : { settings: { 'agent-identity': on } }) };
+  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify(doc)}\n`);
+}
+const liveEnv = h => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).env;
+const recordOf = h => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+
+// C5: on, the dry run checks the gitconfig and warns, the install copies the helper, sets and records the two env keys beside the owner's own.
+test('agent-identity on: the helper installs byte for byte, the two env keys are set and recorded beside the owner\'s, and the dry run says the gitconfig is as expected', t => {
+  const repo = makeRepo(t);
+  const h = identityHome(t, true, { env: { KEEP: 'mine' } });
+  const dry = installed(repo, h);
+  assert.match(dry.stdout, /^agent-identity: on\r?\n {2}gitconfig as expected: yes\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}gh-app: on \(the agent-identity switch\)\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the agent-identity switch turns on the pact tool gh-app; it installs to pact\/tools\/gh-app\.mjs and mints GitHub App tokens/m, dry.out);
+  assert.match(dry.stdout, /^ {2}set env\.GIT_CONFIG_GLOBAL \(the agent gitconfig\)\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}set env\.GIT_TERMINAL_PROMPT = 0\r?$/m, dry.out);
+  assert.deepEqual(readFileSync(join(h, ...GH_APP_LIVE)), readFileSync(join(repo, 'claude', 'tools', 'gh-app.mjs')));
+  assert.deepEqual(liveEnv(h), { KEEP: 'mine', GIT_CONFIG_GLOBAL: `${h.replaceAll('\\', '/')}/pact/gh-app-claude.gitconfig`, GIT_TERMINAL_PROMPT: '0' });
+  assert.deepEqual(recordOf(h).identityEnv, { GIT_CONFIG_GLOBAL: liveEnv(h).GIT_CONFIG_GLOBAL, GIT_TERMINAL_PROMPT: '0' });
+  assert.ok(recordOf(h).files.some(f => f.path === 'pact/tools/gh-app.mjs'), 'the record lists the tool');
+  // A second install changes nothing.
+  const again = installed(repo, h);
+  assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
+});
+
+// C5: off removes the tool and exactly the keys the install set, and a changed or missing gitconfig does not block turning it off.
+test('agent-identity off: the tool and the two recorded env keys go, the owner\'s keys stay, and a missing gitconfig does not refuse', t => {
+  const repo = makeRepo(t);
+  const h = identityHome(t, true, { env: { KEEP: 'mine' } });
+  installed(repo, h);
+  setIdentity(h, false);
+  rmSync(join(h, 'pact', 'gh-app-claude.gitconfig'));
+  const dry = installed(repo, h);
+  assert.match(dry.stdout, /^Delete: 1\r?\n {2}pact\/tools\/gh-app\.mjs\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}- env\.GIT_CONFIG_GLOBAL\r?$/m, dry.out);
+  assert.ok(!dry.stdout.includes('gitconfig as expected'), 'the check is skipped');
+  assert.ok(!existsSync(join(h, ...GH_APP_LIVE)));
+  assert.deepEqual(liveEnv(h), { KEEP: 'mine' });
+  assert.equal(recordOf(h).identityEnv, undefined);
+});
+
+// C5: a key the owner changed after the install is theirs, so turning the switch off leaves it.
+test('agent-identity off leaves an env key the owner changed since the install', t => {
+  const repo = makeRepo(t);
+  const h = identityHome(t, true);
+  installed(repo, h);
+  writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ env: { GIT_CONFIG_GLOBAL: 'D:/mine', GIT_TERMINAL_PROMPT: '0' } })}\n`);
+  setIdentity(h, false);
+  installed(repo, h);
+  assert.deepEqual(liveEnv(h), { GIT_CONFIG_GLOBAL: 'D:/mine' });
+});
+
+// C8: unset or false, nothing of the switch lands: no tool, no env key, no record key, and no line in the dry run.
+test('agent-identity unset or false: no helper, no env key, no record key, no identity line', t => {
+  const repo = makeRepo(t);
+  for (const on of [undefined, false]) {
+    const h = identityHome(t, on, { pin: null, gitconfig: null });
+    const dry = installed(repo, h);
+    assert.ok(!existsSync(join(h, ...GH_APP_LIVE)));
+    assert.ok(ENV_KEYS.every(k => !(k in (liveEnv(h) ?? {}))), 'no env key');
+    assert.equal(recordOf(h).identityEnv, undefined);
+    assert.doesNotMatch(dry.stdout, /^agent-identity:|gitconfig as expected|gh-app/m, dry.out);
+  }
+});
+
+// C5: each way the switch's preconditions fail refuses, in the dry run and the apply, and changes nothing.
+for (const row of [
+  { id: 'no-pin', opts: { pin: null }, says: /pact\/github\.json holds no claude app; run gh-app\.mjs setup first/ },
+  { id: 'pin-without-claude', opts: { pin: `${JSON.stringify({ owner: { login: 'o', id: 1 }, apps: {} })}\n` }, says: /holds no claude app/ },
+  { id: 'pin-not-json', opts: { pin: '{' }, says: /holds no claude app/ },
+  { id: 'no-gitconfig', opts: { gitconfig: null }, says: /gitconfig is missing; run gh-app\.mjs setup first/ },
+  { id: 'other-node', opts: { gitconfig: h => gitconfigFor(h).replace(process.execPath.replaceAll('\\', '/'), '/usr/bin/other') }, says: /gitconfig as expected: no: node path differs, re-run setup/ },
+  { id: 'extra-include', opts: { gitconfig: h => gitconfigFor(h).replace('[user]', '  path = /elsewhere/config\n[user]') }, says: /gitconfig as expected: no: include list differs, re-run setup/ },
+  { id: 'other-line', opts: { gitconfig: h => `${gitconfigFor(h)}[core]\n  hooksPath = /x\n` }, says: /gitconfig as expected: no: other lines differ, re-run setup/ },
+  { id: 'owner-config-global', opts: { env: { GIT_CONFIG_GLOBAL: 'D:/mine' } }, says: /settings\.json already sets env GIT_CONFIG_GLOBAL/ },
+  { id: 'owner-terminal-prompt', opts: { env: { GIT_TERMINAL_PROMPT: '1' } }, says: /settings\.json already sets env GIT_TERMINAL_PROMPT/ },
+]) {
+  test(`bad case: agent-identity on refuses with ${row.id}, in the dry run and the apply, and changes nothing`, t => {
+    const repo = makeRepo(t);
+    const h = identityHome(t, true, row.opts);
+    const before = listTree(h);
+    const dry = install(repo, h);
+    refused(dry, row.says);
+    refusedUnchanged(repo, h, row.says);
+    assert.deepEqual(listTree(h), before);
+  });
+}
+
+// C5: the refusal text names the part that differs and prints no line of the file.
+test('the gitconfig refusal prints only the fixed line, never a line of the file', t => {
+  const repo = makeRepo(t);
+  const h = identityHome(t, true, { gitconfig: hh => `${gitconfigFor(hh)}[core]\n  hooksPath = CANARY-LINE\n` });
+  const r = install(repo, h);
+  refused(r, /gitconfig as expected: no: other lines differ, re-run setup/);
+  assert.ok(!r.out.includes('CANARY-LINE'));
+});
+
+// C5: a settings file that is not strict JSON is left untouched, and the dry run says the env keys are not set.
+test('agent-identity on with a settings.json that is not strict JSON: warned, left untouched, the record keeps no env keys', t => {
+  const repo = makeRepo(t);
+  const h = identityHome(t, true);
+  const bad = '{ // a comment\n  "permissions": { "deny": [] }\n}\n';
+  writeFileSync(join(h, 'settings.json'), bad);
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(dry.stdout, /^WARN: settings\.json is left untouched, so the agent-identity switch's two env keys are not set/m, dry.out);
 });

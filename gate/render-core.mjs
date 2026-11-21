@@ -308,6 +308,8 @@ const SETTINGS = new Map([
   ['auto-compact-window', Object.freeze({ mark: null, min: 100000, max: 1000000, step: 10000, off: 0, def: 400000, template: null, tighter: null, projectLine: null })],
   // #439: the stop switch, `true` or `false`, off by default. It has no part in the rules file (mark: null), so only the notice line changes. A project may not set it.
   ['session-stop-deny', Object.freeze({ kind: 'switch', mark: null, def: false, template: null, tighter: null, projectLine: null })],
+  // #603: the agent-identity switch, `true` or `false`, off by default. It has no part in the rules file (mark: null); on, the TOOLS line gains gh-app and the install owns two env keys. A project may not set it.
+  ['agent-identity', Object.freeze({ kind: 'switch', mark: null, def: false, template: null, tighter: null, projectLine: null })],
 ]);
 // The settings the pact retired (#564). A key naming one, in a user or a project
 // file, is ignored, never refused: it has no value line, no part and no project
@@ -879,6 +881,8 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
       if (retired === null) ok = false;
     }
   }
+  // #603 (S7): the agent-identity switch, and only it, adds gh-app to the tools the render turns on.
+  if (values.some(([k, v]) => k === 'agent-identity' && v === true)) tools = PACT_TOOLS.filter(c => c === 'gh-app' || tools.includes(c));
   return ok ? { values, retired, edits, agents, commands, tools, skills } : null;
 }
 
@@ -1222,6 +1226,8 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tool
   }
   // A tool's part is empty in the source, and filled only while the tool is on.
   for (const name of tools) {
+    // gh-app has no part: the helper is not named in the rules file (#603).
+    if (!TOOL_PARTS.has(name)) continue;
     const { mark, template } = TOOL_PARTS.get(name);
     const p = pairs.get(mark);
     if (!p) return fail(mark, 'the part is not in the source');

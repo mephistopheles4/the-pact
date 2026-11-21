@@ -692,7 +692,7 @@ the column then names costs no part defines, which an older lens reads with no
 one rule and no security bar. If the commit you roll back to predates the
 column, remove it first.
 
-Three settings leave rules or files that an older installer can't remove. For
+Four settings leave rules or files that an older installer can't remove. For
 each, turn it off and apply at the newer commit first, then take its key out
 of the configuration:
 
@@ -704,6 +704,8 @@ of the configuration:
 - **`session-stop-deny`** (set it to `false`): an older installer refuses the
   key, even as `false`, and ignores `stopDeny`, so its eight rules stay in
   `settings.json`.
+- **`agent-identity`** (set it to `false`): an older installer ignores
+  `identityEnv`, so its two `env` keys stay in `settings.json`. [Steps](agent-identity.md#rolling-back).
 - **The auto-compact window** (set `auto-compact-window` to `0`): an older
   installer keeps your live hook entries but deletes the hook script it
   doesn't know, so every session would call a missing file. Stop if
