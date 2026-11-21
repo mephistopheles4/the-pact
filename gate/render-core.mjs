@@ -956,8 +956,14 @@ function checkTools(v, fail) {
     fail('config-tools', 'tools must be a list of pact tool names');
     return null;
   }
-  if (v.some(n => !PACT_TOOLS.some(c => c === n))) {
-    fail('config-tools', `tools names a tool this pact does not have; only ${PACT_TOOLS.join(', ')} can be turned on`);
+  // #599 (r3 X-N3): the agent-identity switch adds gh-app, never this list.
+  if (v.some(n => n === 'gh-app')) {
+    fail('config-tools', 'gh-app cannot be turned on by the tools list; only the agent-identity switch installs it');
+    return null;
+  }
+  const listable = PACT_TOOLS.filter(c => c !== 'gh-app');
+  if (v.some(n => !listable.some(c => c === n))) {
+    fail('config-tools', `tools names a tool this pact does not have; only ${listable.join(', ')} can be turned on`);
     return null;
   }
   if (new Set(v).size !== v.length) {

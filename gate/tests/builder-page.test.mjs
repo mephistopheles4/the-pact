@@ -1150,7 +1150,8 @@ test('stub page: the review step warns that a downloaded config.json holds no co
 });
 // #280 C5: the tools list works as the commands list does: left as is until set on the page, then saved as set.
 test('a tools list set on the page is saved in the installer\'s order, and wins over the folder\'s; left as is, the folder\'s is kept', () => {
-  assert.deepEqual(L.OPT_TOOLS.map(c => c.name), PACT_TOOLS);
+  // #599 T1 (r3 X-N3): gh-app is the one exception: only the agent-identity switch installs it, so the page never lists it.
+  assert.deepEqual(L.OPT_TOOLS.map(c => c.name), PACT_TOOLS.filter(n => n !== 'gh-app'));
   const s = L.startState();
   assert.equal(s.tools, null, 'off by default: left as is');
   const config = st => JSON.parse(L.buildFiles(st)[0].text);

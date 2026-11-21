@@ -23,7 +23,7 @@ export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium'
 // The pact's own tools (#280): the install's own copy of PACT_TOOLS in
 // gate/shared.mjs. A tool installs to TOOLS_DEST<name>.mjs only when the
 // configuration's tools list names it.
-export const PACT_TOOLS = Object.freeze(['poster', 'cleaner']);
+export const PACT_TOOLS = Object.freeze(['poster', 'cleaner', 'gh-app']);
 const TOOLS_DEST = 'pact/tools/';
 // The pact's hook script (#482), the install's own copy of PACT_HOOKS in gate/seam-a-core.mjs: claude/hooks/<name>.mjs installs to HOOKS_DEST<name>.mjs only while the auto-compact window is on.
 export const PACT_HOOKS = Object.freeze(['compact-handoff']);
@@ -1016,8 +1016,10 @@ export function commandsBlock(on, stagedRels, listed = []) {
 export function toolsBlock(on, stagedRels) {
   const staged = new Set(stagedRels);
   const out = ['Tools:'];
-  for (const name of PACT_TOOLS) out.push(`  ${name}: ${on.includes(name) ? 'on' : 'off'}${staged.has(`claude/tools/${name}.mjs`) ? '' : ' (not in this commit)'}`);
-  const example = PACT_TOOLS.find(name => staged.has(`claude/tools/${name}.mjs`));
+  // #599: gh-app is not listed here; only the agent-identity switch installs it, never this list.
+  const listable = PACT_TOOLS.filter(n => n !== 'gh-app');
+  for (const name of listable) out.push(`  ${name}: ${on.includes(name) ? 'on' : 'off'}${staged.has(`claude/tools/${name}.mjs`) ? '' : ' (not in this commit)'}`);
+  const example = listable.find(name => staged.has(`claude/tools/${name}.mjs`));
   out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "tools": ["${example}"]` : '  No pact tool that can be turned on is in this commit.');
   for (const name of on) out.push(`  WARN: the user configuration turns on the pact tool ${name}; it installs to ${TOOLS_DEST}${name}.mjs${TOOL_WARNS[name]}`);
   return out;
