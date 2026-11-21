@@ -702,8 +702,9 @@ async function setup(io, { provider, appId, keyPath }) {
       if (text === null) {
         try {
           io.fs.unlinkSync(path);
-        } catch {
-          // never written
+        } catch (err) {
+          // never written is fine; a file that is there and cannot be removed is an incomplete rollback
+          if (err?.code !== 'ENOENT') incomplete = true;
         }
       } else attempt(() => writeText(io, path, text));
     }

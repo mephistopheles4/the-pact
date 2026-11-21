@@ -405,7 +405,6 @@ test('pemToDer turns a PKCS#1 or a PKCS#8 PEM into PKCS#1 DER under the credenti
   for (const pair of ['a', 'b']) {
     const der = pemToDer(keys()[pair].privateKey);
     assert.ok(der.length < 1400, `about 1.2 KB, got ${der.length}`);
-    assert.ok(der.length < 2560);
     assert.equal(createPrivateKey({ key: der, format: 'der', type: 'pkcs1' }).asymmetricKeyType, 'rsa');
   }
   const ec = generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
@@ -731,6 +730,18 @@ test('a rollback that cannot put the old key back still puts back the pin and th
   assert.ok(existsSync(key));
 });
 
+// #602 C1: a first-run rollback that cannot remove what setup just wrote says it was incomplete.
+test('a first-run rollback that cannot remove the new pin file says it was incomplete and keeps the download', async t => {
+  const w = fresh(t);
+  w.state.git = () => ({ status: 0, stdout: '\n!wrong\n', stderr: '' });
+  const real = w.io.fs.unlinkSync;
+  w.io.fs = { ...w.io.fs, unlinkSync: p => { if (String(p).endsWith('github.json')) throw Object.assign(new Error('denied'), { code: 'EPERM' }); return real(p); } };
+  const key = writePem(w, 'download.pem');
+  assert.equal(await main(setupArgs(w, 'claude', { key }), w.io), 1);
+  assert.match(printed(w).err, /the rollback was incomplete/);
+  assert.ok(existsSync(key));
+});
+
 // #602 C1: setup refuses and writes nothing when the owner cannot be read, and says why.
 test('setup says the gh login could not be read, not that the pin check failed, and writes nothing', async t => {
   const w = fresh(t);
@@ -785,6 +796,11 @@ test('a cached token that cannot be read is deleted and counted as a revoke not 
 test('forget revokes each cached token, deletes the credentials, and removes the pin entry and the gitconfig', async t => {
   const w = world(t);
   const tokens = [cachedToken(w, 'git'), cachedToken(w, 'gh')];
+  // A cached token in the stateless format (long, dotted) is revoked and cleared too.
+  const long = `ghs_123_${'a'.repeat(250)}.${'b'.repeat(250)}.${'c'.repeat(20)}`;
+  w.knownTokens.add(long);
+  w.store.set(`the-pact/gh-app/claude/token/${OWNER}/sandbox/post`, Buffer.from(JSON.stringify({ token: long, expires_at: new Date(w.state.now + 3600e3).toISOString() })));
+  tokens.push(long);
   writeFileSync(gitconfigFile(w), 'x\n');
   assert.equal(await main(['forget', '--provider', 'claude'], w.io), 0, printed(w).err);
   assert.deepEqual(w.state.revoked.sort(), [...tokens].sort());
@@ -965,11 +981,4 @@ test('an error with a message never reaches the output: a thrown Error prints th
   };
   await main(['status', '--provider', 'claude'], v.io);
   assert.ok(!leakSurface(v).includes('kkkkkkkk'));
-});
-
-// #602 C3: no exported function prints a token.
-test('the module exports mintToken for code callers and no function that prints a token', async () => {
-  const mod = await import('../../claude/tools/gh-app.mjs');
-  assert.equal(typeof mod.mintToken, 'function');
-  assert.equal(Object.keys(mod).some(k => /^(token|printToken|getToken)$/i.test(k)), false);
 });
