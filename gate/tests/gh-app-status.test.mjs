@@ -41,6 +41,7 @@ const run = async (t, cfg, o = {}) => {
 };
 const GOOD = [H('system', 'manager', ''), H('global', '', 'https://github.com'), H('global', PACT)];
 
+// Backs no listed claim; kept: status is the owner's only view of what git would do with this setup.
 test('status on a good setup: pass, the pact helper alone, the bot address, nothing off', async t => {
   const { code, lines, w } = await run(t, { helpers: GOOD });
   assert.equal(code, 0, printed(w).err);
@@ -63,12 +64,14 @@ test('status on a good setup: pass, the pact helper alone, the bot address, noth
   ]);
 });
 
+// Backs no listed claim; kept: status names helpers by class, never by text.
 test('status reports the helper classes by scope: reset drops the earlier ones, the rest are named by class only', async t => {
   const { lines } = await run(t, { helpers: [H('system', 'manager', ''), H('global', 'store', ''), H('local', `!${CANARY} helper`, 'https://github.com/' + OWNER), H('worktree', 'osxkeychain', ''), H('command', '!gh auth git-credential', 'https://github.com')] });
   assert.deepEqual(lines.filter(l => l.startsWith('helper')), ['helpers: 5', 'helper 1: scope system, gcm', 'helper 2: scope global, other:store', 'helper 3: scope local, shell', 'helper 4: scope worktree, other:osxkeychain', 'helper 5: scope command, github-cli']);
   assert.ok(lines.includes('pact helper resolved: no'));
 });
 
+// Backs no listed claim; kept: a helper after the pact's can take over a request, so status must flag it.
 test('status flags any helper after the pact helper, and a reset after it drops it', async t => {
   const after = await run(t, { helpers: [H('global', ''), H('global', PACT), H('local', 'manager', 'https://github.com')] });
   assert.ok(after.lines.includes('helper 2: scope local, gcm, FLAGGED: after the pact helper'));
@@ -78,12 +81,13 @@ test('status flags any helper after the pact helper, and a reset after it drops 
   assert.ok(reset.lines.includes('pact helper resolved: no'));
 });
 
+// Backs no listed claim; kept: status must count only the helpers that apply to the repo.
 test('status counts a helper only where its url applies to the repo', async t => {
   const { lines } = await run(t, { helpers: [H('global', 'manager', 'https://gitlab.com'), H('global', 'manager', 'http://github.com'), H('global', 'manager', `https://github.com/${OWNER}/sandbox`), H('global', 'manager', 'https://github.com/other-owner'), H('global', 'manager', 'https://*.com'), H('global', 'manager', 'ssh://github.com')] });
   assert.deepEqual(lines.filter(l => l.startsWith('helper ')).map(l => l.replace(/^helper \d+: /, '')), ['scope global, gcm', 'scope global, gcm']);
 });
 
-// C3 (r4 D-N2): a repo-config helper's canary never shows in status.
+// #602 C3 (r4 D-N2): a repo-config helper's canary never shows in status.
 test('status never shows a helper\'s text, arguments or path: a ! helper with a password= canary shows as shell, a program only by its base name', async t => {
   const w = world(t);
   gitWith(w, { helpers: [H('local', `!f() { echo username=u; echo password=${CANARY}; }; f`, 'https://github.com'), H('local', `C:/Users/someone/bin/git-credential-evil.exe --password=${CANARY}`, 'https://github.com')] });
@@ -97,6 +101,7 @@ test('status never shows a helper\'s text, arguments or path: a ! helper with a 
   assert.ok(lines.includes('helper 2: scope local, other:git-credential-evil'));
 });
 
+// Backs no listed claim; kept: the bot's address is what the owner checks a commit against.
 test('status reports the email as the bot\'s address, something else or unset, never the value', async t => {
   assert.ok((await run(t, { helpers: GOOD, email: BOT_EMAIL })).lines.includes('user.email: bot address'));
   const other = await run(t, { helpers: GOOD, email: 'someone@example.com' });
@@ -125,6 +130,7 @@ test('status reports the email as the bot\'s address, something else or unset, n
     { id: 'extra-header', cfg: { header: `AUTHORIZATION: basic ${CANARY}` }, line: 'http extraHeader applies: yes' },
   ];
   for (const r of rows) {
+    // Backs no listed claim; kept: status reports each way a session can still write as the owner, never the value.
     test(`status reports: ${r.id}, and never the value`, async t => {
       const { lines, w } = await run(t, { helpers: GOOD, ...r.cfg }, { world: r.world });
       assert.ok(lines.includes(r.line), `${r.line} in ${lines.join(' | ')}`);
@@ -134,12 +140,14 @@ test('status reports the email as the bot\'s address, something else or unset, n
   }
 }
 
+// Backs no listed claim; kept: status must say so, and exit 1, when GitHub's record differs from the pin.
 test('status says the pin check failed, and exits 1, when GitHub\'s record differs', async t => {
   const r = await run(t, { helpers: GOOD }, { setup: w => { w.state.app.events = ['push']; } });
   assert.ok(r.lines.includes('pin check: fail'));
   assert.equal(r.code, 1);
 });
 
+// Backs no listed claim; kept: status must say what is missing.
 test('status on an unpinned provider names none and exits 1, and one with no key says absent', async t => {
   const r = await run(t, { helpers: GOOD }, { world: { pin: false, key: false } });
   assert.ok(r.lines.includes('bot: not pinned'));
@@ -148,6 +156,7 @@ test('status on an unpinned provider names none and exits 1, and one with no key
   assert.equal(r.code, 1);
 });
 
+// Backs no listed claim; kept: a moved Node breaks the helper line, and status says whether the path still exists.
 test('status reads the gitconfig\'s node path and says only whether it still exists', async t => {
   const exists = [];
   const w = world(t);
@@ -163,6 +172,7 @@ test('status reads the gitconfig\'s node path and says only whether it still exi
   assert.ok(printed(w).out.includes('gitconfig node path exists: no'));
 });
 
+// Backs no listed claim; kept: status runs git on the folder asked for, from an empty one.
 test('status passes -C to git when --repo is given, and runs git from a fresh empty folder', async t => {
   const w = world(t);
   gitWith(w, { helpers: GOOD });
@@ -174,6 +184,7 @@ test('status passes -C to git when --repo is given, and runs git from a fresh em
 });
 
 // git reads a config pattern as a POSIX extended regex, where (?:) is an error, and a push may go to a different address than a fetch.
+// Backs no listed claim; kept: git reads the pattern as a POSIX regex, and a push may use another address.
 test('status reads the push address and asks git for rewrites with a pattern git accepts', async t => {
   const w = world(t);
   gitWith(w, { helpers: GOOD });
@@ -185,6 +196,7 @@ test('status reads the push address and asks git for rewrites with a pattern git
   assert.doesNotMatch(rewrite.at(-1), /\(\?/, 'no Perl-style group');
 });
 
+// Backs no listed claim; kept: URL-specific settings match the address git really uses.
 test('status matches URL-specific settings against the real push address, .git suffix kept and user info left out', async t => {
   const w = world(t);
   gitWith(w, { helpers: GOOD, remote: `https://x-access-token:${CANARY}@github.com/${OWNER}/sandbox.git` });
@@ -195,6 +207,7 @@ test('status matches URL-specific settings against the real push address, .git s
   assert.ok(!leakSurface(w).includes(CANARY), 'no credential in argv or output');
 });
 
+// Backs no listed claim; kept: --repo names the folder the caller meant.
 test('status resolves a relative --repo against the caller\'s folder before git runs from its empty one', async t => {
   const w = world(t);
   gitWith(w, { helpers: GOOD });
@@ -203,6 +216,7 @@ test('status resolves a relative --repo against the caller\'s folder before git 
   assert.deepEqual(first.args.slice(0, 2), ['-C', resolve('some/repo')]);
 });
 
+// Backs no listed claim; kept: look-alike text must not read as the pact's helper.
 test('status reads a helper as the pact\'s only when its text is the exact line the gitconfig writes', async t => {
   const look = { scope: 'global', key: 'credential.https://github.com.helper', value: '!echo gh-app.mjs git-credential --provider claude' };
   const r = await run(t, { helpers: [H('global', ''), look] });
@@ -210,6 +224,7 @@ test('status reads a helper as the pact\'s only when its text is the exact line 
   assert.ok(r.lines.includes('pact helper resolved: no'));
 });
 
+// Backs no listed claim; kept: git ignores a default port and user info when it matches a helper's url.
 test('status counts a helper keyed by the default port and by user info as applying to github.com', async t => {
   const r = await run(t, { helpers: [H('global', 'manager', 'https://user@github.com:443')] });
   assert.ok(r.lines.includes('helpers: 1'));

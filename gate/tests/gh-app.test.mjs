@@ -19,7 +19,7 @@ const gitconfigFile = w => join(w.home, '.claude', 'pact', 'gh-app-claude.gitcon
 
 // ---------------------------------------------------------------- C2: mintToken
 
-// C2: the request is narrowed to one repo and the set's permissions, and the JWT is the spec's.
+// #602 C2: the request is narrowed to one repo and the set's permissions, and the JWT is the spec's.
 test('mintToken asks for one repo and the set\'s permissions, signed as the app with the stored key', async t => {
   for (const set of ['git', 'post', 'gh']) {
     const w = world(t);
@@ -38,7 +38,7 @@ test('mintToken asks for one repo and the set\'s permissions, signed as the app 
   assert.deepEqual({ ...SETS.post }, { issues: 'write', pull_requests: 'write' });
 });
 
-// C2: each refusal, as its own case, with nothing minted.
+// #602 C2: each refusal, as its own case, with nothing minted.
 {
   const rows = [
     { id: 'repo-outside-owner', reason: 'repo/owner', run: w => mint(w, 'git', 'someone-else/sandbox') },
@@ -76,6 +76,7 @@ test('mintToken asks for one repo and the set\'s permissions, signed as the app 
     { id: 'mint-answer-is-not-json', reason: 'shape', setup: w => { w.state.mintOverride = 'not json at all'; }, run: w => mint(w) },
   ];
   for (const r of rows) {
+    // #602 C2: each refusal in the table above mints nothing.
     test(`mintToken refuses: ${r.id}`, async t => {
       const w = world(t, r.world);
       r.setup?.(w);
@@ -85,13 +86,14 @@ test('mintToken asks for one repo and the set\'s permissions, signed as the app 
   }
 }
 
-// C2: the control for the table above: the same world, unchanged, mints; and the owner name matches without regard to case.
+// #602 C2: the control for the table above: the same world, unchanged, mints; and the owner name matches without regard to case.
 test('mintToken: the same world with nothing planted mints, owner matched case-insensitively', async t => {
   const w = world(t);
   assert.match(await mint(w, 'git', `${OWNER.toUpperCase()}/Sandbox`), /^ghs_/);
 });
 
 // GitHub's stateless installation tokens (ghs_APPID_JWT) are about 520 characters with dots: they are opaque to the helper.
+// #602 C2 and C1: mintToken and setup work with the stateless token format GitHub now issues.
 test('a stateless installation token is minted, cached, reused, handed to git and revoked by setup', async t => {
   const w = world(t);
   w.state.stateless = true;
@@ -110,7 +112,7 @@ test('a stateless installation token is minted, cached, reused, handed to git an
   assert.equal(s.state.revoked.length, 1, 'the test token was revoked');
 });
 
-// C2 (r3 U-F12): the pin is checked on a miss only, so a cached token costs no API call.
+// #602 C2 (r3 U-F12): the pin is checked on a miss only, so a cached token costs no API call.
 test('mintToken reuses a cached token until five minutes before it expires, with no call at all', async t => {
   const w = world(t);
   const first = await mint(w);
@@ -127,6 +129,7 @@ test('mintToken reuses a cached token until five minutes before it expires, with
   assert.ok(w.spy.spawns.length > reads, 'a miss checks the pin');
 });
 
+// #602 C2: a cached token is for one repo and one set, so a narrower token is never reused for a wider ask.
 test('mintToken keeps one cache entry per repo and set', async t => {
   const w = world(t);
   const a = await mint(w, 'git', REPO);
@@ -136,7 +139,7 @@ test('mintToken keeps one cache entry per repo and set', async t => {
   assert.deepEqual([...w.store.keys()].filter(k => k.includes('/token/')).sort(), ['git', 'post'].map(s => `the-pact/gh-app/claude/token/${OWNER}/sandbox/${s}`).concat(`the-pact/gh-app/claude/token/${OWNER}/other/git`).sort());
 });
 
-// C3: a cache entry that isn't the stored shape is a miss, never output.
+// #602 C3: a cache entry that isn't the stored shape is a miss, never output.
 test('mintToken treats a malformed cache entry as a miss and prints nothing of it', async t => {
   for (const bad of ['not json', '{"token":"x","expires_at":"2099-01-01T00:00:00Z"}', '{"token":"ghs_aaaaaaaaaaaaaaaaaaaaaaaaaaaa","expires_at":"soon"}', '{"token":"ghs_aaaaaaaaaaaaaaaaaaaaaaaaaaaa","expires_at":"2099-01-01T00:00:00Z","extra":1}', '[]']) {
     const w = world(t);
@@ -149,6 +152,7 @@ test('mintToken treats a malformed cache entry as a miss and prints nothing of i
 
 // ---------------------------------------------------------------- the pin file (S4)
 
+// #602 C2: a mint never runs on a pin that is not exactly the pinned shape.
 test('the pin file is read strictly: exactly these fields', async t => {
   const entry = { app_id: IDS.app, slug: SLUG, bot_login: BOT, bot_id: IDS.bot };
   const owner = { login: OWNER, id: IDS.owner };
@@ -174,6 +178,7 @@ test('the pin file is read strictly: exactly these fields', async t => {
   await refusesWith(mint(w), 'pin/missing');
 });
 
+// #602 C3: the pin reads carry no token and run from a fresh empty folder.
 test('the pin reads go through gh api with the owner\'s own login: no token, stripped environment, fresh empty folder', async t => {
   const canary = `owner-${'x'.repeat(24)}`;
   const w = world(t, { env: { GH_TOKEN: canary, GITHUB_TOKEN: canary, GH_HOST: 'evil.example', GH_ENTERPRISE_TOKEN: canary, GH_DEBUG: 'api', DEBUG: '1', Path: 'C:\\x' } });
@@ -201,7 +206,7 @@ const ask = (w, lines, op = 'get', provider = 'claude') => {
 };
 const GOOD_ASK = ['protocol=https', 'host=github.com', `path=${REPO}.git`];
 
-// C3: get answers on git's pipe, and only there.
+// #602 C3: get answers on git's pipe, and only there.
 test('git-credential get prints username and password on stdout only for an https github.com <owner>/<name> path', async t => {
   for (const path of [`${REPO}.git`, REPO]) {
     const w = world(t);
@@ -238,6 +243,7 @@ test('git-credential get prints username and password on stdout only for an http
     { id: 'pin-fails', lines: GOOD_ASK, setup: w => { w.state.app.events = ['push']; }, reason: 'pin/check' },
   ];
   for (const r of rows) {
+    // #602 C2: each refused request gets nothing on stdout and one fixed line on stderr.
     test(`git-credential get refuses: ${r.id}: nothing on stdout, one fixed line on stderr, exit 0`, async t => {
       const w = world(t, { env: r.env, platform: r.platform });
       r.setup?.(w);
@@ -248,6 +254,7 @@ test('git-credential get prints username and password on stdout only for an http
       assert.equal(w.spy.fetches.filter(f => f.method === 'POST').length, 0);
     });
   }
+  // #602 C2: git-credential get refuses anything but an https github.com <owner>/<name> path, before any call.
   test('git-credential get refuses its protocol, host, path and owner before any spawn', async t => {
     for (const r of rows.filter(x => /^(http|other-host|host-with|no-path|path-with|another-owner)/.test(x.id))) {
       const w = world(t);
@@ -258,6 +265,7 @@ test('git-credential get prints username and password on stdout only for an http
   });
 }
 
+// #602 C3: store and erase print and write nothing, so no secret leaves through them.
 test('git-credential store and erase do nothing', async t => {
   for (const op of ['store', 'erase']) {
     const w = world(t);
@@ -268,7 +276,7 @@ test('git-credential store and erase do nothing', async t => {
   }
 });
 
-// C3 (r3 X-N5): a fake app token in GH_TOKEN reaches nothing.
+// #602 C3 (r3 X-N5): a fake app token in GH_TOKEN reaches nothing.
 test('git-credential get with GH_TOKEN set calls the stubbed gh without it', async t => {
   const canary = `app-${'y'.repeat(30)}`;
   const w = world(t, { env: { GH_TOKEN: canary } });
@@ -280,6 +288,7 @@ test('git-credential get with GH_TOKEN set calls the stubbed gh without it', asy
 
 // ---------------------------------------------------------------- C3: the unknown modes and refused gh
 
+// #602 C3: a `token` call is an unknown mode.
 test('there is no mode that prints a token: `token` is an unknown mode, and so is anything else', async t => {
   for (const argv of [['token', '--provider', 'claude'], ['mint', '--provider', 'claude'], [], ['--help']]) {
     const w = world(t);
@@ -289,6 +298,7 @@ test('there is no mode that prints a token: `token` is an unknown mode, and so i
   }
 });
 
+// #602 C3: `gh -- auth token` and the other management commands are refused.
 test('gh refuses auth, extension, ext, alias and config as its first argument, even after --', async t => {
   for (const first of ['auth', 'Auth', 'extension', 'extensions', 'ext', 'alias', 'config']) {
     const w = world(t);
@@ -306,6 +316,7 @@ test('gh refuses auth, extension, ext, alias and config as its first argument, e
   }
 });
 
+// Backs no listed claim; kept: it is how gh mode narrows a call to one repo.
 test('gh gives gh the one repo in GH_REPO, since it runs from an empty folder', async t => {
   const w = world(t);
   let seen;
@@ -316,6 +327,7 @@ test('gh gives gh the one repo in GH_REPO, since it runs from an empty folder', 
 
 // ---------------------------------------------------------------- the gh mode
 
+// #602 C3: the token reaches only the child gh, and a line that holds it is withheld.
 test('gh runs gh with a gh-set token in GH_TOKEN from a fresh empty folder, strips the rest, and withholds a line that holds the token', async t => {
   const canary = `owner-${'z'.repeat(24)}`;
   const w = world(t, { env: { GH_TOKEN: canary, GITHUB_TOKEN: canary, GH_ENTERPRISE_TOKEN: canary, GITHUB_ENTERPRISE_TOKEN: canary, GH_DEBUG: '1', DEBUG: 'x', GH_HOST: 'evil.example' } });
@@ -340,12 +352,14 @@ test('gh runs gh with a gh-set token in GH_TOKEN from a fresh empty folder, stri
   assert.ok(last.underTmp);
 });
 
+// Backs no listed claim; kept: gh mode's exit code must follow gh's.
 test('gh passes gh\'s failure on as exit 1', async t => {
   const w = world(t);
   w.state.gh = () => ({ status: 1, stdout: '', stderr: 'nope\n' });
   assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', 'issue', 'list'], w.io), 1);
 });
 
+// #602 C2: a repo outside the pinned owner is refused in gh mode too.
 test('gh refuses a repo outside the pinned owner and a missing -R', async t => {
   const w = world(t);
   assert.equal(await main(['gh', '--provider', 'claude', '-R', 'someone-else/x', '--', 'issue', 'list'], w.io), 1);
@@ -356,6 +370,7 @@ test('gh refuses a repo outside the pinned owner and a missing -R', async t => {
 
 // ---------------------------------------------------------------- the command line
 
+// Backs no listed claim; kept: a malformed flag must give the usage fault and run no mode.
 test('parseArgs: each flag once, a value never starts with a dash, the provider is required and known', () => {
   assert.deepEqual(parseArgs(['status', '--provider', 'claude']).flags, { '--provider': 'claude' });
   assert.deepEqual(parseArgs(['gh', '--provider', 'codex', '-R', 'a/b', '--', 'issue', '--provider']).after, ['issue', '--provider']);
@@ -365,6 +380,7 @@ test('parseArgs: each flag once, a value never starts with a dash, the provider 
   assert.throws(() => parseArgs(['status', '--provider', 'gemini']), e => e.id === 'provider');
 });
 
+// Backs no listed claim; kept: a malformed repo must never reach a request.
 test('parseRepo: owner/name only; a .git suffix is dropped only when asked', () => {
   assert.deepEqual(parseRepo('a-b/c.d_e'), { owner: 'a-b', name: 'c.d_e' });
   assert.deepEqual(parseRepo('a/b.git', true), { owner: 'a', name: 'b' });
@@ -372,6 +388,7 @@ test('parseRepo: owner/name only; a .git suffix is dropped only when asked', () 
   for (const bad of ['', 'a', 'a/', '/b', 'a/b/c', 'a b/c', '-a/b', 'a/..', 'a/.', 'a/b c', 'a/b;c', 5, null]) assert.throws(() => parseRepo(bad), e => e.id === 'repo/shape', String(bad));
 });
 
+// Backs no listed claim; kept: the helper is Windows only, and a refusal prints nothing on stdout (#602 C3).
 test('every mode refuses off Windows and names the platform, and git-credential prints nothing on stdout', async t => {
   for (const argv of [['status'], ['forget'], ['gh', '-R', REPO, '--', 'issue', 'list'], ['setup', '--app-id', '1', '--key', 'x.pem']]) {
     const w = world(t, { platform: 'linux' });
@@ -383,6 +400,7 @@ test('every mode refuses off Windows and names the platform, and git-credential 
 
 // ---------------------------------------------------------------- the key and the JWT
 
+// #602 C1: setup stores the key as PKCS#1 DER and refuses a key that is not RSA.
 test('pemToDer turns a PKCS#1 or a PKCS#8 PEM into PKCS#1 DER under the credential size limit, and refuses a key that is not RSA or is small', () => {
   for (const pair of ['a', 'b']) {
     const der = pemToDer(keys()[pair].privateKey);
@@ -402,6 +420,7 @@ test('pemToDer turns a PKCS#1 or a PKCS#8 PEM into PKCS#1 DER under the credenti
 
 const EXAMPLE = { home: 'C:\\Users\\alice', nodePath: 'C:\\Program Files\\nodejs\\node.exe', provider: 'claude', app: { app_id: 2000001, slug: 'example-owner-claude', bot_login: 'example-owner-claude[bot]', bot_id: 3000001 } };
 
+// #602 C1: the gitconfig setup writes, and reads back, is this text.
 test('gitconfigText is the spec\'s file: forward slashes, the include, the empty helper, then the pact helper', () => {
   assert.equal(gitconfigText(EXAMPLE), [
     '[include]',
@@ -418,12 +437,14 @@ test('gitconfigText is the spec\'s file: forward slashes, the include, the empty
   assert.match(gitconfigText({ ...EXAMPLE, xdg: true }), /\[include\]\n  path = C:\/Users\/alice\/\.gitconfig\n  path = C:\/Users\/alice\/\.config\/git\/config\n\[user\]/);
 });
 
+// #602 C1: a path with a quote, backslash or hash cannot break the helper line setup reads back.
 test('gitconfigText quotes and escapes a path that holds a quote, a backslash or a hash, and refuses a line break', () => {
   const odd = gitconfigText({ ...EXAMPLE, home: 'C:\\Users\\alice "q" #1' });
   assert.match(odd, /^  path = "C:\/Users\/alice \\"q\\" #1\/\.gitconfig"$/m);
   assert.throws(() => gitconfigText({ ...EXAMPLE, home: 'C:\\Users\\a\nb' }), e => e.id === 'gitconfig');
 });
 
+// #602 C1: the helper line names the Node setup runs under.
 test('gitconfigText names the Node setup runs under, wherever it is, with forward slashes', () => {
   const mise = 'C:\\Users\\alice\\AppData\\Local\\mise\\installs\\node\\24.22.0\\node.exe';
   assert.match(gitconfigText({ ...EXAMPLE, nodePath: mise }), /helper = "!\\"C:\/Users\/alice\/AppData\/Local\/mise\/installs\/node\/24\.22\.0\/node\.exe\\" /);
@@ -457,7 +478,7 @@ const untouched = w => {
   assert.equal(existsSync(gitconfigFile(w)), false, 'no gitconfig');
 };
 
-// C1: the whole happy path, step by step.
+// #602 C1: the whole happy path, step by step.
 test('setup stores the key as DER, writes the pin and the gitconfig, reads the helper line back, and deletes the download last', async t => {
   const w = fresh(t);
   const argv = setupArgs(w);
@@ -481,6 +502,7 @@ test('setup stores the key as DER, writes the pin and the gitconfig, reads the h
   assert.deepEqual(order, ['GET /app', `GET /users/${OWNER}/installation`, `POST /app/installations/${IDS.inst}/access_tokens`, `GET /users/${SLUG}%5Bbot%5D`, 'DELETE /installation/token']);
 });
 
+// #602 C1: setup writes the gitconfig, and its XDG include only when that config exists.
 test('setup writes the XDG include only when that config exists', async t => {
   const w = fresh(t);
   const { mkdirSync } = await import('node:fs');
@@ -490,6 +512,7 @@ test('setup writes the XDG include only when that config exists', async t => {
   assert.match(readFileSync(gitconfigFile(w), 'utf8'), /\.config\/git\/config/);
 });
 
+// #602 C1: setup pins an app and stores its key for each provider.
 test('setup for codex pins its app and key and writes no gitconfig', async t => {
   const w = fresh(t);
   w.state.app.slug = 'example-owner-codex';
@@ -500,7 +523,7 @@ test('setup for codex pins its app and key and writes no gitconfig', async t => 
   assert.equal(existsSync(join(w.home, '.claude', 'pact', 'gh-app-codex.gitconfig')), false);
 });
 
-// C1: every refusal writes nothing, deletes nothing it didn't write, and keeps the download.
+// #602 C1: every refusal writes nothing, deletes nothing it didn't write, and keeps the download.
 {
   const rows = [
     { id: 'wrong-app-id', setup: w => { w.state.app.id = 5; } },
@@ -520,6 +543,7 @@ test('setup for codex pins its app and key and writes no gitconfig', async t => 
     { id: 'gh-cannot-read-the-owner', setup: w => { w.state.ghReadFails.add('user'); } },
   ];
   for (const r of rows) {
+    // #602 C1: each refusal writes nothing and keeps the download.
     test(`setup refuses: ${r.id}: writes nothing, keeps the download, says where it is`, async t => {
       const w = fresh(t);
       const key = writePem(w, 'download.pem', r.pem ?? keys().a.privateKey);
@@ -538,6 +562,7 @@ test('setup for codex pins its app and key and writes no gitconfig', async t => 
   }
 }
 
+// #602 C1: an owner other than this gh login is refused, writing nothing.
 test('setup refuses a pin whose owner differs from this gh login, writing nothing new', async t => {
   const w = fresh(t);
   writePin(w);
@@ -548,6 +573,7 @@ test('setup refuses a pin whose owner differs from this gh login, writing nothin
   assert.equal(w.store.size, 0);
 });
 
+// #602 C1: setup refuses and writes nothing over a pin file that is not the pinned shape.
 test('setup refuses a pin file that exists but is not the pinned shape, and writes nothing over it', async t => {
   const w = fresh(t);
   const file = join(w.home, '.claude', 'pact', 'github.json');
@@ -561,6 +587,7 @@ test('setup refuses a pin file that exists but is not the pinned shape, and writ
 });
 
 // Every request carries a credential, so none goes out with certificate checks off.
+// #602 C2: no request goes out with certificate checks off, setup included.
 test('setup refuses with Node\'s certificate checks off: no request is sent and nothing is written', async t => {
   const w = fresh(t, { env: { NODE_TLS_REJECT_UNAUTHORIZED: '0' } });
   const key = writePem(w, 'download.pem');
@@ -571,6 +598,7 @@ test('setup refuses with Node\'s certificate checks off: no request is sent and 
   assert.ok(existsSync(key));
 });
 
+// #602 C1 and C2: forget sends nothing with certificate checks off, says so, and still clears the cache.
 test('forget with Node\'s certificate checks off sends no revoke, says it was not confirmed, and still clears the cache', async t => {
   const w = world(t, { env: { NODE_TLS_REJECT_UNAUTHORIZED: '0' } });
   const token = cachedToken(w, 'git');
@@ -581,6 +609,7 @@ test('forget with Node\'s certificate checks off sends no revoke, says it was no
   assert.ok(!leakSurface(w).includes(token));
 });
 
+// #602 C1: a bad app id or key path is refused before anything is written.
 test('setup prints a usage fault for a bad app id or a missing key path', async t => {
   for (const argv of [['setup', '--provider', 'claude', '--app-id', 'abc', '--key', 'x'], ['setup', '--provider', 'claude', '--app-id', '0', '--key', 'x'], ['setup', '--provider', 'claude', '--app-id', '1'], ['setup', '--provider', 'claude', '--key', 'x']]) {
     const w = fresh(t);
@@ -589,7 +618,7 @@ test('setup prints a usage fault for a bad app id or a missing key path', async 
   }
 });
 
-// C1: a re-run swaps the key only after the new key's test mint succeeds.
+// #602 C1: a re-run swaps the key only after the new key's test mint succeeds.
 const cachedToken = (w, set, n = 'sandbox') => {
   const token = `ghs_${'ab12'.repeat(8)}${n}${set}`.replace(/[^A-Za-z0-9_]/g, '');
   w.knownTokens.add(token);
@@ -613,6 +642,7 @@ const rerun = async t => {
 };
 const newDer = () => derOf(keys().a.privateKey);
 
+// #602 C1: a re-run swaps the key only after a new test mint succeeds.
 test('a re-run whose new key fails its test mint keeps the old key, pin and cache, and revokes nothing', async t => {
   const { w, oldDer, oldPin, code, key } = await rerun(t);
   w.state.mintStatus = 403; // the new key signs, GitHub answers the key's own test mint with a refusal
@@ -624,6 +654,7 @@ test('a re-run whose new key fails its test mint keeps the old key, pin and cach
   assert.ok(existsSync(key));
 });
 
+// #602 C1 (r3 A-N1): a re-run revokes the cached tokens before clearing them.
 test('a re-run whose new key passes its test mint swaps the key and the pin entry, revokes each cached token, and clears the cache', async t => {
   const { w, oldDer, tokens, code, key } = await rerun(t);
   assert.equal(await code(), 0, printed(w).err);
@@ -635,6 +666,7 @@ test('a re-run whose new key passes its test mint swaps the key and the pin entr
   assert.equal(existsSync(key), false);
 });
 
+// #602 C1 (r4 X-N1): an expired cached token does not stop a re-run.
 test('a re-run whose cached tokens answer 401 keeps the new key and empties the cache', async t => {
   const { w, code, key } = await rerun(t);
   w.state.revoked.push(...w.knownTokens);
@@ -645,6 +677,7 @@ test('a re-run whose cached tokens answer 401 keeps the new key and empties the 
   assert.doesNotMatch(printed(w).out, /not confirmed/, 'a 401 counts as already revoked: no warning');
 });
 
+// #602 C1 (r3 A-N1): a failed revoke prints one fixed line and the new key stays.
 test('a re-run whose revoke fails otherwise prints one fixed line, keeps the new key, and empties the cache', async t => {
   const { w, code } = await rerun(t);
   // Setup's own test token is revoked first and succeeds; only the cached tokens' revokes fail.
@@ -657,6 +690,7 @@ test('a re-run whose revoke fails otherwise prints one fixed line, keeps the new
   assert.deepEqual([...w.store.keys()], [KEY]);
 });
 
+// #602 C1: setup says once when its own test token could not be revoked.
 test('a re-run whose own test token cannot be revoked says so once, and keeps the new key', async t => {
   const { w, code } = await rerun(t);
   const real = w.io.fetch;
@@ -667,6 +701,7 @@ test('a re-run whose own test token cannot be revoked says so once, and keeps th
   assert.deepEqual(w.store.get(KEY), newDer());
 });
 
+// #602 C1: a re-run that fails after the first write restores the prior key and entry.
 test('a re-run that fails after the key swap puts back the prior key and entry', async t => {
   const { w, oldDer, oldPin, code, key } = await rerun(t);
   writeFileSync(gitconfigFile(w), 'old gitconfig\n');
@@ -678,6 +713,7 @@ test('a re-run that fails after the key swap puts back the prior key and entry',
   assert.ok(existsSync(key));
 });
 
+// #602 C1: one failed put-back never skips the others, and the rollback says it was incomplete.
 test('a rollback that cannot put the old key back still puts back the pin and the gitconfig, and says it was incomplete', async t => {
   const { w, oldPin, code, key } = await rerun(t);
   writeFileSync(gitconfigFile(w), 'old gitconfig\n');
@@ -695,6 +731,7 @@ test('a rollback that cannot put the old key back still puts back the pin and th
   assert.ok(existsSync(key));
 });
 
+// #602 C1: setup refuses and writes nothing when the owner cannot be read, and says why.
 test('setup says the gh login could not be read, not that the pin check failed, and writes nothing', async t => {
   const w = fresh(t);
   w.state.ghReadFails.add('user');
@@ -703,6 +740,7 @@ test('setup says the gh login could not be read, not that the pin check failed, 
   untouched(w);
 });
 
+// #602 C1: setup revokes its test token whether or not the bot lookup works.
 test('setup revokes its test token when the bot lookup throws, and says so if it cannot', async t => {
   for (const revokeFails of [false, true]) {
     const w = fresh(t);
@@ -720,6 +758,7 @@ test('setup revokes its test token when the bot lookup throws, and says so if it
 });
 
 // The cache and the settings check, where nothing can be listed or read.
+// #602 C1: forget says when it could not list the cached tokens, and still removes the key.
 test('forget says so when the token cache cannot be listed, and still removes the key', async t => {
   const w = world(t);
   cachedToken(w, 'git');
@@ -729,6 +768,7 @@ test('forget says so when the token cache cannot be listed, and still removes th
   assert.equal(w.store.has(KEY), false);
 });
 
+// #602 C1: an unreadable cached token is deleted and counted as a revoke not confirmed.
 test('a cached token that cannot be read is deleted and counted as a revoke not confirmed', async t => {
   const w = world(t);
   cachedToken(w, 'git');
@@ -741,6 +781,7 @@ test('a cached token that cannot be read is deleted and counted as a revoke not 
 
 // ---------------------------------------------------------------- C1: forget
 
+// #602 C1: forget revokes the cached tokens, deletes the credentials and removes the pin entry and the gitconfig.
 test('forget revokes each cached token, deletes the credentials, and removes the pin entry and the gitconfig', async t => {
   const w = world(t);
   const tokens = [cachedToken(w, 'git'), cachedToken(w, 'gh')];
@@ -752,6 +793,7 @@ test('forget revokes each cached token, deletes the credentials, and removes the
   assert.equal(existsSync(gitconfigFile(w)), false);
 });
 
+// #602 C1 (r2 X-N3): forget refuses and keeps everything while the settings env points at the gitconfig.
 test('forget refuses while the settings env points GIT_CONFIG_GLOBAL at the gitconfig, and keeps everything', async t => {
   for (const spell of [p => p, p => p.replaceAll('\\', '/'), p => p.toUpperCase()]) {
     const w = world(t);
@@ -767,6 +809,7 @@ test('forget refuses while the settings env points GIT_CONFIG_GLOBAL at the gitc
   }
 });
 
+// #602 C1: forget says it forgot only when it did.
 test('forget does not say forgotten when the pin cannot be written or the gitconfig cannot be deleted', async t => {
   const pinFails = world(t);
   writeFileSync(gitconfigFile(pinFails), 'x\n');
@@ -783,6 +826,7 @@ test('forget does not say forgotten when the pin cannot be written or the gitcon
   assert.equal(printed(cfgFails).err, `gh-app: ${REASONS.left}\n`);
 });
 
+// #602 C1 (r4 X-N1): forget completes with an expired cached token.
 test('forget with an expired cached token (401 on revoke) completes', async t => {
   const w = world(t);
   const token = cachedToken(w, 'git');
@@ -793,6 +837,7 @@ test('forget with an expired cached token (401 on revoke) completes', async t =>
   assert.doesNotMatch(printed(w).out, /not confirmed/, 'a 401 counts as already revoked: no warning');
 });
 
+// #602 C1: a failed revoke does not stop forget deleting the credentials.
 test('forget goes on when a revoke fails otherwise: it prints one fixed line and still deletes', async t => {
   const w = world(t);
   cachedToken(w, 'git');
@@ -802,6 +847,7 @@ test('forget goes on when a revoke fails otherwise: it prints one fixed line and
   assert.equal(w.store.size, 0);
 });
 
+// #602 C1: forget removes one provider's credentials and entry, and no other.
 test('forget leaves the other providers\' entries and credentials', async t => {
   const w = world(t);
   w.store.set('the-pact/gh-app/codex/key', Buffer.from('k'));
@@ -814,6 +860,7 @@ test('forget leaves the other providers\' entries and credentials', async t => {
 
 // ---------------------------------------------------------------- the credential store's PowerShell call
 
+// #602 C3: no secret is in argv or the PowerShell script text.
 test('the credential store calls PowerShell by its fixed path with a fixed script; no secret is in argv or the script', () => {
   const calls = [];
   const secret = Buffer.from('s3cret-key-bytes-'.repeat(8));
@@ -851,6 +898,7 @@ test('the credential store calls PowerShell by its fixed path with a fixed scrip
   assert.doesNotMatch(PS_SCRIPT, /Write-Host|Write-Output|ConvertTo-SecureString|Out-File|Set-Content|\$input|Read-Host/, 'no cmdlet touches a secret');
 });
 
+// #602 C1: a credential store that fails or answers off-shape refuses rather than carrying on.
 test('the credential store refuses an error answer, a failed process and an answer that is not the shape', () => {
   for (const [stdout, status] of [['ERR 5', 0], ['OK', 1], ['', 0], ['garbage', 0]]) {
     const io = { env: {}, tmp: '.', fs: { mkdtempSync: () => 'x', rmSync: () => {} }, spawn: () => ({ status, stdout, stderr: '' }) };
@@ -862,7 +910,7 @@ test('the credential store refuses an error answer, a failed process and an answ
 
 // ---------------------------------------------------------------- C3: no secret in any output
 
-// C3: a spy over every mode, the cases the claim lists.
+// #602 C3: a spy over every mode, the cases the claim lists.
 test('no key, JWT or token appears in any output, argv, file or request body but git-credential get\'s reply on git\'s pipe', async t => {
   const w = fresh(t);
   const pem = keys().a.privateKey;
@@ -890,6 +938,7 @@ test('no key, JWT or token appears in any output, argv, file or request body but
   for (const s of w.spy.spawns) assert.ok(!`${s.file} ${s.args.join(' ')}`.includes(token));
 });
 
+// #602 C3: a malformed mint answer, even one that echoes a secret, gives only a fixed line.
 test('a malformed mint answer, even one that echoes a secret, gives only a fixed line', async t => {
   const w = world(t);
   const echo = `{"token": "${'q'.repeat(10)}", "message": "${derOf(keys().a.privateKey).toString('base64')}"`;
@@ -901,6 +950,7 @@ test('a malformed mint answer, even one that echoes a secret, gives only a fixed
   assert.ok(!leakSurface(w).includes(echo.slice(-40)));
 });
 
+// #602 C3: an error's message never reaches the output.
 test('an error with a message never reaches the output: a thrown Error prints the generic line', async t => {
   const w = world(t);
   w.io.fetch = async () => {
@@ -917,6 +967,7 @@ test('an error with a message never reaches the output: a thrown Error prints th
   assert.ok(!leakSurface(v).includes('kkkkkkkk'));
 });
 
+// #602 C3: no exported function prints a token.
 test('the module exports mintToken for code callers and no function that prints a token', async () => {
   const mod = await import('../../claude/tools/gh-app.mjs');
   assert.equal(typeof mod.mintToken, 'function');
