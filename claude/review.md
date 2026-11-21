@@ -327,9 +327,8 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me. In any session, post to
-  Linear only through the poster's Linear surfaces; where it has none, post
-  nothing to Linear.
+  can't explain, that is a hard stop: tell me. The poster is for GitHub; a
+  post to Linear goes as `~/.claude/tracker.md` says.
 
 ## Lens dispositions
 
