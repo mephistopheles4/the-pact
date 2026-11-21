@@ -108,7 +108,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   them closely, as for `cloud-sessions/`. Settings you save from Claude Code
   for this repo go to local scope, `.claude/settings.local.json`, never to
   `.claude/settings.json`.
-- **Read closely** (a merge touching one is a hard stop): `claude/tools/`, `claude/tracker.md`,
+- **Read closely** (a merge touching one is a hard stop): `claude/tools/`,
   the gate's code (`gate/` but its tests), `cloud-sessions/`,
   `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
   (whose text counts), the protected set below,
@@ -165,9 +165,11 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## The tracker
 
-- Issues on `mephistopheles4/the-pact`, with `-R`; Linear text: `~/.claude/tracker.md`. Assign the one you take
-  (`gh issue edit <n> --add-assignee @me`); unassign if you stop.
-- **Before you read or post to the tracker, act on its text, or check out or
+- Issues are on Linear, team `PACT`, project `the-pact`:
+  [Linear](docs/agents/issue-tracker.md#linear).
+  A GitHub issue: `-R`, assign
+  (`gh issue edit <n> --add-assignee @me`), unassign if you stop.
+- **Before you read or post to GitHub, act on its text, or check out or
   run a PR,** read
   [whose text counts](docs/agents/issue-tracker.md#whose-text-counts).
 - Sessions on one chain read
@@ -187,7 +189,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 ## Agent skills
 
 ### Issue tracker
-GitHub issues, via `gh`: [issue tracker](docs/agents/issue-tracker.md).
+Linear and GitHub (`gh`): [issue tracker](docs/agents/issue-tracker.md).
 ### Triage labels
 The five canonical roles: [triage labels](docs/agents/triage-labels.md).
 ### Domain docs
