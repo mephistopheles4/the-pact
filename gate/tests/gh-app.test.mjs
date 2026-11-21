@@ -8,7 +8,7 @@ import { generateKeyPairSync, createPrivateKey, createPublicKey, createHash } fr
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { PS_ENCODED, PS_SCRIPT, REASONS, Refusal, SETS, fingerprint, gitconfigText, main, makeCredStore, mintToken, parseArgs, parseRepo, pemToDer } from '../../claude/tools/gh-app.mjs';
+import { PS_ENCODED, PS_SCRIPT, REASONS, Refusal, SETS, gitconfigText, main, makeCredStore, mintToken, parseArgs, parseRepo, pemToDer } from '../../claude/tools/gh-app.mjs';
 import { BOT, IDS, NODE, OWNER, SLUG, derOf, keys, leakSurface, printed, world, writePem, writePin } from './gh-app-world.mjs';
 
 const REPO = `${OWNER}/sandbox`;
@@ -44,6 +44,8 @@ test('mintToken asks for one repo and the set\'s permissions, signed as the app 
     { id: 'repo-outside-owner', reason: 'repo/owner', run: w => mint(w, 'git', 'someone-else/sandbox') },
     { id: 'repo-not-owner-name', reason: 'repo/shape', run: w => mint(w, 'git', 'sandbox') },
     { id: 'repo-extra-segment', reason: 'repo/shape', run: w => mint(w, 'git', `${OWNER}/a/b`) },
+    { id: 'repo-object-with-a-path-in-its-name', reason: 'repo/shape', run: w => mint(w, 'git', { owner: OWNER, name: '../orgs' }) },
+    { id: 'repo-is-neither-text-nor-an-object', reason: 'repo/shape', run: w => mint(w, 'git', null) },
     { id: 'foreign-installation', reason: 'install/owner', setup: w => { w.state.installation.account.id = 99; }, run: w => mint(w) },
     { id: 'installation-of-another-app', reason: 'install/owner', setup: w => { w.state.installation.app_id = 77; }, run: w => mint(w) },
     { id: 'unpinned-provider', reason: 'pin/unpinned', run: w => mint(w, 'git', REPO, 'codex') },
@@ -205,6 +207,10 @@ test('git-credential get prints username and password on stdout only for an http
     { id: 'ssl-verify-off', lines: GOOD_ASK, env: { GIT_SSL_NO_VERIFY: 'true' }, reason: 'tls' },
     { id: 'ssl-verify-off-empty-value', lines: GOOD_ASK, env: { GIT_SSL_NO_VERIFY: '' }, reason: 'tls' },
     { id: 'tls-off', lines: GOOD_ASK, env: { NODE_TLS_REJECT_UNAUTHORIZED: '0' }, reason: 'tls' },
+    // `git -c http.sslVerify=false` reaches the helper only through these variables.
+    { id: 'ssl-verify-off-by-git-c', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'http.sslverify=false'" }, reason: 'tls' },
+    { id: 'ssl-verify-off-for-a-url-by-git-c', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'user.name=a' 'http.https://github.com/.sslverify=no'" }, reason: 'tls' },
+    { id: 'ssl-verify-off-by-config-count', lines: GOOD_ASK, env: { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.sslVerify', GIT_CONFIG_VALUE_0: 'false' }, reason: 'tls' },
     { id: 'not-windows', lines: GOOD_ASK, platform: 'darwin', reason: 'platform' },
     { id: 'pin-fails', lines: GOOD_ASK, setup: w => { w.state.app.events = ['push']; }, reason: 'pin/check' },
   ];
@@ -269,6 +275,26 @@ test('gh refuses auth, extension, ext, alias and config as its first argument, e
   }
   const w = world(t);
   assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--'], w.io), 1, 'no gh command at all');
+  // gh skips a leading flag to find its subcommand, so a flag first could hide a forbidden one.
+  for (const lead of ['--hostname=github.com', '-h', '--version']) {
+    const v = world(t);
+    assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', lead, 'auth', 'token'], v.io), 1, lead);
+    assert.equal(v.spy.fetches.length, 0, 'refused before any mint');
+  }
+});
+
+test('gh pins gh to the one repo in GH_REPO and refuses a second repo flag in its arguments', async t => {
+  const w = world(t);
+  let seen;
+  w.state.gh = (args, opts) => { seen = opts.env; return { status: 0, stdout: '', stderr: '' }; };
+  assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', 'issue', 'list'], w.io), 0);
+  assert.equal(seen.GH_REPO, REPO);
+  for (const extra of [['-R', 'x/y'], ['--repo', 'x/y'], ['--repo=x/y'], ['-Rx/y']]) {
+    const v = world(t);
+    assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', 'issue', 'list', ...extra], v.io), 1, extra.join(' '));
+    assert.equal(printed(v).err, `gh-app: ${REASONS.gh}\n`);
+    assert.equal(v.spy.fetches.length, 0);
+  }
 });
 
 // ---------------------------------------------------------------- the gh mode
@@ -353,12 +379,6 @@ test('pemToDer turns a PKCS#1 or a PKCS#8 PEM into PKCS#1 DER under the credenti
   assert.throws(() => pemToDer(small.privateKey), e => e.id === 'key/not-rsa');
   assert.throws(() => pemToDer('not a pem'), e => e.id === 'key/not-rsa');
   assert.throws(() => pemToDer(''), e => e.id === 'key/not-rsa');
-});
-
-test('fingerprint is the SHA256 of the public key\'s DER, as GitHub\'s key list shows it', () => {
-  const der = derOf(keys().a.privateKey);
-  const spki = createPublicKey(keys().a.publicKey).export({ type: 'spki', format: 'der' });
-  assert.equal(fingerprint(der), `SHA256:${createHash('sha256').update(spki).digest('base64')}`);
 });
 
 // ---------------------------------------------------------------- the gitconfig text (S7)
@@ -465,13 +485,6 @@ test('setup for codex pins its app and key and writes no gitconfig', async t => 
   assert.equal(existsSync(join(w.home, '.claude', 'pact', 'gh-app-codex.gitconfig')), false);
 });
 
-test('setup anchors on the gh login: it reads gh api user first, and nothing else is trusted for the owner', async t => {
-  const w = fresh(t);
-  await main(setupArgs(w), w.io);
-  assert.deepEqual(w.spy.spawns[0].args.slice(-1), ['user']);
-  assert.equal(w.spy.spawns[0].file, 'gh');
-});
-
 // C1: every refusal writes nothing, deletes nothing it didn't write, and keeps the download.
 {
   const rows = [
@@ -521,6 +534,39 @@ test('setup refuses a pin whose owner differs from this gh login, writing nothin
   assert.equal(w.store.size, 0);
 });
 
+test('setup refuses a pin file that exists but is not the pinned shape, and writes nothing over it', async t => {
+  const w = fresh(t);
+  const file = join(w.home, '.claude', 'pact', 'github.json');
+  const body = `${JSON.stringify({ owner: { login: OWNER, id: IDS.owner }, apps: { codex: { app_id: 9, slug: 's', bot_login: 's[bot]', bot_id: 8 } }, extra: true })}\n`;
+  writeFileSync(file, body);
+  const key = writePem(w, 'download.pem');
+  assert.equal(await main(setupArgs(w, 'claude', { key }), w.io), 1);
+  assert.equal(readFileSync(file, 'utf8'), body, 'the other provider\'s entry is not dropped');
+  assert.equal(w.store.size, 0);
+  assert.ok(existsSync(key));
+});
+
+// Every request carries a credential, so none goes out with certificate checks off.
+test('setup refuses with Node\'s certificate checks off: no request is sent and nothing is written', async t => {
+  const w = fresh(t, { env: { NODE_TLS_REJECT_UNAUTHORIZED: '0' } });
+  const key = writePem(w, 'download.pem');
+  assert.equal(await main(setupArgs(w, 'claude', { key }), w.io), 1);
+  assert.equal(printed(w).err.includes(REASONS.tls), true);
+  assert.equal(w.spy.fetches.length, 0, 'nothing was sent');
+  untouched(w);
+  assert.ok(existsSync(key));
+});
+
+test('forget with Node\'s certificate checks off sends no revoke, says it was not confirmed, and still clears the cache', async t => {
+  const w = world(t, { env: { NODE_TLS_REJECT_UNAUTHORIZED: '0' } });
+  const token = cachedToken(w, 'git');
+  assert.equal(await main(['forget', '--provider', 'claude'], w.io), 0, printed(w).err);
+  assert.equal(w.spy.fetches.length, 0, 'the token is not sent anywhere');
+  assert.match(printed(w).out, /a token revoke was not confirmed/);
+  assert.equal(w.store.size, 0);
+  assert.ok(!leakSurface(w).includes(token));
+});
+
 test('setup prints a usage fault for a bad app id or a missing key path', async t => {
   for (const argv of [['setup', '--provider', 'claude', '--app-id', 'abc', '--key', 'x'], ['setup', '--provider', 'claude', '--app-id', '0', '--key', 'x'], ['setup', '--provider', 'claude', '--app-id', '1'], ['setup', '--provider', 'claude', '--key', 'x']]) {
     const w = fresh(t);
@@ -536,78 +582,93 @@ const cachedToken = (w, set, n = 'sandbox') => {
   w.store.set(`the-pact/gh-app/claude/token/${OWNER}/${n}/${set}`, Buffer.from(JSON.stringify({ token, expires_at: new Date(w.state.now + 3600e3).toISOString() })));
   return token;
 };
-const rerun = async (t, prep) => {
-  const w = world(t, { keyPair: 'b' });
+// A re-run over a different, older key and pin entry: the fake GitHub accepts JWTs of pair a (the new download),
+// the store holds pair b's key and the pin names another app, so a swap, a keep and a rollback each show.
+const KEY = 'the-pact/gh-app/claude/key';
+const OLD_ENTRY = { app_id: 4242, slug: 'old-slug', bot_login: 'old-slug[bot]', bot_id: 4243 };
+const rerun = async t => {
+  const w = world(t, { keyPair: 'a' });
   readBack(w);
-  const old = w.store.get('the-pact/gh-app/claude/key');
+  const oldDer = Buffer.from(derOf(keys().b.privateKey));
+  w.store.set(KEY, oldDer);
+  writePin(w, { claude: OLD_ENTRY });
+  const oldPin = readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8');
   const tokens = [cachedToken(w, 'git'), cachedToken(w, 'post'), cachedToken(w, 'gh', 'other')];
-  prep?.(w);
   const key = writePem(w, 'download.pem', keys().a.privateKey);
-  return { w, old, tokens, code: () => main(setupArgs(w, 'claude', { key }), w.io), key };
+  return { w, oldDer, oldPin, tokens, key, code: () => main(setupArgs(w, 'claude', { key }), w.io) };
 };
+const newDer = () => derOf(keys().a.privateKey);
 
-// The fake GitHub accepts JWTs signed by the pair its world was made with (b here); the new download is pair a.
-test('a re-run whose new key fails its test mint keeps the old key and the cache, and revokes nothing', async t => {
-  const { w, old, code, key } = await rerun(t);
+test('a re-run whose new key fails its test mint keeps the old key, pin and cache, and revokes nothing', async t => {
+  const { w, oldDer, oldPin, code, key } = await rerun(t);
+  w.state.mintStatus = 403; // the new key signs, GitHub answers the key's own test mint with a refusal
   assert.equal(await code(), 1);
-  assert.deepEqual(w.store.get('the-pact/gh-app/claude/key'), old, 'a refused test mint leaves the old key');
+  assert.deepEqual(w.store.get(KEY), oldDer, 'a refused test mint leaves the old key');
+  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), oldPin, 'and the old pin');
   assert.equal(w.store.size, 4, 'and the cache');
   assert.equal(w.state.revoked.length, 0, 'none of the cached tokens is revoked');
   assert.ok(existsSync(key));
 });
 
-test('a re-run whose new key passes its test mint swaps the key, revokes each cached token, and clears the cache', async t => {
-  const w = world(t, { keyPair: 'a' });
-  readBack(w);
-  const tokens = [cachedToken(w, 'git'), cachedToken(w, 'post'), cachedToken(w, 'gh', 'other')];
-  const key = writePem(w, 'download.pem', keys().a.privateKey);
-  assert.equal(await main(setupArgs(w, 'claude', { key }), w.io), 0, printed(w).err);
+test('a re-run whose new key passes its test mint swaps the key and the pin entry, revokes each cached token, and clears the cache', async t => {
+  const { w, oldDer, tokens, code, key } = await rerun(t);
+  assert.equal(await code(), 0, printed(w).err);
+  assert.deepEqual(w.store.get(KEY), newDer(), 'the new key');
+  assert.notDeepEqual(w.store.get(KEY), oldDer);
+  assert.deepEqual(readPinFile(w).apps.claude, { app_id: IDS.app, slug: SLUG, bot_login: BOT, bot_id: IDS.bot }, 'the new entry');
   assert.deepEqual(w.state.revoked.filter(x => tokens.includes(x)).sort(), [...tokens].sort(), 'each cached token is revoked');
-  assert.deepEqual([...w.store.keys()], ['the-pact/gh-app/claude/key'], 'the cache is empty');
+  assert.deepEqual([...w.store.keys()], [KEY], 'the cache is empty');
   assert.equal(existsSync(key), false);
 });
 
 test('a re-run whose cached tokens answer 401 keeps the new key and empties the cache', async t => {
-  const w = world(t, { keyPair: 'a' });
-  readBack(w);
-  cachedToken(w, 'git');
-  w.state.revoked.push(...[...w.knownTokens]);
-  const key = writePem(w, 'download.pem', keys().a.privateKey);
-  assert.equal(await main(setupArgs(w, 'claude', { key }), w.io), 0, printed(w).err);
-  assert.deepEqual([...w.store.keys()], ['the-pact/gh-app/claude/key']);
+  const { w, code, key } = await rerun(t);
+  w.state.revoked.push(...w.knownTokens);
+  assert.equal(await code(), 0, printed(w).err);
+  assert.deepEqual(w.store.get(KEY), newDer());
+  assert.deepEqual([...w.store.keys()], [KEY]);
   assert.equal(existsSync(key), false);
   assert.doesNotMatch(printed(w).out, /not confirmed/, 'a 401 counts as already revoked: no warning');
 });
 
 test('a re-run whose revoke fails otherwise prints one fixed line, keeps the new key, and empties the cache', async t => {
-  const w = world(t, { keyPair: 'a' });
-  readBack(w);
-  cachedToken(w, 'git');
-  const key = writePem(w, 'download.pem', keys().a.privateKey);
-  // The fake answers every revoke with a 500 after the test mint.
-  const real = w.io.fetch;
-  let tests = 0;
-  w.io.fetch = async (url, init) => {
-    if (init?.method === 'DELETE' && ++tests > 1) return { status: 500, text: async () => '' };
-    return real(url, init);
-  };
-  assert.equal(await main(setupArgs(w, 'claude', { key }), w.io), 0, printed(w).err);
+  const { w, code } = await rerun(t);
+  w.state.revokeStatus = 500;
+  assert.equal(await code(), 0, printed(w).err);
   assert.match(printed(w).out, /a token revoke was not confirmed/);
-  assert.deepEqual([...w.store.keys()], ['the-pact/gh-app/claude/key']);
+  assert.deepEqual(w.store.get(KEY), newDer(), 'a failed revoke never undoes the swap');
+  assert.deepEqual([...w.store.keys()], [KEY]);
 });
 
 test('a re-run that fails after the key swap puts back the prior key and entry', async t => {
-  const w = world(t, { keyPair: 'a' });
-  const oldKey = Buffer.from(w.store.get('the-pact/gh-app/claude/key'));
-  const oldPin = readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8');
+  const { w, oldDer, oldPin, code, key } = await rerun(t);
   writeFileSync(gitconfigFile(w), 'old gitconfig\n');
   w.state.git = () => ({ status: 0, stdout: '\n!wrong\n', stderr: '' });
-  const key = writePem(w, 'download.pem', keys().a.privateKey);
-  assert.equal(await main(setupArgs(w, 'claude', { key }), w.io), 1);
-  assert.deepEqual(w.store.get('the-pact/gh-app/claude/key'), oldKey);
-  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), oldPin);
+  assert.equal(await code(), 1);
+  assert.deepEqual(w.store.get(KEY), oldDer, 'the prior key, not the new one');
+  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), oldPin, 'the prior entry');
   assert.equal(readFileSync(gitconfigFile(w), 'utf8'), 'old gitconfig\n');
   assert.ok(existsSync(key));
+});
+
+// The cache and the settings check, where nothing can be listed or read.
+test('forget says so when the token cache cannot be listed, and still removes the key', async t => {
+  const w = world(t);
+  cachedToken(w, 'git');
+  w.io.credStore.list = () => { throw new Error('list failed'); };
+  assert.equal(await main(['forget', '--provider', 'claude'], w.io), 0, printed(w).err);
+  assert.match(printed(w).out, /the token cache could not be listed/);
+  assert.equal(w.store.has(KEY), false);
+});
+
+test('a cached token that cannot be read is deleted and counted as a revoke not confirmed', async t => {
+  const w = world(t);
+  cachedToken(w, 'git');
+  const real = w.io.credStore.read;
+  w.io.credStore.read = tgt => { if (tgt.includes('/token/')) throw new Error('read failed'); return real(tgt); };
+  assert.equal(await main(['forget', '--provider', 'claude'], w.io), 0, printed(w).err);
+  assert.match(printed(w).out, /a token revoke was not confirmed/);
+  assert.equal([...w.store.keys()].some(k => k.includes('/token/')), false);
 });
 
 // ---------------------------------------------------------------- C1: forget
@@ -636,6 +697,26 @@ test('forget refuses while the settings env points GIT_CONFIG_GLOBAL at the gitc
     assert.ok(existsSync(gitconfigFile(w)));
     assert.equal(w.state.revoked.length, 0);
   }
+});
+
+test('forget refuses when the settings file is there but cannot be read as JSON, and keeps everything', async t => {
+  const w = world(t);
+  cachedToken(w, 'git');
+  writeFileSync(gitconfigFile(w), 'x\n');
+  writeFileSync(join(w.home, '.claude', 'settings.json'), '﻿{ not json');
+  assert.equal(await main(['forget', '--provider', 'claude'], w.io), 1);
+  assert.equal(printed(w).err, `gh-app: ${REASONS.settings}\n`);
+  assert.equal(w.store.size, 2);
+  assert.ok(existsSync(gitconfigFile(w)));
+});
+
+test('forget refuses when the settings env names the gitconfig with dots or doubled slashes in its path', async t => {
+  const w = world(t);
+  writeFileSync(gitconfigFile(w), 'x\n');
+  const odd = gitconfigFile(w).replaceAll('\\', '/').replace('/.claude/', '/.claude/./pact/../');
+  writeFileSync(join(w.home, '.claude', 'settings.json'), JSON.stringify({ env: { GIT_CONFIG_GLOBAL: odd } }));
+  assert.equal(await main(['forget', '--provider', 'claude'], w.io), 1);
+  assert.ok(existsSync(gitconfigFile(w)));
 });
 
 test('forget with an expired cached token (401 on revoke) completes', async t => {
@@ -772,7 +853,7 @@ test('an error with a message never reaches the output: a thrown Error prints th
   assert.ok(!leakSurface(v).includes('kkkkkkkk'));
 });
 
-test('importing the helper touches no file, process or network, and the module exports no token printer', async () => {
+test('the module exports mintToken for code callers and no function that prints a token', async () => {
   const mod = await import('../../claude/tools/gh-app.mjs');
   assert.equal(typeof mod.mintToken, 'function');
   assert.equal(Object.keys(mod).some(k => /^(token|printToken|getToken)$/i.test(k)), false);

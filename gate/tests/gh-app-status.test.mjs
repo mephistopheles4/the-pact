@@ -6,9 +6,10 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { main } from '../../claude/tools/gh-app.mjs';
-import { BOT, IDS, NODE, OWNER, SLUG, leakSurface, printed, world } from './gh-app-world.mjs';
+import { BOT, IDS, NODE, OWNER, leakSurface, printed, world } from './gh-app-world.mjs';
 
-const PACT = `!"C:/Program Files/nodejs/node.exe" "C:/Users/alice/.claude/pact/tools/gh-app.mjs" git-credential --provider claude`;
+// The exact helper line the gitconfig writes; the world's home is filled in by gitWith.
+const PACT = '!"C:/Program Files/nodejs/node.exe" "@HOME@/.claude/pact/tools/gh-app.mjs" git-credential --provider claude';
 const BOT_EMAIL = `${IDS.bot}+${BOT}@users.noreply.github.com`;
 const CANARY = `canary${'q'.repeat(18)}`;
 
@@ -21,7 +22,7 @@ const gitWith = (w, cfg = {}) => {
     const a = args[0] === '-C' ? args.slice(2) : args;
     if (a[0] === 'remote') return c.remote ? ok(`${c.remote}\n`) : no;
     if (a[0] !== 'config') return no;
-    if (a.includes('--get-regexp') && a.at(-1).startsWith('^credential')) return ok(c.helpers.map(h => `${h.scope}\t${h.key} ${h.value}`.trimEnd()).join('\n') + '\n');
+    if (a.includes('--get-regexp') && a.at(-1).startsWith('^credential')) return ok(c.helpers.map(h => `${h.scope}\t${h.key} ${h.value.replace('@HOME@', w.home.replaceAll('\\', '/'))}`.trimEnd()).join('\n') + '\n');
     if (a.includes('--get-regexp') && a.at(-1).startsWith('^url')) return ok(c.rewrites.join('\n') + '\n');
     if (a.at(-1) === 'user.email') return c.email ? ok(`${c.email}\n`) : no;
     if (a.at(-1) === 'core.askPass') return c.askpass ? ok(`${c.askpass}\n`) : no;
@@ -151,10 +152,8 @@ test('status reads the gitconfig\'s node path and says only whether it still exi
   const w = world(t);
   gitWith(w, { helpers: GOOD });
   writeFileSync(join(w.home, '.claude', 'pact', 'gh-app-claude.gitconfig'), `[credential "https://github.com"]\n  helper =\n  helper = "!\\"${NODE.replaceAll('\\', '/')}\\" \\"x/gh-app.mjs\\" git-credential --provider claude"\n`);
-  const real = w.io.fs.existsSync;
   w.io.fs = { ...w.io.fs, existsSync: p => { exists.push(p); return p === NODE.replaceAll('\\', '/'); } };
   await main(['status', '--provider', 'claude'], w.io);
-  void real;
   assert.ok(printed(w).out.includes('gitconfig node path exists: yes'));
   assert.ok(!printed(w).out.includes('nodejs'), 'the path is not printed');
   w.io.fs = { ...w.io.fs, existsSync: () => false };
@@ -171,5 +170,28 @@ test('status passes -C to git when --repo is given, and runs git from a fresh em
   assert.ok(gits.length >= 5);
   for (const g of gits) assert.deepEqual(g.args.slice(0, 2), ['-C', join(w.home, 'repo')]);
   for (const c of w.spy.cwdChecks) assert.deepEqual(c.entries, []);
-  assert.equal(SLUG, 'example-owner-claude');
+});
+
+// git reads a config pattern as a POSIX extended regex, where (?:) is an error, and a push may go to a different address than a fetch.
+test('status reads the push address and asks git for rewrites with a pattern git accepts', async t => {
+  const w = world(t);
+  gitWith(w, { helpers: GOOD });
+  await main(['status', '--provider', 'claude'], w.io);
+  const gits = w.spy.spawns.filter(s => s.file === 'git').map(s => s.args);
+  assert.ok(gits.some(a => a[0] === 'remote' && a.includes('--push')), 'the push address');
+  const rewrite = gits.find(a => a.includes('--get-regexp') && a.at(-1).startsWith('^url'));
+  assert.ok(rewrite, 'the rewrite lookup runs');
+  assert.doesNotMatch(rewrite.at(-1), /\(\?/, 'no Perl-style group');
+});
+
+test('status reads a helper as the pact\'s only when its text is the exact line the gitconfig writes', async t => {
+  const look = { scope: 'global', key: 'credential.https://github.com.helper', value: '!echo gh-app.mjs git-credential --provider claude' };
+  const r = await run(t, { helpers: [H('global', ''), look] });
+  assert.ok(r.lines.includes('helper 1: scope global, shell'));
+  assert.ok(r.lines.includes('pact helper resolved: no'));
+});
+
+test('status counts a helper keyed by the default port and by user info as applying to github.com', async t => {
+  const r = await run(t, { helpers: [H('global', 'manager', 'https://user@github.com:443')] });
+  assert.ok(r.lines.includes('helpers: 1'));
 });

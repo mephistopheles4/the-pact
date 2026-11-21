@@ -26,7 +26,7 @@ import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const PROVIDERS = Object.freeze(['claude', 'codex', 'antigravity']);
@@ -372,6 +372,8 @@ export function checkPin(io, pin, provider) {
 /** One GitHub call. `auth` is a JWT or an installation token; the body is JSON. Returns { status, json }. */
 async function api(io, method, path, { auth, body } = {}) {
   if (!path.startsWith('/')) refuse('shape');
+  // Every request carries a credential, so none goes out with certificate checks off.
+  if (lowerEnv(io.env, 'NODE_TLS_REJECT_UNAUTHORIZED') === '0') refuse('tls');
   guard(io, auth);
   let res;
   let text;
@@ -495,7 +497,8 @@ export async function mintToken({ provider, repo, set }, io = realIo()) {
   if (!PROVIDERS.includes(provider)) refuse('provider');
   if (!Object.hasOwn(SETS, set)) refuse('usage');
   if (lowerEnv(io.env, 'NODE_TLS_REJECT_UNAUTHORIZED') === '0') refuse('tls');
-  const { owner, name } = typeof repo === 'string' ? parseRepo(repo) : repo ?? refuse('repo/shape');
+  // An object repo is held to the same shape as the text form: callers in code (the poster, T3) pass either.
+  const { owner, name } = parseRepo(typeof repo === 'string' ? repo : isObject(repo) ? `${repo.owner}/${repo.name}` : null);
   const pin = readPin(io);
   const app = pin.apps[provider] ?? refuse('pin/unpinned');
   if (!sameLogin(owner, pin.owner.login)) refuse('repo/owner');
@@ -531,28 +534,37 @@ export async function mintToken({ provider, repo, set }, io = realIo()) {
 async function dropCache(io, provider) {
   let unconfirmed = 0;
   let targets = [];
+  let listed = true;
   try {
     targets = io.credStore.list(tokenPrefix(provider));
   } catch {
-    unconfirmed += 1;
+    listed = false;
   }
   for (const t of targets) {
     let token = null;
+    let readable = true;
     try {
       const bytes = io.credStore.read(t);
       const v = bytes ? JSON.parse(bytes.toString('utf8')) : null;
       if (isObject(v) && typeof v.token === 'string' && TOKEN_RE.test(v.token)) token = v.token;
     } catch {
-      // an unreadable entry is deleted below
+      readable = false;
     }
-    if (token && (await revoke(io, token)) !== 'revoked') unconfirmed += 1;
+    // A token that could not be read cannot be revoked: it is deleted below and counted as unconfirmed.
+    if (!readable || (token && (await revoke(io, token)) !== 'revoked')) unconfirmed += 1;
     try {
       io.credStore.delete(t);
     } catch {
       unconfirmed += 1;
     }
   }
-  return unconfirmed;
+  return { unconfirmed, listed };
+}
+
+/** The fixed lines for what dropCache could not do. */
+function cacheLines(io, who, { unconfirmed, listed }) {
+  if (!listed) say(io, `${who}: the token cache could not be listed, so it was not cleared; each cached token lives at most an hour`);
+  if (unconfirmed) say(io, `${who}: a token revoke was not confirmed; each lives at most an hour`);
 }
 
 /** Atomic text write: a sibling temp file, then a rename. */
@@ -611,12 +623,8 @@ async function setup(io, { provider, appId, keyPath }) {
   guard(io, der.toString('base64'));
   const jwt = makeJwt(io, appId, der);
 
-  let pinNow = null;
-  try {
-    pinNow = readPin(io);
-  } catch {
-    pinNow = null;
-  }
+  // A pin file that exists but is not the pinned shape is never taken for a first run: readPin refuses it, and nothing is written.
+  const pinNow = io.fs.existsSync(pinPath(io.home)) ? readPin(io) : null;
   if (pinNow && (pinNow.owner.id !== me.id || !sameLogin(pinNow.owner.login, me.login))) refuse('pin/owner');
 
   const appRes = await api(io, 'GET', '/app', { auth: jwt });
@@ -677,7 +685,7 @@ async function setup(io, { provider, appId, keyPath }) {
     say(io, `setup: the key file is still at ${keyPath}`, 'err');
     throw e instanceof Refusal ? e : new Refusal('refused');
   }
-  const unconfirmed = await dropCache(io, provider);
+  const dropped = await dropCache(io, provider);
   try {
     io.fs.unlinkSync(keyPath);
   } catch {
@@ -685,7 +693,7 @@ async function setup(io, { provider, appId, keyPath }) {
   }
   say(io, `setup: ${provider} pinned as ${entry.bot_login}`);
   say(io, `setup: key fingerprint ${fp}; match it on the app's key list`);
-  if (revoked !== 'revoked' || unconfirmed) say(io, 'setup: a token revoke was not confirmed; each lives at most an hour');
+  cacheLines(io, 'setup', { ...dropped, unconfirmed: dropped.unconfirmed + (revoked === 'revoked' ? 0 : 1) });
 }
 
 // ---------------------------------------------------------------- git-credential
@@ -701,6 +709,17 @@ function readRequest(text) {
   return out;
 }
 
+/** Whether a `git -c` or GIT_CONFIG_COUNT setting in the environment turns http.sslVerify off, for any url. */
+function sslVerifyOffByEnv(env) {
+  const off = v => /^(?:false|no|off|0)$/i.test(String(v ?? '').trim());
+  const key = k => /^http\.(?:[^=\s]*\.)?sslverify$/i.test(k);
+  const packed = lowerEnv(env, 'GIT_CONFIG_PARAMETERS') ?? '';
+  for (const m of packed.matchAll(/'([^'=]*)=([^']*)'|'([^'=]*)'/g)) if (key(m[1] ?? m[3] ?? '') && off(m[2])) return true;
+  const n = Number.parseInt(lowerEnv(env, 'GIT_CONFIG_COUNT') ?? '0', 10);
+  for (let i = 0; i < (Number.isSafeInteger(n) ? Math.min(n, 1000) : 0); i += 1) if (key(lowerEnv(env, `GIT_CONFIG_KEY_${i}`) ?? '') && off(lowerEnv(env, `GIT_CONFIG_VALUE_${i}`))) return true;
+  return false;
+}
+
 /** git-credential: `get` answers on git's pipe; `store` and `erase` do nothing. A refusal prints nothing on stdout and exits 0. */
 async function gitCredential(io, provider, op) {
   if (op === 'store' || op === 'erase') return;
@@ -710,7 +729,7 @@ async function gitCredential(io, provider, op) {
     if (q.protocol !== 'https' || q.host !== 'github.com' || typeof q.path !== 'string') refuse('repo/shape');
     needWindows(io);
     // git reads GIT_SSL_NO_VERIFY as set for any value, an empty one included.
-    if (lowerEnv(io.env, 'GIT_SSL_NO_VERIFY') !== undefined) refuse('tls');
+    if (lowerEnv(io.env, 'GIT_SSL_NO_VERIFY') !== undefined || sslVerifyOffByEnv(io.env)) refuse('tls');
     // mintToken refuses a repo outside the pinned owner before any spawn or request.
     const token = await mintToken({ provider, repo: parseRepo(q.path, true), set: 'git' }, io);
     io.out(`username=x-access-token\npassword=${token}\n`);
@@ -723,12 +742,14 @@ async function gitCredential(io, provider, op) {
 
 /** gh with a `gh`-set token in GH_TOKEN, from a fresh empty folder; output lines that hold the token are withheld. */
 async function ghMode(io, provider, repoArg, args) {
-  if (args.length === 0 || GH_FORBIDDEN_FIRST.has(String(args[0]).toLowerCase())) refuse('gh');
+  // The first argument is the subcommand: a leading flag could hide a forbidden one from the check. A second repo flag could point gh past the repo the token is narrowed to.
+  if (args.length === 0 || String(args[0]).startsWith('-') || GH_FORBIDDEN_FIRST.has(String(args[0]).toLowerCase())) refuse('gh');
+  if (args.some(a => /^(?:-R|--repo)(?:=|$)|^-R./.test(String(a)))) refuse('gh');
   const repo = parseRepo(repoArg);
   const token = await mintToken({ provider, repo, set: 'gh' }, io);
   guard(io, token);
   const run = makeRun(io);
-  const r = run('gh', args, { env: cleanEnv(io.env, { GH_TOKEN: token }), keep: true });
+  const r = run('gh', args, { env: cleanEnv(io.env, { GH_TOKEN: token, GH_REPO: `${repo.owner}/${repo.name}` }), keep: true });
   for (const [text, stream] of [[r.stdout, 'out'], [r.stderr, 'err']]) {
     for (const l of text.split(/\r?\n/)) if (l !== '') io[stream](`${l.includes(token) ? '(withheld)' : l}\n`);
   }
@@ -738,16 +759,19 @@ async function ghMode(io, provider, repoArg, args) {
 // ---------------------------------------------------------------- forget
 
 async function forget(io, provider) {
-  let env;
-  try {
-    env = JSON.parse(io.fs.readFileSync(settingsPath(io.home), 'utf8'))?.env;
-  } catch {
-    env = null;
+  let env = null;
+  if (io.fs.existsSync(settingsPath(io.home))) {
+    // A settings file that is there but cannot be read as JSON stops forget: it may still point at the gitconfig.
+    try {
+      env = JSON.parse(io.fs.readFileSync(settingsPath(io.home), 'utf8'))?.env ?? null;
+    } catch {
+      return refuse('settings');
+    }
   }
-  const mine = slash(gitconfigPath(io.home, provider)).toLowerCase();
-  const pointed = isObject(env) && typeof env.GIT_CONFIG_GLOBAL === 'string' && slash(env.GIT_CONFIG_GLOBAL).toLowerCase() === mine;
+  const norm = p => posix.normalize(slash(p)).toLowerCase();
+  const pointed = isObject(env) && typeof env.GIT_CONFIG_GLOBAL === 'string' && norm(env.GIT_CONFIG_GLOBAL) === norm(gitconfigPath(io.home, provider));
   if (pointed) refuse('settings');
-  const unconfirmed = await dropCache(io, provider);
+  const dropped = await dropCache(io, provider);
   try {
     io.credStore.delete(keyTarget(provider));
   } catch {
@@ -766,14 +790,15 @@ async function forget(io, provider) {
     // none written
   }
   say(io, `forget: ${provider} forgotten`);
-  if (unconfirmed) say(io, 'forget: a token revoke was not confirmed; each lives at most an hour');
+  cacheLines(io, 'forget', dropped);
 }
 
 // ---------------------------------------------------------------- status
 
-const helperClass = (text, provider) => {
+/** The class of one helper line. `pact` is the exact line the gitconfig writes, so look-alike text reads as shell. */
+const helperClass = (text, pactText) => {
   const body = text.startsWith('!') ? text.slice(1) : text;
-  if (text.startsWith('!') && /gh-app\.mjs/.test(body) && new RegExp(`git-credential\\s+--provider\\s+${provider}\\b`).test(body)) return 'pact';
+  if (text.toLowerCase() === pactText.toLowerCase()) return 'pact';
   if (/(?:^|[\\/"'\s])gh(?:\.exe)?["']?\s+auth\s+git-credential/i.test(body)) return 'github-cli';
   const prog = basename(body.trim().replace(/^["']/, '').split(/["']|\s/)[0] ?? '').replace(/\.exe$/i, '').toLowerCase();
   if (/^(?:manager|manager-core|git-credential-manager(?:-core)?)$/.test(prog)) return 'gcm';
@@ -786,7 +811,8 @@ function urlApplies(url, owner, name) {
   if (url === '') return true;
   const m = /^https:\/\/([^/]+)(\/.*)?$/i.exec(url);
   if (!m) return false;
-  const host = m[1].toLowerCase();
+  // As git's urlmatch reads it: user info and the default port do not change the host.
+  const host = m[1].replace(/^[^@]*@/, '').replace(/:443$/, '').toLowerCase();
   const wild = host.includes('*') ? new RegExp(`^${host.split('*').map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^.]*')}$`) : null;
   if (host !== 'github.com' && !(wild && wild.test('github.com'))) return false;
   const path = (m[2] ?? '').replace(/\/$/, '').toLowerCase();
@@ -836,8 +862,11 @@ async function status(io, provider, repoDir) {
   }
   say(io, `gitconfig node path exists: ${nodeExists ? 'yes' : 'no'}`);
 
-  const remote = git(['remote', 'get-url', 'origin']);
+  // The push address, as a push would use it (pushInsteadOf applied), and the configured one, which the rewrite rules are read against.
+  const remote = git(['remote', 'get-url', '--push', 'origin']);
   const url = remote.ok ? remote.stdout.trim() : '';
+  const configured = git(['config', '--get', 'remote.origin.url']);
+  const raw = configured.ok ? configured.stdout.trim() : url;
   let owner = pin?.owner.login ?? 'x';
   let name = 'x';
   let proto = 'none';
@@ -846,11 +875,13 @@ async function status(io, provider, repoDir) {
     const m = /^https:\/\/(?:[^@/]*@)?github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/i.exec(url);
     proto = /^https:/i.test(url) ? 'https' : /^(?:ssh:|git@)/i.test(url) ? 'ssh' : 'other';
     if (m) [, owner, name] = m;
-    try {
-      const u = new URL(url);
-      if (u.username || u.password) creds = 'yes';
-    } catch {
-      // a scp-style URL has none
+    for (const each of [url, raw]) {
+      try {
+        const u = new URL(each);
+        if (u.username || u.password) creds = 'yes';
+      } catch {
+        // a scp-style URL has none
+      }
     }
   }
   const list = git(['config', '--show-scope', '--get-regexp', '^credential\\..*helper$']);
@@ -864,7 +895,7 @@ async function status(io, provider, repoDir) {
       effective.length = 0;
       continue;
     }
-    effective.push({ scope: m[1], cls: helperClass(text, provider) });
+    effective.push({ scope: m[1], cls: helperClass(text, `!"${NODE_PATHS[0]}" "${helperPath(io.home)}" git-credential --provider ${provider}`) });
   }
   const at = effective.findIndex(h => h.cls === 'pact');
   say(io, `helpers: ${effective.length}`);
@@ -877,10 +908,11 @@ async function status(io, provider, repoDir) {
   const askpass = git(['config', '--get', 'core.askPass']);
   const askSet = (askpass.ok && askpass.stdout.trim() !== '') || ['GIT_ASKPASS', 'SSH_ASKPASS'].some(k => (lowerEnv(io.env, k) ?? '') !== '');
   say(io, `askpass: ${askSet ? 'set' : 'not set'}`);
-  const rewrites = git(['config', '--get-regexp', '^url\\..*\\.(?:pushinsteadof|insteadof)$']);
+  // git reads the pattern as a POSIX extended regex: a plain group, never (?:).
+  const rewrites = git(['config', '--get-regexp', '^url\\..*\\.(pushinsteadof|insteadof)$']);
   const rewritten = rewrites.stdout.split(/\r?\n/).some(l => {
     const v = l.replace(/^\S+\s+/, '');
-    return v !== '' && url.toLowerCase().startsWith(v.toLowerCase());
+    return v !== '' && raw.toLowerCase().startsWith(v.toLowerCase());
   });
   say(io, `url rewrite applies: ${rewritten ? 'yes' : 'no'}`);
   const target = `https://github.com/${owner}/${name}`;
