@@ -51,7 +51,7 @@
 // The commands list (#203) turns on pact commands: unique names from
 // PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
 // The tools list (#280) does the same for pact tools, from PACT_TOOLS, off by
-// default. A tool that is on also fills its marked part of the rules file from
+// default; gh-app is on PACT_TOOLS but the list refuses it (see checkTools). A tool that is on also fills its marked part of the rules file from
 // a fixed template (TOOL_PARTS); off, the part stays empty, so the render is
 // byte for byte what it is without the tool. No edit may target such a part.
 // A setting fills its open part from a fixed template with the checked number;
@@ -956,8 +956,14 @@ function checkTools(v, fail) {
     fail('config-tools', 'tools must be a list of pact tool names');
     return null;
   }
-  if (v.some(n => !PACT_TOOLS.some(c => c === n))) {
-    fail('config-tools', `tools names a tool this pact does not have; only ${PACT_TOOLS.join(', ')} can be turned on`);
+  // #599 (r3 X-N3): the agent-identity switch adds gh-app, never this list.
+  if (v.some(n => n === 'gh-app')) {
+    fail('config-tools', 'gh-app cannot be turned on by the tools list; only the agent-identity switch installs it');
+    return null;
+  }
+  const listable = PACT_TOOLS.filter(c => c !== 'gh-app');
+  if (v.some(n => !listable.some(c => c === n))) {
+    fail('config-tools', `tools names a tool this pact does not have; only ${listable.join(', ')} can be turned on`);
     return null;
   }
   if (new Set(v).size !== v.length) {

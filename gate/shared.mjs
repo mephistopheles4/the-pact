@@ -20,7 +20,9 @@ const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium', 'scry
 // names it: off by default. Seam A and the renderer read this one list; the
 // install keeps its own copy (install-core.mjs), held to this one by a test.
 // Adding a name is a change to gate code, so it needs a bad case (AGENTS.md).
-const PACT_TOOLS = Object.freeze(['poster', 'cleaner']);
+// gh-app (#599) is on the list so seam A takes its file, but the renderer
+// refuses it in the tools list: only the agent-identity switch installs it.
+const PACT_TOOLS = Object.freeze(['poster', 'cleaner', 'gh-app']);
 // The cleaner's deny rules (#438 S2.3), for the builder page to show (#464 T8).
 // The install keeps its own copy (install-core.mjs), which it acts on, held to
 // this one by a test.

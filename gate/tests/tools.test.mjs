@@ -22,7 +22,7 @@ const GOOD = "console.log('a tool');\n";
 // #280 C3
 test('the pact tool list is one list: the install keeps the same names in the same order', () => {
   assert.deepEqual([...INSTALL_TOOLS], [...PACT_TOOLS]);
-  assert.deepEqual([...PACT_TOOLS], ['poster', 'cleaner']);
+  assert.deepEqual([...PACT_TOOLS], ['poster', 'cleaner', 'gh-app']);
   assert.ok(Object.isFrozen(PACT_TOOLS) && Object.isFrozen(INSTALL_TOOLS));
 });
 
@@ -96,6 +96,21 @@ const args = (...a) => JSON.stringify(['--commands', 'none', ...a]);
   test('seam a tools argument: base passes after the rows', async t => assertPasses(await run(base(), t)));
 }
 
+// #599 T1 (r2 X-N1): seam A takes the helper's file and lists it for install only when --tools names it.
+test('seam A passes over the helper file: scanned and kept off, or listed when --tools names it', t => {
+  const file = 'claude/tools/gh-app.mjs';
+  const root = stage(t, { [file]: GOOD });
+  const off = runSeamA(root, undefined, { tools: 'none' });
+  assert.equal(off.code, 0, off.out);
+  assert.doesNotMatch(off.stdout, /tools\//, off.out);
+  const on = runSeamA(root, undefined, { tools: 'gh-app' });
+  assert.equal(on.code, 0, on.out);
+  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/tools\/gh-app\.mjs pact\/tools\/gh-app\.mjs$/m, on.out);
+  const bad = runSeamA(stage(t, { [file]: "console.log('a​tool');\n" }), undefined, { tools: 'none' });
+  assert.equal(bad.code, 1, bad.out);
+  assert.match(bad.stdout, /^FAIL invisible: claude\/tools\/gh-app\.mjs line 1: /m, bad.out);
+});
+
 // #280 C3
 test('seam A takes --tools before or after --commands', t => {
   const r = seamWith(t, { [TOOL]: GOOD }, ['--tools', 'poster', '--commands', 'none', '--compact', 'off']);
@@ -128,6 +143,9 @@ function renderWith(t, config, { source = SOURCE, out = tempDir(t, 'pact-render-
     { id: 'name-in-capitals', plant: () => ({ config: '{"schema": 1, "tools": ["Poster"]}' }), fails: ['config-tools'], why: 'matched exactly' },
     { id: 'not-text', plant: () => ({ config: '{"schema": 1, "tools": [1]}' }), fails: ['config-tools'], why: 'a name is text' },
     { id: 'repeat', plant: () => ({ config: '{"schema": 1, "tools": ["poster", "poster"]}' }), fails: ['config-tools'], why: 'one name twice' },
+    // #599 T1 (r3 X-N3): gh-app is on PACT_TOOLS so seam A takes its file, but only the agent-identity switch installs it.
+    { id: 'gh-app', plant: () => ({ config: '{"schema": 1, "tools": ["gh-app"]}' }), fails: ['config-tools'], says: /gh-app cannot be turned on by the tools list/, why: 'only the agent-identity switch adds the helper' },
+    { id: 'gh-app-with-another', plant: () => ({ config: '{"schema": 1, "tools": ["poster", "gh-app"]}' }), fails: ['config-tools'], says: /gh-app cannot be turned on by the tools list/, why: 'a valid name beside it does not excuse it' },
     { id: 'none-as-a-name', plant: () => ({ config: '{"schema": 1, "tools": ["none"]}' }), fails: ['config-tools'], why: "none is the line's word, not a name" },
     { id: 'key-in-capitals', plant: () => ({ config: '{"schema": 1, "Tools": ["poster"]}' }), fails: ['config-key'], why: 'keys are matched exactly' },
     // #280 C6: the poster's part is filled only by the tools list.
