@@ -279,6 +279,10 @@ when no other row answers the sentence.
   - When my words trip the content scan, hold a personal detail or, in a
     public record, the why of a security ask, leave that span out of the
     passage as `[left out]` and tell me in chat what you left out.
+- **Linear.** In a cloud session, or when the repo has a pair in
+  `~/.claude/pact/linear.json`, read `~/.claude/tracker.md` before you read from
+  or post to Linear, and its rule holds there. Linear is my private record: secrets
+  and others' weaknesses stay out of it.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
   `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
@@ -320,7 +324,7 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me.
+  can't explain, that is a hard stop: tell me. The poster is for GitHub only.
 
 ## Lens dispositions
 
