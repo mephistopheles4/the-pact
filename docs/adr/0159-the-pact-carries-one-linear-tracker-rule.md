@@ -1,6 +1,6 @@
 # The pact carries one Linear tracker rule
 
-#578 (T2 of #574). Reverses [0062](0062-this-repo-keeps-its-own-tracker-rule.md), which said the pact carries no tracker rule.
+#578 (T2 of #574). The placement in the payload is reversed by [0161](0161-the-tracker-rule-lives-in-the-repo-not-the-pact.md). Reverses [0062](0062-this-repo-keeps-its-own-tracker-rule.md), which said the pact carries no tracker rule.
 
 ## Decision
 

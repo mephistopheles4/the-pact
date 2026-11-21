@@ -1,6 +1,6 @@
 # Linear counts as the owner's private record
 
-#579 (T3 of #574), standard tier, the sensitive route declined by the owner. Reverses the last sentence of the decision in [0159](0159-the-pact-carries-one-linear-tracker-rule.md): "Linear is a public record under Posting."
+#579 (T3 of #574). Where it says `claude/tracker.md`, [0161](0161-the-tracker-rule-lives-in-the-repo-not-the-pact.md) moved the rule to the repo's tracker doc. Standard tier, the sensitive route declined by the owner. Reverses the last sentence of the decision in [0159](0159-the-pact-carries-one-linear-tracker-rule.md): "Linear is a public record under Posting."
 
 ## Decision
 

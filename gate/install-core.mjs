@@ -76,8 +76,6 @@ export const OVERLAY_REL = 'claude/settings.overlay.json';
 // The review procedure file (#261): staged here, installed to one fixed live path.
 export const REVIEW_REL = 'claude/review.md';
 export const REVIEW_DEST = 'pact/review.md';
-// The Linear tracker rule (#578): claude/tracker.md installs at the Claude home folder's root, never over a live file the record doesn't list.
-export const TRACKER_DEST = 'tracker.md';
 export const CONFIG_REL = 'pact/config.json';
 export const BLOCKS_REL = 'pact/blocks';
 export const PROJECT_CONFIG_REL = '.claude/pact-config.json';
@@ -980,8 +978,8 @@ export function checkSkillClash(commands, present) {
 export function checkNewPaths(repoFiles, record, live) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
-    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel.startsWith(TOOLS_DEST) || rel.startsWith(HOOKS_DEST) || rel === REVIEW_DEST || rel === TRACKER_DEST) || listed.has(rel)) continue;
-    const always = rel === REVIEW_DEST || rel === TRACKER_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel === `commands/${KIT_COMMAND}.md`;
+    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel.startsWith(TOOLS_DEST) || rel.startsWith(HOOKS_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
+    const always = rel === REVIEW_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel === `commands/${KIT_COMMAND}.md`;
     const next = always ? 'Move it out of the way, then install again.' : `Move it, or take its name out of the ${rel.startsWith(TOOLS_DEST) ? 'tools' : 'commands'} list.`;
     if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
   }

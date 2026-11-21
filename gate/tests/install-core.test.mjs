@@ -851,9 +851,9 @@ test('the commands on: the listed ones, and scriptorium whenever the commit hold
 });
 
 // #261 C3
-test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file and the tracker file go to their fixed paths', () => {
-  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/tracker.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['claude/tracker.md', 'tracker.md'], ['familiars/x.md', null]]);
+test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes to its fixed path', () => {
+  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', null]]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
@@ -953,11 +953,12 @@ test('the plan: a record holding command and kit entries, under a payload withou
 
 // #264 done-criterion: an install over the current pact deletes the live cross script, which the payload no longer holds.
 test('the plan: a record listing the retired cross script, under a payload without it, deletes it', () => {
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/cross.mjs', H('2')]]);
+  // A file at the home folder's root goes the same way, as the retired tracker file's copy does.
+  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/cross.mjs', H('2')], ['tracker.md', H('3')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: true, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'pact/cross.mjs', sha256: H('2') }] }));
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'pact/cross.mjs', sha256: H('2') }, { path: 'tracker.md', sha256: H('3') }] }));
   const p = core.plan(record, new Map([['CLAUDE.md', H('1')]]), live, noLink);
-  assert.deepEqual(p.delete, ['pact/cross.mjs']);
+  assert.deepEqual(p.delete, ['pact/cross.mjs', 'tracker.md']);
   assert.deepEqual(p.drift, []);
 });
 
@@ -991,8 +992,6 @@ test('skill clash: only listed names are checked, and only by the path the check
     { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
     // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
     { id: 'review-path', plant: t => ({ ...t, files: json([['pact/review.md', H('4')]]), live: json(['pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
-    // unlisted-live, #578: the tracker file is never laid over a live file the pact did not put there.
-    { id: 'tracker-path', plant: t => ({ ...t, files: json([['tracker.md', H('6')]]), live: json(['tracker.md']) }), fails: ['unlisted-live'], says: /tracker\.md already exists .* Move it out of the way, then install again\./, why: 'the tracker file has the review file rule and remedy' },
     { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
     // unlisted-live, #280 C2: a tool is never laid over a live file the pact did not put there.
     { id: 'tool-path', plant: t => ({ ...t, files: json([['pact/tools/poster.mjs', H('5')]]), live: json(['pact/tools/poster.mjs']) }), fails: ['unlisted-live'], says: /pact\/tools\/poster\.mjs already exists .* Move it, or take its name out of the tools list\./, why: 'the remedy names the tools list' },
