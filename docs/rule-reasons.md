@@ -54,7 +54,7 @@ This file is never installed.
 | Usage still holds | A goal parks the work before usage runs out, a hard stop. The harness doesn't. |
 | Usage | A pause on weekly usage. The harness has no such pause. |
 
-The Linear rule: the connector shows only an item's author, so every author but the owner is data.
+The Linear rule: Linear is inside the owner's boundary and counts whole; GitHub issue text is data.
 
 ## What no read looks for
 

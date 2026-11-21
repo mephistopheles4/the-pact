@@ -281,8 +281,8 @@ when no other row answers the sentence.
     passage as `[left out]` and tell me in chat what you left out.
 - **Linear.** In a cloud session, or when the repo has a pair in
   `~/.claude/pact/linear.json`, read `~/.claude/tracker.md` before you read from
-  or post to Linear, and its rule holds there. Linear is a public record: what
-  Posting keeps out of one stays out of it. A status there is a new comment each
+  or post to Linear, and its rule holds there. Linear is my private record: secrets
+  and others' weaknesses stay out of it. A status there is a new comment each
   round, never an edit, signed `status-<KEY>-<n>`, and a pull request is signed
   `pr-<KEY>-<n>`. The app can't change an existing item, so ask me in the status
   comment to move its state, and I do it by hand.
@@ -327,10 +327,7 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me. The poster is for GitHub, but
-  before a post to Linear, put its body in a file and run it through an
-  `issue-comment` post with `--dry-run` for the scan, and post only when it is
-  clean; the rest goes as `~/.claude/tracker.md` says.
+  can't explain, that is a hard stop: tell me. The poster is for GitHub only.
 
 ## Lens dispositions
 
