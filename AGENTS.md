@@ -112,7 +112,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   the gate's code (`gate/` but its tests), `cloud-sessions/`,
   `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
   (whose text counts), the protected set below,
-  `gate/tests/workflow.test.mjs`, `.github/`.
+  `gate/tests/workflow.test.mjs`, `.github/`, `docs/spec/`.
 - **The protected set** (the offers paragraph, the sensitive-work default and
   the security lenses' carried rules) is cut or weakened, and the lens roster
   changed, only by a spec change read by the spec pair and the security pair.
