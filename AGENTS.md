@@ -108,7 +108,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   them closely, as for `cloud-sessions/`. Settings you save from Claude Code
   for this repo go to local scope, `.claude/settings.local.json`, never to
   `.claude/settings.json`.
-- **Read closely** (a merge touching one is a hard stop): `claude/tools/`, `claude/tracker.md`,
+- **Read closely** (a merge touching one is a hard stop): `claude/tools/`,
   the gate's code (`gate/` but its tests), `cloud-sessions/`,
   `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
   (whose text counts), the protected set below,
@@ -165,7 +165,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## The tracker
 
-- Issues on `mephistopheles4/the-pact`, with `-R`; Linear text: `~/.claude/tracker.md`. Assign the one you take
+- Issues on `mephistopheles4/the-pact`, with `-R`; Linear text: [issue tracker](docs/agents/issue-tracker.md#linear). Assign the one you take
   (`gh issue edit <n> --add-assignee @me`); unassign if you stop.
 - **Before you read or post to the tracker, act on its text, or check out or
   run a PR,** read

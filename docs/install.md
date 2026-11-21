@@ -408,8 +408,6 @@ It installs these files under `~/.claude`:
 - `pact/review.md`, the review procedure the rules file points to before any
   lens runs. If a `pact/review.md` the install record doesn't list is already
   there, the install refuses and changes nothing: move your file out of the way;
-- `tracker.md`, the Linear rule `review.md` points to, refused the same way if an
-  unlisted one is there;
 - `commands/scriptorium.md`, always, and `commands/<name>.md` for each other
   pact command your `commands` list turns on. Taking a name out of the list
   deletes its file at the next install;
@@ -788,7 +786,7 @@ current record doesn't list passes if it isn't on disk, and one that is on disk
 and unlisted is yours to leave alone. A backup taken after you moved the record
 aside (Updating later) is not your first install's: if every such backup was
 taken that way, or you deleted the first one, follow Installed before backups. Then delete the pact files your
-current record lists: the agents, `pact/review.md`, `tracker.md`, the `pact/builder/`
+current record lists: the agents, `pact/review.md`, the `pact/builder/`
 folder, each pact command in `commands/`, `/scriptorium` included,
 `pact/tools/poster.mjs` and `pact/tools/cleaner.mjs` if listed,
 `pact/hooks/compact-handoff.mjs` if listed, and `.pact-install.json`. Then do

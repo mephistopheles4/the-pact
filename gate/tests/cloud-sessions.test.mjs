@@ -464,7 +464,7 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   // shipped agent (the lenses and scout, #262 S18) and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
   // #482: the cloud copy also carries the compact hook, at pact/hooks/.
-  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md', 'tracker.md', 'pact/hooks/compact-handoff.mjs'].sort();
+  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md', 'pact/hooks/compact-handoff.mjs'].sort();
   assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {

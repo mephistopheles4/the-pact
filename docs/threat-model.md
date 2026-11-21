@@ -59,7 +59,7 @@ flowchart LR
 ### Text into a session
 
 **Crosses:** tracker text (GitHub issues; text on the owner's private issue tracker, in
-the workspace `claude/tracker.md` pins and in a local session, is inside the
+the workspace the repo's tracker doc (`docs/agents/issue-tracker.md`) pins and in a local session, is inside the
 root of trust and doesn't cross; a cloud session reads it as data), outside pull requests read
 as text, a cloned repo's files, fetched pages, other sessions' messages and hand-offs, a trigger's
 prompt, a mic transcript, a file someone hands a session to load.
@@ -92,7 +92,7 @@ prompt, a mic transcript, a file someone hands a session to load.
   ([ADR 0150](adr/0150-text-steering-is-accepted-and-no-detector-is-built.md)).
 
 **Residual:** Text steers a session; A session takes checkpoints alone. Rules it
-rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`), for pull request text, and for GitHub issue text until the repo's lock ticket closes its issues, after which that text is outside text, whoever wrote it; the owner's tracker rule (`claude/tracker.md`);
+rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`), for pull request text, and for GitHub issue text until the repo's lock ticket closes its issues, after which that text is outside text, whoever wrote it, and its rule for the owner's private tracker;
 the hard stops, the steps that wait for the owner's own words (an install
 apply, mise trust, a merge on their list, anything made public or sent beyond
 the record, a deletion nothing can restore); the stop and removal rules above.

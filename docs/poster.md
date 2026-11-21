@@ -257,7 +257,7 @@ sent, when:
   label is never a signature, so a post signed only with its label, or a pull
   request body with no signature line, can't be edited. A body the poster
   posts always carries its `signer` as the `Signed:` line, and a pull request
-  body is signed `pr-<n>`, or `pr-<KEY>-<n>` for a Linear item, or with no issue the
+  body is signed `pr-<n>`, or `pr-<KEY>-<n>` for a keyed item, or with no issue the
   session's label. For a body already posted
   unsigned, the owner types the fix on GitHub, from a changed line the
   session scanned with an `issue-comment` post of kind `note` and `--dry-run` (`claude/review.md`, The
