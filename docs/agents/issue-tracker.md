@@ -1,5 +1,7 @@
 # Issue tracker: GitHub
 
+A repo whose AGENTS.md pairs it with Linear follows `~/.claude/tracker.md` for Linear text; GitHub issue and PR text here still follows this file.
+
 Issues and PRDs for this repo live as GitHub issues on `mephistopheles4/the-pact`. Use the `gh` CLI for all operations; it infers the repo from `git remote -v` when run inside a clone.
 
 Pass `-R mephistopheles4/the-pact` to every `gh` command: a clone without the `origin` remote, such as a probe sandbox, would otherwise resolve to the wrong repo or none. See [Whose text counts](#whose-text-counts).
