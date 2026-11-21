@@ -327,8 +327,10 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me. The poster is for GitHub; a
-  post to Linear goes as `~/.claude/tracker.md` says.
+  can't explain, that is a hard stop: tell me. The poster is for GitHub, but
+  before a post to Linear, put its body in a file and run it through an
+  `issue-comment` post with `--dry-run` for the scan, and post only when it is
+  clean; the rest goes as `~/.claude/tracker.md` says.
 
 ## Lens dispositions
 
