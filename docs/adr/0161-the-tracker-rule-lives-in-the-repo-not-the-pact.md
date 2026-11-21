@@ -6,7 +6,7 @@
 
 `claude/tracker.md` leaves the payload, with its install entry, its seam A check and its tests. A repo's own tracker rule lives in that repo's `docs/agents/issue-tracker.md`, as it did before 0159. For this repo that doc now holds the content 0159 and 0160 put in the payload: what counts in the owner's private tracker, how sessions read and post there, the names, the owner's by-hand steps, cloud sessions, and when GitHub issue text turns to data.
 
-`claude/review.md` names no tracker product and no tracker file: its private-record exception says "an issue tracker my own local pin names as my private record, as the repo's tracker rule says", and its pull request signer example is a neutral keyed one. The poster keeps its `pr-<KEY>-<n>` signer, which any keyed tracker can use.
+`claude/review.md` names no tracker product and no tracker file. It carries no private-record exception, so Posting counts a record anyone but the owner can read as public, and no keyed signer example: a pull request is signed `pr-<n>`, and the keyed form `pr-<KEY>-<n>` and the private-record rule are in the repo's tracker doc. The poster keeps its `pr-<KEY>-<n>` signer.
 
 ## Why
 

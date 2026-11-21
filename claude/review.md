@@ -245,7 +245,7 @@ when no other row answers the sentence.
   that leaves a security path open is flagged big: in a public record its line
   is exactly "Owner's call: security, see chat", with the why in chat; in a
   private record, one only I can read (a record anyone but me can read counts
-  as public, except an issue tracker my own local pin names as my private record, as the repo's tracker rule says), the line opens "Owner's call: security"
+  as public), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
   withheld lens report or its findings, a secret, a weakness not yet public,
@@ -293,8 +293,8 @@ when no other row answers the sentence.
   take the kind named for them (`issue`, `pull-request`, `review`, `reply`).
   The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
-  them. Sign every pull request `pr-<n>`, n the issue it works on (`pr-<KEY>-<n>`
-  for a keyed item, as `pr-ABC-12`), never the pull request's own number, so any session can edit it with
+  them. Sign every pull request `pr-<n>`, n the issue it works on,
+  never the pull request's own number, so any session can edit it with
   `pull-request-edit`, `pr` its number and `signer` `pr-<the issue>`; with no
   issue, use your label. Edit the status comment with `issue-comment-edit` and
   `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
@@ -320,7 +320,7 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me. The poster is for GitHub only.
+  can't explain, that is a hard stop: tell me.
 
 ## Lens dispositions
 
