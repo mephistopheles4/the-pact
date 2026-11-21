@@ -953,11 +953,12 @@ test('the plan: a record holding command and kit entries, under a payload withou
 
 // #264 done-criterion: an install over the current pact deletes the live cross script, which the payload no longer holds.
 test('the plan: a record listing the retired cross script, under a payload without it, deletes it', () => {
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/cross.mjs', H('2')]]);
+  // A file at the home folder's root goes the same way, as the retired tracker file's copy does.
+  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/cross.mjs', H('2')], ['tracker.md', H('3')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: true, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'pact/cross.mjs', sha256: H('2') }] }));
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'pact/cross.mjs', sha256: H('2') }, { path: 'tracker.md', sha256: H('3') }] }));
   const p = core.plan(record, new Map([['CLAUDE.md', H('1')]]), live, noLink);
-  assert.deepEqual(p.delete, ['pact/cross.mjs']);
+  assert.deepEqual(p.delete, ['pact/cross.mjs', 'tracker.md']);
   assert.deepEqual(p.drift, []);
 });
 

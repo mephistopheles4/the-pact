@@ -1395,7 +1395,7 @@ when no other row answers the sentence.
   that leaves a security path open is flagged big: in a public record its line
   is exactly "Owner's call: security, see chat", with the why in chat; in a
   private record, one only I can read (a record anyone but me can read counts
-  as public, except an issue tracker the repo's own tracker rule names as my private record), the line opens "Owner's call: security"
+  as public, except an issue tracker my own local pin names as my private record, as the repo's tracker rule says), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
   withheld lens report or its findings, a secret, a weakness not yet public,
@@ -1444,7 +1444,7 @@ when no other row answers the sentence.
   The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
   them. Sign every pull request `pr-<n>`, n the issue it works on (`pr-<KEY>-<n>`
-  for a keyed tracker's item, as `pr-ABC-12`), never the pull request's own number, so any session can edit it with
+  for a keyed item, as `pr-ABC-12`), never the pull request's own number, so any session can edit it with
   `pull-request-edit`, `pr` its number and `signer` `pr-<the issue>`; with no
   issue, use your label. Edit the status comment with `issue-comment-edit` and
   `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
@@ -1663,7 +1663,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash e69d30e2e1686c48d4a1b99fa807e3818b85bd433741013e44bebd79869910ed 'pact/review.md'
+check_hash f14aa13e0fa854d1a74662636bdf0604108b0e9c7e66731ea2b493a35ceea0c5 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1693,7 +1693,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 39c9a8e5a006"
+  echo "pact cloud copy cfcfc5544677"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

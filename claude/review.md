@@ -245,7 +245,7 @@ when no other row answers the sentence.
   that leaves a security path open is flagged big: in a public record its line
   is exactly "Owner's call: security, see chat", with the why in chat; in a
   private record, one only I can read (a record anyone but me can read counts
-  as public, except an issue tracker the repo's own tracker rule names as my private record), the line opens "Owner's call: security"
+  as public, except an issue tracker my own local pin names as my private record, as the repo's tracker rule says), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
   withheld lens report or its findings, a secret, a weakness not yet public,
@@ -294,7 +294,7 @@ when no other row answers the sentence.
   The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
   them. Sign every pull request `pr-<n>`, n the issue it works on (`pr-<KEY>-<n>`
-  for a keyed tracker's item, as `pr-ABC-12`), never the pull request's own number, so any session can edit it with
+  for a keyed item, as `pr-ABC-12`), never the pull request's own number, so any session can edit it with
   `pull-request-edit`, `pr` its number and `signer` `pr-<the issue>`; with no
   issue, use your label. Edit the status comment with `issue-comment-edit` and
   `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted

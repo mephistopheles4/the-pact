@@ -1,4 +1,4 @@
-// The poster's pull request signer for work tracked on a keyed tracker's item
+// The poster's pull request signer for work tracked on a keyed item
 // (#580, C11). A pull request stays on GitHub, and the pact signs it `pr-<the
 // issue it works on>`, so an item `ABCD-12` makes the signer `pr-ABCD-12`. The
 // poster takes that one shape and no other upper-case label. Every case runs

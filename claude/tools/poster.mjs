@@ -142,7 +142,7 @@ const NUMBER_RE = /^[1-9][0-9]{0,15}$/;
 const BRANCH_RE = /^[A-Za-z0-9._/-]{1,255}$/;
 const LABEL_RE = /^[A-Za-z0-9 :._-]{1,50}$/;
 const LABEL_SOURCE = '[a-z0-9][a-z0-9-]{0,49}';
-// The one upper-case shape a signer takes (#580): `pr-<KEY>-<n>`, the key a keyed tracker's, the number the item's. No other upper-case label opens.
+// The one upper-case shape a signer takes (#580): `pr-<KEY>-<n>`, the key a team's, the number the item's. No other upper-case label opens.
 const KEYED_SOURCE = 'pr-[A-Z][A-Z0-9]{1,9}-[1-9][0-9]{0,15}';
 /** A signer as a signature or reason line holds it, without anchors or capturing groups. */
 const SIGNER_SOURCE = `(?:${LABEL_SOURCE}|${KEYED_SOURCE})`;

@@ -8,7 +8,9 @@ On the owner's words, relayed by the lead on 2026-11-21: "I never asked for trac
 
 Nothing takes effect in live sessions until the owner applies the install, which deletes `~/.claude/tracker.md`. This removes a seam A check along with the file it checked.
 
-**Rolling back:** revert the merge, rerun the regens and reinstall from the dry run.
+The owner's words above name the removal, which includes the seam A requirement and the install refusal that guarded only that file; the merge is the owner's to confirm.
+
+**Rolling back:** revert the merge, rerun the regens and reinstall from the dry run, after the four checks in [Roll back to an older version](../install.md#roll-back-to-an-older-version).
 
 ## Record
 
