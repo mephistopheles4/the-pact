@@ -316,7 +316,7 @@ test('gh refuses auth, extension, ext, alias and config as its first argument, e
   }
 });
 
-// Backs no listed claim; kept: it is how gh mode narrows a call to one repo.
+// #602 C5 (added): gh mode narrows a call to one repo, since gh runs from an empty folder.
 test('gh gives gh the one repo in GH_REPO, since it runs from an empty folder', async t => {
   const w = world(t);
   let seen;
@@ -352,7 +352,7 @@ test('gh runs gh with a gh-set token in GH_TOKEN from a fresh empty folder, stri
   assert.ok(last.underTmp);
 });
 
-// Backs no listed claim; kept: gh mode's exit code must follow gh's.
+// #602 C5 (added): gh mode's exit code follows gh's.
 test('gh passes gh\'s failure on as exit 1', async t => {
   const w = world(t);
   w.state.gh = () => ({ status: 1, stdout: '', stderr: 'nope\n' });
@@ -370,7 +370,7 @@ test('gh refuses a repo outside the pinned owner and a missing -R', async t => {
 
 // ---------------------------------------------------------------- the command line
 
-// Backs no listed claim; kept: a malformed flag must give the usage fault and run no mode.
+// #602 C6 (added): a malformed flag gives the usage fault and runs no mode.
 test('parseArgs: each flag once, a value never starts with a dash, the provider is required and known', () => {
   assert.deepEqual(parseArgs(['status', '--provider', 'claude']).flags, { '--provider': 'claude' });
   assert.deepEqual(parseArgs(['gh', '--provider', 'codex', '-R', 'a/b', '--', 'issue', '--provider']).after, ['issue', '--provider']);
@@ -380,7 +380,7 @@ test('parseArgs: each flag once, a value never starts with a dash, the provider 
   assert.throws(() => parseArgs(['status', '--provider', 'gemini']), e => e.id === 'provider');
 });
 
-// Backs no listed claim; kept: a malformed repo must never reach a request.
+// #602 C2: a malformed repo never reaches a request.
 test('parseRepo: owner/name only; a .git suffix is dropped only when asked', () => {
   assert.deepEqual(parseRepo('a-b/c.d_e'), { owner: 'a-b', name: 'c.d_e' });
   assert.deepEqual(parseRepo('a/b.git', true), { owner: 'a', name: 'b' });
@@ -388,7 +388,7 @@ test('parseRepo: owner/name only; a .git suffix is dropped only when asked', () 
   for (const bad of ['', 'a', 'a/', '/b', 'a/b/c', 'a b/c', '-a/b', 'a/..', 'a/.', 'a/b c', 'a/b;c', 5, null]) assert.throws(() => parseRepo(bad), e => e.id === 'repo/shape', String(bad));
 });
 
-// Backs no listed claim; kept: the helper is Windows only, and a refusal prints nothing on stdout (#602 C3).
+// #602 C6 (added): the helper is Windows only, and a refusal prints nothing on stdout (#602 C3).
 test('every mode refuses off Windows and names the platform, and git-credential prints nothing on stdout', async t => {
   for (const argv of [['status'], ['forget'], ['gh', '-R', REPO, '--', 'issue', 'list'], ['setup', '--app-id', '1', '--key', 'x.pem']]) {
     const w = world(t, { platform: 'linux' });
@@ -511,7 +511,7 @@ test('setup writes the XDG include only when that config exists', async t => {
   assert.match(readFileSync(gitconfigFile(w), 'utf8'), /\.config\/git\/config/);
 });
 
-// #602 C1: setup pins an app and stores its key for each provider.
+// #602 C7 (added): setup pins an app and stores its key for each provider.
 test('setup for codex pins its app and key and writes no gitconfig', async t => {
   const w = fresh(t);
   w.state.app.slug = 'example-owner-codex';
@@ -608,7 +608,7 @@ test('forget with Node\'s certificate checks off sends no revoke, says it was no
   assert.ok(!leakSurface(w).includes(token));
 });
 
-// #602 C1: a bad app id or key path is refused before anything is written.
+// #602 C6 (added): a bad app id or key path is refused before anything is written.
 test('setup prints a usage fault for a bad app id or a missing key path', async t => {
   for (const argv of [['setup', '--provider', 'claude', '--app-id', 'abc', '--key', 'x'], ['setup', '--provider', 'claude', '--app-id', '0', '--key', 'x'], ['setup', '--provider', 'claude', '--app-id', '1'], ['setup', '--provider', 'claude', '--key', 'x']]) {
     const w = fresh(t);
@@ -751,7 +751,7 @@ test('setup says the gh login could not be read, not that the pin check failed, 
   untouched(w);
 });
 
-// #602 C1: setup revokes its test token whether or not the bot lookup works.
+// #602 C9 (added): setup revokes its test token whether or not the bot lookup works.
 test('setup revokes its test token when the bot lookup throws or is refused, and says so if it cannot', async t => {
   for (const lookup of ['throws', 'answers 500', 'answers the wrong shape']) {
     for (const revokeFails of [false, true]) {
@@ -827,6 +827,34 @@ test('forget refuses while the settings env points GIT_CONFIG_GLOBAL at the gitc
     assert.deepEqual(Object.keys(readPinFile(w).apps), ['claude']);
     assert.ok(existsSync(gitconfigFile(w)));
     assert.equal(w.state.revoked.length, 0);
+  }
+});
+
+// #602 C1 (r2 X-N3): the guard reads the settings file as the harness does: a byte-order mark is skipped, and a file that is there but cannot be read as settings refuses.
+test('forget reads a settings file with a byte-order mark, and refuses one that exists but will not parse', async t => {
+  const settingsFile = w => join(w.home, '.claude', 'settings.json');
+  const pointing = w => JSON.stringify({ env: { GIT_CONFIG_GLOBAL: gitconfigFile(w) } });
+  const cases = [
+    { name: 'a byte-order mark before settings that point at the gitconfig', body: w => `\uFEFF${pointing(w)}`, refused: true },
+    { name: 'a trailing comma', body: w => pointing(w).replace('}}', '},}'), refused: true },
+    { name: 'text that is not JSON', body: () => 'not json', refused: true },
+    { name: 'an empty file', body: () => '', refused: true },
+    { name: 'a byte-order mark before settings that point elsewhere', body: () => `\uFEFF${JSON.stringify({ env: { GIT_CONFIG_GLOBAL: 'C:/other/config' } })}`, refused: false },
+  ];
+  for (const c of cases) {
+    const w = world(t);
+    cachedToken(w, 'git');
+    writeFileSync(gitconfigFile(w), 'x\n');
+    writeFileSync(settingsFile(w), c.body(w));
+    const code = await main(['forget', '--provider', 'claude'], w.io);
+    if (c.refused) {
+      assert.equal(code, 1, c.name);
+      assert.equal(printed(w).err, `gh-app: ${REASONS.settings}\n`, c.name);
+      assert.equal(w.store.size, 2, `${c.name}: the key and the cache are kept`);
+      assert.deepEqual(Object.keys(readPinFile(w).apps), ['claude'], c.name);
+      assert.ok(existsSync(gitconfigFile(w)), c.name);
+      assert.equal(w.state.revoked.length, 0, c.name);
+    } else assert.equal(code, 0, `${c.name}: ${printed(w).err}`);
   }
 });
 
@@ -919,7 +947,7 @@ test('the credential store calls PowerShell by its fixed path with a fixed scrip
   assert.doesNotMatch(PS_SCRIPT, /Write-Host|Write-Output|ConvertTo-SecureString|Out-File|Set-Content|\$input|Read-Host/, 'no cmdlet touches a secret');
 });
 
-// #602 C1: a credential store that fails or answers off-shape refuses rather than carrying on.
+// #602 C8 (added): a credential store that fails or answers off-shape refuses rather than carrying on.
 test('the credential store refuses an error answer, a failed process and an answer that is not the shape', () => {
   for (const [stdout, status] of [['ERR 5', 0], ['OK', 1], ['', 0], ['garbage', 0]]) {
     const io = { env: {}, tmp: '.', fs: { mkdtempSync: () => 'x', rmSync: () => {} }, spawn: () => ({ status, stdout, stderr: '' }) };

@@ -78,7 +78,7 @@ export const REASONS = Object.freeze({
   gitconfig: 'the gitconfig could not be written or did not read back as expected',
   git: 'git failed',
   left: 'the key and tokens are gone, but the pin entry in ~/.claude/pact/github.json or the file ~/.claude/pact/gh-app-<provider>.gitconfig could not be removed; remove it yourself, then run forget again',
-  settings: "the settings env still points at this provider's gitconfig; remove that setting and apply first",
+  settings: "the settings env points at this provider's gitconfig, or the settings file cannot be read as settings; remove that setting or fix the file, and apply first",
   mode: 'unknown mode',
   gh: 'that gh command is not allowed here',
   refused: 'refused',
@@ -797,11 +797,22 @@ async function ghMode(io, provider, repoArg, args) {
 // ---------------------------------------------------------------- forget
 
 async function forget(io, provider) {
-  let env;
+  // A missing settings file is no guard. One that is there is read as the harness reads it (a leading byte-order mark skipped); if it cannot be read as settings, forget cannot tell whether it points at the gitconfig, so it refuses.
+  let text = null;
   try {
-    env = JSON.parse(io.fs.readFileSync(settingsPath(io.home), 'utf8'))?.env;
-  } catch {
-    env = null;
+    text = io.fs.readFileSync(settingsPath(io.home), 'utf8');
+  } catch (e) {
+    if (e?.code !== 'ENOENT') refuse('settings');
+  }
+  let env = null;
+  if (text !== null) {
+    try {
+      const v = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+      if (!isObject(v)) throw new Error('settings are not an object');
+      env = v.env;
+    } catch {
+      refuse('settings');
+    }
   }
   const mine = slash(gitconfigPath(io.home, provider)).toLowerCase();
   const pointed = isObject(env) && typeof env.GIT_CONFIG_GLOBAL === 'string' && slash(env.GIT_CONFIG_GLOBAL).toLowerCase() === mine;
