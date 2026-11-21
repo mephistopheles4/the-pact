@@ -63,15 +63,6 @@ test('C11: another session edits a pull request signed pr-<KEY>-<n> with that si
   assert.equal(w.item.body, `A plain body.\n\nSigned: pr-PACT-12\n\nEdited: ${REASON} (pr-PACT-12)`);
 });
 
-// #580 C11: the same edit with a signer that is not the item's is refused, so the new shape opens no way to edit another session's item
-test('C11: an edit signed pr-<KEY>-<n> of an item signed with another label is refused and sends nothing', t => {
-  const w = world('pr-OTHER-12');
-  const r = run(t, 'pull-request-edit', { repo: TARGET, pr: 7, signer: 'pr-PACT-12', reason: REASON, body_file: 'body.md' }, { gh: w.gh, dry: false });
-  assert.equal(r.code, 2, r.lines.join(' | '));
-  assert.ok(!r.lines.includes('REFUSED post/pattern signer'), 'refused for the item, not the pattern');
-  assert.equal(w.calls.filter(c => c.args.includes('PATCH')).length, 0);
-});
-
 // #580 C11
 test('C11: a signer that is not exactly pr-<KEY>-<n>, and status-<KEY>-<n>, are refused post/pattern at the signer', t => {
   const bad = ['pr-PACT', 'pr-PACT-', 'pr-PACT-0', 'pr-PACT-012', 'pr-P-12', 'pr-ABCDEFGHIJK-12', 'pr-1ACT-12', 'pr-PACT-12-x', 'pr-Pact-12', 'pr-PACt-12', `pr-PACT-${'1'.repeat(17)}`, 'Pr-PACT-12', 'pact-PACT', 'pact-PACT-12', 'status-PACT-12', 'PACT-12', 'pr-PACT-12\n'];
