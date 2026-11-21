@@ -123,8 +123,7 @@ block is kept equal to the map by hand, since no test reads this page. The four
 edit examples edit an item that is not an ask item. An edit of an ask item
 (any issue, pull request, spec or decision posted with a quote) also carries
 that item's own `quote` and `intent`, copied from the item (Edits). A
-`pull-request-edit` signs `pr-<n>`, n the issue the pull request works on, as
-the create example does.
+`pull-request-edit` signs as the create example does.
 
 ### Kinds
 
@@ -258,7 +257,7 @@ sent, when:
   label is never a signature, so a post signed only with its label, or a pull
   request body with no signature line, can't be edited. A body the poster
   posts always carries its `signer` as the `Signed:` line, and a pull request
-  body is signed `pr-<n>`, n the issue it works on, or with no issue the
+  body is signed `pr-<n>`, or `pr-<KEY>-<n>` for a Linear item, or with no issue the
   session's label. For a body already posted
   unsigned, the owner types the fix on GitHub, from a changed line the
   session scanned with an `issue-comment` post of kind `note` and `--dry-run` (`claude/review.md`, The
@@ -383,7 +382,7 @@ fields are also scanned, each as its own field, so a refusal names it:
 | `head`, `base` | A branch; `head` may be `owner:branch` with the repo's own owner | `post/pattern`, `owner/head` |
 | `draft` | A boolean; opens the pull request as a draft | `post/type` |
 | `issue`, `pr`, `comment` | A positive whole number, a JSON number | `post/type`, `post/pattern` |
-| `signer` | The session's label: a lowercase letter or digit, then lowercase letters, digits and hyphens, at most 50 characters | `post/pattern`, `post/signer`, `edit/unsigned` |
+| `signer` | The session's label: a lowercase letter or digit, then lowercase letters, digits and hyphens, at most 50 characters; or `pr-<KEY>-<n>`, KEY a capital, then 1 to 9 capitals or digits | `post/pattern`, `post/signer`, `edit/unsigned` |
 | `quote` | 1 to 5 passages (The quote and the read-back) | `post/missing`, `post/when`, `post/tracker`, `post/field` |
 | `intent` | The read-back: `text` of 1 to 2,000 characters, a `status`, and on an edit `comment` and `corrected` | `post/status`, `post/owned-line`, `text/hidden-line` |
 | `body_file` | A bare file name in the post file's own folder (no slash, backslash or colon, not `.` or `..`), read like the post file; its text at most 65,536 characters, and the whole rendered body too | the `file/` rules, `post/pattern`, `post/owned-line`, `text/body-length` |
