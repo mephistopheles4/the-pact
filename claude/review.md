@@ -297,8 +297,8 @@ when no other row answers the sentence.
   take the kind named for them (`issue`, `pull-request`, `review`, `reply`).
   The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
-  them. Sign every pull request `pr-<n>`, n the issue it works on, never the
-  pull request's own number, so any session can edit it with
+  them. Sign every pull request `pr-<n>`, n the issue it works on (`pr-<KEY>-<n>`
+  for a Linear item, as `pr-PACT-12`), never the pull request's own number, so any session can edit it with
   `pull-request-edit`, `pr` its number and `signer` `pr-<the issue>`; with no
   issue, use your label. Edit the status comment with `issue-comment-edit` and
   `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
