@@ -91,7 +91,7 @@ prompt, a mic transcript, a file someone hands a session to load.
   ([ADR 0150](adr/0150-text-steering-is-accepted-and-no-detector-is-built.md)).
 
 **Residual:** Text steers a session; A session takes checkpoints alone. Rules it
-rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`, for pull request text only: GitHub issue text is outside text, whoever wrote it);
+rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`, for pull request text, and for GitHub issue text until the owner's private issue tracker has taken a repo's issues; after that GitHub issue text is outside text, whoever wrote it);
 the hard stops, the steps that wait for the owner's own words (an install
 apply, mise trust, a merge on their list, anything made public or sent beyond
 the record, a deletion nothing can restore); the stop and removal rules above.

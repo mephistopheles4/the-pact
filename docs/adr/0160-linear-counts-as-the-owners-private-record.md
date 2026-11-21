@@ -6,7 +6,7 @@
 
 Linear is the owner's private record, as `claude/tracker.md` and `review.md`'s Posting say, on the owner's words that Linear is a trusted private record, that they invite people in by hand, and that "everything on linear counts, no checks on linear". So Posting's "a record anyone but me can read counts as public" gains "except my Linear workspace, the one `~/.claude/tracker.md` pins", and an open security reason may sit on Linear under the private-record rules Posting already has: the line `Owner's call: security` with its why. Others' weaknesses, secrets and withheld items stay out, as of any record.
 
-The threat model says one thing, without naming Linear: text on the owner's private issue tracker is inside the root of trust and doesn't cross, and GitHub issue text is outside text. So whose-text-counts is named for pull request text only, the private issue tracker's account joins the root of trust, and the Posts are public class excepts that tracker.
+The threat model says one thing, without naming Linear: text on the owner's private issue tracker is inside the root of trust and doesn't cross, and GitHub issue text is outside text once that tracker has taken a repo's issues, as `claude/tracker.md` says. So whose-text-counts is named for pull request text, and for issue text until then; the private issue tracker's account joins the root of trust, and the Posts are public class excepts that tracker.
 
 ## Why
 
