@@ -74,7 +74,7 @@ test('C11: an edit signed pr-<KEY>-<n> of an item signed with another label is r
 
 // #580 C11
 test('C11: a signer that is not exactly pr-<KEY>-<n>, and status-<KEY>-<n>, are refused post/pattern at the signer', t => {
-  const bad = ['pr-PACT', 'pr-PACT-', 'pr-PACT-0', 'pr-PACT-012', 'pr-P-12', 'pr-ABCDEFGHIJK-12', 'pr-1ACT-12', 'pr-PACT-12-x', 'Pr-PACT-12', 'pact-PACT', 'pact-PACT-12', 'status-PACT-12', 'PACT-12', 'pr-PACT-12\n'];
+  const bad = ['pr-PACT', 'pr-PACT-', 'pr-PACT-0', 'pr-PACT-012', 'pr-P-12', 'pr-ABCDEFGHIJK-12', 'pr-1ACT-12', 'pr-PACT-12-x', 'pr-Pact-12', 'pr-PACt-12', `pr-PACT-${'1'.repeat(17)}`, 'Pr-PACT-12', 'pact-PACT', 'pact-PACT-12', 'status-PACT-12', 'PACT-12', 'pr-PACT-12\n'];
   for (const signer of bad) {
     const r = run(t, 'pull-request', { ...PR, signer });
     assert.equal(r.code, 2, `${JSON.stringify(signer)}: ${r.lines.join(' | ')}`);
