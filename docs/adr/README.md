@@ -8,7 +8,7 @@ One line per ADR: what it decided, and when to read it. Open the file for the re
 - [0004](0004-gate-on-after-dispatch-needs.md) — **Gate on after-dispatch needs.** Builder hand-offs were gated on needs that arise after dispatch (builders since retired by 0010). Read for the history of move 3.
 - [0005](0005-status-line-and-verbatim-relay.md) — **Status line and verbatim relay.** Builders opened with a STATUS line; BLOCKED was relayed word for word. Read for the history of verbatim relay.
 - [0006](0006-root-agents-md.md) — **Root AGENTS.md.** This repo's rules live in AGENTS.md; CLAUDE.md only imports it. Amended by 0075: the rules live in AGENTS.md and the docs it links. Read before adding a repo rule.
-- [0007](0007-only-decisions-are-committed.md) — **Only decisions are committed.** Plans and reviews live on the issue; the tree keeps ADRs and logs. Read when deciding where a record goes.
+- [0007](0007-only-decisions-are-committed.md) — **Only decisions are committed.** Plans and reviews live on the issue; the tree keeps ADRs, logs and specs in force (`docs/spec/`). Read when deciding where a record goes.
 - [0008](0008-throwaway-after-two-paper-rounds.md) — **Throwaway after two paper rounds.** Two review rounds without READY open the option of a throwaway build. Read when a plan review stalls.
 - [0009](0009-hand-over-user-only-skills.md) — **Hand over user-only skills.** The model ends its turn with a `▶ Your move` line instead of running the skill. Read when a move reaches a user-only skill.
 - [0010](0010-build-in-the-main-session-with-process-tiers.md) — **Main-session builds and process tiers.** Builds run in a watched main session; work gets a tier up front. Read for why builder agents retired and how tiers began. Superseded in part by 0050.

@@ -1447,8 +1447,8 @@ when no other row answers the sentence.
   take the kind named for them (`issue`, `pull-request`, `review`, `reply`).
   The poster renders the ask, the read-back, the
   signature and the reason lines itself, so your `body_file` holds none of
-  them. Sign every pull request `pr-<n>`, n the issue it works on, never the
-  pull request's own number, so any session can edit it with
+  them. Sign every pull request `pr-<n>`, n the issue it works on (`pr-<KEY>-<n>`
+  for a Linear item, as `pr-PACT-12`), never the pull request's own number, so any session can edit it with
   `pull-request-edit`, `pr` its number and `signer` `pr-<the issue>`; with no
   issue, use your label. Edit the status comment with `issue-comment-edit` and
   `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
@@ -1741,7 +1741,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 41c7a357cda768a8dcbe591b63353b38d9aa7bb53a47e5361276908deb009afd 'pact/review.md'
+check_hash 65c2fef72a9cb5cc8621d1f53c8efb6d0cf9295c96bafaf852433e52e3f6b0cb 'pact/review.md'
 check_hash 8e1fb9184e7a61d0834db35658fc2150a36ec398c14dcfaa2c1d8b6a387895fa 'tracker.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
@@ -1772,7 +1772,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 0ff5079ee31b"
+  echo "pact cloud copy bf9755f12dca"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
