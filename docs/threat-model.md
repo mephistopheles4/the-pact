@@ -58,8 +58,10 @@ flowchart LR
 
 ### Text into a session
 
-**Crosses:** tracker text, outside pull requests read as text, a cloned repo's
-files, fetched pages, other sessions' messages and hand-offs, a trigger's
+**Crosses:** tracker text (GitHub issues; text on the owner's private issue tracker, in
+the workspace `claude/tracker.md` pins and in a local session, is inside the
+root of trust and doesn't cross; a cloud session reads it as data), outside pull requests read
+as text, a cloned repo's files, fetched pages, other sessions' messages and hand-offs, a trigger's
 prompt, a mic transcript, a file someone hands a session to load.
 
 **Controls:**
@@ -90,7 +92,7 @@ prompt, a mic transcript, a file someone hands a session to load.
   ([ADR 0150](adr/0150-text-steering-is-accepted-and-no-detector-is-built.md)).
 
 **Residual:** Text steers a session; A session takes checkpoints alone. Rules it
-rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`);
+rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`), for pull request text, and for GitHub issue text until the repo's lock ticket closes its issues, after which that text is outside text, whoever wrote it; the owner's tracker rule (`claude/tracker.md`);
 the hard stops, the steps that wait for the owner's own words (an install
 apply, mise trust, a merge on their list, anything made public or sent beyond
 the record, a deletion nothing can restore); the stop and removal rules above.
@@ -220,8 +222,8 @@ Anthropic's models and servers, and GitHub; the provider of a synced or backed-u
 [`install.md`](install.md)'s rule to never sync, share or commit the backups
 folder still holds.
 
-**Root of trust:** the owner's GitHub account. Whoever controls it counts as
-the owner.
+**Root of trust:** the owner's GitHub account and the owner's private issue
+tracker account. Whoever controls either counts as the owner, and so do whoever and whatever the owner admits to that tracker.
 
 ## Residual risk
 
@@ -258,7 +260,7 @@ Each "Also accepted" line above details what the class it names covers; it is no
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
-- **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
+- **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, except on the owner's private issue tracker (review.md's Posting), and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
 - **Who counts as you.** Every session posts as the owner, a lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
 
 ## Open issues
