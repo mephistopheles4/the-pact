@@ -10,7 +10,9 @@
 //   node gh-app.mjs forget --provider <p>
 //
 // setup writes the absolute path of the Node it runs under into the gitconfig's
-// helper line; after a Node upgrade or move, run setup again to refresh it.
+// helper line; after a Node upgrade or move, run setup again to refresh it. Setup
+// deletes the downloaded key when it succeeds, so generate a new private key on the
+// app's GitHub page and pass that file as --key.
 //
 // <p> is claude, codex or antigravity. No mode prints a token: mintToken is a
 // module export only, and git-credential get answers git on git's own pipe.
@@ -59,6 +61,7 @@ export const REASONS = Object.freeze({
   'pin/missing': 'there is no pin file, or it is not the pinned shape',
   'pin/unpinned': 'that provider is not pinned',
   'pin/check': "the pin does not match GitHub's records",
+  'owner/unavailable': 'your gh login could not be read; run gh auth status',
   'pin/unavailable': "the pin check could not run; nothing was posted as the owner",
   'pin/owner': 'the pinned owner differs from the owner of this login',
   'repo/owner': "the repository is not the pinned owner's",
@@ -68,14 +71,14 @@ export const REASONS = Object.freeze({
   'key/not-rsa': 'the key is not an RSA key of 2048 bits or more',
   'key/read': 'the key file could not be read',
   tls: 'certificate checks are switched off in the environment',
-  net: 'GitHub could not be reached or refused the call',
+  net: 'GitHub could not be reached or refused the call (the app may not be installed on your account)',
   shape: 'GitHub answered with something that is not the expected shape',
   store: 'the credential store failed',
   app: 'the app does not match: id, owner, permissions or events differ from the pinned set',
   gitconfig: 'the gitconfig could not be written or did not read back as expected',
   git: 'git failed',
-  left: 'the key and tokens are gone, but the pin entry or the gitconfig could not be removed; remove it and run forget again',
-  settings: "the settings env still points at this provider's gitconfig; turn the switch off and apply first",
+  left: 'the key and tokens are gone, but the pin entry in ~/.claude/pact/github.json or the file ~/.claude/pact/gh-app-<provider>.gitconfig could not be removed; remove it yourself, then run forget again',
+  settings: "the settings env still points at this provider's gitconfig; remove that setting and apply first",
   mode: 'unknown mode',
   gh: 'that gh command is not allowed here',
   refused: 'refused',
@@ -135,7 +138,8 @@ function say(io, line, stream = 'out') {
 
 // ---------------------------------------------------------------- the runner
 
-const lowerEnv = (env, name) => Object.entries(env ?? {}).find(([k]) => k.toUpperCase() === name)?.[1];
+/** An environment value by name, any letter case (Windows names are case-insensitive). */
+const envGet = (env, name) => Object.entries(env ?? {}).find(([k]) => k.toUpperCase() === name.toUpperCase())?.[1];
 
 /** The caller's environment without the variables that carry or redirect a GitHub credential. */
 export function cleanEnv(env, extra = {}) {
@@ -243,7 +247,7 @@ export const PS_SCRIPT = PS_SOURCE;
 /** The credential store: read, write, delete and list generic credentials, each one PowerShell call. */
 export function makeCredStore(io) {
   const run = makeRun(io);
-  const root = lowerEnv(io.env, 'SYSTEMROOT');
+  const root = envGet(io.env, 'SYSTEMROOT');
   const ps = `${/^[A-Za-z]:\\[A-Za-z0-9 _.\\-]{1,120}$/.test(root ?? '') ? root : 'C:\\Windows'}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
   const call = (op, target, data) => {
     const input = `${op}\n${Buffer.from(target, 'utf8').toString('base64')}\n${data ? data.toString('base64') : ''}\n`;
@@ -345,10 +349,11 @@ function ownerRead(io, path) {
 }
 
 /**
- * S4's checks on every read: the app's public record against the pin (id, owner,
+ * The pin checks: the app's public record against the pin (id, owner,
  * permissions exactly the set, no event), the bot's login, id and type, and the
  * owner's own login and id. A mismatch or a check that cannot run refuses, and
- * never falls back to the owner.
+ * never falls back to the owner. mintToken runs this when the cache misses, so a
+ * cached token is reused, unchecked, for at most the hour it lives.
  */
 export function checkPin(io, pin, provider) {
   const a = pin.apps[provider];
@@ -376,7 +381,7 @@ export function checkPin(io, pin, provider) {
 async function api(io, method, path, { auth, body } = {}) {
   if (!path.startsWith('/')) refuse('shape');
   // Every request carries a credential, so none goes out with certificate checks off.
-  if (lowerEnv(io.env, 'NODE_TLS_REJECT_UNAUTHORIZED') === '0') refuse('tls');
+  if (envGet(io.env, 'NODE_TLS_REJECT_UNAUTHORIZED') === '0') refuse('tls');
   guard(io, auth);
   let res;
   let text;
@@ -493,13 +498,13 @@ function cachedToken(io, target) {
  * An installation token narrowed to one repo and a permission set ("git",
  * "post" or "gh"). Module export only: no mode prints it. Refuses a repo
  * outside the pinned owner, a foreign installation, an unpinned provider or
- * one with no key, a pin that fails S4's check, and certificate checks off.
+ * one with no key, a pin that fails the pin checks on a cache miss, and certificate checks off.
  */
 export async function mintToken({ provider, repo, set }, io = realIo()) {
   needWindows(io);
   if (!PROVIDERS.includes(provider)) refuse('provider');
   if (!Object.hasOwn(SETS, set)) refuse('usage');
-  if (lowerEnv(io.env, 'NODE_TLS_REJECT_UNAUTHORIZED') === '0') refuse('tls');
+  if (envGet(io.env, 'NODE_TLS_REJECT_UNAUTHORIZED') === '0') refuse('tls');
   // An object repo is held to the same shape as the text form: callers in code (the poster, T3) pass either.
   const { owner, name } = parseRepo(typeof repo === 'string' ? repo : isObject(repo) ? `${repo.owner}/${repo.name}` : null);
   const pin = readPin(io);
@@ -586,7 +591,7 @@ function iniValue(v, force = false) {
 }
 
 /**
- * The gitconfig setup writes for a provider, as text: the text the install compares against (S7).
+ * The gitconfig setup writes for a provider, as text: the text the install compares against.
  * `nodePath` is the Node setup runs under (process.execPath), so a Node upgrade is
  * followed by running setup again, which writes the new path.
  */
@@ -609,12 +614,12 @@ export function gitconfigText({ home, nodePath, app, provider, xdg = false }) {
   ].join('\n');
 }
 
-/** setup: pin one app and store its key. Steps 1 to 9 of S6; nothing written before step 6. */
+/** setup: pin one app and store its key. Nothing is written until the key write, after the owner, app, installation and test-token checks. */
 async function setup(io, { provider, appId, keyPath }) {
   const run = makeRun(io);
   const me = (() => {
     const r = run('gh', ['api', '--hostname', 'github.com', '--method', 'GET', 'user']);
-    if (!r.ok) return refuse('pin/unavailable');
+    if (!r.ok) return refuse('owner/unavailable');
     const v = parseJson(r.stdout);
     return isObject(v) && isId(v.id) && LOGIN_RE.test(v.login ?? '') ? { login: v.login, id: v.id } : refuse('shape');
   })();
@@ -663,7 +668,7 @@ async function setup(io, { provider, appId, keyPath }) {
   const entry = { app_id: appId, slug, bot_login: `${slug}[bot]`, bot_id: bot.id };
   const gitconfig = provider === 'claude' ? gitconfigText({ home: io.home, nodePath: io.execPath, app: entry, provider, xdg: io.fs.existsSync(join(io.home, '.config', 'git', 'config')) }) : null;
 
-  // Steps 1 to 5 wrote nothing. From here each write is put back on a failure.
+  // The checks above wrote nothing. From here each write is put back on a failure.
   const before = { key: io.credStore.read(keyTarget(provider)), pin: (() => { try { return io.fs.readFileSync(pinPath(io.home), 'utf8'); } catch { return null; } })(), gitconfig: (() => { try { return io.fs.readFileSync(gitconfigPath(io.home, provider), 'utf8'); } catch { return null; } })() };
   try {
     io.credStore.write(keyTarget(provider), der);
@@ -736,14 +741,14 @@ function sslVerifyOffByEnv(env) {
   const off = v => /^(?:false|no|off|[+-]?0+)$/i.test(String(v ?? '').trim());
   const key = k => /^http\.(?:[^=\s]*\.)?sslverify$/i.test(k);
   // Git writes `git -c k=v` as 'k=v' (before 2.31) or 'k'='v' (since), and a bare -c k as 'k', which means true.
-  const packed = lowerEnv(env, 'GIT_CONFIG_PARAMETERS') ?? '';
+  const packed = envGet(env, 'GIT_CONFIG_PARAMETERS') ?? '';
   for (const m of packed.matchAll(/'([^']*)'(?:='([^']*)')?/g)) {
     let [k, v] = [m[1], m[2]];
     if (v === undefined && k.includes('=')) [k, v] = [k.slice(0, k.indexOf('=')), k.slice(k.indexOf('=') + 1)];
     if (v !== undefined && key(k) && (v === '' || off(v))) return true;
   }
-  const n = Number.parseInt(lowerEnv(env, 'GIT_CONFIG_COUNT') ?? '0', 10);
-  for (let i = 0; i < (Number.isSafeInteger(n) ? Math.min(n, 100000) : 0); i += 1) if (key(lowerEnv(env, `GIT_CONFIG_KEY_${i}`) ?? '') && off(lowerEnv(env, `GIT_CONFIG_VALUE_${i}`))) return true;
+  const n = Number.parseInt(envGet(env, 'GIT_CONFIG_COUNT') ?? '0', 10);
+  for (let i = 0; i < (Number.isSafeInteger(n) ? Math.min(n, 100000) : 0); i += 1) if (key(envGet(env, `GIT_CONFIG_KEY_${i}`) ?? '') && off(envGet(env, `GIT_CONFIG_VALUE_${i}`))) return true;
   return false;
 }
 
@@ -756,7 +761,7 @@ async function gitCredential(io, provider, op) {
     if (q.protocol !== 'https' || q.host !== 'github.com' || typeof q.path !== 'string') refuse('repo/shape');
     needWindows(io);
     // git reads GIT_SSL_NO_VERIFY as set for any value, an empty one included.
-    if (lowerEnv(io.env, 'GIT_SSL_NO_VERIFY') !== undefined || sslVerifyOffByEnv(io.env)) refuse('tls');
+    if (envGet(io.env, 'GIT_SSL_NO_VERIFY') !== undefined || sslVerifyOffByEnv(io.env)) refuse('tls');
     // mintToken refuses a repo outside the pinned owner before any spawn or request.
     const token = await mintToken({ provider, repo: parseRepo(q.path, true), set: 'git' }, io);
     io.out(`username=x-access-token\npassword=${token}\n`);
@@ -769,7 +774,7 @@ async function gitCredential(io, provider, op) {
 
 /** gh with a `gh`-set token in GH_TOKEN, from a fresh empty folder; output lines that hold the token are withheld. */
 async function ghMode(io, provider, repoArg, args) {
-  // The first argument is the subcommand: a leading flag could hide a forbidden one from the check (C3).
+  // The first argument is the subcommand: a leading flag could hide a forbidden one from the check.
   if (args.length === 0 || String(args[0]).startsWith('-') || GH_FORBIDDEN_FIRST.has(String(args[0]).toLowerCase())) refuse('gh');
   const repo = parseRepo(repoArg);
   const token = await mintToken({ provider, repo, set: 'gh' }, io);
@@ -942,7 +947,7 @@ async function status(io, provider, repoDir) {
   say(io, `user.email: ${!email.ok || email.stdout.trim() === '' ? 'unset' : bot && email.stdout.trim().toLowerCase() === bot.toLowerCase() ? 'bot address' : 'something else'}`);
   say(io, `remote protocol: ${proto}`);
   const askpass = git(['config', '--get', 'core.askPass']);
-  const askSet = (askpass.ok && askpass.stdout.trim() !== '') || ['GIT_ASKPASS', 'SSH_ASKPASS'].some(k => (lowerEnv(io.env, k) ?? '') !== '');
+  const askSet = (askpass.ok && askpass.stdout.trim() !== '') || ['GIT_ASKPASS', 'SSH_ASKPASS'].some(k => (envGet(io.env, k) ?? '') !== '');
   say(io, `askpass: ${askSet ? 'set' : 'not set'}`);
   // git reads the pattern as a POSIX extended regex: a plain group, never (?:).
   const rewrites = git(['config', '--get-regexp', '^url\\..*\\.(pushinsteadof|insteadof)$']);
@@ -964,7 +969,7 @@ async function status(io, provider, repoDir) {
     // not an https address: the reconstructed one stands
   }
   const ssl = git(['config', '--type=bool', '--get-urlmatch', 'http.sslVerify', target]);
-  const noVerify = (ssl.ok && ssl.stdout.trim() === 'false') || lowerEnv(io.env, 'GIT_SSL_NO_VERIFY') !== undefined;
+  const noVerify = (ssl.ok && ssl.stdout.trim() === 'false') || envGet(io.env, 'GIT_SSL_NO_VERIFY') !== undefined;
   say(io, `http.sslVerify off: ${noVerify ? 'yes' : 'no'}`);
   say(io, `remote url carries credentials: ${creds}`);
   const header = git(['config', '--get-urlmatch', 'http.extraHeader', target]);

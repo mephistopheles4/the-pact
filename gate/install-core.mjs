@@ -22,7 +22,9 @@ export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.
 export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium', 'scry']);
 // The pact's own tools (#280): the install's own copy of PACT_TOOLS in
 // gate/shared.mjs. A tool installs to TOOLS_DEST<name>.mjs only when the
-// configuration's tools list names it.
+// configuration's tools list names it; gh-app is the exception: it is on the
+// list so seam A takes its file, but the tools list refuses it, and only the
+// agent-identity switch (a later ticket of #599) installs it.
 export const PACT_TOOLS = Object.freeze(['poster', 'cleaner', 'gh-app']);
 const TOOLS_DEST = 'pact/tools/';
 // The pact's hook script (#482), the install's own copy of PACT_HOOKS in gate/seam-a-core.mjs: claude/hooks/<name>.mjs installs to HOOKS_DEST<name>.mjs only while the auto-compact window is on.

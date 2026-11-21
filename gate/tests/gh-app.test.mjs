@@ -1,6 +1,6 @@
-// The GitHub App helper (#599, T1): C1 setup and forget, C2 mintToken, C3 no
+// The GitHub App helper (#599, T1): #602 C1 setup and forget, #602 C2 mintToken, #602 C3 no
 // secret in any output. Every case runs in-process against a fake GitHub, a
-// fake Credential Manager and fake gh and git (gh-app-world.mjs), so no case
+// fake Credential Manager and fake gh and git (the fake world helper), so no case
 // needs Windows, the network or a real key, and the suite runs on both CI
 // jobs. Keys and tokens are built at run time; no key is committed.
 import assert from 'node:assert/strict';
@@ -695,6 +695,14 @@ test('a rollback that cannot put the old key back still puts back the pin and th
   assert.ok(existsSync(key));
 });
 
+test('setup says the gh login could not be read, not that the pin check failed, and writes nothing', async t => {
+  const w = fresh(t);
+  w.state.ghReadFails.add('user');
+  assert.equal(await main(setupArgs(w), w.io), 1);
+  assert.equal(printed(w).err, `gh-app: ${REASONS['owner/unavailable']}\n`);
+  untouched(w);
+});
+
 test('setup revokes its test token when the bot lookup throws, and says so if it cannot', async t => {
   for (const revokeFails of [false, true]) {
     const w = fresh(t);
@@ -804,7 +812,7 @@ test('forget leaves the other providers\' entries and credentials', async t => {
   assert.deepEqual(Object.keys(readPinFile(w).apps), ['codex']);
 });
 
-// ---------------------------------------------------------------- the credential store's PowerShell call (S6)
+// ---------------------------------------------------------------- the credential store's PowerShell call
 
 test('the credential store calls PowerShell by its fixed path with a fixed script; no secret is in argv or the script', () => {
   const calls = [];

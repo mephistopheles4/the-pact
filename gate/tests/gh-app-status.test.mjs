@@ -1,6 +1,6 @@
-// The GitHub App helper's status mode (#599, T1, S6): it names what git would
+// The GitHub App helper's status mode (#602): it names what git would
 // do, never a path, a value or a secret. Every case runs in-process against the
-// fake world (gh-app-world.mjs) with a scripted git.
+// fake world helper with a scripted git.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -105,7 +105,7 @@ test('status reports the email as the bot\'s address, something else or unset, n
   assert.ok((await run(t, { helpers: GOOD, email: '' })).lines.includes('user.email: unset'));
 });
 
-// C4 (the part status holds): the ways a session can still write as the owner are reported.
+// Backs no listed claim; kept for its stated reason: status is the owner's only view of the ways a session can still write as the owner.
 {
   const rows = [
     { id: 'ssh-remote', cfg: { remote: `git@github.com:${OWNER}/sandbox.git` }, line: 'remote protocol: ssh' },

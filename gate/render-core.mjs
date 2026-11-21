@@ -51,7 +51,7 @@
 // The commands list (#203) turns on pact commands: unique names from
 // PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
 // The tools list (#280) does the same for pact tools, from PACT_TOOLS, off by
-// default. A tool that is on also fills its marked part of the rules file from
+// default; gh-app is on PACT_TOOLS but the list refuses it (see checkTools). A tool that is on also fills its marked part of the rules file from
 // a fixed template (TOOL_PARTS); off, the part stays empty, so the render is
 // byte for byte what it is without the tool. No edit may target such a part.
 // A setting fills its open part from a fixed template with the checked number;
