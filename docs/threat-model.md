@@ -58,8 +58,9 @@ flowchart LR
 
 ### Text into a session
 
-**Crosses:** tracker text (GitHub issues; text on the owner's private issue tracker is
-inside the root of trust and doesn't cross), outside pull requests read
+**Crosses:** tracker text (GitHub issues; text on the owner's private issue tracker, in
+the workspace `claude/tracker.md` pins and in a local session, is inside the
+root of trust and doesn't cross; a cloud session reads it as data), outside pull requests read
 as text, a cloned repo's files, fetched pages, other sessions' messages and hand-offs, a trigger's
 prompt, a mic transcript, a file someone hands a session to load.
 
@@ -91,7 +92,7 @@ prompt, a mic transcript, a file someone hands a session to load.
   ([ADR 0150](adr/0150-text-steering-is-accepted-and-no-detector-is-built.md)).
 
 **Residual:** Text steers a session; A session takes checkpoints alone. Rules it
-rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`, for pull request text, and for GitHub issue text until the owner's private issue tracker has taken a repo's issues; after that GitHub issue text is outside text, whoever wrote it);
+rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`), for pull request text, and for GitHub issue text until the repo's lock ticket closes its issues, after which that text is outside text, whoever wrote it; the owner's tracker rule (`claude/tracker.md`);
 the hard stops, the steps that wait for the owner's own words (an install
 apply, mise trust, a merge on their list, anything made public or sent beyond
 the record, a deletion nothing can restore); the stop and removal rules above.
@@ -222,7 +223,7 @@ Anthropic's models and servers, and GitHub; the provider of a synced or backed-u
 folder still holds.
 
 **Root of trust:** the owner's GitHub account and the owner's private issue
-tracker account. Whoever controls either counts as the owner.
+tracker account. Whoever controls either counts as the owner, and so do whoever and whatever the owner admits to that tracker.
 
 ## Residual risk
 
