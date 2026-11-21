@@ -318,7 +318,7 @@ test('gh gives gh the one repo in GH_REPO, since it runs from an empty folder', 
 
 test('gh runs gh with a gh-set token in GH_TOKEN from a fresh empty folder, strips the rest, and withholds a line that holds the token', async t => {
   const canary = `owner-${'z'.repeat(24)}`;
-  const w = world(t, { env: { GH_TOKEN: canary, GITHUB_TOKEN: canary, GH_DEBUG: '1', DEBUG: 'x', GH_HOST: 'evil.example' } });
+  const w = world(t, { env: { GH_TOKEN: canary, GITHUB_TOKEN: canary, GH_ENTERPRISE_TOKEN: canary, GITHUB_ENTERPRISE_TOKEN: canary, GH_DEBUG: '1', DEBUG: 'x', GH_HOST: 'evil.example' } });
   let seen;
   w.state.gh = (args, opts) => {
     seen = { args, env: opts.env };
@@ -327,7 +327,7 @@ test('gh runs gh with a gh-set token in GH_TOKEN from a fresh empty folder, stri
   assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', 'pr', 'merge', '7', '--match-head-commit', 'abc'], w.io), 0);
   assert.deepEqual(seen.args, ['pr', 'merge', '7', '--match-head-commit', 'abc']);
   assert.match(seen.env.GH_TOKEN, /^ghs_/);
-  for (const k of ['GITHUB_TOKEN', 'GH_DEBUG', 'DEBUG', 'GH_HOST']) assert.equal(Object.hasOwn(seen.env, k), false, k);
+  for (const k of ['GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN', 'GH_DEBUG', 'DEBUG', 'GH_HOST']) assert.equal(Object.hasOwn(seen.env, k), false, k);
   assert.equal(w.spy.fetches.find(f => f.method === 'POST').body.permissions.administration, undefined);
   assert.deepEqual(w.spy.fetches.find(f => f.method === 'POST').body.permissions, SETS.gh, 'the full app set');
   const { out, err } = printed(w);

@@ -46,7 +46,7 @@ export const SETS = Object.freeze({
   post: Object.freeze({ issues: 'write', pull_requests: 'write' }),
   gh: CLAIM_PERMISSIONS,
 });
-const STRIPPED_ENV = new Set(['GH_TOKEN', 'GITHUB_TOKEN', 'GH_HOST', 'GH_ENTERPRISE_TOKEN', 'GH_DEBUG', 'DEBUG']);
+const STRIPPED_ENV = new Set(['GH_TOKEN', 'GITHUB_TOKEN', 'GH_HOST', 'GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN', 'GH_DEBUG', 'DEBUG']);
 const GH_FORBIDDEN_FIRST = new Set(['auth', 'extension', 'extensions', 'ext', 'alias', 'config']);
 
 // ---------------------------------------------------------------- reasons
