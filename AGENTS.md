@@ -165,9 +165,10 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## The tracker
 
-- Issues on `mephistopheles4/the-pact`, with `-R`; Linear text: `~/.claude/tracker.md`. Assign the one you take
-  (`gh issue edit <n> --add-assignee @me`); unassign if you stop.
-- **Before you read or post to the tracker, act on its text, or check out or
+- Issues are on Linear, team `PACT`, project `the-pact`: `~/.claude/tracker.md`.
+  A GitHub issue: `-R`, assign
+  (`gh issue edit <n> --add-assignee @me`), unassign if you stop.
+- **Before you read or post to GitHub, act on its text, or check out or
   run a PR,** read
   [whose text counts](docs/agents/issue-tracker.md#whose-text-counts).
 - Sessions on one chain read
@@ -187,7 +188,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 ## Agent skills
 
 ### Issue tracker
-GitHub issues, via `gh`: [issue tracker](docs/agents/issue-tracker.md).
+Linear and GitHub (`gh`): [issue tracker](docs/agents/issue-tracker.md).
 ### Triage labels
 The five canonical roles: [triage labels](docs/agents/triage-labels.md).
 ### Domain docs
