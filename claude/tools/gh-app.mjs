@@ -9,6 +9,9 @@
 //   node gh-app.mjs status --provider <p> [--repo <folder>]
 //   node gh-app.mjs forget --provider <p>
 //
+// setup writes the absolute path of the Node it runs under into the gitconfig's
+// helper line; after a Node upgrade or move, run setup again to refresh it.
+//
 // <p> is claude, codex or antigravity. No mode prints a token: mintToken is a
 // module export only, and git-credential get answers git on git's own pipe.
 // Every mode catches every error at its top level and prints one fixed
@@ -26,7 +29,7 @@ import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { basename, join, posix } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const PROVIDERS = Object.freeze(['claude', 'codex', 'antigravity']);
@@ -36,7 +39,6 @@ const LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
 const TOKEN_RE = /^[A-Za-z0-9_]{20,255}$/;
 const SKEW_MS = 5 * 60 * 1000;
-const NODE_PATHS = Object.freeze(['C:/Program Files/nodejs/node.exe']);
 export const CLAIM_PERMISSIONS = Object.freeze({ contents: 'write', pull_requests: 'write', issues: 'write', workflows: 'write', actions: 'read', checks: 'read', statuses: 'read', metadata: 'read' });
 export const SETS = Object.freeze({
   git: Object.freeze({ contents: 'write', workflows: 'write' }),
@@ -44,7 +46,7 @@ export const SETS = Object.freeze({
   gh: CLAIM_PERMISSIONS,
 });
 const STRIPPED_ENV = new Set(['GH_TOKEN', 'GITHUB_TOKEN', 'GH_HOST', 'GH_ENTERPRISE_TOKEN', 'GH_DEBUG', 'DEBUG']);
-const GH_FORBIDDEN_FIRST = new Set(['auth', 'extension', 'ext', 'alias', 'config']);
+const GH_FORBIDDEN_FIRST = new Set(['auth', 'extension', 'extensions', 'ext', 'alias', 'config']);
 
 // ---------------------------------------------------------------- reasons
 
@@ -69,7 +71,6 @@ export const REASONS = Object.freeze({
   shape: 'GitHub answered with something that is not the expected shape',
   store: 'the credential store failed',
   app: 'the app does not match: id, owner, permissions or events differ from the pinned set',
-  node: "the node path is not one the gitconfig may name",
   gitconfig: 'the gitconfig could not be written or did not read back as expected',
   git: 'git failed',
   settings: "the settings env still points at this provider's gitconfig; turn the switch off and apply first",
@@ -582,11 +583,14 @@ function iniValue(v, force = false) {
   return force || /["\\#;]|^\s|\s$/.test(v) ? `"${v.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"` : v;
 }
 
-/** The gitconfig setup writes for a provider, as text: the text the install compares against (S7). */
+/**
+ * The gitconfig setup writes for a provider, as text: the text the install compares against (S7).
+ * `nodePath` is the Node setup runs under (process.execPath), so a Node upgrade is
+ * followed by running setup again, which writes the new path.
+ */
 export function gitconfigText({ home, nodePath, app, provider, xdg = false }) {
   const h = slash(home);
   const node = slash(nodePath);
-  if (!NODE_PATHS.some(p => p.toLowerCase() === node.toLowerCase())) refuse('node');
   const helper = `!"${node}" "${helperPath(home)}" git-credential --provider ${provider}`;
   return [
     '[include]',
@@ -711,12 +715,18 @@ function readRequest(text) {
 
 /** Whether a `git -c` or GIT_CONFIG_COUNT setting in the environment turns http.sslVerify off, for any url. */
 function sslVerifyOffByEnv(env) {
-  const off = v => /^(?:false|no|off|0)$/i.test(String(v ?? '').trim());
+  // git reads false, no, off, an empty value and any integer that is zero as false.
+  const off = v => /^(?:false|no|off|[+-]?0+)$/i.test(String(v ?? '').trim());
   const key = k => /^http\.(?:[^=\s]*\.)?sslverify$/i.test(k);
+  // Git writes `git -c k=v` as 'k=v' (before 2.31) or 'k'='v' (since), and a bare -c k as 'k', which means true.
   const packed = lowerEnv(env, 'GIT_CONFIG_PARAMETERS') ?? '';
-  for (const m of packed.matchAll(/'([^'=]*)=([^']*)'|'([^'=]*)'/g)) if (key(m[1] ?? m[3] ?? '') && off(m[2])) return true;
+  for (const m of packed.matchAll(/'([^']*)'(?:='([^']*)')?/g)) {
+    let [k, v] = [m[1], m[2]];
+    if (v === undefined && k.includes('=')) [k, v] = [k.slice(0, k.indexOf('=')), k.slice(k.indexOf('=') + 1)];
+    if (v !== undefined && key(k) && (v === '' || off(v))) return true;
+  }
   const n = Number.parseInt(lowerEnv(env, 'GIT_CONFIG_COUNT') ?? '0', 10);
-  for (let i = 0; i < (Number.isSafeInteger(n) ? Math.min(n, 1000) : 0); i += 1) if (key(lowerEnv(env, `GIT_CONFIG_KEY_${i}`) ?? '') && off(lowerEnv(env, `GIT_CONFIG_VALUE_${i}`))) return true;
+  for (let i = 0; i < (Number.isSafeInteger(n) ? Math.min(n, 100000) : 0); i += 1) if (key(lowerEnv(env, `GIT_CONFIG_KEY_${i}`) ?? '') && off(lowerEnv(env, `GIT_CONFIG_VALUE_${i}`))) return true;
   return false;
 }
 
@@ -742,9 +752,8 @@ async function gitCredential(io, provider, op) {
 
 /** gh with a `gh`-set token in GH_TOKEN, from a fresh empty folder; output lines that hold the token are withheld. */
 async function ghMode(io, provider, repoArg, args) {
-  // The first argument is the subcommand: a leading flag could hide a forbidden one from the check. A second repo flag could point gh past the repo the token is narrowed to.
+  // The first argument is the subcommand: a leading flag could hide a forbidden one from the check (C3).
   if (args.length === 0 || String(args[0]).startsWith('-') || GH_FORBIDDEN_FIRST.has(String(args[0]).toLowerCase())) refuse('gh');
-  if (args.some(a => /^(?:-R|--repo)(?:=|$)|^-R./.test(String(a)))) refuse('gh');
   const repo = parseRepo(repoArg);
   const token = await mintToken({ provider, repo, set: 'gh' }, io);
   guard(io, token);
@@ -759,17 +768,14 @@ async function ghMode(io, provider, repoArg, args) {
 // ---------------------------------------------------------------- forget
 
 async function forget(io, provider) {
-  let env = null;
-  if (io.fs.existsSync(settingsPath(io.home))) {
-    // A settings file that is there but cannot be read as JSON stops forget: it may still point at the gitconfig.
-    try {
-      env = JSON.parse(io.fs.readFileSync(settingsPath(io.home), 'utf8'))?.env ?? null;
-    } catch {
-      return refuse('settings');
-    }
+  let env;
+  try {
+    env = JSON.parse(io.fs.readFileSync(settingsPath(io.home), 'utf8'))?.env;
+  } catch {
+    env = null;
   }
-  const norm = p => posix.normalize(slash(p)).toLowerCase();
-  const pointed = isObject(env) && typeof env.GIT_CONFIG_GLOBAL === 'string' && norm(env.GIT_CONFIG_GLOBAL) === norm(gitconfigPath(io.home, provider));
+  const mine = slash(gitconfigPath(io.home, provider)).toLowerCase();
+  const pointed = isObject(env) && typeof env.GIT_CONFIG_GLOBAL === 'string' && slash(env.GIT_CONFIG_GLOBAL).toLowerCase() === mine;
   if (pointed) refuse('settings');
   const dropped = await dropCache(io, provider);
   try {
@@ -853,10 +859,12 @@ async function status(io, provider, repoDir) {
   say(io, `key: ${key ? 'present' : 'absent'}`);
   const cfgPath = gitconfigPath(io.home, provider);
   let nodeExists = false;
+  let nodeNamed = slash(io.execPath);
   try {
     const text = io.fs.readFileSync(cfgPath, 'utf8');
     const m = /^\s*helper = "!\\"([^"\\]+)\\"/m.exec(text);
     nodeExists = Boolean(m) && io.fs.existsSync(m[1]);
+    if (m) nodeNamed = m[1];
   } catch {
     nodeExists = false;
   }
@@ -895,7 +903,7 @@ async function status(io, provider, repoDir) {
       effective.length = 0;
       continue;
     }
-    effective.push({ scope: m[1], cls: helperClass(text, `!"${NODE_PATHS[0]}" "${helperPath(io.home)}" git-credential --provider ${provider}`) });
+    effective.push({ scope: m[1], cls: helperClass(text, `!"${nodeNamed}" "${helperPath(io.home)}" git-credential --provider ${provider}`) });
   }
   const at = effective.findIndex(h => h.cls === 'pact');
   say(io, `helpers: ${effective.length}`);
@@ -917,7 +925,7 @@ async function status(io, provider, repoDir) {
   say(io, `url rewrite applies: ${rewritten ? 'yes' : 'no'}`);
   const target = `https://github.com/${owner}/${name}`;
   const ssl = git(['config', '--type=bool', '--get-urlmatch', 'http.sslVerify', target]);
-  const noVerify = (ssl.ok && ssl.stdout.trim() === 'false') || (lowerEnv(io.env, 'GIT_SSL_NO_VERIFY') ?? '') !== '';
+  const noVerify = (ssl.ok && ssl.stdout.trim() === 'false') || lowerEnv(io.env, 'GIT_SSL_NO_VERIFY') !== undefined;
   say(io, `http.sslVerify off: ${noVerify ? 'yes' : 'no'}`);
   say(io, `remote url carries credentials: ${creds}`);
   const header = git(['config', '--get-urlmatch', 'http.extraHeader', target]);

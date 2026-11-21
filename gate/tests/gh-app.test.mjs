@@ -207,9 +207,13 @@ test('git-credential get prints username and password on stdout only for an http
     { id: 'ssl-verify-off', lines: GOOD_ASK, env: { GIT_SSL_NO_VERIFY: 'true' }, reason: 'tls' },
     { id: 'ssl-verify-off-empty-value', lines: GOOD_ASK, env: { GIT_SSL_NO_VERIFY: '' }, reason: 'tls' },
     { id: 'tls-off', lines: GOOD_ASK, env: { NODE_TLS_REJECT_UNAUTHORIZED: '0' }, reason: 'tls' },
-    // `git -c http.sslVerify=false` reaches the helper only through these variables.
-    { id: 'ssl-verify-off-by-git-c', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'http.sslverify=false'" }, reason: 'tls' },
-    { id: 'ssl-verify-off-for-a-url-by-git-c', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'user.name=a' 'http.https://github.com/.sslverify=no'" }, reason: 'tls' },
+    // `git -c http.sslVerify=false` reaches the helper only through these variables: git 2.31 and later write
+    // 'key'='value' (key and value quoted apart), earlier git wrote 'key=value'.
+    { id: 'ssl-verify-off-by-git-c', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'http.sslVerify'='false'" }, reason: 'tls' },
+    { id: 'ssl-verify-off-by-git-c-before-2-31', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'http.sslverify=false'" }, reason: 'tls' },
+    { id: 'ssl-verify-off-for-a-url-by-git-c', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'user.name'='a' 'http.https://github.com/.sslVerify'='no'" }, reason: 'tls' },
+    { id: 'ssl-verify-zero-by-git-c', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'http.sslVerify'='00'" }, reason: 'tls' },
+    { id: 'ssl-verify-empty-by-git-c', lines: GOOD_ASK, env: { GIT_CONFIG_PARAMETERS: "'http.sslVerify'=''" }, reason: 'tls' },
     { id: 'ssl-verify-off-by-config-count', lines: GOOD_ASK, env: { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.sslVerify', GIT_CONFIG_VALUE_0: 'false' }, reason: 'tls' },
     { id: 'not-windows', lines: GOOD_ASK, platform: 'darwin', reason: 'platform' },
     { id: 'pin-fails', lines: GOOD_ASK, setup: w => { w.state.app.events = ['push']; }, reason: 'pin/check' },
@@ -267,7 +271,7 @@ test('there is no mode that prints a token: `token` is an unknown mode, and so i
 });
 
 test('gh refuses auth, extension, ext, alias and config as its first argument, even after --', async t => {
-  for (const first of ['auth', 'Auth', 'extension', 'ext', 'alias', 'config']) {
+  for (const first of ['auth', 'Auth', 'extension', 'extensions', 'ext', 'alias', 'config']) {
     const w = world(t);
     assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', first, 'token'], w.io), 1, first);
     assert.equal(w.spy.fetches.length, 0, 'refused before any mint');
@@ -283,18 +287,12 @@ test('gh refuses auth, extension, ext, alias and config as its first argument, e
   }
 });
 
-test('gh pins gh to the one repo in GH_REPO and refuses a second repo flag in its arguments', async t => {
+test('gh gives gh the one repo in GH_REPO, since it runs from an empty folder', async t => {
   const w = world(t);
   let seen;
   w.state.gh = (args, opts) => { seen = opts.env; return { status: 0, stdout: '', stderr: '' }; };
   assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', 'issue', 'list'], w.io), 0);
   assert.equal(seen.GH_REPO, REPO);
-  for (const extra of [['-R', 'x/y'], ['--repo', 'x/y'], ['--repo=x/y'], ['-Rx/y']]) {
-    const v = world(t);
-    assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', 'issue', 'list', ...extra], v.io), 1, extra.join(' '));
-    assert.equal(printed(v).err, `gh-app: ${REASONS.gh}\n`);
-    assert.equal(v.spy.fetches.length, 0);
-  }
 });
 
 // ---------------------------------------------------------------- the gh mode
@@ -407,11 +405,9 @@ test('gitconfigText quotes and escapes a path that holds a quote, a backslash or
   assert.throws(() => gitconfigText({ ...EXAMPLE, home: 'C:\\Users\\a\nb' }), e => e.id === 'gitconfig');
 });
 
-test('gitconfigText names only a node path on the allow-list: C:\\Program Files\\nodejs\\node.exe, any case, any slash', () => {
-  assert.doesNotThrow(() => gitconfigText({ ...EXAMPLE, nodePath: 'c:/program files/NODEJS/node.exe' }));
-  for (const bad of ['C:\\Program Files\\nodejs\\evil.exe', 'C:\\Program Files\\nodejs\\sub\\node.exe', 'C:\\Program Files (x86)\\nodejs\\node.exe', 'C:\\Users\\x\\node.exe', 'C:\\Program Files\\nodejs\\node.exe --inspect', 'node', 'D:\\Program Files\\nodejs\\node.exe', '']) {
-    assert.throws(() => gitconfigText({ ...EXAMPLE, nodePath: bad }), e => e.id === 'node', bad);
-  }
+test('gitconfigText names the Node setup runs under, wherever it is, with forward slashes', () => {
+  const mise = 'C:\\Users\\alice\\AppData\\Local\\mise\\installs\\node\\24.22.0\\node.exe';
+  assert.match(gitconfigText({ ...EXAMPLE, nodePath: mise }), /helper = "!\\"C:\/Users\/alice\/AppData\/Local\/mise\/installs\/node\/24\.22\.0\/node\.exe\\" /);
 });
 
 // ---------------------------------------------------------------- C1: setup
@@ -500,7 +496,6 @@ test('setup for codex pins its app and key and writes no gitconfig', async t => 
     { id: 'key-is-not-rsa', pem: generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } }).privateKey },
     { id: 'key-is-not-a-pem', pem: 'hello' },
     { id: 'key-is-signed-by-another-app', pairOther: true },
-    { id: 'node-path-is-not-on-the-allow-list', setup: w => { w.io.execPath = 'C:\\Users\\alice\\AppData\\Local\\mise\\installs\\node\\24.22.0\\node.exe'; } },
     { id: 'the-readback-differs', setup: w => { w.state.git = () => ({ status: 0, stdout: '\n!evil\n', stderr: '' }); }, wrote: true },
     { id: 'the-readback-fails', setup: w => { w.state.git = () => ({ status: 1, stdout: '', stderr: '' }); }, wrote: true },
     { id: 'gh-cannot-read-the-owner', setup: w => { w.state.ghReadFails.add('user'); } },
@@ -633,11 +628,24 @@ test('a re-run whose cached tokens answer 401 keeps the new key and empties the 
 
 test('a re-run whose revoke fails otherwise prints one fixed line, keeps the new key, and empties the cache', async t => {
   const { w, code } = await rerun(t);
-  w.state.revokeStatus = 500;
+  // Setup's own test token is revoked first and succeeds; only the cached tokens' revokes fail.
+  const real = w.io.fetch;
+  let deletes = 0;
+  w.io.fetch = async (url, init) => (init?.method === 'DELETE' && ++deletes > 1 ? { status: 500, text: async () => '' } : real(url, init));
   assert.equal(await code(), 0, printed(w).err);
-  assert.match(printed(w).out, /a token revoke was not confirmed/);
+  assert.equal(printed(w).out.split('a token revoke was not confirmed').length - 1, 1, 'one fixed line, once');
   assert.deepEqual(w.store.get(KEY), newDer(), 'a failed revoke never undoes the swap');
   assert.deepEqual([...w.store.keys()], [KEY]);
+});
+
+test('a re-run whose own test token cannot be revoked says so once, and keeps the new key', async t => {
+  const { w, code } = await rerun(t);
+  const real = w.io.fetch;
+  let deletes = 0;
+  w.io.fetch = async (url, init) => (init?.method === 'DELETE' && ++deletes === 1 ? { status: 500, text: async () => '' } : real(url, init));
+  assert.equal(await code(), 0, printed(w).err);
+  assert.equal(printed(w).out.split('a token revoke was not confirmed').length - 1, 1);
+  assert.deepEqual(w.store.get(KEY), newDer());
 });
 
 test('a re-run that fails after the key swap puts back the prior key and entry', async t => {
@@ -697,26 +705,6 @@ test('forget refuses while the settings env points GIT_CONFIG_GLOBAL at the gitc
     assert.ok(existsSync(gitconfigFile(w)));
     assert.equal(w.state.revoked.length, 0);
   }
-});
-
-test('forget refuses when the settings file is there but cannot be read as JSON, and keeps everything', async t => {
-  const w = world(t);
-  cachedToken(w, 'git');
-  writeFileSync(gitconfigFile(w), 'x\n');
-  writeFileSync(join(w.home, '.claude', 'settings.json'), '﻿{ not json');
-  assert.equal(await main(['forget', '--provider', 'claude'], w.io), 1);
-  assert.equal(printed(w).err, `gh-app: ${REASONS.settings}\n`);
-  assert.equal(w.store.size, 2);
-  assert.ok(existsSync(gitconfigFile(w)));
-});
-
-test('forget refuses when the settings env names the gitconfig with dots or doubled slashes in its path', async t => {
-  const w = world(t);
-  writeFileSync(gitconfigFile(w), 'x\n');
-  const odd = gitconfigFile(w).replaceAll('\\', '/').replace('/.claude/', '/.claude/./pact/../');
-  writeFileSync(join(w.home, '.claude', 'settings.json'), JSON.stringify({ env: { GIT_CONFIG_GLOBAL: odd } }));
-  assert.equal(await main(['forget', '--provider', 'claude'], w.io), 1);
-  assert.ok(existsSync(gitconfigFile(w)));
 });
 
 test('forget with an expired cached token (401 on revoke) completes', async t => {

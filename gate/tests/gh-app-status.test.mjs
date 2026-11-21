@@ -119,6 +119,7 @@ test('status reports the email as the bot\'s address, something else or unset, n
     { id: 'sslVerify-false', cfg: { ssl: 'false' }, line: 'http.sslVerify off: yes' },
     { id: 'sslVerify-true', cfg: { ssl: 'true' }, line: 'http.sslVerify off: no' },
     { id: 'ssl-no-verify-in-env', cfg: {}, world: { env: { GIT_SSL_NO_VERIFY: '1' } }, line: 'http.sslVerify off: yes' },
+    { id: 'ssl-no-verify-empty-in-env', cfg: {}, world: { env: { GIT_SSL_NO_VERIFY: '' } }, line: 'http.sslVerify off: yes' },
     { id: 'credentials-in-the-url', cfg: { remote: `https://x-access-token:${CANARY}@github.com/${OWNER}/sandbox.git` }, line: 'remote url carries credentials: yes' },
     { id: 'user-in-the-url', cfg: { remote: `https://someone@github.com/${OWNER}/sandbox.git` }, line: 'remote url carries credentials: yes' },
     { id: 'extra-header', cfg: { header: `AUTHORIZATION: basic ${CANARY}` }, line: 'http extraHeader applies: yes' },
