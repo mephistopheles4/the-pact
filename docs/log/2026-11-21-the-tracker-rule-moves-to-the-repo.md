@@ -10,7 +10,7 @@ Nothing takes effect in live sessions until the owner applies the install, which
 
 The owner's words above name the removal, which includes the seam A requirement and the install refusal that guarded only that file; the merge is the owner's to confirm.
 
-**Rolling back:** revert the merge, rerun the regens and reinstall from the dry run, after the four checks in [Roll back to an older version](../install.md#roll-back-to-an-older-version).
+**Rolling back:** merge a revert of this change to `main`; at that commit, run the four checks in [Roll back to an older version](../install.md#roll-back-to-an-older-version), then rerun the regens and reinstall from the dry run.
 
 ## Record
 

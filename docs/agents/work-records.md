@@ -5,8 +5,8 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
   [`docs/agents/issue-tracker.md`](issue-tracker.md). Cite a commit by its short
   hash; GitHub links it only once the commit is on the remote.
-- **In a repo with a private tracker,** the work lives there, and
-  [that section's rules](issue-tracker.md#linear) replace the assignee step.
+- **In a repo under [Linear](issue-tracker.md#linear),** the work lives
+  there, and its rules replace the assignee step.
 - **A session assigns the issue it takes.** When it starts work on an issue,
   it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
   is done, it removes itself with `--remove-assignee @me`.

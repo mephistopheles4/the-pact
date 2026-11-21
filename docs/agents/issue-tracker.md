@@ -1,6 +1,6 @@
 # Issue tracker
 
-This file holds for GitHub issue text until the lock ticket (the issue that closes this repo's GitHub issues on the move) closes them, and for PR text always. [Linear](#linear) holds for Linear text.
+This file holds for GitHub issue text until the lock ticket (the issue that closes this repo's GitHub issues once its work moves to Linear) closes them, and for PR text always. [Linear](#linear) holds for Linear text.
 
 Issues and PRDs for this repo live as GitHub issues on `mephistopheles4/the-pact`. Use the `gh` CLI for all operations; it infers the repo from `git remote -v` when run inside a clone.
 
@@ -128,7 +128,7 @@ checker instead: [When GraphQL is refused](#when-graphql-is-refused).
 $out = gh issue view <number> -R <owner>/<repo> --json number,title,body,author,labels,comments
 ```
 
-Gives each author's `login`, but no editors and no label actors: use the next two reads for those.
+Gives authors, not editors or label actors: use the next two reads for those.
 
 ### Read an issue with editors
 
@@ -324,8 +324,7 @@ stricter: an edited comment, and every issue, PR or review body, never count.
 - **A stop** prints `FAIL stop/<id>` and nothing it read. A `stop/count` may
   be run again once, since a comment may have landed during the read; a
   second stop of any kind means stop and ask the owner.
-- **Keep the output in the session** or a scratch folder outside the repo.
-  Never commit it, and never post it raw.
+- **Keep the output** in the session or outside the repo; never commit or post it raw.
 - **Listing open issues** goes through REST, page by page, never
   `--paginate`: `gh api "repos/<owner>/<repo>/issues?state=open&per_page=100&page=N"`
   until a page holds fewer than 100, dropping records with a `pull_request`
@@ -364,9 +363,9 @@ issue, linked to the parent issue as a GitHub sub-issue.
 
 ## Linear
 
-Holds for a local session in a repo with a pair in `~/.claude/pact/linear.json`, and for every cloud session that touches Linear. The file is written by the owner alone, never in a published default, preset or `cloud-sessions/`: a workspace id, and each repo's `origin` path (owner/repo) with its project id. Only that workspace counts; a session works in its repo's project. With no pair, a local session ignores this section.
+Holds for a local session in a repo with a pair (the owner's local pin) in `~/.claude/pact/linear.json`, and for every cloud session that touches Linear. The file is written by the owner alone, never in a published default, preset or `cloud-sessions/`: a workspace id, and each repo's `origin` path (owner/repo) with its project id. Only that workspace counts; a session works in its repo's project. With no pair, a local session ignores this section.
 
-- **Everything in that workspace counts,** whoever wrote it: the owner controls who is in it, so no author, editor or label check runs there. It is the owner's private record; secrets, others' weaknesses and withheld items stay out.
+- **In a local session, everything in that workspace counts,** whoever wrote it: the owner controls who is in it, so no author, editor or label check runs there. It is the owner's private record; secrets, others' weaknesses and withheld items stay out.
 - **Read and post through the Linear connector,** as the connector's app identity (Famulus), as new comments and issues, never an edit by `id`; a status is a new comment each round. Without the connector, post nothing to Linear. The token (`LINEAR_TOKEN`) stays in the owner's user environment; the connector's config holds the reference, never the value. It goes in no repo, record, chat, hand-off, start prompt, command line, file a session reads or cloud environment.
 - **Names.** An item is `<KEY>-<n>`, team key and number. Sign a PR `pr-<KEY>-<n>` and title it `<KEY>-<n>: ...`; sign a status `status-<KEY>-<n>`. Public text cites the id with no link.
 - **The app can't change an item or be assigned.** The owner creates the [triage labels](triage-labels.md) on the team, moves workflow state when a PR merges or work stops, and bulk-archives on a rollback: ask in a status comment. Claims go by [parallel sessions](parallel-sessions.md).
