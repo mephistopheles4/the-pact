@@ -662,9 +662,15 @@ async function setup(io, { provider, appId, keyPath }) {
     throw e;
   }
   const revoked = await revoke(io, testToken);
-  if (botRes.status !== 200) return refuse('net');
+  if (botRes.status !== 200) {
+    if (revoked !== 'revoked') say(io, 'setup: the test token revoke was not confirmed; it lives at most an hour', 'err');
+    return refuse('net');
+  }
   const bot = jsonOf(botRes);
-  if (!isId(bot.id) || bot.type !== 'Bot' || !sameLogin(bot.login, `${slug}[bot]`)) return refuse('shape');
+  if (!isId(bot.id) || bot.type !== 'Bot' || !sameLogin(bot.login, `${slug}[bot]`)) {
+    if (revoked !== 'revoked') say(io, 'setup: the test token revoke was not confirmed; it lives at most an hour', 'err');
+    return refuse('shape');
+  }
   const entry = { app_id: appId, slug, bot_login: `${slug}[bot]`, bot_id: bot.id };
   const gitconfig = provider === 'claude' ? gitconfigText({ home: io.home, nodePath: io.execPath, app: entry, provider, xdg: io.fs.existsSync(join(io.home, '.config', 'git', 'config')) }) : null;
 

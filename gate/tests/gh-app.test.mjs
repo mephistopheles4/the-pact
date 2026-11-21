@@ -752,19 +752,24 @@ test('setup says the gh login could not be read, not that the pin check failed, 
 });
 
 // #602 C1: setup revokes its test token whether or not the bot lookup works.
-test('setup revokes its test token when the bot lookup throws, and says so if it cannot', async t => {
-  for (const revokeFails of [false, true]) {
-    const w = fresh(t);
-    const real = w.io.fetch;
-    w.io.fetch = async (url, init) => {
-      if (String(url).includes('/users/') && String(url).includes('%5Bbot%5D')) throw new Error('timeout');
-      if (revokeFails && init?.method === 'DELETE') return { status: 500, text: async () => '' };
-      return real(url, init);
-    };
-    assert.equal(await main(setupArgs(w), w.io), 1);
-    if (revokeFails) assert.match(printed(w).err, /the test token revoke was not confirmed/);
-    else assert.equal(w.state.revoked.length, 1, 'the test token was revoked');
-    untouched(w);
+test('setup revokes its test token when the bot lookup throws or is refused, and says so if it cannot', async t => {
+  for (const lookup of ['throws', 'answers 500', 'answers the wrong shape']) {
+    for (const revokeFails of [false, true]) {
+      const w = fresh(t);
+      const real = w.io.fetch;
+      w.io.fetch = async (url, init) => {
+        if (String(url).includes('/users/') && String(url).includes('%5Bbot%5D')) {
+          if (lookup === 'throws') throw new Error('timeout');
+          return lookup === 'answers 500' ? { status: 500, text: async () => '' } : { status: 200, text: async () => '{}' };
+        }
+        if (revokeFails && init?.method === 'DELETE') return { status: 500, text: async () => '' };
+        return real(url, init);
+      };
+      assert.equal(await main(setupArgs(w), w.io), 1);
+      if (revokeFails) assert.match(printed(w).err, /revoke was not confirmed/, `${lookup}: says it`);
+      else assert.equal(w.state.revoked.length, 1, `${lookup}: the test token was revoked`);
+      untouched(w);
+    }
   }
 });
 
