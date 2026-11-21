@@ -141,7 +141,13 @@ const REPO_RE = /^([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100})$/;
 const NUMBER_RE = /^[1-9][0-9]{0,15}$/;
 const BRANCH_RE = /^[A-Za-z0-9._/-]{1,255}$/;
 const LABEL_RE = /^[A-Za-z0-9 :._-]{1,50}$/;
-const SIGNED_RE = /^[a-z0-9][a-z0-9-]{0,49}$/;
+const LABEL_SOURCE = '[a-z0-9][a-z0-9-]{0,49}';
+// The one upper-case shape a signer takes (#580): `pr-<KEY>-<n>`, the key a Linear team's, the number the item's. No other upper-case label opens.
+const KEYED_SOURCE = 'pr-[A-Z][A-Z0-9]{1,9}-[1-9][0-9]{0,15}';
+/** A signer as a signature or reason line holds it, without anchors or groups. */
+const SIGNER_SOURCE = `(?:${LABEL_SOURCE}|${KEYED_SOURCE})`;
+const SIGNED_RE = new RegExp(`^${SIGNER_SOURCE}$`);
+const VIA_RE = new RegExp(`^${LABEL_SOURCE}$`);
 const HEAD_RE = /^(?:[A-Za-z0-9-]{1,39}:)?[A-Za-z0-9._/-]{1,255}$/;
 const ANSWERS_RE = /^(?:issue|pull request|comment) [1-9][0-9]{0,15}$/;
 const BODY_FILE_RE = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/;
@@ -273,7 +279,7 @@ export const SCHEMA = Object.freeze({
           text: { type: 'string', minLength: 1, maxLength: 4000 },
           source: { enum: ['chat', 'relayed', 'tracker'] },
           comment: ID,
-          via: { type: 'string', pattern: SIGNED_RE.source },
+          via: { type: 'string', pattern: VIA_RE.source },
           when: { type: 'string', pattern: WHEN_RE.source, 'x-rule': 'post/when' },
         },
       },
@@ -1956,11 +1962,11 @@ function parseJson(s) {
 // ---------------------------------------------------------------- the edit checks (#413)
 
 /** A reason line, whatever its label, as `linesOf` splits it. */
-const REASON_LINE_RE = /^Edited: .+ \([a-z0-9][a-z0-9-]{0,49}\)$/;
+const REASON_LINE_RE = new RegExp(`^Edited: .+ \\(${SIGNER_SOURCE}\\)$`);
 /** A line that reads as a reason line on the page, whatever it hides: format characters out, trimmed. */
 const REASON_SHAPE_RE = /^Edited:/;
 /** The two signature lines, whole: `Signed: <label>` and `Posted by <label>.` */
-const SIGNATURE_RE = /^(?:Signed: ([a-z0-9][a-z0-9-]{0,49})|Posted by ([a-z0-9][a-z0-9-]{0,49})\.)$/;
+const SIGNATURE_RE = new RegExp(`^(?:Signed: (${SIGNER_SOURCE})|Posted by (${SIGNER_SOURCE})\\.)$`);
 const HEADING_RE = /^ {0,3}#{1,6}(?:[ \t]|$)/;
 const SETEXT_RE = /^ {0,3}(?:=+|-+)[ \t]*$/;
 const LENS_WORD_RE = /[A-Za-z]-lens(?![A-Za-z0-9-])/;

@@ -383,7 +383,7 @@ fields are also scanned, each as its own field, so a refusal names it:
 | `head`, `base` | A branch; `head` may be `owner:branch` with the repo's own owner | `post/pattern`, `owner/head` |
 | `draft` | A boolean; opens the pull request as a draft | `post/type` |
 | `issue`, `pr`, `comment` | A positive whole number, a JSON number | `post/type`, `post/pattern` |
-| `signer` | The session's label: a lowercase letter or digit, then lowercase letters, digits and hyphens, at most 50 characters | `post/pattern`, `post/signer`, `edit/unsigned` |
+| `signer` | The session's label: a lowercase letter or digit, then lowercase letters, digits and hyphens, at most 50 characters; or `pr-<KEY>-<n>`, an upper-case team key of 2 to 10 letters and digits, then a number, for a pull request on work tracked on a Linear item | `post/pattern`, `post/signer`, `edit/unsigned` |
 | `quote` | 1 to 5 passages (The quote and the read-back) | `post/missing`, `post/when`, `post/tracker`, `post/field` |
 | `intent` | The read-back: `text` of 1 to 2,000 characters, a `status`, and on an edit `comment` and `corrected` | `post/status`, `post/owned-line`, `text/hidden-line` |
 | `body_file` | A bare file name in the post file's own folder (no slash, backslash or colon, not `.` or `..`), read like the post file; its text at most 65,536 characters, and the whole rendered body too | the `file/` rules, `post/pattern`, `post/owned-line`, `text/body-length` |
