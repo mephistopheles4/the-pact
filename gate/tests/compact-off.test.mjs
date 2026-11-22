@@ -63,7 +63,7 @@ test('#482 C4: a window off the range or its step, and a value that is no number
     config(h, windowCfg(bad));
     const r = install(repo, h);
     assert.notEqual(r.code, 0, `${JSON.stringify(bad)}\n${r.out}`);
-    assert.match(r.stdout, /FAIL config-value: .*auto-compact-window must be 0, or a whole number from 100000 to 1000000 in steps of 10000/, `${JSON.stringify(bad)}\n${r.out}`);
+    assert.match(r.stdout, /FAIL config-value: .*auto-compact-window must be 0, or a whole number from 100000 to 1000000 in steps of 10000 \(400000 when unset\)/, `${JSON.stringify(bad)}\n${r.out}`);
   }
   for (const ok of [0, 100000, 400000, 410000, 1000000]) {
     const h = home(t);

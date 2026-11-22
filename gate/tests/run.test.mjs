@@ -440,6 +440,8 @@ for (const [label, files, says] of [
     const r = runIn(p, ['full', '--skips', join(p.tests, 'skips.txt')]);
     assert.equal(r.code, 1, r.stderr);
     assert.match(r.stderr, says);
+    // PACT-48: the failure names its next step, so no rule needs to.
+    assert.match(r.stderr, /^NEXT: edit gate\/tests\/windows-skips\.txt as a reviewed change: add each line "skip not in the list" names, remove each "skip in the list but not seen" names\. A skip of a test that guards the installer's link, path or file handling goes to the owner, not into the list\.$/m);
     assert.match(r.last, /^RESULT: full tier, 1 files, fail \(the skips differ from the list: \d+ not listed, \d+ not seen\)$/);
   });
 }

@@ -106,7 +106,8 @@ test('a project value tighter than the user\'s own installs, and the digest cove
 
 // #482 C4: the auto-compact window has no tightening direction, so a project may not set it, valid value or not.
 test('bad case: the auto-compact window in a project configuration refuses, naming the key', t => {
-  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"auto-compact-window": 300000}}\n')), 'project-direction', /auto-compact-window has no tightening direction, so a project may not set it/);
+  // PACT-48: the refusal says what to do and names the default, so no rule has to.
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"auto-compact-window": 300000}}\n')), 'project-direction', /auto-compact-window has no tightening direction, so a project may not set it: remove the key from the project's configuration and ask the owner to set it in the home configuration; it is 400000 when unset/);
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"auto-compact-window": 0}}\n')), 'project-direction', /auto-compact-window/);
 });
 

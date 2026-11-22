@@ -670,6 +670,7 @@ export async function main(argv) {
       const { notListed, notSeen } = skipDifference(listed, junitSkips(report));
       for (const l of notListed) say(`skip not in the list: ${l}`);
       for (const l of notSeen) say(`skip in the list but not seen: ${l}`);
+      if (notListed.length || notSeen.length) say('NEXT: edit gate/tests/windows-skips.txt as a reviewed change: add each line "skip not in the list" names, remove each "skip in the list but not seen" names. A skip of a test that guards the installer\'s link, path or file handling goes to the owner, not into the list.');
       if (notListed.length || notSeen.length) [result, code] = [`fail (the skips differ from the list: ${notListed.length} not listed, ${notSeen.length} not seen)`, 1];
     }
   }

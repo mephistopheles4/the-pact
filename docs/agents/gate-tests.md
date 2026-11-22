@@ -35,22 +35,6 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 
   All three cap the run at four test files at once, which keeps it from
   starving other sessions. Never run the suite without the cap.
-- **It fails closed.** It hands the Node running it an explicit file list, so
-  it needs no glob and works the same in any shell, on Node 24 or later, the
-  floor below. An empty pick, an odd test-file name or a usage error
-  exits 2 and runs nothing. A failed, killed or unstarted node exits 1. Its
-  last line, on stderr, names the tier, the file count and the result.
-  `--reporter` takes `spec`, `tap`, `dot` or `junit`, and `--list` prints the
-  pick and runs nothing. `--skips <file>`, for `full` only, fails a passing
-  run unless it skipped exactly the tests the file lists, by test file and
-  name, and prints each difference after a `skip not in the list: ` or
-  `skip in the list but not seen: ` prefix; the text after the prefix is the
-  list's line. The Windows
-  CI job runs it with `gate/tests/windows-skips.txt`, so a new Windows skip is
-  a reviewed change to that list. A line added for a test that guards the
-  installer's link, path or file handling is input validation: the change
-  matches the sensitive-work list, and the skip goes to the owner. A line out
-  of the list's shape refuses the run by its line number.
 - **Node.** Run the tests on Node 24 or later; `mise use -g node@24`
   gets it. The install needs it too. The Linux run in a container is in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs
@@ -143,12 +127,9 @@ A PreToolUse hook holds sessions to athanor. `.claude/settings.json` runs
 [`.claude/hooks/athanor-guard.mjs`](../../.claude/hooks/athanor-guard.mjs)
 before every Bash and PowerShell call, with a 15 s timeout.
 
-- **What it refuses:** a host run of `gate/tests/run.mjs` with the tier `fast`,
-  `full` or `changed`, in the forms the docs use and a few wrappers more (`env -u
-  NODE_OPTIONS`, the PowerShell form's `$env:NODE_OPTIONS = $null;`, `&`,
-  `time`, `timeout`, a quoted or absolute path), past any comment, while
-  `athanor --version` exits 0 and prints a version within 5 s. Its refusal is
-  fixed text that names `athanor run fast`, `athanor run` and the fallback.
+- **What it refuses:** its refusal is fixed text that names `athanor run fast`,
+  `athanor run` and the fallback. Commands it doesn't match pass silently: it is
+  a nudge, not a control.
 - **What it passes, silently:** `--list`, which runs nothing; a `fast` or
   `full` run with `--host-fallback=<reason>` (`changed` has no fallback: the
   runner rejects the flag there); every other

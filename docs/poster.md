@@ -169,6 +169,12 @@ hold a personal detail. The text outside its spans must be 20 characters or
 more, no two spans touch, and a passage holds at most three. The session
 tells the owner in chat what it left out.
 
+A quoted create post takes `intent`, or `intent_skip` in its place, never both: a
+one-line reason (at most 200 characters) that there is no reading to give. A
+`decision` takes no `intent_skip`. The body shows it as `## Understood intent`,
+then `Skipped: <reason>`, with no read-back line, and it is an ask item an edit
+carries as `quote` and `intent_skip`, word for word.
+
 `intent` is the session's read-back of the quote, with a `status`:
 `pending`, `confirmed` or `corrected`. A create post takes `pending`, or
 `confirmed` only when every passage's source is `chat`
@@ -241,55 +247,6 @@ So a dry run of an edit reads nothing and prints one fixed line saying which
 checks did not run (`edit/ask`, `edit/status`, `edit/confirm`, `post/tracker`,
 the reason carry and the content scan of the full body): an edit isn't checked
 in full until it is sent.
-
-Before it sends, the poster reads the item and refuses the edit, with nothing
-sent, when:
-
-- **another account wrote it** (`edit/author`), or it isn't where the post
-  says (`edit/target`): a comment on another issue or pull request, an issue
-  number that is a pull request's, or a thread's first comment, which the
-  poster never makes. An item another account wrote is read no further, so
-  its text never reaches the slower checks below;
-- **it isn't signed by `signer`** (`edit/unsigned`), on the item or on the
-  rendered body. A signature line is a whole line, outside a fence, a quote
-  and a closed HTML comment, that is exactly `Signed: <label>` or `Posted by <label>.`; a
-  body that also holds another label's signature line is refused too. A bare
-  label is never a signature, so a post signed only with its label, or a pull
-  request body with no signature line, can't be edited. A body the poster
-  posts always carries its `signer` as the `Signed:` line, and a pull request
-  body is signed `pr-<n>`, or `pr-<KEY>-<n>` for a keyed item, or with no issue the
-  session's label. For a body already posted
-  unsigned, the owner types the fix on GitHub, from a changed line the
-  session scanned with an `issue-comment` post of kind `note` and `--dry-run` (`claude/review.md`, The
-  poster);
-- **it is a review record** (`edit/record`, best effort), on the item or the
-  new body: a heading or a fold's summary that names a word ending in
-  `-lens`, a fold summary that opens "Lens dispositions" or "Crossed
-  findings", or the Lens dispositions header row, `Finding`, `Lens`,
-  `Disposition` and `Rerun` whatever its spacing. It skips fences on each
-  normalised and folded view of the text, so a shape quoted inside a fence can
-  be refused too. A record stays as it was posted; a correction is a new
-  comment;
-- **it holds a decision mark** (`edit/decision`, best effort), on the item or
-  the new body: the words "owner decision", in any case, spacing or markup, on
-  the text as written and on each normalised copy the content scan reads, each
-  also with its links and marks folded, with a fixed set of look-alike letters
-  folded first.
-  Text that only mentions the words can't be edited either, and that includes a
-  quote whose own words hold them: a post that quotes the words "owner
-  decision" is uneditable;
-- **it holds what the content scan refuses** (`edit/leak`): a hidden
-  character or a live environment secret's value. An edit can't remove it, since GitHub's
-  history keeps every version, so tell the owner instead;
-- **the new body drops, changes, adds or hides a reason line**
-  (`edit/reasons`): the rendered body must end in exactly the item's reason
-  lines, in order, then the new line. A `body_file` never holds a reason line
-  (`post/owned-line`), nothing above them may open an HTML comment or a fold
-  it doesn't close, and reason lines pile up, as the record of each change. A
-  **status edit**, `issue-comment-edit` with `signer` `status-<n>` and n the
-  `issue` value, is the one exception: the item's reason lines are not
-  compared or carried, and the poster adds the newest, so the comment ends in
-  exactly one.
 
 The author, target, signature, leak and append-only reason checks are the
 edit's controls; on a status edit the append-only check is removed, accepted
@@ -385,6 +342,7 @@ fields are also scanned, each as its own field, so a refusal names it:
 | `signer` | The session's label: a lowercase letter or digit, then lowercase letters, digits and hyphens, at most 50 characters; or `pr-<KEY>-<n>`, KEY a capital, then 1 to 9 capitals or digits | `post/pattern`, `post/signer`, `edit/unsigned` |
 | `quote` | 1 to 5 passages (The quote and the read-back) | `post/missing`, `post/when`, `post/tracker`, `post/field` |
 | `intent` | The read-back: `text` of 1 to 2,000 characters, a `status`, and on an edit `comment` and `corrected` | `post/status`, `post/owned-line`, `text/hidden-line` |
+| `intent_skip` | In place of `intent`: one line, 1 to 200 characters, why there is no reading | `post/missing`, `post/field`, `post/owned-line`, `text/hidden-line` |
 | `body_file` | A bare file name in the post file's own folder (no slash, backslash or colon, not `.` or `..`), read like the post file; its text at most 65,536 characters, and the whole rendered body too | the `file/` rules, `post/pattern`, `post/owned-line`, `text/body-length` |
 | `reason` | An edit's reason: one line of at most 200 characters | `post/length`, `post/pattern` |
 
@@ -414,7 +372,9 @@ withheld with only the rule it trips named. The poster never retries.
 
 On exit 1 and exit 3 the poster prints one `NEXT:` line, straight above the
 `RESULT:` line, saying what the session does next, so a session that never
-sees this page still knows. It is the only line that starts with `NEXT:`. Its
+sees this page still knows. An exit 2 for an edit rule, a content-scan rule or a
+missing or doubled `intent` prints one `NEXT:` line for each such rule it
+refused, above `RESULT:`, saying what to do instead. Its
 page and login are the ones the poster checked before it sent, never text from
 `gh` or the body.
 
@@ -519,33 +479,6 @@ nothing sent.
 | `link/relative` | A link's target has no scheme and isn't an anchor on the same page |
 
 ## What the scans cover
-
-The content scan reads the title, each label, each passage's `text`,
-`intent.text` and `intent.corrected`, each as its own field so a refusal names
-it, and the whole rendered body, as written and as normalised copies, each
-meant to show the text as a reader sees it on GitHub's page:
-
-- **The floor,** two copies, one with HTML comments
-  dropped and one with their contents kept: invisible characters, markdown
-  escapes and inline tags removed every round, the old short list of named
-  references decoded, NFKC applied. It is frozen, so no form it refuses passes later.
-- **The page copy:** block-quote markers stripped, then the source's own raw
-  HTML removed once, block by block, as GitHub's grammar reads it (tags with
-  any quoted attribute value and ASCII spacing, but for the nine tag names
-  GitHub filters; comments, declarations, and processing instructions and
-  CDATA sections up to their first `>`), keeping backslash escapes
-  and code spans as text; then, until nothing changes, escapes removed, every
-  HTML5 named reference decoded (the semicolon-less legacy names by longest
-  prefix), numeric references of any length decoded, invisible and control
-  characters stripped, and NFKC applied. It never removes a tag twice, so
-  text that decoding makes tag-shaped stays, as the page shows it.
-- **The bare copy:** the same, removing nothing, for a tag the page shows as
-  text in a fence or elsewhere the page copy reads otherwise.
-- **The wide copy:** the same as the page copy, but read over the whole text
-  with any Unicode spacing in a tag and no tag filter, for a tag the HTML parser reads inside an HTML block where the
-  grammar doesn't, such as one with a no-break space before `=`.
-- **The page copy with its marks folded:** `*`, backticks, `~` and link
-  syntax dropped, `_` kept.
 
 Control characters are stripped though GitHub's comments show most of them
 as U+FFFD: stripping only ever adds refusals. The lists of names below are

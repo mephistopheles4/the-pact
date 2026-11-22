@@ -71,27 +71,6 @@ how every session in every repo behaves. So:
   weekly `usage-pause`; unset, the rules file has no session line.
   `usage-pause` also takes `false`, which renders no weekly line. Rolling back
   past any of these is in [install](../install.md#roll-back-to-an-older-version).
-- **The auto-compact window.** `auto-compact-window` is 0
-  (off) or 100000 to 1000000 tokens in steps of 10000, 400000 when unset, and
-  no project may set it. It has no part in the rules file, so the rules text is
-  the same at any value. With it on the install copies
-  `claude/hooks/compact-handoff.mjs` to `pact/hooks/` and merges the overlay's
-  `hooks` block by key: a pact entry is an inner hook equal to the overlay's
-  for that event, its window aside, so the five are updated in place (only
-  that inner hook, when your own command shares its group) or added after an
-  event's other groups, a second copy is taken out, and every other hook stays
-  as it was. A hook that names the script but is not that entry draws the
-  dry run's warning and is left alone.
-  `hooks` is never run through the deep merge, which would replace an owner's
-  list. Seam A takes `--compact on|off`, exactly once, and holds the hooks block
-  to the allow-list, tokens included. The installer replaces the block's two
-  tokens, the script's path (checked to sit under the Claude home folder) and
-  the window, only after that check. Off removes the pact's entries, the script
-  and the `autoCompactWindow` it set; the install record's `autoCompactWindow`
-  holds the last window so a value you set by hand is never removed. The cloud
-  copy always sets 400000 and has no Off: `cloud-sessions/tpl-config-tail.sh`
-  runs the same keyed merge with jq. Hand-offs in `pact/handoff/` are never
-  deleted by the pact.
 - **The session stop switch.** `session-stop-deny` is
   `true` or `false`, `false` when unset, and no project may set it (a project
   configuration that names it is refused). It has no part in the rules file;

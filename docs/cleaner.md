@@ -78,23 +78,6 @@ pass it.
   that is not known. Its worktree goes; the branch stays.
 - **A link anywhere inside, in every run**: "holds a link: remove the
   link itself first, never with a recursive delete, then the folder by hand".
-  Git lists no folder link to an empty folder, so the cleaner walks a folder
-  that is still there itself and never enters a link; a symlink or junction as
-  Node reports it counts, a file link and a link git tracks included, and so
-  does a record git calls prunable over a folder still there, and so does a
-  folder whose real path differs from where the walk found it. The walk runs
-  no git and enters no link (it lists, and resolves the real path of each
-  folder a listing showed as plain), and it runs before any git call in the
-  worktree, because git
-  reads through a junction on Windows and a session can plant one aimed at a
-  share. So the block names every link, never cut at 20, and its `.git`
-  entries, but not the changed, untracked or ignored files git would report:
-  git is not asked, and no name from behind a link is printed. Remove the
-  links themselves first, never with
-  a recursive delete that could follow one; for a folder full of them, such as
-  an install from a package manager, use that package manager's own removal
-  command. A link made between the cleaner's read and git's removal is not
-  seen.
 - **A `.git` file that doesn't name its own folder, in every run**: "its
   .git file names another git folder". The worktree's root `.git` file must
   name its own folder under `<main>/.git/worktrees/`, whose `gitdir` names it
@@ -116,10 +99,6 @@ pass it.
 - **A walk that fails** keeps that worktree alone, in either mode: "a read
   failed, so it is kept".
 A kept worktree has no tag, so `remove` can't take it.
-
-Every git call carries three pins, `-c status.showUntrackedFiles=normal`,
-`-c core.checkStat=default` and `-c core.trustctime=true`, so a setting can't
-hide an untracked file from a plain yes: git sees it and refuses.
 
 ## Overriding a keep
 

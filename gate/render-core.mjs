@@ -325,7 +325,7 @@ function settingOk(v, spec) {
   if (spec.off !== undefined && v === spec.off && !Object.is(v, -0)) return true;
   return wholeIn(v, spec.min, spec.max) && (spec.step === undefined || (v - spec.min) % spec.step === 0);
 }
-const settingRule = (name, spec) => (spec.kind === 'switch' ? `${name} must be true or false` : spec.step === undefined ? `${name} must be ${spec.off === undefined ? 'a whole number' : `${spec.off}, or a whole number`} from ${spec.min} to ${spec.max}` : `${name} must be ${spec.off}, or a whole number from ${spec.min} to ${spec.max} in steps of ${spec.step}`);
+const settingRule = (name, spec) => (spec.kind === 'switch' ? `${name} must be true or false` : spec.step === undefined ? `${name} must be ${spec.off === undefined ? 'a whole number' : `${spec.off}, or a whole number`} from ${spec.min} to ${spec.max}` : `${name} must be ${spec.off}, or a whole number from ${spec.min} to ${spec.max} in steps of ${spec.step} (${spec.def} when unset)`);
 
 // Each pact tool's part of the rules file (#280): the open mark it fills, and
 // its fixed text, one line since #464 T4: the poster's how-to is in review.md,
@@ -1374,7 +1374,7 @@ function checkProject(buf, effective, report) {
       fail('project-value', settingRule(name, spec));
       ok = false;
     } else if (spec.tighter !== 'lower') {
-      fail('project-direction', `${name} has no tightening direction, so a project may not set it`);
+      fail('project-direction', `${name} has no tightening direction, so a project may not set it: remove the key from the project's configuration and ask the owner to set it in the home configuration${spec.kind === 'switch' ? '' : `; it is ${spec.def} when unset`}`);
       ok = false;
     } else if (spec.off !== undefined && v === spec.off) {
       fail('project-looser', `${name} off is never tighter than the user's value`);
