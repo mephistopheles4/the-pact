@@ -323,7 +323,7 @@ test('wait label: every exemption still matches a unit that would fail', () => {
       assert.equal(unlabelled(text), false, `${JSON.stringify(text)} holds the label "${label}"`);
     });
   }
-  // PACT-42: "hard stop" is no label since the one list is Heavy checkpoints.
+  // PACT-42: "hard stop" is no label since the one list is Checkpoints.
   for (const text of ['This is a hard stop and waits for my word.', 'Hard stops wait for my word.']) {
     test(`wait label: "hard stop" alone no longer covers a wait: ${text}`, () => {
       assert.equal(unlabelled(text), true, `${JSON.stringify(text)} holds no label`);
@@ -392,13 +392,13 @@ test('wait label: every exemption still matches a unit that would fail', () => {
     { id: 'command', rel: 'claude/commands/finis.md', plant: s => s + bad, says: 'claude/commands/finis.md: "This one needs my yes."' },
     { id: 'agent', rel: 'claude/agents/scout.md', plant: s => s + bad, says: 'claude/agents/scout.md: "This one needs my yes."' },
     { id: 'tool-part', ...swap('gate/render-core.mjs', 'as that section says.', 'on my yes.'), says: 'gate/render-core.mjs TOOL_PARTS: "- **Post through the poster,** on my yes."' },
-    { id: 'usage-template', ...swap('gate/render-core.mjs', "'  heavy checkpoint. The call to cut", "'  go-ahead. The call to cut"), says: 'gate/render-core.mjs USAGE_TEMPLATE:' },
-    { id: 'usage-project-line', ...swap('gate/render-core.mjs', "it's a heavy checkpoint when the weekly limit", 'it needs my yes when the weekly limit'), says: 'gate/render-core.mjs USAGE_PROJECT_LINE:' },
-    { id: 'session-template', ...swap('gate/render-core.mjs', "it's a heavy checkpoint. If you can't", "it needs my yes. If you can't"), says: 'gate/render-core.mjs SESSION_TEMPLATE:' },
+    { id: 'usage-template', ...swap('gate/render-core.mjs', "'  checkpoint. The call to cut", "'  go-ahead. The call to cut"), says: 'gate/render-core.mjs USAGE_TEMPLATE:' },
+    { id: 'usage-project-line', ...swap('gate/render-core.mjs', "it's a checkpoint when the weekly limit", 'it needs my yes when the weekly limit'), says: 'gate/render-core.mjs USAGE_PROJECT_LINE:' },
+    { id: 'session-template', ...swap('gate/render-core.mjs', "it's a checkpoint. If you can't", "it needs my yes. If you can't"), says: 'gate/render-core.mjs SESSION_TEMPLATE:' },
     // A setting added to the map with a template of its own is read, because the names come from the map.
     { id: 'new-setting-template', ...swap('gate/render-core.mjs', 'const SETTINGS = new Map([', "const NEWSET_TEMPLATE = ['- It needs my yes.'];\nconst SETTINGS = new Map([\n  ['newset', Object.freeze({ mark: null, template: NEWSET_TEMPLATE, projectLine: null })],"), says: 'gate/render-core.mjs NEWSET_TEMPLATE: "- It needs my yes."' },
     // The label deleted, with no phrase swapped in: the unit holds "I confirm" and nothing that labels it.
-    { id: 'cost-limits', ...swap('gate/render-core.mjs', 'I confirm in chat, a heavy checkpoint, adds', 'I confirm in chat, adds'), says: 'gate/render-core.mjs COST_LIMITS_FIXED:' },
+    { id: 'cost-limits', ...swap('gate/render-core.mjs', 'I confirm in chat, a checkpoint, adds', 'I confirm in chat, adds'), says: 'gate/render-core.mjs COST_LIMITS_FIXED:' },
     { id: 'tool-literal', rel: 'claude/tools/cleaner.mjs', plant: s => `${s}\nconst PLANT = "only after the owner's own yes";\n`, says: 'claude/tools/cleaner.mjs: "only after the owner\'s own yes"' },
     { id: 'hook-literal', rel: 'claude/hooks/compact-handoff.mjs', plant: s => `${s}\nconst PLANT = 'it waits on my word';\n`, says: 'claude/hooks/compact-handoff.mjs: "it waits on my word"' },
   ];

@@ -136,7 +136,7 @@ test('a session value renders the session line after the weekly one, and the not
   assert.match(r.stdout, /^VALUE usage-pause-session 80$/m, r.out);
   const session = [
     '- **Session usage.** Before anything expensive, also give my 5-hour session',
-    "  figure. When it is above 80%, it's a heavy checkpoint. If you can't see the",
+    "  figure. When it is above 80%, it's a checkpoint. If you can't see the",
     '  figure, say so in one line and carry on under the weekly rule.',
     '',
   ].join('\n');
@@ -400,7 +400,7 @@ test('bad case: a usage-pause part that no longer matches its template at the de
 
 // #261 C10
 test('bad case: a usage-pause part with a line more than its template refuses', t => {
-  const src = read(SOURCE).replace('  heavy checkpoint. The call to cut or stop work over usage is mine.\n', '  heavy checkpoint. The call to cut or stop work over usage is mine.\n  Extra.\n');
+  const src = read(SOURCE).replace('  checkpoint. The call to cut or stop work over usage is mine.\n', '  checkpoint. The call to cut or stop work over usage is mine.\n  Extra.\n');
   refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'render', /usage-pause: the template at its default no longer matches the source/);
 });
 
@@ -456,7 +456,7 @@ test('bad case: a render larger than 1 MiB refuses, though its source is within 
     '<!-- pact:begin usage-pause -->',
     '- **Usage.** Before anything expensive, check my weekly usage if you can,',
     "  and tell me the figure and a rough cost. When it is above 75%, it's a",
-    '  heavy checkpoint. The call to cut or stop work over usage is mine.',
+    '  checkpoint. The call to cut or stop work over usage is mine.',
     '<!-- pact:end usage-pause -->',
     '',
   ].join('\n');
@@ -543,7 +543,7 @@ test('the configuration file is opened once and read once, and a large file is r
   const got = big.seen.filter(l => l.startsWith('read ')).reduce((n, l) => n + Number(l.split(' ')[2]), 0);
   assert.ok(got <= 64 * 1024 + 1, `read ${got} bytes of a 1 MiB file`);
 });
-const USAGE_LINES = "- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, it's a\n  heavy checkpoint. The call to cut or stop work over usage is mine.\n";
+const USAGE_LINES = "- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, it's a\n  checkpoint. The call to cut or stop work over usage is mine.\n";
 
 // #501 C1: the weekly limit takes an explicit false as off; the usage part renders empty.
 test('"usage-pause": false renders the usage part empty, and the notice says off', t => {

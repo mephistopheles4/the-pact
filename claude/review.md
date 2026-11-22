@@ -159,7 +159,7 @@ security ruling.
    either, and is reviewed with the change.
 5. **Bring me,** as a checkpoint, a new boundary, a residual no class covers,
    a change that removes or weakens a control, and every `security?` row; a
-   change to the scope or the classes is a heavy checkpoint.
+   change to the scope or the classes is a checkpoint.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the

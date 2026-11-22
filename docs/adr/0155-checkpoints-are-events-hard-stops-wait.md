@@ -1,6 +1,6 @@
 # Checkpoints are events; hard stops wait
 
-Reversed by [0164](0164-the-one-list-is-heavy-checkpoints-and-no-stop-is-hard.md) (2026-11-22).
+Reversed by [0164](0164-the-one-list-is-checkpoints-and-no-stop-is-hard.md) (2026-11-22).
 
 #554, ticket 2 (#557), thorough tier, the sensitive route. The rules file's owner waits were about twenty, and most existed only to force a checkpoint; at the owner's level 3 they stopped work that could go on. This decision sorts every owner wait into one of two kinds. A short list of **hard stops** waits for the owner's own typed words in the session's chat, under a standing goal or a free hand too, and whatever the `checkpoint-stops` setting says. Everything else is a **checkpoint**: where the configuration makes checkpoints events, the session takes its own pick, logs it as its own, flagged, and goes on; where they wait, as the setting's line says, each checkpoint waits for the owner's word in chat. The setting is on unless a configuration turns it off ([the setting](../install.md), ticket 1, #556).
 

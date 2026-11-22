@@ -1,6 +1,6 @@
 # Checkpoints never wait; the checkpoint-stops switch is retired
 
-Reversed by [0164](0164-the-one-list-is-heavy-checkpoints-and-no-stop-is-hard.md) (2026-11-22).
+Reversed by [0164](0164-the-one-list-is-checkpoints-and-no-stop-is-hard.md) (2026-11-22).
 
 #564, standard tier on the sensitive route. The owner said, in chat on 2026-11-13: remove the switch, a checkpoint is just a report. [0155](0155-checkpoints-are-events-hard-stops-wait.md) made a checkpoint the session's own logged pick, unless the `checkpoint-stops` setting kept it a stop; the setting was on unless a configuration turned it off. This decision removes the setting. In every configuration, project and cloud session, a checkpoint is the session's own pick, logged as review.md's Posting says, flagged and listed in the result, and the work goes on. Hard stops wait for the owner's own typed words, as before.
 

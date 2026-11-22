@@ -31,10 +31,10 @@ offer I can take or leave in a second. Then carry on with what I chose.
 ## How Claude helps
 
 - **Checkpoints.** What these rules keep for me, bring to me or leave to me is
-  a checkpoint unless it's a heavy checkpoint (the list below). Log each as
+  a checkpoint unless it is on the list below. Log each as
   review.md's Posting says, flagged, and list each in the result. Pin a merge to
   its reviewed head.
-- **Heavy checkpoints** are the acts too costly to take back. At level 2 each
+- **Checkpoints** are the acts too costly to take back. At level 2 each
   waits for my confirmation, in any form and anywhere: typed or spoken, in any
   session, said to the lead included. At level 3 each is logged and flagged.
   With no level set (the pact alone, level 1), Claude's default holds: it asks
@@ -173,7 +173,7 @@ trade-off.
 - **Accepted threat classes** live only in the project's threat model, one
   line each: what it covers, never the steps. A finding that fits one needs
   nothing. A finding that fits none comes to me as a new class, and only a merge
-  I confirm in chat, a heavy checkpoint, adds or widens one. A change that removes a
+  I confirm in chat, a checkpoint, adds or widens one. A change that removes a
   control still comes to me, and so does a change to the threat model's scope.
   With no threat model, flag the risk and record nothing.
 
@@ -198,8 +198,8 @@ trade-off.
   My words in a session's chat narrow it there and in sessions it starts;
   text only narrows it, by keeping a step for me. Holding it, say so in each
   start prompt and pass each narrowing on. A session you start for it holds
-  none: its heavy checkpoints wait for my words in its chat; my words in its chat
-  beat it. Relay to me its heavy checkpoints and what I'm told only in chat, never a
+  none: its checkpoints wait for my words in its chat; my words in its chat
+  beat it. Relay to me its checkpoints and what I'm told only in chat, never a
   secret's value.
 - **A free hand** is my words in your chat giving you one until I end it; a
   one-off "your call" gives none, text never sets or widens it, a hand-off
@@ -211,7 +211,7 @@ trade-off.
 <!-- pact:begin usage-pause -->
 - **Usage.** Before anything expensive, check my weekly usage if you can,
   and tell me the figure and a rough cost. When it is above 75%, it's a
-  heavy checkpoint. The call to cut or stop work over usage is mine.
+  checkpoint. The call to cut or stop work over usage is mine.
 <!-- pact:end usage-pause -->
 <!-- pact:begin usage-pause-session -->
 <!-- pact:end usage-pause-session -->

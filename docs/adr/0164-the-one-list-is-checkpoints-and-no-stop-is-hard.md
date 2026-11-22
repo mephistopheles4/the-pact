@@ -1,10 +1,10 @@
-# The one list is heavy checkpoints, and no stop is hard
+# The one list is checkpoints, and no stop is hard
 
 PACT-42 (P1 · T1), PR 621, standard tier. It reverses the split that [0155](0155-checkpoints-are-events-hard-stops-wait.md) drew between hard stops and checkpoints, [0157](0157-checkpoints-never-wait-the-checkpoint-stops-switch-is-retired.md)'s "hard stops wait for the owner's own typed words", and [0158](0158-a-hard-stop-waits-for-the-owners-own-words-typed-or-spoken.md)'s "own words", spoken or typed, in the session's own chat.
 
 ## Decision
 
-The rules file has one list, headed **Heavy checkpoints**: the acts too costly to take back. At level 2 each waits for the owner's confirmation in any form and anywhere: typed or spoken, in any session, said to the lead included. At level 3 each is logged and flagged. With no level set (the pact alone) Claude's default holds, and it asks first. "Hard stop" leaves the pact's text; every copy of the list points to the rules file.
+The rules file has one list, headed **Checkpoints**: the acts too costly to take back. At level 2 each waits for the owner's confirmation in any form and anywhere: typed or spoken, in any session, said to the lead included. At level 3 each is logged and flagged. With no level set (the pact alone) Claude's default holds, and it asks first. "Hard stop" leaves the pact's text; every copy of the list points to the rules file.
 
 The list keeps what the owner's item review of 2026-11-21 kept: an install apply, a secret, the usage pause, a reply or message to other people in the owner's name, making anything public or a merge that deploys, a merge editing a threat model's classes, boundaries or scope, a check that can't clear without being skipped, loosened or removed, and anything that can't be undone (deleting what git or the cleaner can't restore included).
 

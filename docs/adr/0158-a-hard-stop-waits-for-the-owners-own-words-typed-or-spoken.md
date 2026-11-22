@@ -1,6 +1,6 @@
 # A hard stop waits for the owner's own words, typed or spoken
 
-Reversed by [0164](0164-the-one-list-is-heavy-checkpoints-and-no-stop-is-hard.md) (2026-11-22).
+Reversed by [0164](0164-the-one-list-is-checkpoints-and-no-stop-is-hard.md) (2026-11-22).
 
 #567, quick tier. The owner decided in chat on 2026-11-16: no new rules, leave it to judgment, and wherever a rule asks for typed confirmation, remove the word "typed". The decision comment is on #567. A spoken yes in voice mode counts like a typed one, for every hard stop, since voice mode is meant to be hands-free.
 

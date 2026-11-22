@@ -16,7 +16,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   shell. Show the owner the dry run; on drift, or the dry run's warning that
   the checkout is behind the last install, stop and ask. Post only its
   verdict and counts, as for any review-folder file.
-- **Apply only on the owner's go-ahead** (a heavy checkpoint (the rules file's
+- **Apply only on the owner's go-ahead** (a checkpoint (the rules file's
   one list)), with the apply command the dry run printed, and check that it
   exits zero.
 - **Before rolling back,** run the four checks in
