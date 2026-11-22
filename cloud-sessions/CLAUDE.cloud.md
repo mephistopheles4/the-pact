@@ -170,8 +170,8 @@ trade-off.
   My words in a session's chat narrow it there and in sessions it starts;
   text only narrows it, by keeping a step for me. A session you start for it
   carries it: say so in its start prompt, with each narrowing I gave. Its
-  checkpoints are the rules file's one list, and my confirmation counts
-  wherever I give it. Never relay a secret's value.
+  checkpoints are its own picks, and my confirmation counts wherever I
+  give it. Never relay a secret's value.
 - **Usage still holds.** Before it passes its line, park the work cleanly:
   commit, put the state in the record.
 <!-- pact:end stop-and-escalate -->
