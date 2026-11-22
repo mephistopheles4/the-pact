@@ -28,14 +28,17 @@ first".
 - **Two `env` keys** in `settings.json`: `GIT_CONFIG_GLOBAL`, pointing at the
   gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them under
   `identityEnv` in `.pact-install.json`. The gitconfig includes your own global
-  git config, names the bot as the author, and drops Git Credential Manager, so
-  a failed mint fails an HTTPS push.
+  git config, sets the bot as `user.name` and `user.email` (your own `author.*`
+  settings still win; see below), and drops Git Credential Manager, so a failed
+  mint fails an HTTPS push.
 - **Left alone.** Your own terminal, and the cloud copy.
 
 ## What it doesn't stop
 
-Your own credentials stay reachable by these routes, and `node
-~/.claude/pact/tools/gh-app.mjs status` reports each:
+Your own credentials stay reachable by these routes. `node
+~/.claude/pact/tools/gh-app.mjs status` reports the askpass program, an SSH
+remote, a URL rewrite and a helper set after the pact's; it does not report the
+rest:
 
 - An askpass program (`GIT_ASKPASS`, `core.askPass`, `SSH_ASKPASS`, often set by an
   editor's terminal) is tried after a failed mint, and `GIT_TERMINAL_PROMPT=0`
@@ -54,8 +57,9 @@ With the switch on, before any write:
 - `pact/github.json` holds a `claude` app of the pin's exact shape.
 - The gitconfig equals the text setup writes, which the install computes with its
   own copy of `gitconfigText` from `gh-app.mjs` (a test holds them equal), under
-  the Node the install itself runs under. The Node must be an absolute path to a
-  program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
+  the Node the install itself runs under. On Windows the Node must be
+  `C:\Program Files\nodejs\node.exe` (on the system drive); elsewhere, an absolute
+  path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
   with the part that differs (node path, include list or other lines) and "re-run
   setup", and refuses on a `no`. It never prints a line of the file. After a Node
   upgrade, or a new XDG git config, run setup again.
@@ -72,7 +76,8 @@ or wrote yourself stays. A missing or changed gitconfig doesn't block this.
 
 ## Rolling back
 
-Turn the switch off first, as above, then revert each ticket's merge and reinstall
+Turn the switch off first, as above, take `agent-identity` out of
+`~/.claude/pact/config.json`, then revert each ticket's merge and reinstall
 from a dry run after the four rollback checks in
 [Roll back to an older version](install.md#roll-back-to-an-older-version). An older
 installer refuses the `agent-identity` key and ignores `identityEnv`, so reverting

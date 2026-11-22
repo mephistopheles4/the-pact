@@ -243,8 +243,8 @@ An older pact installs with that commit's own installer.
   `AGENTS.md` presents a PowerShell installer as the route, and nothing but
   these checks stands before one (the threat model's class The pact gets loosened).
 - **Then, at the current commit, take out what the older pact doesn't know,** as that section lists:
-  keys it refuses, and the three settings (the cleaner, `session-stop-deny`,
-  the auto-compact window) to turn off and apply before the rollback. Stop and
+  keys it refuses, and the four settings (the cleaner, `session-stop-deny`,
+  `agent-identity`, the auto-compact window) to turn off and apply before the rollback. Stop and
   ask when `settings.json` still holds a hook that calls
   `pact/hooks/compact-handoff.mjs` after the apply that turned the window off
   (the older installer's own warning about any `hooks` key is not that), or

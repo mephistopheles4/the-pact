@@ -417,6 +417,8 @@ It installs these files under `~/.claude`:
 - `pact/tools/cleaner.mjs`, only while your `tools` list turns the cleaner
   on, with its deny rules and two ask rules in `settings.json`. Taking it out of the list
   deletes it and the rules it added at the next install;
+- `pact/tools/gh-app.mjs` and two `env` keys in `settings.json`, only while the
+  `agent-identity` setting is on ([agent-identity](agent-identity.md));
 - `pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the

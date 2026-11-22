@@ -61,7 +61,7 @@ const FILL = 'protocol=https\nhost=github.com\npath=example-owner/repo.git\n\n';
 /** The helpers git would run for any url, with where each is set. */
 const helpers = w => w.git(['config', '--show-origin', '--get-regexp', '^credential\\..*helper$']);
 
-// C4: the include loads, the empty helper line drops the system helper, and a fill reaches the pact helper alone.
+// #603 C4: the include loads, the empty helper line drops the system helper, and a fill reaches the pact helper alone.
 test('the agent gitconfig under real git: every helper is in a temporary folder, the include loads, and fill reaches only the pact helper, never the canary', t => {
   const w = world(t, { helper: 'stub' });
   const listed = helpers(w);
@@ -77,7 +77,7 @@ test('the agent gitconfig under real git: every helper is in a temporary folder,
   assert.ok(fill.stdout.includes(STUB), 'the pact helper answers');
 });
 
-// C4: the bot's name and email apply, and a repository's own user.name wins.
+// #603 C4: the bot's name and email apply, and a repository's own user.name wins.
 test('the agent gitconfig under real git: the bot is the author, and a repository\'s own user.name wins', t => {
   const w = world(t);
   assert.equal(w.git(['config', 'user.name']).stdout.trim(), APP.bot_login);
@@ -86,7 +86,7 @@ test('the agent gitconfig under real git: the bot is the author, and a repositor
   assert.equal(w.git(['config', 'user.name']).stdout.trim(), 'Repo Own');
 });
 
-// C4: a refused mint fails the fill with no prompt, and the canary never comes out: no fall back to the owner's helper.
+// #603 C4: a refused mint fails the fill with no prompt, and the canary never comes out: no fall back to the owner's helper.
 test('the agent gitconfig under real git: with the real helper and no pin, fill fails closed with no prompt and never returns the canary', t => {
   const w = world(t);
   const fill = w.git(['credential', 'fill'], FILL);

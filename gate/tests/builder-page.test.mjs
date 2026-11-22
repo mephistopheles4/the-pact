@@ -1164,7 +1164,7 @@ test('a tools list set on the page is saved in the installer\'s order, and wins 
   assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, [], 'the page\'s empty list wins');
 });
 
-// #603: the identity switch is written only when on, and it never puts gh-app in the tools list.
+// #603 C8: the identity switch is written only when on, and it never puts gh-app in the tools list.
 test('the identity switch is off by default, and a save writes agent-identity true, with no tools list', () => {
   assert.deepEqual({ ...L.PACT.identitySwitch }, { name: 'agent-identity', def: false });
   const s = L.startState();

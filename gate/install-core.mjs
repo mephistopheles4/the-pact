@@ -1424,8 +1424,21 @@ export function identityEnvPlan(live, on, recorded, wanted) {
   return { set, drop: [], record, conflicts };
 }
 
-/** Whether `p` is a Node the gitconfig may name: an absolute path to a program called node, with no quote or control character. */
-export const identityNodeOk = p => typeof p === 'string' && /^(?:[A-Za-z]:[\\/]|\/)/.test(p) && /^node(?:\.exe)?$/i.test(p.split(/[\\/]/).at(-1)) && !/["\p{Cc}]/u.test(p);
+/** The Program Files folder on the Windows system drive, from SystemRoot (the install keeps that variable and drops ProgramFiles); undefined without it. */
+const identityProgramFiles = () => (/^[A-Za-z]:/.test(process.env.SystemRoot ?? '') ? `${process.env.SystemRoot.slice(0, 2)}\\Program Files` : undefined);
+
+/**
+ * Whether `p` is a Node the gitconfig may name: an absolute path to a program
+ * called node, with no quote or control character. On Windows, where the helper
+ * runs, it is also exactly `<drive>:\Program Files\nodejs\node.exe`, a folder only
+ * an administrator writes (S7); elsewhere the helper cannot run, so there is no folder rule.
+ */
+export const identityNodeOk = (p, { platform = process.platform, programFiles = identityProgramFiles() } = {}) => {
+  if (typeof p !== 'string' || !/^(?:[A-Za-z]:[\\/]|\/)/.test(p) || !/^node(?:\.exe)?$/i.test(p.split(/[\\/]/).at(-1)) || /["\p{Cc}]/u.test(p)) return false;
+  if (platform !== 'win32') return true;
+  const flat = x => x.replaceAll('\\', '/').toLowerCase();
+  return typeof programFiles === 'string' && programFiles !== '' && flat(p) === `${flat(programFiles).replace(/\/+$/, '')}/nodejs/node.exe`;
+};
 
 /** The claude app's entry in github.json's text, or null when the file is not the pin's exact shape or holds no claude app. Nothing is looked up. */
 export function identityPinApp(text) {
