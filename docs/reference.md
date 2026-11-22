@@ -59,7 +59,6 @@ only while the tool is on. The cloud copy installs none.
 
 ## The familiars, by effort
 
-- **Medium:** `scout`, on Haiku; the pact ships no `Explore`, so skills that call it get Claude Code's built-in. The QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `unstated-lens`; and the standards pair, `conventions-lens` and `reader-lens`.
 - **High:** the security pair, `adversarial-lens` and `data-lens`.
 
 Builds run in a main session the owner watches, not in agents.
