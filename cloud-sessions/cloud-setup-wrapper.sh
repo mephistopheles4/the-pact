@@ -1257,7 +1257,7 @@ Ask each lens to report in this shape:
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
   `after <stage> further read (<your label>)`. More than one: that
-  is a heavy checkpoint; tell me. Post the round comment first. If a status edit is refused
+  is a heads-up: tell me and go on. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -1397,7 +1397,7 @@ when no other row answers the sentence.
   record, in the record has the line exactly "withheld,
   see chat", with no opener or flag, which wins over the security line, and the
   why goes to me in chat; such a pick that would leave a security path open is
-  a heavy checkpoint. With no record, log in chat and in the result.
+  a heads-up: tell me in chat and go on. With no record, log in chat and in the result.
 - **The read-back.**
   - A pending read-back makes no work wait, at any seam, with or without a
     standing goal. Post it `pending`, log the intent you went ahead on, within
@@ -1464,7 +1464,7 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a heavy checkpoint: tell me. With an agent app pinned (one
+  can't explain, that is a heads-up: tell me and go on. With an agent app pinned (one
   in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
@@ -1665,7 +1665,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 072b3c8f467604bfc5aa59c1044509ba1662d55ab3081bc57fe9835577d040df 'pact/review.md'
+check_hash 2b43f70ce86ae7f8312e800171bb7d84366382fd7a61ba93b58e37638a8bd615 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1695,7 +1695,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy fc4db5d6192c"
+  echo "pact cloud copy c305d9379697"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

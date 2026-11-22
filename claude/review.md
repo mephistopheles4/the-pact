@@ -113,7 +113,7 @@ Ask each lens to report in this shape:
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
   `after <stage> further read (<your label>)`. More than one: that
-  is a heavy checkpoint; tell me. Post the round comment first. If a status edit is refused
+  is a heads-up: tell me and go on. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -253,7 +253,7 @@ when no other row answers the sentence.
   record, in the record has the line exactly "withheld,
   see chat", with no opener or flag, which wins over the security line, and the
   why goes to me in chat; such a pick that would leave a security path open is
-  a heavy checkpoint. With no record, log in chat and in the result.
+  a heads-up: tell me in chat and go on. With no record, log in chat and in the result.
 - **The read-back.**
   - A pending read-back makes no work wait, at any seam, with or without a
     standing goal. Post it `pending`, log the intent you went ahead on, within
@@ -320,7 +320,7 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a heavy checkpoint: tell me. With an agent app pinned (one
+  can't explain, that is a heads-up: tell me and go on. With an agent app pinned (one
   in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
