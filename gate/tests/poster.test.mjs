@@ -883,8 +883,11 @@ test('the file run as a child ends with its result line, gh absent from PATH: a 
   const doc = { repo: TARGET, kind: 'note', issue: 5, signer: 'test-524', body_file: 'body.md' };
   writeTree(dir, { 'body.md': 'A plain body.\n', 'post.json': JSON.stringify(doc), 'empty/.keep': '' });
   const env = childEnv();
-  for (const k of Object.keys(env)) if (k.toUpperCase() === 'PATH') delete env[k];
+  // An empty home too, so a github.json under the real one can't switch the poster into app mode (#599).
+  for (const k of Object.keys(env)) if (/^(?:PATH|HOME|USERPROFILE)$/i.test(k)) delete env[k];
   env.PATH = empty;
+  env.HOME = empty;
+  env.USERPROFILE = empty;
   const r = spawnSync(process.execPath, [POSTER, 'issue-comment', '--post', join(dir, 'post.json'), '--dry-run'], { cwd: empty, env, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.equal(r.stdout.trimEnd().split('\n').at(-1), 'RESULT: dry-run issue-comment');

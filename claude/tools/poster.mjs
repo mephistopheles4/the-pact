@@ -51,6 +51,12 @@
 // tracker comment a quote cites (post/tracker). The scans are a backstop for
 // accidents, not a guard against a session that sets out to get past them.
 //
+// App mode (#599, T3): with the `claude` app pinned in ~/.claude/pact/github.json
+// and gh-app.mjs beside this file, `postAsApp` posts as the app's bot on a token
+// the helper mints, checks the pin against GitHub's records first, and reads as
+// the owner's own gh. `post` is the owner's run, unchanged and synchronous. See
+// docs/poster.md, Posting as an agent app.
+//
 // The last line is always a RESULT line on stdout, except for `schema`, which
 // prints the schema and nothing else:
 //   0  RESULT: verified <surface> <url> as <login>
@@ -73,8 +79,8 @@
 // this file is the entry script.
 
 import { spawnSync } from 'node:child_process';
-import { closeSync, fstatSync, lstatSync, mkdtempSync, openSync, readSync, realpathSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { closeSync, existsSync, fstatSync, lstatSync, mkdtempSync, openSync, readSync, realpathSync, rmSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -137,6 +143,8 @@ const BODY_MAX = 65536;
 // ---------------------------------------------------------------- the input rules
 
 const LOGIN_RE = /^[A-Za-z0-9-]{1,39}$/;
+/** The `as` field: a login, or an app's bot login, `<slug>[bot]` (#599, S8). */
+const AS_SOURCE = '^[A-Za-z0-9-]{1,39}(?:\\[bot\\])?$';
 const REPO_RE = /^([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100})$/;
 const NUMBER_RE = /^[1-9][0-9]{0,15}$/;
 const BRANCH_RE = /^[A-Za-z0-9._/-]{1,255}$/;
@@ -255,7 +263,7 @@ export const SCHEMA = Object.freeze({
   required: ['repo', 'signer', 'body_file'],
   properties: {
     repo: { type: 'string', maxLength: 140, pattern: REPO_RE.source },
-    as: { type: 'string', pattern: LOGIN_RE.source },
+    as: { type: 'string', pattern: AS_SOURCE },
     kind: { enum: Object.keys(KINDS) },
     title: { type: 'string', minLength: 1, maxLength: 120, pattern: TITLE_RE_SOURCE },
     labels: { type: 'array', maxItems: 10, items: { type: 'string', pattern: LABEL_RE.source } },
@@ -516,6 +524,7 @@ const FIXED_START = [
   /^relayed by /,
   /^from the owner's comment/,
   /^relayed owner words/,
+  /^heard in chat by /,
   /^#{1,6}[ \t]*(?:the ask|understood intent)[ \t]*#*$/,
 ];
 const OWNED_SIGNATURE_RE = /^(?:signed: [a-z0-9][a-z0-9-]{0,49}|posted by [a-z0-9][a-z0-9-]{0,49}\.)$/;
@@ -661,6 +670,10 @@ function hidesAhead(text) {
 
 const MARK_CHAT = 'Owner decision, from chat.';
 const MARK_RELAYED = 'Relayed owner words, not a decision mark.';
+/** The line an app's decision from chat opens with, in place of the owner's mark (#599, S8): the session heard it, the owner did not write it. */
+const heardMark = signer => `Heard in chat by ${signer}.`;
+const HEARD_RE = new RegExp(`^Heard in chat by (${SIGNER_SOURCE})\\.$`);
+const HEARD_START_RE = /^heard in chat by /;
 const quoteLines = (text, blank) => text.split(LINE_END_RE).map(l => (blank ? '' : l === '' ? '>' : `> ${l}`)).join('\n');
 const sourceLine = q => {
   if (q.source === 'chat') return `Said in this session's chat, ${q.when}.`;
@@ -689,7 +702,8 @@ const intentBlock = intent => {
  */
 function askSegments(p, blankQuotes = false) {
   const segments = [];
-  const mark = p.mark ?? (p.kind === 'decision' ? (allChat(p.quote) ? MARK_CHAT : MARK_RELAYED) : undefined);
+  const chatMark = p.heard ? heardMark(p.signer) : MARK_CHAT;
+  const mark = p.mark ?? (p.kind === 'decision' ? (allChat(p.quote) ? chatMark : MARK_RELAYED) : undefined);
   if (mark !== undefined) {
     segments.push({ where: 'mark', text: mark });
     if (p.answers !== undefined) segments.push({ where: 'answers', text: `Answers: ${p.answers}.` });
@@ -726,10 +740,11 @@ const reasonLine = (reason, label) => `Edited: ${reason} (${label})`;
  * rules, and its body file read from the post file's own folder. Returns
  * { plan, refusals }; the plan is whole only when there are no refusals.
  */
-export function buildPlan(parsed, now = new Date()) {
+export function buildPlan(parsed, now = new Date(), heard = false) {
   const { surface, options } = parsed;
   const refusals = [];
-  const plan = { surface, labels: [], draft: false, dryRun: options.get('dry-run') === true };
+  // `heard`: app mode, where a chat decision is marked "Heard in chat by", never with the owner's mark (#599, S8).
+  const plan = { surface, labels: [], draft: false, dryRun: options.get('dry-run') === true, heard };
   const file = options.get('post');
   const r = readText(file);
   if (r.rule) return { plan, refusals: [{ rule: r.rule, where: 'post file' }] };
@@ -862,6 +877,8 @@ function hitsIn(text, ctx) {
     for (const h of list) hits.push({ rule, index: h.index, note });
   };
   for (const [name, val] of envSecrets(ctx.env)) add(RULE.env, indexesOf(text, val).map(index => ({ index })), name);
+  // The app's installation token, in app mode: never in the environment, so named here (#599, S8).
+  for (const val of ctx.secrets ?? []) if (typeof val === 'string' && val !== '') add(RULE.env, indexesOf(text, val).map(index => ({ index })), 'app token');
   add(RULE.hidden, hiddenHits(text));
   return hits.sort((a, b) => a.index - b.index);
 }
@@ -2142,13 +2159,18 @@ export function hasDecision(body) {
   return views(body).some(v => [...v].map(c => LOOKALIKES.get(c) ?? c).join('').replace(/\s+/g, ' ').toLowerCase().includes(DECISION));
 }
 
+/** Whether a body holds a line that opens "Heard in chat by", an app's decision mark, in any view (#599, S8). */
+export function hasHeard(body) {
+  return linesOf(body).some(line => views(line).some(v => HEARD_START_RE.test(pageLine(v))));
+}
+
 /** The refusals a body earns as the text an edit leaves, `where` naming whose body it is. */
 function bodyRules(body, label, where) {
   const out = [];
   const signed = signatures(body);
   if (!signed.includes(label) || signed.some(l => l !== label)) out.push({ rule: 'edit/unsigned', where });
   if (isRecord(body)) out.push({ rule: 'edit/record', where });
-  if (hasDecision(body)) out.push({ rule: 'edit/decision', where });
+  if (hasDecision(body) || hasHeard(body)) out.push({ rule: 'edit/decision', where });
   return out;
 }
 
@@ -2228,7 +2250,7 @@ export function askItem(body) {
   let i = 0;
   let mark;
   let answers;
-  if (lines[0] === MARK_CHAT || lines[0] === MARK_RELAYED) {
+  if (lines[0] === MARK_CHAT || lines[0] === MARK_RELAYED || HEARD_RE.test(lines[0])) {
     if (lines[1] !== '') return null;
     mark = lines[0];
     i = 2;
@@ -2293,31 +2315,38 @@ function askChecks(plan, ask) {
  * The decision a read-back move cites (S6.2a), read from the repo and checked.
  * Returns { label }, the decision's single signature, { refusals }, or { lines }
  * for an `unavailable` result. No text from the comment reaches output, and a
- * comment by another author is read no further.
+ * comment by another author is read no further. `who` names the logins:
+ * `owner` wrote an owner's decision, and in app mode `bot` wrote a "Heard in
+ * chat by" decision (#599, S8); each is read by its own mark and no other.
  */
-function confirmChecks(plan, ask, login, io, ctx) {
+function confirmChecks(plan, ask, who, io, ctx) {
   const refusals = [{ rule: 'edit/confirm', where: 'intent.comment' }];
   // The item's own number, and the line a decision answering it carries. A review thread reply is no ask item, so no decision answers one: refused before any read.
   const own = { 'issue-edit': ['issue', plan.issue], 'pull-request-edit': ['pull request', plan.pr], 'issue-comment-edit': ['comment', plan.comment] }[plan.surface];
   if (own === undefined) return { refusals };
-  const read = io.gh(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}/issues/comments/${plan.intent.comment}`, false));
+  const read = reader(io)(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}/issues/comments/${plan.intent.comment}`, false));
   if (!read.ok) return { lines: [saidLine(read.stderr, ctx), 'RESULT: unavailable'] };
   const item = parseJson(read.stdout);
   const usable = isObject(item) && typeof item.user?.login === 'string' && typeof item.issue_url === 'string' && (item.body === null || typeof item.body === 'string');
   if (!usable) return { lines: ['the cited comment read could not be read', 'RESULT: unavailable'] };
-  if (item.user.login !== login) return { refusals };
+  const byOwner = item.user.login === who.owner;
+  const byBot = who.bot !== undefined && item.user.login === who.bot;
+  if (!byOwner && !byBot) return { refusals };
   const number = plan.surface === 'pull-request-edit' ? plan.pr : plan.issue;
   if (item.issue_url.toLowerCase() !== `https://api.github.com/repos/${plan.repo.owner}/${plan.repo.name}/issues/${number}`.toLowerCase()) return { refusals };
   const body = item.body ?? '';
   const d = askItem(body);
   const labels = signatures(body);
-  if (!d || d.mark !== MARK_CHAT || d.status !== 'confirmed' || d.comment !== undefined || d.answers !== `${own[0]} ${own[1]}` || labels.length !== 1) return { refusals };
+  const heard = d?.mark === undefined ? undefined : HEARD_RE.exec(d.mark)?.[1];
+  // The owner's own account carries the owner's mark; the bot carries the heard mark, and names the signature that heard it.
+  const marked = byOwner ? d?.mark === MARK_CHAT : heard !== undefined && heard === labels[0];
+  if (!d || !marked || d.status !== 'confirmed' || d.comment !== undefined || d.answers !== `${own[0]} ${own[1]}` || labels.length !== 1) return { refusals };
   const fits = plan.intent.status === 'confirmed' ? d.intent === ask.intent : d.intent === lf(plan.intent.corrected) && d.intent !== ask.intent;
-  return fits ? { label: labels[0] } : { refusals };
+  return fits ? { label: labels[0], heard: byBot } : { refusals };
 }
 
 /** An ask-item edit's checks after the item read (S6.1a): { refusals } or { lines } when one fails, else {}. Sets what the render needs on `plan`. */
-function askEdit(plan, ask, login, io, ctx) {
+function askEdit(plan, ask, who, io, ctx) {
   if (ask === null && plan.quote === undefined) return {};
   if (ask === null || plan.quote === undefined) {
     const rule = ask === null ? 'post/field' : 'post/missing';
@@ -2328,13 +2357,13 @@ function askEdit(plan, ask, login, io, ctx) {
   plan.mark = ask.mark;
   plan.answers = ask.answers;
   if (a.move) {
-    const d = confirmChecks(plan, ask, login, io, ctx);
+    const d = confirmChecks(plan, ask, who, io, ctx);
     if (d.label === undefined) return d;
-    // The item keeps its own signer; the reason says who heard the owner (S6.2b).
-    plan.reason = `${plan.reason}, heard by ${d.label}`;
+    // The item keeps its own signer; the reason says who heard the owner (S6.2b). A decision an app wrote says it was heard in chat (#599, S8).
+    plan.reason = d.heard ? `${plan.reason}, confirmed, as heard in chat by ${d.label}` : `${plan.reason}, heard by ${d.label}`;
   }
   if (plan.quote.some(q => q.source === 'tracker')) {
-    const t = trackerChecks(plan, login, io, ctx);
+    const t = trackerChecks(plan, who.owner, io, ctx);
     if (t.lines || t.refusals.length) return t;
   }
   return {};
@@ -2527,14 +2556,16 @@ function sizes(v) {
  * send one PATCH, read it back. `setPhase` tells post() when the PATCH is on
  * its way and when it has been sent, so its catch names the right result.
  */
-function editItem(plan, p, args, login, io, ctx, setPhase) {
+function editItem(plan, p, args, who, io, ctx, setPhase) {
   const url = p.near;
-  const read = io.gh(ghArgs('GET', p.path, false));
+  const login = who.post;
+  const get = reader(io);
+  const read = get(ghArgs('GET', p.path, false));
   if (!read.ok) return { code: 4, lines: [saidLine(read.stderr, ctx), 'RESULT: unavailable'] };
   const c = editItemChecks(plan, parseJson(read.stdout), login, ctx);
   if (c.unusable) return { code: 4, lines: ['the item read could not be read', 'RESULT: unavailable'] };
   if (c.refusals.length) return refused(c.refusals);
-  const ask = askEdit(plan, askItem(c.body), login, io, ctx);
+  const ask = askEdit(plan, askItem(c.body), who, io, ctx);
   if (ask.lines) return { code: 4, lines: ask.lines };
   if (ask.refusals?.length) return refused(ask.refusals);
 
@@ -2552,7 +2583,7 @@ function editItem(plan, p, args, login, io, ctx, setPhase) {
   const sent = io.gh(args, JSON.stringify(p.request));
   if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr, ctx), editFailedNext(url), 'RESULT: failed'] };
   setPhase('sent');
-  const again = io.gh(ghArgs('GET', p.path, false));
+  const again = get(ghArgs('GET', p.path, false));
   if (!again.ok) return { code: 1, lines: [saidLine(again.stderr, ctx), EDIT_LANDED_LINK, `RESULT: unverified ${url}`] };
   const back = compare(plan, p.request, parseJson(again.stdout), login, p.id, p.key);
   if (back.unusable.length) return { code: 1, lines: [`the read-back could not be read: ${back.unusable.join(', ')}`, EDIT_LANDED_LINK, `RESULT: unverified ${url}`] };
@@ -2577,7 +2608,7 @@ function trackerChecks(plan, login, io, ctx) {
     if (q.source !== 'tracker') continue;
     let item = seen.get(q.comment);
     if (item === undefined) {
-      const read = io.gh(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}/issues/comments/${q.comment}`, false));
+      const read = reader(io)(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}/issues/comments/${q.comment}`, false));
       if (!read.ok) return { lines: [saidLine(read.stderr, ctx), 'RESULT: unavailable'] };
       item = parseJson(read.stdout);
       const usable = isObject(item) && typeof item.user?.login === 'string' && typeof item.issue_url === 'string' && (item.body === null || typeof item.body === 'string');
@@ -2598,24 +2629,24 @@ const refused = refusals => ({
   lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...(refusals.some(r => r.rule === 'usage/unknown-option') ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${refusals.length}`],
 });
 
+/** The runner for reads: the owner's own gh in app mode, where `io.gh` carries the app's token, else the one gh (#599, S1). */
+const reader = io => io.read ?? io.gh;
+
+const DRY_APP = 'dry-run: the pin check and the token mint did not run';
+
 /**
- * One run of the poster: `argv` after the script's name, and `io` holding
- * gh(args, input) => { ok, stdout, stderr }, env, home, tmp, user and host.
- * Returns { code, lines }; the last line is always the RESULT line.
+ * The first stage of a run: the arguments, the plan, the scans and the dry run,
+ * with nothing read from GitHub. `app` is null in owner mode, else { bot, owner }
+ * from the pin (#599, S8). Returns { result }, a finished run, or the plan and
+ * what the second stage needs.
  */
-export function post(argv, io) {
-  let phase = 'before';
-  let near = '';
-  // Held out here for the catch. The login is set only once it has passed every check, the link only once the post's id is read.
-  let checkedLogin = null;
-  let linked = false;
-  let edit = false;
+function prepare(argv, io, app) {
   try {
     const parsed = parseArgs(argv);
-    if (parsed.refusals.length) return refused(parsed.refusals);
-    if (parsed.surface === 'schema') return { code: 0, lines: [JSON.stringify(SCHEMA, null, 2)] };
-    const { plan, refusals } = buildPlan(parsed, io.now ?? new Date());
-    if (refusals.length) return refused(refusals);
+    if (parsed.refusals.length) return { result: refused(parsed.refusals) };
+    if (parsed.surface === 'schema') return { result: { code: 0, lines: [JSON.stringify(SCHEMA, null, 2)] } };
+    const { plan, refusals } = buildPlan(parsed, io.now ?? new Date(), app !== null);
+    if (refusals.length) return { result: refused(refusals) };
     // Each text field is scanned as its own field too, so a refusal names it (S5.3).
     const fields = [];
     if (plan.title !== undefined) fields.push({ field: 'title', text: plan.title });
@@ -2631,51 +2662,90 @@ export function post(argv, io) {
     // The table check and the prose checks run after the content scan, on the
     // body only; the prose check skips the owner's quote. Past the first fifty,
     // the table refusals are counted, not listed, so the result line stays in view.
-    const hits = [...plan.late, ...scan(fields, { ...ctx, surface: plan.surface })];
+    // In app mode a post goes out `as` the app's bot login and no other (#599, S8).
+    const notApp = app !== null && plan.as !== app.bot ? [{ rule: 'as/not-app', where: 'as' }] : [];
+    const hits = [...plan.late, ...notApp, ...scan(fields, { ...ctx, surface: plan.surface })];
     const tables = tableCheck(plan.body);
     const prose = [...fenceCheck(plan.body), ...proseCheck(renderBody(plan, true))];
     if (tables.length > TABLE_LISTED) {
       const r = refused([...hits, ...tables.slice(0, TABLE_LISTED), ...prose]);
-      return { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length + prose.length}`] };
+      return { result: { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length + prose.length}`] } };
     }
-    if (hits.length || tables.length || prose.length) return refused([...hits, ...tables, ...prose]);
-    edit = isEdit(plan.surface);
+    if (hits.length || tables.length || prose.length) return { result: refused([...hits, ...tables, ...prose]) };
+    const edit = isEdit(plan.surface);
     if (edit) {
       const own = editBodyChecks(plan);
-      if (own.length) return refused(own);
+      if (own.length) return { result: refused(own) };
     }
 
     const p = postOf(plan);
-    near = p.near;
     const args = ghArgs(edit ? 'PATCH' : 'POST', p.path, true);
     const tracked = (plan.quote ?? []).some(q => q.source === 'tracker');
     if (plan.dryRun) {
       // A dry run reads nothing, so what needs a read did not run, and it says so (S3.2, S6.1a).
       const skipped = edit ? DRY_EDIT : tracked ? DRY_TRACKER : null;
-      return { code: 0, lines: [`gh ${args.join(' ')}`, `request: ${JSON.stringify(sizes(p.request))}`, ...(skipped ? [skipped] : []), `RESULT: dry-run ${plan.surface}`] };
+      return { result: { code: 0, lines: [`gh ${args.join(' ')}`, `request: ${JSON.stringify(sizes(p.request))}`, ...(skipped ? [skipped] : []), ...(app ? [DRY_APP] : []), `RESULT: dry-run ${plan.surface}`] } };
     }
+    return { plan, p, args, edit, tracked, fields, ctx };
+  } catch {
+    return { result: { code: 4, lines: ['the poster failed before sending', 'RESULT: unavailable'] } };
+  }
+}
 
-    const token = envValue(io.env, 'GH_TOKEN') || envValue(io.env, 'GITHUB_TOKEN');
-    if (token && plan.as === undefined) return refused([{ rule: 'as/missing', where: 'as' }]);
+/**
+ * The second stage: the identity checks, the reads and the one write. `io.gh`
+ * is the runner that writes. In app mode `app` is { bot, owner, token }, the
+ * pin's and the minted token's, and `io.read` is the owner's own gh, which does
+ * every read; the app's login is the poster's, the pinned owner's the
+ * owner's (#599, S8). Returns { code, lines }.
+ */
+function send(s, io, app) {
+  const { plan, p, args, edit, tracked } = s;
+  let phase = 'before';
+  let near = p.near;
+  // Held out here for the catch. The login is set only once it has passed every check, the link only once the post's id is read.
+  let checkedLogin = null;
+  let linked = false;
+  try {
+    // The app's token is a secret too: nothing may carry it out in a field or a line of gh's.
+    const ctx = app ? { ...s.ctx, secrets: [app.token] } : s.ctx;
+    if (app) {
+      const again = scan(s.fields, { ...ctx, surface: plan.surface });
+      if (again.length) return refused(again);
+    }
+    const get = reader(io);
+    let login;
+    let who;
+    if (app) {
+      login = app.bot;
+      who = { post: login, owner: app.owner.login, bot: login };
+      if (plan.repo.owner !== app.owner.login) return refused([{ rule: 'owner/repo', where: 'repo' }]);
+    } else {
+      const token = envValue(io.env, 'GH_TOKEN') || envValue(io.env, 'GITHUB_TOKEN');
+      if (token && plan.as === undefined) return refused([{ rule: 'as/missing', where: 'as' }]);
 
-    const who = io.gh(ghArgs('GET', 'user', false));
-    const login = who.ok ? parseJson(who.stdout)?.login : undefined;
-    if (!isLogin(login)) return { code: 4, lines: [...(who.ok ? ['the login read gave no login'] : [saidLine(who.stderr, ctx)]), 'RESULT: unavailable'] };
-    const wrong = [];
-    if (plan.as !== undefined && plan.as !== login) wrong.push({ rule: 'as/differs', where: 'as' });
-    if (plan.repo.owner !== login) wrong.push({ rule: 'owner/repo', where: 'repo' });
-    if (wrong.length) return refused(wrong);
+      const me = io.gh(ghArgs('GET', 'user', false));
+      login = me.ok ? parseJson(me.stdout)?.login : undefined;
+      if (!isLogin(login)) return { code: 4, lines: [...(me.ok ? ['the login read gave no login'] : [saidLine(me.stderr, ctx)]), 'RESULT: unavailable'] };
+      const wrong = [];
+      if (plan.as !== undefined && plan.as !== login) wrong.push({ rule: 'as/differs', where: 'as' });
+      if (plan.repo.owner !== login) wrong.push({ rule: 'owner/repo', where: 'repo' });
+      if (wrong.length) return refused(wrong);
+      who = { post: login, owner: login };
+    }
 
     // The owner GitHub gives for the repo, which follows a rename or a
     // transfer, so a name the login once owned can't carry a post elsewhere.
-    const repoRead = io.gh(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}`, false));
-    const owner = repoRead.ok ? parseJson(repoRead.stdout)?.owner?.login : undefined;
-    if (!isLogin(owner)) return { code: 4, lines: [...(repoRead.ok ? ['the repo read gave no owner'] : [saidLine(repoRead.stderr, ctx)]), 'RESULT: unavailable'] };
-    if (owner !== login) return refused([{ rule: 'owner/github', where: 'repo' }]);
+    // In app mode the owner is the pinned one, by id.
+    const repoRead = get(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}`, false));
+    const repoOwner = repoRead.ok ? parseJson(repoRead.stdout)?.owner : undefined;
+    const owner = app ? repoOwner?.id : repoOwner?.login;
+    if (app ? !Number.isSafeInteger(owner) : !isLogin(owner)) return { code: 4, lines: [...(repoRead.ok ? ['the repo read gave no owner'] : [saidLine(repoRead.stderr, ctx)]), 'RESULT: unavailable'] };
+    if (owner !== (app ? app.owner.id : login)) return refused([{ rule: 'owner/github', where: 'repo' }]);
     checkedLogin = login;
-    if (edit) return editItem(plan, p, args, login, io, ctx, s => { phase = s; });
+    if (edit) return editItem(plan, p, args, who, io, ctx, st => { phase = st; });
     if (tracked) {
-      const t = trackerChecks(plan, login, io, ctx);
+      const t = trackerChecks(plan, who.owner, io, ctx);
       if (t.lines) return { code: 4, lines: t.lines };
       if (t.refusals.length) return refused(t.refusals);
     }
@@ -2689,7 +2759,7 @@ export function post(argv, io) {
     const url = p.url(id);
     near = url;
     linked = true;
-    const read = io.gh(ghArgs('GET', p.read(id), false));
+    const read = get(ghArgs('GET', p.read(id), false));
     if (!read.ok) return { code: 1, lines: [saidLine(read.stderr, ctx), LANDED_LINK, `RESULT: unverified ${url}`] };
     const back = parseJson(read.stdout);
     const c = compare(plan, p.request, back, login, id, p.key);
@@ -2705,12 +2775,86 @@ export function post(argv, io) {
   }
 }
 
+/**
+ * One run of the poster as the owner: `argv` after the script's name, and `io`
+ * holding gh(args, input) => { ok, stdout, stderr }, env, home, tmp, user and
+ * host. Returns { code, lines }; the last line is always the RESULT line.
+ * Synchronous, and unchanged by an app: `postAsApp` is the run that may post as
+ * one (#599, S8).
+ */
+export function post(argv, io) {
+  const s = prepare(argv, io, null);
+  return s.result ?? send(s, io, null);
+}
+
+// ---------------------------------------------------------------- app mode (#599, S8)
+
+/** Where the pin file sits under `home`: the helper's `pinPath`, held equal by a test, so the check that an app is pinned never reads another file than the helper does. */
+export const pinFile = home => join(home, '.claude', 'pact', 'github.json');
+
+/** The fixed words a helper refusal is told in: its id when it has the helper's shape, never its message. */
+const idOf = e => (typeof e?.id === 'string' && /^[a-z]{1,12}(?:\/[a-z]{1,12})?$/.test(e.id) ? e.id : 'unknown');
+
+const stoppedApp = (rule, e) => ({
+  code: 2,
+  lines: [`REFUSED ${rule} ${rule === 'pin/check' ? 'pin' : 'token'}`, `NOTE: gh-app said ${idOf(e)}; nothing was sent, and nothing was posted as the owner`, 'RESULT: refused 1'],
+});
+
+/**
+ * One run of the poster that posts as the `claude` app when it is pinned (S8).
+ * `io` is `post`'s, with `io.app`: has() says whether `github.json` and the
+ * helper beside the poster both exist, load() imports the helper, helperIo(mod)
+ * is the helper's own io, and makeGh(env) is a gh runner for that environment.
+ * With no `io.app`, or either file absent, or no `claude` entry in the pin, it
+ * is `post`. Otherwise the pin is checked against GitHub's own records and a
+ * `post`-set token minted, both before anything is sent; a pin that fails, or a
+ * check that cannot run, stops the run, and the run never falls back to the
+ * owner. Every await and the import sit inside the one catch, which tells only
+ * the helper's refusal id.
+ */
+export async function postAsApp(argv, io) {
+  if (!io.app || !io.app.has()) return post(argv, io);
+  let mod;
+  let rule = 'pin/check';
+  try {
+    mod = await io.app.load();
+    const hio = io.app.helperIo(mod);
+    const pin = mod.readPin(hio);
+    const entry = pin.apps.claude;
+    if (entry === undefined) return post(argv, io);
+    const app = { bot: entry.bot_login, owner: pin.owner };
+    const s = prepare(argv, io, app);
+    if (s.result) return s.result;
+    mod.checkPin(hio, pin, 'claude');
+    rule = 'app/token';
+    const token = await mod.mintToken({ provider: 'claude', repo: s.plan.repo, set: 'post' }, hio);
+    if (typeof token !== 'string' || token === '') throw new TypeError('no token');
+    const clean = mod.cleanEnv(io.env);
+    const write = io.app.makeGh({ ...clean, GH_TOKEN: token });
+    const read = io.app.makeGh(clean);
+    return send(s, { ...io, gh: write, read }, { ...app, token });
+  } catch (e) {
+    return stoppedApp(rule, mod && e instanceof mod.Refusal ? e : null);
+  }
+}
+
 // ---------------------------------------------------------------- main
 
-function main() {
+/** The real parts of app mode: the files beside the poster and under the home folder, the helper by dynamic import, and a runner of the real gh. */
+function realApp(env, tmp) {
+  const home = homedir();
+  return {
+    has: () => existsSync(pinFile(home)) && existsSync(join(dirname(fileURLToPath(import.meta.url)), 'gh-app.mjs')),
+    load: () => import('./gh-app.mjs'),
+    helperIo: mod => mod.realIo({ env }),
+    makeGh: e => makeGh({ env: e, tmp }),
+  };
+}
+
+async function main() {
   const env = { ...process.env };
   const tmp = tmpdir();
-  const r = post(process.argv.slice(2), { gh: makeGh({ env, tmp }), env });
+  const r = await postAsApp(process.argv.slice(2), { gh: makeGh({ env, tmp }), env, app: realApp(env, tmp) });
   process.stdout.write(`${r.lines.join('\n')}\n`);
   process.exitCode = r.code;
 }
@@ -2725,4 +2869,9 @@ function isEntry() {
   }
 }
 
-if (isEntry()) main();
+if (isEntry()) {
+  main().catch(() => {
+    process.stdout.write('the poster failed before sending\nRESULT: unavailable\n');
+    process.exitCode = 4;
+  });
+}
