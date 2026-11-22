@@ -34,5 +34,5 @@ A ticket that depends on the one before it on the chain keeps moving while that 
 
 - **Branch from the previous ticket's branch,** not from `main`, and open the PR as a draft with that branch as its base.
 - **A change lower in the stack** means every ticket above it rebases onto the new head.
-- **Merge bottom first.** When a PR merges, set the base of the one above to `main` and rebase it onto `main`, since the merge is a squash.
+- **Merge bottom first.** When a PR merges, set the base of the one above to `main` and rebase it onto `main` without the merged commits, since the merge is a squash.
 - **Each PR gets its own Test evidence** on its own head, taken again after each rebase ([gate tests](gate-tests.md)).
