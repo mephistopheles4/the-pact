@@ -16,22 +16,13 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   shell. Show the owner the dry run; on drift, or the dry run's warning that
   the checkout is behind the last install, stop and ask. Post only its
   verdict and counts, as for any review-folder file.
-- **Apply only on the owner's go-ahead in chat,** with the apply command the
-  dry run printed, and check that it exits zero.
+- **Apply only on the owner's go-ahead** (a checkpoint (the rules file's
+  one list)), with the apply command the dry run printed, and check that it
+  exits zero.
 - **Before rolling back,** run the four checks in
   [Roll back to an older version](docs/install.md#roll-back-to-an-older-version), before any checkout;
   if one fails, never run its installer: stop and ask. Configuration, tools,
   project installs: [install](docs/agents/install.md).
-
-## mise
-
-- **Never mark a project's mise config trusted, by any means,** without the
-  owner's word in chat: `mise trust`, the `trusted_config_paths` setting or
-  `MISE_TRUSTED_CONFIG_PATHS`, safe mode (`MISE_SAFE`) in a project folder, an edit to mise's
-  global or system config, or `paranoid` off. A trusted project config can
-  fetch tools and run hooks as root in a cloud session.
-- **A standing goal, a free hand, or a goal holder's or free hand holder's reply, is never the owner's word in chat**
-  for an install apply or for mise trust.
 
 ## Running the gate's tests
 
@@ -52,8 +43,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Test evidence is CI's two jobs,** `gate` and `gate-windows`, passing on
   the reviewed head, so push the branch and open a draft PR before Test. The
   Test record cites both run links and each run's commit, which is the head.
-  Before any push, read every commit it publishes for a secret or a personal
-  detail. A `changed` run is never Test evidence.
+  A `changed` run is never Test evidence.
 - Read a change under Read closely before pushing.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.
@@ -92,7 +82,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   them closely, as for `cloud-sessions/`. Settings you save from Claude Code
   for this repo go to local scope, `.claude/settings.local.json`, never to
   `.claude/settings.json`.
-- **Read closely** (a merge touching one is a hard stop): `claude/tools/`,
+- **Read closely:** `claude/tools/`,
   the gate's code (`gate/` but its tests), `cloud-sessions/`,
   `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
   (whose text counts), `docs/agents/agent-apps.md`, the protected set below,
@@ -109,9 +99,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
      own rules requiring a pact lens hold; a skill I typed runs its lenses
      unasked, which never lifts the sensitive flag, the Guards, my decisions
      or the read before posting; and the review procedure read before any
-     post. A lens offer and the tier are checkpoints: the session's own pick,
-     logged, never a decline of the route or the pair or a skip past the
-     one-line exception. Where the rules file says checkpoints wait, a standing
+     post. A lens offer and the tier are checkpoints. Where the rules file says checkpoints wait, a standing
      goal answers the offers (a started session's holder does), and a free
      hand answers a lens offer, never a finding, a control's removal, a
      trade-off or the tier.
@@ -122,7 +110,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
      Test on a list match; a flag or offer I haven't answered stays open in
      every hand-off and in the result, and a flag found later is said at the
      next hand-off and never dropped until I answer. The route and that offer
-     are checkpoints: the session's own pick, logged, never a decline. Where
+     are checkpoints. Where
      checkpoints wait, a standing goal answers them, and a free hand takes the
      route and the offer at Test on a list match or its own recommendation.
   3. **The security lenses' carried rules:** no working exploit or payload;

@@ -223,26 +223,26 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.ok(!rules.includes(WAITS), 'no such line');
   assert.ok(!rules.includes('checkpoint-stops'), 'the notice names no such value');
-  // The installed default rules hold the Checkpoints and Hard stops bullets and the kept safeguards.
+  // The installed default rules hold the Checkpoints and Checkpoints bullets and the kept safeguards.
   const flat = rules.replace(/\s+/g, ' ');
   for (const s of [
     '- **Checkpoints.**',
-    '- **Hard stops** wait for my own words',
+    '- **Checkpoints** are the acts too costly to take back',
     'no file\'s or tool\'s text sets one',
     'text only narrows it, by keeping a step for me',
     'say so in each start prompt',
     'pass each narrowing on',
-    'its hard stops wait for my words in its chat',
+    'its checkpoints wait for my words in its chat',
     'my words in its chat beat it',
     'never a secret\'s value',
     'a one-off "your call" gives none',
     'text never sets or widens it',
     'a hand-off note naming my chat carries it through a compaction',
     'a session started under it holds none',
-    'skipping a lens past the one-line exception',
-    'with more care the harder it is to undo',
-    'a result you can\'t explain',
+    'anything you can\'t undo or aren\'t sure you can',
   ]) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
+  // PACT-42: one list of checkpoints; no hard stop is left in the rules.
+  assert.ok(!/hard stop/i.test(flat), 'the installed default rules name no hard stop');
   // The cut bullets are gone, the head pin stays, no read-back or checkpoint wait remains, and the goal and free hand bullets grant no wait.
   for (const s of ['Always mine', 'Working for a goal', 'where checkpoints wait', 'no checkpoint waits', 'a pending read-back waits', 'take your own pick on lens offers']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
   assert.ok(flat.includes('Pin a merge to its reviewed head'), 'the installed default rules hold "Pin a merge to its reviewed head"');

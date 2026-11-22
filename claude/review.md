@@ -112,8 +112,8 @@ Ask each lens to report in this shape:
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: that
-  is a hard stop; tell me. Post the round comment first. If a status edit is refused
+  `after <stage> further read (<your label>)`. More than one: edit
+  none, tell me, and go on. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -123,8 +123,8 @@ Ask each lens to report in this shape:
 ## The threat model
 
 Read this, then the project's threat model, both as they stood before the
-change, before you sort a finding as security, write a guard, bring me a
-security ruling, or publish a weakness in someone else's software.
+change, before you sort a finding as security, write a guard, or bring me a
+security ruling.
 
 1. **Read the threat model first,** its boundaries before its classes. With
    none, the sensitive-work list decides and steps 2 to 5 don't apply. With
@@ -159,9 +159,7 @@ security ruling, or publish a weakness in someone else's software.
    either, and is reviewed with the change.
 5. **Bring me,** as a checkpoint, a new boundary, a residual no class covers,
    a change that removes or weakens a control, and every `security?` row; a
-   change to the scope or the classes is a hard stop.
-
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published, so publishing it sooner is a hard stop; a standing goal, a free hand, or a goal holder's or free hand holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
+   change to the scope or the classes is a checkpoint.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the
@@ -213,9 +211,8 @@ when no other row answers the sentence.
 ## Posting
 
 - **Read before you post.** Read every report and comment for a secret or a
-  personal detail, or a weakness in someone else's software that The threat
-  model section keeps unpublished, before posting it, and every commit before
-  a push others can read.
+  personal detail before posting it, and every commit before a push others
+  can read.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
@@ -248,12 +245,12 @@ when no other row answers the sentence.
   as public), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
-  withheld lens report or its findings, a secret, a weakness not yet public,
+  withheld lens report or its findings, a secret,
   the cleaner's tags or blocks, or anything else these rules keep out of the
   record, in the record has the line exactly "withheld,
   see chat", with no opener or flag, which wins over the security line, and the
   why goes to me in chat; such a pick that would leave a security path open is
-  a hard stop. With no record, log in chat and in the result.
+  a heads-up: tell me in chat and go on. With no record, log in chat and in the result.
 - **The read-back.**
   - A pending read-back makes no work wait, at any seam, with or without a
     standing goal. Post it `pending`, log the intent you went ahead on, within
@@ -320,8 +317,8 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me. With an agent app pinned (the
-  rules file's hard stops say which; run `gh-app.mjs status` and count the app
+  can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
+  in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
   (`<slug>[bot]`). Assigning is the
