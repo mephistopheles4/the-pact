@@ -123,16 +123,20 @@ A PreToolUse hook holds sessions to athanor. `.claude/settings.json` runs
 [`.claude/hooks/athanor-guard.mjs`](../../.claude/hooks/athanor-guard.mjs)
 before every Bash and PowerShell call, with a 15 s timeout.
 
-- **What it refuses:** its refusal is fixed text that names `athanor run fast`,
-  `athanor run` and the fallback. Commands it doesn't match pass silently: it is
-  a nudge, not a control.
+- **What it refuses:** a host `fast`, `full` or `changed` run of the runner, and
+  a direct `node --test` that names `gate/tests` (a file, a glob or the folder),
+  bare or behind `env`, `mise x|exec --` or `npx`. Its refusal is fixed text that
+  names `athanor run fast`, `athanor run` and the fallback. Commands it doesn't
+  match pass silently: it is a nudge, not a control.
 - **What it passes, silently:** `--list`, which runs nothing; a `fast` or
   `full` run with `--host-fallback=<reason>` (`changed` has no fallback: the
-  runner rejects the flag there); every other
+  runner rejects the flag there), and a `node --test` run with it as a word
+  after the files; `athanor run -- node --test gate/tests/<file>`; every other
   command; and everything while athanor is missing, a shim dangles, or the
   probe fails or hangs. A bare `node --test` is out of its reach, as it is
   out of the runner's cap, and so is a run wrapped in `bash -c`,
-  `pwsh -Command`, `nohup` or `exec`, or started from inside `gate/tests/`.
+  `pwsh -Command`, `nohup` or `exec`, a script run directly without `--test`,
+  or started from inside `gate/tests/`.
 - **The fallback:** `--host-fallback='<reason>'`, in the `=` form only, on
   `fast` and `full`. Use it for any run when athanor can't run: no Docker, a copy older than
   `4121c28`, or a run that ends 124, 125 or 137. The probe can't tell those from a working athanor,
