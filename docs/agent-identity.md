@@ -4,7 +4,7 @@
 when unset, and the builder's Settings dialog shows it as Agent identity. A
 project configuration may not set it, and no preset or builder file turns it on.
 It has no part in the rules file; only the notice line names it. While it is on,
-git in every local session runs as the GitHub App you create under your own
+git over HTTPS in every local session runs as the GitHub App you create under your own
 account (see [the helper](reference.md#pact-tools)). The app's name is yours to
 choose: the examples use "Mephisto's Homunculus" for Claude Code, "Mephisto's
 Wagner" for Codex and "Mephisto's Euphorion" for Antigravity, and nothing in the
@@ -29,8 +29,23 @@ first".
   gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them under
   `identityEnv` in `.pact-install.json`. The gitconfig includes your own global
   git config, names the bot as the author, and drops Git Credential Manager, so
-  a failed mint fails the push and never falls back to your account.
+  a failed mint fails an HTTPS push.
 - **Left alone.** Your own terminal, and the cloud copy.
+
+## What it doesn't stop
+
+Your own credentials stay reachable by these routes, and `node
+~/.claude/pact/tools/gh-app.mjs status` reports each:
+
+- An askpass program (`GIT_ASKPASS`, `core.askPass`, `SSH_ASKPASS`, often set by an
+  editor's terminal) is tried after a failed mint, and `GIT_TERMINAL_PROMPT=0`
+  doesn't stop it.
+- An SSH remote or an `insteadOf` rule, `git -c credential.helper=...`, and plain
+  `gh`.
+- Your own `author.*`, `committer.*` and signing settings, which the include loads.
+- `GIT_CONFIG_GLOBAL` makes a session's `git config --global` write to the agent
+  gitconfig, so `gh auth setup-git` swaps the helper out. The next dry run refuses
+  until you run setup again.
 
 ## What the install checks
 
@@ -46,8 +61,8 @@ With the switch on, before any write:
   upgrade, or a new XDG git config, run setup again.
 - Your own `env` doesn't already set either key. The install never overwrites it.
 
-A `settings.json` that isn't strict JSON is left untouched, with a WARN that the
-two keys are not set.
+A `settings.json` that isn't strict JSON is never changed: the dry run warns that
+the two keys are not set, and the apply refuses.
 
 ## Turning it off
 

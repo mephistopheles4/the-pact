@@ -38,7 +38,7 @@ const HOOK_WINDOW_TOKEN = '__PACT_WINDOW__';
 const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
   cleaner: ' and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.',
-  'gh-app': ' and mints GitHub App tokens from a key in Windows Credential Manager, so git in every session runs as the app, not as your account.',
+  'gh-app': ' and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS in every session runs as the app; an askpass program, an SSH remote and a global git write still go around it (docs/agent-identity.md).',
 });
 // The cleaner's deny rules (#438 S2.3): settings.json holds them only while
 // the cleaner is on. The install adds the ones not already there and records

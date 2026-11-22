@@ -375,8 +375,9 @@ const ENV_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT'];
 const gitconfigFor = h => identityGitconfigText({ userHome: dirname(h), claudeHome: h, nodePath: process.execPath, app: APP, xdg: existsSync(join(dirname(h), '.config', 'git', 'config')) });
 
 /** A Claude home folder whose configuration sets the identity switch, with setup's two files as asked: `pin` and `gitconfig` are the text to write, or null to leave the file out. */
-function identityHome(t, on, { pin = PIN, gitconfig = gitconfigFor, tools = [], env } = {}) {
-  const h = home(t);
+function identityHome(t, on, { pin = PIN, gitconfig = gitconfigFor, tools = [], env, nested = false } = {}) {
+  // `nested` puts the Claude home under its own user folder, so a test can add an XDG git config there.
+  const h = nested ? join(tempDir(t, 'pact-user-'), '.claude') : home(t);
   mkdirSync(join(h, 'pact'), { recursive: true });
   setIdentity(h, on, tools);
   if (pin !== null) writeFileSync(join(h, 'pact', 'github.json'), pin);
@@ -474,6 +475,20 @@ for (const row of [
   });
 }
 
+// C5: a git config that appears under the user's XDG folder after setup is refused as a changed include list; setup run with it there passes.
+test('agent-identity on: an XDG git config added after setup is refused, and one present at setup passes', t => {
+  const repo = makeRepo(t);
+  const h = identityHome(t, true, { nested: true });
+  const xdg = join(dirname(h), '.config', 'git', 'config');
+  mkdirSync(dirname(xdg), { recursive: true });
+  writeFileSync(xdg, '[core]\n  autocrlf = false\n');
+  const dry = install(repo, h);
+  refused(dry, /gitconfig as expected: no: include list differs, re-run setup/);
+  writeFileSync(join(h, 'pact', 'gh-app-claude.gitconfig'), gitconfigFor(h));
+  assert.match(gitconfigFor(h), /\.config\/git\/config/, 'the rewritten gitconfig includes the XDG file');
+  passed(install(repo, h));
+});
+
 // C5: the refusal text names the part that differs and prints no line of the file.
 test('the gitconfig refusal prints only the fixed line, never a line of the file', t => {
   const repo = makeRepo(t);
@@ -484,7 +499,7 @@ test('the gitconfig refusal prints only the fixed line, never a line of the file
 });
 
 // C5: a settings file that is not strict JSON is left untouched, and the dry run says the env keys are not set.
-test('agent-identity on with a settings.json that is not strict JSON: warned, left untouched, the record keeps no env keys', t => {
+test('agent-identity on with a settings.json that is not strict JSON: the dry run warns, the apply refuses, and settings.json and the record are untouched', t => {
   const repo = makeRepo(t);
   const h = identityHome(t, true);
   const bad = '{ // a comment\n  "permissions": { "deny": [] }\n}\n';
@@ -492,4 +507,7 @@ test('agent-identity on with a settings.json that is not strict JSON: warned, le
   const dry = install(repo, h);
   passed(dry);
   assert.match(dry.stdout, /^WARN: settings\.json is left untouched, so the agent-identity switch's two env keys are not set/m, dry.out);
+  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /settings\.json is not a strict JSON object/);
+  assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), bad, 'settings.json is untouched');
+  assert.ok(!existsSync(join(h, '.pact-install.json')), 'no record is written');
 });

@@ -1461,18 +1461,28 @@ test('the identity pin read takes the exact pin shape with a claude app, and not
     ['an extra top key', json({ owner: { login: 'o', id: 1 }, apps: { claude: APP }, more: 1 })],
     ['an owner with no id', pinJson({ claude: APP }, { login: 'o' })],
     ['an array for apps', json({ owner: { login: 'o', id: 1 }, apps: [APP] })],
+    ['null apps', json({ owner: { login: 'o', id: 1 }, apps: null })],
+    ['a slug with a space', pinJson({ claude: { ...APP, slug: 'a b', bot_login: 'a b[bot]' } })],
+    ['a zero app id', pinJson({ claude: { ...APP, app_id: 0 } })],
+    ['a negative bot id', pinJson({ claude: { ...APP, bot_id: -1 } })],
+    ['a string app id', pinJson({ claude: { ...APP, app_id: '2000001' } })],
   ]) assert.equal(core.identityPinApp(text), null, name);
 });
 
 // C5: the install's own copy of the gitconfig text is the helper's, byte for byte, in the layout the pact is installed in.
 test('the install\'s gitconfig text equals the one gh-app.mjs setup writes, with and without the XDG config', async () => {
   const { gitconfigText } = await import('../../claude/tools/gh-app.mjs');
-  for (const [userHome, nodePath] of [['C:\\Users\\user', 'C:\\Program Files\\nodejs\\node.exe'], ['/home/user', '/usr/local/bin/node'], ['D:\\a b\\u', 'D:\\a b\\node.exe']]) {
+  for (const [userHome, nodePath] of [['C:\\Users\\user', 'C:\\Program Files\\nodejs\\node.exe'], ['/home/user', '/usr/local/bin/node'], ['D:\\a b\\u', 'D:\\a b\\node.exe'], ['C:\\Users\\a#b;c', 'C:\\Program Files\\nodejs\\node.exe']]) {
     for (const xdg of [false, true]) {
       const claudeHome = `${userHome}${userHome.includes('\\') ? '\\' : '/'}.claude`;
       assert.equal(core.identityGitconfigText({ userHome, claudeHome, nodePath, app: APP, xdg }), gitconfigText({ home: userHome, nodePath, app: APP, provider: 'claude', xdg }), `${userHome} xdg ${xdg}`);
     }
   }
+});
+
+// C5: a home folder with a line break can't be written into the gitconfig, so the install refuses it.
+test('the install\'s gitconfig text refuses a home folder with a line break', () => {
+  assert.throws(() => core.identityGitconfigText({ userHome: '/home/a\nb', claudeHome: '/home/a\nb/.claude', nodePath: '/usr/local/bin/node', app: APP, xdg: false }), /line break/);
 });
 
 // C5: the dry run says which part differs, never the file's lines.

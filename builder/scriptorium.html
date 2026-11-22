@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-Ogu3ib1eGI2BT2Gb75IMZXwQ7cxzLeeP4xWJXDheiG8='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-rewfLBTUgjsNuGRzxVDY7fRo6Ri5HgDG5juROn1eM4g='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -7611,7 +7611,7 @@ function boot() {
         { class: 'av-tool-bar av-tool-bar--stack' },
         el('h3', { class: 'section-title', text: 'Agent identity' }),
         identityRow(),
-        el('p', { class: 'av-annot', text: `Off by default. On, the next install adds the gh-app helper to ~/.claude/pact/tools/ and two keys to env in ~/.claude/settings.json, GIT_CONFIG_GLOBAL and GIT_TERMINAL_PROMPT, and records them so turning this off removes only those. Git in every local session then runs as the Claude Code GitHub App, with tokens minted from a key in Windows Credential Manager. The install refuses until gh-app.mjs setup has pinned the app and written its gitconfig, and refuses if your own env already sets either key. Your own terminal is unaffected. Installing is your decision, in chat.` }),
+        el('p', { class: 'av-annot', text: `Off by default. On, the next install adds the gh-app helper to ~/.claude/pact/tools/ and two keys to env in ~/.claude/settings.json, GIT_CONFIG_GLOBAL and GIT_TERMINAL_PROMPT, and records them so turning this off removes only those. Git over HTTPS in every local session then runs as the Claude Code GitHub App, with tokens minted from a key in Windows Credential Manager; an askpass program, an SSH remote and a global git write still go around it. The install refuses until gh-app.mjs setup has pinned the app and written its gitconfig, and refuses if your own env already sets either key. Your own terminal is unaffected. Installing is your decision, in chat.` }),
       ),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('commands', 'Pact commands', commandsSection()), section('tools', 'Pact tools', toolsSection()), section('moves', 'Moves', movesTab()), section('models', 'Models', modelsTab()), box)),
     ));

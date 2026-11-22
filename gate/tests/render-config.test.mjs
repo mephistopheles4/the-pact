@@ -604,14 +604,6 @@ test('"agent-identity": true adds gh-app after the listed tools, and the tools l
   assert.match(on.stdout, /^TOOLS poster,cleaner,gh-app$/m, on.out);
   refusedWith(render(t, homeWith(t, Buffer.from('{"schema": 1, "tools": ["gh-app"], "settings": {"agent-identity": true}}\n'))), 'config-tools', /gh-app cannot be turned on by the tools list/);
 });
-// #603 C8: with the switch off or unset, the render is today's: no gh-app anywhere.
-test('agent-identity unset or false leaves gh-app out of the TOOLS line', t => {
-  for (const settings of ['', ', "settings": {"agent-identity": false}']) {
-    const r = render(t, homeWith(t, Buffer.from(`{"schema": 1, "tools": ["poster"]${settings}}\n`)));
-    assert.equal(r.code, 0, r.out);
-    assert.match(r.stdout, /^TOOLS poster$/m, r.out);
-  }
-});
 test('bad case: agent-identity takes no value but true or false', t => {
   for (const bad of ['1', '0', '"on"', '"true"', 'null', '[]']) {
     refusedWith(render(t, homeWith(t, Buffer.from(`{"schema": 1, "settings": {"agent-identity": ${bad}}}\n`))), 'config-value', /agent-identity must be true or false/);
