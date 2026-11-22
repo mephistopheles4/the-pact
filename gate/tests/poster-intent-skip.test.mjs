@@ -55,8 +55,14 @@ test('PACT-48: a skip reason of two lines, with a live secret, or with a hidden 
   const leak = run(t, 'issue', { ...ISSUE, intent_skip: `see ${SECRET}` }, { env: { MY_API_KEY: SECRET } });
   assert.ok(rules(leak).some(l => l.startsWith('secret/env intent_skip ')), out(leak));
   assert.ok(!out(leak).includes(SECRET));
-  assert.ok(rules(run(t, 'issue', { ...ISSUE, intent_skip: 'a​b' })).some(l => l.startsWith('text/hidden intent_skip ')));
+  assert.ok(rules(run(t, 'issue', { ...ISSUE, intent_skip: `a${String.fromCharCode(0x200b)}b` })).some(l => l.startsWith('text/hidden intent_skip ')));
   assert.ok(rules(run(t, 'issue', { ...ISSUE, intent_skip: '<!-- hidden' })).includes('text/hidden-line intent_skip'));
+  // The bounds and the shapes the poster renders itself: none of these is accepted.
+  assert.ok(rules(run(t, 'issue', { ...ISSUE, intent_skip: '' })).includes('post/length intent_skip'));
+  assert.ok(rules(run(t, 'issue', { ...ISSUE, intent_skip: 'x'.repeat(201) })).includes('post/length intent_skip'));
+  assert.ok(rules(run(t, 'issue', { ...ISSUE, intent_skip: '# heading' })).includes('post/owned-line intent_skip'));
+  // A leading or trailing space would hide the item from the read-back (a later edit could then drop its quote).
+  for (const reason of [' spaced', 'spaced ']) assert.ok(rules(run(t, 'issue', { ...ISSUE, intent_skip: reason })).includes('post/pattern intent_skip'), JSON.stringify(reason));
 });
 
 test('PACT-48: the body shows the skip reason under the Understood intent heading with no read-back line, and reads back as a skipped ask item', () => {
@@ -104,5 +110,19 @@ test('PACT-48: an edit of a skipped item carrying its own skip reason keeps the 
     const bad = edit(t, world(ITEM), change);
     assert.equal(bad.code, 2, out(bad));
     assert.deepEqual(rules(bad), ['edit/ask intent']);
+    assert.match(bad.lines.at(-2), /^NEXT: an ask item's quote and intent must be the item's own/);
+  }
+});
+
+test("PACT-48: an edit of a skipped item with another quote is refused edit/ask quote[0]; an item with a reading takes no skip reason, even one opening with 'Skipped:'", t => {
+  const changed = edit(t, world(ITEM), { intent_skip: SKIP, quote: [{ ...QUOTE, text: 'Other words.' }] });
+  assert.deepEqual(rules(changed), ['edit/ask quote[0]']);
+  const asked = (intent, readBack) => `## The ask\n\n> ${QUOTE.text}\n\nSaid in this session's chat, ${QUOTE.when}.\n\n## Understood intent\n\n${intent}\n\n${readBack}\n\nA plain body.\n\nSigned: ${LABEL}\n`;
+  // An ordinary reading, and one whose first paragraph reads "Skipped: x" (a create accepts it), each with its read-back line.
+  for (const intent of ['I read it so.', `Skipped: ${SKIP}\n\nMore words.`]) {
+    const w = world(asked(intent, 'Read-back: confirmed in comment 777.'));
+    const bad = edit(t, w, { intent_skip: SKIP });
+    assert.deepEqual(rules(bad), ['edit/ask intent'], JSON.stringify(intent));
+    assert.equal(w.calls.filter(c => c.args.includes('PATCH')).length, 0, 'nothing was sent');
   }
 });

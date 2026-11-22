@@ -8,7 +8,9 @@ Then the cuts, each row as the lead's sheet marked it: r062, r065, r066, r078, r
 
 Why: the owner's notes on these rows said each rule was safe to drop once the refusal said the same. Every new message has a test that fails without it.
 
-Not done here: dropping `confirmed` and `pending` from the poster's `intent.status`. That follows the rule rewrite in P2 (r046).
+Not done here: dropping `confirmed` and `pending` from the poster's `intent.status`. That follows the rule rewrite in P2 (r046). Until that rewrite, the poster accepts `intent_skip` on any quoted post but a decision, while `claude/review.md` still asks for a read-back: a session may skip one before the rule says when.
+
+Also changed, outside the rows: `docs/poster.md` no longer says the `NEXT:` line is the only line that starts with `NEXT:`, because exit 2 now prints some. The skip reason takes no leading or trailing space, and a read-back item is told from a skipped one by the read-back line, so a reading that opens with "Skipped:" is never taken for a skip.
 
 **Rolling back:** revert the merge. The rows come back with it and the refusals lose their `NEXT:` lines.
 

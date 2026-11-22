@@ -1374,7 +1374,7 @@ function checkProject(buf, effective, report) {
       fail('project-value', settingRule(name, spec));
       ok = false;
     } else if (spec.tighter !== 'lower') {
-      fail('project-direction', `${name} has no tightening direction, so a project may not set it: remove the key from the project's configuration and ask the owner to set it in the home configuration${spec.kind === 'switch' ? '' : `; it is ${spec.def} when unset`}`);
+      fail('project-direction', `${name} has no tightening direction, so a project may not set it: remove the key from the project's configuration and ask the owner to set it in the home configuration${spec.def === null ? '' : `; it is ${spec.def} when unset`}`);
       ok = false;
     } else if (spec.off !== undefined && v === spec.off) {
       fail('project-looser', `${name} off is never tighter than the user's value`);

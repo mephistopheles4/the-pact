@@ -16,8 +16,8 @@ const MACHINE = { home: '/srv/home/tester', tmp: '/tmp', user: ME, host: 'buildh
 const SECRET = 'zebra-quokka-42';
 
 /** A fake GitHub holding one issue comment with `body`, written by `user`. */
-function world(body, user = ME) {
-  const store = { [`repos/${TARGET}/issues/comments/9001`]: { id: 9001, body, user: { login: user }, issue_url: `${API}/issues/5` } };
+function world(body, user = ME, extra = {}) {
+  const store = { [`repos/${TARGET}/issues/comments/9001`]: { id: 9001, body, user: { login: user }, issue_url: `${API}/issues/5` }, ...extra };
   const gh = args => {
     const method = args[args.indexOf('--method') + 1];
     const path = args[args.indexOf('--method') + 2];
@@ -29,10 +29,10 @@ function world(body, user = ME) {
   return { gh };
 }
 
-function edit(t, w, { body = 'A plain body.\n', env = {} } = {}) {
+function edit(t, w, { body = 'A plain body.\n', env = {}, change = {} } = {}) {
   const dir = tempDir(t, 'pact-poster-next-');
   writeTree(dir, { 'body.md': body });
-  const doc = { repo: TARGET, signer: LABEL, reason: 'fixed a wrong link', body_file: 'body.md', issue: 5, comment: 9001 };
+  const doc = { repo: TARGET, signer: LABEL, reason: 'fixed a wrong link', body_file: 'body.md', issue: 5, comment: 9001, ...change };
   return postDoc('issue-comment-edit', doc, dir, { gh: w.gh, env, ...MACHINE });
 }
 
@@ -92,11 +92,40 @@ test('PACT-48: a live environment secret in the text is refused secret/env, and 
 
 test('PACT-48: a hidden character is refused text/hidden, and its NEXT line says to remove it from the named field', t => {
   const dir = tempDir(t, 'pact-poster-next-');
-  writeTree(dir, { 'body.md': 'A plain​ body.\n' });
+  writeTree(dir, { 'body.md': `A plain${String.fromCharCode(0x200b)} body.\n` });
   const doc = { repo: TARGET, kind: 'note', issue: 5, signer: LABEL, body_file: 'body.md' };
   const r = postDoc('issue-comment', doc, dir, { gh: world('').gh, env: {}, ...MACHINE });
   const [line] = nextOf(r, 'text/hidden');
   assert.match(line, /remove the hidden character from the named field and post again/);
+});
+
+test('PACT-48: two refusals of one rule print its NEXT line once, straight above RESULT', t => {
+  const dir = tempDir(t, 'pact-poster-next-');
+  const hidden = String.fromCharCode(0x200b);
+  writeTree(dir, { 'body.md': `One${hidden} two.\n\nThree${hidden} four.\n` });
+  const doc = { repo: TARGET, kind: 'note', issue: 5, signer: LABEL, body_file: 'body.md', as: ME };
+  const r = postDoc('issue-comment', doc, dir, { gh: world('').gh, env: {}, ...MACHINE });
+  assert.equal(r.lines.filter(l => l.startsWith('NEXT: ')).length, 1, r.lines.join(' | '));
+  assert.deepEqual(r.lines.slice(-2), [NEXT_FOR['text/hidden'], r.lines.at(-1)]);
+});
+
+/** An ask item (a quote and a pending read-back) the fake GitHub holds as comment 9001. */
+const ASK = `## The ask\n\n> The owner asked for a plain thing.\n\nSaid in this session's chat, 2026-11-11.\n\n## Understood intent\n\nA plain thing is wanted.\n\nRead-back: not yet confirmed.\n\nA plain body.\n\nSigned: ${LABEL}\n`;
+const QUOTE = [{ text: 'The owner asked for a plain thing.', source: 'chat', when: '2026-11-11' }];
+
+test('PACT-48: the target, ask, status and confirm refusals each print their own NEXT line', t => {
+  const cases = [
+    ['edit/target', {}, { issue: 6 }, 'edit/target', /isn't where the post says/],
+    ['edit/ask', { change: { quote: [{ ...QUOTE[0], text: 'Other words.' }], intent: { text: 'A plain thing is wanted.', status: 'pending' } } }, {}, 'edit/ask', /ask item's quote and intent must be the item's own/],
+    ['edit/status', { change: { quote: QUOTE, intent: { text: 'A plain thing is wanted.', status: 'confirmed' } } }, {}, 'edit/status', /a read-back moves only from pending to confirmed or corrected/],
+    ['edit/confirm', { change: { quote: QUOTE, intent: { text: 'A plain thing is wanted.', status: 'confirmed', comment: 9002 } } }, {}, 'edit/confirm', /intent\.comment must be this login's own decision comment/],
+  ];
+  for (const [rule, opts, change, expected, says] of cases) {
+    const w = world(ASK, ME, { [`repos/${TARGET}/issues/comments/9002`]: { id: 9002, body: 'Just a note.\n\nSigned: pact-48\n', user: { login: ME }, issue_url: `${API}/issues/5` } });
+    const [line] = nextOf(edit(t, w, { ...opts, change: { ...(opts.change ?? {}), ...change } }), expected);
+    assert.equal(line, NEXT_FOR[rule], rule);
+    assert.match(line, says, rule);
+  }
 });
 
 test('PACT-48: every edit rule and both scan rules have a NEXT line', () => {

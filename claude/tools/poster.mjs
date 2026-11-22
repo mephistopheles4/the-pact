@@ -304,7 +304,8 @@ export const SCHEMA = Object.freeze({
       },
     },
     // The one-line reason a post carries no Understood intent: its own field, never part of `intent` (PACT-48).
-    intent_skip: { type: 'string', minLength: 1, maxLength: 200, pattern: ONE_LINE_RE_SOURCE },
+    // No leading or trailing space: the item is read back as a skipped one only from `Skipped: ` and a non-space (PACT-48).
+    intent_skip: { type: 'string', minLength: 1, maxLength: 200, pattern: '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$' },
     body_file: { type: 'string', pattern: BODY_FILE_RE.source },
     reason: { type: 'string', minLength: 1, maxLength: 200, pattern: ONE_LINE_RE_SOURCE },
   },
@@ -2282,14 +2283,14 @@ export function askItem(body) {
   if (lines[i] !== '## The ask' || lines[i + 1] !== '') return null;
   const h = lines.indexOf('## Understood intent', i + 2);
   if (h < 0 || lines[h + 1] !== '') return null;
-  // A skipped item (PACT-48): the heading, its one-line reason, a blank line, and no read-back line.
-  if (/^Skipped: \S/.test(lines[h + 2] ?? '') && lines[h + 3] === '' && !READBACK_RE.test(lines[h + 4] ?? '')) {
-    return { text, mark, answers, status: 'skipped', comment: undefined, corrected: undefined, intent: lines[h + 2].slice('Skipped: '.length) };
-  }
   let r = -1;
   for (let j = h + 2; j < lines.length && r < 0; j += 1) {
     if (READBACK_RE.test(lines[j])) r = j;
-    else if (FENCE_OPEN_RE.test(lines[j])) return null;
+    else if (FENCE_OPEN_RE.test(lines[j])) break;
+  }
+  // A skipped item (PACT-48): the heading, its one-line reason, a blank line, and no read-back line before the first fence or the end, so a reading that opens with "Skipped:" is never one.
+  if (r < 0 && /^Skipped: \S/.test(lines[h + 2] ?? '') && lines[h + 3] === '') {
+    return { text, mark, answers, status: 'skipped', comment: undefined, corrected: undefined, intent: lines[h + 2].slice('Skipped: '.length) };
   }
   if (r < 0 || lines[r - 1] !== '') return null;
   const status = lines[r].includes('not yet') ? 'pending' : lines[r].includes('corrected in') ? 'corrected' : 'confirmed';
