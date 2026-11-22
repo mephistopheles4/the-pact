@@ -22,3 +22,4 @@ The app names are the owner's to choose and nothing in the code names one; the d
 - The spec, revision 5: https://github.com/mephistopheles4/the-pact/issues/599#issuecomment-7067672460
 - The plan: https://github.com/mephistopheles4/the-pact/issues/603#issuecomment-7071036217
 - Test round 1: https://github.com/mephistopheles4/the-pact/issues/603#issuecomment-7071442672
+- Test round 2 (final): https://github.com/mephistopheles4/the-pact/issues/603#issuecomment-7071675321
