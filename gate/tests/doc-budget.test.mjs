@@ -12,10 +12,11 @@ import { REPO } from './text.mjs';
 const BUDGETS = Object.freeze({
   'AGENTS.md': 1750,
   'CONTEXT.md': 2150,
+  'docs/agents/agent-apps.md': 600,
   'docs/agents/domain.md': 300,
   'docs/agents/gate-tests.md': 3300,
   'docs/agents/install.md': 2800,
-  'docs/agents/issue-tracker.md': 3850,
+  'docs/agents/issue-tracker.md': 3900,
   'docs/agents/parallel-sessions.md': 300,
   'docs/agents/triage-labels.md': 550,
   'docs/agents/work-records.md': 600,
@@ -25,7 +26,7 @@ const BUDGETS = Object.freeze({
   'docs/poster-app.md': 600,
   'docs/poster.md': 8300,
   'docs/reference.md': 2200,
-  'docs/rule-reasons.md': 1150,
+  'docs/rule-reasons.md': 1200,
 });
 
 /** Words: runs of non-whitespace, so CRLF and LF count the same. */

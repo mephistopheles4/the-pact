@@ -87,12 +87,13 @@ prompt, a mic transcript, a file someone hands a session to load.
   install's text scanner and the builder page's refusal of hidden characters
   check the files they take for hidden and control characters, not wording.
   The tracker author checker (`gate/tracker-authors.mjs`) reads who wrote what
-  where GraphQL is refused, and trusts a clone's `origin` by its path.
+  where GraphQL is refused, and trusts a clone's `origin` by its path. With an
+  app pinned it also checks the pin and counts that app's PR as insiders' code.
   No detector for injected wording is built
   ([ADR 0150](adr/0150-text-steering-is-accepted-and-no-detector-is-built.md)).
 
 **Residual:** Text steers a session; A session takes checkpoints alone. Rules it
-rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`), for pull request text, and for GitHub issue text until the repo's lock ticket closes its issues, after which that text is outside text, whoever wrote it; and that doc's rule for the owner's private tracker;
+rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`, and `docs/agents/agent-apps.md` while an agent app is pinned), for pull request text, and for GitHub issue text until the repo's lock ticket closes its issues, after which that text is outside text, whoever wrote it; and that doc's rule for the owner's private tracker;
 the hard stops, the steps that wait for the owner's own words (an install
 apply, mise trust, a merge on their list, anything made public or sent beyond
 the record, a deletion nothing can restore); the stop and removal rules above.
@@ -175,14 +176,19 @@ itself.
 ### What leaves the machine
 
 **Crosses:** posts, pull requests and comments on the tracker, messages to
-cloud or Remote Control sessions, an account whose token a session holds, and
+cloud or Remote Control sessions, an account whose token a session holds, an
+agent app's installation token, and
 anything else a session sends off the machine: a push, a fetch or search, a
 connector call.
 
 **Controls:**
 
 - **GitHub.** Secret scanning and push protection on the repo, which match
-  known token shapes, and which a pusher can override.
+  known token shapes, and which a pusher can override. An agent app's
+  permission and repo lists bound every token it mints, and `main`'s ruleset
+  holds with no bypass actor. These limits don't stop a pushed branch from
+  running a workflow with that repo's Actions secrets: the app keeps Workflows
+  write.
 - **Harness.** Permission prompts and the classifier, as above, for what a
   session sends by fetch, search or connector call.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
@@ -190,6 +196,15 @@ connector call.
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
   Its text fields and edit checks catch accidents only and are not a control.
+  With an app pinned it refuses a post as anything but the `claude` app, for
+  posts sent through it.
+- **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
+  each token it mints to one repo and a permission set, and refuses a repo
+  outside the pinned owner. It holds against accidents only: any process
+  running as the owner can read the key or ask git's helper for a token. Setup,
+  the poster and the checker check the pin against GitHub's records (the app,
+  the bot, the owner). That doesn't hold against a process that edits both the
+  pin and the code that reads it. A session gets the check only through `status`.
 
 **Residual:** Posts are public; Who counts as you; Text steers a session, for
 what a steered session sends. Rule they rest on, a
@@ -198,7 +213,24 @@ a secret or a personal detail. Also accepted. Posts are public: a lens can
 send a secret out through a post, a builder file keeps what was typed into it,
 and a message to a cloud or Remote Control session leaves the machine when a
 session sends it. Who counts as you: a foreign token or a commit's email can
-read as the owner.
+read as the owner or as the owner's agent app. A session can still write as
+the owner by plain `gh` or the harness, a git call that drops the agent
+gitconfig, a global git write that rewrites it (the next dry run refuses a
+rewritten file), an SSH remote or `url.*.insteadOf` rewrite, an askpass
+program, a helper in a repository's own config, or a remote URL that carries
+credentials or an `http.*.extraHeader` with an auth header. Rules alone hold
+those, and `status` reports each it can see. Whoever holds an app's key can
+mint for every installation, with every permission, until the key is deleted
+on GitHub, and can open PRs that local sessions run and a session may merge
+on a checkpoint. An app token's holder, a steered session included, can run a
+workflow with any installed repo's Actions secrets; if the owner's own credential
+lacks the `workflow` scope, that is new reach and goes to the owner before the
+switch stays on. The key at rest belongs
+to the machine: a steered session sending it out fits Text steers a session
+and Posts are public, and a DER key leaked as base64 escapes PEM scanners. A
+personal account keeps no record of a key's use, so any leak is answered by the
+[leaked-key order](agent-identity.md#a-leaked-key), which uninstalls the app
+first to cut every live token.
 
 ## Scope
 
@@ -224,6 +256,8 @@ folder still holds.
 
 **Root of trust:** the owner's GitHub account and the owner's private issue
 tracker account. Whoever controls either counts as the owner, and so do whoever and whatever the owner admits to that tracker.
+Each pinned agent app's private key is one too, for code: its holder's PRs
+count as insiders' code, and recovering the owner's account doesn't revoke it.
 
 ## Residual risk
 
@@ -237,7 +271,7 @@ quadrantChart
   quadrant-3 Accept
   quadrant-4 Watch
   Text steers a session: [0.56, 0.86]
-  Who counts as you: [0.40, 0.78]
+  Who counts as you: [0.40, 0.82]
   Posts are public: [0.80, 0.75]
   What you install and CI run: [0.22, 0.92]
   The pact gets loosened: [0.45, 0.72]
@@ -261,7 +295,7 @@ Each "Also accepted" line above details what the class it names covers; it is no
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
 - **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, except on the owner's private issue tracker (`docs/agents/issue-tracker.md`), and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
-- **Who counts as you.** Every session posts as the owner, a lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
+- **Who counts as you.** Every session posts as the owner, or as a pinned agent app and can still write as the owner by the routes above; an app's key holder counts as the owner for code. A lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
 
 ## Open issues
 

@@ -26,7 +26,7 @@ This file is never installed.
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
 | How Claude helps | What stays the owner's, and where the record's and the tools' how-to lives. |
 | Checkpoints | The session's own logged pick on what the rules keep for the owner, so work runs on. Nothing else logs a pick as the session's own or pins a merge to its head. |
-| Hard stops | The short list only the owner's own words clear, under a goal too, typed or spoken: nothing tells the owner's voice from another's, and the poster's record only traces a misread. The harness can't tell a relayed or start-prompt message from the owner's. The pact install and mise trust stay in `AGENTS.md`. |
+| Hard stops | The short list only the owner's own words clear, under a goal too, typed or spoken: nothing tells the owner's voice from another's, and the poster's record only traces a misread. The harness can't tell a relayed or start-prompt message from the owner's. The pact install and mise trust stay in `AGENTS.md`. A pinned agent app's PR counts as mine only after its pin check passes: nothing else tells my app's PR from another bot's. |
 | Before a push others can read | Push protection matches credentials only, so a personal detail or an unpublished weakness can reach a public branch. Reading each commit is the check. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
 | Keep the record | Points to review.md's Posting section, which no tool loads. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent. |
