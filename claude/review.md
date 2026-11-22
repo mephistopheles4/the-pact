@@ -112,8 +112,8 @@ Ask each lens to report in this shape:
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: that
-  is a heads-up: tell me and go on. Post the round comment first. If a status edit is refused
+  `after <stage> further read (<your label>)`. More than one: edit
+  none, tell me, and go on. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -320,7 +320,7 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a heads-up: tell me and go on. With an agent app pinned (one
+  can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
   in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
