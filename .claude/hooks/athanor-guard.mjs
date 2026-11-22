@@ -10,6 +10,9 @@
 // `--host-fallback=<reason>` on the same command, which the runner prints.
 // A host `changed` run is refused too (#550) and has no fallback: the runner
 // rejects the flag on `changed`, and `athanor run fast` replaces it.
+// A direct `node --test` over files under gate/tests is refused the same way
+// (PACT-54), also behind `mise x --` and `npx`; the fallback is one more word
+// after the files. A bare `node --test` is out of reach (ADR 0104).
 // Ported from grimoire's agent check guard (grimoire issue 377).
 //
 // It reads the command as data, never runs it, and never changes it. It runs
@@ -167,15 +170,25 @@ const RUNNER = /(?:^|\/)gate\/tests\/run\.mjs$/i;
 const GUARDED = new Set(['fast', 'full', 'changed']);
 // node's options that take their value as the next word, and those that run
 // code of their own in place of a script.
-const VALUED = new Set(['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions']);
+const VALUED = new Set(['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions', '--test-reporter', '--test-reporter-destination', '--test-name-pattern', '--test-skip-pattern']);
 const EVAL = new Set(['-e', '--eval', '-p', '--print']);
+// A direct run of the gate's tests: node's own `--test`, with a word that names
+// `gate/tests` as whole path parts, in either slash, a glob or a file under it.
+const TEST_DIR = /(?:^|\/)gate\/tests(?:\/|$)/i;
+const MISE = /^mise(?:\.exe)?$/i;
+const NPX = /^npx(?:\.cmd|\.exe)?$/i;
+const base = t => t.replace(/\\/g, '/').split('/').pop();
 
 // What one segment is: not a guarded host run, a guarded host run, or one
 // with a named fallback. A guarded run is node on a path ending in
 // gate/tests/run.mjs as whole path parts, in either slash, with the tier fast
-// full or changed after it and no --list. The runner takes the flag in its =
-// form only, so the space form frees nothing, and it rejects the flag on
-// changed, so a named fallback frees only fast and full.
+// full or changed after it and no --list; or node with its own `--test` option
+// and a word that names gate/tests (PACT-54). The runner takes the flag in its
+// = form only, so the space form frees nothing, and it rejects the flag on
+// changed, so a named fallback frees only fast and full. `node --test` takes
+// the flag as one more word after the files, and a bare `node --test` stays out
+// of reach (ADR 0104). `mise x|exec [tool@ver] -- ` and `npx [options]` wrap
+// the command like `env` does.
 function classify(tokens) {
   let i = 0;
   for (;;) {
@@ -189,9 +202,21 @@ function classify(tokens) {
     else if (t === 'timeout') {
       i++;
       if (/^[\d.]+[smhd]?$/.test(tokens[i] ?? '')) i++;
+    } else if (MISE.test(base(t)) && /^(?:x|exec)$/.test(tokens[i + 1] ?? '')) {
+      // The command is what follows mise's own `--`; without one, it follows
+      // the options and the tool@version words.
+      i += 2;
+      const dashes = tokens.indexOf('--', i);
+      if (dashes !== -1) i = dashes + 1;
+      else while (tokens[i] !== undefined && (tokens[i].startsWith('-') || tokens[i].includes('@'))) i++;
+    } else if (NPX.test(base(t))) {
+      i++;
+      while (tokens[i]?.startsWith('-')) i += (tokens[i] === '-p' || tokens[i] === '--package') ? 2 : 1;
     } else break;
   }
-  const program = tokens[i].replace(/\\/g, '/').split('/').pop();
+  if (tokens[i] === undefined) return 'other';
+  // `npx node@24` names the package; the program is the part before the @.
+  const program = base(tokens[i]).replace(/@[^@]*$/, '');
   if (!NODE.test(program)) return 'other';
   // The script is node's first word that is no option or an option's value;
   // a runner path later on is only an argument to another script.
@@ -200,10 +225,17 @@ function classify(tokens) {
   // one after it is tried too.
   let at = i + 1;
   let bare = false;
+  let test = false;
   while (tokens[at]?.startsWith('-')) {
     if (EVAL.has(tokens[at])) return 'other';
-    bare = !VALUED.has(tokens[at]) && !tokens[at].includes('=');
+    if (tokens[at] === '--test') test = true;
+    bare =!VALUED.has(tokens[at]) && !tokens[at].includes('=');
     at += VALUED.has(tokens[at]) ? 2 : 1;
+  }
+  if (test) {
+    const words = tokens.slice(i + 1);
+    if (!words.some(t => TEST_DIR.test(t.replace(/\\/g, '/')))) return 'other';
+    return words.some(t => t.startsWith(FLAG) && t.slice(FLAG.length).trim() !== '') ? 'named' : 'run';
   }
   const runner = t => t !== undefined && RUNNER.test(t.replace(/\\/g, '/'));
   if (!runner(tokens[at]) && bare && runner(tokens[at + 1])) at++;

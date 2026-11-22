@@ -54,6 +54,37 @@ const FORMS = [
   'node --env-file .env gate/tests/run.mjs full',
   "# don't run this on the host\nnode gate/tests/run.mjs fast",
   "# it's fine\nenv -u NODE_OPTIONS node gate/tests/run.mjs full",
+  // PACT-54: a direct node --test over the gate's test files, bare or in a wrapper.
+  'node --test gate/tests/run.test.mjs',
+  'node --test gate/tests/',
+  'node --test gate/tests/*.test.mjs',
+  'node --test ./gate/tests/run.test.mjs gate/tests/review.test.mjs',
+  'node --test gate\\tests\\run.test.mjs',
+  'node --test "gate/tests/run.test.mjs"',
+  'node --test /work/repo/gate/tests/run.test.mjs',
+  'node.exe --test C:\\work\\repo\\gate\\tests\\run.test.mjs',
+  'node --test --test-concurrency=4 gate/tests/run.test.mjs',
+  'node --test-reporter spec --test gate/tests/run.test.mjs',
+  'node --test --test-reporter spec gate/tests/run.test.mjs',
+  'node --test --import ./x.mjs gate/tests/run.test.mjs',
+  'node --no-warnings --test gate/tests/run.test.mjs',
+  'node --test gate/tests/run.test.mjs --test-name-pattern=fast',
+  'env -u NODE_OPTIONS node --test gate/tests/run.test.mjs',
+  '$env:NODE_OPTIONS = $null; node --test gate/tests/run.test.mjs',
+  'mise x -- node --test gate/tests/run.test.mjs',
+  'mise exec -- node --test gate/tests/run.test.mjs',
+  'mise x node@24 -- node --test gate/tests/run.test.mjs',
+  'mise x node@24 node --test gate/tests/run.test.mjs',
+  'mise x --env dev node@24 -- node --test gate/tests/run.test.mjs',
+  'mise.exe x -- node --test gate/tests/run.test.mjs',
+  'mise x -- env -u NODE_OPTIONS node --test gate/tests/run.test.mjs',
+  'mise x -- node gate/tests/run.mjs fast',
+  'npx node --test gate/tests/run.test.mjs',
+  'npx --yes node --test gate/tests/run.test.mjs',
+  'npx -y node@24 --test gate/tests/run.test.mjs',
+  'npx.cmd node --test gate/tests/run.test.mjs',
+  'npx node gate/tests/run.mjs full',
+  'cd repo && node --test gate/tests/run.test.mjs 2>&1 | tail -5',
 ];
 // Each shell's own line continuation and quoting.
 const OWN = {
@@ -78,7 +109,34 @@ test('athanor guard: --list, a named fallback and other commands pass with athan
     "$env:NODE_OPTIONS = $null; node gate/tests/run.mjs full --host-fallback='no docker here'",
     'athanor run',
     'athanor run fast',
-    'node --test gate/tests/run.test.mjs',
+    // PACT-54: node --test elsewhere, a bare run (ADR 0104, 0029), athanor's own
+    // form, a named fallback, and the word in data or in a script's arguments.
+    'node --test',
+    'node --test other/run.test.mjs',
+    'node --test src/gate/testing/a.test.mjs',
+    'node --test gate/tests.bak/run.test.mjs',
+    'node --test mygate/tests/run.test.mjs',
+    'node --test --test-reporter spec other/a.test.mjs',
+    'node other/script.mjs --test gate/tests/run.test.mjs',
+    'node gate/tests/run.test.mjs',
+    'node --check gate/tests/run.test.mjs',
+    'node -e "1" --test gate/tests/run.test.mjs',
+    'athanor run -- node --test gate/tests/run.test.mjs',
+    'athanor run fast',
+    'mise x -- node --test other/a.test.mjs',
+    'mise x -- ls gate/tests',
+    'mise ls',
+    'mise run test gate/tests/run.test.mjs',
+    'npx node --test other/a.test.mjs',
+    'npx prettier gate/tests/run.test.mjs',
+    'npx --yes',
+    'echo node --test gate/tests/run.test.mjs',
+    'git commit -m "node --test gate/tests/run.test.mjs"',
+    "git commit -F - <<'EOF'\nnode --test gate/tests/run.test.mjs\nEOF",
+    'node --test gate/tests/run.test.mjs --host-fallback="athanor exited 125"',
+    "$env:NODE_OPTIONS = $null; node --test gate/tests/run.test.mjs --host-fallback='no docker here'",
+    "mise x -- node --test gate/tests/run.test.mjs '--host-fallback=no docker here'",
+    'npx node --test gate/tests/run.test.mjs --host-fallback=no-docker',
     'node gate/tests/run.mjs.bak fast',
     'node other/run.mjs fast',
     'node scripts/other.mjs gate/tests/run.mjs fast',
@@ -95,7 +153,7 @@ test('athanor guard: --list, a named fallback and other commands pass with athan
 });
 
 test('athanor guard: an empty reason, the space form, or the flag in another segment frees nothing', async () => {
-  for (const command of ['node gate/tests/run.mjs fast --host-fallback=', 'node gate/tests/run.mjs fast --host-fallback="  "', 'node gate/tests/run.mjs fast --host-fallback no-docker', 'echo --host-fallback=x; node gate/tests/run.mjs fast', 'node gate/tests/run.mjs fast # --host-fallback=x']) {
+  for (const command of ['node gate/tests/run.mjs fast --host-fallback=', 'node gate/tests/run.mjs fast --host-fallback="  "', 'node gate/tests/run.mjs fast --host-fallback no-docker', 'echo --host-fallback=x; node gate/tests/run.mjs fast', 'node gate/tests/run.mjs fast # --host-fallback=x', 'node --test gate/tests/run.test.mjs --host-fallback=', 'node --test gate/tests/run.test.mjs --host-fallback no-docker', 'echo --host-fallback=x; node --test gate/tests/run.test.mjs', 'mise x -- node --test gate/tests/run.test.mjs # --host-fallback=x']) {
     assert.ok(await ask(command), command);
   }
 });
@@ -130,12 +188,17 @@ test('athanor guard: the probe runs only for a guarded command', async () => {
   assert.equal(probes, 0);
   await ask('node gate/tests/run.mjs fast', { athanorPresent });
   assert.equal(probes, 1);
+  for (const c of ['node --test other/a.test.mjs', 'mise x -- node --test other/a.test.mjs', 'node --test gate/tests/run.test.mjs --host-fallback=no-docker']) await ask(c, { athanorPresent });
+  assert.equal(probes, 1, 'a node --test run that is not guarded never probes');
+  await ask('mise x -- node --test gate/tests/run.test.mjs', { athanorPresent });
+  assert.equal(probes, 2);
 });
 
 test('athanor guard: the refusal echoes nothing from the command, and is the same for every form', async () => {
   const { reason } = await ask('node gate/tests/run.mjs fast SECRET_TOKEN_abc123');
   assert.doesNotMatch(reason, /SECRET_TOKEN_abc123/);
   assert.equal(reason, (await ask('env -u NODE_OPTIONS node gate/tests/run.mjs full')).reason);
+  assert.equal(reason, (await ask('mise x -- node --test gate/tests/run.test.mjs SECRET_TOKEN_abc123')).reason);
   assert.match(reason, /--host-fallback=/, 'the refusal names the way out');
 });
 
