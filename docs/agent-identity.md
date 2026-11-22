@@ -1,9 +1,9 @@
 # The agent identity switch
 
 `agent-identity` in `~/.claude/pact/config.json` is `true` or `false`, `false`
-when unset, and the builder's Settings dialog shows it as Agent identity. A
-project configuration may not set it, and no preset or builder file turns it on.
-It has no part in the rules file; only the notice line names it. While it is on,
+when unset; the builder's Settings dialog shows it. A project configuration may
+not set it, and no preset or builder file turns it on. It has no part in the
+rules file; only the notice line names it. While it is on,
 git over HTTPS in every local session runs as the GitHub App you create under your own
 account (see [the helper](reference.md#pact-tools)). The app's name is yours to
 choose: the examples use "Mephisto's Homunculus" for Claude Code, "Mephisto's
@@ -16,22 +16,22 @@ The switch needs the app pinned in `~/.claude/pact/github.json` and its
 gitconfig, `~/.claude/pact/gh-app-claude.gitconfig`, which `gh-app.mjs setup`
 writes. The helper isn't installed until the switch is on, so run setup from the
 clone (`node claude/tools/gh-app.mjs setup`), under the Node the install will run
-under. Until both files exist, the install refuses with "run gh-app.mjs setup
-first".
+under (on Windows, `C:\Program Files\nodejs\node.exe`). Without both files the
+install refuses, saying to run setup.
 
 ## What it does
 
 - **The tool.** The renderer adds `gh-app` to the `TOOLS` line (the `tools` list
   still refuses it), so the install copies `~/.claude/pact/tools/gh-app.mjs`,
-  with its own WARN in the dry run's Tools block. The install's parser refuses a
-  `TOOLS` line and a `VALUE agent-identity` line that disagree.
+  with its own WARN in the dry run. The install's parser refuses a `TOOLS` line
+  and a `VALUE agent-identity` line that disagree.
 - **Two `env` keys** in `settings.json`: `GIT_CONFIG_GLOBAL`, pointing at the
   gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them under
   `identityEnv` in `.pact-install.json`. The gitconfig includes your own global
   git config, sets the bot as `user.name` and `user.email` (your own `author.*`
   settings still win; see below), and drops Git Credential Manager, so a failed
   mint fails an HTTPS push.
-- **Left alone.** Your own terminal, and the cloud copy.
+- **Left alone.** Your terminal and the cloud copy.
 
 ## What it doesn't stop
 
@@ -57,12 +57,12 @@ With the switch on, before any write:
 - `pact/github.json` holds a `claude` app of the pin's exact shape.
 - The gitconfig equals the text setup writes, which the install computes with its
   own copy of `gitconfigText` from `gh-app.mjs` (a test holds them equal), under
-  the Node the install itself runs under. On Windows the Node must be
+  its own Node. On Windows the Node must be
   `C:\Program Files\nodejs\node.exe` (on the system drive); elsewhere, an absolute
   path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
   with the part that differs (node path, include list or other lines) and "re-run
-  setup", and refuses on a `no`. It never prints a line of the file. After a Node
-  upgrade, or a new XDG git config, run setup again.
+  setup", and refuses on a `no`. It never prints a line of the file. After a new
+  XDG git config, or off Windows a Node upgrade, run setup again.
 - Your own `env` doesn't already set either key. The install never overwrites it.
 
 A `settings.json` that isn't strict JSON is never changed: the dry run warns that
@@ -110,6 +110,5 @@ check its permissions and that its webhook is still off.
 
 ## Checks in the tests
 
-A session never runs `git credential fill` on the real machine.
-`gate/tests/gh-app-gitconfig.test.mjs` runs it against temporary configs and a stub
-helper that returns a canary, on both CI jobs.
+`gate/tests/gh-app-gitconfig.test.mjs` runs `git credential fill` against
+temporary configs and a canary stub, on both CI jobs.

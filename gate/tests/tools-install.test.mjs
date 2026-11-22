@@ -373,8 +373,10 @@ const ENV_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT'];
 
 /**
  * A throwaway repo whose install skips the Windows folder rule for the Node (S7): CI's Node is not under
- * Program Files, and the install drops the ProgramFiles variable, so a test cannot move it. The rule has
- * its own unit test and the end-to-end test below, which runs unplanted.
+ * Program Files, and the install drops the ProgramFiles variable, so a test cannot move it. The plant pins
+ * one source string, so a change to how the rule reads its platform must change it too. The rule is held by
+ * the unit tests 'the identity node check ...' in install-core.test.mjs and by the unplanted end-to-end test
+ * below, which runs on Windows only.
  */
 const idRepo = t => makeRepo(t, root => {
   const f = join(root, 'gate', 'install-core.mjs');

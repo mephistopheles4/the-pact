@@ -1451,7 +1451,25 @@ test('the identity node check on Windows takes only %ProgramFiles%\\nodejs\\node
   for (const ok of ['C:\\Program Files\\nodejs\\node.exe', 'c:/program files/NODEJS/node.exe']) assert.equal(core.identityNodeOk(ok, win('C:\\Program Files')), true, ok);
   assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', win('C:\\Program Files\\')), true, 'a trailing slash on ProgramFiles');
   for (const bad of ['D:\\tools\\node.exe', 'C:\\Users\\u\\AppData\\Local\\nodejs\\node.exe', 'C:\\Program Files\\nodejs\\bin\\node.exe', 'C:\\Program Files\\nodejs\\sub\\..\\node.exe', 'C:\\Program Files (x86)\\nodejs\\node.exe']) assert.equal(core.identityNodeOk(bad, win('C:\\Program Files')), false, bad);
-  for (const none of [null, '']) assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', win(none)), false, `no ProgramFiles: ${none}`);
+  for (const none of [null, '']) for (const p of ['C:\\Program Files\\nodejs\\node.exe', '/nodejs/node.exe']) assert.equal(core.identityNodeOk(p, win(none)), false, `no ProgramFiles: ${none} for ${p}`);
+});
+
+// #603 C5 (S7): the Program Files folder is worked out from SystemRoot, the one variable the install keeps, on the system drive.
+test('the identity node check on Windows finds Program Files from SystemRoot', () => {
+  const saved = process.env.SystemRoot;
+  try {
+    process.env.SystemRoot = 'D:\\Windows';
+    assert.equal(core.identityNodeOk('D:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), true);
+    assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), false, 'another drive');
+    for (const bad of [undefined, 'Windows', '']) {
+      if (bad === undefined) delete process.env.SystemRoot;
+      else process.env.SystemRoot = bad;
+      assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), false, `SystemRoot ${bad}`);
+    }
+  } finally {
+    if (saved === undefined) delete process.env.SystemRoot;
+    else process.env.SystemRoot = saved;
+  }
 });
 
 const APP = { app_id: 2000001, slug: 'example-owner-claude', bot_login: 'example-owner-claude[bot]', bot_id: 3000001 };
