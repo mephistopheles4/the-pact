@@ -323,7 +323,8 @@ when no other row answers the sentence.
   can't explain, that is a hard stop: tell me. With an agent app pinned (the
   rules file's hard stops say which; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
-  `gh-app.mjs gh`, and set each post's `as` to the app's login. Assigning is the
+  `gh-app.mjs gh`, and set each post's `as` to the app's bot login
+  (`<slug>[bot]`). Assigning is the
   one exception: apps can't be assigned, so it stays on my login through plain
   `gh`. The status comment is the one your posting identity wrote; an older one
   by my account stays as it is. A tier or triage label you apply through the app

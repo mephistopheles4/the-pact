@@ -34,7 +34,7 @@
 // the owner and a pinned app's PR can be insiders' code. An app counts as
 // pinned only when ~/.claude/pact/github.json exists and the switch's helper,
 // ~/.claude/pact/tools/gh-app.mjs, is installed; the command line reads both
-// and hands them to check() as { text, helper }. With neither, nothing here
+// and hands them to check() as { text, helper }. Without both, nothing here
 // changes. The pin is checked against GitHub's own records on every run, under
 // the owner's own gh login with no token variable in gh's environment.
 //
@@ -354,7 +354,12 @@ function labelRecords(issue, events, owner) {
 /** Whether an account is the owner's, or a pinned app's: by id and type Bot, never by login, name or email. */
 const insider = (u, owner, apps) => login(u) === owner || (isObject(u) && u.type === 'Bot' && apps.some(a => a.bot_id === u.id));
 
-/** The PR as code: insiders' only when the owner or a pinned app opened it from this repo, with every commit theirs and the last one its head. */
+/**
+ * The PR as code: insiders' only when the owner or a pinned app opened it from
+ * this repo, with every commit theirs and the last one its head. The reason ids
+ * opener-not-owner and commit-not-owner stand for "not the owner or a pinned
+ * app", and stay as they were.
+ */
 function pullRecord(pull, commits, owner, apps) {
   const why = [];
   if (!insider(pull.user, owner, apps)) why.push('opener-not-owner');

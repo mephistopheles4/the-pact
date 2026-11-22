@@ -594,7 +594,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   deploys or might; a merge touching hooks, settings, CI, root setup, or what
   the base branch's rules say to read closely, or cutting such a rule; merging a pull request neither I
   nor my agent app opened, or a commit not mine or my agent app's (my agent app
-  is one pinned in my `~/.claude/pact/github.json` while agent identity is on,
+  is one pinned in my `~/.claude/pact/github.json`, with its helper installed,
   whose pin check passed this session, matched by bot id and type, never name); marking outside text ready for an agent; a merge
   editing a threat model's classes, boundaries or scope; trusting a project's
   config; getting past a permission prompt or classifier block; a check you
@@ -1473,7 +1473,8 @@ when no other row answers the sentence.
   can't explain, that is a hard stop: tell me. With an agent app pinned (the
   rules file's hard stops say which; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
-  `gh-app.mjs gh`, and set each post's `as` to the app's login. Assigning is the
+  `gh-app.mjs gh`, and set each post's `as` to the app's bot login
+  (`<slug>[bot]`). Assigning is the
   one exception: apps can't be assigned, so it stays on my login through plain
   `gh`. The status comment is the one your posting identity wrote; an older one
   by my account stays as it is. A tier or triage label you apply through the app
@@ -1659,7 +1660,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash b5fd1de495d9f1f2b4668ca4e6a08fc2400a2b231512b5dd30bc6e22935bd037 'CLAUDE.md'
+check_hash 2aa8a141543c3e356cce5b3ef0fd6c1a86bfa8f827018fa2078e288e02ae0eef 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1670,7 +1671,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 408f83bf1e240ec8285650b1f05f9467befa62463cc8ea0ffaa2e0b2f281e1f5 'pact/review.md'
+check_hash 3cc9ef1804fc742440dbd3ba060bca846b08c6651477a2204a0b0adf7b65ec2b 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1700,7 +1701,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy b5bf646ba7ef"
+  echo "pact cloud copy bdcb578cfd90"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

@@ -4,9 +4,9 @@
 
 ## Decision
 
-While an agent app is pinned, the owner's account is the pin's `owner`, and `gh api user` must return its login and id. Every app's text, labels and PRs are data, the pinned agent apps' included, and the owner's "from chat" mark retires for app-written comments. A PR is insiders' code when the owner's account or a pinned agent app opened it, from a branch in the repo, with every commit's author and committer the owner or a pinned agent app. A pinned app matches by `bot_id` and type `Bot`, never by login, name or email.
+While an agent app is pinned, the owner's account is the pin's `owner`, and `gh api user` must return its login and id. Every app's comments, labels and PR text are data, the pinned agent apps' included, and the owner's "from chat" mark retires for app-written comments. A PR is insiders' code when the owner's account or a pinned agent app opened it, from a branch in the repo, with every commit's author and committer the owner or a pinned agent app. A pinned app matches by `bot_id` and type `Bot`, never by login, name or email.
 
-The merge hard stop reads "merging a pull request neither I nor my agent app opened, or a commit not mine or my agent app's". My agent app is one pinned in `~/.claude/pact/github.json` while agent identity is on, whose pin check passed this session. Every other merge rule is unchanged, and a merge shows as the app.
+The merge hard stop reads "merging a pull request neither I nor my agent app opened, or a commit not mine or my agent app's". My agent app is one pinned in `~/.claude/pact/github.json` with its helper installed, whose pin check passed this session, matched by bot id and type, never name. Every other merge rule is unchanged, and a merge shows as the app.
 
 The rules live in a new doc, [`docs/agents/agent-apps.md`](../agents/agent-apps.md), which the tracker doc points at, so the tracker doc's own text is not cut. The checker reads the pin and counts a pinned app's PR as insiders' code, with the same definition.
 

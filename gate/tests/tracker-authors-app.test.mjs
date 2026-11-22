@@ -1,6 +1,6 @@
 // The tracker author checker with an agent app pinned (#599 T4, spec revision 5,
-// S9.7 and C7). Every case but the child runs calls the core in-process with a
-// fake gh, so none reaches GitHub. Ids and logins are made up. A fake gh holds
+// S9.7 and C7). Every case but the command-line ones, which run as a child
+// process, calls the core in-process with a fake gh, so none reaches GitHub. Ids and logins are made up. A fake gh holds
 // only the paths a read should make: any other path is a failed call, so a
 // check that reads more than it should stops with stop/gh and is seen.
 import assert from 'node:assert/strict';
@@ -175,54 +175,59 @@ test('agent app checker: the table adapter counts a pinned app only when the inp
 // #599 C7: each stop prints its fixed line and nothing it read.
 {
   const rows = [
-    { id: 'bot-id-differs', over: { [`users/${BOT}`]: JSON.stringify(bot(OTHER_BOT_ID)) }, fails: ['stop/bot'], why: 'the slug\'s bot has another id than the pin\'s bot_id' },
-    { id: 'bot-is-a-user', over: { [`users/${BOT}`]: JSON.stringify(person(BOT, BOT_ID, 'User')) }, fails: ['stop/bot'], why: 'the account at the bot\'s login is not a Bot' },
-    { id: 'bot-login-differs', over: { [`users/${BOT}`]: JSON.stringify(bot(BOT_ID, 'other[bot]')) }, fails: ['stop/bot'], why: 'the record is another login' },
-    { id: 'user-login-differs', over: { user: JSON.stringify({ login: 'the-owner-2', id: OWNER_ID }) }, fails: ['stop/owner'], why: '/user is another login than the pin\'s owner' },
-    { id: 'user-id-differs', over: { user: JSON.stringify({ login: OWNER, id: 1000002 }) }, fails: ['stop/owner'], why: '/user is the same login with another id' },
-    { id: 'user-without-id', over: { user: JSON.stringify({ login: OWNER }) }, fails: ['stop/owner'], why: '/user shows no id to compare' },
-    { id: 'app-read-fails', over: { [FAIL]: `apps/${APP_SLUG}` }, fails: ['stop/gh'], why: 'a check that cannot run' },
-    { id: 'bot-read-fails', over: { [FAIL]: `users/${BOT}` }, fails: ['stop/gh'], why: 'a check that cannot run' },
-    { id: 'app-record-not-an-object', over: { [`apps/${APP_SLUG}`]: '[]' }, fails: ['stop/shape'], why: 'an app record that is not an object' },
+    { id: 'bot-id-differs', plant: { [`users/${BOT}`]: JSON.stringify(bot(OTHER_BOT_ID)) }, fails: ['stop/bot'], why: 'the slug\'s bot has another id than the pin\'s bot_id' },
+    { id: 'bot-is-a-user', plant: { [`users/${BOT}`]: JSON.stringify(person(BOT, BOT_ID, 'User')) }, fails: ['stop/bot'], why: 'the account at the bot\'s login is not a Bot' },
+    { id: 'bot-login-differs', plant: { [`users/${BOT}`]: JSON.stringify(bot(BOT_ID, 'other[bot]')) }, fails: ['stop/bot'], why: 'the record is another login' },
+    { id: 'user-login-differs', plant: { user: JSON.stringify({ login: 'the-owner-2', id: OWNER_ID }) }, fails: ['stop/owner'], why: '/user is another login than the pin\'s owner' },
+    { id: 'user-id-differs', plant: { user: JSON.stringify({ login: OWNER, id: 1000002 }) }, fails: ['stop/owner'], why: '/user is the same login with another id' },
+    { id: 'user-without-id', plant: { user: JSON.stringify({ login: OWNER }) }, fails: ['stop/owner'], why: '/user shows no id to compare' },
+    { id: 'app-read-fails', plant: { [FAIL]: `apps/${APP_SLUG}` }, fails: ['stop/gh'], why: 'a check that cannot run' },
+    { id: 'bot-read-fails', plant: { [FAIL]: `users/${BOT}` }, fails: ['stop/gh'], why: 'a check that cannot run' },
+    { id: 'app-record-not-an-object', plant: { [`apps/${APP_SLUG}`]: '[]' }, fails: ['stop/shape'], why: 'an app record that is not an object' },
   ];
+  test('agent app checker stops: base passes', () => assertPasses(run(prRecords(bot()))));
   for (const row of rows) {
     test(`agent app checker stops: ${row.id}`, () => {
-      const r = run(prRecords(bot()), row.over);
+      const r = run(prRecords(bot()), row.plant);
       assertFails(r, row.fails, undefined);
       assert.equal(r.out.split('\n').filter(Boolean).length, 2, r.out);
       assert.doesNotMatch(r.out, /CANARY/, row.why);
     });
   }
+  test('agent app checker stops: base passes after the rows', () => assertPasses(run(prRecords(bot()))));
 }
 
 // #599 C7: a pin file that is not the pinned shape stops with stop/pin, and no call is made first.
 {
   const withoutField = (o, k) => Object.fromEntries(Object.entries(o).filter(([key]) => key !== k));
   const rows = [
-    { id: 'not-json', text: '{ not json' },
-    { id: 'empty', text: '' },
-    { id: 'extra-top-field', text: { ...pinOf(), extra: 1 } },
-    { id: 'no-owner', text: withoutField(pinOf(), 'owner') },
-    { id: 'owner-without-id', text: pinOf({ owner: { login: OWNER } }) },
-    { id: 'unknown-provider', text: pinOf({ apps: { gemini: pinOf().apps.claude } }) },
-    { id: 'app-extra-field', text: pinOf({ apps: { claude: { ...pinOf().apps.claude, installation: 5 } } }) },
-    { id: 'bot-login-not-slug-bot', text: pinOf({ apps: { claude: { ...pinOf().apps.claude, bot_login: 'other[bot]' } } }) },
-    { id: 'string-ids', text: pinOf({ owner: { login: OWNER, id: '1000001' } }) },
-    { id: 'bad-slug', text: pinOf({ apps: { claude: { ...pinOf().apps.claude, slug: 'a/b', bot_login: 'a/b[bot]' } } }) },
-    { id: 'string-app-id', text: pinOf({ apps: { claude: { ...pinOf().apps.claude, app_id: '2000001' } } }) },
-    { id: 'bad-owner-login', text: pinOf({ owner: { login: 'bad login', id: OWNER_ID } }) },
-    { id: 'owner-extra-field', text: pinOf({ owner: { login: OWNER, id: OWNER_ID, email: 'x' } }) },
-    { id: 'apps-an-array', text: pinOf({ apps: [] }) },
+    { id: 'not-json', plant: '{ not json', fails: ['stop/pin'], why: 'the file is not JSON' },
+    { id: 'empty', plant: '', fails: ['stop/pin'], why: 'the file is empty' },
+    { id: 'extra-top-field', plant: { ...pinOf(), extra: 1 }, fails: ['stop/pin'], why: 'a field the pin does not have' },
+    { id: 'no-owner', plant: withoutField(pinOf(), 'owner'), fails: ['stop/pin'], why: 'no owner entry' },
+    { id: 'owner-without-id', plant: pinOf({ owner: { login: OWNER } }), fails: ['stop/pin'], why: 'an owner with no id' },
+    { id: 'unknown-provider', plant: pinOf({ apps: { gemini: pinOf().apps.claude } }), fails: ['stop/pin'], why: 'an app for a provider the pact does not know' },
+    { id: 'app-extra-field', plant: pinOf({ apps: { claude: { ...pinOf().apps.claude, installation: 5 } } }), fails: ['stop/pin'], why: 'an app entry with a field the pin does not have' },
+    { id: 'bot-login-not-slug-bot', plant: pinOf({ apps: { claude: { ...pinOf().apps.claude, bot_login: 'other[bot]' } } }), fails: ['stop/pin'], why: 'a bot login that is not the slug\'s bot' },
+    { id: 'string-ids', plant: pinOf({ owner: { login: OWNER, id: '1000001' } }), fails: ['stop/pin'], why: 'an owner id written as a string' },
+    { id: 'bad-slug', plant: pinOf({ apps: { claude: { ...pinOf().apps.claude, slug: 'a/b', bot_login: 'a/b[bot]' } } }), fails: ['stop/pin'], why: 'a slug that is not a GitHub slug' },
+    { id: 'string-app-id', plant: pinOf({ apps: { claude: { ...pinOf().apps.claude, app_id: '2000001' } } }), fails: ['stop/pin'], why: 'an app id written as a string' },
+    { id: 'bad-owner-login', plant: pinOf({ owner: { login: 'bad login', id: OWNER_ID } }), fails: ['stop/pin'], why: 'an owner login that is not a GitHub login' },
+    { id: 'owner-extra-field', plant: pinOf({ owner: { login: OWNER, id: OWNER_ID, email: 'x' } }), fails: ['stop/pin'], why: 'an owner entry with a field the pin does not have' },
+    { id: 'apps-an-array', plant: pinOf({ apps: [] }), fails: ['stop/pin'], why: 'apps written as an array' },
   ];
+  const base = () => run(prRecords(bot()));
+  test('agent app checker stops on a pin file: base passes', () => assertPasses(base()));
   for (const row of rows) {
-    test(`agent app checker stops: a pin file that is not the pinned shape: ${row.id}`, () => {
+    test(`agent app checker stops on a pin file: ${row.id}`, () => {
       const seen = [];
-      const r = check(['pr', '7'], path => (seen.push(path), { ok: false, stdout: 'CANARY' }), pinInput(row.text));
-      assertFails(r, ['stop/pin']);
-      assert.deepEqual(seen, [], 'the file is read before any call');
+      const r = check(['pr', '7'], path => (seen.push(path), { ok: false, stdout: 'CANARY' }), pinInput(row.plant));
+      assertFails(r, row.fails);
+      assert.deepEqual(seen, [], `${row.why}: the file is read before any call`);
       assert.equal(r.out, 'FAIL stop/pin\nRESULT: fail\n');
     });
   }
+  test('agent app checker stops on a pin file: base passes after the rows', () => assertPasses(base()));
 }
 
 // #599 C7: an issue read checks the pin too, but an app's issue text is data whoever it is.

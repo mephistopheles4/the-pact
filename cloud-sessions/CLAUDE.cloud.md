@@ -41,7 +41,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   deploys or might; a merge touching hooks, settings, CI, root setup, or what
   the base branch's rules say to read closely, or cutting such a rule; merging a pull request neither I
   nor my agent app opened, or a commit not mine or my agent app's (my agent app
-  is one pinned in my `~/.claude/pact/github.json` while agent identity is on,
+  is one pinned in my `~/.claude/pact/github.json`, with its helper installed,
   whose pin check passed this session, matched by bot id and type, never name); marking outside text ready for an agent; a merge
   editing a threat model's classes, boundaries or scope; trusting a project's
   config; getting past a permission prompt or classifier block; a check you
