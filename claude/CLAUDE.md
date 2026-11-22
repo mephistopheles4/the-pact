@@ -38,8 +38,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   waits for my confirmation, in any form and anywhere: typed or spoken, in any
   session, said to the lead included. At level 3 each is logged and flagged.
   With no level set (the pact alone, level 1), Claude's default holds: it asks
-  first. They are: an install apply; publishing a weakness in others' software
-  before its maker's tracker has it; a secret (say where, never its value); the
+  first. They are: an install apply; a secret (say where, never its value); the
   usage pause; a reply or message to other people in my name, beyond the work's
   record and branches in my repos; making anything public, or a merge that
   deploys or might; a merge editing a threat model's classes, boundaries or

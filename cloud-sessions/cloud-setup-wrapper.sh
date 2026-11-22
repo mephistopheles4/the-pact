@@ -589,8 +589,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   waits for my confirmation, in any form and anywhere: typed or spoken, in any
   session, said to the lead included. At level 3 each is logged and flagged.
   With no level set (the pact alone, level 1), Claude's default holds: it asks
-  first. They are: an install apply; publishing a weakness in others' software
-  before its maker's tracker has it; a secret (say where, never its value); the
+  first. They are: an install apply; a secret (say where, never its value); the
   usage pause; a reply or message to other people in my name, beyond the work's
   record and branches in my repos; making anything public, or a merge that
   deploys or might; a merge editing a threat model's classes, boundaries or
@@ -1267,8 +1266,8 @@ Ask each lens to report in this shape:
 ## The threat model
 
 Read this, then the project's threat model, both as they stood before the
-change, before you sort a finding as security, write a guard, bring me a
-security ruling, or publish a weakness in someone else's software.
+change, before you sort a finding as security, write a guard, or bring me a
+security ruling.
 
 1. **Read the threat model first,** its boundaries before its classes. With
    none, the sensitive-work list decides and steps 2 to 5 don't apply. With
@@ -1304,8 +1303,6 @@ security ruling, or publish a weakness in someone else's software.
 5. **Bring me,** as a checkpoint, a new boundary, a residual no class covers,
    a change that removes or weakens a control, and every `security?` row; a
    change to the scope or the classes is a heavy checkpoint.
-
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it; publishing it sooner is a heavy checkpoint (the rules file's one list). Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the
@@ -1357,9 +1354,8 @@ when no other row answers the sentence.
 ## Posting
 
 - **Read before you post.** Read every report and comment for a secret or a
-  personal detail, or a weakness in someone else's software that The threat
-  model section keeps unpublished, before posting it, and every commit before
-  a push others can read.
+  personal detail before posting it, and every commit before a push others
+  can read.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
@@ -1392,7 +1388,7 @@ when no other row answers the sentence.
   as public), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
-  withheld lens report or its findings, a secret, a weakness not yet public,
+  withheld lens report or its findings, a secret,
   the cleaner's tags or blocks, or anything else these rules keep out of the
   record, in the record has the line exactly "withheld,
   see chat", with no opener or flag, which wins over the security line, and the
@@ -1654,7 +1650,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 9f4608573705c3406db3ece9df204153eba9759d1ab61a0561772240ef17097e 'CLAUDE.md'
+check_hash 84180157e99e9bcec100df38f2b3f7ee7e6e7f48d0f748010753412ed72eb935 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1665,7 +1661,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 355fb43721540569b2d4b07512fb2b223f05f1aa2d215148b151697c4349ece1 'pact/review.md'
+check_hash 9a6ce4f043d218dba0ab4449dc545b40ab4f03212361c99d493a094fee389fdf 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1695,7 +1691,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 4f1b4f47cf87"
+  echo "pact cloud copy 51bdbaf8d474"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

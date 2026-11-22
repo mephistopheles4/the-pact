@@ -123,8 +123,8 @@ Ask each lens to report in this shape:
 ## The threat model
 
 Read this, then the project's threat model, both as they stood before the
-change, before you sort a finding as security, write a guard, bring me a
-security ruling, or publish a weakness in someone else's software.
+change, before you sort a finding as security, write a guard, or bring me a
+security ruling.
 
 1. **Read the threat model first,** its boundaries before its classes. With
    none, the sensitive-work list decides and steps 2 to 5 don't apply. With
@@ -160,8 +160,6 @@ security ruling, or publish a weakness in someone else's software.
 5. **Bring me,** as a checkpoint, a new boundary, a residual no class covers,
    a change that removes or weakens a control, and every `security?` row; a
    change to the scope or the classes is a heavy checkpoint.
-
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it; publishing it sooner is a heavy checkpoint (the rules file's one list). Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the
@@ -213,9 +211,8 @@ when no other row answers the sentence.
 ## Posting
 
 - **Read before you post.** Read every report and comment for a secret or a
-  personal detail, or a weakness in someone else's software that The threat
-  model section keeps unpublished, before posting it, and every commit before
-  a push others can read.
+  personal detail before posting it, and every commit before a push others
+  can read.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
@@ -248,7 +245,7 @@ when no other row answers the sentence.
   as public), the line opens "Owner's call: security"
   and carries the why. The why also goes in a note under
   `~/.claude/pact/private/`, either way. A pick that would put a
-  withheld lens report or its findings, a secret, a weakness not yet public,
+  withheld lens report or its findings, a secret,
   the cleaner's tags or blocks, or anything else these rules keep out of the
   record, in the record has the line exactly "withheld,
   see chat", with no opener or flag, which wins over the security line, and the

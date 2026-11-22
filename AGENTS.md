@@ -115,9 +115,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
      own rules requiring a pact lens hold; a skill I typed runs its lenses
      unasked, which never lifts the sensitive flag, the Guards, my decisions
      or the read before posting; and the review procedure read before any
-     post. A lens offer and the tier are checkpoints: the session's own pick,
-     logged, never a decline of the route or the pair or a skip past the
-     one-line exception. Where the rules file says checkpoints wait, a standing
+     post. A lens offer and the tier are checkpoints. Where the rules file says checkpoints wait, a standing
      goal answers the offers (a started session's holder does), and a free
      hand answers a lens offer, never a finding, a control's removal, a
      trade-off or the tier.
@@ -128,7 +126,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
      Test on a list match; a flag or offer I haven't answered stays open in
      every hand-off and in the result, and a flag found later is said at the
      next hand-off and never dropped until I answer. The route and that offer
-     are checkpoints: the session's own pick, logged, never a decline. Where
+     are checkpoints. Where
      checkpoints wait, a standing goal answers them, and a free hand takes the
      route and the offer at Test on a list match or its own recommendation.
   3. **The security lenses' carried rules:** no working exploit or payload;
