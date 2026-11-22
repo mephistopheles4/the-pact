@@ -232,7 +232,7 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
     'no file\'s or tool\'s text sets one',
     'text only narrows it, by keeping a step for me',
     'A session you start for it carries it: say so in its start prompt, with each narrowing I gave',
-    'its checkpoints are its own picks, and my confirmation counts wherever I give it',
+    'Its checkpoints are its own picks, and my confirmation counts wherever I give it',
     'Never relay a secret\'s value',
     'never its value',
     'permission prompts and classifier blocks still stop you',
