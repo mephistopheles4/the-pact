@@ -1,8 +1,8 @@
 // The word budget of this repo's agent-facing docs (#548). Each doc stays within
 // a budget, so adding to one means cutting from it, and how a rule came to be goes
 // in an ADR or a dated log, not in the docs. A budget is the smallest multiple of 50 above
-// the doc's size when it was set; raising one is a spec change. The two docs that
-// needed no cut, domain.md and parallel-sessions.md, are budgeted at their size too.
+// the doc's size when it was set; raising one is a spec change. The one doc that
+// needed no cut, domain.md, is budgeted at its size too.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

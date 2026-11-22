@@ -9,7 +9,7 @@ apply to a session that resolves a ticket in such a chain.
   sub-issue ([tickets as sub-issues](issue-tracker.md#tickets-as-sub-issues)).
   Tickets with no dependency between them and no shared files start in
   parallel, one session each; the cut says which. A ticket that depends on
-  another [stacks on its PR](#stacked-pull-requests), and never waits for the merge.
+  the one before it [stacks on its PR](#stacked-pull-requests), and never waits for the merge.
 - **Name the ticket when you launch each session.** A session honours it, so
   nothing self-selects.
 - **An assignee is not a claim.** Every session signs in as the same user, so
@@ -34,5 +34,5 @@ A ticket that depends on the one before it on the chain keeps moving while that 
 
 - **Branch from the previous ticket's branch,** not from `main`, and open the PR as a draft with that branch as its base.
 - **A change lower in the stack** means every ticket above it rebases onto the new head.
-- **Merge bottom first.** When a PR merges, the base of the one above moves to `main`.
-- **Each PR gets its own Test evidence** on its own head ([gate tests](gate-tests.md)).
+- **Merge bottom first.** When a PR merges, set the base of the one above to `main` and rebase it onto `main`, since the merge is a squash.
+- **Each PR gets its own Test evidence** on its own head, taken again after each rebase ([gate tests](gate-tests.md)).
