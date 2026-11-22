@@ -1445,8 +1445,8 @@ test('the identity node check takes an absolute path to a program called node, a
   for (const bad of ['node', 'node.exe', 'C:\\Program Files\\nodejs\\npm.cmd', 'C:\\tools\\evil.exe', '/usr/bin/nodejs', 'C:\\a"b\\node.exe', '/a\nb/node', '', undefined, 'C:\\node.exe\\evil']) assert.equal(core.identityNodeOk(bad, other), false, String(bad));
 });
 
-// #603 C5 (S7): on Windows the Node is exactly <ProgramFiles>\nodejs\node.exe, whatever its case or slashes, and any other folder is refused.
-test('the identity node check on Windows takes only %ProgramFiles%\\nodejs\\node.exe', () => {
+// #603 C5 (S7): on Windows the Node is exactly <Program Files>\nodejs\node.exe, whatever its case or slashes, and any other folder is refused.
+test('the identity node check on Windows takes only <Program Files>\\nodejs\\node.exe', () => {
   const win = (programFiles) => ({ platform: 'win32', programFiles });
   for (const ok of ['C:\\Program Files\\nodejs\\node.exe', 'c:/program files/NODEJS/node.exe']) assert.equal(core.identityNodeOk(ok, win('C:\\Program Files')), true, ok);
   assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', win('C:\\Program Files\\')), true, 'a trailing slash on ProgramFiles');
@@ -1454,21 +1454,20 @@ test('the identity node check on Windows takes only %ProgramFiles%\\nodejs\\node
   for (const none of [null, '']) for (const p of ['C:\\Program Files\\nodejs\\node.exe', '/nodejs/node.exe']) assert.equal(core.identityNodeOk(p, win(none)), false, `no ProgramFiles: ${none} for ${p}`);
 });
 
-// #603 C5 (S7): the Program Files folder is worked out from SystemRoot, the one variable the install keeps, on the system drive.
-test('the identity node check on Windows finds Program Files from SystemRoot', () => {
-  const saved = process.env.SystemRoot;
+// #603 C5 (S7, security closing read): the allowed folder is fixed at C:\Program Files; SystemRoot, SystemDrive and ProgramFiles, which a caller sets, cannot move it.
+test('the identity node check on Windows ignores SystemRoot, SystemDrive and ProgramFiles', () => {
+  const saved = ['SystemRoot', 'SystemDrive', 'ProgramFiles'].map(k => [k, process.env[k]]);
   try {
-    process.env.SystemRoot = 'D:\\Windows';
-    assert.equal(core.identityNodeOk('D:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), true);
-    assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), false, 'another drive');
-    for (const bad of [undefined, 'Windows', '']) {
-      if (bad === undefined) delete process.env.SystemRoot;
-      else process.env.SystemRoot = bad;
-      assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), false, `SystemRoot ${bad}`);
-    }
+    Object.assign(process.env, { SystemRoot: 'D:\\Windows', SystemDrive: 'D:', ProgramFiles: 'D:\\Program Files' });
+    assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), true);
+    assert.equal(core.identityNodeOk('D:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), false, 'a caller-chosen drive');
+    delete process.env.SystemRoot;
+    assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), true, 'no SystemRoot');
   } finally {
-    if (saved === undefined) delete process.env.SystemRoot;
-    else process.env.SystemRoot = saved;
+    for (const [k, v] of saved) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   }
 });
 
