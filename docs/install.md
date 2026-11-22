@@ -98,9 +98,6 @@ the agent files it wrote and still holds as it wrote them.
   or to narrow it, open the folder's Properties in Explorer and its Security
   tab, or run `icacls "$env:USERPROFILE\.claude"` in PowerShell. A list for you
   alone holds your account, SYSTEM and Administrators.
-- **Keep sessions out of the copies.** A session that opens or searches a copy
-  in the backups folder holds its keys in its context. A session may read a
-  backup's `manifest.json`, which holds no keys.
 - **Never sync, share or commit the backups folder.** Any copy you make
   yourself, a backup copied aside or your own copies from before backups,
   belongs outside the clone and any synced or shared folder, readable only by

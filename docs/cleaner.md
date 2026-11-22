@@ -310,12 +310,7 @@ macOS. The cloud copy doesn't install it.
 
 ## Deny rules
 
-While the cleaner is on, the install adds eighteen rules to
-`permissions.deny` in `~/.claude/settings.json`, in `Bash(...)` and
-`PowerShell(...)` forms: `git worktree remove *`, `git * worktree remove *`,
-`git branch -d *`, `git * branch -d *`, `git branch -D *`,
-`git * branch -D *`, `git branch --delete *`, `git * branch --delete *` and
-`claude rm *`. `claude rm` joins them because it deletes a session's
+`claude rm` joins them because it deletes a session's
 worktree with whatever is left in it, uncommitted and untracked files
 included, which git's own keeps don't bound.
 It records the ones it added under `cleanerDeny` in `.pact-install.json`, and

@@ -11,7 +11,10 @@ how every session in every repo behaves. So:
   copying files by hand. The script installs from the clone, not through a
   symlink, so a checked-out branch is never live until you install it. A
   direct edit to `~/.claude/` drifts from the repo.
-- **The dry run** prints the files it would overwrite, add and delete, whether
+- **The dry run** runs from the repo root, on Node 24 or later, with
+  `NODE_OPTIONS` cleared: `$env:NODE_OPTIONS = $null; node gate/install.mjs`
+  in PowerShell, or `env -u NODE_OPTIONS node gate/install.mjs` in a POSIX
+  shell. It prints the files it would overwrite, add and delete, whether
   live files drifted since the last install (it compares them with
   `~/.claude/.pact-install.json`), the commit it would install, and the apply
   command to run next. If there is drift, stop and ask rather than overwrite.

@@ -10,8 +10,6 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **A session assigns the issue it takes.** When it starts work on an issue,
   it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
   is done, it removes itself with `--remove-assignee @me`.
-- **The assignee is for visibility.** Claims go by
-  [parallel sessions](parallel-sessions.md).
 - **Plans:** a plan, its review rounds and its probe records live on the
   issue, as the body and comments. When a spec is cut into tickets, the spec
   stays on the parent issue and each ticket is its own sub-issue holding its
