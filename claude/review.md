@@ -261,9 +261,7 @@ when no other row answers the sentence.
   - Before you post a kind with a quote, read back to me in chat the passages
     you will quote and your intent, and post `confirmed` only on my yes in that
     chat, never on a checkpoint pick, and otherwise `pending` (a `decision`
-    from my chat is always `confirmed`); a relay or a goal holder's reply never
-    confirms a read-back, and a lead relays only the span meant for the record, after its own read
-    before posting.
+    from my chat is always `confirmed`).
   - When I later confirm or correct a pending read-back in chat, the session
     that heard it first posts a `decision` (source `chat`, posted `confirmed`,
     `answers` naming the item) quoting those words, then edits the original to
