@@ -99,7 +99,8 @@ runs only, never a host run of `gate/tests/run.mjs`.
 
 - **Run it** from the repo root: `athanor run` runs the `test` command,
   athanor's default name, which is `full`; `athanor run fast` runs `fast`.
-  The repo's [`athanor.json`](../../athanor.json) names the image and the
+  One file or any single command runs too, so iterate there, not on the
+  host: `athanor run -- node --test gate/tests/<file>.test.mjs`. The repo's [`athanor.json`](../../athanor.json) names the image and the
   commands.
 - **It needs athanor at commit `4121c28` or later,** the first to read
   `athanor.json`. Its version, `0.1.0`, doesn't tell the builds apart. An
