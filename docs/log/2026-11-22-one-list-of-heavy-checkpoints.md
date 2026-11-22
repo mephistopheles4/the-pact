@@ -14,4 +14,5 @@ Why: a stop that blocked a Dependabot merge, and a trust rule that blocked every
 
 ## Record
 
-- The ticket: PACT-42 on Linear.
+- The ticket: PACT-42 on Linear, with its Test round 1 comment (findings and dispositions).
+- The pull request, with the removal map: https://github.com/mephistopheles4/the-pact/pull/621
