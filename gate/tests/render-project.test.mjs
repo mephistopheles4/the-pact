@@ -110,6 +110,11 @@ test('bad case: the auto-compact window in a project configuration refuses, nami
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"auto-compact-window": 0}}\n')), 'project-direction', /auto-compact-window/);
 });
 
+// #603 S7 (no numbered claim; the project-direction rule's bad case for the identity switch): a project may not set the switch, so only the user's own file can turn it on.
+test('bad case: agent-identity in a project configuration refuses, naming the key', t => {
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"agent-identity": true}}\n')), 'project-direction', /agent-identity has no tightening direction, so a project may not set it/);
+});
+
 // #439 C6: the stop switch has no tightening direction, so a project may not set it, valid value or not.
 test('bad case: session-stop-deny in a project configuration refuses, naming the key', t => {
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": true}}\n')), 'project-direction', /session-stop-deny has no tightening direction, so a project may not set it/);

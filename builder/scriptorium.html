@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-5J0JpTrKBAG9lT1ooM3YMhhdi4olho/juxpVQHbXXVI='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-DsIEAEXZddqaGVZ8lGqd3y441fUbQa1vQWG/mGs3lVM='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -2770,6 +2770,10 @@ const PACT = /* pact-data:begin */ {
  },
  "stopSwitch": {
   "name": "session-stop-deny",
+  "def": false
+ },
+ "identitySwitch": {
+  "name": "agent-identity",
   "def": false
  },
  "retiredSettings": [
@@ -5799,7 +5803,7 @@ function initialState() {
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
   // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
   // #183 T4a: skills holds the skill sources, named for the cloud setup to fetch, as the builder file gives them; a save writes them into config.json.
-  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
+  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, identity: PACT.identitySwitch.def, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
 }
 
 /** The model and effort an agent file's frontmatter sets, each falling back to `def`'s. */
@@ -5921,6 +5925,8 @@ function buildFiles(state) {
   if (state.compact !== PACT.compact.def) config.settings = { ...config.settings, [PACT.compact.name]: state.compact };
   // #439: the stop switch is written only when it differs from its default, off.
   if (state.stopDeny !== PACT.stopSwitch.def) config.settings = { ...config.settings, [PACT.stopSwitch.name]: state.stopDeny };
+  // #603: the agent-identity switch, likewise written only when on. gh-app never goes into the tools list: the switch alone installs it.
+  if (state.identity !== PACT.identitySwitch.def) config.settings = { ...config.settings, [PACT.identitySwitch.name]: state.identity };
   // Only the fields that differ from the agent file's own are written.
   const agents = {};
   for (const a of PACT.agents) {
@@ -7600,6 +7606,13 @@ function boot() {
         stopRow(),
         el('p', { class: 'av-annot', text: `Off by default. On, the next install adds two deny rules for a raw claude stop, one for Bash and one for PowerShell, to permissions.deny in ~/.claude/settings.json, and records them so turning this off removes only those. A speed bump, not a gate: a flag before the subcommand or a wrapped call gets past it, and your own claude stop from a separate terminal is unaffected. Brigade's own stop tool is expected to run outside permission rules; that is assumed, not measured. Installing is your decision, in chat.` }),
       ),
+      el(
+        'section',
+        { class: 'av-tool-bar av-tool-bar--stack' },
+        el('h3', { class: 'section-title', text: 'Agent identity' }),
+        identityRow(),
+        el('p', { class: 'av-annot', text: `Off by default. On, the next install adds the gh-app helper to ~/.claude/pact/tools/ and two keys to env in ~/.claude/settings.json, GIT_CONFIG_GLOBAL and GIT_TERMINAL_PROMPT, and records them so turning this off removes only those. Git over HTTPS in every local session then runs as the GitHub App you created for Claude Code, with tokens minted from a key in Windows Credential Manager; an askpass program, an SSH remote and a global git write still go around it. The install refuses until gh-app.mjs setup has pinned the app and written its gitconfig, and refuses if your own env already sets either key. Your own terminal is unaffected. Installing is your decision, in chat.` }),
+      ),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('commands', 'Pact commands', commandsSection()), section('tools', 'Pact tools', toolsSection()), section('moves', 'Moves', movesTab()), section('models', 'Models', modelsTab()), box)),
     ));
   }
@@ -7652,6 +7665,17 @@ function boot() {
       renderOutput();
     });
     return el('label', { class: 'command-row av-check' }, box, el('code', { text: PACT.stopSwitch.name }), el('span', { class: 'av-annot', text: 'Deny raw claude stop' }));
+  }
+  /** The agent-identity switch (#603): one checkbox, off by default; on, a save writes agent-identity true. */
+  function identityRow() {
+    const box = el('input', { type: 'checkbox', 'aria-label': 'Sessions act as their own GitHub App' });
+    box.checked = state.identity === true;
+    box.addEventListener('change', () => {
+      state.identity = box.checked;
+      renderSettings();
+      renderOutput();
+    });
+    return el('label', { class: 'command-row av-check' }, box, el('code', { text: PACT.identitySwitch.name }), el('span', { class: 'av-annot', text: 'Sessions act as their own GitHub App' }));
   }
   function toolsSection() {
     const set = state.tools;

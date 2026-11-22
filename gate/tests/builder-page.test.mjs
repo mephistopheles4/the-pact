@@ -1164,6 +1164,18 @@ test('a tools list set on the page is saved in the installer\'s order, and wins 
   assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, [], 'the page\'s empty list wins');
 });
 
+// #603 C8: the identity switch is written only when on, and it never puts gh-app in the tools list.
+test('the identity switch is off by default, and a save writes agent-identity true, with no tools list', () => {
+  assert.deepEqual({ ...L.PACT.identitySwitch }, { name: 'agent-identity', def: false });
+  const s = L.startState();
+  assert.equal(s.identity, false);
+  const config = st => JSON.parse(L.buildFiles(st)[0].text);
+  assert.equal(Object.hasOwn(config(s), 'settings'), false, 'off writes nothing');
+  s.identity = true;
+  assert.deepEqual(config(s).settings, { 'agent-identity': true });
+  assert.equal(Object.hasOwn(config(s), 'tools'), false, 'gh-app is never listed');
+});
+
 // #280 C5: no preset, and no shared builder file, turns a tool on.
 test('no shipped preset carries tools, and a builder file holding tools is refused, by the page and by the build', t => {
   for (const f of readdirSync(join(REPO, 'builder', 'presets'))) assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(REPO, 'builder', 'presets', f), 'utf8')), 'tools'), false, f);

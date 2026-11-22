@@ -417,6 +417,8 @@ It installs these files under `~/.claude`:
 - `pact/tools/cleaner.mjs`, only while your `tools` list turns the cleaner
   on, with its deny rules and two ask rules in `settings.json`. Taking it out of the list
   deletes it and the rules it added at the next install;
+- `pact/tools/gh-app.mjs` and two `env` keys in `settings.json`, only while the
+  `agent-identity` setting is on ([agent-identity](agent-identity.md));
 - `pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the
@@ -692,7 +694,7 @@ the column then names costs no part defines, which an older lens reads with no
 one rule and no security bar. If the commit you roll back to predates the
 column, remove it first.
 
-Three settings leave rules or files that an older installer can't remove. For
+Four settings leave rules or files that an older installer can't remove. For
 each, turn it off and apply at the newer commit first, then take its key out
 of the configuration:
 
@@ -704,6 +706,8 @@ of the configuration:
 - **`session-stop-deny`** (set it to `false`): an older installer refuses the
   key, even as `false`, and ignores `stopDeny`, so its eight rules stay in
   `settings.json`.
+- **`agent-identity`** (set it to `false`): an older installer ignores
+  `identityEnv`, so its two `env` keys stay in `settings.json`. [Steps](agent-identity.md#rolling-back).
 - **The auto-compact window** (set `auto-compact-window` to `0`): an older
   installer keeps your live hook entries but deletes the hook script it
   doesn't know, so every session would call a missing file. Stop if

@@ -193,8 +193,15 @@ function compactFrom(renderSrc) {
 
 /** The stop switch's name and default (#439), read from gate/render-core.mjs's text. */
 function stopSwitchFrom(renderSrc) {
-  const m = /\['(session-stop-deny)', Object\.freeze\(\{ kind: 'switch', mark: null, def: (true|false),/.exec(renderSrc);
-  if (!m) fail('gate/render-core.mjs no longer declares the session-stop-deny setting in the expected form');
+  return switchFrom(renderSrc, 'session-stop-deny');
+}
+/** The agent-identity switch's name and default (#603), read the same way. */
+function identitySwitchFrom(renderSrc) {
+  return switchFrom(renderSrc, 'agent-identity');
+}
+function switchFrom(renderSrc, name) {
+  const m = new RegExp(`\\['(${name})', Object\\.freeze\\(\\{ kind: 'switch', mark: null, def: (true|false),`).exec(renderSrc);
+  if (!m) fail(`gate/render-core.mjs no longer declares the ${name} setting in the expected form`);
   return { name: m[1], def: m[2] === 'true' };
 }
 
@@ -340,8 +347,9 @@ export function pactData(root) {
   const session = sessionFrom(renderSrc);
   const compact = compactFrom(renderSrc);
   const stopSwitch = stopSwitchFrom(renderSrc);
+  const identitySwitch = identitySwitchFrom(renderSrc);
   const retiredSettings = retiredSettingsFrom(renderSrc);
-  return { always, editable, setting, session, compact, stopSwitch, retiredSettings, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
+  return { always, editable, setting, session, compact, stopSwitch, identitySwitch, retiredSettings, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
 }
 
 // ------------------------------------------------------------ the builder file

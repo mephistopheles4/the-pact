@@ -38,6 +38,7 @@ const HOOK_WINDOW_TOKEN = '__PACT_WINDOW__';
 const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
   cleaner: ' and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.',
+  'gh-app': ' and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS in every session runs as the app; an askpass program, an SSH remote and a global git write still go around it (docs/agent-identity.md).',
 });
 // The cleaner's deny rules (#438 S2.3): settings.json holds them only while
 // the cleaner is on. The install adds the ones not already there and records
@@ -375,10 +376,14 @@ export function parseRecord(text) {
   if (!Array.isArray(cleanerAsk) || cleanerAsk.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerAsk is not a list of rule strings; fix or remove it.');
   const stopDeny = ci(doc, 'stopdeny') ?? [];
   if (!Array.isArray(stopDeny) || stopDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s stopDeny is not a list of rule strings; fix or remove it.');
+  // The two env keys the identity switch set (#603): an object of the fixed keys with string values, or none.
+  const identityEnv = ci(doc, 'identityenv') ?? {};
+  if (typeof identityEnv !== 'object' || Array.isArray(identityEnv) || Object.entries(identityEnv).some(([k, v]) => !IDENTITY_ENV_KEYS.includes(k) || typeof v !== 'string')) refuse('record-not-pact', 'the install record\'s identityEnv is not the two switch-owned env keys with string values; fix or remove it.');
   // The auto-compact window this install set (#482); null when none, or not a window the install takes.
   const recordedWindow = ci(doc, 'autocompactwindow');
   return {
     cleanerDeny,
+    identityEnv: { ...identityEnv },
     cleanerAsk,
     stopDeny,
     autoCompactWindow: typeof recordedWindow === 'number' && compactWindowOk(recordedWindow) && recordedWindow > 0 ? recordedWindow : null,
@@ -391,7 +396,7 @@ export function parseRecord(text) {
 }
 
 /** The record the install writes (S6, X6): commit, digest, config, files, gate, in today's shape. */
-export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], cleanerAsk = [], stopDeny = [], autoCompactWindow = 0 }) {
+export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], cleanerAsk = [], stopDeny = [], identityEnv = {}, autoCompactWindow = 0 }) {
   const doc = {
     commit,
     digest: digest ?? null,
@@ -404,6 +409,8 @@ export function recordText({ commit, digest, userHash, blockHashes, repoFiles, g
     ...(cleanerAsk.length ? { cleanerAsk: [...cleanerAsk] } : {}),
     // #439: the stop switch's deny rules this install added, only while there are any.
     ...(stopDeny.length ? { stopDeny: [...stopDeny] } : {}),
+    // #603: the env keys the identity switch set, only while there are any.
+    ...(Object.keys(identityEnv).length ? { identityEnv: { ...identityEnv } } : {}),
     // #482: the window the install set, only while it is on.
     ...(autoCompactWindow > 0 ? { autoCompactWindow } : {}),
   };
@@ -456,7 +463,7 @@ const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-se
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 // #482: a home render may also report the auto-compact window; a project render never does.
 // #439: and the stop switch, as the word on or off.
-const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off))$/;
+const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off)|(agent-identity) (on|off))$/;
 // The settings the pact retired (#564): the install's own copy of RETIRED_SETTINGS in gate/render-core.mjs, as it keeps AGENT_NAMES. Each copy is pinned to the same value by its own test (install-core and builder-page).
 // The render reports each one a file sets as `RETIRED-SETTING <name> <true|false>`, at most once; the line changes nothing in the rules file.
 export const RETIRED_SETTINGS = Object.freeze(['checkpoint-stops']);
@@ -486,6 +493,8 @@ function retiredSettingWarn(name, value, where, project) {
 }
 /** Whether the stop switch is on (#439): only a reported `VALUE session-stop-deny on`; no line means off. */
 export const stopSwitchOn = parsed => parsed.values.get('session-stop-deny') === 'on';
+/** Whether the agent-identity switch is on (#603): only a reported `VALUE agent-identity on`; no line means off. */
+export const identitySwitchOn = parsed => parsed.values.get('agent-identity') === 'on';
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 // A skill source's path (#183 T4a), as the renderer checks it: owner/name, a full commit, a relative folder whose last segment is the skill's name.
@@ -570,8 +579,8 @@ export function parseRenderLines(lines, { project, hash }) {
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
     } else if ((m = HOME_VALUE_RE.exec(l))) {
-      const name = m[1] ?? m[3] ?? m[5] ?? m[7];
-      const value = m[2] ?? m[4] ?? m[6] ?? m[8];
+      const name = m[1] ?? m[3] ?? m[5] ?? m[7] ?? m[9];
+      const value = m[2] ?? m[4] ?? m[6] ?? m[8] ?? m[10];
       if (name === 'auto-compact-window' && !compactWindowOk(Number(value))) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (values.has(name)) refuse('render-value-twice', 'the renderer reported one setting twice.');
       values.set(name, value);
@@ -598,6 +607,8 @@ export function parseRenderLines(lines, { project, hash }) {
   if (!commands) refuse('render-commands-missing', 'the renderer did not report which pact commands are on.');
   if (!tools) refuse('render-tools-missing', 'the renderer did not report which pact tools are on.');
   if (toolsAt !== commandsAt + 1) refuse('render-unknown-line', "the renderer's TOOLS line does not come straight after its COMMANDS line.");
+  // #603: gh-app is on the TOOLS line exactly when the render reported the identity switch on; the two lines come from one render, so a mismatch is a fault.
+  if (tools.includes('gh-app') !== (values.get('agent-identity') === 'on')) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
   if (skills.length > SKILL_PATHS_MAX) refuse('render-skill-count', `the renderer reported more than ${SKILL_PATHS_MAX} skill paths.`);
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
@@ -1021,7 +1032,9 @@ export function toolsBlock(on, stagedRels) {
   for (const name of listable) out.push(`  ${name}: ${on.includes(name) ? 'on' : 'off'}${staged.has(`claude/tools/${name}.mjs`) ? '' : ' (not in this commit)'}`);
   const example = listable.find(name => staged.has(`claude/tools/${name}.mjs`));
   out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "tools": ["${example}"]` : '  No pact tool that can be turned on is in this commit.');
-  for (const name of on) out.push(`  WARN: the user configuration turns on the pact tool ${name}; it installs to ${TOOLS_DEST}${name}.mjs${TOOL_WARNS[name]}`);
+  // #603: gh-app is not listable; its line shows only while the switch has it on.
+  if (on.includes('gh-app')) out.push('  gh-app: on (the agent-identity switch)');
+  for (const name of on) out.push(`  WARN: ${name === 'gh-app' ? 'the agent-identity switch' : 'the user configuration'} turns on the pact tool ${name}; it installs to ${TOOLS_DEST}${name}.mjs${TOOL_WARNS[name]}`);
   return out;
 }
 
@@ -1143,7 +1156,7 @@ function retiredIn(live) {
  * `hooks` never go through that deep merge: they merge by key (hooksPlan), and
  * `autoCompactWindow` follows `compact.window` (#482).
  */
-export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY) {
+export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY, identity = NO_IDENTITY) {
   // #482: hooks never go through the deep merge, which would replace an owner's list; they merge by key below.
   const plain = new Map(overlay);
   plain.delete('hooks');
@@ -1173,10 +1186,19 @@ export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPAC
     const p = m.get('permissions');
     p.set('ask', union(p.get('ask'), ask.add).filter(r => !ask.drop.includes(r)));
   }
+  // #603: the identity switch's two env keys, set or dropped as the plan says; an env left empty goes with them.
+  if (identity.set.size || identity.drop.length) {
+    const env = new Map(isMap(m.get('env')) ? m.get('env') : []);
+    for (const [k, v] of identity.set) env.set(k, v);
+    for (const k of identity.drop) env.delete(k);
+    if (env.size) m.set('env', env);
+    else m.delete('env');
+  }
   return m;
 }
 
 const NO_DENY = Object.freeze({ add: [], drop: [], record: [] });
+const NO_IDENTITY = Object.freeze({ set: new Map(), drop: [], record: {} });
 
 // ------------------------------------------------------------ the pact's hooks (#482)
 
@@ -1366,6 +1388,125 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
   return { add, drop: [], record: [...new Set([...ours, ...add])] };
 }
 
+// ------------------------------------------------------------ the agent-identity switch (#603, S7)
+
+/** The two env keys the switch owns in settings.json: the install sets them while it is on, records them under identityEnv, and removes only a key whose live value is the recorded one. */
+export const IDENTITY_ENV_KEYS = Object.freeze(['GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT']);
+const slashed = p => String(p).replaceAll('\\', '/');
+/** The gitconfig setup writes for the claude app, under the Claude home folder. */
+export const identityGitconfigPath = claudeHome => `${slashed(claudeHome).replace(/\/$/, '')}/pact/gh-app-claude.gitconfig`;
+/** The value the install gives each switch-owned key, a Map in key order. */
+export const identityEnvWanted = claudeHome => new Map([['GIT_CONFIG_GLOBAL', identityGitconfigPath(claudeHome)], ['GIT_TERMINAL_PROMPT', '0']]);
+
+/**
+ * The switch's env plan: `set` (key to value, only where the live value differs),
+ * `drop` (keys), `record` (what the record holds next) and `conflicts` (keys the
+ * owner's own env already sets). On, a key is the install's own only when the
+ * record lists it with the live value; any other live value is the owner's and a
+ * conflict, and the install never overwrites it. Off, only a recorded key whose
+ * live value is still the recorded one is dropped.
+ */
+export function identityEnvPlan(live, on, recorded, wanted) {
+  const env = isMap(live.get('env')) ? live.get('env') : new Map();
+  const ours = k => Object.hasOwn(recorded, k) && env.get(k) === recorded[k];
+  if (!on) return { set: new Map(), drop: IDENTITY_ENV_KEYS.filter(k => env.has(k) && ours(k)), record: {}, conflicts: [] };
+  const set = new Map();
+  const record = {};
+  const conflicts = [];
+  for (const [k, v] of wanted) {
+    if (env.has(k) && !ours(k)) {
+      conflicts.push(k);
+      continue;
+    }
+    record[k] = v;
+    if (env.get(k) !== v) set.set(k, v);
+  }
+  return { set, drop: [], record, conflicts };
+}
+
+/** The one Program Files folder the rule allows. It is fixed, never read from the environment: a caller can set SystemRoot and ProgramFiles to a drive a user may write. */
+const PROGRAM_FILES = 'C:\\Program Files';
+
+/**
+ * Whether `p` is a Node the gitconfig may name: an absolute path to a program
+ * called node, with no quote or control character. On Windows, where the helper
+ * runs, it is also exactly `C:\Program Files\nodejs\node.exe`, a folder only
+ * an administrator writes (S7); elsewhere the helper cannot run, so there is no folder rule.
+ */
+export const identityNodeOk = (p, { platform = process.platform, programFiles = PROGRAM_FILES } = {}) => {
+  if (typeof p !== 'string' || !/^(?:[A-Za-z]:[\\/]|\/)/.test(p) || !/^node(?:\.exe)?$/i.test(p.split(/[\\/]/).at(-1)) || /["\p{Cc}]/u.test(p)) return false;
+  if (platform !== 'win32') return true;
+  const flat = x => x.replaceAll('\\', '/').toLowerCase();
+  return typeof programFiles === 'string' && programFiles !== '' && flat(p) === `${flat(programFiles).replace(/\/+$/, '')}/nodejs/node.exe`;
+};
+
+/** The claude app's entry in github.json's text, or null when the file is not the pin's exact shape or holds no claude app. Nothing is looked up. */
+export function identityPinApp(text) {
+  let pin;
+  try {
+    pin = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+  } catch {
+    return null;
+  }
+  const keys = (o, want) => o !== null && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length === want.length && want.every(k => Object.hasOwn(o, k));
+  if (!keys(pin, ['owner', 'apps']) || !keys(pin.owner, ['login', 'id']) || pin.apps === null || typeof pin.apps !== 'object' || Array.isArray(pin.apps)) return null;
+  const a = pin.apps.claude;
+  const isId = n => Number.isSafeInteger(n) && n > 0;
+  if (!keys(a, ['app_id', 'slug', 'bot_login', 'bot_id']) || !isId(a.app_id) || !isId(a.bot_id) || typeof a.slug !== 'string' || !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(a.slug) || a.bot_login !== `${a.slug}[bot]`) return null;
+  return { app_id: a.app_id, slug: a.slug, bot_login: a.bot_login, bot_id: a.bot_id };
+}
+
+/** One gitconfig value, as gh-app.mjs writes it: raw when plain, else quoted with " and \ escaped. */
+function iniValue(v, force = false) {
+  if (/[\r\n\0]/.test(v)) refuse('identity-gitconfig', 'the agent gitconfig would hold a line break.');
+  return force || /["\\#;]|^\s|\s$/.test(v) ? `"${v.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"` : v;
+}
+
+/**
+ * The text the claude app's gitconfig must hold: the install's own copy of
+ * gitconfigText in claude/tools/gh-app.mjs, which a test holds equal. `userHome`
+ * is the Claude home folder's parent; `xdg` is whether the XDG config exists.
+ */
+export function identityGitconfigText({ userHome, claudeHome, nodePath, app, xdg }) {
+  const h = slashed(userHome);
+  const helper = `!"${slashed(nodePath)}" "${slashed(claudeHome)}/pact/tools/gh-app.mjs" git-credential --provider claude`;
+  return [
+    '[include]',
+    `  path = ${iniValue(`${h}/.gitconfig`)}`,
+    ...(xdg ? [`  path = ${iniValue(`${h}/.config/git/config`)}`] : []),
+    '[user]',
+    `  name = ${iniValue(app.bot_login)}`,
+    `  email = ${iniValue(`${app.bot_id}+${app.bot_login}@users.noreply.github.com`)}`,
+    '[credential "https://github.com"]',
+    '  helper =',
+    `  helper = ${iniValue(helper, true)}`,
+    '  useHttpPath = true',
+    '',
+  ].join('\n');
+}
+
+/**
+ * The verdict on the gitconfig on disk: `{ ok }`, and when not ok the parts that
+ * differ, from node path, include list and other lines, never the file's lines.
+ */
+export function identityGitconfigVerdict(actual, expected) {
+  if (actual === expected) return { ok: true, parts: [] };
+  const split = text => {
+    const lines = text.split(/\r?\n/);
+    return { helper: lines.filter(l => /^ {2}helper = ./.test(l)), include: lines.filter(l => /^ {2}path = /.test(l)), other: lines.filter(l => !/^ {2}helper = ./.test(l) && !/^ {2}path = /.test(l)) };
+  };
+  const a = split(actual);
+  const e = split(expected);
+  const parts = [];
+  if (a.helper.join('\n') !== e.helper.join('\n')) parts.push('node path differs');
+  if (a.include.join('\n') !== e.include.join('\n')) parts.push('include list differs');
+  if (a.other.join('\n') !== e.other.join('\n') || !parts.length) parts.push('other lines differ');
+  return { ok: false, parts };
+}
+
+/** The fixed line the dry run prints for the gitconfig check, with the verdict's parts named when it fails. */
+export const identityGitconfigLine = v => `gitconfig as expected: ${v.ok ? 'yes' : `no: ${v.parts.join(', ')}, re-run setup`}`;
+
 /** Two deny plans as the one `deny` that mergeSettings and settingsChanges take: adds and drops joined; each record is kept apart by the caller. */
 export const joinDeny = (a, b) => ({ add: [...a.add, ...b.add], drop: [...a.drop, ...b.drop], record: [] });
 
@@ -1379,7 +1520,7 @@ const pathIn = (map, segs) => {
 };
 
 /** What the merge changes, told from the overlay's side only (S6, L6): a live value is never printed. */
-export function settingsChanges(live, overlay, deny = NO_DENY, ask = NO_DENY) {
+export function settingsChanges(live, overlay, deny = NO_DENY, ask = NO_DENY, identity = NO_IDENTITY) {
   const paths = [];
   for (const [top, v] of overlay) {
     // The hooks block merges by key and prints its own lines (compactLines, #482).
@@ -1406,6 +1547,9 @@ export function settingsChanges(live, overlay, deny = NO_DENY, ask = NO_DENY) {
   // #523: the cleaner's ask rules, the pact's fixed list as well.
   for (const rule of ask.add) if (!shown.has(`  + permissions.ask: ${formatRule(rule)}`)) out.push(`  + permissions.ask: ${formatRule(rule)}`);
   for (const rule of ask.drop) out.push(`  - permissions.ask: ${formatRule(rule)}`);
+  // #603: the identity switch's env keys. The gitconfig's path is the owner's own, so it is named, not printed.
+  for (const [k, v] of identity.set) out.push(k === 'GIT_CONFIG_GLOBAL' ? `  set env.${k} (the agent gitconfig)` : `  set env.${k} = ${formatPlain(v)}`);
+  for (const k of identity.drop) out.push(`  - env.${k}`);
   return out;
 }
 

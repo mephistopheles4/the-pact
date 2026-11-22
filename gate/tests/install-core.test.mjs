@@ -1367,3 +1367,163 @@ test('the Enough note: a Qualities edit with no Enough column shows it; the ship
   assert.equal(core.enoughNoteLine(withEdit('qualities'), '| Quality | Measure | Lens | Enough | \n'), null, 'a trailing space after the last bar');
   assert.equal(core.enoughNoteLine(withEdit('qualities'), `${old}| Stage | Enough |\n`), note, 'another table that ends in Enough is not the Qualities table');
 });
+
+// ------------------------------------------------------------ the agent-identity switch (#603, S7; C5)
+
+// #603 C5: the switch parses as on or off, a project render refuses it, and gh-app is on the TOOLS line exactly when it is on.
+test('the renderer lines: the identity switch is on only for VALUE agent-identity on, which TOOLS gh-app must match', () => {
+  const parse = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
+  const on = renderBase().in.replace('RESULT', 'VALUE agent-identity on\nRESULT').replace('TOOLS poster', 'TOOLS poster,gh-app');
+  assert.equal(core.identitySwitchOn(parse(renderBase().in)), false, 'no line');
+  assert.equal(core.identitySwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE agent-identity off\nRESULT'))), false);
+  assert.equal(core.identitySwitchOn(parse(on)), true);
+  assert.deepEqual(parse(on).tools, ['poster', 'gh-app']);
+  assert.equal(decided(() => parse(on.replace('TOOLS poster,gh-app', 'TOOLS poster'))).fails[0], 'render-unknown-line', 'on with no gh-app');
+  assert.equal(decided(() => parse(renderBase().in.replace('TOOLS poster', 'TOOLS poster,gh-app'))).fails[0], 'render-unknown-line', 'gh-app with the switch off');
+  assert.equal(decided(() => parse(on.replace('VALUE agent-identity on', 'VALUE agent-identity yes'))).fails[0], 'render-unknown-line');
+  assert.throws(() => core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE agent-identity on').split('\n'), sha256), e => e.rule === 'project-render-unknown-line');
+});
+
+// #603 C5: the install owns two env keys, records them, and removes only a key whose live value is the recorded one.
+test('the identity env plan: sets the two keys, never overwrites the owner\'s, and drops only a recorded key still at its recorded value', () => {
+  const wanted = core.identityEnvWanted('C:\\Users\\u\\.claude');
+  assert.deepEqual([...wanted], [['GIT_CONFIG_GLOBAL', 'C:/Users/u/.claude/pact/gh-app-claude.gitconfig'], ['GIT_TERMINAL_PROMPT', '0']]);
+  const live = env => new Map(env === undefined ? [] : [['env', new Map(Object.entries(env))]]);
+  const on = core.identityEnvPlan(live({ KEEP: '1' }), true, {}, wanted);
+  assert.deepEqual([...on.set], [...wanted]);
+  assert.deepEqual(on.record, Object.fromEntries(wanted));
+  assert.deepEqual(on.conflicts, []);
+  // Already set by the install: nothing to set, still recorded.
+  const again = core.identityEnvPlan(live({ ...Object.fromEntries(wanted) }), true, Object.fromEntries(wanted), wanted);
+  assert.equal(again.set.size, 0);
+  assert.deepEqual(again.record, Object.fromEntries(wanted));
+  // The owner's own value, equal or not, is a conflict, and is neither set nor recorded.
+  for (const own of [{ GIT_TERMINAL_PROMPT: '1' }, { GIT_TERMINAL_PROMPT: '0' }, { GIT_CONFIG_GLOBAL: 'D:/mine' }]) {
+    const p = core.identityEnvPlan(live(own), true, {}, wanted);
+    assert.deepEqual(p.conflicts, Object.keys(own), JSON.stringify(own));
+    assert.ok(!Object.keys(own).some(k => Object.hasOwn(p.record, k) || p.set.has(k)));
+  }
+  // A recorded key the owner has since changed is theirs: conflict on, kept off.
+  const moved = { GIT_CONFIG_GLOBAL: 'D:/moved', GIT_TERMINAL_PROMPT: '0' };
+  assert.deepEqual(core.identityEnvPlan(live(moved), true, Object.fromEntries(wanted), wanted).conflicts, ['GIT_CONFIG_GLOBAL']);
+  const off = core.identityEnvPlan(live(moved), false, Object.fromEntries(wanted), wanted);
+  assert.deepEqual(off.drop, ['GIT_TERMINAL_PROMPT']);
+  assert.deepEqual(off.record, {});
+  // Off with no record drops nothing, whatever is live.
+  assert.deepEqual(core.identityEnvPlan(live(Object.fromEntries(wanted)), false, {}, wanted).drop, []);
+});
+
+// #603 C5: merging puts the keys in beside the owner's, takes them out again, and an emptied env goes with them.
+test('the identity env merge keeps the owner\'s env keys, and removes an env the switch emptied', () => {
+  const wanted = core.identityEnvWanted('/h/.claude');
+  const own = () => new Map([['env', new Map([['KEEP', '1']])]]);
+  const plan = core.identityEnvPlan(own(), true, {}, wanted);
+  const merged = core.mergeSettings(own(), new Map(), undefined, undefined, undefined, plan);
+  assert.deepEqual([...merged.get('env')], [['KEEP', '1'], ...wanted]);
+  const out = core.mergeSettings(merged, new Map(), undefined, undefined, undefined, core.identityEnvPlan(merged, false, plan.record, wanted));
+  assert.deepEqual([...out.get('env')], [['KEEP', '1']]);
+  const only = core.mergeSettings(new Map(), new Map(), undefined, undefined, undefined, plan);
+  const gone = core.mergeSettings(only, new Map(), undefined, undefined, undefined, core.identityEnvPlan(only, false, plan.record, wanted));
+  assert.equal(gone.has('env'), false);
+  assert.deepEqual(core.settingsChanges(new Map(), new Map(), undefined, undefined, plan), ['  set env.GIT_CONFIG_GLOBAL (the agent gitconfig)', '  set env.GIT_TERMINAL_PROMPT = 0']);
+});
+
+// #603 C5: the record holds the two keys while the switch is on, and refuses a record that holds anything else under identityEnv.
+test('the record carries identityEnv only while there is one, and refuses a malformed one', () => {
+  const base = { commit: ID('a'), digest: null, userHash: null, blockHashes: new Map(), repoFiles: new Map(), gateNow: new Map() };
+  assert.equal('identityEnv' in JSON.parse(core.recordText(base)), false);
+  const kept = { GIT_CONFIG_GLOBAL: 'C:/x', GIT_TERMINAL_PROMPT: '0' };
+  assert.deepEqual(core.parseRecord(core.recordText({ ...base, identityEnv: kept, repoFiles: new Map([['x', H('3')]]) })).identityEnv, kept);
+  const doc = identityEnv => json({ commit: ID('a'), files: [{ path: 'x', sha256: H('3') }], identityEnv });
+  for (const bad of [{ PATH: 'x' }, { GIT_CONFIG_GLOBAL: 1 }, ['GIT_CONFIG_GLOBAL'], 'x']) assert.equal(decided(() => core.parseRecord(doc(bad))).fails[0], 'record-not-pact', JSON.stringify(bad));
+});
+
+// #603 C5: the node path the gitconfig may name.
+test('the identity node check takes an absolute path to a program called node, and nothing else', () => {
+  const other = { platform: 'linux' };
+  for (const ok of ['C:\\Program Files\\nodejs\\node.exe', 'C:/Program Files/nodejs/node.exe', '/usr/local/bin/node', 'D:\\tools\\NODE.EXE']) assert.equal(core.identityNodeOk(ok, other), true, ok);
+  for (const bad of ['node', 'node.exe', 'C:\\Program Files\\nodejs\\npm.cmd', 'C:\\tools\\evil.exe', '/usr/bin/nodejs', 'C:\\a"b\\node.exe', '/a\nb/node', '', undefined, 'C:\\node.exe\\evil']) assert.equal(core.identityNodeOk(bad, other), false, String(bad));
+});
+
+// #603 C5 (S7): on Windows the Node is exactly <Program Files>\nodejs\node.exe, whatever its case or slashes, and any other folder is refused.
+test('the identity node check on Windows takes only <Program Files>\\nodejs\\node.exe', () => {
+  const win = (programFiles) => ({ platform: 'win32', programFiles });
+  for (const ok of ['C:\\Program Files\\nodejs\\node.exe', 'c:/program files/NODEJS/node.exe']) assert.equal(core.identityNodeOk(ok, win('C:\\Program Files')), true, ok);
+  assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', win('C:\\Program Files\\')), true, 'a trailing slash on ProgramFiles');
+  for (const bad of ['D:\\tools\\node.exe', 'C:\\Users\\u\\AppData\\Local\\nodejs\\node.exe', 'C:\\Program Files\\nodejs\\bin\\node.exe', 'C:\\Program Files\\nodejs\\sub\\..\\node.exe', 'C:\\Program Files (x86)\\nodejs\\node.exe']) assert.equal(core.identityNodeOk(bad, win('C:\\Program Files')), false, bad);
+  for (const none of [null, '']) for (const p of ['C:\\Program Files\\nodejs\\node.exe', '/nodejs/node.exe']) assert.equal(core.identityNodeOk(p, win(none)), false, `no ProgramFiles: ${none} for ${p}`);
+});
+
+// #603 C5 (S7, security closing read): the allowed folder is fixed at C:\Program Files; SystemRoot, SystemDrive and ProgramFiles, which a caller sets, cannot move it.
+test('the identity node check on Windows ignores SystemRoot, SystemDrive and ProgramFiles', () => {
+  const saved = ['SystemRoot', 'SystemDrive', 'ProgramFiles'].map(k => [k, process.env[k]]);
+  try {
+    Object.assign(process.env, { SystemRoot: 'D:\\Windows', SystemDrive: 'D:', ProgramFiles: 'D:\\Program Files' });
+    assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), true);
+    assert.equal(core.identityNodeOk('D:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), false, 'a caller-chosen drive');
+    delete process.env.SystemRoot;
+    assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), true, 'no SystemRoot');
+  } finally {
+    for (const [k, v] of saved) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+});
+
+const APP = { app_id: 2000001, slug: 'example-owner-claude', bot_login: 'example-owner-claude[bot]', bot_id: 3000001 };
+const pinJson = (apps = { claude: APP }, owner = { login: 'example-owner', id: 1000001 }) => json({ owner, apps });
+
+// #603 C5: the claude app is read from github.json by its exact shape, and nothing else counts.
+test('the identity pin read takes the exact pin shape with a claude app, and nothing looser', () => {
+  assert.deepEqual(core.identityPinApp(pinJson()), APP);
+  assert.deepEqual(core.identityPinApp(`\ufeff${pinJson()}`), APP);
+  for (const [name, text] of [
+    ['not json', '{'],
+    ['no claude app', pinJson({ codex: APP })],
+    ['an extra field on the app', pinJson({ claude: { ...APP, extra: 1 } })],
+    ['a missing field', pinJson({ claude: { app_id: 1, slug: 'a', bot_login: 'a[bot]' } })],
+    ['a bot login that is not the slug', pinJson({ claude: { ...APP, bot_login: 'other[bot]' } })],
+    ['a string id', pinJson({ claude: { ...APP, bot_id: '3000001' } })],
+    ['an extra top key', json({ owner: { login: 'o', id: 1 }, apps: { claude: APP }, more: 1 })],
+    ['an owner with no id', pinJson({ claude: APP }, { login: 'o' })],
+    ['an array for apps', json({ owner: { login: 'o', id: 1 }, apps: [APP] })],
+    ['null apps', json({ owner: { login: 'o', id: 1 }, apps: null })],
+    ['a slug with a space', pinJson({ claude: { ...APP, slug: 'a b', bot_login: 'a b[bot]' } })],
+    ['a zero app id', pinJson({ claude: { ...APP, app_id: 0 } })],
+    ['a negative bot id', pinJson({ claude: { ...APP, bot_id: -1 } })],
+    ['a string app id', pinJson({ claude: { ...APP, app_id: '2000001' } })],
+  ]) assert.equal(core.identityPinApp(text), null, name);
+});
+
+// #603 C5: the install's own copy of the gitconfig text is the helper's, byte for byte, in the layout the pact is installed in.
+test('the install\'s gitconfig text equals the one gh-app.mjs setup writes, with and without the XDG config', async () => {
+  const { gitconfigText } = await import('../../claude/tools/gh-app.mjs');
+  for (const [userHome, nodePath] of [['C:\\Users\\user', 'C:\\Program Files\\nodejs\\node.exe'], ['/home/user', '/usr/local/bin/node'], ['D:\\a b\\u', 'D:\\a b\\node.exe'], ['C:\\Users\\a#b', 'C:\\Program Files\\nodejs\\node.exe'], ['C:\\Users\\a;b', 'C:\\Program Files\\nodejs\\node.exe']]) {
+    for (const xdg of [false, true]) {
+      const claudeHome = `${userHome}${userHome.includes('\\') ? '\\' : '/'}.claude`;
+      assert.equal(core.identityGitconfigText({ userHome, claudeHome, nodePath, app: APP, xdg }), gitconfigText({ home: userHome, nodePath, app: APP, provider: 'claude', xdg }), `${userHome} xdg ${xdg}`);
+    }
+  }
+});
+
+// #603 C5: a home folder with a line break can't be written into the gitconfig, so the install refuses it.
+test('the install\'s gitconfig text refuses a home folder with a line break', () => {
+  for (const bad of ['\n', '\r', '\0']) assert.throws(() => core.identityGitconfigText({ userHome: `/home/a${bad}b`, claudeHome: `/home/a${bad}b/.claude`, nodePath: '/usr/local/bin/node', app: APP, xdg: false }), /line break/, JSON.stringify(bad));
+});
+
+// #603 C5: the dry run says which part differs, never the file's lines.
+test('the identity gitconfig verdict names the part that differs and prints no line of the file', () => {
+  const want = core.identityGitconfigText({ userHome: 'C:\\Users\\e', claudeHome: 'C:\\Users\\e\\.claude', nodePath: 'C:\\Program Files\\nodejs\\node.exe', app: APP, xdg: false });
+  const said = v => core.identityGitconfigLine(v);
+  assert.equal(said(core.identityGitconfigVerdict(want, want)), 'gitconfig as expected: yes');
+  const node = core.identityGitconfigVerdict(want.replace('nodejs', 'other'), want);
+  assert.equal(said(node), 'gitconfig as expected: no: node path differs, re-run setup');
+  const inc = core.identityGitconfigVerdict(want.replace('[user]', '  path = C:/Users/e/.config/git/config\n[user]'), want);
+  assert.equal(said(inc), 'gitconfig as expected: no: include list differs, re-run setup');
+  const other = core.identityGitconfigVerdict(want.replace('useHttpPath = true', 'useHttpPath = false'), want);
+  assert.equal(said(other), 'gitconfig as expected: no: other lines differ, re-run setup');
+  assert.equal(said(core.identityGitconfigVerdict(want.replace('nodejs', 'CANARY-LINE').replace('[user]', '  path = CANARY-PATH\n[user]'), want)), 'gitconfig as expected: no: node path differs, include list differs, re-run setup');
+  assert.equal(core.identityGitconfigVerdict(want.replaceAll('\n', '\r\n'), want).ok, false, 'a rewritten line ending is a difference');
+  for (const v of [node, inc, other]) assert.ok(!/CANARY|nodejs|useHttpPath|\.gitconfig/.test(said(v)));
+});

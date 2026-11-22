@@ -586,6 +586,33 @@ test('bad case: session-stop-deny takes no value but true or false', t => {
   }
 });
 
+// #603 C8: the agent-identity switch is declared as the stop switch is; it has no part in the rules file, so only the notice line changes.
+test('"agent-identity": true prints VALUE agent-identity on and TOOLS gh-app; false prints off and TOOLS none', t => {
+  for (const [v, word, tools] of [[true, 'on', 'gh-app'], [false, 'off', 'none']]) {
+    const bytes = Buffer.from(`{"schema": 1, "settings": {"agent-identity": ${v}}}\n`);
+    const r = render(t, homeWith(t, bytes));
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.stdout, new RegExp(`^VALUE agent-identity ${word}$`, 'm'), r.out);
+    assert.match(r.stdout, new RegExp(`^TOOLS ${tools}$`, 'm'), r.out);
+    assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', `agent-identity ${word}`));
+  }
+});
+// #603 C8: with the switch on, gh-app joins the listed tools in PACT_TOOLS order and fills no part of the rules file.
+test('"agent-identity": true adds gh-app after the listed tools, and the tools list still refuses it', t => {
+  const on = render(t, homeWith(t, Buffer.from('{"schema": 1, "tools": ["cleaner", "poster"], "settings": {"agent-identity": true}}\n')));
+  assert.equal(on.code, 0, on.out);
+  assert.match(on.stdout, /^TOOLS poster,cleaner,gh-app$/m, on.out);
+  const refused = render(t, homeWith(t, Buffer.from('{"schema": 1, "tools": ["gh-app"], "settings": {"agent-identity": true}}\n')));
+  refusedWith(refused, 'config-tools', /gh-app cannot be turned on by the tools list/);
+  assert.doesNotMatch(refused.stdout, /^FAIL internal/m, 'an ordinary refusal is not an internal failure');
+});
+// #603 S7 (no numbered claim; the config-value rule's bad case for the identity switch): the switch takes only true or false.
+test('bad case: agent-identity takes no value but true or false', t => {
+  for (const bad of ['1', '0', '"on"', '"true"', 'null', '[]']) {
+    refusedWith(render(t, homeWith(t, Buffer.from(`{"schema": 1, "settings": {"agent-identity": ${bad}}}\n`))), 'config-value', /agent-identity must be true or false/);
+  }
+});
+
 // config-value
 test('bad case: the session limit takes no false', t => {
   refusedWith(render(t, homeWith(t, Buffer.from('{"schema": 1, "settings": {"usage-pause-session": false}}\n'))), 'config-value', /usage-pause-session must be a whole number from 0 to 100/);

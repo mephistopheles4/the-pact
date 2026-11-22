@@ -287,6 +287,25 @@ async function main() {
   // #438: the cleaner's deny rules come and go with it; settings left untouched keep the record's list.
   // #439: the stop switch's rules likewise, in a record key of their own; a project install never turns the switch on.
   const stopOn = project ? false : core.stopSwitchOn(parsed);
+  // #603: the identity switch. On, the claude app must be pinned and its gitconfig must be exactly what setup writes, or the install refuses before any write; off, the check is skipped, so a changed or missing gitconfig never blocks turning it off.
+  const identityOn = project ? false : core.identitySwitchOn(parsed);
+  const refusal = (rule, why) => new core.Refusal(rule, why);
+  const identityChecks = () => {
+    const pinText = io.readOptional(join(home, 'pact', 'github.json'));
+    const app = pinText === null ? null : core.identityPinApp(pinText.toString('utf8'));
+    if (app === null) throw refusal('identity-pin', 'the agent-identity switch is on, but pact/github.json holds no claude app; run gh-app.mjs setup first.');
+    const cfg = io.readOptional(join(home, 'pact', 'gh-app-claude.gitconfig'));
+    if (cfg === null) throw refusal('identity-gitconfig-missing', 'the agent-identity switch is on, but the claude app\'s gitconfig is missing; run gh-app.mjs setup first.');
+    if (!core.identityNodeOk(process.execPath)) throw refusal('identity-node', 'this Node is not the one the agent gitconfig may name (on Windows, C:\\Program Files\\nodejs\\node.exe), so the gitconfig cannot be checked; run the install with that Node, then run gh-app.mjs setup under it.');
+    const userHome = dirname(home);
+    const want = core.identityGitconfigText({ userHome, claudeHome: home, nodePath: process.execPath, app, xdg: io.exists(join(userHome, '.config', 'git', 'config')) });
+    const verdict = core.identityGitconfigVerdict(cfg.toString('utf8'), want);
+    const line = core.identityGitconfigLine(verdict);
+    if (!verdict.ok) throw refusal('identity-gitconfig', line);
+    return ['agent-identity: on', `  ${line}`];
+  };
+  let identity = { set: new Map(), drop: [], record: record ? record.identityEnv : {}, conflicts: [] };
+  let identityBlock = [];
   let deny = { add: [], drop: [], record: record ? record.cleanerDeny : [] };
   let stopRecord = record ? record.stopDeny : [];
   // #523: the cleaner's ask rules, in a record key of their own (cleanerAsk), with the cleaner's switch.
@@ -297,9 +316,11 @@ async function main() {
   // #482: the hooks and the window, merged by key.
   const compact = { window, script: hookScript, recorded: record ? record.autoCompactWindow : null, platform: process.platform };
   let compactBlock = [`auto-compact-window: ${window > 0 ? `on, ${window} tokens` : 'off'}`];
+  if (identityOn) identityBlock = identityChecks();
   if (liveSettings === null) {
     settings = 'not a strict JSON object: left untouched';
     notes = ['WARN: settings.json is not a strict JSON object (a comment, a trailing comma or another root); the merge leaves it untouched, and nothing in it was checked.'];
+    if (identityOn) notes.push("WARN: settings.json is left untouched, so the agent-identity switch's two env keys are not set; git in a session stays your own until they are.");
     // #523: the cleaner on, its ask rules are not added to a file left untouched; say which.
     if (toolsOn.includes('cleaner')) notes.push(`WARN: settings.json is left untouched, so the cleaner's two ask rules on remove --override are not added: ${core.CLEANER_ASK.map(core.formatPlain).join(', ')}`);
   } else {
@@ -309,13 +330,15 @@ async function main() {
     deny = { ...core.joinDeny(cleanerPlan, stopPlan), record: cleanerPlan.record };
     stopRecord = stopPlan.record;
     askPlan = core.cleanerAskPlan(liveSettings, toolsOn, record ? record.cleanerAsk : []);
-    merged = core.mergeSettings(liveSettings, overlay, deny, compact, askPlan);
+    identity = core.identityEnvPlan(liveSettings, identityOn, record ? record.identityEnv : {}, core.identityEnvWanted(home));
+    if (identity.conflicts.length) throw refusal('identity-env', `the agent-identity switch is on, but settings.json already sets env ${identity.conflicts.join(' and ')}; take it out first, since the install never overwrites your own env.`);
+    merged = core.mergeSettings(liveSettings, overlay, deny, compact, askPlan, identity);
     if (liveBytes === null) settings = 'would be created from the overlay';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
       notes = core.liveSettingsLines(liveSettings, overlay, compact);
     }
-    changes = core.settingsChanges(liveSettings, overlay, deny, askPlan);
+    changes = core.settingsChanges(liveSettings, overlay, deny, askPlan, identity);
     compactBlock = core.compactLines(liveSettings, overlay, compact);
   }
   const settingsWill = settings.startsWith('would');
@@ -335,6 +358,7 @@ async function main() {
   say(`settings.json: ${settings}`);
   if (settingsWill) for (const l of changes) say(l);
   for (const l of compactBlock) say(l);
+  for (const l of identityBlock) say(l);
   for (const l of notes) say(l);
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
   const settingsCopied = settingsWill && liveBytes !== null;
@@ -421,7 +445,7 @@ async function main() {
     io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, cleanerAsk: askPlan.record, stopDeny: stopRecord, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
+  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, cleanerAsk: askPlan.record, stopDeny: stopRecord, identityEnv: identity.record, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;
