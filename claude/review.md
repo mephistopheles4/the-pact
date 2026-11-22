@@ -236,7 +236,7 @@ when no other row answers the sentence.
   record, and propose a fresh session.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record, as
   your own pick under your own label, never as mine: a one-line why, the goal
-  or free hand you ran under (its work and where it came from, by kind), each
+  you ran under (its work and where it came from, by kind), each
   narrowing I gave there (by the kind of step it keeps), and a flag: the line
   opens `Checkpoint (flagged):`, except the forms below. A pick
   that leaves a security path open is flagged big: in a public record its line
@@ -261,9 +261,7 @@ when no other row answers the sentence.
   - Before you post a kind with a quote, read back to me in chat the passages
     you will quote and your intent, and post `confirmed` only on my yes in that
     chat, never on a checkpoint pick, and otherwise `pending` (a `decision`
-    from my chat is always `confirmed`); a relay or a goal holder's reply never
-    confirms a read-back, and a lead relays only the span meant for the record, after its own read
-    before posting.
+    from my chat is always `confirmed`).
   - When I later confirm or correct a pending read-back in chat, the session
     that heard it first posts a `decision` (source `chat`, posted `confirmed`,
     `answers` naming the item) quoting those words, then edits the original to
@@ -325,7 +323,7 @@ when no other row answers the sentence.
   one exception: apps can't be assigned, so it stays on my login through plain
   `gh`. The status comment is the one your posting identity wrote; an older one
   by my account stays as it is. A tier or triage label you apply through the app
-  doesn't count: my word in chat sets the tier, and you log it as a checkpoint.
+  doesn't count: my confirmation sets the tier, and you log it as a checkpoint.
 
 ## Lens dispositions
 
