@@ -1439,36 +1439,10 @@ test('the record carries identityEnv only while there is one, and refuses a malf
 });
 
 // #603 C5: the node path the gitconfig may name.
-test('the identity node check takes an absolute path to a program called node, and nothing else', () => {
-  const other = { platform: 'linux' };
-  for (const ok of ['C:\\Program Files\\nodejs\\node.exe', 'C:/Program Files/nodejs/node.exe', '/usr/local/bin/node', 'D:\\tools\\NODE.EXE']) assert.equal(core.identityNodeOk(ok, other), true, ok);
-  for (const bad of ['node', 'node.exe', 'C:\\Program Files\\nodejs\\npm.cmd', 'C:\\tools\\evil.exe', '/usr/bin/nodejs', 'C:\\a"b\\node.exe', '/a\nb/node', '', undefined, 'C:\\node.exe\\evil']) assert.equal(core.identityNodeOk(bad, other), false, String(bad));
-});
-
-// #603 C5 (S7): on Windows the Node is exactly <Program Files>\nodejs\node.exe, whatever its case or slashes, and any other folder is refused.
-test('the identity node check on Windows takes only <Program Files>\\nodejs\\node.exe', () => {
-  const win = (programFiles) => ({ platform: 'win32', programFiles });
-  for (const ok of ['C:\\Program Files\\nodejs\\node.exe', 'c:/program files/NODEJS/node.exe']) assert.equal(core.identityNodeOk(ok, win('C:\\Program Files')), true, ok);
-  assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', win('C:\\Program Files\\')), true, 'a trailing slash on ProgramFiles');
-  for (const bad of ['D:\\tools\\node.exe', 'C:\\Users\\u\\AppData\\Local\\nodejs\\node.exe', 'C:\\Program Files\\nodejs\\bin\\node.exe', 'C:\\Program Files\\nodejs\\sub\\..\\node.exe', 'C:\\Program Files (x86)\\nodejs\\node.exe']) assert.equal(core.identityNodeOk(bad, win('C:\\Program Files')), false, bad);
-  for (const none of [null, '']) for (const p of ['C:\\Program Files\\nodejs\\node.exe', '/nodejs/node.exe']) assert.equal(core.identityNodeOk(p, win(none)), false, `no ProgramFiles: ${none} for ${p}`);
-});
-
-// #603 C5 (S7, security closing read): the allowed folder is fixed at C:\Program Files; SystemRoot, SystemDrive and ProgramFiles, which a caller sets, cannot move it.
-test('the identity node check on Windows ignores SystemRoot, SystemDrive and ProgramFiles', () => {
-  const saved = ['SystemRoot', 'SystemDrive', 'ProgramFiles'].map(k => [k, process.env[k]]);
-  try {
-    Object.assign(process.env, { SystemRoot: 'D:\\Windows', SystemDrive: 'D:', ProgramFiles: 'D:\\Program Files' });
-    assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), true);
-    assert.equal(core.identityNodeOk('D:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), false, 'a caller-chosen drive');
-    delete process.env.SystemRoot;
-    assert.equal(core.identityNodeOk('C:\\Program Files\\nodejs\\node.exe', { platform: 'win32' }), true, 'no SystemRoot');
-  } finally {
-    for (const [k, v] of saved) {
-      if (v === undefined) delete process.env[k];
-      else process.env[k] = v;
-    }
-  }
+// PACT-35: the same rule on every platform, Windows included: any absolute path, no folder required.
+test('the identity node check takes any absolute path to a program called node, and nothing else', () => {
+  for (const ok of ['C:\\Program Files\\nodejs\\node.exe', 'C:/Program Files/nodejs/node.exe', '/usr/local/bin/node', 'D:\\tools\\NODE.EXE', 'C:\\Users\\u\\AppData\\Local\\mise\\installs\\node\\24.0.0\\node.exe']) assert.equal(core.identityNodeOk(ok), true, ok);
+  for (const bad of ['node', 'node.exe', 'C:\\Program Files\\nodejs\\npm.cmd', 'C:\\tools\\shims\\node.cmd', 'C:\\tools\\evil.exe', '/usr/bin/nodejs', 'C:\\a"b\\node.exe', '/a\nb/node', '', undefined, 'C:\\node.exe\\evil']) assert.equal(core.identityNodeOk(bad), false, String(bad));
 });
 
 const APP = { app_id: 2000001, slug: 'example-owner-claude', bot_login: 'example-owner-claude[bot]', bot_id: 3000001 };

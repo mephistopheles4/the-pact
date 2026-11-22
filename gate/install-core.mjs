@@ -1424,21 +1424,12 @@ export function identityEnvPlan(live, on, recorded, wanted) {
   return { set, drop: [], record, conflicts };
 }
 
-/** The one Program Files folder the rule allows. It is fixed, never read from the environment: a caller can set SystemRoot and ProgramFiles to a drive a user may write. */
-const PROGRAM_FILES = 'C:\\Program Files';
-
 /**
  * Whether `p` is a Node the gitconfig may name: an absolute path to a program
- * called node, with no quote or control character. On Windows, where the helper
- * runs, it is also exactly `C:\Program Files\nodejs\node.exe`, a folder only
- * an administrator writes (S7); elsewhere the helper cannot run, so there is no folder rule.
+ * called node, with no quote or control character. The same on every platform;
+ * the machine is out of the threat model's scope, so no folder is required.
  */
-export const identityNodeOk = (p, { platform = process.platform, programFiles = PROGRAM_FILES } = {}) => {
-  if (typeof p !== 'string' || !/^(?:[A-Za-z]:[\\/]|\/)/.test(p) || !/^node(?:\.exe)?$/i.test(p.split(/[\\/]/).at(-1)) || /["\p{Cc}]/u.test(p)) return false;
-  if (platform !== 'win32') return true;
-  const flat = x => x.replaceAll('\\', '/').toLowerCase();
-  return typeof programFiles === 'string' && programFiles !== '' && flat(p) === `${flat(programFiles).replace(/\/+$/, '')}/nodejs/node.exe`;
-};
+export const identityNodeOk = p => typeof p === 'string' && /^(?:[A-Za-z]:[\\/]|\/)/.test(p) && /^node(?:\.exe)?$/i.test(p.split(/[\\/]/).at(-1)) && !/["\p{Cc}]/u.test(p);
 
 /** The claude app's entry in github.json's text, or null when the file is not the pin's exact shape or holds no claude app. Nothing is looked up. */
 export function identityPinApp(text) {
