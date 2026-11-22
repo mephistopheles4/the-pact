@@ -22,4 +22,5 @@ Why: a stop that blocked a Dependabot merge, and a trust rule that blocked every
 ## Record
 
 - The ticket: PACT-42 on Linear, with its Test round 1 comment (findings and dispositions).
+- The decision: [ADR 0164](../adr/0164-the-one-list-is-heavy-checkpoints-and-no-stop-is-hard.md), which reverses 0155, 0157 and 0158 (PACT-51).
 - The pull request, with the removal map: https://github.com/mephistopheles4/the-pact/pull/621
