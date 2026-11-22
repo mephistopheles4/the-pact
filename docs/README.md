@@ -8,7 +8,7 @@ restating a how-to.
 | Doc | Read it when |
 | --- | --- |
 | [agents/install.md](agents/install.md) | You install, roll back, change configuration, tools or a project install, or touch the builder page or the cloud copy. It holds the dry-run commands. |
-| [agents/gate-tests.md](agents/gate-tests.md) | You pick a test tier, run athanor, or write, change or cut a gate test. `AGENTS.md` holds the runner's commands. |
+| [agents/gate-tests.md](agents/gate-tests.md) | You pick a test tier, run athanor, or write, change or cut a gate test. [AGENTS.md](../AGENTS.md#running-the-gates-tests) holds the runner's commands. |
 | [agents/parallel-sessions.md](agents/parallel-sessions.md) | You claim a ticket while other sessions work one chain, or stack pull requests. |
 | [agents/work-records.md](agents/work-records.md) | You plan, close out or record work: plans, ADRs, logs, the PR checkbox. |
 | [agents/issue-tracker.md](agents/issue-tracker.md) | You read or post to GitHub or Linear, or act on tracker text. |

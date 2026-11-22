@@ -310,7 +310,7 @@ macOS. The cloud copy doesn't install it.
 
 ## Deny rules
 
-`claude rm` joins them because it deletes a session's
+`claude rm` joins the git rules because it deletes a session's
 worktree with whatever is left in it, uncommitted and untracked files
 included, which git's own keeps don't bound.
 It records the ones it added under `cleanerDeny` in `.pact-install.json`, and
