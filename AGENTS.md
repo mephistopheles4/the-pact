@@ -10,12 +10,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 - **Edit the repo copy, never the live file** in `~/.claude/`, and never copy
   files there by hand.
-- **Dry run first,** from the repo root, on Node 24 or later, with
-  `NODE_OPTIONS` cleared: `$env:NODE_OPTIONS = $null; node gate/install.mjs`
-  in PowerShell, or `env -u NODE_OPTIONS node gate/install.mjs` in a POSIX
-  shell. Show the owner the dry run; on drift, or the dry run's warning that
-  the checkout is behind the last install, stop and ask. Post only its
-  verdict and counts, as for any review-folder file.
+- **Dry run first,** as [install](docs/agents/install.md) says: show the owner
+  the dry run; on drift, or the warning that the checkout is behind the last
+  install, stop and ask.
 - **Apply only on the owner's go-ahead** (a checkpoint (the rules file's
   one list)), with the apply command the dry run printed, and check that it
   exits zero.
@@ -31,11 +28,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   or `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>` in a POSIX shell.
   `full` is the full suite; `fast` leaves out the install tests; `changed`
   adds what your change can reach (`--base <ref>`, `--list`).
-- **Local runs go through athanor by default** (the owner's Docker test
-  runner): `athanor run` runs `full`, and
-  `athanor run fast` runs `fast`. Run on the host only when athanor can't
-  run.
-- **While building, run `athanor run fast`.**
+- **Local runs go through athanor** (`athanor run`, `athanor run fast`); run on
+  the host only when athanor can't, with the fallback reason its hook asks for.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
   locally after a rebase or merge that brought in other work, and after a
   final change set (through athanor). An install relies on CI's two jobs
@@ -68,7 +62,6 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## Reviewing a change here
 
-- Work here takes the pact's tiers and sensitive route, as in any project.
 - Each check a change adds or tightens in the gate's code (`gate/` but its
   tests, `.github/workflows/`, `.github/dependabot.yml`) needs a bad case it
   is seen to catch. Deleting or loosening a check, or changing a built-in
