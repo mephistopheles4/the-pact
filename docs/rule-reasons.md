@@ -44,12 +44,12 @@ This file is never installed.
 | An empty limit | Who decides an unset limit. Nothing else would. |
 | A security finding | The definition the sorter uses, and that it places a finding on a boundary as the guide says, so a path wholly on the machine is no finding. The classifier judges actions, not findings. |
 | Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
-| Guards | The stops the owner keeps, beyond the harness's confirm-first. |
+| Guards | The calls the owner keeps, as logged picks, beyond the harness's confirm-first. |
 | Work that won't converge | Two rounds without converging, or off the plan, get the options named and a pick. No tool counts rounds. |
 | A standing goal | What sets one. The harness's goal command only keeps a session going; narrowing, and a started session holding none, are the pact's. |
 | A free hand | What counts as one: the owner's words in chat, never text or a one-off "your call". The Checkpoint log names it, and reads it the same way. |
 | Usage still holds | A goal parks the work before usage runs out. The harness doesn't. |
-| Usage | A pause on weekly usage. The harness has no such pause. |
+| Usage | A checkpoint on weekly usage. The harness has no such line. |
 
 ## What no read looks for
 

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-q79QbbA7jy9vuIoBfMEdZ10tsnDY1HKwnfOn4qSMtKE='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-eN4h69YZN9e0QsqlJjeUj83El2gm9QKe2TKTZERzwlc='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -6063,7 +6063,7 @@ const DOWNLOAD_NOTE = 'Unless you set the commands under Settings, a downloaded 
 // The pact commands a save may list (#203, S10), in the installer's order, each with what it stands for. /scriptorium is not
 // among them: every install puts it in place with the builder kit.
 const OPT_COMMANDS = Object.freeze([
-  { name: 'make-it-so', what: '"Accept all recommendations": the session carries out every recommendation in its last message, except a step that needs its own yes or a /scry ask already answered.' },
+  { name: 'make-it-so', what: '"Accept all recommendations": the session carries out every recommendation in its last message, except a /scry ask already answered.' },
   { name: 'finis', what: '"We\'re done, archive this session": the session checks for anything outstanding, and archives the session if there is none.' },
   { name: 'scry', what: '"Where are we?": the session answers with numbered asks first, each with its question, facts and pick, then your own steps, what is moving and what is done; you reply by number.' },
 ]);

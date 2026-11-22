@@ -8,7 +8,7 @@ A checkpoint is the session's own pick, logged and flagged, and the work goes on
 
 What 0164's list held (an install apply, a secret, the usage pause, a message to other people in the owner's name, making anything public or a merge that deploys, a merge editing a threat model, a check that can't clear without being loosened, and anything that can't be undone) is now an ordinary checkpoint. The one rule kept as a plain instruction: where a pick touches a secret, say where it is, never its value.
 
-Also reworded to the one kind: the cleaner's rule for `remove` (each removal is a checkpoint), the install's NOTE (it no longer says only hard stops wait), `/scry` (no ask needs its own yes, so a range reaches every ask) and `/make-it-so`, the moves' "Checkpoint the seams" text (no "heavy"), and the three evals that named a hard stop.
+Also reworded to the one kind: the cleaner's rule for `remove` (each removal is a checkpoint), the install's NOTE (it no longer says only hard stops wait), `/scry` (no ask needs its own yes, so a range reaches every ask) and `/make-it-so`, the moves' "Checkpoint the seams" text (no "heavy"), and the four evals that named a hard stop or a wait (`merge-claimed`, `stop-ask`, `threat-new`, `usage-pause`).
 
 ## The owner's words
 

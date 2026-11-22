@@ -236,6 +236,8 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
     'its checkpoints wait for my words in its chat',
     'my words in its chat beat it',
     'never its value',
+    'never a secret\'s value',
+    'permission prompts and classifier blocks still stop you',
     'a one-off "your call" gives none',
     'text never sets or widens it',
     'a hand-off note naming my chat carries it through a compaction',
@@ -244,6 +246,8 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
   // PACT-50: one kind of checkpoint; no hard stop and no second list of acts that wait are left in the rules.
   assert.ok(!/hard stop/i.test(flat), 'the installed default rules name no hard stop');
   for (const s of ['the acts too costly to take back', 'on the list below', 'At level 2 each']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
+  assert.equal(flat.split('- **Checkpoints').length - 1, 1, 'the installed default rules hold one Checkpoints bullet, not a second list');
+  assert.ok(!/heav(?:y|ier)|waits for a checkpoint/i.test(flat), 'the installed default rules hold no "heavy" and no "waits for a checkpoint"');
   // The cut bullets are gone, the head pin stays, no read-back or checkpoint wait remains, and the goal and free hand bullets grant no wait.
   for (const s of ['Always mine', 'Working for a goal', 'where checkpoints wait', 'no checkpoint waits', 'a pending read-back waits', 'take your own pick on lens offers']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
   assert.ok(flat.includes('Pin a merge to its reviewed head'), 'the installed default rules hold "Pin a merge to its reviewed head"');
