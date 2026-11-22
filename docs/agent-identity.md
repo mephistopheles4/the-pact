@@ -23,8 +23,7 @@ install refuses, saying to run setup.
 
 - **The tool.** The renderer adds `gh-app` to the `TOOLS` line (the `tools` list
   still refuses it), so the install copies `~/.claude/pact/tools/gh-app.mjs`,
-  with its own WARN in the dry run. The install's parser refuses a `TOOLS` line
-  and a `VALUE agent-identity` line that disagree.
+  with its own WARN in the dry run.
 - **Two `env` keys** in `settings.json`: `GIT_CONFIG_GLOBAL`, pointing at the
   gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them under
   `identityEnv` in `.pact-install.json`. The gitconfig includes your own global
@@ -49,6 +48,9 @@ rest:
 - `GIT_CONFIG_GLOBAL` makes a session's `git config --global` write to the agent
   gitconfig, so `gh auth setup-git` swaps the helper out. The next dry run refuses
   until you run setup again.
+- The Windows Node rule guards the Node program only. The helper script, the
+  gitconfig and `NODE_OPTIONS` stay writable by your account, and `setup` writes any
+  Node, so only the next dry run refuses it.
 
 ## What the install checks
 
@@ -58,7 +60,7 @@ With the switch on, before any write:
 - The gitconfig equals the text setup writes, which the install computes with its
   own copy of `gitconfigText` from `gh-app.mjs` (a test holds them equal), under
   its own Node. On Windows the Node must be
-  `C:\Program Files\nodejs\node.exe` (on the system drive); elsewhere, an absolute
+  `C:\Program Files\nodejs\node.exe`; elsewhere, an absolute
   path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
   with the part that differs (node path, include list or other lines) and "re-run
   setup", and refuses on a `no`. It never prints a line of the file. After a new
@@ -88,8 +90,9 @@ first would leave the two `env` keys in `settings.json`, pointing at a gitconfig
 1. For Claude Code, turn the switch off and apply first: `forget` refuses while
    the settings `env` points at the gitconfig.
 2. Delete the app's key in the app's settings on GitHub.
-3. Run `node ~/.claude/pact/tools/gh-app.mjs forget --provider claude`. It revokes
-   the cached tokens and deletes the credentials, the pin entry and the gitconfig.
+3. From the clone, run `node claude/tools/gh-app.mjs forget --provider claude`
+   (the installed copy went with step 1). It revokes the cached tokens and deletes
+   the credentials, the pin entry and the gitconfig.
 4. Uninstall the app, which revokes every live token.
 
 ## A leaked key
@@ -102,13 +105,7 @@ In this order:
 4. Install the app again on all your repos.
 5. Run `gh-app.mjs setup` with the new key. It revokes the cached tokens.
 
-Pushes fail closed in between. No `forget` or switch-off is needed, since the pin
-holds no installation id. Use this order for any suspected leak: a personal account
+Pushes fail closed in between; no `forget` or switch-off is needed. Use this order for any suspected leak: a personal account
 keeps no record of a key's use. After an account compromise, do it for each app,
 then delete every key on the app but the one whose fingerprint setup printed, and
 check its permissions and that its webhook is still off.
-
-## Checks in the tests
-
-`gate/tests/gh-app-gitconfig.test.mjs` runs `git credential fill` against
-temporary configs and a canary stub, on both CI jobs.

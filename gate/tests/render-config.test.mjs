@@ -602,7 +602,9 @@ test('"agent-identity": true adds gh-app after the listed tools, and the tools l
   const on = render(t, homeWith(t, Buffer.from('{"schema": 1, "tools": ["cleaner", "poster"], "settings": {"agent-identity": true}}\n')));
   assert.equal(on.code, 0, on.out);
   assert.match(on.stdout, /^TOOLS poster,cleaner,gh-app$/m, on.out);
-  refusedWith(render(t, homeWith(t, Buffer.from('{"schema": 1, "tools": ["gh-app"], "settings": {"agent-identity": true}}\n'))), 'config-tools', /gh-app cannot be turned on by the tools list/);
+  const refused = render(t, homeWith(t, Buffer.from('{"schema": 1, "tools": ["gh-app"], "settings": {"agent-identity": true}}\n')));
+  refusedWith(refused, 'config-tools', /gh-app cannot be turned on by the tools list/);
+  assert.doesNotMatch(refused.stdout, /^FAIL internal/m, 'an ordinary refusal is not an internal failure');
 });
 // #603 S7 (no numbered claim; the config-value rule's bad case for the identity switch): the switch takes only true or false.
 test('bad case: agent-identity takes no value but true or false', t => {

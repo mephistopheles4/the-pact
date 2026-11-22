@@ -883,7 +883,7 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
     }
   }
   // #603 (S7): the agent-identity switch, and only it, adds gh-app to the tools the render turns on.
-  if (values.some(([k, v]) => k === 'agent-identity' && v === true)) tools = PACT_TOOLS.filter(c => c === 'gh-app' || tools.includes(c));
+  if (tools !== null && values.some(([k, v]) => k === 'agent-identity' && v === true)) tools = PACT_TOOLS.filter(c => c === 'gh-app' || tools.includes(c));
   return ok ? { values, retired, edits, agents, commands, tools, skills } : null;
 }
 

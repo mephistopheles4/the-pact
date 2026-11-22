@@ -1424,16 +1424,16 @@ export function identityEnvPlan(live, on, recorded, wanted) {
   return { set, drop: [], record, conflicts };
 }
 
-/** The Program Files folder on the Windows system drive, from SystemRoot (the install keeps that variable and drops ProgramFiles); undefined without it. */
-const identityProgramFiles = () => (/^[A-Za-z]:/.test(process.env.SystemRoot ?? '') ? `${process.env.SystemRoot.slice(0, 2)}\\Program Files` : undefined);
+/** The one Program Files folder the rule allows. It is fixed, never read from the environment: a caller can set SystemRoot and ProgramFiles to a drive a user may write. */
+const PROGRAM_FILES = 'C:\\Program Files';
 
 /**
  * Whether `p` is a Node the gitconfig may name: an absolute path to a program
  * called node, with no quote or control character. On Windows, where the helper
- * runs, it is also exactly `<drive>:\Program Files\nodejs\node.exe`, a folder only
+ * runs, it is also exactly `C:\Program Files\nodejs\node.exe`, a folder only
  * an administrator writes (S7); elsewhere the helper cannot run, so there is no folder rule.
  */
-export const identityNodeOk = (p, { platform = process.platform, programFiles = identityProgramFiles() } = {}) => {
+export const identityNodeOk = (p, { platform = process.platform, programFiles = PROGRAM_FILES } = {}) => {
   if (typeof p !== 'string' || !/^(?:[A-Za-z]:[\\/]|\/)/.test(p) || !/^node(?:\.exe)?$/i.test(p.split(/[\\/]/).at(-1)) || /["\p{Cc}]/u.test(p)) return false;
   if (platform !== 'win32') return true;
   const flat = x => x.replaceAll('\\', '/').toLowerCase();

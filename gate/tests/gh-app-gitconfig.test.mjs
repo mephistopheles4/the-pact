@@ -30,12 +30,14 @@ function world(t, { helper } = {}) {
   writeFileSync(join(root, 'canary.mjs'), `if (process.argv[2] === 'get') process.stdout.write('username=canary\\npassword=${CANARY}\\n');\n`);
   writeFileSync(join(root, 'stub.mjs'), `if (process.argv[2] === 'get') process.stdout.write('username=x-access-token\\npassword=${STUB}\\n');\n`);
   const node = slash(process.execPath);
-  writeFileSync(join(root, 'system.gitconfig'), `[credential]\n  helper = !"${node}" "${slash(join(root, 'canary.mjs'))}"\n`);
+  // A config value's own double quotes are quoting, so a command with quotes goes in as one quoted, escaped value.
+  const helperValue = path => `"${`!"${node}" "${slash(path)}"`.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
+  writeFileSync(join(root, 'system.gitconfig'), `[credential]\n  helper = ${helperValue(join(root, 'canary.mjs'))}\n`);
   writeFileSync(join(userHome, '.gitconfig'), '[user]\n  name = Owner Own\n  signingkey = OWNERKEY\n[alias]\n  owneralias = status\n');
   let text = identityGitconfigText({ userHome, claudeHome, nodePath: process.execPath, app: APP, xdg: false });
   // The stub stands in for the pact helper in the tests that need a token to come out; the real one fails closed.
   if (helper === 'stub') {
-    const lines = text.split('\n').map(l => (l.startsWith('  helper = ') ? `  helper = !"${node}" "${slash(join(root, 'stub.mjs'))}"` : l));
+    const lines = text.split('\n').map(l => (l.startsWith('  helper = ') ? `  helper = ${helperValue(join(root, 'stub.mjs'))}` : l));
     assert.notEqual(lines.join('\n'), text, 'the helper line was found');
     text = lines.join('\n');
   }
