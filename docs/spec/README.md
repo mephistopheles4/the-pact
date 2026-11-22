@@ -13,4 +13,4 @@ None yet.
 
 ## All specs
 
-None yet.
+- [0001-athanor-pact-tool](0001-athanor-pact-tool.md) — athanor as an opt-in pact tool, installed from npm at a pinned version, with one shared guard hook
