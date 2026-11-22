@@ -17,6 +17,8 @@ poster starts `gh` itself; to gate posting, put a rule on the poster's own
 command. In auto mode, Claude Code's classifier does see the call, and may
 stop a post until the owner allows it.
 
+With an agent app pinned, the poster posts as the app: [poster-app](poster-app.md).
+
 In this page, "a session" is the Claude Code session running the poster, and
 "the owner" is the person whose `gh` account it posts as.
 
@@ -72,12 +74,10 @@ read-back rules, the edit rules and the body file. The schema's own description
 names them.
 
 **When a session dies, its files stay.** Nothing deletes a file the session
-didn't. A lens report kept after a refusal for hidden characters or a live
-environment secret's value is an ordinary, unencrypted file
-in that session's scratch folder, which the session named to the owner in chat
-when it kept the report. If the session is killed before it cleans up, delete
-that file by hand. The report may also stay in the session's saved
-transcript; for a secret, rotating it is the fix, as for posted text.
+didn't. A lens report kept after a refusal sits unencrypted in that session's
+scratch folder, which the session named to the owner in chat: delete it by
+hand. It may also stay in the saved transcript; for a secret, rotating it is
+the fix, as for posted text.
 
 ## Surfaces
 

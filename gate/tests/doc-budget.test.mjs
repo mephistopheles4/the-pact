@@ -22,6 +22,7 @@ const BUDGETS = Object.freeze({
   'docs/agent-identity.md': 900,
   'docs/cleaner.md': 4200,
   'docs/install.md': 8000,
+  'docs/poster-app.md': 600,
   'docs/poster.md': 8300,
   'docs/reference.md': 2200,
   'docs/rule-reasons.md': 1150,
