@@ -321,7 +321,8 @@ when no other row answers the sentence.
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
   can't explain, that is a hard stop: tell me. With an agent app pinned (the
-  rules file's hard stops say which), write to GitHub only through the poster or
+  rules file's hard stops say which; run `gh-app.mjs status` and count the app
+  only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's login. Assigning is the
   one exception: apps can't be assigned, so it stays on my login through plain
   `gh`. The status comment is the one your posting identity wrote; an older one

@@ -171,6 +171,16 @@ export function pinInputFrom({ home, fs }) {
 /** Whether an app counts as pinned: the file is there and the helper is installed. */
 export const isPinned = pinInput => isObject(pinInput) && typeof pinInput.text === 'string' && pinInput.helper === true;
 
+/**
+ * The command line's whole run: the home's pin input, a gh runner that drops
+ * the token variables when an app is pinned, and check(). `spawn` stands in for
+ * the process call in tests.
+ */
+export function checkAtHome({ argv, env, home, fs, tmp, spawn }) {
+  const pinInput = pinInputFrom({ home, fs });
+  return check(argv, makeRun({ env, tmp, spawn, strip: isPinned(pinInput) }), pinInput);
+}
+
 /** The pin file's parsed, checked shape: exactly the fields the helper writes. A stop otherwise, and never the parse error. */
 function parsePin(text) {
   let pin;

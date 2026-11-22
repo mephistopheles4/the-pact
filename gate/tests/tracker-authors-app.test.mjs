@@ -6,10 +6,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { CLAIM_PERMISSIONS, PROVIDERS } from '../../claude/tools/gh-app.mjs';
-import { APP_PERMISSIONS, APP_PROVIDERS, SLUG, check, ghEnv, makeRun, pinInputFrom } from '../tracker-authors-core.mjs';
+import { APP_PERMISSIONS, APP_PROVIDERS, SLUG, check, checkAtHome, ghEnv, makeRun, pinInputFrom, tableCheck } from '../tracker-authors-core.mjs';
 import { GATE, assertFails, assertPasses } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -151,11 +152,28 @@ test('agent app checker: a mix of the owner and the app on one PR is insiders\' 
   });
 }
 
+// #599 C7: with two apps pinned, each app is checked on its own: a mismatched codex record drops codex alone.
+test('agent app checker: with two apps pinned, a mismatched one is dropped and the other still counts', () => {
+  const codex = { app_id: 2000002, slug: 'the-owner-codex', bot_login: 'the-owner-codex[bot]', bot_id: 3000002 };
+  const pin = pinInput(pinOf({ apps: { claude: pinOf().apps.claude, codex } }));
+  const extra = { 'apps/the-owner-codex': JSON.stringify(app({ id: 2000002, owner: { id: 1000002 } })), 'users/the-owner-codex[bot]': JSON.stringify(bot(3000002, 'the-owner-codex[bot]')) };
+  const claudePr = run(prRecords(bot()), extra, pin);
+  assert.ok(insiders(claudePr), claudePr.out);
+  assert.deepEqual(claudePr.out.split('\n').filter(l => l.startsWith('NOTE:')), ['NOTE: the codex app is not counted: its record does not match the pin'], claudePr.out);
+  assert.ok(!insiders(run(prRecords(bot(3000002, 'the-owner-codex[bot]')), extra, pin)), 'the dropped app\'s PR is outsiders\' code');
+});
+
+// #599 C7: the table adapter judges with the apps it is handed.
+test('agent app checker: the table adapter counts a pinned app only when the input names it', () => {
+  const input = apps => ({ kind: 'pr', owner: OWNER, records: prRecords(bot()), ...(apps ? { apps } : {}) });
+  assertPasses(tableCheck(['pull'], input([{ provider: 'claude', bot_id: BOT_ID }])));
+  assertFails(tableCheck(['pull'], input()), ['commit-not-owner', 'opener-not-owner']);
+});
+
 // ------------------------------------------------------------ stops: C7
 
 // #599 C7: each stop prints its fixed line and nothing it read.
 {
-  const base = () => prRecords(bot());
   const rows = [
     { id: 'bot-id-differs', over: { [`users/${BOT}`]: JSON.stringify(bot(OTHER_BOT_ID)) }, fails: ['stop/bot'], why: 'the slug\'s bot has another id than the pin\'s bot_id' },
     { id: 'bot-is-a-user', over: { [`users/${BOT}`]: JSON.stringify(person(BOT, BOT_ID, 'User')) }, fails: ['stop/bot'], why: 'the account at the bot\'s login is not a Bot' },
@@ -167,10 +185,9 @@ test('agent app checker: a mix of the owner and the app on one PR is insiders\' 
     { id: 'bot-read-fails', over: { [FAIL]: `users/${BOT}` }, fails: ['stop/gh'], why: 'a check that cannot run' },
     { id: 'app-record-not-an-object', over: { [`apps/${APP_SLUG}`]: '[]' }, fails: ['stop/shape'], why: 'an app record that is not an object' },
   ];
-  test('agent app checker stops: base passes', () => assertPasses(run(base())));
   for (const row of rows) {
     test(`agent app checker stops: ${row.id}`, () => {
-      const r = run(base(), row.over);
+      const r = run(prRecords(bot()), row.over);
       assertFails(r, row.fails, undefined);
       assert.equal(r.out.split('\n').filter(Boolean).length, 2, r.out);
       assert.doesNotMatch(r.out, /CANARY/, row.why);
@@ -192,6 +209,10 @@ test('agent app checker: a mix of the owner and the app on one PR is insiders\' 
     { id: 'bot-login-not-slug-bot', text: pinOf({ apps: { claude: { ...pinOf().apps.claude, bot_login: 'other[bot]' } } }) },
     { id: 'string-ids', text: pinOf({ owner: { login: OWNER, id: '1000001' } }) },
     { id: 'bad-slug', text: pinOf({ apps: { claude: { ...pinOf().apps.claude, slug: 'a/b', bot_login: 'a/b[bot]' } } }) },
+    { id: 'string-app-id', text: pinOf({ apps: { claude: { ...pinOf().apps.claude, app_id: '2000001' } } }) },
+    { id: 'bad-owner-login', text: pinOf({ owner: { login: 'bad login', id: OWNER_ID } }) },
+    { id: 'owner-extra-field', text: pinOf({ owner: { login: OWNER, id: OWNER_ID, email: 'x' } }) },
+    { id: 'apps-an-array', text: pinOf({ apps: [] }) },
   ];
   for (const row of rows) {
     test(`agent app checker stops: a pin file that is not the pinned shape: ${row.id}`, () => {
@@ -202,7 +223,6 @@ test('agent app checker: a mix of the owner and the app on one PR is insiders\' 
       assert.equal(r.out, 'FAIL stop/pin\nRESULT: fail\n');
     });
   }
-  test('agent app checker stops: a pin file that is the pinned shape does not stop', () => assertPasses(run(prRecords(owner()), {}, pinInput(pinOf()))));
 }
 
 // #599 C7: an issue read checks the pin too, but an app's issue text is data whoever it is.
@@ -243,6 +263,22 @@ test('agent app checker: a pinned run drops the token variables, and an unpinned
   makeRun({ env, tmp: tempDir(t), spawn })('user');
   assert.deepEqual(seen[0], { KEEP: 'x' });
   assert.equal(seen[1].GH_TOKEN, 't');
+});
+
+// #599 C7 (S4): the command line's own run drops the token variables when an app is pinned, and keeps them when none is.
+test('agent app checker: the command line\'s run strips the token variables only with an app pinned', () => {
+  const home = join('/h', 'user');
+  const dir = join(home, '.claude', 'pact');
+  const fsOf = files => ({ existsSync: p => files.has(p), readFileSync: p => files.get(p) });
+  const pinned = new Map([[join(dir, 'github.json'), JSON.stringify(pinOf())], [join(dir, 'tools', 'gh-app.mjs'), '//']]);
+  const unpinned = new Map([[join(dir, 'github.json'), JSON.stringify(pinOf())]]);
+  const envs = [];
+  const spawn = (cmd, args, o) => (envs.push(o.env), { status: 0, stdout: '{}' });
+  const env = { GH_TOKEN: 'CANARY-token', GITHUB_TOKEN: 'CANARY-token', KEEP: 'x' };
+  const tmp = tmpdir();
+  checkAtHome({ argv: ['pr', '7'], env, home, fs: fsOf(pinned), tmp, spawn });
+  checkAtHome({ argv: ['pr', '7'], env, home, fs: fsOf(unpinned), tmp, spawn });
+  assert.deepEqual(envs, [{ KEEP: 'x' }, { GH_TOKEN: 'CANARY-token', GITHUB_TOKEN: 'CANARY-token', KEEP: 'x' }]);
 });
 
 // #599 C7: the pin input is two reads, behind a seam.
