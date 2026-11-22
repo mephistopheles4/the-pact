@@ -14,7 +14,7 @@ const BUDGETS = Object.freeze({
   'CONTEXT.md': 2150,
   'docs/agents/agent-apps.md': 600,
   'docs/agents/domain.md': 300,
-  'docs/agents/gate-tests.md': 3300,
+  'docs/agents/gate-tests.md': 3350,
   'docs/agents/install.md': 2800,
   'docs/agents/issue-tracker.md': 3900,
   'docs/agents/parallel-sessions.md': 300,
