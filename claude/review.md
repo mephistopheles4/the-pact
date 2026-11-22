@@ -236,7 +236,7 @@ when no other row answers the sentence.
   record, and propose a fresh session.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record, as
   your own pick under your own label, never as mine: a one-line why, the goal
-  or free hand you ran under (its work and where it came from, by kind), each
+  you ran under (its work and where it came from, by kind), each
   narrowing I gave there (by the kind of step it keeps), and a flag: the line
   opens `Checkpoint (flagged):`, except the forms below. A pick
   that leaves a security path open is flagged big: in a public record its line
@@ -323,7 +323,7 @@ when no other row answers the sentence.
   one exception: apps can't be assigned, so it stays on my login through plain
   `gh`. The status comment is the one your posting identity wrote; an older one
   by my account stays as it is. A tier or triage label you apply through the app
-  doesn't count: my word in chat sets the tier, and you log it as a checkpoint.
+  doesn't count: my confirmation sets the tier, and you log it as a checkpoint.
 
 ## Lens dispositions
 

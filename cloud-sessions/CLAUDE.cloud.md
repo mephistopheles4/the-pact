@@ -155,7 +155,7 @@ trade-off.
 - **Accepted threat classes** live only in the project's threat model, one
   line each: what it covers, never the steps. A finding that fits one needs
   nothing. A finding that fits none comes to me as a new class, and only a merge
-  I confirm in chat, a checkpoint, adds or widens one. A change that removes a
+  I confirm, a checkpoint, adds or widens one. A change that removes a
   control still comes to me, and so does a change to the threat model's scope.
   With no threat model, flag the risk and record nothing.
 
