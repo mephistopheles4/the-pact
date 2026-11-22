@@ -2804,10 +2804,11 @@ const stoppedApp = (rule, e) => ({
 
 /**
  * One run of the poster that posts as the `claude` app when it is pinned (S8).
- * `io` is `post`'s, with `io.app`: has() says whether `github.json` and the
- * helper beside the poster both exist, load() imports the helper, helperIo(mod)
+ * `io` is `post`'s, with `io.app`: has() says whether `github.json`, the helper
+ * the install put under the home folder and the helper beside the poster all
+ * exist, load() imports the helper, helperIo(mod)
  * is the helper's own io, and makeGh(env) is a gh runner for that environment.
- * With no `io.app`, or either file absent, or no `claude` entry in the pin, it
+ * With no `io.app`, or any file absent, or no `claude` entry in the pin, it
  * is `post`. Otherwise the pin is checked against GitHub's own records and a
  * `post`-set token minted, both before anything is sent; a pin that fails, or a
  * check that cannot run, stops the run, and the run never falls back to the

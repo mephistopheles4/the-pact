@@ -75,7 +75,7 @@ function github({ ownerId = IDS.owner, items = {}, failWrite = null } = {}) {
 
 /** One app-mode setup: the helper's world, the fake GitHub, and the `io` the poster takes. `load` and `has` can be replaced. */
 function setup(t, { hw = helperWorld(t), gh = github(), load, has = () => true, app = true, env = {} } = {}) {
-  const io = { gh: gh.runner({}), env, home: '/srv/home/tester', tmp: '/tmp', user: 'tester', host: 'buildhost' };
+  const io = { gh: gh.runner(env), env, home: '/srv/home/tester', tmp: '/tmp', user: 'tester', host: 'buildhost' };
   if (app) io.app = { has, load: load ?? (async () => helper), helperIo: () => hw.io, makeGh: env => gh.runner(env) };
   return { hw, gh, io };
 }
@@ -196,10 +196,12 @@ test('C6: a helper that cannot load, or throws, and a malformed or refused mint 
   const th = await run(t, throws, 'issue-comment', note);
   assert.ok(!text(th).includes(CANARY) && th.code === 2, text(th));
   // A mint that answers with no token is the poster's own guard: nothing is sent, and no owner fallback.
-  const none = setup(t, { load: async () => ({ ...helper, mintToken: async () => undefined }) });
-  const nr = await run(t, none, 'issue-comment', note);
-  assert.deepEqual(nr.lines, ['REFUSED app/token token', 'NOTE: gh-app said unknown; nothing was sent, and nothing was posted as the owner', 'RESULT: refused 1']);
-  assert.equal(none.gh.writes().length, 0);
+  for (const answer of [undefined, '']) {
+    const none = setup(t, { load: async () => ({ ...helper, mintToken: async () => answer }) });
+    const nr = await run(t, none, 'issue-comment', note);
+    assert.deepEqual(nr.lines, ['REFUSED app/token token', 'NOTE: gh-app said unknown; nothing was sent, and nothing was posted as the owner', 'RESULT: refused 1'], String(answer));
+    assert.equal(none.gh.writes().length, 0);
+  }
   const rows = [
     ['a token that is not a token', w => { w.state.mintOverride = { token: `${CANARY} not a token`, expires_at: '2026-11-21T13:00:00Z' }; }, 'shape'],
     ['an answer with no expiry', w => { w.state.mintOverride = { token: 'ghs_aaaaaaaaaaaaaaaaaaaaaaaa' }; }, 'shape'],

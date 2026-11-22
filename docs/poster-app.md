@@ -10,7 +10,7 @@ token the helper mints for the one repo. With any of those absent, or no
 posting as your `gh` login, and none of this applies: a checkout's copy, with the
 switch off, stays yours. A `github.json` that isn't the pinned shape stops the
 run (`pin/check`) and never reads as owner mode. The home folder is the
-environment's, as for `gh` itself.
+environment's, as for the pin file and the helper.
 
 ## What changes in app mode
 
