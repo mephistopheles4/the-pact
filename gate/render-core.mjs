@@ -284,22 +284,22 @@ const SECURITY_DOUBT = Object.freeze({
 const USAGE_TEMPLATE = n => [
   '- **Usage.** Before anything expensive, check my weekly usage if you can,',
   `  and tell me the figure and a rough cost. When it is above ${n}%, it's a`,
-  '  hard stop. The call to cut or stop work over usage is mine.',
+  '  heavy checkpoint. The call to cut or stop work over usage is mine.',
 ];
 // A setting's project line, for the project rules file: it reads as the lower
 // of the project's value and the user's. `tighter` is the direction a project
 // may move it: 'lower' means a smaller number is stricter.
 const USAGE_PROJECT_LINE = n =>
-  `- **Usage pause.** In this project, it's a hard stop when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+  `- **Usage pause.** In this project, it's a heavy checkpoint when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
 // The 5-hour session limit (#142). It has no default: unset, its part stays
 // empty, so the render is byte-for-byte what it is without the setting.
 const SESSION_TEMPLATE = n => [
   '- **Session usage.** Before anything expensive, also give my 5-hour session',
-  `  figure. When it is above ${n}%, it's a hard stop. If you can't see the`,
+  `  figure. When it is above ${n}%, it's a heavy checkpoint. If you can't see the`,
   '  figure, say so in one line and carry on under the weekly rule.',
 ];
 const SESSION_PROJECT_LINE = n =>
-  `- **Session usage pause.** In this project, it's a hard stop when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+  `- **Session usage pause.** In this project, it's a heavy checkpoint when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
 // `def: null` marks a setting with no default: its part is empty in the
 // source, and a project may set it whatever the user's file says.
 const SETTINGS = new Map([
@@ -337,7 +337,7 @@ const TOOL_PARTS = new Map([
   })],
   ['cleaner', Object.freeze({
     mark: 'tool-cleaner',
-    template: Object.freeze(['- **Remove worktrees only through the cleaner:** a recoverable removal is a checkpoint, any other a hard stop.']),
+    template: Object.freeze(['- **Remove worktrees only through the cleaner:** a recoverable removal is a checkpoint, any other a heavy checkpoint.']),
   })],
 ]);
 
@@ -392,7 +392,7 @@ trade-off.
 - **Accepted threat classes** live only in the project's threat model, one
   line each: what it covers, never the steps. A finding that fits one needs
   nothing. A finding that fits none comes to me as a new class, and only a merge
-  I confirm in chat, a hard stop, adds or widens one. A change that removes a
+  I confirm in chat, a heavy checkpoint, adds or widens one. A change that removes a
   control still comes to me, and so does a change to the threat model's scope.
   With no threat model, flag the risk and record nothing.`;
 

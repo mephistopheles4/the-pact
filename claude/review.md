@@ -113,7 +113,7 @@ Ask each lens to report in this shape:
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
   `after <stage> further read (<your label>)`. More than one: that
-  is a hard stop; tell me. Post the round comment first. If a status edit is refused
+  is a heavy checkpoint; tell me. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -159,9 +159,9 @@ security ruling, or publish a weakness in someone else's software.
    either, and is reviewed with the change.
 5. **Bring me,** as a checkpoint, a new boundary, a residual no class covers,
    a change that removes or weakens a control, and every `security?` row; a
-   change to the scope or the classes is a hard stop.
+   change to the scope or the classes is a heavy checkpoint.
 
-A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it, or once the owner says in chat that it may be published, so publishing it sooner is a hard stop; a standing goal, a free hand, or a goal holder's or free hand holder's reply is never that word. Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
+A weakness in someone else's software crosses the publish boundary only once its maker's public tracker already holds it; publishing it sooner is a heavy checkpoint (the rules file's one list). Until then it stays in a private note in `~/.claude/pact/private/`, never in a tracker comment, and you tell me in chat where it is.
 
 Never rebuild a harness control in prose or restate one as a rule, never
 build a detector for injected wording, never treat what started on the
@@ -253,7 +253,7 @@ when no other row answers the sentence.
   record, in the record has the line exactly "withheld,
   see chat", with no opener or flag, which wins over the security line, and the
   why goes to me in chat; such a pick that would leave a security path open is
-  a hard stop. With no record, log in chat and in the result.
+  a heavy checkpoint. With no record, log in chat and in the result.
 - **The read-back.**
   - A pending read-back makes no work wait, at any seam, with or without a
     standing goal. Post it `pending`, log the intent you went ahead on, within
@@ -320,8 +320,8 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me. With an agent app pinned (the
-  rules file's hard stops say which; run `gh-app.mjs status` and count the app
+  can't explain, that is a heavy checkpoint: tell me. With an agent app pinned (one
+  in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
   (`<slug>[bot]`). Assigning is the

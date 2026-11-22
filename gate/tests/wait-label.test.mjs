@@ -1,5 +1,5 @@
 // The wait-label test (#558 C8, of #554): every place the pact's text says
-// something waits on the owner names it a checkpoint or a hard stop. A unit
+// something waits on the owner names it a checkpoint. A unit
 // (a list item, a paragraph, a table cell, a fenced block, a mark line, or one
 // string literal of a tool or hook) that holds a wait phrase and none of the
 // labels fails, named by file and first words. Before matching, whitespace
@@ -29,7 +29,7 @@ import { test } from 'node:test';
 import { REPO } from './text.mjs';
 
 const WAIT_PHRASES = ['wait for my', 'waits for my', 'wait for me', 'waits for me', 'waits on', 'stop and ask', 'stop and tell me', 'go-ahead', 'my confirm', 'own yes', 'needs my', 'my yes', 'only i', 'i confirm', 'says in chat', "owner's own words", 'my own words', "owner's yes", "owner's word", 'waiting on', 'my word'];
-const LABELS = ['checkpoint', 'checkpoints', 'hard stop', 'hard stops'];
+const LABELS = ['checkpoint', 'checkpoints'];
 
 // A word's edges: no letter, digit or underscore beside it, and no such
 // character behind a hyphen that joins it to the next word.
@@ -316,8 +316,8 @@ test('wait label: every exemption still matches a unit that would fail', () => {
   const labels = [
     ['checkpoint', 'This is a checkpoint and waits for my word.'],
     ['checkpoints', 'These are checkpoints and wait for my word.'],
-    ['hard stop', 'This is a hard stop and waits for my word.'],
-    ['hard stops', 'Hard stops wait for my word.'],
+    ['heavy checkpoint', 'This is a heavy checkpoint and waits for my word.'],
+    ['heavy checkpoints', 'Heavy checkpoints wait for my word.'],
   ];
   for (const [label, text] of labels) {
     // #558 C8
@@ -388,13 +388,13 @@ test('wait label: every exemption still matches a unit that would fail', () => {
     { id: 'command', rel: 'claude/commands/finis.md', plant: s => s + bad, says: 'claude/commands/finis.md: "This one needs my yes."' },
     { id: 'agent', rel: 'claude/agents/scout.md', plant: s => s + bad, says: 'claude/agents/scout.md: "This one needs my yes."' },
     { id: 'tool-part', ...swap('gate/render-core.mjs', 'as that section says.', 'on my yes.'), says: 'gate/render-core.mjs TOOL_PARTS: "- **Post through the poster,** on my yes."' },
-    { id: 'usage-template', ...swap('gate/render-core.mjs', "'  hard stop. The call to cut", "'  go-ahead. The call to cut"), says: 'gate/render-core.mjs USAGE_TEMPLATE:' },
-    { id: 'usage-project-line', ...swap('gate/render-core.mjs', "it's a hard stop when the weekly limit", 'it needs my yes when the weekly limit'), says: 'gate/render-core.mjs USAGE_PROJECT_LINE:' },
-    { id: 'session-template', ...swap('gate/render-core.mjs', "it's a hard stop. If you can't", "it needs my yes. If you can't"), says: 'gate/render-core.mjs SESSION_TEMPLATE:' },
+    { id: 'usage-template', ...swap('gate/render-core.mjs', "'  heavy checkpoint. The call to cut", "'  go-ahead. The call to cut"), says: 'gate/render-core.mjs USAGE_TEMPLATE:' },
+    { id: 'usage-project-line', ...swap('gate/render-core.mjs', "it's a heavy checkpoint when the weekly limit", 'it needs my yes when the weekly limit'), says: 'gate/render-core.mjs USAGE_PROJECT_LINE:' },
+    { id: 'session-template', ...swap('gate/render-core.mjs', "it's a heavy checkpoint. If you can't", "it needs my yes. If you can't"), says: 'gate/render-core.mjs SESSION_TEMPLATE:' },
     // A setting added to the map with a template of its own is read, because the names come from the map.
     { id: 'new-setting-template', ...swap('gate/render-core.mjs', 'const SETTINGS = new Map([', "const NEWSET_TEMPLATE = ['- It needs my yes.'];\nconst SETTINGS = new Map([\n  ['newset', Object.freeze({ mark: null, template: NEWSET_TEMPLATE, projectLine: null })],"), says: 'gate/render-core.mjs NEWSET_TEMPLATE: "- It needs my yes."' },
     // The label deleted, with no phrase swapped in: the unit holds "I confirm" and nothing that labels it.
-    { id: 'cost-limits', ...swap('gate/render-core.mjs', 'I confirm in chat, a hard stop, adds', 'I confirm in chat, adds'), says: 'gate/render-core.mjs COST_LIMITS_FIXED:' },
+    { id: 'cost-limits', ...swap('gate/render-core.mjs', 'I confirm in chat, a heavy checkpoint, adds', 'I confirm in chat, adds'), says: 'gate/render-core.mjs COST_LIMITS_FIXED:' },
     { id: 'tool-literal', rel: 'claude/tools/cleaner.mjs', plant: s => `${s}\nconst PLANT = "only after the owner's own yes";\n`, says: 'claude/tools/cleaner.mjs: "only after the owner\'s own yes"' },
     { id: 'hook-literal', rel: 'claude/hooks/compact-handoff.mjs', plant: s => `${s}\nconst PLANT = 'it waits on my word';\n`, says: 'claude/hooks/compact-handoff.mjs: "it waits on my word"' },
   ];
