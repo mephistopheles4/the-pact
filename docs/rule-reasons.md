@@ -25,12 +25,11 @@ This file is never installed.
 | Checkpoint the seams | It weighs hand-offs and decisions, not only tool actions, by how hard each is to undo. The harness's confirm-first rule covers tool actions only. |
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
 | How Claude helps | What stays the owner's, and where the record's and the tools' how-to lives. |
-| Checkpoints | What the rules keep for the owner is logged and flagged, so work runs on and the owner reviews after. Nothing else logs it or pins a merge to its head. |
-| Checkpoints | The short list of acts too costly to take back. At level 2 they wait for the owner's confirmation in any form; at level 3 they are logged and flagged. Nothing in the harness tells a costly act from a cheap one. |
+| Checkpoints | What the rules keep for the owner is the session's own pick, logged and flagged, so work runs on and the owner reviews after; the pact adds no stop of its own, and Claude's permission prompts and classifier blocks still stop a session. Nothing else logs it or pins a merge to its head. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
 | Keep the record | Points to review.md's Posting section, which no tool loads. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent. |
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
-| Remove worktrees only through the cleaner | It can't tell the owner's yes: a recoverable removal is a checkpoint, any other deletion a checkpoint that waits (the Safety quality; `AGENTS.md`, Reviewing a change here). |
+| Remove worktrees only through the cleaner | It can't tell the owner's yes: each removal is a checkpoint (the Safety quality; `AGENTS.md`, Reviewing a change here). |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |

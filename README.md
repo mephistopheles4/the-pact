@@ -20,7 +20,7 @@ When you build something that matters, what you say to an agent deserves the car
 
 ## Four moves
 
-The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. They are my practices, with or without AI, and I take each up as the work needs it. The agent follows my lead, and when a move seems to drop, it nudges once, lightly. Two guards sit under the moves: when the work goes round twice or leaves the plan, name the options and take a logged pick; stop and ask when it is hard to reverse or can no longer be explained; and wait before expensive work when weekly usage is high. Under a standing goal I set, the session keeps going on its judgment, logs each decision for me to review, and parks the work before usage runs out. A session the goal's holder starts for it holds no goal: its hard stops wait for my own words in its chat, and it takes its own logged pick on each checkpoint; my words in any chat narrow the goal. A free hand no longer widens what a session decides, since every checkpoint is its own pick, and it never clears a hard stop.
+The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. They are my practices, with or without AI, and I take each up as the work needs it. The agent follows my lead, and when a move seems to drop, it nudges once, lightly. Two guards sit under the moves: when the work goes round twice or leaves the plan, name the options and take a logged pick; and wait before expensive work when weekly usage is high. Under a standing goal I set, the session keeps going on its judgment, logs each decision for me to review, and parks the work before usage runs out. A session the goal's holder starts for it holds no goal: it takes its own logged pick on each checkpoint; my words in any chat narrow the goal. A free hand no longer widens what a session decides, since every checkpoint is its own pick, and it never clears a checkpoint.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-01-moves-dark.svg">
@@ -34,7 +34,7 @@ The pact is a small, runnable version of my [engineering playbook](https://ayman
 |---|---|---|
 | 1. Sense the work | How big, how risky, and ready to plan? | Proposes a tier, with a line of why. |
 | 2. Think before doing | Get the intent clear enough to defend. | Prototypes when the intent is still forming. |
-| 3. Checkpoint the seams | Costly work waits for a checkpoint. | Builds what it was given, test-first. |
+| 3. Checkpoint the seams | Costly work gets a checkpoint: the agent's own logged pick, reviewed after. | Builds what it was given, test-first. |
 | 4. Stay the owner | Verify it, and know when to stop it. | Runs the tests and reviews. Brings decisions. |
 
 As the work needs it.
@@ -107,7 +107,7 @@ Their reports go into the work's record word for word. The agent sorts the findi
 | `claude/agents/` | The lenses, in pairs, and `scout`, the search helper |
 | `claude/commands/` | The pact commands: `/scriptorium`, always installed, and `/make-it-so`, `/finis` and `/scry`, when you list them |
 | `claude/hooks/` | The auto-compact hook, installed by default (turn it off with `auto-compact-window` set to `0`): it asks a session to keep a hand-off file and puts it back after compaction. It needs Claude Code 2.1.318 or later |
-| `claude/tools/` | The pact tools, off unless you list them: today the poster, which posts free text to GitHub, edits what a session posted, and reads it back, and the cleaner, which removes leftover worktrees and their branches: a removal it can undo is a checkpoint, and any other is a hard stop that waits for your yes |
+| `claude/tools/` | The pact tools, off unless you list them: today the poster, which posts free text to GitHub, edits what a session posted, and reads it back, and the cleaner, which removes leftover worktrees and their branches: each removal is a checkpoint |
 | `familiars/` | Empty: the agents' contracts are retired |
 | `gate/` | The install gate: the pact checks itself before it installs |
 | `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON, and its presets; it installs with `/scriptorium` |

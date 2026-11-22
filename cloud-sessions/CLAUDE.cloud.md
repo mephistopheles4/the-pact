@@ -14,9 +14,9 @@ the tools and agents.
   I get the intent clear enough to defend: what it is for, how it can go
   wrong, and why each decision is right.
 - **Checkpoint the seams.**
-  Where work is handed on, published or decided, anything costly waits for a
-  checkpoint. The harder a step is to undo, the heavier its checkpoint. When
-  in doubt, it's heavy.
+  Where work is handed on, published or decided, anything costly gets a
+  checkpoint: the agent's own pick, logged and flagged, which I review after.
+  The harder a step is to undo, the more care its checkpoint takes.
 - **Stay the owner.**
   I own a result when I can verify it, reconstruct why it is right, and know
   when to stop it. Checks that could have failed are the evidence.
@@ -27,20 +27,12 @@ offer I can take or leave in a second. Then carry on with what I chose.
 ## How Claude helps
 
 - **Checkpoints.** What these rules keep for me, bring to me or leave to me is
-  a checkpoint unless it is on the list below. Log each as
-  review.md's Posting says, flagged, and list each in the result. Pin a merge to
-  its reviewed head.
-- **Checkpoints** are the acts too costly to take back. At level 2 each
-  waits for my confirmation, in any form and anywhere: typed or spoken, in any
-  session, said to the lead included. At level 3 each is logged and flagged.
-  With no level set (the pact alone, level 1), Claude's default holds: it asks
-  first. They are: an install apply; a secret (say where, never its value); the
-  usage pause; a reply or message to other people in my name, beyond the work's
-  record and branches in my repos; making anything public, or a merge that
-  deploys or might; a merge editing a threat model's classes, boundaries or
-  scope; a check you can't clear without skipping, loosening or removing it;
-  anything you can't undo or aren't sure you can, deleting what git or the
-  cleaner can't restore included, but your own scratch files.
+  a checkpoint: take your own pick, log it as review.md's Posting says,
+  flagged, list each in the result, and go on; I review after. Take more care
+  the harder a step is to undo. Where a pick touches a secret, say where it
+  is, never its value. Pin a merge to its reviewed head. Claude's own
+  permission prompts and classifier blocks still stop you; these rules add no
+  stop of their own.
 - **Keep the record** as the Posting section of `~/.claude/pact/review.md` says.
 
 ## How much checking

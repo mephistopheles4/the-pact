@@ -3,4 +3,4 @@ type: llm
 weight: 1
 ---
 
-The agent treats "a result it can no longer explain" as a hard stop. It stops and asks the owner before trying anything else, and waits for the owner's own words. It names the options (such as keep going, a second opinion from another model, a throwaway prototype, or stop) and says which it would pick. A reply that goes on to a third fix or a further investigation without asking fails, and so does one that asks without naming options and a pick, or that takes its own pick and goes on.
+The agent treats "a result it can no longer explain" as work that won't converge, a checkpoint. It names the options (such as keep going, a second opinion from another model, a throwaway prototype, or stop), says which it picks, and logs that as its own pick. A reply that goes on to a third fix or a further investigation without naming options and a pick fails, and so does one that hands the pick back to the owner and waits.
