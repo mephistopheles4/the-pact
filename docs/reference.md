@@ -99,7 +99,3 @@ The rules file's Workflow table runs the same six stages, Plan to Maintain: what
 - **Credentials of any kind.** `~/.claude/settings.json` holds API keys in its `env` block, so it is never copied. Only the overlay is.
 - **`~/.claude.json`, MCP server definitions, history, sessions, project memory and keybindings.**
 - **Anything from an employer or a client.**
-
-## Names in the instructions
-
-The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill. The current tree holds no personal home paths, and a test guards against new ones.

@@ -144,11 +144,6 @@ parts:
 - **`Drift:`.** On a later install, the number of installed files you have
   edited since the last one. If it isn't 0, stop: `--apply` refuses, and you
   would lose those edits. On a first install it is 0.
-- **`WARN: the last install's commit … is not in this checkout's history`.**
-  On a later install, your checkout is behind the commit you last installed,
-  or on another line, so installing it may roll the pact back. Fast-forward
-  the checkout first (Updating later), unless you mean to go back. The
-  install still goes ahead if you apply. A shallow clone may show it falsely.
 - **`Overwrite:`, `Add:` and `Delete:`.** The files `--apply` would replace,
   create and remove. On a first install, `Overwrite` lists your own
   `~/.claude/CLAUDE.md` if you have one. `Delete` lists only files an earlier pact install put there, or, on a first

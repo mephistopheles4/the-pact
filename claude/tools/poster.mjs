@@ -93,9 +93,9 @@ const REQ = 'req';
 const OPT = 'opt';
 const BYKIND = 'kind';
 const COMMON_FIELDS = { repo: REQ, as: OPT, signer: REQ, body_file: REQ };
-const CREATE_FIELDS = { kind: REQ, quote: BYKIND, intent: BYKIND };
-/** An edit's quote and intent: both or neither, and the item decides which (S6.1). */
-const EDIT_ASK = { quote: OPT, intent: OPT };
+const CREATE_FIELDS = { kind: REQ, quote: BYKIND, intent: BYKIND, intent_skip: BYKIND };
+/** An edit's quote and intent (or the intent's skip reason): the quote with one of the two, or none of them, and the item decides which (S6.1). */
+const EDIT_ASK = { quote: OPT, intent: OPT, intent_skip: OPT };
 
 /**
  * Each surface's own post fields: `req` is required, `opt` optional, `kind`
@@ -303,6 +303,9 @@ export const SCHEMA = Object.freeze({
         corrected: { type: 'string', minLength: 1, maxLength: 2000 },
       },
     },
+    // The one-line reason a post carries no Understood intent: its own field, never part of `intent` (PACT-48).
+    // No leading or trailing space: the item is read back as a skipped one only from `Skipped: ` and a non-space (PACT-48).
+    intent_skip: { type: 'string', minLength: 1, maxLength: 200, pattern: '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$' },
     body_file: { type: 'string', pattern: BODY_FILE_RE.source },
     reason: { type: 'string', minLength: 1, maxLength: 200, pattern: ONE_LINE_RE_SOURCE },
   },
@@ -596,17 +599,24 @@ function postRules(doc, surface, now) {
   }
   const edit = isEdit(surface);
   const kind = doc.kind;
+  // The reading of the owner's words, or the reason there is none: one of the two, never both (PACT-48).
+  const reading = has('intent') || has('intent_skip');
+  if (has('intent') && has('intent_skip')) out.push({ rule: 'post/field', where: 'intent_skip' });
   if (edit) {
-    // An edit carries both quote and intent or neither; whether it may is the item's to say (S6.1).
-    for (const name of ['quote', 'intent']) if ((has('quote') || has('intent')) && !has(name)) out.push({ rule: 'post/missing', where: name });
+    // An edit carries the quote with its reading, or neither; whether it may is the item's to say (S6.1).
+    if ((has('quote') || reading) && !has('quote')) out.push({ rule: 'post/missing', where: 'quote' });
+    if ((has('quote') || reading) && !reading) out.push({ rule: 'post/missing', where: 'intent' });
   } else {
     const row = typeof kind === 'string' && Object.hasOwn(KINDS, kind) ? KINDS[kind] : null;
     if (row && !row.surfaces.includes(surface)) out.push({ rule: 'post/kind', where: 'kind' });
     if (!row || !row.surfaces.includes(surface)) return out;
     if (row.quoted) {
-      for (const name of ['quote', 'intent']) if (!has(name)) out.push({ rule: 'post/missing', where: name });
+      if (!has('quote')) out.push({ rule: 'post/missing', where: 'quote' });
+      if (!reading) out.push({ rule: 'post/missing', where: 'intent' });
+      // A decision's reading is a read-back the owner answers, so it never skips one.
+      if (kind === 'decision' && has('intent_skip')) out.push({ rule: 'post/field', where: 'intent_skip' });
     } else {
-      for (const name of ['quote', 'intent']) if (has(name)) out.push({ rule: 'post/field', where: name });
+      for (const name of ['quote', 'intent', 'intent_skip']) if (has(name)) out.push({ rule: 'post/field', where: name });
     }
     if (has('answers') && kind !== 'decision' && fields.answers !== undefined) out.push({ rule: 'post/field', where: 'answers' });
     if (typeof doc.signer === 'string') {
@@ -615,7 +625,8 @@ function postRules(doc, surface, now) {
     }
     if (!row.quoted) return out;
   }
-  if (!Array.isArray(doc.quote) || !isObject(doc.intent)) return out;
+  if (typeof doc.intent_skip === 'string' && intentOwned(doc.intent_skip)) out.push({ rule: 'post/owned-line', where: 'intent_skip' });
+  if (!Array.isArray(doc.quote)) return out;
 
   doc.quote.forEach((q, i) => {
     const at = `quote[${i}]`;
@@ -630,6 +641,7 @@ function postRules(doc, surface, now) {
   });
 
   const { intent } = doc;
+  if (!isObject(intent)) return out;
   if (edit) {
     // On an edit the read-back's move is the item's to judge (S6.2); the corrected text belongs to the corrected status alone, and that status needs it.
     if (intent.status === 'corrected' && !Object.hasOwn(intent, 'corrected')) out.push({ rule: 'post/missing', where: 'intent.corrected' });
@@ -693,6 +705,9 @@ const intentBlock = intent => {
   return `## Understood intent\n\n${text}\n\n${readBack(intent)}`;
 };
 
+/** The intent block of a post that skips the reading (PACT-48): the heading and the reason, with no read-back line. */
+const skippedBlock = reason => `## Understood intent\n\nSkipped: ${reason}`;
+
 /**
  * The parts of a body that hold the owner's ask, each with the field it names
  * (S5.1 1 to 3): the decision mark and `Answers:` line, `## The ask` with each
@@ -711,7 +726,7 @@ function askSegments(p, blankQuotes = false) {
   if (p.quote !== undefined) {
     segments.push({ where: 'quote', text: '## The ask' });
     p.quote.forEach((q, i) => segments.push({ where: `quote[${i}]`, text: `${quoteLines(q.text, blankQuotes)}\n\n${sourceLine(q)}` }));
-    segments.push({ where: 'intent', text: intentBlock(p.intent) });
+    segments.push({ where: 'intent', text: p.intentSkip === undefined ? intentBlock(p.intent) : skippedBlock(p.intentSkip) });
   }
   return segments;
 }
@@ -791,6 +806,7 @@ export function buildPlan(parsed, now = new Date(), heard = false) {
   if (doc.answers !== undefined) plan.answers = doc.answers;
   if (doc.quote !== undefined) plan.quote = doc.quote;
   if (doc.intent !== undefined) plan.intent = doc.intent;
+  if (doc.intent_skip !== undefined) plan.intentSkip = doc.intent_skip;
   plan.signer = doc.signer;
   if (doc.reason !== undefined) plan.reason = doc.reason;
 
@@ -807,6 +823,7 @@ export function buildPlan(parsed, now = new Date(), heard = false) {
   if (isObject(doc.intent)) {
     for (const name of ['text', 'corrected']) if (typeof doc.intent[name] === 'string' && hidesAhead(doc.intent[name])) plan.late.push({ rule: 'text/hidden-line', where: `intent.${name}` });
   }
+  if (typeof doc.intent_skip === 'string' && hidesAhead(doc.intent_skip)) plan.late.push({ rule: 'text/hidden-line', where: 'intent_skip' });
 
   plan.sessionPart = body.text;
   plan.reasons = isEdit(surface) ? [reasonLine(plan.reason, plan.signer)] : [];
@@ -2269,7 +2286,11 @@ export function askItem(body) {
   let r = -1;
   for (let j = h + 2; j < lines.length && r < 0; j += 1) {
     if (READBACK_RE.test(lines[j])) r = j;
-    else if (FENCE_OPEN_RE.test(lines[j])) return null;
+    else if (FENCE_OPEN_RE.test(lines[j])) break;
+  }
+  // A skipped item (PACT-48): the heading, its one-line reason, a blank line, and no read-back line before the first fence or the end, so a reading that opens with "Skipped:" is never one.
+  if (r < 0 && /^Skipped: \S/.test(lines[h + 2] ?? '') && lines[h + 3] === '') {
+    return { text, mark, answers, status: 'skipped', comment: undefined, corrected: undefined, intent: lines[h + 2].slice('Skipped: '.length) };
   }
   if (r < 0 || lines[r - 1] !== '') return null;
   const status = lines[r].includes('not yet') ? 'pending' : lines[r].includes('corrected in') ? 'corrected' : 'confirmed';
@@ -2290,6 +2311,17 @@ export function askItem(body) {
  */
 function askChecks(plan, ask) {
   const { intent } = plan;
+  // A skipped item stays as it is: the edit must carry its own skip reason, and an item with a reading takes no skip reason (PACT-48).
+  if (ask.status === 'skipped' || plan.intentSkip !== undefined) {
+    if (ask.status !== 'skipped' || plan.intentSkip === undefined) return { refusals: [{ rule: 'edit/ask', where: 'intent' }] };
+    let at = 0;
+    for (const seg of askSegments({ ...plan, mark: ask.mark, answers: ask.answers })) {
+      const want = lf(seg.text);
+      if (!ask.text.startsWith(want, at) || !ask.text.startsWith('\n\n', at + want.length)) return { refusals: [{ rule: 'edit/ask', where: seg.where }] };
+      at += want.length + 2;
+    }
+    return { refusals: [], move: false };
+  }
   const comment = intent.comment === undefined ? undefined : String(intent.comment);
   const kept = intent.status === ask.status;
   const status = [];
@@ -2626,10 +2658,35 @@ function trackerChecks(plan, login, io, ctx) {
   return { refusals };
 }
 
-const refused = refusals => ({
-  code: 2,
-  lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...(refusals.some(r => r.rule === 'usage/unknown-option') ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${refusals.length}`],
+/**
+ * The one NEXT line each edit refusal and each content-scan refusal earns
+ * (PACT-48): what the session does instead, in fixed words. It names no field
+ * value, path or text, so a refusal's output still carries none.
+ */
+export const NEXT_FOR = Object.freeze({
+  'edit/author': 'NEXT: the poster edits only an item its own login wrote. Post a new comment instead, or ask the owner to edit the item by hand.',
+  'edit/target': "NEXT: the item isn't where the post says. Check the issue, pull request and comment numbers against the item's page and post again with the right ones. An issue number that is a pull request's, or a thread's first comment, can't be edited here.",
+  'edit/unsigned': 'NEXT: the item and the new body must each carry exactly one `Signed: <signer>` line for this post\'s signer. Edit only an item you signed with that signer. For an item posted unsigned, post a new comment, or ask the owner to type the fix on GitHub.',
+  'edit/record': 'NEXT: a review record stays as it was posted. Post the correction as a new comment.',
+  'edit/decision': 'NEXT: a body holding the words "owner decision" is never edited, even a quote of them. Post a new comment instead.',
+  'edit/leak': "NEXT: the item holds a hidden character or a live secret's value, and GitHub's history keeps every version, so an edit can't remove it. Don't edit it: tell the owner, in chat, which item it is, and never the value.",
+  'edit/reasons': "NEXT: the poster adds the Edited: line and carries the item's own forward. Take every Edited: line, and any comment or fold that hides one, out of body_file, then post again.",
+  'edit/ask': "NEXT: an ask item's quote and intent must be the item's own, word for word. Rebuild them from the posted item, never from a kept file, or post a new comment instead.",
+  'edit/status': "NEXT: a read-back moves only from pending to confirmed or corrected, and the move names the owner's decision comment in intent.comment. To leave it, send the item's own status, comment and corrected text unchanged.",
+  'edit/confirm': "NEXT: intent.comment must be this login's own decision comment on this item's issue or pull request, an ask item the owner confirmed in chat that names this item in Answers:. Post that decision first, then edit.",
+  'post/missing intent': "NEXT: a post with a quote needs its Understood intent: give `intent` ({ text, status }), what you took the owner's words to mean. If there is nothing to read into them, give `intent_skip` instead, one line saying why, and no `intent`.",
+  'post/field intent_skip': 'NEXT: give `intent` or `intent_skip`, never both, and no `intent_skip` on a decision or on a post with no quote. Keep the one that fits and post again.',
+  'secret/env': "NEXT: remove the value from the named field and post again; the line names the variable, never the value. A lens report stays as it is: tell the owner where it is, in chat, and don't post it.",
+  'text/hidden': 'NEXT: remove the hidden character from the named field and post again. A lens report stays as it is: tell the owner where it is, in chat, and don\'t post it.',
 });
+
+const refused = refusals => {
+  const next = [...new Set(refusals.map(r => NEXT_FOR[`${r.rule} ${r.where}`] ?? NEXT_FOR[r.rule]).filter(Boolean))];
+  return {
+    code: 2,
+    lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...next, ...(refusals.some(r => r.rule === 'usage/unknown-option') ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${refusals.length}`],
+  };
+};
 
 /** The runner for reads: the owner's own gh in app mode, where `io.gh` carries the app's token, else the one gh (#599, S1). */
 const reader = io => io.read ?? io.gh;
@@ -2658,6 +2715,7 @@ function prepare(argv, io, app) {
       fields.push({ field: 'intent.text', text: plan.intent.text });
       if (plan.intent.corrected !== undefined) fields.push({ field: 'intent.corrected', text: plan.intent.corrected });
     }
+    if (plan.intentSkip !== undefined) fields.push({ field: 'intent_skip', text: plan.intentSkip });
     if (plan.reason !== undefined) fields.push({ field: 'reason', text: plan.reason });
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env };

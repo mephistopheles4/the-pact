@@ -429,6 +429,7 @@ test('shell: --skips passes when the run skips exactly the listed tests, read by
   assert.equal(r.code, 0, r.stderr);
   assert.match(r.stdout, /planted pass/, 'the visible reporter still prints');
   assert.equal(r.last, 'RESULT: full tier, 1 files, pass');
+  assert.doesNotMatch(r.stderr, /^NEXT:/m, 'a passing run prints no next step');
 });
 for (const [label, files, says] of [
   ['skips a test the list lacks', { 'a.test.mjs': SKIPPING, 'skips.txt': '# only one\na.test.mjs inner skip\n' }, /^skip not in the list: a\.test\.mjs planted "skip" & <more>$/m],
@@ -440,6 +441,8 @@ for (const [label, files, says] of [
     const r = runIn(p, ['full', '--skips', join(p.tests, 'skips.txt')]);
     assert.equal(r.code, 1, r.stderr);
     assert.match(r.stderr, says);
+    // PACT-48: the failure names its next step, so no rule needs to.
+    assert.match(r.stderr, /^NEXT: edit gate\/tests\/windows-skips\.txt as a reviewed change: add each line "skip not in the list" names, remove each "skip in the list but not seen" names\. A skip of a test that guards the installer's link, path or file handling goes to the owner, not into the list\.$/m);
     assert.match(r.last, /^RESULT: full tier, 1 files, fail \(the skips differ from the list: \d+ not listed, \d+ not seen\)$/);
   });
 }

@@ -44,14 +44,6 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   runner): `athanor run` runs `full`, and
   `athanor run fast` runs `fast`. Run on the host only when athanor can't
   run.
-- **A hook holds you to that** (`.claude/settings.json`, ADR 0104): while
-  `athanor --version` works, it refuses a host `fast`, `full` or `changed`
-  run, and `changed` has no fallback. When athanor can't run, `fast` or `full` take
-  `--host-fallback='<reason>'` on the same command,
-  quoted so PowerShell keeps it one argument: a short reason in your own
-  plain words (no path, token or pasted error text). Say in your report that
-  you used the fallback. The runner prints the reason.
-  [The hook](docs/agents/gate-tests.md#the-hook).
 - **While building, run `athanor run fast`.**
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
   locally after a rebase or merge that brought in other work, and after a
@@ -77,14 +69,6 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## In the same change
 
-- After a change to `claude/`, `familiars/` or the templates, run
-  `$env:NODE_OPTIONS = $null; node cloud-sessions/gen.mjs` in PowerShell, or
-  `env -u NODE_OPTIONS node cloud-sessions/gen.mjs` in a POSIX shell. Read
-  every change to `cloud-sessions/` closely: it is published and runs as root.
-- After a change to the pact text (`claude/review.md`, the commands and the
-  settings overlay included), the renderer's lists, the example blocks or a
-  preset, run `node builder/build.mjs` to refresh
-  [`builder/scriptorium.html`](builder/scriptorium.html).
 - After a change to the pact text, the builder or
   `builder/presets/level-3-full.json`, run `node builder/default-config.mjs`
   to refresh [`builder/default-config/`](builder/default-config/), the

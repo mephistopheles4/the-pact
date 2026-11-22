@@ -8,6 +8,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { NEXT_FOR } from '../../claude/tools/poster.mjs';
 import { postOld } from './poster-post.mjs';
 import { assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
@@ -241,7 +242,7 @@ test('the prose refusals come after the scan and the table check, before any not
   const head = ['### Lens dispositions', '', '| Finding | Lens | Disposition | Rerun |', '| --- | --- | --- | --- |'];
   const wrapped = ['', 'A paragraph that stops here', 'and carries on.', ''];
   const few = runBody({ 'body.md': [...head, '| new a | b | changed | c |', ...wrapped, hidden].join('\n') }, t);
-  assert.deepEqual(few.real.lines, ['REFUSED text/hidden body 10:1', 'REFUSED table/disposition body 5:15', 'REFUSED text/hard-wrap body 8:1', 'RESULT: refused 3']);
+  assert.deepEqual(few.real.lines, ['REFUSED text/hidden body 10:1', 'REFUSED table/disposition body 5:15', 'REFUSED text/hard-wrap body 8:1', NEXT_FOR['text/hidden'], 'RESULT: refused 3']);
   const many = runBody({ 'body.md': [...head, ...Array(60).fill('|'), ...wrapped].join('\n') }, t);
   assert.equal(many.real.lines.length, 53, many.out);
   assert.equal(many.real.lines[50], 'REFUSED text/hard-wrap body 67:1');

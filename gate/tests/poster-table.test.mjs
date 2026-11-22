@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { DISPOSITIONS, scan, tableCheck } from '../../claude/tools/poster.mjs';
+import { DISPOSITIONS, NEXT_FOR, scan, tableCheck } from '../../claude/tools/poster.mjs';
 import { postOld } from './poster-post.mjs';
 import { REPO, assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
@@ -173,7 +173,7 @@ test('a real post with a broken table is refused before any gh call', t => {
 test('with lone carriage returns, the scan and the table check name the same lines', t => {
   const hidden = String.fromCharCode(0x200b) + 'x';
   const r = runBody({ 'body.md': [LABEL, '', hidden, HEADER, SEP, '| new a | b | changed | c |', ''].join('\r') }, t);
-  assert.deepEqual(r.real.lines, ['REFUSED text/hidden body 3:1', 'REFUSED table/disposition body 6:15', 'RESULT: refused 2']);
+  assert.deepEqual(r.real.lines, ['REFUSED text/hidden body 3:1', 'REFUSED table/disposition body 6:15', NEXT_FOR['text/hidden'], 'RESULT: refused 2']);
 });
 
 // #280 C7, ADR 0076: a body full of broken rows names the first fifty and counts the rest, so the result line stays in view.
