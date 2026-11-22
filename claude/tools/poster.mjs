@@ -1959,11 +1959,13 @@ const LINE_BREAKS_RE = new RegExp(`[${cp(0x85)}${cp(0x2028)}${cp(0x2029)}]`, 'g'
 /**
  * gh's stderr as one line: its first line, JSON-escaped and capped. A line
  * that trips a scan rule, such as one holding a live environment secret's
- * value, is withheld and only the rule is named.
+ * value, is withheld and only the rule is named. The scan reads the whole
+ * line, so a secret longer than the cap, or across it, is still seen.
  */
 export function saidLine(stderr, ctx) {
-  const line = String(stderr ?? '').split(/\r?\n/)[0].slice(0, 300);
-  const rules = [...new Set(scan([{ field: 'stderr', text: line }], { ...ctx, surface: null }).map(r => r.rule))];
+  const whole = String(stderr ?? '').split(/\r?\n/)[0];
+  const line = whole.slice(0, 300);
+  const rules = [...new Set(scan([{ field: 'stderr', text: whole }], { ...ctx, surface: null }).map(r => r.rule))];
   return rules.length ? `gh said: (withheld: ${rules.join(', ')})` : `gh said: ${JSON.stringify(line).replace(LINE_BREAKS_RE, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)}`;
 }
 
@@ -2840,11 +2842,11 @@ export async function postAsApp(argv, io) {
 
 // ---------------------------------------------------------------- main
 
-/** The real parts of app mode: the files beside the poster and under the home folder, the helper by dynamic import, and a runner of the real gh. */
+/** The real parts of app mode: the files beside the poster and under the home folder, the helper by dynamic import, and a runner of the real gh. App mode needs the pin and the helper the install put in the home folder (S4), so a checkout's copy, which always has a helper beside it, stays the owner's with the switch off. */
 function realApp(env, tmp) {
   const home = homedir();
   return {
-    has: () => existsSync(pinFile(home)) && existsSync(join(dirname(fileURLToPath(import.meta.url)), 'gh-app.mjs')),
+    has: () => existsSync(pinFile(home)) && existsSync(join(home, '.claude', 'pact', 'tools', 'gh-app.mjs')) && existsSync(join(dirname(fileURLToPath(import.meta.url)), 'gh-app.mjs')),
     load: () => import('./gh-app.mjs'),
     helperIo: mod => mod.realIo({ env }),
     makeGh: e => makeGh({ env: e, tmp }),

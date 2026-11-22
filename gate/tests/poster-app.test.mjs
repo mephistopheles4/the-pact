@@ -74,8 +74,8 @@ function github({ ownerId = IDS.owner, items = {}, failWrite = null } = {}) {
 }
 
 /** One app-mode setup: the helper's world, the fake GitHub, and the `io` the poster takes. `load` and `has` can be replaced. */
-function setup(t, { hw = helperWorld(t), gh = github(), load, has = () => true, app = true } = {}) {
-  const io = { gh: gh.runner({}), env: {}, home: '/srv/home/tester', tmp: '/tmp', user: 'tester', host: 'buildhost' };
+function setup(t, { hw = helperWorld(t), gh = github(), load, has = () => true, app = true, env = {} } = {}) {
+  const io = { gh: gh.runner({}), env, home: '/srv/home/tester', tmp: '/tmp', user: 'tester', host: 'buildhost' };
   if (app) io.app = { has, load: load ?? (async () => helper), helperIo: () => hw.io, makeGh: env => gh.runner(env) };
   return { hw, gh, io };
 }
@@ -99,12 +99,18 @@ const mintPosts = s => s.hw.spy.fetches.filter(f => f.method === 'POST');
 /** What a run may never do in app mode: send as the owner. */
 const noOwnerWrite = s => assert.deepEqual(s.gh.writes().filter(c => c.as !== 'app'), [], 'no write goes out as the owner');
 const sent = s => JSON.parse(s.gh.writes()[0].input);
+/** What every run must show: it read, and each read was the owner's own gh with no token variable. */
+const ownerReads = s => {
+  const reads = s.gh.calls.filter(c => c.method === 'GET');
+  assert.ok(reads.length > 0 && reads.every(c => c.as === 'owner' && !Object.keys(c.env).some(k => /^(?:GH|GITHUB)_TOKEN$/i.test(k))), 'every read is the owner\'s, with no token variable');
+};
 
 // ---------------------------------------------------------------- C6: app mode posts only as the app
 
 // #604 C6: the post is the bot's, on a post-set token, and every read stays the owner's
 test('C6: in app mode a post goes out as the bot on a token narrowed to one repo and the post set, and every read is the owner\'s', async t => {
-  const s = setup(t);
+  // The session's own token variables, in every case: the reads carry none, the write carries only the minted token.
+  const s = setup(t, { env: { GH_TOKEN: 'owner-token-x', GITHUB_TOKEN: 'owner-token-y', github_token: 'owner-token-z', PATH: '/bin' } });
   const r = await run(t, s, 'issue-comment', note);
   assert.equal(r.code, 0, text(r));
   assert.equal(last(r), `RESULT: verified issue-comment https://github.com/${TARGET}/issues/5#issuecomment-9001 as ${BOT}`);
@@ -114,7 +120,9 @@ test('C6: in app mode a post goes out as the bot on a token narrowed to one repo
   assert.equal(writes.length, 1);
   assert.equal(writes[0].as, 'app');
   assert.ok(minted(s).includes(writes[0].env.GH_TOKEN), 'the write carries the minted token');
-  assert.ok(s.gh.calls.filter(c => c.method === 'GET').every(c => c.as === 'owner' && !('GH_TOKEN' in c.env) && !('GITHUB_TOKEN' in c.env)), 'every read is the owner\'s, with no token variable');
+  ownerReads(s);
+  assert.deepEqual(Object.keys(writes[0].env).filter(k => /token/i.test(k)), ['GH_TOKEN'], 'the write carries no other token variable');
+  assert.equal(writes[0].env.PATH, '/bin');
   assert.ok(!text(r).includes(writes[0].env.GH_TOKEN), 'the token is in no output line');
 });
 
@@ -187,6 +195,11 @@ test('C6: a helper that cannot load, or throws, and a malformed or refused mint 
   const throws = setup(t, { load: async () => ({ ...helper, checkPin: () => { throw new Error(CANARY); } }) });
   const th = await run(t, throws, 'issue-comment', note);
   assert.ok(!text(th).includes(CANARY) && th.code === 2, text(th));
+  // A mint that answers with no token is the poster's own guard: nothing is sent, and no owner fallback.
+  const none = setup(t, { load: async () => ({ ...helper, mintToken: async () => undefined }) });
+  const nr = await run(t, none, 'issue-comment', note);
+  assert.deepEqual(nr.lines, ['REFUSED app/token token', 'NOTE: gh-app said unknown; nothing was sent, and nothing was posted as the owner', 'RESULT: refused 1']);
+  assert.equal(none.gh.writes().length, 0);
   const rows = [
     ['a token that is not a token', w => { w.state.mintOverride = { token: `${CANARY} not a token`, expires_at: '2026-11-21T13:00:00Z' }; }, 'shape'],
     ['an answer with no expiry', w => { w.state.mintOverride = { token: 'ghs_aaaaaaaaaaaaaaaaaaaaaaaa' }; }, 'shape'],
@@ -237,10 +250,9 @@ test('the poster looks for the pin file where the helper writes it', () => {
 test('C6: post/tracker refuses an app-written comment quoted as the owner\'s, and accepts a comment the owner wrote', async t => {
   const issue = { kind: 'issue', title: 'A plain title', quote: [{ text: WORDS, source: 'tracker', comment: 4001, when: '2026-11-11' }], intent: { text: 'I read it so.', status: 'pending' } };
   const comment = login => ({ [`repos/${TARGET}/issues/comments/4001`]: { id: 4001, user: { login }, issue_url: `${API}/issues/5`, body: `Before. ${WORDS} After.` } });
-  const by = await run(t, setup(t, { gh: github({ items: comment(BOT) }) }), 'issue', issue);
-  assert.ok(refusedBy(by, 'post/tracker', 'quote[0].comment'), text(by));
   const bad = setup(t, { gh: github({ items: comment(BOT) }) });
-  await run(t, bad, 'issue', issue);
+  const by = await run(t, bad, 'issue', issue);
+  assert.ok(refusedBy(by, 'post/tracker', 'quote[0].comment'), text(by));
   assert.equal(bad.gh.writes().length, 0);
   const good = setup(t, { gh: github({ items: comment(OWNER) }) });
   const ok = await run(t, good, 'issue', issue);
@@ -276,12 +288,20 @@ test('S8: a body that holds the app\'s token is refused secret/env, and a gh err
   assert.ok(r.lines.some(l => l.startsWith('REFUSED secret/env body') && l.includes('(app token)')), text(r));
   assert.ok(!text(r).includes(TOKEN));
   assert.equal(leaky.gh.writes().length, 0);
-  const fails = setup(t, { gh: github({ failWrite: `HTTP 401: bad ${TOKEN}` }) });
-  seed(fails);
-  const f = await run(t, fails, 'issue-comment', note);
-  assert.equal(f.code, 3, text(f));
-  assert.ok(f.lines[0].startsWith('gh said: (withheld: secret/env)'), text(f));
-  assert.ok(!text(f).includes(TOKEN));
+  // The error line is scanned whole, before it is cut: a token at the start, one across the 300-character cut, and a real-length one over it.
+  const LONG = `ghs_${'a1'.repeat(260)}`;
+  for (const [what, token, said] of [
+    ['at the start', TOKEN, `HTTP 401: bad ${TOKEN}`],
+    ['across the cut', TOKEN, `HTTP 401: ${'x'.repeat(280)} ${TOKEN}`],
+    ['longer than the cut', LONG, `HTTP 401: bad ${LONG}`],
+  ]) {
+    const fails = setup(t, { gh: github({ failWrite: said }) });
+    fails.hw.store.set('the-pact/gh-app/claude/token/example-owner/sandbox/post', Buffer.from(JSON.stringify({ token, expires_at: '2026-11-21T13:00:00.000Z' })));
+    const f = await run(t, fails, 'issue-comment', note);
+    assert.equal(f.code, 3, `${what}: ${text(f)}`);
+    assert.ok(f.lines[0].startsWith('gh said: (withheld: secret/env)'), `${what}: ${text(f)}`);
+    assert.ok(!text(f).includes(token.slice(0, 30)), what);
+  }
 });
 
 // ---------------------------------------------------------------- S8: decisions in app mode
@@ -296,7 +316,7 @@ test('C6: a decision from chat renders "Heard in chat by <signer>." in app mode,
   const { body } = sent(s);
   assert.ok(body.startsWith(`${HEARD}\n\nAnswers: issue 5.\n\n## The ask\n\n> Yes, go ahead.`), body);
   assert.ok(!/owner decision/i.test(body));
-  // A relayed decision keeps its own mark, and the owner's mode keeps the owner's.
+  // A relayed decision keeps its own mark.
   const relayed = setup(t);
   const rel = await run(t, relayed, 'issue-comment', { ...decision, quote: [{ text: 'Yes.', source: 'relayed', via: 'lead-1', when: '2026-11-11' }], intent: { text: 'Go ahead.', status: 'pending' } });
   assert.equal(rel.code, 0, text(rel));
@@ -329,9 +349,11 @@ test('S8: edit/confirm accepts the bot\'s "Heard in chat by" decision and the ow
   assert.equal(r.code, 0, text(r));
   assert.equal(sent(heard).body, `## The ask\n\n> ${WORDS}\n\n${SAID}\n\n## Understood intent\n\nI read it so.\n\nRead-back: confirmed in comment 7001.\n\nA plain body.\n\nSigned: ${LABEL}\n\nEdited: ${REASON}, confirmed, as heard in chat by ${LABEL} (${LABEL})`);
   assert.equal(heard.gh.writes()[0].as, 'app');
+  ownerReads(heard);
   const owners = editWorld(t, decisionItem({ mark: MARK, login: OWNER }));
   const o = await run(t, owners, 'issue-edit', confirmDoc);
   assert.equal(o.code, 0, text(o));
+  ownerReads(owners);
   assert.ok(sent(owners).body.endsWith(`Edited: ${REASON}, heard by ${LABEL} (${LABEL})`));
   for (const [what, dec] of [
     ['the owner\'s mark under the bot', decisionItem({ mark: MARK })],
@@ -359,6 +381,7 @@ test('S8: an edit refuses an item the owner\'s own account wrote, and carries on
   assert.equal(last(ok), `RESULT: verified issue-edit https://github.com/${TARGET}/issues/5 as ${BOT}`);
   assert.equal(own.gh.writes()[0].as, 'app');
   noOwnerWrite(own);
+  ownerReads(own);
 });
 
 // ---------------------------------------------------------------- the schema
@@ -375,13 +398,15 @@ test('the schema\'s as field takes a login or a bot login, and nothing past [bot
 const PIN = apps => JSON.stringify({ owner: { login: OWNER, id: IDS.owner }, apps: apps ?? { claude: { app_id: IDS.app, slug: SLUG, bot_login: BOT, bot_id: IDS.bot } } });
 
 /** Run the real poster file as a child on a dry run, with `home` as the home folder and nothing on PATH. */
-function child(t, { pin, copyOnly = false, as = null } = {}) {
+function child(t, { pin, copyOnly = false, as = null, installed = true } = {}) {
   const dir = tempDir(t, 'pact-poster-app-child-');
   const home = join(dir, 'home');
   const empty = join(dir, 'empty');
   const doc = { repo: TARGET, kind: 'note', issue: 5, signer: LABEL, body_file: 'body.md', ...(as ? { as } : {}) };
   writeTree(dir, { 'body.md': 'A plain body.\n', 'post.json': JSON.stringify(doc), 'empty/.keep': '', 'home/.keep': '' });
   if (pin !== undefined) writeTree(home, { '.claude/pact/github.json': pin });
+  // The install puts the helper under the home folder; a home without it is one whose agent-identity switch is off.
+  if (pin !== undefined && installed) writeTree(home, { '.claude/pact/tools/.keep': '' }), copyFileSync(join(REPO, 'claude', 'tools', 'gh-app.mjs'), join(home, '.claude', 'pact', 'tools', 'gh-app.mjs'));
   let script = POSTER;
   if (copyOnly) {
     writeTree(dir, { 'alone/.keep': '' });
@@ -416,4 +441,8 @@ test('the poster file run as a child decides its mode from the pin file under it
   const alone = child(t, { pin: PIN(), copyOnly: true });
   assert.equal(alone.status, 0, alone.stdout + alone.stderr);
   assert.ok(!alone.stdout.includes(DRY_APP));
+  // With the switch off the install removes the helper from the home folder, and a checkout's poster, which always has one beside it, stays the owner's.
+  const off = child(t, { pin: PIN(), as: BOT, installed: false });
+  assert.equal(off.status, 0, off.stdout + off.stderr);
+  assert.ok(!off.stdout.includes(DRY_APP), off.stdout);
 });

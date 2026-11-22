@@ -1,13 +1,16 @@
 # The poster as an agent app
 
 With the agent-identity switch on, `claude` pinned in
-`~/.claude/pact/github.json` and `gh-app.mjs` installed beside the poster (the
-pin's definition, [agent-identity](agent-identity.md)), the poster is in **app
-mode**: every post and edit goes out as the app's bot (`<slug>[bot]`), on a
-`post`-set installation token the helper mints for the one repo. With either
-file absent, or no `claude` entry in the pin, the poster is as [poster.md](poster.md)
-says, posting as your `gh` login, and none of this applies. A `github.json` that
-isn't the pinned shape stops the run (`pin/check`) and never reads as owner mode.
+`~/.claude/pact/github.json` and `gh-app.mjs` installed under
+`~/.claude/pact/tools/` beside the poster (the pin's definition,
+[agent-identity](agent-identity.md)), the poster is in **app mode**: every post
+and edit goes out as the app's bot (`<slug>[bot]`), on a `post`-set installation
+token the helper mints for the one repo. With any of those absent, or no
+`claude` entry in the pin, the poster is as [poster.md](poster.md) says,
+posting as your `gh` login, and none of this applies: a checkout's copy, with the
+switch off, stays yours. A `github.json` that isn't the pinned shape stops the
+run (`pin/check`) and never reads as owner mode. The home folder is the
+environment's, as for `gh` itself.
 
 ## What changes in app mode
 
@@ -37,8 +40,9 @@ isn't the pinned shape stops the run (`pin/check`) and never reads as owner mode
 
 A `decision` whose passages are all `chat` opens `Heard in chat by <signer>.`,
 never `Owner decision, from chat.`, so the record never shows the owner's mark
-under the bot. That line is an owned line (a `body_file` can't hold it:
-`post/owned-line`), and an item that holds one isn't edited (`edit/decision`).
+under the bot. That line is an owned line in either mode (a `body_file` can't
+hold it: `post/owned-line`), and an item that holds one isn't edited
+(`edit/decision`).
 
 `edit/confirm` accepts a decision by the pin's owner with the owner's mark, or by
 the bot with a `Heard in chat by <label>.` line naming its own signature label;
