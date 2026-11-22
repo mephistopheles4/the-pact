@@ -316,13 +316,17 @@ test('wait label: every exemption still matches a unit that would fail', () => {
   const labels = [
     ['checkpoint', 'This is a checkpoint and waits for my word.'],
     ['checkpoints', 'These are checkpoints and wait for my word.'],
-    ['heavy checkpoint', 'This is a heavy checkpoint and waits for my word.'],
-    ['heavy checkpoints', 'Heavy checkpoints wait for my word.'],
   ];
   for (const [label, text] of labels) {
     // #558 C8
     test(`wait label label: "${label}" covers a wait`, () => {
       assert.equal(unlabelled(text), false, `${JSON.stringify(text)} holds the label "${label}"`);
+    });
+  }
+  // PACT-42: "hard stop" is no label since the one list is Heavy checkpoints.
+  for (const text of ['This is a hard stop and waits for my word.', 'Hard stops wait for my word.']) {
+    test(`wait label: "hard stop" alone no longer covers a wait: ${text}`, () => {
+      assert.equal(unlabelled(text), true, `${JSON.stringify(text)} holds no label`);
     });
   }
 }

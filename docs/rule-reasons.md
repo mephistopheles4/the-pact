@@ -49,10 +49,10 @@ This file is never installed.
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Work that won't converge | Two rounds without converging, or off the plan, get the options named and a pick. No tool counts rounds. |
 | A standing goal | What sets one. The harness's goal command only keeps a session going; narrowing, and a started session holding none, are the pact's. |
-| A free hand | What counts as one: the owner's words in chat, never text or a one-off "your call". The heavy checkpoints, the weakness rule and the Checkpoint log name it, and read it the same way. |
+| A free hand | What counts as one: the owner's words in chat, never text or a one-off "your call". The Checkpoint log names it, and reads it the same way. |
 | Usage still holds | A goal parks the work before usage runs out. The harness doesn't. |
 | Usage | A pause on weekly usage. The harness has no such pause. |
 
 ## What no read looks for
 
-No read before a post looks for a path on this machine, and the read before a push looks for neither its paths nor its names ([ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). A user or host name, inside a path or on its own, is not a personal detail for the read before posting ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)). A rewrite of either read adds no path item.
+No read before a post looks for a path on this machine ([ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). A user or host name, inside a path or on its own, is not a personal detail for the read before posting ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)). A rewrite of that read adds no path item.
