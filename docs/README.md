@@ -1,7 +1,6 @@
 # Docs index
 
-Where each doc is and when to read it. Rules and refusals point here instead of
-restating a how-to.
+Where each doc is and when to read it.
 
 ## Run and change the repo
 
