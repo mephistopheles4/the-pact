@@ -371,20 +371,6 @@ const PIN = `${JSON.stringify({ owner: { login: 'example-owner', id: 1000001 }, 
 const GH_APP_LIVE = ['pact', 'tools', 'gh-app.mjs'];
 const ENV_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT'];
 
-/**
- * A throwaway repo whose install skips the Windows folder rule for the Node (S7): CI's Node is not under
- * Program Files, and the allowed folder is fixed in the code, so a test cannot move it. The plant pins
- * one source string, so a change to how the rule reads its platform must change it too. The rule is held by
- * the unit tests 'the identity node check ...' in install-core.test.mjs and by the unplanted end-to-end test
- * below, which runs on Windows only.
- */
-const idRepo = t => makeRepo(t, root => {
-  const f = join(root, 'gate', 'install-core.mjs');
-  const text = readFileSync(f, 'utf8');
-  assert.equal(text.split('{ platform = process.platform,').length, 2, 'the node rule has one default platform to plant');
-  writeFileSync(f, text.replace('{ platform = process.platform,', "{ platform = 'linux',"));
-});
-
 /** The text setup writes for the claude app in this home folder, under the Node the install runs under. */
 const gitconfigFor = h => identityGitconfigText({ userHome: dirname(h), claudeHome: h, nodePath: process.execPath, app: APP, xdg: existsSync(join(dirname(h), '.config', 'git', 'config')) });
 
@@ -409,7 +395,7 @@ const recordOf = h => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'ut
 
 // #603 C5: on, the dry run checks the gitconfig and warns, the install copies the helper, sets and records the two env keys beside the owner's own.
 test('agent-identity on: the helper installs byte for byte, the two env keys are set and recorded beside the owner\'s, and the dry run says the gitconfig is as expected', t => {
-  const repo = idRepo(t);
+  const repo = makeRepo(t);
   const h = identityHome(t, true, { env: { KEEP: 'mine' } });
   const dry = installed(repo, h);
   assert.match(dry.stdout, /^agent-identity: on\r?\n {2}gitconfig as expected: yes\r?$/m, dry.out);
@@ -428,7 +414,7 @@ test('agent-identity on: the helper installs byte for byte, the two env keys are
 
 // #603 C5: off removes the tool and exactly the keys the install set, and a changed or missing gitconfig does not block turning it off.
 test('agent-identity off: the tool and the two recorded env keys go, the owner\'s keys stay, and a missing gitconfig does not refuse', t => {
-  const repo = idRepo(t);
+  const repo = makeRepo(t);
   const h = identityHome(t, true, { env: { KEEP: 'mine' } });
   installed(repo, h);
   setIdentity(h, false);
@@ -444,7 +430,7 @@ test('agent-identity off: the tool and the two recorded env keys go, the owner\'
 
 // #603 C5: a key the owner changed after the install is theirs, so turning the switch off leaves it.
 test('agent-identity off leaves an env key the owner changed since the install', t => {
-  const repo = idRepo(t);
+  const repo = makeRepo(t);
   const h = identityHome(t, true);
   installed(repo, h);
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ env: { GIT_CONFIG_GLOBAL: 'D:/mine', GIT_TERMINAL_PROMPT: '0' } })}\n`);
@@ -455,7 +441,7 @@ test('agent-identity off leaves an env key the owner changed since the install',
 
 // #603 C8: unset or false, nothing of the switch lands: no tool, no env key, no record key, and no line in the dry run.
 test('agent-identity unset or false: no helper, no env key, no record key, no identity line', t => {
-  const repo = idRepo(t);
+  const repo = makeRepo(t);
   for (const on of [undefined, false]) {
     const h = identityHome(t, on, { pin: null, gitconfig: null });
     const dry = installed(repo, h);
@@ -479,7 +465,7 @@ for (const row of [
   { id: 'owner-terminal-prompt', opts: { env: { GIT_TERMINAL_PROMPT: '1' } }, says: /settings\.json already sets env GIT_TERMINAL_PROMPT/ },
 ]) {
   test(`bad case: agent-identity on refuses with ${row.id}, in the dry run and the apply, and changes nothing`, t => {
-    const repo = idRepo(t);
+    const repo = makeRepo(t);
     const h = identityHome(t, true, row.opts);
     const before = listTree(h);
     const dry = install(repo, h);
@@ -491,7 +477,7 @@ for (const row of [
 
 // #603 C5: a git config that appears under the user's XDG folder after setup is refused as a changed include list; setup run with it there passes.
 test('agent-identity on: an XDG git config added after setup is refused, and one present at setup passes', t => {
-  const repo = idRepo(t);
+  const repo = makeRepo(t);
   const h = identityHome(t, true, { nested: true });
   const xdg = join(dirname(h), '.config', 'git', 'config');
   mkdirSync(dirname(xdg), { recursive: true });
@@ -503,21 +489,9 @@ test('agent-identity on: an XDG git config added after setup is refused, and one
   passed(install(repo, h));
 });
 
-// #603 C5 (S7): on Windows the install refuses a Node that is not C:\Program Files\nodejs\node.exe, with a next step, and changes nothing.
-test('agent-identity on: under a Node outside Program Files on Windows the install refuses and says what to do', t => {
-  if (process.platform !== 'win32') return t.skip('the Program Files rule applies on Windows only');
-  if (/^[A-Za-z]:\\Program Files\\nodejs\\node\.exe$/i.test(process.execPath)) return t.skip('this Node is the one the rule allows');
-  const repo = makeRepo(t);
-  const h = identityHome(t, true);
-  const before = listTree(h);
-  const r = install(repo, h);
-  refused(r, /^REFUSED: .*this Node is not the one the agent gitconfig may name.*run the install with that Node, then run gh-app\.mjs setup under it\./m);
-  assert.deepEqual(listTree(h), before);
-});
-
 // #603 C5: the refusal text names the part that differs and prints no line of the file.
 test('the gitconfig refusal prints only the fixed line, never a line of the file', t => {
-  const repo = idRepo(t);
+  const repo = makeRepo(t);
   const h = identityHome(t, true, { gitconfig: hh => `${gitconfigFor(hh)}[core]\n  hooksPath = CANARY-LINE\n` });
   const r = install(repo, h);
   refused(r, /gitconfig as expected: no: other lines differ, re-run setup/);
@@ -526,7 +500,7 @@ test('the gitconfig refusal prints only the fixed line, never a line of the file
 
 // #603 C5: a settings file that is not strict JSON is left untouched, and the dry run says the env keys are not set.
 test('agent-identity on with a settings.json that is not strict JSON: the dry run warns, the apply refuses, and settings.json and the record are untouched', t => {
-  const repo = idRepo(t);
+  const repo = makeRepo(t);
   const h = identityHome(t, true);
   const bad = '{ // a comment\n  "permissions": { "deny": [] }\n}\n';
   writeFileSync(join(h, 'settings.json'), bad);

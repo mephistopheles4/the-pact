@@ -16,7 +16,7 @@ The switch needs the app pinned in `~/.claude/pact/github.json` and its
 gitconfig, `~/.claude/pact/gh-app-claude.gitconfig`, which `gh-app.mjs setup`
 writes. The helper isn't installed until the switch is on, so run setup from the
 clone (`node claude/tools/gh-app.mjs setup`), under the Node the install will run
-under (on Windows, `C:\Program Files\nodejs\node.exe`). Without both files the
+under (an absolute path to a program called `node`, not a shim). Without both files the
 install refuses, saying to run setup.
 
 ## What it does
@@ -48,9 +48,9 @@ rest:
 - `GIT_CONFIG_GLOBAL` makes a session's `git config --global` write to the agent
   gitconfig, so `gh auth setup-git` swaps the helper out. The next dry run refuses
   until you run setup again.
-- The Windows Node rule guards the Node program only. The helper script, the
-  gitconfig and `NODE_OPTIONS` stay writable by your account, and `setup` writes any
-  Node, so only the next dry run refuses it.
+- The helper script, the gitconfig, `NODE_OPTIONS` and the Node program stay
+  writable by your account, and `setup` writes any Node, so only the next dry run
+  refuses a changed gitconfig.
 
 ## What the install checks
 
@@ -59,12 +59,10 @@ With the switch on, before any write:
 - `pact/github.json` holds a `claude` app of the pin's exact shape.
 - The gitconfig equals the text setup writes, which the install computes with its
   own copy of `gitconfigText` from `gh-app.mjs` (a test holds them equal), under
-  its own Node. On Windows the Node must be
-  `C:\Program Files\nodejs\node.exe`; elsewhere, an absolute
-  path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
+  its own Node, which must be an absolute path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
   with the part that differs (node path, include list or other lines) and "re-run
   setup", and refuses on a `no`. It never prints a line of the file. After a new
-  XDG git config, or off Windows a Node upgrade, run setup again.
+  XDG git config, or a change of Node path, run setup again.
 - Your own `env` doesn't already set either key. The install never overwrites it.
 
 A `settings.json` that isn't strict JSON is never changed: the dry run warns that

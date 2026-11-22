@@ -296,7 +296,7 @@ async function main() {
     if (app === null) throw refusal('identity-pin', 'the agent-identity switch is on, but pact/github.json holds no claude app; run gh-app.mjs setup first.');
     const cfg = io.readOptional(join(home, 'pact', 'gh-app-claude.gitconfig'));
     if (cfg === null) throw refusal('identity-gitconfig-missing', 'the agent-identity switch is on, but the claude app\'s gitconfig is missing; run gh-app.mjs setup first.');
-    if (!core.identityNodeOk(process.execPath)) throw refusal('identity-node', 'this Node is not the one the agent gitconfig may name (on Windows, C:\\Program Files\\nodejs\\node.exe), so the gitconfig cannot be checked; run the install with that Node, then run gh-app.mjs setup under it.');
+    if (!core.identityNodeOk(process.execPath)) throw refusal('identity-node', 'this Node is not one the agent gitconfig may name (an absolute path to a program called node), so the gitconfig cannot be checked; run the install with a Node that is, then run gh-app.mjs setup under it.');
     const userHome = dirname(home);
     const want = core.identityGitconfigText({ userHome, claudeHome: home, nodePath: process.execPath, app, xdg: io.exists(join(userHome, '.config', 'git', 'config')) });
     const verdict = core.identityGitconfigVerdict(cfg.toString('utf8'), want);
