@@ -1,6 +1,6 @@
 # Issue tracker
 
-This file holds for GitHub issue text until the lock ticket (the issue that closes this repo's GitHub issues once its work moves to Linear) closes them, and for PR text always. [Linear](#linear) holds for Linear text.
+This file holds for GitHub issue text until the lock ticket (the issue that closes this repo's GitHub issues once its work moves to Linear) closes them, and for PR text always. [Linear](#linear) holds for Linear text. While an agent app is pinned, [agent apps](agent-apps.md) changes who counts.
 
 Issues and PRDs for this repo live as GitHub issues on `mephistopheles4/the-pact`. Use the `gh` CLI for all operations; it infers the repo from `git remote -v` when run inside a clone.
 

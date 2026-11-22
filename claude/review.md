@@ -320,7 +320,13 @@ when no other row answers the sentence.
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
-  can't explain, that is a hard stop: tell me.
+  can't explain, that is a hard stop: tell me. With an agent app pinned (the
+  rules file's hard stops say which), write to GitHub only through the poster or
+  `gh-app.mjs gh`, and set each post's `as` to the app's login. Assigning is the
+  one exception: apps can't be assigned, so it stays on my login through plain
+  `gh`. The status comment is the one your posting identity wrote; an older one
+  by my account stays as it is. A tier or triage label you apply through the app
+  doesn't count: my word in chat sets the tier, and you log it as a checkpoint.
 
 ## Lens dispositions
 

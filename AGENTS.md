@@ -111,7 +111,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Read closely** (a merge touching one is a hard stop): `claude/tools/`,
   the gate's code (`gate/` but its tests), `cloud-sessions/`,
   `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
-  (whose text counts), the protected set below,
+  (whose text counts), `docs/agents/agent-apps.md`, the protected set below,
   `gate/tests/workflow.test.mjs`, `.github/`, `docs/spec/`.
 - **The protected set** (the offers paragraph, the sensitive-work default and
   the security lenses' carried rules) is cut or weakened, and the lens roster

@@ -30,8 +30,17 @@
 // single spaces; "none" when no flag is true. A pending review, unsubmitted
 // and seen only by its author, is left out.
 //
+// With an agent app pinned (#599, S4 and S9.7), the pinned owner's account is
+// the owner and a pinned app's PR can be insiders' code. An app counts as
+// pinned only when ~/.claude/pact/github.json exists and the switch's helper,
+// ~/.claude/pact/tools/gh-app.mjs, is installed; the command line reads both
+// and hands them to check() as { text, helper }. With neither, nothing here
+// changes. The pin is checked against GitHub's own records on every run, under
+// the owner's own gh login with no token variable in gh's environment.
+//
 // Node 24 or later, ESM, node: built-ins only, so the two files run on their
-// own from a temporary folder.
+// own from a temporary folder. The pin's constants below are a copy of
+// claude/tools/gh-app.mjs's, which a test holds equal.
 
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -50,12 +59,15 @@ const MAX_REVIEWS = 100;
 /** gh's arguments for one GET, with the host pinned. */
 export const ghArgs = path => ['api', '--hostname', 'github.com', '--method', 'GET', path];
 
-/** The environment gh runs with: the caller's, without GH_DEBUG or DEBUG in any case. */
-export function ghEnv(env) {
+// What gh reads from the environment that could swap the account a read runs as.
+const TOKEN_VARS = new Set(['GH_TOKEN', 'GITHUB_TOKEN', 'GH_HOST', 'GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN']);
+
+/** The environment gh runs with: the caller's, without GH_DEBUG or DEBUG in any case, and with `strip` set, without the token and host variables too. */
+export function ghEnv(env, strip = false) {
   const out = {};
   for (const [k, v] of Object.entries(env ?? {})) {
     const upper = k.toUpperCase();
-    if (upper !== 'GH_DEBUG' && upper !== 'DEBUG') out[k] = v;
+    if (upper !== 'GH_DEBUG' && upper !== 'DEBUG' && !(strip && TOKEN_VARS.has(upper))) out[k] = v;
   }
   return out;
 }
@@ -66,11 +78,12 @@ export const ghOptions = folder => ({ cwd: folder, shell: false, stdio: ['ignore
 /**
  * A gh runner: each call runs gh from a new, empty folder under `tmp`, removed
  * afterwards, so a file planted in the caller's folder can't run as gh.
- * `spawn` stands in for the process call in tests. Returns { ok, stdout }.
+ * `spawn` stands in for the process call in tests. `strip` drops the token and
+ * host variables, for a run with an app pinned. Returns { ok, stdout }.
  * gh's standard error is never returned.
  */
-export function makeRun({ env, tmp, spawn = spawnSync }) {
-  const clean = ghEnv(env);
+export function makeRun({ env, tmp, spawn = spawnSync, strip = false }) {
+  const clean = ghEnv(env, strip);
   return path => {
     const cwd = mkdtempSync(join(tmp, 'pact-tracker-'));
     try {
@@ -132,17 +145,86 @@ function list(run, path, max = Infinity) {
   }
 }
 
+// ---------------------------------------------------------------- the pin
+
+// A copy of claude/tools/gh-app.mjs's constants: this file runs alone, so it can't import them.
+export const APP_PROVIDERS = Object.freeze(['claude', 'codex', 'antigravity']);
+export const APP_PERMISSIONS = Object.freeze({ contents: 'write', pull_requests: 'write', issues: 'write', workflows: 'write', actions: 'read', checks: 'read', statuses: 'read', metadata: 'read' });
+const LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38})$/;
+const isId = v => Number.isSafeInteger(v) && v > 0;
+const sameLogin = (a, b) => typeof a === 'string' && typeof b === 'string' && a.toLowerCase() === b.toLowerCase();
+const sameKeys = (o, keys) => isObject(o) && Object.keys(o).length === keys.length && keys.every(k => Object.hasOwn(o, k));
+
+/** The pin file's two facts, read behind a seam: its text (null when absent, '' when unreadable) and whether the switch's helper is installed. */
+export function pinInputFrom({ home, fs }) {
+  const dir = join(home, '.claude', 'pact');
+  let text = null;
+  try {
+    text = fs.readFileSync(join(dir, 'github.json'), 'utf8');
+  } catch (e) {
+    text = e?.code === 'ENOENT' ? null : '';
+  }
+  return { text, helper: fs.existsSync(join(dir, 'tools', 'gh-app.mjs')) };
+}
+
+/** Whether an app counts as pinned: the file is there and the helper is installed. */
+export const isPinned = pinInput => isObject(pinInput) && typeof pinInput.text === 'string' && pinInput.helper === true;
+
+/** The pin file's parsed, checked shape: exactly the fields the helper writes. A stop otherwise, and never the parse error. */
+function parsePin(text) {
+  let pin;
+  try {
+    pin = JSON.parse(text);
+  } catch {
+    throw new Stop('stop/pin');
+  }
+  if (!sameKeys(pin, ['owner', 'apps']) || !sameKeys(pin.owner, ['login', 'id']) || !LOGIN_RE.test(pin.owner.login ?? '') || !isId(pin.owner.id) || !isObject(pin.apps)) throw new Stop('stop/pin');
+  for (const [p, a] of Object.entries(pin.apps)) {
+    if (!APP_PROVIDERS.includes(p) || !sameKeys(a, ['app_id', 'slug', 'bot_login', 'bot_id'])) throw new Stop('stop/pin');
+    if (!isId(a.app_id) || !isId(a.bot_id) || typeof a.slug !== 'string' || !SLUG_RE.test(a.slug) || a.bot_login !== `${a.slug}[bot]`) throw new Stop('stop/pin');
+  }
+  return pin;
+}
+
+const samePermissions = (got, want) => isObject(got) && Object.keys(got).length === Object.keys(want).length && Object.entries(want).every(([k, v]) => got[k] === v);
+
+/**
+ * The pin against GitHub's own records, read through `run`. `who` is the
+ * `user` record. A /user other than the pin's owner stops (stop/owner), and so
+ * does a slug whose bot is not the pinned one (stop/bot). An app record whose
+ * id, owner, permissions or events differ from the pin drops that app: its PRs
+ * are outsiders' code, and a note says so. Returns { apps, notes }.
+ */
+function checkPin(run, pin, who) {
+  if (who.id !== pin.owner.id || !sameLogin(who.login, pin.owner.login)) throw new Stop('stop/owner');
+  const apps = [];
+  const notes = [];
+  for (const [provider, a] of Object.entries(pin.apps)) {
+    const rec = item(run, `apps/${a.slug}`);
+    const bot = item(run, `users/${a.bot_login}`);
+    if (bot.id !== a.bot_id || bot.type !== 'Bot' || !sameLogin(bot.login, a.bot_login)) throw new Stop('stop/bot');
+    if (rec.id === a.app_id && rec.owner?.id === pin.owner.id && samePermissions(rec.permissions, APP_PERMISSIONS) && Array.isArray(rec.events) && rec.events.length === 0) apps.push({ provider, bot_id: a.bot_id });
+    else notes.push(`NOTE: the ${provider} app is not counted: its record does not match the pin`);
+  }
+  return { apps, notes };
+}
+
 /**
  * Every read for `kind` and `number`, through `run(path)`, the `user` read
- * included. Returns { owner, records } or { stop }. The stops for a call fire
- * as it returns; the cap and the counts after the last read.
+ * included. With `pinInput` ({ text, helper }) naming a pinned app, the pin is
+ * parsed before any call and checked after the `user` read. Returns { owner,
+ * records, apps, notes } or { stop }. The stops for a call fire as it returns;
+ * the cap and the counts after the last read.
  */
-export function read(kind, number, run) {
+export function read(kind, number, run, pinInput) {
   const repo = `repos/${SLUG}`;
   try {
+    const pin = isPinned(pinInput) ? parsePin(pinInput.text) : null;
     const who = item(run, 'user');
     if (typeof who.login !== 'string' || who.login === '') throw new Stop('stop/shape');
     const owner = who.login;
+    const { apps, notes } = pin ? checkPin(run, pin, who) : { apps: [], notes: [] };
     let records;
     let counts;
     if (kind === 'issue') {
@@ -168,7 +250,7 @@ export function read(kind, number, run) {
       ];
     }
     if (counts.some(([got, want]) => got !== want)) throw new Stop('stop/count');
-    return { owner, records };
+    return { owner, records, apps, notes };
   } catch (e) {
     if (e instanceof Stop) return { stop: e.id };
     throw e;
@@ -259,12 +341,15 @@ function labelRecords(issue, events, owner) {
   });
 }
 
-/** The PR as code: insiders' only when the owner opened it from this repo, with every commit the owner's and the last one its head. */
-function pullRecord(pull, commits, owner) {
+/** Whether an account is the owner's, or a pinned app's: by id and type Bot, never by login, name or email. */
+const insider = (u, owner, apps) => login(u) === owner || (isObject(u) && u.type === 'Bot' && apps.some(a => a.bot_id === u.id));
+
+/** The PR as code: insiders' only when the owner or a pinned app opened it from this repo, with every commit theirs and the last one its head. */
+function pullRecord(pull, commits, owner, apps) {
   const why = [];
-  if (login(pull.user) !== owner) why.push('opener-not-owner');
+  if (!insider(pull.user, owner, apps)) why.push('opener-not-owner');
   if (pull.head?.repo?.full_name !== SLUG) why.push('cross-repo');
-  if (commits.some(c => login(c.author) !== owner || login(c.committer) !== owner)) why.push('commit-not-owner');
+  if (commits.some(c => !insider(c.author, owner, apps) || !insider(c.committer, owner, apps))) why.push('commit-not-owner');
   if (commits.at(-1)?.sha !== pull.head?.sha) why.push('head-mismatch');
   return {
     kind: 'pull',
@@ -282,15 +367,15 @@ function pullRecord(pull, commits, owner) {
   };
 }
 
-/** The verdicts on one read's records, as plain records. Pure. */
-export function decide(kind, records, owner) {
+/** The verdicts on one read's records, as plain records. `apps` are the pinned apps, { bot_id }. Pure. */
+export function decide(kind, records, owner, apps = []) {
   if (kind === 'issue') {
     const { issue, comments, events } = records;
     return [bodyRecord('issue-body', issue, issue.created_at, owner), ...comments.map(c => commentRecord('comment', c, owner)), ...labelRecords(issue, events, owner)];
   }
   const { pull, commits, reviews, reviewComments, comments } = records;
   return [
-    pullRecord(pull, commits, owner),
+    pullRecord(pull, commits, owner, apps),
     bodyRecord('pull-body', pull, pull.created_at, owner),
     ...reviews.filter(r => r.state !== 'PENDING').map(r => bodyRecord('review', r, r.submitted_at, owner)),
     ...reviewComments.map(c => commentRecord('review-comment', c, owner)),
@@ -324,24 +409,26 @@ function result(code, lines, fails = []) {
 const USAGE = 'usage: node tracker-authors.mjs issue|pr <n>';
 
 /**
- * Validate `argv`, read through `run(path)` and decide. Returns { code, fails,
- * last, out }: code 2 on bad input before any call, 1 on a stop, 0 with the
- * records, SUMMARY and RESULT: pass.
+ * Validate `argv`, read through `run(path)` and decide. `pinInput` is { text,
+ * helper } from pinInputFrom(); without it, or without both facts, no app is
+ * pinned. Returns { code, fails, last, out }: code 2 on bad input before any
+ * call, 1 on a stop, 0 with the records, any NOTE lines for a pinned app not
+ * counted, the SUMMARY and RESULT: pass.
  */
-export function check(argv, run) {
+export function check(argv, run, pinInput) {
   if (argv.length !== 2 || !KINDS.includes(argv[0]) || !NUMBER.test(argv[1])) return result(2, ['FAIL usage', USAGE, 'RESULT: fail'], ['usage']);
   const [kind, number] = argv;
   let got;
   try {
-    got = read(kind, number, run);
-    if (!got.stop) got.verdicts = decide(kind, got.records, got.owner);
+    got = read(kind, number, run, pinInput);
+    if (!got.stop) got.verdicts = decide(kind, got.records, got.owner, got.apps);
   } catch {
     // A record whose fields aren't the shape decide() reads: never a pass, and never the error's text.
     got = { stop: 'stop/shape' };
   }
   if (got.stop) return result(1, [`FAIL ${got.stop}`, 'RESULT: fail'], [got.stop]);
   const trues = got.verdicts.filter(flag).map(summaryId);
-  return result(0, [JSON.stringify(got.verdicts, null, 2), `SUMMARY: ${kind} ${number} as ${got.owner}; true: ${trues.length ? trues.join(' ') : 'none'}`, 'RESULT: pass']);
+  return result(0, [JSON.stringify(got.verdicts, null, 2), ...got.notes, `SUMMARY: ${kind} ${number} as ${got.owner}; true: ${trues.length ? trues.join(' ') : 'none'}`, 'RESULT: pass']);
 }
 
 /**
@@ -352,7 +439,7 @@ export function check(argv, run) {
  * has none, since the SUMMARY prints the flag.
  */
 export function tableCheck(kinds, input) {
-  const judged = decide(input.kind, input.records, input.owner).filter(r => kinds.includes(r.kind));
+  const judged = decide(input.kind, input.records, input.owner, input.apps).filter(r => kinds.includes(r.kind));
   const mismatch = judged.some(r => flag(r) !== (r.why.length === 0)) ? ['flag-mismatch'] : [];
   const fails = [...new Set([...judged.flatMap(r => r.why), ...mismatch])].sort();
   return fails.length ? result(1, [...fails.map(f => `FAIL ${f}`), 'RESULT: fail'], fails) : result(0, ['RESULT: pass']);
