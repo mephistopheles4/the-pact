@@ -569,9 +569,9 @@ the tools and agents.
   I get the intent clear enough to defend: what it is for, how it can go
   wrong, and why each decision is right.
 - **Checkpoint the seams.**
-  Where work is handed on, published or decided, anything costly waits for a
-  checkpoint. The harder a step is to undo, the heavier its checkpoint. When
-  in doubt, it's heavy.
+  Where work is handed on, published or decided, anything costly gets a
+  checkpoint: the agent's own pick, logged and flagged, which I review after.
+  The harder a step is to undo, the more care its checkpoint takes.
 - **Stay the owner.**
   I own a result when I can verify it, reconstruct why it is right, and know
   when to stop it. Checks that could have failed are the evidence.
@@ -582,20 +582,12 @@ offer I can take or leave in a second. Then carry on with what I chose.
 ## How Claude helps
 
 - **Checkpoints.** What these rules keep for me, bring to me or leave to me is
-  a checkpoint unless it is on the list below. Log each as
-  review.md's Posting says, flagged, and list each in the result. Pin a merge to
-  its reviewed head.
-- **Checkpoints** are the acts too costly to take back. At level 2 each
-  waits for my confirmation, in any form and anywhere: typed or spoken, in any
-  session, said to the lead included. At level 3 each is logged and flagged.
-  With no level set (the pact alone, level 1), Claude's default holds: it asks
-  first. They are: an install apply; a secret (say where, never its value); the
-  usage pause; a reply or message to other people in my name, beyond the work's
-  record and branches in my repos; making anything public, or a merge that
-  deploys or might; a merge editing a threat model's classes, boundaries or
-  scope; a check you can't clear without skipping, loosening or removing it;
-  anything you can't undo or aren't sure you can, deleting what git or the
-  cleaner can't restore included, but your own scratch files.
+  a checkpoint: take your own pick, log it as review.md's Posting says,
+  flagged, list each in the result, and go on; I review after. Take more care
+  the harder a step is to undo. Where a pick touches a secret, say where it
+  is, never its value. Pin a merge to its reviewed head. Claude's own
+  permission prompts and classifier blocks still stop you; these rules add no
+  stop of their own.
 - **Keep the record** as the Posting section of `~/.claude/pact/review.md` says.
 
 ## How much checking
@@ -1650,7 +1642,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 9d2940204a6646c9255c12d02203caed76665ea760a4a8401a28178655cbf788 'CLAUDE.md'
+check_hash 4bc010b1f97fe1fb5bb5a7ddc216221484ce21c7e75ae52b2075086040152ddf 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash a9fcae299e7f2d323706ca87b3a659aae70cc8537b42cc872e6dd2e26fd2e009 'agents/behaviour-lens.md'
 check_hash c9394b5dd8ac5cc912658ecc46ebf645d0f7e033c2963aa9bd40fd42bc9c0309 'agents/conventions-lens.md'
@@ -1691,7 +1683,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 1c33ae0f0d05"
+  echo "pact cloud copy 5ab2b54ae1c4"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

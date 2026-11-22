@@ -40,13 +40,12 @@ The ask rule on the override matches any text that holds `cleaner.mjs`,
   tag from a run without it never passes a run with it.
 
 The rules file tells a session to remove worktrees only through the cleaner:
-a checkpoint when the removal is recoverable, else a checkpoint that waits. `show`'s own
+each removal is a checkpoint. `show`'s own
 last lines tell it the rest: show you the name-back as printed, in a fenced
 code block, in chat only, so no name's marks can restyle it, give a record only
 the result line's counts, never the tags or the name-back, and run `remove`
-with `--recoverable` as a checkpoint, any other `remove` only after your own
-yes to it in chat; with an override tag, a third line, a checkpoint, says who may
-pass it.
+with the tags of the blocks shown, `--recoverable` or not, as a checkpoint;
+with an override tag, a third line, a checkpoint, says who may pass it.
 
 ## What it keeps
 
@@ -160,8 +159,7 @@ changed or untracked file: a backup would run a `git add` or `git stash
 create`, and with it any filter a session set, so there is none.
 
 **Who may pass it.** The owner, with a confirmation in any form, anywhere,
-after the session that runs `remove` showed the block. It is a checkpoint
-(the rules file's one list). `show`
+after the session that runs `remove` showed the block. It is a checkpoint. `show`
 prints that rule with any override tag, and `remove` prints it first whenever
 `--override` is given; by then the run is already going, so that is a
 reminder, not a control. An override tag stays valid across runs while every

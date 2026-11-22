@@ -737,7 +737,7 @@ also repeat the removal by hand in step 5.
 - **A mapped drive or a link to a network share** passes the path checks:
   only a path typed as a network or device path (`\\server\share`, `\\?\`)
   refuses.
-- **The leftover work folders** of a hard stop stay until you delete them
+- **The leftover work folders** of a stopped install stay until you delete them
   (step 4).
 
 ## Undo an apply

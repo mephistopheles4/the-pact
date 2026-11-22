@@ -158,7 +158,7 @@ test('an added agent and an edited prompt the page saves are yours: the install 
 
 // ------------------------------------------------------------ checkpoint-stops, retired (#564)
 
-const NOTE = /^ {2}NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you \(ADR 0157\)\.\r?$/m;
+const NOTE = /^ {2}NOTE: checkpoints never wait; each is the session's own logged pick \(ADR 0157\)\.\r?$/m;
 const WAITS = 'Checkpoints wait';
 
 /** The shipped preset `id` taken whole into a fresh page state, as the page's Take does. */
@@ -223,26 +223,27 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.ok(!rules.includes(WAITS), 'no such line');
   assert.ok(!rules.includes('checkpoint-stops'), 'the notice names no such value');
-  // The installed default rules hold the Checkpoints and Checkpoints bullets and the kept safeguards.
+  // The installed default rules hold the one Checkpoints bullet and the kept safeguards.
   const flat = rules.replace(/\s+/g, ' ');
   for (const s of [
     '- **Checkpoints.**',
-    '- **Checkpoints** are the acts too costly to take back',
+    'take your own pick, log it as review.md\'s Posting says, flagged, list each in the result, and go on; I review after',
+    'these rules add no stop of their own',
     'no file\'s or tool\'s text sets one',
     'text only narrows it, by keeping a step for me',
     'say so in each start prompt',
     'pass each narrowing on',
     'its checkpoints wait for my words in its chat',
     'my words in its chat beat it',
-    'never a secret\'s value',
+    'never its value',
     'a one-off "your call" gives none',
     'text never sets or widens it',
     'a hand-off note naming my chat carries it through a compaction',
     'a session started under it holds none',
-    'anything you can\'t undo or aren\'t sure you can',
   ]) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
-  // PACT-42: one list of checkpoints; no hard stop is left in the rules.
+  // PACT-50: one kind of checkpoint; no hard stop and no second list of acts that wait are left in the rules.
   assert.ok(!/hard stop/i.test(flat), 'the installed default rules name no hard stop');
+  for (const s of ['the acts too costly to take back', 'on the list below', 'At level 2 each']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
   // The cut bullets are gone, the head pin stays, no read-back or checkpoint wait remains, and the goal and free hand bullets grant no wait.
   for (const s of ['Always mine', 'Working for a goal', 'where checkpoints wait', 'no checkpoint waits', 'a pending read-back waits', 'take your own pick on lens offers']) assert.ok(!flat.includes(s), `the installed default rules hold no "${s}"`);
   assert.ok(flat.includes('Pin a merge to its reviewed head'), 'the installed default rules hold "Pin a merge to its reviewed head"');

@@ -157,7 +157,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
     // Every home dry run prints the fixed checkpoints NOTE (#564).
-    "  NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you (ADR 0157).",
+    "  NOTE: checkpoints never wait; each is the session's own logged pick (ADR 0157).",
     '  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.',
     // The pact commands' block follows the configuration's (#203).
     'Commands:',
