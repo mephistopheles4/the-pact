@@ -13,7 +13,7 @@ Only `clef setup --yes` fetches anything, and only these, each checked by size a
 
 Plan for about **7.6 GB** of free disk on the drive that holds your Claude home folder: setup refuses when the model, the archive, the unpacked files and a 10% margin do not fit. Downloads redirect only to a fixed list of hosts, over `https:` only. Everything lands in the clef folder, `<Claude home>/pact-clef/`, which no install writes or deletes.
 
-RAM and VRAM, measured on the owner's Windows machine (Vulkan, an RTX 5090, Q4_K_M, `-c 16384`): the server's peak working set was about **7.0 GB** of RAM, and the GPU's memory use rose by about **8.5 GB** while it was loaded. A cold start (nothing running to ready) took about 5 seconds with the model in the file cache; a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
+RAM and VRAM, measured on the owner's Windows machine (Vulkan, a discrete GPU with 32 GB, Q4_K_M, `-c 16384`): the server's peak working set was about **7.0 GB** of RAM, and the GPU's memory use rose by about **8.5 GB** while it was loaded. A cold start (nothing running to ready) took about 5 seconds with the model in the file cache; a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
 
 ## Commands
 
