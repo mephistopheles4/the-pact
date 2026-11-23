@@ -9,7 +9,7 @@ What is waiting for me? I read your answer on a phone and reply to it by
 number, so write each item to be understood alone. Answer in this shape,
 nothing else. Use no decision ids, session ids, tab names or tool names.
 
-- **A very short numbered list of next steps,** from 1, in the order I should
+- **A very short numbered list of what waits for me,** from 1, in the order I should
   take them: those that block running work first, then oldest first. One item
   per decision for me or pick I may revisit (a checkpoint's pick included).
   Each is two parts, in this order:
@@ -20,16 +20,17 @@ nothing else. Use no decision ids, session ids, tab names or tool names.
     so in that line.
   - ***The pick,* in italics, last.** Every item has one.
 
-  With two or more items that have picks, end the list with one line: "Yes, 1
+  With two or more items, end the list with one line: "Yes, 1
   to N takes every pick", N being the last number.
 
-  Every open "Owner's call: security" pick has its item too, like any other, until
+  Every open security pick (an "Owner's call: security" row, or a checkpoint
+  flagged big for a security risk) has its item too, like any other, until
   a `decision` post records my answer; the answer and its reason go in the record.
 - **Only you can do:** steps only I can take (paste, restart, sign in), a plain
   list, one line each, never numbered.
 - **One line naming what else there is:** "There's also …", the running work,
   what landed since I last asked, and anything else not in the list, each in a
-  few words. I ask for the detail of any of it.
+  few words. I may ask for the detail of any of it.
 
 ## My reply
 
