@@ -300,7 +300,7 @@ file contents, a stash subject or git's own output.
 | --- | --- | --- |
 | 0 | `RESULT: shown <n> <tags>` or `RESULT: removed <r> left 0 changed 0` | done |
 | 1 | `RESULT: removed <r> left <l> changed <c>` | something named in `--yes` or `--override` was left, or changed or gone since the name-back |
-| 2 | `RESULT: refused <count>` | a usage fault; nothing ran |
+| 2 | `RESULT: refused <count>` | a usage fault; nothing ran. A `NEXT:` line of fixed words, above the result, says what to do instead, once for each rule refused |
 | 4 | `RESULT: unavailable` | git missing or older than 2.36 (2.45 with `--recoverable`), `.claude` or `.claude/worktrees` a link, the sessions check failed (including the sessions folder or a status file being a link or the wrong kind), or a read failed |
 
 It needs Node 24 and git 2.36 or later (2.45 with `--recoverable`), and runs on Windows, Linux, WSL and

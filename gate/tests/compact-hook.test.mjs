@@ -59,6 +59,9 @@ test('#482 C6: the hook nudges past the line (window minus 80000) and not under 
   assert.equal(c.hookEventName, 'UserPromptSubmit');
   assert.match(c.additionalContext, /hand-off file/);
   assert.ok(c.additionalContext.includes(handoff(past).replaceAll('\\', '/')), c.additionalContext);
+  // PACT-52 C5: the hooks reference asks for facts in additionalContext, not orders; the nudge says the file is due an update, what an up-to-date one holds and never holds.
+  const shown = handoff(past).replaceAll('\\', '/');
+  assert.equal(c.additionalContext, `Your context is nearing the auto-compact window. The hand-off file at ${shown} is how this session's place survives compaction, and it is due an update now. An up-to-date hand-off file holds the goal and any free hand, or its end, with where it came from, by its kind, the state, the open questions and the next step. It never holds secrets, tokens or personal details.`);
   assert.equal(readFileSync(turnFile(past), 'utf8').trim(), 'nudged');
   assert.deepEqual(readdirSync(past.h).sort(), ['pact', 'transcript.jsonl'], 'nothing outside the home folder');
   assert.deepEqual(readdirSync(past.cwd), [], 'nothing in the session\'s own folder');

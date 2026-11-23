@@ -10,6 +10,7 @@ effort, and what never goes in. For what the pact is and why, read the
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
 | `claude/review.md` | The review procedure: how to give lenses their input, cross their reports by its template, post them and log each finding's fate. It also holds the record's rules, and the poster's when the poster is on. The rules file tells a session to read it before it runs a lens or posts | `~/.claude/pact/review.md` |
+| `claude/review-diagrams.md` | The review diagrams' block, pin colours and no-diagram rule; review.md points to it | `~/.claude/pact/review-diagrams.md` |
 | `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `unstated-lens`, which looks for needs nobody wrote down; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text. Each runs on Opus by default. And `scout`, the one search helper, on Haiku at medium effort. A configuration may set any agent's model and effort, to any model Claude Code takes | `~/.claude/agents/` |
 | `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`: `/scriptorium` always, the others only when the configuration's `commands` list names them |
 | `claude/tools/` | The pact tools, each one file the owner turns on by name (see "Pact tools" below). Today `poster.mjs`, the poster: posts free text to GitHub from one strict JSON post that carries the owner's quote and the session's read-back, or edits what a session posted, through one fixed call per surface, and reads back what landed; and `cleaner.mjs`, the cleaner: removes leftover worktrees and their local branches with fixed git commands; and `clef.mjs`, the Clef runner: fetches a pinned llama.cpp server and a pinned Clef model with `setup`, and checks them with `verify`; and `gh-app.mjs`, the Windows GitHub App helper | `~/.claude/pact/tools/<name>.mjs`, only when the configuration's `tools` list names it; `gh-app.mjs`, only while the `agent-identity` setting is on |
@@ -39,9 +40,9 @@ place with the builder kit. The cloud copy installs none yet.
 
 | Command | What it stands for |
 | --- | --- |
-| `/make-it-so` | "Accept all recommendations": the session carries out every recommendation in its last message, except a `/scry` ask already answered; after a `/scry` answer it is "Yes, 1 to N". |
+| `/make-it-so` | "Accept all recommendations": the session carries out every recommendation in its last message, except a `/scry` item already answered; after a `/scry` answer it is "Yes, 1 to N". |
 | `/finis` | "We're done, archive this session": the session checks for anything outstanding, says what it is if there is, and archives the session if there isn't. |
-| `/scry` | What is waiting for you. |
+| `/scry` | "What is waiting for me?": a short numbered list, each item a question and its pick. You reply by number; "Yes, 1 to N" takes every pick. |
 | `/scriptorium` | "Build my Scriptorium page": the session writes the builder file from your own skills, commands, agents and configuration, checks it, and renders your page with the installed kit. |
 
 ## Pact tools
