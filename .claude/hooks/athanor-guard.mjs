@@ -37,7 +37,7 @@ const REFUSAL = [
   "Run the gate's tests through athanor: `athanor run fast` while building, `athanor run` for the full suite.",
   'A host run of `fast` or `full` is the fallback only when athanor can\'t run (no Docker, a copy older than 4121c28, or a run that ends 124, 125 or 137).',
 "If that is why you are here, rerun the same command with `--host-fallback='<reason>'`, the reason quoted, so PowerShell keeps it one argument, and short, in your own plain words (no path, token or pasted error text), and say in your report that you used the fallback.",
-  'A host `changed` run is refused while athanor works and has no fallback: build with `athanor run fast`, and let CI\'s two jobs be the evidence. `--list` runs on the host as it is. AGENTS.md, "Running the gate\'s tests", has the rest.',
+  'A host `changed` run is refused while athanor works and has no fallback: build with `athanor run fast`, and let CI\'s three jobs be the evidence. `--list` runs on the host as it is. AGENTS.md, "Running the gate\'s tests", has the rest.',
 ].join(' ');
 
 const FLAG = '--host-fallback=';

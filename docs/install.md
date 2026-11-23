@@ -18,7 +18,7 @@ Claude Code session on your machine.
 - **Linux:** the dry run in CI on every pull request (Ubuntu, Node 24), and
   the gate's tests, which install into throwaway folders, in the repo's Linux
   container (`gate/tests/fixtures/linux/`).
-- **macOS:** not tried.
+- **macOS:** as for Linux, in CI's `gate-macos` (macOS 15 arm64).
 - **`/agents` (step 6):** checked on Windows only.
 
 <!-- toc -->
