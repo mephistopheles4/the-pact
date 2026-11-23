@@ -1091,7 +1091,7 @@ __CLAUDE_CONFIG_EOF__
 write_config 'pact/review-diagrams.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact's diagram format
 
-Read beside review.md's Diagrams section: how a review diagram is written and coloured.
+How a review diagram is written and coloured; read it beside review.md's Diagrams section.
 
 - **The block.** Each diagram sits under its sentence, written exactly as
   `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
@@ -1102,7 +1102,7 @@ Read beside review.md's Diagrams section: how a review diagram is written and co
   is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
   security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
   `color:`.
-- **A place that can't draw them** gets the title line, signal table and count line as plain text,
+- **A place that can't draw diagrams** gets the title line, signal table and count line as plain text,
   with no diagram.
 __CLAUDE_CONFIG_EOF__
 
@@ -1213,7 +1213,7 @@ Ask each lens to report in this shape:
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: update the newest and mention the duplicate there. Post the round comment first. If a status edit is refused
+  `after <stage> further read (<your label>)`. More than one: edit the newest and name the duplicate in it. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -1294,13 +1294,12 @@ trust the result. It is the diagram's heading. The type follows the sentence:
 A flowchart is never the default: a comment holds at most one, and use it only
 when no other row answers the sentence.
 
-- Diagram format and pin colours: `review-diagrams.md`, beside this file.
+- **Format and pin colours:** read `review-diagrams.md`, beside this file.
 - **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
   diagram that draws it, so it can't read as done.
-- **Every lens report posts** in the record word for word, like any other; nothing is withheld, but a report refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 
 ## Posting
 
@@ -1311,6 +1310,7 @@ when no other row answers the sentence.
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image.
+- **Every lens report posts** in the record word for word, like any other. One refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
@@ -1320,7 +1320,7 @@ when no other row answers the sentence.
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
-- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint at level 3.
+- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint in Turbo mode.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the
     ask lists are where the work starts, and a limit in my words, such as
@@ -1590,8 +1590,8 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
-check_hash 3ea41220667e901a9566d43dc68baea519abe86273d4e120ecc273f4d18a9e55 'pact/review-diagrams.md'
-check_hash e8f655b596ab7dcb30d6c3fbab105e3e4cada74768d228a2cdd0e6a9c50f62b4 'pact/review.md'
+check_hash 1b6583d0ce5ef545df1898fbb70539cabe34efd071ed0acc8769fe3efb034ec5 'pact/review-diagrams.md'
+check_hash 2954828c4f73035c888ae126f03f90d22562afea223fe3215f02234a88f490c8 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1621,7 +1621,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 2652fee1e78b"
+  echo "pact cloud copy 9498ceadf41e"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

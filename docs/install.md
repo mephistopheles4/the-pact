@@ -32,8 +32,8 @@ holds them:
   text counts there: it leaves that to judgment. Before you use the rules on
   a tracker where others can comment, keep that tracker private, or write
   your own rule into the repo's `AGENTS.md` or a doc it points to, as this repo does.
-- Review reports, security findings included, go to the project's issue
-  tracker word for word, so choose its visibility knowing that.
+- **Review reports, security findings included, go to the work's record** word
+  for word, so choose its visibility knowing that.
 
 [The threat model](threat-model.md) says what the pact accepts and what is
 still open. Read it before you decide.
