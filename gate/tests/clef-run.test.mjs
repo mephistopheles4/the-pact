@@ -1250,7 +1250,8 @@ test('sweep: an orphan still loading keeps its record: ensure starts nothing, st
 test('sweep: an orphan that finishes loading during the sweep is ended', async t => {
   const f = fixture(t);
   const o = await orphan(t, f, { readyAfterMs: 1500 });
-  assert.equal((await clef.sweepServer({ dir: f.dir, boundMs: 10_000 })).result, 'ended');
+  const r = await clef.sweepServer({ dir: f.dir, boundMs: 10_000 });
+  assert.equal(r.result, 'ended', `probes: ${o.props().join(',')}`);
   assert.ok(await gone(o.child.pid, 3000));
 });
 
@@ -1305,4 +1306,16 @@ test('stop on the keeper line: a clean stop of an orphan leaves neither run.serv
   assert.equal(existsSync(f.run.server) || existsSync(f.run.key), false);
   assert.ok(await gone(o.child.pid, 3000));
   assert.ok(!st.lines.join('\n').includes(key));
+});
+
+// Spec 0003 C-M11: macOS folds case, so the runtime folder named in another case is the same folder and serve starts from it.
+test('main: on macOS, serve from the runtime folder named in another case is accepted', { skip: process.platform !== 'darwin' && 'needs the case-folding macOS file system (runs on gate-macos)' }, async t => {
+  const f = fixture(t);
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: f.cfgHome };
+  const cased = f.p.runtime.replace(/runtime(?=\/[^/]*$)/, 'RunTime');
+  assert.notEqual(cased, f.p.runtime);
+  const out = [];
+  const code = await clef.main(['serve'], { env, cwd: cased, account: f.cfgHome, out: l => out.push(l), chdir: () => {}, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
+  assert.equal(code, 0, out.join('\n'));
+  assert.match(readFileSync(f.run.log, 'utf8'), /stopped idle/);
 });
