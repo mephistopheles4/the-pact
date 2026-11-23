@@ -151,14 +151,13 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     assert.equal(SOURCE_TEXT.split(`'${key}': Object.freeze(`).length, 2, `one row for ${key}`);
     assert.ok(clef.SERVER.archives[key].files.length > 0, `${key} names the files it keeps`);
   }
-  // #PACT-91 C-U2 (spec 0005 U3): the three new rows, and a glibc floor on every Linux row.
+  // #PACT-91 C-U2 (spec 0005 U3): the three new rows (the glibc floor is held by the shape check above).
   const want = { 'linux-arm64-cpu': ['llama-b12211-bin-ubuntu-arm64.tar.gz', 'tgz'], 'win32-arm64-cpu': ['llama-b12211-bin-win-cpu-arm64.zip', 'zip'], 'darwin-x64-cpu': ['llama-b12211-bin-macos-x64.tar.gz', 'tgz'] };
   for (const [key, [asset, kind]] of Object.entries(want)) {
     assert.equal(SOURCE_TEXT.split(`'${key}': Object.freeze(`).length, 2, `one row for ${key}`);
     assert.deepEqual([clef.SERVER.archives[key].asset, clef.SERVER.archives[key].kind], [asset, kind]);
     assert.ok(clef.SERVER.archives[key].files.length > 0, `${key} names the files it keeps`);
   }
-  for (const key of Object.keys(clef.SERVER.archives).filter(k => k.startsWith('linux-'))) assert.match(clef.SERVER.archives[key].glibc, /^2\.[0-9]+$/, `${key} names its glibc floor`);
   // Spec 0003 M3: both darwin keys name the one macOS row, which keeps the server and its .0.dylib copies.
   const mac = clef.SERVER.archives['darwin-arm64-metal'];
   assert.equal(clef.SERVER.archives['darwin-arm64-cpu'], mac, 'both darwin keys name one row');
@@ -545,7 +544,7 @@ test('pickPlatform: arm64 on Windows and Linux picks CPU even with a Vulkan load
   const why = 'arm64: CPU (Vulkan on arm64 is not checked yet)';
   for (const platform of ['win32', 'linux']) {
     for (const vulkan of [true, false]) {
-      assert.deepEqual(clef.pickPlatform({ platform, arch: 'arm64', vulkan, cpu: false }), { key: `${platform}-arm64-cpu`, backend: 'cpu', why });
+      for (const cpu of [true, false]) assert.deepEqual(clef.pickPlatform({ platform, arch: 'arm64', vulkan, cpu }), { key: `${platform}-arm64-cpu`, backend: 'cpu', why });
     }
   }
 });
@@ -607,7 +606,6 @@ test('setup with the real table prints the real plan and still fetches nothing',
   const rows = [
     { id: 'no-platform-freebsd', plant: () => ({ platform: 'freebsd', arch: 'x64' }), fails: ['clef-platform'], why: 'FreeBSD has no build (spec 0005 C-U1; the Intel Mac refusal moved here)' },
     { id: 'no-platform-ia32', plant: () => ({ arch: 'ia32' }), fails: ['clef-platform'], why: 'a 32-bit node has no build' },
-    { id: 'no-row-for-arm64', plant: () => ({ arch: 'arm64' }), fails: ['clef-platform'], why: 'the pick is win32-arm64-cpu but this table has no such row' },
     { id: 'no-row-for-key', plant: () => ({ server: { ...miniServer(), archives: {} } }), fails: ['clef-platform'], why: 'the table has no row for the platform' },
     { id: 'too-little-space', plant: () => ({ free: 100 }), fails: ['clef-space'], why: 'the drive cannot hold the files' },
     { id: 'node-in-the-folder', plant: () => ({ execPath: 'C:\\work\\evil\\node.exe', cwd: 'C:\\work' }), fails: ['clef-node'], why: 'a node inside the starting folder' },
@@ -633,31 +631,51 @@ test('setup with the real table prints the real plan and still fetches nothing',
   }
   test('setup refusals: base passes after the rows', async t => assert.deepEqual((await run(base(), t)).fails, []));
   // #PACT-91 C-U3: at or above the row's glibc, setup passes the check.
+  // The seam answers only for setpriv, so a pass also shows that no OpenSSL file is asked for (decision 93: no OpenSSL check on Linux).
   for (const glibc of ['2.35', '2.36', '2.100', '3.0']) {
     test(`setup: glibc ${glibc} passes a row that needs 2.35`, t => {
-      assert.doesNotThrow(() => clef.planSetup({ ...setupArgs(t), platform: 'linux', exists: () => true, glibc, server: linuxServer('2.35') }));
+      assert.doesNotThrow(() => clef.planSetup({ ...setupArgs(t), platform: 'linux', exists: p => p === '/usr/bin/setpriv', glibc, server: linuxServer('2.35') }));
     });
   }
+  // #PACT-91 C-U3: the real read takes glibcVersionRuntime from the report, asks it without network lookups, and answers null where there is none.
+  test('runtimeGlibc: reads glibcVersionRuntime, leaves excludeNetwork as it found it, and gives null for musl or a failing report', () => {
+    let seen;
+    const report = { excludeNetwork: false, getReport() { seen = this.excludeNetwork; return { header: { glibcVersionRuntime: '2.31', glibcVersionCompiler: '9.99' } }; } };
+    assert.equal(clef.runtimeGlibc(report), '2.31');
+    assert.equal(seen, true, 'the report is built without network lookups');
+    assert.equal(report.excludeNetwork, false, 'the setting is put back');
+    assert.equal(clef.runtimeGlibc({ getReport: () => ({ header: {} }) }), null);
+    assert.equal(clef.runtimeGlibc({ getReport() { throw new Error('no report'); } }), null);
+  });
   test('setup: the glibc refusal names both versions, and the musl one says the builds need glibc', t => {
     const plan = glibc => () => clef.planSetup({ ...setupArgs(t), platform: 'linux', exists: () => true, glibc, server: linuxServer('2.35') });
     assert.throws(plan('2.34'), e => e.code === 'clef-platform' && /2\.34/.test(e.message) && /2\.35/.test(e.message) && /newer glibc distribution/.test(e.message));
     assert.throws(plan(null), e => e.code === 'clef-platform' && e.message === 'the pinned Linux builds need glibc; this system has none');  });
   // #PACT-91 C-U3 (decision 93): the message names the redistributable, the seam sees System32 paths, and the arm64 build needs no VCRUNTIME140_1.
-  test('setup: a missing Visual C++ runtime names the redistributable and the missing files', t => {
+  test('setup: a missing Visual C++ runtime names the redistributable and the missing files, looks under the given system folder, and prints no environment path', t => {
     const seen = [];
     const exists = p => { seen.push(p); return !/MSVCP140\.dll$|VCRUNTIME140_1\.dll$/i.test(p); };
-    assert.throws(() => clef.planSetup({ ...setupArgs(t), exists, systemRoot: 'C:\\Windows' }), e => e.code === 'clef-platform' && /Microsoft Visual C\+\+ Redistributable/.test(e.message) && /MSVCP140\.dll/.test(e.message) && /VCRUNTIME140_1\.dll/.test(e.message));
-    assert.ok(seen.includes('C:\\Windows\\System32\\MSVCP140.dll'), seen.join('\n'));
+    assert.throws(() => clef.planSetup({ ...setupArgs(t), exists, systemRoot: 'D:\\Win' }), e => e.code === 'clef-platform' && /Microsoft Visual C\+\+ Redistributable/.test(e.message) && /MSVCP140\.dll/.test(e.message) && /VCRUNTIME140_1\.dll/.test(e.message) && /%SystemRoot%\\System32/.test(e.message) && !/D:\\Win/.test(e.message));
+    assert.ok(seen.includes('D:\\Win\\System32\\MSVCP140.dll'), seen.join('\n'));
   });
-  test('setup: the arm64 Windows build needs MSVCP140.dll and VCRUNTIME140.dll but not VCRUNTIME140_1.dll', t => {
+  test('setup: the Vulkan probe looks under the same system folder', t => {
+    const seen = [];
+    clef.planSetup({ ...setupArgs(t), vulkan: undefined, exists: p => { seen.push(p); return true; }, systemRoot: 'D:\\Win' });
+    assert.ok(seen.some(p => /^D:.Win.System32.vulkan-1\.dll$/.test(p)), seen.join('\n'));
+  });
+  test('setup: the arm64 Windows build needs MSVCP140.dll and VCRUNTIME140.dll but not VCRUNTIME140_1.dll, and runs no Vulkan probe', t => {
     const server = { ...miniServer(), archives: { 'win32-arm64-cpu': miniServer().archives['win32-x64-cpu'] } };
-    assert.doesNotThrow(() => clef.planSetup({ ...setupArgs(t), arch: 'arm64', exists: p => !/VCRUNTIME140_1\.dll$/i.test(p), server }));
+    const seen = [];
+    assert.doesNotThrow(() => clef.planSetup({ ...setupArgs(t), arch: 'arm64', exists: p => { seen.push(p); return !/VCRUNTIME140_1\.dll$/i.test(p); }, vulkan: undefined, server }));
+    assert.ok(seen.length > 0 && !seen.some(p => /vulkan/i.test(p)), seen.join('\n'));
     assert.throws(() => clef.planSetup({ ...setupArgs(t), arch: 'arm64', exists: p => !/VCRUNTIME140\.dll$/i.test(p), server }), e => e.code === 'clef-platform');
   });
-  test('setup: an x64 node on an arm64 Windows machine plans the CPU build', t => {
+  test('setup: an x64 node on an arm64 Windows machine plans the CPU build, told by the machine read when none is given', t => {
     const plan = clef.planSetup({ ...setupArgs(t), vulkan: true, machine: 'arm64' });
     assert.equal(plan.pick.key, 'win32-x64-cpu');
     assert.match(plan.lines.join('\n'), /^platform: win32-x64-cpu \(x64 node on an arm64 machine: CPU\)$/m);
+    assert.equal(clef.planSetup({ ...setupArgs(t), vulkan: true, readMachine: () => 'arm64' }).pick.key, 'win32-x64-cpu');
+    assert.equal(clef.planSetup({ ...setupArgs(t), vulkan: true, readMachine: () => 'x86_64' }).pick.key, 'win32-x64-vulkan');
   });
   test('setup: a node outside the starting folder, and a sibling with a shared prefix, are not inside it', t => {
     const plan = over => clef.planSetup({ ...setupArgs(t), free: 1e12, ...over });

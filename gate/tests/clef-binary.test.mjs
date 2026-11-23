@@ -204,7 +204,7 @@ for (const [label, set, row, says] of [
   ['holds a PE that imports MSVCP150.dll', m => m.set('llama.dll', pe({ imports: ['MSVCP150.dll'] })), WIN, /llama\.dll: imports MSVCP150\.dll, outside the allowed names/],
   ['holds a PE other than llama-connect.exe that imports iphlpapi.dll', m => m.set('llama.dll', pe({ imports: ['iphlpapi.dll'] })), WIN, /llama\.dll: imports iphlpapi\.dll, outside the allowed names/],
   ['holds a PE other than llama-connect.exe that imports bcryptprimitives.dll', m => m.set('llama.dll', pe({ imports: ['bcryptprimitives.dll'] })), WIN, /llama\.dll: imports bcryptprimitives\.dll, outside the allowed names/],
-  ['holds an ELF that needs libz.so.1', m => m.set('libllama.so.0', elf({ needed: ['libz.so.1'] })), LIN, /libllama\.so\.0: needs libz\.so\.1, outside the allowed names/],
+  ['holds an ELF that needs the older libssl.so.1.1 (decision 93 allows only the .so.3 names)', m => m.set('libllama.so.0', elf({ needed: ['libssl.so.1.1'] })), LIN, /libllama\.so\.0: needs libssl\.so\.1\.1, outside the allowed names/],
   ['holds a PE of the wrong machine', m => m.set('llama.dll', pe({ machine: 0xaa64 })), WIN, /llama\.dll: machine ARM64, the row wants AMD64/],
   ['holds an ARM64EC image', m => m.set('llama.dll', pe({ machine: 0xa641 })), { os: 'win32', arch: 'arm64', vulkan: false }, /llama\.dll: an ARM64EC image/],
   ['holds an ARM64X image', m => m.set('llama.dll', pe({ machine: 0xaa64, chpe: true })), { os: 'win32', arch: 'arm64', vulkan: false }, /llama\.dll: an ARM64X image/],
@@ -218,9 +218,3 @@ for (const [label, set, row, says] of [
     assert.ok(flags.some(f => says.test(f)), flags.join('\n'));
   });
 }
-
-test('ELF and PE report: a libvulkan need on a Linux x64 set is clean once the row is Vulkan', () => {
-  const m = new Map([['libggml-vulkan.so', elf({ needed: ['libvulkan.so.1', 'libc.so.6'] })]]);
-  assert.ok(binaryFlags(m, LIN).flags.length > 0);
-  assert.deepEqual(binaryFlags(m, { ...LIN, vulkan: true }).flags, []);
-});

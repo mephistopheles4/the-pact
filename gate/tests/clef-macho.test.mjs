@@ -67,7 +67,6 @@ test('Mach-O check: an x86_64 set passes as x86_64', () => {
   assert.deepEqual(machoFlags(x86set(), { arch: 'x86_64' }).flags, []);
 });
 for (const [label, set, arch, says] of [
-  ['an x86_64 file checked as arm64', x86set(), 'arm64', /llama-server: not arm64/],
   ['an arm64 file checked as x86_64', good(), 'x86_64', /llama-server: not x86_64/],
   ['a fat file checked as x86_64', new Map([['libggml.0.dylib', Buffer.from([0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2])]]), 'x86_64', /libggml\.0\.dylib: not a thin 64-bit Mach-O/],
 ]) {

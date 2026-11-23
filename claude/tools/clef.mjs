@@ -955,12 +955,22 @@ const machineOf = () => {
 };
 
 /** The glibc this node runs on, as the report states it (`'2.35'`), or null on a system with none (musl). */
-export function runtimeGlibc() {
+export function runtimeGlibc(report = process.report) {
+  let prior;
   try {
-    const v = process.report?.getReport?.().header?.glibcVersionRuntime;
+    prior = report?.excludeNetwork;
+    // The full report would look up the endpoints of open sockets; only one header field is wanted.
+    if (report) report.excludeNetwork = true;
+    const v = report?.getReport?.().header?.glibcVersionRuntime;
     return typeof v === 'string' && v !== '' ? v : null;
   } catch {
     return null;
+  } finally {
+    try {
+      if (report) report.excludeNetwork = prior;
+    } catch {
+      // a report object that refuses the setting is left as it is
+    }
   }
 }
 
@@ -1083,11 +1093,11 @@ function modelPresent(dir, model, setup) {
  * clef folder. Throws Refused (`clef-platform`, `clef-space`, `clef-node`,
  * `clef-setpriv`, `clef-pin`).
  */
-export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, model = MODEL, glibc, machine, systemRoot = process.env.SystemRoot ?? 'C:\\Windows' }) {
+export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, model = MODEL, glibc, machine, systemRoot = process.env.SystemRoot ?? 'C:\\Windows', readMachine = process.platform === 'win32' ? machineOf : () => undefined }) {
   assertPins(server, model);
   // Spec 0005 U4: no probe runs on macOS or on arm64, which never picks Vulkan.
   const probes = (platform === 'win32' || platform === 'linux') && arch === 'x64';
-  const pick = pickPlatform({ platform, arch, vulkan: probes ? vulkan ?? probeVulkan({ platform, exists }) : false, cpu, machine: machine ?? (platform === 'win32' && process.platform === 'win32' ? machineOf() : undefined) });
+  const pick = pickPlatform({ platform, arch, vulkan: probes ? vulkan ?? probeVulkan({ platform, exists, systemRoot }) : false, cpu, machine: machine ?? (platform === 'win32' ? readMachine() : undefined) });
   if (!pick || !server.archives[pick.key]) throw new Refused('clef-platform', `no pinned server build for ${platform} ${arch}`);
   // Spec 0005 U4, before any fetch: the C library the pinned Linux builds need.
   if (platform === 'linux') {
@@ -1100,7 +1110,7 @@ export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, fre
   if (platform === 'win32') {
     const system32 = win32.join(systemRoot, 'System32');
     const missing = VC_RUNTIME[pick.key.includes('-arm64-') ? 'arm64' : 'x64'].filter(name => !exists(win32.join(system32, name)));
-    if (missing.length) throw new Refused('clef-platform', `${pick.key} needs the Microsoft Visual C++ Redistributable, and ${system32} lacks ${missing.join(', ')}. Install the Redistributable for ${pick.key.includes('-arm64-') ? 'arm64' : 'x64'}`);
+    if (missing.length) throw new Refused('clef-platform', `${pick.key} needs the Microsoft Visual C++ Redistributable, and %SystemRoot%\\System32 lacks ${missing.join(', ')}. Install the Redistributable for ${pick.key.includes('-arm64-') ? 'arm64' : 'x64'}`);
   }
   if (platform === 'linux' && !exists('/usr/bin/setpriv')) throw new Refused('clef-setpriv', 'Linux needs /usr/bin/setpriv, which this machine does not have');
   if (insideOf(execPath, cwd, platform === 'win32', platform === 'darwin')) throw new Refused('clef-node', 'the node that runs setup lies inside the folder the command was started from');
