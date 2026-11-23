@@ -167,6 +167,31 @@ test('serverArgs: the list is fixed, the key is a file, and Vulkan adds -ngl 99'
   assert.ok(!c.includes('-ngl'));
 });
 
+// #PACT-91 C-U11 (spec 0005 U4): `-nr` ends the list on a CPU backend, after 0003's `--device none`, and never appears on Vulkan or Metal.
+test('serverArgs: a CPU backend ends with -nr, after --device none, and a GPU backend never holds it', () => {
+  const base = { port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf' };
+  const cpu = clef.serverArgs({ ...base, cpu: true });
+  assert.deepEqual(cpu.slice(-3), ['-m', '/m/x.gguf', '-nr']);
+  assert.deepEqual(cpu.slice(0, -1), clef.serverArgs(base), 'the CPU list is the plain list plus -nr');
+  const mac = clef.serverArgs({ ...base, cpu: true, noDevice: true });
+  assert.equal(mac.at(-1), '-nr');
+  assert.ok(mac.indexOf('--device') < mac.indexOf('-nr'));
+  for (const gpu of [{ vulkan: true }, { metal: true }, {}]) assert.ok(!clef.serverArgs({ ...base, ...gpu }).includes('-nr'), JSON.stringify(gpu));
+});
+
+// #PACT-91 C-U11: serve passes the setup's backend, so every CPU key (macOS arm64 CPU included) launches with -nr last and no GPU key does.
+for (const [backend, nr] of [['cpu', true], ['vulkan', false], ['metal', false]]) {
+  test(`serve: a ${backend} setup launches the server ${nr ? 'with -nr last' : 'without -nr'}`, async t => {
+    const f = fixture(t);
+    const setup = JSON.parse(readFileSync(f.p.setup, 'utf8'));
+    writeFileSync(f.p.setup, JSON.stringify({ ...setup, backend }));
+    await startServe(t, f);
+    const rec = await f.recorded();
+    if (nr) assert.equal(rec.args.at(-1), '-nr');
+    else assert.ok(!rec.args.includes('-nr'));
+  });
+}
+
 test('launchCommand: Linux goes through /usr/bin/setpriv --pdeathsig KILL, and the seam drops it', () => {
   const args = ['--x'];
   assert.deepEqual(clef.launchCommand({ platform: 'linux', exe: '/r/llama-server', args }), { file: '/usr/bin/setpriv', args: ['--pdeathsig', 'KILL', '--', '/r/llama-server', '--x'] });

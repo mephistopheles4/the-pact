@@ -14,10 +14,13 @@ const PT_LOAD = 1;
 const PT_DYNAMIC = 2;
 const DT = { NULL: 0, NEEDED: 1, STRTAB: 5, VERNEED: 0x6ffffffe, VERNEEDNUM: 0x6fffffff };
 
-const LINUX_ALLOWED = [/^libc\.so\.6$/, /^libm\.so\.6$/, /^libpthread\.so\.0$/, /^libdl\.so\.2$/, /^librt\.so\.1$/, /^ld-linux-.+\.so\..+$/, /^libstdc\+\+\.so\.6$/, /^libgcc_s\.so\.1$/, /^libgomp\.so\.1$/];
+// Spec 0005 U5, with the lead's decision 93 (the OpenSSL 3 and Visual C++ names, and the two names kept to one file).
+const LINUX_ALLOWED = [/^libc\.so\.6$/, /^libm\.so\.6$/, /^libpthread\.so\.0$/, /^libdl\.so\.2$/, /^librt\.so\.1$/, /^ld-linux-.+\.so\..+$/, /^libstdc\+\+\.so\.6$/, /^libgcc_s\.so\.1$/, /^libgomp\.so\.1$/, /^libssl\.so\.3$/, /^libcrypto\.so\.3$/];
 const LINUX_VULKAN = [/^libvulkan\.so\.1$/];
-const WIN_ALLOWED = [/^kernel32\.dll$/, /^advapi32\.dll$/, /^user32\.dll$/, /^shell32\.dll$/, /^ole32\.dll$/, /^ws2_32\.dll$/, /^ntdll\.dll$/, /^bcrypt\.dll$/, /^api-ms-win-.+$/, /^ucrtbase\.dll$/];
+const WIN_ALLOWED = [/^kernel32\.dll$/, /^advapi32\.dll$/, /^user32\.dll$/, /^shell32\.dll$/, /^ole32\.dll$/, /^ws2_32\.dll$/, /^ntdll\.dll$/, /^bcrypt\.dll$/, /^api-ms-win-.+$/, /^ucrtbase\.dll$/, /^msvcp140\.dll$/, /^vcruntime140\.dll$/, /^vcruntime140_1\.dll$/, /^crypt32\.dll$/, /^psapi\.dll$/];
 const WIN_VULKAN = [/^vulkan-1\.dll$/];
+/** Names allowed to one kept file only (lower case): Windows imports of the connect tool. */
+const WIN_ONLY_IN = new Map([['bcryptprimitives.dll', 'llama-connect.exe'], ['iphlpapi.dll', 'llama-connect.exe']]);
 
 const bad = m => new Error(m);
 
@@ -172,7 +175,7 @@ export function binaryFlags(files, row) {
   let glibc = null;
   const need = (file, lib) => {
     if (kept.has(fold(lib))) return;
-    if (!allowed.some(re => re.test(fold(lib)))) {
+    if (!allowed.some(re => re.test(fold(lib))) && !(win && WIN_ONLY_IN.get(fold(lib)) === fold(file))) {
       const flag = `${file}: ${win ? 'imports' : 'needs'} ${lib}, outside the allowed names`;
       if (!flags.includes(flag)) flags.push(flag);
       return;

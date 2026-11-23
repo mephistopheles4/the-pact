@@ -139,14 +139,15 @@ function pe({ machine = 0x8664, imports = [], delay = [], magic = 0x20b, chpe = 
 const LIN = { os: 'linux', arch: 'x64', vulkan: false };
 const goodLinux = () => new Map([
   ['llama-server', elf({ needed: ['libllama.so.0', 'libstdc++.so.6', 'libm.so.6', 'libc.so.6'], verneeds: [['libc.so.6', ['GLIBC_2.2.5', 'GLIBC_2.34']], ['libstdc++.so.6', ['GLIBCXX_3.4.29', 'CXXABI_1.3.13']]] })],
-  ['libllama.so.0', elf({ needed: ['libgomp.so.1', 'libgcc_s.so.1', 'libc.so.6'], verneeds: [['libc.so.6', ['GLIBC_2.35']], ['libgomp.so.1', ['GOMP_4.5']], ['libgcc_s.so.1', ['GCC_3.0']]] })],
+  ['libllama.so.0', elf({ needed: ['libgomp.so.1', 'libgcc_s.so.1', 'libc.so.6', 'libssl.so.3', 'libcrypto.so.3'], verneeds: [['libc.so.6', ['GLIBC_2.35']], ['libgomp.so.1', ['GOMP_4.5']], ['libgcc_s.so.1', ['GCC_3.0']]] })],
   ['LICENSE', Buffer.from('MIT')],
 ]);
 const WIN = { os: 'win32', arch: 'x64', vulkan: false };
 const goodWin = () => new Map([
   ['llama-server.exe', pe({ imports: ['KERNEL32.dll', 'llama.dll', 'api-ms-win-crt-runtime-l1-1-0.dll'], delay: ['bcrypt.dll'] })],
-  ['llama.dll', pe({ imports: ['ADVAPI32.dll', 'libomp.dll'] })],
-  ['libomp.dll', pe({ imports: ['kernel32.dll'] })],
+  ['llama.dll', pe({ imports: ['ADVAPI32.dll', 'libomp.dll', 'MSVCP140.dll', 'VCRUNTIME140.dll', 'VCRUNTIME140_1.dll', 'CRYPT32.dll'] })],
+  ['libomp.dll', pe({ imports: ['kernel32.dll', 'PSAPI.DLL'] })],
+  ['llama-connect.exe', pe({ imports: ['KERNEL32.dll', 'bcryptprimitives.dll', 'iphlpapi.dll'] })],
   ['LICENSE', Buffer.from('MIT')],
 ]);
 
@@ -156,9 +157,11 @@ test('ELF and PE report: a good Linux set passes, with glibc the highest GLIBC_ 
   assert.equal(glibc, '2.35');
   assert.deepEqual([...outside].sort(), [
     ['libc.so.6', ['GLIBC_2.2.5', 'GLIBC_2.34', 'GLIBC_2.35']],
+    ['libcrypto.so.3', []],
     ['libgcc_s.so.1', ['GCC_3.0']],
     ['libgomp.so.1', ['GOMP_4.5']],
     ['libm.so.6', []],
+    ['libssl.so.3', []],
     ['libstdc++.so.6', ['CXXABI_1.3.13', 'GLIBCXX_3.4.29']],
   ].sort());
 });
@@ -198,7 +201,10 @@ for (const [label, set, row, says] of [
   ['needs libvulkan on a row that is not Vulkan', m => m.set('libllama.so.0', elf({ needed: ['libvulkan.so.1'] })), LIN, /needs libvulkan\.so\.1, outside the allowed names/],
   ['holds an ELF of the wrong machine', m => m.set('libllama.so.0', elf({ machine: EM.arm64 })), LIN, /libllama\.so\.0: machine EM_AARCH64, the row wants EM_X86_64/],
   ['holds a version need from a library outside the list', m => m.set('libllama.so.0', elf({ verneeds: [['libfoo.so.1', ['FOO_1.0']]] })), LIN, /libllama\.so\.0: needs libfoo\.so\.1, outside the allowed names/],
-  ['holds a PE that imports MSVCP140.dll', m => m.set('llama.dll', pe({ imports: ['MSVCP140.dll'] })), WIN, /llama\.dll: imports MSVCP140\.dll, outside the allowed names/],
+  ['holds a PE that imports MSVCP150.dll', m => m.set('llama.dll', pe({ imports: ['MSVCP150.dll'] })), WIN, /llama\.dll: imports MSVCP150\.dll, outside the allowed names/],
+  ['holds a PE other than llama-connect.exe that imports iphlpapi.dll', m => m.set('llama.dll', pe({ imports: ['iphlpapi.dll'] })), WIN, /llama\.dll: imports iphlpapi\.dll, outside the allowed names/],
+  ['holds a PE other than llama-connect.exe that imports bcryptprimitives.dll', m => m.set('llama.dll', pe({ imports: ['bcryptprimitives.dll'] })), WIN, /llama\.dll: imports bcryptprimitives\.dll, outside the allowed names/],
+  ['holds an ELF that needs libz.so.1', m => m.set('libllama.so.0', elf({ needed: ['libz.so.1'] })), LIN, /libllama\.so\.0: needs libz\.so\.1, outside the allowed names/],
   ['holds a PE of the wrong machine', m => m.set('llama.dll', pe({ machine: 0xaa64 })), WIN, /llama\.dll: machine ARM64, the row wants AMD64/],
   ['holds an ARM64EC image', m => m.set('llama.dll', pe({ machine: 0xa641 })), { os: 'win32', arch: 'arm64', vulkan: false }, /llama\.dll: an ARM64EC image/],
   ['holds an ARM64X image', m => m.set('llama.dll', pe({ machine: 0xaa64, chpe: true })), { os: 'win32', arch: 'arm64', vulkan: false }, /llama\.dll: an ARM64X image/],
