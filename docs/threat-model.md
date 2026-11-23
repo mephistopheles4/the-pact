@@ -79,9 +79,8 @@ prompt, a mic transcript, a file someone hands a session to load.
   deny rule is a speed bump: another spelling gets past it. The ask rule is
   passed by `bypassPermissions`, a mod, or a spelling outside its pattern.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
-  what git keeps. It can't tell whether the owner said yes to a hard stop; a
-  rule makes a recoverable removal through it a checkpoint and any other
-  deletion a hard stop. A removal that gets past the deny rules meets only the
+  what git keeps. It can't tell whether the owner agreed; a
+  rule makes each removal through it a checkpoint, the session's own logged pick. A removal that gets past the deny rules meets only the
   classifier. A forced removal rests on the rule the cleaner prints
   ([ADR 0151](adr/0151-the-cleaner-forces-only-on-an-override-tag.md)). The
   install's text scanner and the builder page's refusal of hidden characters
@@ -94,9 +93,10 @@ prompt, a mic transcript, a file someone hands a session to load.
 
 **Residual:** Text steers a session; A session takes checkpoints alone. Rules it
 rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`, and `docs/agents/agent-apps.md` while an agent app is pinned), for pull request text, and for GitHub issue text until the repo's lock ticket closes its issues, after which that text is outside text, whoever wrote it; and that doc's rule for the owner's private tracker;
-the hard stops, the steps that wait for the owner's own words (an install
-apply, mise trust, a merge on their list, anything made public or sent beyond
-the record, a deletion nothing can restore); the stop and removal rules above.
+the checkpoint rule, where each step the rules keep for the owner (an install
+apply, mise trust, a merge, anything made public or sent beyond the record, a
+deletion nothing can restore) is the session's own logged pick, reviewed after,
+with no wait of the pact's own; the stop and removal rules above.
 A change that loosens the cleaner's checks or the pact's deny rules is a spec
 change.
 
@@ -161,11 +161,10 @@ like any change to this repo.
   pact's text.
 
 **Residual:** The pact gets loosened; Review rests on rules. Rules they rest
-on, each a control: an install apply and mise trust wait for the owner's own
-words (hard stops), which a standing goal or a free hand never stands in
-for; a merge on the hard-stop list waits for the same; any other merge is a
-checkpoint, where checkpoints are events the session's own logged pick, pinned
-to its reviewed head. Also accepted. Review rests on rules: a
+on, each a control: an install apply, mise trust and every merge are
+checkpoints, the session's own logged pick, a merge pinned to its reviewed
+head and all reviewed after; the pact adds no wait of its own, so only Claude
+Code's prompts and classifier stop one. Also accepted. Review rests on rules: a
 read-only lens takes the base on trust; the table check doesn't pair a state
 word with a disposition; a lens launched as a teammate, against the procedure,
 can pass what it read to, or write tasks for, the owner's other sessions and
@@ -287,8 +286,8 @@ they do not size them.
 
 Each "Also accepted" line above details what the class it names covers; it is not a class of its own. No class accepts the failure of a control that works without the session's cooperation (the harness's prompts and deny rules, the poster's refusals for a post sent through it): bring it to the owner.
 
-- **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, and break the hard stops, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
-- **A session takes checkpoints alone.** Where checkpoints are events, a session takes calls the rules keep for the owner on its own logged pick, open security picks included, never a hard stop, on words from any prompt or replies it can't tell from its starter's.
+- **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, and bypass the rules, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
+- **A session takes checkpoints alone.** A session takes each checkpoint, a call the rules keep for the owner, on its own logged pick, open security picks included, with no wait of the pact's own, on words from any prompt or replies it can't tell from its starter's.
 - **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, and the gate's unscanned test files run with the owner's rights or a write token.
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
