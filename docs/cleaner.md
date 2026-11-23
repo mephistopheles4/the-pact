@@ -282,22 +282,22 @@ a positive whole `pid`. Anything else is live.
 A worktree is read on as free, its tag covering the jobId, pid and switch,
 when one finished session holds it, its lock carries that pid, and no other
 status file carries its jobId or sessionId. It says `in use by a finished
-background session; remove stops it first`. Otherwise, with no `claude`
+background session; remove stops it first`. Otherwise it stays in use; with no `claude`
 (from an absolute `PATH` entry; no shim) or the **stop
-switch** on, it stays in use, the last two with a line saying why. The switch is
+switch** on, a line says which. The switch is
 on when `~/.claude/settings.json`'s `permissions.deny` holds `Bash(claude stop
 *)` or `PowerShell(claude stop *)`, or the file is a link, not plain, not
 strict JSON, or has a `deny` that is no list of strings.
 
 A plant must also rewrite the victim's status file and the lock, which any
-owner process can; the tie stops only one that leaves them as Claude Code wrote them.
+owner process can; the tie stops only one that leaves them as written.
 
 `remove`, in order:
 
 1. On a yes, changed or untracked files: `left, git would refuse, so the
    session was not stopped`.
 2. It reads both again; a difference is `left, it changed since the read`.
-3. `claude stop <jobId>`, no shell, 30 s; a failure is `left, the session did
+3. `claude stop <jobId>` by absolute path, no shell, 30 s; a failure is `left, the session did
    not stop`.
 4. It waits up to 15 s until no status file names the folder and the pid is
    gone (a failed read counts as held), else `left, the session stopped but

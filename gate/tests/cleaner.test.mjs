@@ -2366,7 +2366,7 @@ test('PACT-80 C12: a finished session is stopped only when the worktree\'s lock 
   sessionLock(f, 'other', 'held by hand');
   plantSession(f, other, { pid: 4246, jobId: 'dddddddd' });
   // A status file whose pid matches the lock but whose jobId, or sessionId, is another session's own (which has its file elsewhere).
-  plantSession(f, f.root, { pid: 8000, jobId: '99999999', status: 'busy' });
+  plantSession(f, f.root, { pid: 8000, jobId: '99999999', sessionId: '99999999-1111', status: 'busy' });
   plantSession(f, f.root, { pid: 8001, jobId: undefined, sessionId: 'aaaaaaaa-1111', status: 'busy' });
   finished(f, 'twin', { pid: 4260, jobId: '99999999' });
   finished(f, 'twin2', { pid: 4261, jobId: 'aaaaaaaa', sessionId: 'aaaaaaaa-1111' });

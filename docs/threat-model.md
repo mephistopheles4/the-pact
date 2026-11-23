@@ -80,7 +80,7 @@ someone hands a session to load, and a decision model's answer.
   classifier. A forced removal rests on the cleaner's printed override rule
   ([ADR 0151](adr/0151-the-cleaner-forces-only-on-an-override-tag.md)). The
   install's text scanner and the builder page's refusal of hidden characters
-  check files for hidden and control characters, not wording.
+  check the files they take for hidden and control characters, not wording.
   The tracker author checker (`gate/tracker-authors.mjs`) reads who wrote what
   where GraphQL is refused, and trusts a clone's `origin` by its path. With an
   app pinned it also checks the pin and counts that app's PR as insiders' code.
@@ -202,7 +202,8 @@ anything else a session sends off the machine: a push, a fetch or search
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
   Its text fields and edit checks catch accidents only and are not a control.
-  With an app pinned it refuses a post as anything but the `claude` app.
+  With an app pinned it refuses a post as anything but the `claude` app, for
+  posts sent through it.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
   each token it mints to one repo and a permission set, and refuses a repo
   outside the pinned owner. It holds against accidents only: any process
@@ -279,4 +280,4 @@ Each "Also accepted" line above details what the class it names covers; it is no
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Session status files and worktree locks are owner-writable, so the cleaner's stop tie stops only a plant that leaves them as written.
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones.
