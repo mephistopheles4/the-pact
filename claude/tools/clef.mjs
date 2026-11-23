@@ -48,6 +48,54 @@ import { inflateRawSync, gunzipSync } from 'node:zlib';
 
 // ---------------------------------------------------------------- the pin table
 
+/** The macOS arm64 build (spec 0003 M3), named by both darwin keys. */
+const MACOS_ARCHIVE = Object.freeze({ asset: 'llama-b12211-bin-macos-arm64.tar.gz', size: 16711245, sha256: '4da4edb437358d31d55938ad849d262ca31b0e0ffb35e9caedb727a0cd5a8f0f', kind: 'tgz', exe: 'llama-b12211/llama-server',
+  files: Object.freeze([
+  ['llama-b12211/LICENSE', 1078, '94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d'],
+  ['llama-b12211/ggml-metal-tuning', 87696, 'bcd4adea51d936aa77758c7a5a5d4dd4834205a2488e17050a2c607af86a4f67'],
+  ['llama-b12211/ggml-rpc-server', 133024, '38f67707c237046cfe29921bb5854a57eedcc9a32a581f275ed394f2cee92116'],
+  ['llama-b12211/libggml-base.0.29.0.dylib', 772312, 'a27679374a505439de2220d7c87e52bb371a04568ca7b106c3668e7ba3f92862', 'libggml-base.0.dylib'],
+  ['llama-b12211/libggml-blas.0.29.0.dylib', 58776, '786754ac19bff80ad4ca76d44d3031f32593772f38d9da819b428dc702f63339', 'libggml-blas.0.dylib'],
+  ['llama-b12211/libggml-cpu.0.29.0.dylib', 959344, '0cae225e9b2f9fcb0c64a1f21f855dcb2ee83c059f503cd37cbff331d509c6a6', 'libggml-cpu.0.dylib'],
+  ['llama-b12211/libggml-metal.0.29.0.dylib', 5688168, 'f02a10b8d7d04cc901f24752f8652288e234dd4e4216f0ca291a5bb6bfd510c8', 'libggml-metal.0.dylib'],
+  ['llama-b12211/libggml-rpc.0.29.0.dylib', 243600, '1b4d7b2187abe3eda371ce6a72843125b4c6d07a7f14baea5929ede6b5b89d37', 'libggml-rpc.0.dylib'],
+  ['llama-b12211/libggml.0.29.0.dylib', 60016, 'f2b3b1a494448bb17a7bfe6111873326ba2872bdbc52a95c6f1140c6868261b8', 'libggml.0.dylib'],
+  ['llama-b12211/libllama-batched-bench-impl.dylib', 56576, 'ea42410725d43ce4dc61f361171e9ce2642c2141cadac34975dee626902074aa'],
+  ['llama-b12211/libllama-bench-impl.dylib', 323016, '19ac409f52fd0d45174aebdfb3a03d0c49acbc7a6f8b89648f16895d364795ec'],
+  ['llama-b12211/libllama-cli-impl.dylib', 255240, 'cc07c0d4798d33669f65dfa275a755575277eb08dfb3049bcb14d3bf22c534c2'],
+  ['llama-b12211/libllama-common.0.9.0.dylib', 8094584, 'c49abb00ca8e1a3ab809fd122a2867f6924d61456878d85df4d5d8129628decc', 'libllama-common.0.dylib'],
+  ['llama-b12211/libllama-completion-impl.dylib', 121808, '240ee5168ff18ab6dff29dd2168438f079179ba0f6b51a841d18f16f6f493496'],
+  ['llama-b12211/libllama-fit-params-impl.dylib', 55264, '8c60cc35f7b3fc018686a293e37eb1a485142ee3bb55512ce66839eea8d98367'],
+  ['llama-b12211/libllama-perplexity-impl.dylib', 156384, 'ab36bba0f9873b64712660e36b7201572c11d5efd086d1a3c55cb44524895db9'],
+  ['llama-b12211/libllama-quantize-impl.dylib', 96496, 'f5a8d325802712841b640da755ddce17c6ef4e01bde3c3bcda2144186e9c040b'],
+  ['llama-b12211/libllama-server-impl.dylib', 9837128, '83a4a30eb428545bc3d5ec5158e10661de978ebc67fdb86e0cb09c2f8aecdda6'],
+  ['llama-b12211/libllama.0.9.0.dylib', 3810368, '74e5225102fef73ebf89a5197775766265004a1874b4df5c2ec1003d82e30a90', 'libllama.0.dylib'],
+  ['llama-b12211/libmtmd.0.9.0.dylib', 1693200, '18f8a5f51ee3c1d76f909db00d72a1e2123ad5bb2d90c055f597aa99faee4318', 'libmtmd.0.dylib'],
+  ['llama-b12211/llama', 107320, '577e4440a8fce23621f1a8d80f4a0eb6a0bf3d5b209ae05bcd2e18513fb42b4c'],
+  ['llama-b12211/llama-batched-bench', 33488, 'a6a8e0ff2d78ccd311a0917cd07f410a4395c0bd511ecec949eae28af21de028'],
+  ['llama-b12211/llama-bench', 33464, '6d042ef032678056645d50e8e153cf101c9da616e6ee97455085254cbd6137db'],
+  ['llama-b12211/llama-cli', 49960, '22b2065b1d006ae33a02e009b445e5c26bc441d68bffeb67c4dfb5ba23b92ffe'],
+  ['llama-b12211/llama-completion', 33472, 'e04882cff3d2aba1dee284ad844a96fa5e95bd363a38cc6cfb4fae682d21a37e'],
+  ['llama-b12211/llama-connect', 8251536, 'a2e54e1198276037f05882b5142641cd4c55c7fbdd748fcb10a4a8109c723d59'],
+  ['llama-b12211/llama-cvector-generator', 102296, '6a1de0ffbdfaecca41984c11689b3bfa66f36391972d0dadcc18d24ce5aaf6f2'],
+  ['llama-b12211/llama-export-lora', 99856, 'd8526dd4300e2ef15028879b695306bcfe25c8a5970375852ca046d0f46015b8'],
+  ['llama-b12211/llama-fit-params', 33472, 'e7da4e292a53ea445ecab8051d55e68aa8f90492eef0819d3a1b5cc2fdf97607'],
+  ['llama-b12211/llama-gemma3-cli', 35344, 'f7f9126b0881654bdb4c9ceab6de40f42e31998fa0c775505b5979ef7e8e567e'],
+  ['llama-b12211/llama-gguf-split', 60000, '183d71c37f5db7660a3e7bfb2d81a3aa68ca0fdb3e36230a4276ad72f17b9c05'],
+  ['llama-b12211/llama-imatrix', 206320, '17fcc746efa3b11312d5f3064bef32a1425ce39ed5f4cd7142d1e273ce58d878'],
+  ['llama-b12211/llama-llava-cli', 35344, '9a77293c34faa94ae6955f9b1da3dca9fa55cf09fcd0fff87c96f5ec44b9d547'],
+  ['llama-b12211/llama-minicpmv-cli', 35344, '4baffe08bb410686ee032b1b2ff9a948bbde3fdc014dddf750f36978e3b40589'],
+  ['llama-b12211/llama-mtmd-cli', 103648, 'ad3fab1bf43c11eb6d2852792cfd0c1c59dab996a5a804849a41e68d45b076d6'],
+  ['llama-b12211/llama-mtmd-debug', 75824, '73fc8f269a379333b6ccff05f9d21bd6d9c4c094181afb382467f0531dacfe0d'],
+  ['llama-b12211/llama-perplexity', 33472, '3059af5f1197fb99ec7eb7260b28e4e59a3d0e9b915a7fec5b313cd9efe07a75'],
+  ['llama-b12211/llama-quantize', 33472, '47d49e414ae08afe3a8515768eed9f2b87186e719dc2e272cf38289c75c01ef9'],
+  ['llama-b12211/llama-qwen2vl-cli', 35344, '9be4a36b2587c0216009b1ed59ac79b1e4dd2e885f326e8aeffac8aa37761d31'],
+  ['llama-b12211/llama-results', 58912, 'a330b36d5f932de1df768dbc8532512eefd40d0ecc1879f48d964b8986743db9'],
+  ['llama-b12211/llama-server', 49984, 'e7e3c60a5e612460d095bfd219047040d6bb9d0b56466aae30a480980b676959'],
+  ['llama-b12211/llama-tokenize', 58736, 'b3573499a413db7cbbf4d05f2da07b619d6b7896930c344581ff8fb72b830544'],
+  ['llama-b12211/llama-tts', 59144, '74b796837548030f0bddc6168c376f6cd4d8b3a797d3e43020156da589309cf1'],
+  ]) });
+
 /** The server build (S5). `files` rows are [path in the archive, size, sha256]. */
 export const SERVER = Object.freeze({
   repo: 'ggml-org/llama.cpp',
@@ -273,6 +321,9 @@ export const SERVER = Object.freeze({
       ['llama-b12211/llama-tokenize', 45168, '7c3f70571062369fc096448742930ac934a7693473826fc7131186368946806e'],
       ['llama-b12211/llama-tts', 49928, 'b8cecb8b65c8816bcd99b40c35296a9a5d489967507de8a21258533239b42b78'],
       ]) }),
+    // Spec 0003 M3: one macOS arm64 archive serves both keys; Metal or CPU is picked by the server's arguments.
+    'darwin-arm64-metal': MACOS_ARCHIVE,
+    'darwin-arm64-cpu': MACOS_ARCHIVE,
   }),
 });
 
@@ -294,7 +345,7 @@ export const SOURCES = Object.freeze({
 // The only two repos a pin may name. A test holds both names as its own constants.
 const SERVER_REPO = 'ggml-org/llama.cpp';
 const MODEL_REPO = 'ggml-org/Clef-Flash-GGUF';
-const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan']);
+const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan', 'darwin-arm64-metal', 'darwin-arm64-cpu']);
 
 const MAX_REDIRECTS = 4;
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -372,6 +423,8 @@ export function pinProblems(server = SERVER, model = MODEL, repos = { server: SE
       }
     }
     if (rows.length && !rows.some(r => r[0] === a.exe)) out.push('exe');
+    // Spec 0003 M3: two keys may name one asset only when their rows are equal field for field.
+    if (keys.some(k => k !== key && server.archives[k].asset === a.asset && JSON.stringify(server.archives[k]) !== JSON.stringify(a))) out.push('asset-shared');
   }
   return [...new Set(out)];
 }

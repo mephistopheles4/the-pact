@@ -148,6 +148,13 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     assert.equal(SOURCE_TEXT.split(`'${key}': Object.freeze(`).length, 2, `one row for ${key}`);
     assert.ok(clef.SERVER.archives[key].files.length > 0, `${key} names the files it keeps`);
   }
+  // Spec 0003 M3: both darwin keys name the one macOS row, which keeps the server and its .0.dylib copies.
+  const mac = clef.SERVER.archives['darwin-arm64-metal'];
+  assert.equal(clef.SERVER.archives['darwin-arm64-cpu'], mac, 'both darwin keys name one row');
+  assert.equal(mac.asset, 'llama-b12211-bin-macos-arm64.tar.gz');
+  assert.equal(mac.kind, 'tgz');
+  assert.equal(mac.exe, 'llama-b12211/llama-server');
+  assert.ok(mac.files.some(r => r[3] === 'libggml-base.0.dylib'), 'a dylib is kept under the name the server loads');
   assert.deepEqual(clef.SOURCES.server.redirects, ['release-assets.githubusercontent.com', 'objects.githubusercontent.com']);
   assert.deepEqual(clef.SOURCES.model.redirects, ['us.aws.cdn.hf.co']);
 });
@@ -168,6 +175,8 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'asset-query', plant: x => { first(x.server).asset = 'llama-b1-bin-x.zip?a=b'; return x; }, fails: ['asset'], why: 'no query' },
     { id: 'asset-fragment', plant: x => { first(x.server).asset = 'llama-b1-bin-x.zip#f'; return x; }, fails: ['asset'], why: 'no fragment' },
     { id: 'asset-prefix', plant: x => { first(x.server).asset = 'other-b1-bin-x.zip'; return x; }, fails: ['asset'], why: 'an asset starts llama-<tag>-bin-' },
+    // Spec 0003 M3: two keys may name one asset only when their rows are equal field for field.
+    { id: 'asset-shared-unequal', plant: x => { x.server.archives['win32-x64-vulkan'].asset = first(x.server).asset; x.server.archives['win32-x64-vulkan'].size += 1; return x; }, fails: ['asset-shared'], why: 'one asset, two different rows' },
     { id: 'commit-short', plant: x => { x.model.commit = 'abc123'; return x; }, fails: ['commit'], why: 'a full commit, never a branch' },
     { id: 'commit-branch', plant: x => { x.model.commit = 'main'; return x; }, fails: ['commit'], why: 'a branch moves' },
     { id: 'commit-upper', plant: x => { x.model.commit = 'A'.repeat(40); return x; }, fails: ['commit'], why: 'lower-case hex' },
@@ -188,7 +197,7 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'copy-twice', plant: x => { first(x.server).files[0].push('a.so.0', 'b.so.0'); return x; }, fails: ['file-copy'], why: 'one copy at most' },
     { id: 'copy-collides', plant: x => { first(x.server).files[0][3] = 'ggml-cpu.dll'; return x; }, fails: ['file-dup'], why: 'a copy landing on another kept file' },
     { id: 'exe-missing', plant: x => { first(x.server).exe = 'bin/nothing.exe'; return x; }, fails: ['exe'], why: 'the executable is one of the kept files' },
-    { id: 'platform-key', plant: x => { x.server.archives['darwin-arm64-cpu'] = x.server.archives['win32-x64-cpu']; return x; }, fails: ['platform-key'], why: 'only the four platform keys' },
+    { id: 'platform-key', plant: x => { x.server.archives['darwin-x64-cpu'] = x.server.archives['win32-x64-cpu']; return x; }, fails: ['platform-key'], why: 'only the six platform keys; Intel Macs have none' },
   ];
   test('pin table shape: base passes', () => assert.deepEqual(run(base()).fails, []));
   for (const r of rows) {
