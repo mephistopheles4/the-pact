@@ -3568,3 +3568,71 @@ Read in a cloud thread at commit `aeac41d4d005999432bb7312f7ff06383a91d59d`, an 
 ### Decisions
 
 - No ADR. In practice little changes: the bullet still keeps local a report refused for a personal detail, and the review procedure's read before posting, unchanged, still counts this machine's home or temp folder path, user name and host name as one.
+
+## The gate's tests run locally through athanor
+
+**2026-10-22.** The owner asked whether the pact tests with athanor, their local Docker test runner, and said AGENTS.md should name it. It didn't: the repo had no athanor configuration. Tier: standard.
+
+### What was built (#361)
+
+- **`athanor.json`** at the root: the Linux run's image in `gate/tests/fixtures/linux/`, `full` as the default command and `fast` beside it, with 4 CPUs, 4 GB and 10 minutes.
+- **The Dockerfile's header** says athanor runs the image too, and that only the bundle run tests a real commit. Comments only.
+- **AGENTS.md** gains one bullet under "Running the gate's tests": the command, the minimum athanor commit, and that a run is a local check, never Test evidence, with nothing posted.
+- **`docs/agents/gate-tests.md`** gains an Athanor section; `docs/reference.md` lists `athanor.json`.
+
+### The test drive
+
+- athanor at `4121c28`, built from its repo into a folder of its own, since the installed copy predates `athanor.json` and another session's run was using it.
+- The first `fast` run failed the two docs-index tests: the new ADR was untracked, so athanor left it out. With it staged, `fast` passed (45 files, 20 seconds) and `full` passed (61 files, 52 seconds, 6 skips, all Windows-only). The limits were set from those runs, and the gate-tests doc names the `git add` step.
+
+### Test
+
+The QA pair, the standards pair and `unstated-lens` read head `6446f82`. Nothing was high. The fixes, all to the docs:
+- The reason for no `changed` tier was wrong: the snapshot is its own `main`, so `changed` runs only `fast`.
+- The docs now say:
+  - how to tell the athanor is too old: its error asks for a `package.json`;
+  - how to judge a pass, when the runner's result line is the last but one;
+  - what the slots count;
+  - that `test` is athanor's default command name.
+- The README's prerequisites name athanor.
+- Two decisions were the owner's, in chat:
+  - An athanor `full` meets the local `full` after a rebase or merge and after a final change set, never before an install.
+  - The docs say athanor is not the container for running outsiders' code.
+
+### Decisions
+
+- ADR 0096: `athanor.json` over a `package.json` key, one image, no `changed` tier, what a run counts for, and never Test evidence.
+
+### Record
+
+- [#361](https://github.com/mephistopheles4/the-pact/issues/361): the spec, revision 1.
+- [The Test review](https://github.com/mephistopheles4/the-pact/issues/361#issuecomment-6334524923): five lenses on `6446f82`, crossed, with the Lens dispositions table.
+
+## The poster refuses no path
+
+**2026-10-22.** Sessions reported that the poster refused absolute paths. Since 2026-10-17 the temp folder on the owner's machine is a Dev Drive folder that names nobody, and `path/machine` refused every path under it, scratchpads and test output included. The owner asked for the check to go completely: the poster's whole rule, with the read before posting kept. Tier: quick; the owner declined the sensitive route.
+
+### What was built (#364)
+
+- **The poster** (`claude/tools/poster.mjs`) loses `path/machine` and its helpers, and no longer reads the home folder, user name or host name.
+- **Its tests** (`gate/tests/poster.test.mjs`) lose the rule's ten table rows, its Windows case and #326's other-paths test; one test now shows that this machine's own home and temp folders, user name and host name post, beside a drive-letter path, a network share and another user's home. The gh-error test keeps its cover with a token.
+- **`docs/poster.md`** and **`docs/reference.md`** say the scan refuses no path.
+- **The threat model's R34** widens to any revealing path, on the owner's word in chat.
+- **Regenerated:** `cloud-sessions/`, already in step.
+
+### Test
+
+The QA pair read `09b5868`.
+- integrity-lens found that the new test missed three things the cut tests covered: a path in a title, a run through the whole poster, and some home shapes. The test now covers them, and it goes red against the old poster.
+- behaviour-lens found that a drive-letter link passed `link/relative`, because `D:` read as a scheme. A scheme now needs two letters.
+- behaviour-lens also found that a scratchpad path is still refused, by `id/session`. The owner had it filed as #366 and noted in `docs/poster.md`.
+- The owner approved R34's wording in chat.
+
+### Decisions
+
+- [ADR 0097](../adr/0097-the-poster-refuses-no-path.md): the poster refuses no path. Amends ADR 0086.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/364): the tier, the declined sensitive route and the claims.
+- [The Test review](https://github.com/mephistopheles4/the-pact/issues/364#issuecomment-6335653511): the QA pair on `09b5868`, crossed, with the Lens dispositions table; behaviour-lens's report follows it once the merged pact is installed.

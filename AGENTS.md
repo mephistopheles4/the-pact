@@ -59,9 +59,10 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   pact's default configuration.
 - After a change to a figure source in `docs/img/src/`, run
   `node docs/img/build.mjs`.
-- After a heading change in a doc over 100 lines, or a doc growing past
-  100, run `node docs/toc.mjs`, which rewrites its table of contents;
-  `gate/tests/toc.test.mjs` fails while one is missing or stale.
+- After a heading change in a doc over 100 lines, or a doc crossing 100
+  lines either way, run `node docs/toc.mjs`, which rewrites its table of
+  contents; `gate/tests/toc.test.mjs` fails while one is missing, stale, or
+  left in a doc no longer covered.
 
 ## Reviewing a change here
 

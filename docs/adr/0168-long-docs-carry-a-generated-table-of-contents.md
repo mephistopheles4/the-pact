@@ -1,6 +1,6 @@
 # Long docs carry a generated table of contents
 
-PACT-78, standard tier.
+PACT-78, standard tier. It amends [0153](0153-the-agent-facing-docs-keep-no-history-and-a-word-budget.md): a doc's word budget now counts the doc without its table of contents.
 
 ## Decision
 

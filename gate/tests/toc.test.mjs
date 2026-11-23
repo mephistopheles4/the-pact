@@ -2,11 +2,12 @@
 // covered doc's table from its headings, and these tests fail while one is
 // missing or stale, while a doc that isn't covered holds one, and while an
 // in-repo anchor link into a covered doc misses the anchors toc.mjs computes.
-// The fix for each is `node docs/toc.mjs`.
+// The fix for a table is `node docs/toc.mjs`; for an anchor link, correct the
+// link or the heading.
 import assert from 'node:assert/strict';
 import { posix } from 'node:path';
 import { test } from 'node:test';
-import { TOC_CLOSE, TOC_OPEN, covered, headings, problems, stripToc, trackedDocs, withToc } from '../../docs/toc.mjs';
+import { TOC_CLOSE, TOC_OPEN, covered, headings, problems, stripToc, tocBlock, trackedDocs, withToc } from '../../docs/toc.mjs';
 import { REPO } from './text.mjs';
 
 const FIX = 'run `node docs/toc.mjs`';
@@ -24,8 +25,13 @@ test('toc: every covered doc holds a current table, and no other doc holds one',
 
 // PACT-78 C2
 test('toc: the check reports a covered doc with no table, a stale one, and a table in a doc that is not covered', () => {
+  assert.deepEqual(tocBlock(`${LONG}#### Deep\n`), [TOC_OPEN, '', '- [One](#one)', '  - [One a](#one-a)', '- [Two](#two)', '', TOC_CLOSE], 'H2 and H3 only, H3 indented');
   const current = withToc(LONG);
   assert.deepEqual(problems([{ path: 'docs/a.md', text: current }]), []);
+  const noH2 = doc(['### Only h3']);
+  assert.equal(withToc(noH2), noH2, 'a long doc with no H2 gets no table');
+  assert.deepEqual(problems([{ path: 'docs/a.md', text: noH2 }]), [], 'and the check asks for none');
+  assert.deepEqual(problems([{ path: 'docs/log/x.md', text: `# T\n${TOC_OPEN}\n` }]), [`docs/log/x.md: ${TOC_OPEN} with no ${TOC_CLOSE}`], 'an unclosed marker is reported, not thrown');
   const rows = [
     ['no table', LONG, 'docs/a.md: no table of contents'],
     ['a heading added', current.replace('## Two', '## Two\n\n## Three'), 'docs/a.md: table of contents is stale'],
@@ -70,10 +76,13 @@ test('toc: anchors follow GitHub: markup dropped, punctuation removed, repeats s
     '## also not',
     '~~~~',
     '## 1. Check — V1',
+    '## The `__init__` hook',
+    '## A <code>b</code> c',
+    '## Same 1',
   ].join('\n');
   assert.deepEqual(
     headings(text).map(h => h.anchor),
-    ['title', 'install-with---apply', 'the-door-to-other-peoples-tools', 'a-linked-heading-bold-and-it', 'snake_case-stays', 'same', 'same-1', '1-check--v1'],
+    ['title', 'install-with---apply', 'the-door-to-other-peoples-tools', 'a-linked-heading-bold-and-it', 'snake_case-stays', 'same', 'same-1', '1-check--v1', 'the-__init__-hook', 'a-b-c', 'same-1-1'],
   );
   assert.match(withToc(`${text}\n`), /- \[A linked heading, \*\*bold\*\* and _it_\]\(#a-linked-heading-bold-and-it\)/);
 });
@@ -88,11 +97,11 @@ test('toc: every in-repo anchor link into a covered doc names an anchor that doc
     for (const [, target, anchor] of f.text.matchAll(/\]\(([^)\s#]*)#([^)\s]+)\)/g)) {
       const t = by.get(target ? posix.normalize(posix.join(posix.dirname(f.path), target)) : f.path);
       if (!t || !covered(t.path, t.text)) continue;
-      seen++;
+      if (t !== f) seen++;
       if (!headings(t.text).some(h => h.anchor === anchor)) missing.push(`${f.path}: #${anchor} in ${t.path}`);
     }
   }
-  assert.ok(seen > 0, 'no anchor link into a covered doc was found');
+  assert.ok(seen > 0, 'no anchor link from one doc into another covered doc was found');
   assert.deepEqual(missing, []);
 });
 

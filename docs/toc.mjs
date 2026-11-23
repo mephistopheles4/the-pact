@@ -21,7 +21,8 @@ import { fileURLToPath } from 'node:url';
 
 export const TOC_OPEN = '<!-- toc -->';
 export const TOC_CLOSE = '<!-- /toc -->';
-export const MIN_LINES = 100;
+/** A doc is covered once it has more lines than this, its table not counted. */
+export const MAX_UNCOVERED_LINES = 100;
 
 /**
  * Paths left out, repo-relative with forward slashes: a prefix ends in '/'.
@@ -75,13 +76,16 @@ export function stripToc(text) {
   return lines.join(eol);
 }
 
-/** Inline Markdown reduced to the text GitHub renders: links to their text, code and emphasis marks dropped. */
-const plain = s =>
+/** Inline Markdown outside code spans reduced to its text: links to their text, HTML tags and emphasis marks dropped. */
+const plainProse = s =>
   s
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/`+/g, '')
+    .replace(/<\/?[A-Za-z][^>]*>/g, '')
     .replace(/\*+/g, '')
     .replace(/(^|[^\p{L}\p{N}])_+(?=\S)|(?<=\S)_+(?=[^\p{L}\p{N}]|$)/gu, '$1');
+
+/** Inline Markdown reduced to the text GitHub renders: a code span keeps its text as written, the rest goes through plainProse. */
+const plain = s => s.split(/(`+)([^`]*?)\1/).map((part, i) => (i % 3 === 0 ? plainProse(part) : i % 3 === 2 ? part : '')).join('');
 
 /** GitHub's anchor for heading text, before the repeat suffix. */
 export const slug = text =>
@@ -101,10 +105,15 @@ export function headings(text) {
     if (inFence[i] || (span && i >= span.open && i <= span.close)) return;
     const h = HEADING.exec(line);
     if (!h) return;
+    // As github-slugger counts: a taken anchor gets the next free -n, and the anchor given is taken too.
     const base = slug(h[2]);
-    const n = seen.get(base) ?? 0;
-    seen.set(base, n + 1);
-    out.push({ level: h[1].length, text: h[2], anchor: n === 0 ? base : `${base}-${n}` });
+    let anchor = base;
+    while (seen.has(anchor)) {
+      seen.set(base, seen.get(base) + 1);
+      anchor = `${base}-${seen.get(base)}`;
+    }
+    seen.set(anchor, 0);
+    out.push({ level: h[1].length, text: h[2], anchor });
   });
   return out;
 }
@@ -141,28 +150,29 @@ const lineCount = text => {
   return /\r?\n$/.test(t) ? n - 1 : n;
 };
 
-/** Whether a tracked file gets a table: Markdown, over MIN_LINES lines without its table, outside EXCLUDED. */
+/** Whether a tracked file gets a table: Markdown, over MAX_UNCOVERED_LINES lines without its table, outside EXCLUDED. */
 export function covered(path, text) {
   if (!path.endsWith('.md')) return false;
   if (EXCLUDED.some(e => (e.endsWith('/') ? path.startsWith(e) : path === e))) return false;
-  return lineCount(text) > MIN_LINES;
+  return lineCount(text) > MAX_UNCOVERED_LINES;
 }
 
-/**
- * What is off across the files given, one line each: a covered file whose
- * table is missing or stale, and an uncovered one that holds a table. Each
- * file is { path, text }.
- */
-export function problems(files) {
-  const out = [];
-  for (const { path, text } of files) {
-    const has = tocSpan(linesOf(text)) !== null;
-    if (covered(path, text)) {
-      if (!has) out.push(`${path}: no table of contents`);
-      else if (withToc(text) !== text) out.push(`${path}: table of contents is stale`);
-    } else if (has) out.push(`${path}: holds a table of contents but is not covered`);
+/** What is off in one file, or null: a covered file whose table is missing or stale, an uncovered one that holds a table, or an unclosed marker. */
+function problem(path, text) {
+  let has;
+  try {
+    has = tocSpan(linesOf(text)) !== null;
+  } catch (e) {
+    return `${path}: ${e.message}`;
   }
-  return out;
+  if (!covered(path, text)) return has ? `${path}: holds a table of contents but is not covered` : null;
+  if (withToc(text) === text) return null;
+  return has ? `${path}: table of contents is stale` : `${path}: no table of contents`;
+}
+
+/** What is off across the files given, one line each. Each file is { path, text }. */
+export function problems(files) {
+  return files.map(({ path, text }) => problem(path, text)).filter(Boolean);
 }
 
 /** The tracked Markdown files under `repo`, read: { path, text }. */
@@ -182,14 +192,22 @@ function main(argv) {
     for (const l of off) console.log(l);
     return off.length ? 1 : 0;
   }
+  let code = 0;
   for (const { path, text } of files) {
-    const next = covered(path, text) ? withToc(text) : stripToc(text);
+    let next;
+    try {
+      next = covered(path, text) ? withToc(text) : stripToc(text);
+    } catch (e) {
+      console.log(`${path}: ${e.message}`);
+      code = 1;
+      continue;
+    }
     if (next !== text) {
       writeFileSync(join(repo, path), next);
       console.log(`wrote ${path}`);
     }
   }
-  return 0;
+  return code;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main(process.argv.slice(2)));
