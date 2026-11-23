@@ -1334,7 +1334,7 @@ when no other row answers the sentence.
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
-- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint at level 3.
+- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes, without the owner's confirmation, a step that is hard to undo, as a lead in the grimoire head chef's Turbo mode may.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the
     ask lists are where the work starts, and a limit in my words, such as
@@ -1605,7 +1605,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
 check_hash 3ea41220667e901a9566d43dc68baea519abe86273d4e120ecc273f4d18a9e55 'pact/review-diagrams.md'
-check_hash e8f655b596ab7dcb30d6c3fbab105e3e4cada74768d228a2cdd0e6a9c50f62b4 'pact/review.md'
+check_hash b8f032986868b50a7f055363c81ba85907ce4325cb9dc90cbd8bfd7494503a00 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1635,7 +1635,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 43fa46e6be56"
+  echo "pact cloud copy a44fb82d5852"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

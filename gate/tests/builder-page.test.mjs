@@ -1790,7 +1790,7 @@ test('C7: a presets folder that is a file stops nothing: one finding, no presets
 });
 
 // #283 C3
-test('C3: a personal full lands nowhere and shadows nothing', t => {
+test('C3: a personal full.json lands nowhere and shadows nothing', t => {
   const k = kitHome(t);
   mkdirSync(k.presets, { recursive: true });
   writeFileSync(join(k.presets, 'full.json'), JSON.stringify({ schema: 1, title: 'Fake', tiers: ONE_TIER }));
@@ -1803,10 +1803,12 @@ test('C3: a personal full lands nowhere and shadows nothing', t => {
 });
 
 // PACT-72: a preset is a configuration, never an autonomy setting, so no shipped preset's id or title says "level".
-test('PACT-72: no shipped preset carries the word level in its id or title', () => {
+test('PACT-72: no shipped preset says level or lvl in its id or title, in any case', () => {
   const shipped = shippedPresets(REPO, pactData(REPO));
   assert.ok(shipped.length >= 6 && shipped.some(p => p.id === 'full'));
-  assert.deepEqual(shipped.filter(p => /\blevel\b/i.test(`${p.id} ${p.title}`.replaceAll('-', ' '))).map(p => p.id), []);
+  const says = /level|lvl/i;
+  assert.ok(['Level 3 · Full', 'Level3 · Full', 'Lvl 3 · Full', 'level-3-full'].every(s => says.test(s)), 'the check sees each spelling');
+  assert.deepEqual(shipped.filter(p => says.test(`${p.id} ${p.title}`)).map(p => p.id), []);
 });
 
 /** Run `expr` inside the page's script, so identity of its data holds. */

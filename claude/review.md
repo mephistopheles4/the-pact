@@ -211,7 +211,7 @@ when no other row answers the sentence.
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
-- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint at level 3.
+- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes, without the owner's confirmation, a step that is hard to undo, as a lead in the grimoire head chef's Turbo mode may.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the
     ask lists are where the work starts, and a limit in my words, such as

@@ -201,8 +201,8 @@ parts:
     another reparse point sits where the backups go. `--apply` refuses until
     you move it out of the way.
 - **`Configuration:`.** With no `~/.claude/pact/config.json` of your own,
-  the pact's default configuration renders: the Full preset, the builder's
-  shipped preset. The block names it with its digest, the rendered hash the
+  the pact's default configuration renders: Full, generated from the builder's
+  shipped Full preset. The block names it with its digest, the rendered hash the
   apply command carries, and a `WARN` line per part it edits. If
   the last install had your own configuration and the file is gone now, a
   line says so. To keep the pact's own text instead, write a configuration of
