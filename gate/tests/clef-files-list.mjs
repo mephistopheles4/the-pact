@@ -12,9 +12,9 @@
 // The scratch folder must not lie inside this repo. Nothing from the archives
 // is run. This is the only real download before T4. Importing this file does
 // nothing: it runs only as the entry script.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SERVER, archiveUrl, fetchFile, makeTransport, readArchive } from '../../claude/tools/clef.mjs';
 import { machoFlags } from './clef-macho.mjs';
@@ -81,4 +81,17 @@ async function run(argv) {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = await run(process.argv.slice(2));
+
+/** True when this file is the script node was started with, compared by real path (macOS reaches /var through /private/var). */
+const startedAsScript = () => {
+  try {
+    const self = fileURLToPath(import.meta.url);
+    if (!process.argv[1]) return false;
+    if (resolve(process.argv[1]) === self) return true;
+    // Only a script of this file's name is looked up on disk, so an importer touches no file.
+    return basename(process.argv[1]) === basename(self) && realpathSync(process.argv[1]) === realpathSync(self);
+  } catch {
+    return false;
+  }
+};
+if (startedAsScript()) process.exitCode = await run(process.argv.slice(2));

@@ -23,8 +23,8 @@
 //
 // Node 24, ESM, node: built-ins only.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const TOC_OPEN = '<!-- toc -->';
@@ -290,4 +290,17 @@ function main(argv) {
   return code;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main(process.argv.slice(2)));
+
+/** True when this file is the script node was started with, compared by real path (macOS reaches /var through /private/var). */
+const startedAsScript = () => {
+  try {
+    const self = fileURLToPath(import.meta.url);
+    if (!process.argv[1]) return false;
+    if (resolve(process.argv[1]) === self) return true;
+    // Only a script of this file's name is looked up on disk, so an importer touches no file.
+    return basename(process.argv[1]) === basename(self) && realpathSync(process.argv[1]) === realpathSync(self);
+  } catch {
+    return false;
+  }
+};
+if (startedAsScript()) process.exit(main(process.argv.slice(2)));
