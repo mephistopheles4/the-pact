@@ -397,8 +397,8 @@ test('wait label: every exemption still matches a unit that would fail', () => {
     { id: 'session-template', ...swap('gate/render-core.mjs', "it's a checkpoint. If you can't", "it needs my yes. If you can't"), says: 'gate/render-core.mjs SESSION_TEMPLATE:' },
     // A setting added to the map with a template of its own is read, because the names come from the map.
     { id: 'new-setting-template', ...swap('gate/render-core.mjs', 'const SETTINGS = new Map([', "const NEWSET_TEMPLATE = ['- It needs my yes.'];\nconst SETTINGS = new Map([\n  ['newset', Object.freeze({ mark: null, template: NEWSET_TEMPLATE, projectLine: null })],"), says: 'gate/render-core.mjs NEWSET_TEMPLATE: "- It needs my yes."' },
-    // The label deleted, with no phrase swapped in: the unit holds "I confirm" and nothing that labels it.
-    { id: 'cost-limits', ...swap('gate/render-core.mjs', 'I confirm, a checkpoint, adds', 'I confirm, adds'), says: 'gate/render-core.mjs COST_LIMITS_FIXED:' },
+    // A wait phrase planted in the unit, with nothing that labels it.
+    { id: 'cost-limits', ...swap('gate/render-core.mjs', 'and I can override any cost.', 'and I confirm any cost.'), says: 'gate/render-core.mjs COST_LIMITS_FIXED:' },
     { id: 'tool-literal', rel: 'claude/tools/cleaner.mjs', plant: s => `${s}\nconst PLANT = "only after the owner's own yes";\n`, says: 'claude/tools/cleaner.mjs: "only after the owner\'s own yes"' },
     { id: 'hook-literal', rel: 'claude/hooks/compact-handoff.mjs', plant: s => `${s}\nconst PLANT = 'it waits on my word';\n`, says: 'claude/hooks/compact-handoff.mjs: "it waits on my word"' },
   ];
