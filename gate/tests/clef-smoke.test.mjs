@@ -3,12 +3,15 @@
 // archive, and `run` is a stand-in that records how the server would be run.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
 import { gzipSync } from 'node:zlib';
 import { SERVER } from '../../claude/tools/clef.mjs';
-import { KEY, smoke } from '../../.github/scripts/clef-smoke.mjs';
+import { KEY, changedFiles, smoke, smokeNeeded } from '../../.github/scripts/clef-smoke.mjs';
 import { tempDir } from './tree.mjs';
 
 const sha = b => createHash('sha256').update(b).digest('hex');
@@ -84,3 +87,57 @@ for (const [label, result, says] of [
     await assert.rejects(smoke({ dir, server: table(), transport: serving(ARCHIVE), run: recorder(result) }), says);
   });
 }
+
+// The change check: the step runs the server only when the change touches clef.mjs or this script.
+const SHA = 'a'.repeat(39) + 'b';
+const eventFile = ev => () => JSON.stringify(ev);
+const okGit = (names, calls = []) => args => (calls.push(args), args[0] === 'diff' ? { status: 0, stdout: names } : { status: 0, stdout: '' });
+const withEvent = (ev, git) => changedFiles({ env: { GITHUB_EVENT_PATH: '/e.json' }, readFile: eventFile(ev), git });
+
+test('smokeNeeded: null runs, an empty list or other files skip, either named path runs', () => {
+  assert.equal(smokeNeeded(null), true);
+  assert.equal(smokeNeeded([]), false);
+  assert.equal(smokeNeeded(['README.md', 'gate/tests/x.mjs']), false);
+  assert.equal(smokeNeeded(['claude/tools/clef.mjs']), true);
+  assert.equal(smokeNeeded(['a', '.github/scripts/clef-smoke.mjs']), true);
+});
+
+test('changedFiles: a pull_request event uses base.sha and a push uses before, with a fixed git argument list', () => {
+  const calls = [];
+  assert.deepEqual(withEvent({ pull_request: { base: { sha: SHA } }, before: 'c'.repeat(40) }, okGit('a.md\nb.md\n', calls)), ['a.md', 'b.md']);
+  assert.deepEqual(calls[0], ['fetch', '--no-tags', '--depth=1', 'origin', SHA]);
+  assert.deepEqual(calls[1], ['diff', '--name-only', '--no-renames', SHA, 'HEAD']);
+  const push = [];
+  assert.deepEqual(withEvent({ before: SHA }, okGit('', push)), []);
+  assert.equal(push[0][4], SHA);
+});
+
+for (const [label, run] of [
+  ['no event file', () => changedFiles({ env: {}, readFile: eventFile({}), git: okGit('') })],
+  ['an unreadable event file', () => changedFiles({ env: { GITHUB_EVENT_PATH: '/e' }, readFile: () => { throw new Error('ENOENT'); }, git: okGit('') })],
+  ['no sha in the event', () => withEvent({}, okGit(''))],
+  ['a bad sha', () => withEvent({ before: 'main; rm -rf' }, okGit(''))],
+  ['an all-zero before', () => withEvent({ before: '0'.repeat(40) }, okGit(''))],
+  ['a failed fetch', () => withEvent({ before: SHA }, args => ({ status: args[0] === 'fetch' ? 128 : 0, stdout: '' }))],
+  ['a failed diff', () => withEvent({ before: SHA }, args => ({ status: args[0] === 'diff' ? 1 : 0, stdout: '' }))],
+  ['git that cannot start', () => withEvent({ before: SHA }, () => ({ status: null, error: new Error('ENOENT') }))],
+]) {
+  test(`bad case: changedFiles gives null (run the smoke) on ${label}`, () => {
+    const r = run();
+    assert.equal(r, null);
+    assert.equal(smokeNeeded(r), true);
+  });
+}
+
+test('the script run as a child with git out of reach falls back to running the smoke', { skip: process.platform === 'darwin' && process.arch === 'arm64' }, t => {
+  const dir = tempDir(t, 'clef-smoke-ev-');
+  const event = join(dir, 'event.json');
+  const empty = join(dir, 'nobin');
+  mkdirSync(empty);
+  writeFileSync(event, JSON.stringify({ before: SHA }));
+  const script = fileURLToPath(new URL('../../.github/scripts/clef-smoke.mjs', import.meta.url));
+  const r = spawnSync(process.execPath, [script], { env: { PATH: empty, GITHUB_EVENT_PATH: event, RUNNER_TEMP: dir }, encoding: 'utf8', shell: false, timeout: 60_000 });
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /smoke: fail: this smoke run needs an Apple Silicon Mac/);
+  assert.doesNotMatch(r.stdout, /skipped/);
+});

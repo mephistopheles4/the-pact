@@ -15,7 +15,7 @@
 # macOS arm64 image and fails unless its skipped tests match
 # gate/tests/macos-skips.txt exactly; its dry-run step plants a real Claude
 # folder as gate-windows's does, and a last step runs the pinned server once
-# (.github/scripts/clef-smoke.mjs: fetch, check, unpack, `--device none --version`). A
+# (.github/scripts/clef-smoke.mjs: fetch, check, unpack, `--device none --version`, only when the change touches clef.mjs or the script). A
 # newer push to a pull request cancels its older run of every job; each push
 # to main is grouped by its own commit, so no run of this workflow cancels
 # another on main. The group is repo-wide, so a run of another workflow naming

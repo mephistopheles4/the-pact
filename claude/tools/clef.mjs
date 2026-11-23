@@ -1660,6 +1660,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
   let stopping = false;
   let isReady = false;
   let lastForward = now();
+  let inFlight = 0;
   let child;
   let httpServer;
   let resolveDone;
@@ -1849,9 +1850,17 @@ export async function serve({ dir, platform = process.platform, env = process.en
         return;
       }
       if (!isReady) return reply(res, 503, 'not-ready');
+      // The idle time runs from the last forward's end, and never while one is in flight.
       lastForward = now();
+      inFlight++;
       const t0 = Date.now();
-      const r = await httpJson({ port: serverPort, path: '/v1/systemone', method: 'POST', token: serverKey, body: { state: parsed.state, questions: parsed.questions }, timeoutMs: FORWARD_TIMEOUT_MS });
+      let r;
+      try {
+        r = await httpJson({ port: serverPort, path: '/v1/systemone', method: 'POST', token: serverKey, body: { state: parsed.state, questions: parsed.questions }, timeoutMs: FORWARD_TIMEOUT_MS });
+      } finally {
+        inFlight--;
+        lastForward = now();
+      }
       const answer = r && r.status === 200 ? serverAnswer(parsed.questions, r.json) : null;
       logLine(dir, `forward ${answer ? 'answer' : 'no-answer'} ms ${Date.now() - t0}`);
       if (!answer) return reply(res, 502, 'no-answer');
@@ -1884,6 +1893,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
     const r = await httpJson({ port: serverPort, path: '/health', token: serverKey, timeoutMs: 1000 });
     if (r && r.status === 200 && !isReady) {
       isReady = true;
+      lastForward = now();
       logLine(dir, `server ready ms ${now() - startedAt}`);
     } else if (!isReady && now() - startedAt > startTimeoutMs && !stopping) {
       writeFail(dir, 'timeout', now);
@@ -1892,7 +1902,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
   }, pollMs));
   timers.push(setInterval(() => {
     if (stopping) return;
-    if (now() - lastForward > idleMs) stop('idle');
+    if (isReady && inFlight === 0 && now() - lastForward > idleMs) stop('idle');
     else if (scriptChanged()) stop('changed');
   }, checkMs));
   onSignal = () => stop('signal');

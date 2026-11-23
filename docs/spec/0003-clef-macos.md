@@ -279,7 +279,9 @@ The session took these picks, each logged as a checkpoint:
     fetches the pinned `darwin-arm64-cpu` archive through `clef`'s own fetch
     (so size and sha256 are checked against the pin), unpacks it through
     `clef`'s own unpack, and fails unless `llama-server --device none
-    --version` exits 0. It starts no model and holds no secret.
+    --version` exits 0. It starts no model and holds no secret. It runs the
+    server only when the change touches `claude/tools/clef.mjs` or the smoke
+    script, and otherwise prints a skipped line.
 - `gate-macos` joins `GATE_JOBS` in `gate/tests/workflow.test.mjs`. For each
   bad case `gate-windows` has that applies to it, it gets a twin, each seen
   to fail, the real-folder line included. The Windows-only case (`shell:
