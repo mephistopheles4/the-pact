@@ -20,12 +20,11 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   ([tickets as sub-issues](issue-tracker.md#tickets-as-sub-issues)).
   The tree holds specs (`docs/spec/`), never a plan. A record
   a check can run becomes a test or fixture beside the code it checks.
-- **When the work finishes:** a decision that reverses or constrains something
-  becomes one ADR in [`docs/adr/`](../../docs/adr/), with its reasoning. A change
-  to the pact text or the gate becomes one dated narrative in
+- **When the work finishes:** a change to the pact text or the gate becomes
+  one dated narrative in
   [`docs/log/`](../../docs/log/), ending in a **Record** list of the issue comments
   that hold the verbatim plan, reviews and probe records. Other work writes
-  neither. The PR
+  none. The PR
   that finishes a piece of work carries what it owes, and a session doesn't
   report the work as finished until that is merged. If that PR can't carry
   them, for example a security-set record merged before the narrative is
