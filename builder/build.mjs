@@ -4,7 +4,8 @@
 //   node builder/build.mjs                                 rebuild builder/scriptorium.html from the example builder file
 //   node builder/build.mjs --check                         check the example builder file, and that the page is up to date
 //   node builder/build.mjs --builder <file> --check        check a builder file: refusals and findings
-//   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it
+//   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it, to a new file outside any repo and Claude folder
+//   node builder/build.mjs --builder <file>                check it, then write the page to pact/scriptorium.html in the Claude home (CLAUDE_CONFIG_DIR, else ~/.claude), replacing the last one
 //   node builder/build.mjs --builder <file> --texts        check it, then print each part it changes as the page saves it
 //
 // The page runs from disk with no network, so everything it shows is carried
@@ -49,7 +50,7 @@
 // authority on what the page saves.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -738,8 +739,13 @@ function canonical(p) {
  * own parts and lists, so it is never written inside this clone, where a
  * commit would publish it, and never over the builder file. Paths compare in
  * canonical form, so a different spelling of the same file is caught.
+ * `fixed` is true only for the default path (PACT-96, ADR 0171): no --out was
+ * given, so the page goes to pact/scriptorium.html in the Claude home. That one
+ * path is let past the Claude-home, .claude-folder and new-file refusals, and
+ * must be a plain file when it is there: a link, a folder or anything else is
+ * refused. Every other refusal holds for it, and every refusal holds for --out.
  */
-export function outProblem(root, out, builder) {
+export function outProblem(root, out, builder, fixed = false) {
   const o = canonical(out);
   if (o === canonical(builder)) return 'must not be the builder file';
   const r = canonical(join(root, 'x')).slice(0, -1);
@@ -747,14 +753,44 @@ export function outProblem(root, out, builder) {
   // The Claude home folder, as each of its spellings, and any .claude folder (#203, S6).
   const homes = [process.env.CLAUDE_CONFIG_DIR, join(homedir(), '.claude'), ...(isKit(root) ? [join(root, '..', '..')] : [])].filter(Boolean).map(h => canonical(join(h, 'x')).slice(0, -1));
   const sep = r.slice(-1);
-  if (homes.some(h => o.startsWith(h)) || o.split(sep).slice(0, -1).some(seg => seg === '.claude')) return 'must be outside the Claude home folder and any .claude folder';
+  if (!fixed && (homes.some(h => o.startsWith(h)) || o.split(sep).slice(0, -1).some(seg => seg === '.claude'))) return 'must be outside the Claude home folder and any .claude folder';
   // A git work tree: the page's folder, or one above it, holds a .git entry. Walked from the real path, so a link into a repo is caught.
   for (let d = dirname(o); ; d = dirname(d)) {
     if (existsSync(join(d, '.git'))) return 'must be outside any git work tree: a page carries your own parts and lists, so keep it out of any repo';
     if (dirname(d) === d) break;
   }
+  if (fixed) {
+    // lstat, so a link is seen as a link: the page is only ever replaced where a plain file stands.
+    let st = null;
+    try {
+      st = lstatSync(out);
+    } catch (e) {
+      if (e.code !== 'ENOENT') return `cannot be read (${e.code || 'error'})`;
+    }
+    return st && !st.isFile() ? 'is not a plain file (a link, a folder or something else stands there): move it away' : null;
+  }
   if (existsSync(out)) return 'must be a new file: the page is never written over an existing one';
   return null;
+}
+
+/** The fixed path of the page a run with no --out writes: pact/scriptorium.html in the Claude home (PACT-96, ADR 0171). */
+export const defaultOut = () => join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'pact', 'scriptorium.html');
+
+/**
+ * Writes `text` at `out`, replacing a page already there: to a temporary file in
+ * the same folder first, then renamed over it, so a failed write leaves the old
+ * page whole and a link planted after the check is replaced, never followed.
+ */
+function replaceFile(out, text) {
+  mkdirSync(dirname(out), { recursive: true });
+  const tmp = join(dirname(out), `.scriptorium-${process.pid}-${createHash('sha256').update(`${Date.now()}${Math.random()}`).digest('hex').slice(0, 12)}.tmp`);
+  try {
+    writeFileSync(tmp, text, { flag: 'wx' });
+    renameSync(tmp, out);
+  } catch (e) {
+    rmSync(tmp, { force: true });
+    throw e;
+  }
 }
 
 function printCheck(name, r) {
@@ -814,8 +850,9 @@ function main(argv) {
   }
 
   if ([opts.check, opts.out, opts.texts].filter(Boolean).length > 1) return usage();
-  // With no --out, the page goes in a new folder under the system's temporary folder (#203, S6).
-  if (!opts.check && !opts.out && !opts.texts) opts.out = join(mkdtempSync(join(tmpdir(), 'scriptorium-')), 'scriptorium.html');
+  // With no --out, the page goes to its fixed path in the Claude home, replacing the last one (PACT-96, ADR 0171).
+  const fixed = !opts.check && !opts.out && !opts.texts;
+  if (fixed) opts.out = defaultOut();
   const r = checkBuilder(root, opts.builder);
   // A person's own presets are read once per run, and never by --texts (#283).
   const own = r.builder && !opts.texts ? personalPresets(root, r.pact) : { presets: [], findings: [] };
@@ -835,15 +872,25 @@ function main(argv) {
     for (const [m, text] of changed) process.stdout.write(`TEXT ${m}\n${text}\nEND ${m}\n`);
     return;
   }
-  const why = outProblem(root, opts.out, opts.builder);
+  const why = outProblem(root, opts.out, opts.builder, fixed);
   if (why) {
-    process.stdout.write(`REFUSE --out ${why}\n`);
+    process.stdout.write(`REFUSE ${fixed ? 'the page path' : '--out'} ${why}\n`);
     process.exitCode = 1;
     return;
   }
-  writeFileSync(resolve(opts.out), buildPage(root, readFileSync(page, 'utf8'), opts.builder, own.presets), { flag: 'wx' });
+  const html = buildPage(root, readFileSync(page, 'utf8'), opts.builder, own.presets);
+  try {
+    if (fixed) replaceFile(resolve(opts.out), html);
+    else writeFileSync(resolve(opts.out), html, { flag: 'wx' });
+  } catch (e) {
+    process.stdout.write(`REFUSE the page could not be written (${e.code || 'error'})\n`);
+    process.exitCode = 1;
+    return;
+  }
   process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
-  process.stdout.write('NOTE the page holds your lists, every preset listed from your presets folder and any agent files in plain text: delete its folder once you are done with it\n');
+  process.stdout.write(fixed
+    ? 'NOTE the page sits in your Claude folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files: you may delete the file when you are done with it\n'
+    : 'NOTE the page holds your lists, every preset listed from your presets folder and any agent files in plain text: you may delete the file when you are done with it\n');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv.slice(2));

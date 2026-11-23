@@ -1528,7 +1528,7 @@ test('a shipped preset is carried with only the parts, models and agent files it
   assert.throws(() => shippedPresets(REPO, pactData(REPO), dir), /the preset z-bad\.json is refused: .*1 to 6 tiers/);
 });
 
-// #203 S6, C5: the builder runs as the installed kit, from the rules source, and writes its page only somewhere new, outside any repo or Claude folder.
+// #203 S6, C5, PACT-96 S5: the builder runs as the installed kit, from the rules source, and writes its page by default to the Claude home's fixed path; --out goes only somewhere new, outside any repo or Claude folder.
 test('the builder kit builds a page from a builder file, refuses to rebuild itself, and refuses an output in the kit, the Claude home, a .claude folder, a git work tree or over a file', t => {
   const home = join(tempDir(t, 'pact-kit-'), 'claude-home');
   const kit = join(home, 'pact', 'builder');
@@ -1537,14 +1537,16 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  delete env.CLAUDE_CONFIG_DIR;
+  env.CLAUDE_CONFIG_DIR = home;
   const cli = args => spawnSync(process.execPath, [join(kit, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env, cwd: dirname(home) });
   const f = builderFile(t, GOOD, GOOD_BLOCKS);
   const ok = cli(['--builder', f]);
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   const wrote = /^WROTE (.+)$/m.exec(ok.stdout)[1];
-  t.after(() => rmSync(dirname(wrote), { recursive: true, force: true }));
-  assert.deepEqual(pageProblems(readFileSync(wrote, 'utf8')), [], 'the page is written, by default in a new temporary folder');
+  assert.equal(wrote, join(home, 'pact', 'scriptorium.html'), 'the page is written, by default, at the fixed path in the Claude home');
+  assert.deepEqual(pageProblems(readFileSync(wrote, 'utf8')), []);
+  const existing = join(tempDir(t, 'pact-kit-there-'), 'there.html');
+  writeFileSync(existing, 'mine');
   const self = cli([]);
   assert.equal(self.status, 1);
   assert.match(self.stdout, /never rebuilds its own page/);
@@ -1558,7 +1560,8 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
     [join(home, 'mine.html'), /outside the Claude home folder/],
     [join(dotClaude, 'mine.html'), /any \.claude folder/],
     [join(repo, 'deep', 'mine.html'), /outside any git work tree/],
-    [wrote, /must be a new file/],
+    [wrote, /outside the Claude home folder/],
+    [existing, /must be a new file/],
   ]) {
     const r = cli(['--builder', f, '--out', out]);
     assert.equal(r.status, 1, `${out}: ${r.stdout}`);
@@ -1568,6 +1571,44 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   const both = cli(['--builder', f, '--check']);
   assert.notEqual(both.status, 0);
   assert.match(both.stdout + both.stderr, /both claude\/CLAUDE\.md and claude\/rules\.source\.md/);
+});
+
+// PACT-96 S5, C5: with no --out the page goes to pact/scriptorium.html in the Claude home and replaces the last one; only that path is let into the home, and only as a plain file.
+test('with no --out the page lands at pact/scriptorium.html in the Claude home, a second run replaces it, and a link there or an --out into the home is refused', t => {
+  const home = join(tempDir(t, 'pact-home-'), 'claude');
+  mkdirSync(home);
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: home };
+  delete env.NODE_OPTIONS;
+  const cli = args => spawnSync(process.execPath, [join(REPO, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env });
+  const page = join(home, 'pact', 'scriptorium.html');
+  const first = cli(['--builder', builderFile(t, { ...GOOD, title: 'First title' }, GOOD_BLOCKS)]);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.equal(/^WROTE (.+)$/m.exec(first.stdout)[1], page);
+  assert.match(readFileSync(page, 'utf8'), /First title/);
+  assert.match(first.stdout, /^NOTE the page sits in your Claude folder, beside your builder file, .*you may delete the file when you are done with it$/m);
+  assert.doesNotMatch(first.stdout, /delete its folder/);
+  // A second run replaces the page, through a temporary file that is gone after.
+  const second = cli(['--builder', builderFile(t, { ...GOOD, title: 'Second title' }, GOOD_BLOCKS)]);
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+  assert.doesNotMatch(readFileSync(page, 'utf8'), /First title/);
+  assert.match(readFileSync(page, 'utf8'), /Second title/);
+  assert.deepEqual(readdirSync(join(home, 'pact')), ['scriptorium.html']);
+  // Only the default path is let through: --out into the home is refused, the fixed path itself included.
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  for (const out of [page, join(home, 'pact', 'other.html'), join(home, 'other.html')]) {
+    const r = cli(['--builder', f, '--out', out]);
+    assert.equal(r.status, 1, `${out}: ${r.stdout}`);
+    assert.match(r.stdout, /outside the Claude home folder/);
+  }
+  // A link at the path is refused, and what it points at is left as it was.
+  const away = tempDir(t, 'pact-away-');
+  rmSync(page);
+  symlinkSync(away, page, WIN ? 'junction' : 'dir');
+  const linked = cli(['--builder', f]);
+  assert.equal(linked.status, 1, linked.stdout);
+  assert.match(linked.stdout, /REFUSE .*not a plain file/);
+  assert.deepEqual(readdirSync(away), []);
+  assert.deepEqual(readdirSync(join(home, 'pact')), ['scriptorium.html']);
 });
 
 // The protected set, item 2: a shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken.

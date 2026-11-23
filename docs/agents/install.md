@@ -172,10 +172,14 @@ how every session in every repo behaves. So:
   the person's own presets from `~/.claude/pact/presets/`, a folder the
   install never writes, lists or deletes, and the page lists them under
   "Your presets" with their agent rows unticked; a clone's run reads none.
-  Such a page belongs
-  outside any repo: `build.mjs` refuses to write one inside this clone or
-  any git work tree, the kit, the Claude home folder, any `.claude` folder,
-  or over a file.
+  With no `--out`, `build.mjs --builder <file>` writes the page to
+  `pact/scriptorium.html` in the Claude home (`CLAUDE_CONFIG_DIR` when set),
+  through a temporary file renamed over the last page; it refuses a link or
+  a folder at that path, and the install never touches the file. With `--out`,
+  such a page belongs outside any repo: `build.mjs` refuses to write one
+  inside this clone or any git work tree, the kit, the Claude home folder, any
+  `.claude` folder, or over a file
+  ([ADR 0171](../adr/0171-the-scriptorium-page-has-a-fixed-path-in-the-claude-home.md)).
 - **Review output.** To read what a configuration does before installing it,
   add `--review-folder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
