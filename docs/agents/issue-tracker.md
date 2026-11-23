@@ -6,6 +6,25 @@ Issues and PRDs for this repo live as GitHub issues on `mephistopheles4/the-pact
 
 Pass `-R mephistopheles4/the-pact` to every `gh` command: a clone without the `origin` remote, such as a probe sandbox, would otherwise resolve to the wrong repo or none. See [Whose text counts](#whose-text-counts).
 
+<!-- toc -->
+
+- [Conventions](#conventions)
+- [Whose text counts](#whose-text-counts)
+- [Reads that show authors](#reads-that-show-authors)
+  - [Read an issue](#read-an-issue)
+  - [Read an issue with editors](#read-an-issue-with-editors)
+  - [Read a PR](#read-a-pr)
+  - [List issues](#list-issues)
+  - [Label actors](#label-actors)
+  - [When GraphQL is refused](#when-graphql-is-refused)
+- [Tickets as sub-issues](#tickets-as-sub-issues)
+- [Pull requests as a triage surface](#pull-requests-as-a-triage-surface)
+- [Linear](#linear)
+- [When a skill says "publish to the issue tracker"](#when-a-skill-says-publish-to-the-issue-tracker)
+- [When a skill says "fetch the relevant ticket"](#when-a-skill-says-fetch-the-relevant-ticket)
+
+<!-- /toc -->
+
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body-file <file>`. Write the body to a file first; a prose body's apostrophes and backticks break shell quoting.

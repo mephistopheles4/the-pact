@@ -21,6 +21,25 @@ Claude Code session on your machine.
 - **macOS:** not tried.
 - **`/agents` (step 6):** checked on Windows only.
 
+<!-- toc -->
+
+- [Before you install](#before-you-install)
+- [1. Check the prerequisites](#1-check-the-prerequisites)
+- [2. Clone the repo](#2-clone-the-repo)
+- [3. Where the install keeps backups](#3-where-the-install-keeps-backups)
+- [4. Run the dry run and read it](#4-run-the-dry-run-and-read-it)
+- [5. Install with `--apply`](#5-install-with---apply)
+- [6. Check in a fresh session](#6-check-in-a-fresh-session)
+- [Install by prompt](#install-by-prompt)
+- [Updating later](#updating-later)
+- [The session stop switch](#the-session-stop-switch)
+- [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
+- [Roll back to an older version](#roll-back-to-an-older-version)
+- [Known limits](#known-limits)
+- [Undo an apply](#undo-an-apply)
+
+<!-- /toc -->
+
 ## Before you install
 
 The rules reach beyond your machine in two ways. Decide on each before you

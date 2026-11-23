@@ -3,6 +3,36 @@
 Status: draft, reviewed (two rounds). The owner has settled the design
 questions (S2). The spec counts once it is on `main`.
 
+<!-- toc -->
+
+- [S1 Objective](#s1-objective)
+- [S2 Decisions](#s2-decisions)
+- [S3 Terms](#s3-terms)
+- [S4 The switch and the owners list](#s4-the-switch-and-the-owners-list)
+- [S5 The pin and the npm install](#s5-the-pin-and-the-npm-install)
+  - [The pin](#the-pin)
+  - [Where npm comes from, and how it runs](#where-npm-comes-from-and-how-it-runs)
+  - [The dry run](#the-dry-run)
+  - [The apply](#the-apply)
+- [S6 Admitted repos](#s6-admitted-repos)
+- [S7 Not set up is fine](#s7-not-set-up-is-fine)
+- [S8 Reading files from a repo](#s8-reading-files-from-a-repo)
+- [S9 What the guard refuses](#s9-what-the-guard-refuses)
+- [S10 Settings, seam A and the cloud copy](#s10-settings-seam-a-and-the-cloud-copy)
+- [S11 Retiring the repo copies](#s11-retiring-the-repo-copies)
+- [S12 The door to other people's tools](#s12-the-door-to-other-peoples-tools)
+- [S13 Threat model](#s13-threat-model)
+- [S14 Trade-offs](#s14-trade-offs)
+- [S15 Target environments](#s15-target-environments)
+- [S16 Acceptance claims](#s16-acceptance-claims)
+- [S17 Rollback](#s17-rollback)
+- [S18 Tickets](#s18-tickets)
+  - [Needs the owner](#needs-the-owner)
+  - [Stop and ask when](#stop-and-ask-when)
+- [S19 Out of scope (deferred)](#s19-out-of-scope-deferred)
+
+<!-- /toc -->
+
 ## S1 Objective
 
 athanor, the owner's Docker test runner, becomes a pact tool the owner turns

@@ -12,6 +12,19 @@ Your words are the source code. An agent ships exactly what you said.
 
 Faust signed a pact with no way out. This one has escape clauses written in: the human decides at every seam, and the agent stops and asks when it should. The skills live in [grimoire](https://github.com/mephistopheles4/grimoire), the spellbook. This repo holds the terms, and the familiars, its agents, bound by them.
 
+<!-- toc -->
+
+- [Words are code](#words-are-code)
+- [Four moves](#four-moves)
+- [How much checking](#how-much-checking)
+- [Review lenses](#review-lenses)
+- [Who it's for](#who-its-for)
+- [What's here](#whats-here)
+- [Install](#install)
+- [Depends on](#depends-on)
+
+<!-- /toc -->
+
 ## Words are code
 
 An agent acts on what your words say. If "clean up the repo" can also be read as "clean up everything", sooner or later an agent will read it that way, and it will build, test and merge the result.

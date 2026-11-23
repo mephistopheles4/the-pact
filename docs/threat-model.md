@@ -15,6 +15,19 @@ read. The full guide is the review procedure's Threat model section
 
 [`SECURITY.md`](../SECURITY.md) says how to report a hole.
 
+<!-- toc -->
+
+- [Boundaries](#boundaries)
+  - [Text into a session](#text-into-a-session)
+  - [Code that runs](#code-that-runs)
+  - [Merges and installs](#merges-and-installs)
+  - [What leaves the machine](#what-leaves-the-machine)
+- [Scope](#scope)
+- [Accepted threat classes](#accepted-threat-classes)
+- [Open gaps](#open-gaps)
+
+<!-- /toc -->
+
 ## Boundaries
 
 ```mermaid
