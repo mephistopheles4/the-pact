@@ -12,8 +12,9 @@
 // host or hash from the environment, a flag or a file; every URL is built from
 // the table and checked before it is requested.
 //
-// Output is fixed words, file names from the table, and counts. A refusal is
-// one line `REFUSED <word>: <reason>` and the last line is a RESULT line:
+// Output is fixed words, file names from the table, counts, and the node path
+// setup records; a failure that is not a refusal also prints Node's own error
+// text, which can hold a local path. A refusal is one line `REFUSED <word>: <reason>` and the last line is a RESULT line:
 //   0  RESULT: pass            the plan printed, the files kept, or the files verified
 //   1  RESULT: fail <words>    a file failed verify
 //   2  RESULT: refused <word>  a refusal (clef-pin, clef-platform, clef-space,
@@ -23,8 +24,9 @@
 // Node 24 or later, ESM, node: built-ins only. Every rule is an exported
 // function that takes what it needs as parameters (the transport, the origins,
 // the folder, the platform); only main reads the real values, and main runs
-// only when this file is the entry script. No flag and no environment
-// variable reaches those parameters.
+// only when this file is the entry script. No flag reaches those parameters;
+// the one environment variable read, CLAUDE_CONFIG_DIR, picks the Claude home
+// folder and only as an absolute path outside the starting folder (claudeHome).
 
 import { createHash } from 'node:crypto';
 import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
@@ -315,14 +317,14 @@ export function pathProblem(path) {
   if (/[\u0000-\u001f\u007f]/.test(path)) return 'control';
   for (const seg of path.split('/')) {
     if (seg === '') return 'empty';
-    if (seg === '..') return 'dotdot';
+    if (seg.includes('..')) return 'dotdot';
     if (/[. ]$/.test(seg)) return 'trailing';
     if (RESERVED_RE.test(seg)) return 'reserved';
   }
   return null;
 }
 
-const plainSegment = s => typeof s === 'string' && SEGMENT_RE.test(s) && s !== '.' && s !== '..';
+const plainSegment = s => typeof s === 'string' && SEGMENT_RE.test(s) && s !== '.' && !s.includes('..');
 
 /**
  * The shape check on the pin table: a list of rule ids, empty when it holds.
@@ -351,7 +353,7 @@ export function pinProblems(server = SERVER, model = MODEL, repos = { server: SE
     for (const row of rows) {
       const [path, size, sha, ...copies] = Array.isArray(row) ? row : [];
       if (pathProblem(path) !== null) out.push('file-path');
-      if (!Number.isSafeInteger(size) || size < 0) out.push('file-size');
+      if (!Number.isSafeInteger(size) || size < 1) out.push('file-size');
       if (typeof sha !== 'string' || !HEX64.test(sha)) out.push('file-sha256');
       if (copies.length > 1 || copies.some(c => !plainSegment(c))) out.push('file-copy');
       for (const dest of typeof path === 'string' ? destNames(row, a.exe) : ['']) {
@@ -458,8 +460,13 @@ export async function fetchFile({ url, source, size, sha256, out, transport, sou
     rmSync(out, { force: true });
     throw new Refused(code, msg);
   };
-  if (start > size) rmSync(out, { force: true });
-  let from = start > size ? 0 : start;
+  // A partial already the pinned size was fully fetched: check it, never ask for bytes past its end.
+  if (start === size && size > 0) {
+    const h = hashFile(out);
+    if (h.sha256 === sha256) return { ok: true };
+  }
+  if (start >= size) rmSync(out, { force: true });
+  let from = start >= size ? 0 : start;
   let current = new URL(url);
   let res;
   for (let hop = 0; ; hop++) {
@@ -513,7 +520,8 @@ export async function fetchFile({ url, source, size, sha256, out, transport, sou
   }
   closeSync(fd);
   if (n !== size) {
-    // Short: keep it for a resume (a model), and say so.
+    // Short: a model's partial is kept for a resume; anything else is refused and deleted.
+    if (!resume) fail('clef-size', 'fewer bytes than the pinned size');
     throw new Error('network');
   }
   const got = hashFile(out);
@@ -657,8 +665,17 @@ export const readArchive = (kind, buf, opts) => (kind === 'zip' ? readZip(buf, o
 
 // ---------------------------------------------------------------- the clef folder and the platform (S3, S6)
 
-/** The Claude home folder: CLAUDE_CONFIG_DIR when set, else ~/.claude. */
-export const claudeHome = (env = process.env, home = homedir()) => (env.CLAUDE_CONFIG_DIR ? resolve(env.CLAUDE_CONFIG_DIR) : join(home, '.claude'));
+/**
+ * The Claude home folder: CLAUDE_CONFIG_DIR when it is an absolute path outside
+ * the folder the command was started from, else ~/.claude. A relative value, or
+ * one inside the starting folder (a cloned repo's own settings can set it),
+ * is ignored: it would move where the runtime lands, and what later runs.
+ */
+export const claudeHome = (env = process.env, home = homedir(), cwd = process.cwd(), win = process.platform === 'win32') => {
+  const v = env.CLAUDE_CONFIG_DIR;
+  if (v && (win ? win32 : posix).isAbsolute(v) && !insideOf(v, cwd, win)) return resolve(v);
+  return join(home, '.claude');
+};
 
 /** The clef folder (S3). */
 export const clefDir = home => join(home, 'pact-clef');
@@ -750,13 +767,13 @@ export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, fre
   if (free < needed) throw new Refused('clef-space', `the clef folder's drive has ${mb(free)} free and setup needs ${mb(needed)}`);
   const lines = [`platform: ${pick.key} (${pick.why})`];
   const items = [];
-  if (haveServer) lines.push(`present and checked, skipped: server ${server.tag} (${pick.key})`);
+  if (haveServer) lines.push(`present (sizes match), skipped unless its sha256 fails: server ${server.tag} (${pick.key})`);
   else {
     const u = archiveUrl(server, pick.key);
     items.push({ what: 'server', key: pick.key, host: u.host, url: u.href });
     lines.push(`fetch: ${u.host} ${a.asset} ${mb(a.size)} sha256 ${a.sha256.slice(0, 8)}`);
   }
-  if (haveModel) lines.push(`present and checked, skipped: model ${model.sha256.slice(0, 8)}`);
+  if (haveModel) lines.push(`present (size matches), skipped unless its sha256 fails: model ${model.sha256.slice(0, 8)}`);
   else {
     const u = modelUrl(model);
     items.push({ what: 'model', host: u.host, url: u.href });
@@ -797,6 +814,7 @@ export function unpackServer({ dir, key, archivePath, platform, server = SERVER 
   for (const e of entries) {
     const row = named.get(e.path);
     if (!row) continue;
+    if (written.has(row[0])) throw bad('a pinned file appears twice in the archive');
     if (e.kind !== 'file') throw bad('a pinned file is not a regular file in the archive');
     if (e.data.length !== row[1] || sha256Of(e.data) !== row[2]) throw new Refused('clef-hash', 'a file from the archive does not match its pinned size and sha256');
     for (const name of destNames(row, a.exe)) {
@@ -842,7 +860,20 @@ export async function runSetup(o) {
   const a = server.archives[plan.pick.key];
   const lines = [...plan.lines];
   mkdirSync(p.partial, { recursive: true, mode: 0o700 });
-  if (!plan.haveServer) {
+  // A file the plan skipped on its size is hashed now; one that fails is fetched again.
+  const failsHash = (path, size, sha) => {
+    try {
+      const h = hashFile(path);
+      return h.size !== size || h.sha256 !== sha;
+    } catch {
+      return true;
+    }
+  };
+  const haveServer = plan.haveServer && !a.files.some(row => destNames(row, a.exe).some(name => failsHash(join(p.runtime, name), row[1], row[2])));
+  const haveModel = plan.haveModel && !failsHash(p.model, model.size, model.sha256);
+  if (plan.haveServer) lines.push(haveServer ? `checked: server ${server.tag} (${plan.pick.key})` : `sha256 failed, fetching again: server ${server.tag}`);
+  if (plan.haveModel) lines.push(haveModel ? `checked: model ${model.sha256.slice(0, 8)}` : `sha256 failed, fetching again: model ${model.sha256.slice(0, 8)}`);
+  if (!haveServer) {
     const out = join(p.partial, a.asset);
     rmSync(out, { force: true });
     await fetchFile({ url: archiveUrl(server, plan.pick.key).href, source: 'server', size: a.size, sha256: a.sha256, out, transport, sources });
@@ -850,7 +881,7 @@ export async function runSetup(o) {
     rmSync(out, { force: true });
     lines.push(`kept: server ${server.tag} (${plan.pick.key})`);
   }
-  if (!plan.haveModel) {
+  if (!haveModel) {
     const out = join(p.partial, `${model.sha256}.gguf`);
     await fetchFile({ url: modelUrl(model).href, source: 'model', size: model.size, sha256: model.sha256, out, transport, sources, resume: true });
     mkdirSync(p.models, { recursive: true, mode: 0o700 });
@@ -922,7 +953,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
   const known = mode === 'setup' ? ['--cpu', '--yes'] : mode === 'verify' ? [] : null;
   if (!known) return refuse('usage', 'the modes are setup and verify');
   if (rest.length !== flags.size || rest.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${known.length ? known.join(' and ') : 'no flags'}`);
-  const home = claudeHome(env);
+  const home = claudeHome(env, undefined, cwd);
   const dir = clefDir(home);
   // Every mode starts from the clef folder and starts no program by a bare name (S6).
   try {
@@ -944,7 +975,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
     return 0;
   } catch (e) {
     if (e instanceof Refused) return refuse(e.code, quote(e.message));
-    return refuse('clef-fetch', `the fetch did not finish (${quote(e.message)}); run setup again to resume`);
+    return refuse('clef-fetch', `the fetch did not finish (${quote(e.message)}); run setup again`);
   }
 }
 

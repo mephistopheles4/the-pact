@@ -52,7 +52,7 @@
 // PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
 // The tools list (#280) does the same for pact tools, from PACT_TOOLS, off by
 // default; gh-app is on PACT_TOOLS but the list refuses it (see checkTools).
-// A tool that is on, but gh-app, also fills its marked part of the rules file from
+// A tool that is on, but gh-app and clef (TOOLS_WITHOUT_PART), also fills its marked part of the rules file from
 // a fixed template (TOOL_PARTS); off, the part stays empty, so the render is
 // byte for byte what it is without the tool. No edit may target such a part.
 // A setting fills its open part from a fixed template with the checked number;
@@ -330,6 +330,8 @@ const settingRule = (name, spec) => (spec.kind === 'switch' ? `${name} must be t
 // Each pact tool's part of the rules file (#280): the open mark it fills, and
 // its fixed text, one line since #464 T4: the poster's how-to is in review.md,
 // and the cleaner's comes with its own output.
+// The pact tools that name nothing in the rules file, so a tool being on adds no part for them.
+export const TOOLS_WITHOUT_PART = Object.freeze(['gh-app', 'clef']);
 const TOOL_PARTS = new Map([
   ['poster', Object.freeze({
     mark: 'tool-poster',
@@ -1214,8 +1216,8 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tool
   }
   // A tool's part is empty in the source, and filled only while the tool is on.
   for (const name of tools) {
-    // A tool with no TOOL_PARTS row has no part: gh-app is not named in the rules file (#603), nor is clef (PACT-61 S2 pick 1).
-    if (!TOOL_PARTS.has(name)) continue;
+    // Only these have no part: gh-app is not named in the rules file (#603), nor is clef (PACT-61 S2 pick 1). Any other tool with no TOOL_PARTS row fails the render.
+    if (TOOLS_WITHOUT_PART.includes(name)) continue;
     const { mark, template } = TOOL_PARTS.get(name);
     const p = pairs.get(mark);
     if (!p) return fail(mark, 'the part is not in the source');

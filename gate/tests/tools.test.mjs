@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { CLEANER_ASK, CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS, STOP_DENY } from '../install-core.mjs';
 import { CLEANER_ASK as SHARED_ASK, CLEANER_DENY as SHARED_DENY, PACT_TOOLS, STOP_DENY as SHARED_STOP } from '../shared.mjs';
+import { TOOLS_WITHOUT_PART } from '../render-core.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
 import { REPO, assertFails, assertPasses, moduleResult } from './text.mjs';
@@ -192,6 +193,18 @@ test('clef on: the TOOLS line names it, in PACT_TOOLS order, and the rules file 
   const onlyClef = renderWith(t, '{"schema": 1, "tools": ["clef"]}');
   assert.equal(noNotice(readFileSync(join(onlyClef.out, 'CLAUDE.md'), 'utf8')), noNotice(readFileSync(join(off.out, 'CLAUDE.md'), 'utf8')), 'clef alone changes no byte but the notice');
   assert.deepEqual(renderWith(t, null).lines.filter(l => l.startsWith('TOOLS')), ['TOOLS none'], 'off by default');
+});
+
+// PACT-61 adversarial F2: the renderer fails closed for a tool with no part. Only these two may have none; a new tool is added here on purpose, with its reason.
+test('the tools that name nothing in the rules file are exactly gh-app and clef, and every other pact tool has a part that fills when it is on', t => {
+  assert.deepEqual([...TOOLS_WITHOUT_PART], ['gh-app', 'clef']);
+  const withPart = PACT_TOOLS.filter(n => !TOOLS_WITHOUT_PART.includes(n));
+  assert.deepEqual(withPart, ['poster', 'cleaner']);
+  const off = readFileSync(join(renderWith(t, '{"schema": 1, "tools": []}').out, 'CLAUDE.md'), 'utf8');
+  for (const name of withPart) {
+    const on = readFileSync(join(renderWith(t, `{"schema": 1, "tools": ["${name}"]}`).out, 'CLAUDE.md'), 'utf8');
+    assert.ok(on.length > off.length, `${name} adds its part to the rules file`);
+  }
 });
 
 // #280 C1: the digest. The part's own effect on the hash is held by the byte-for-byte test below (C6).

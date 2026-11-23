@@ -6,7 +6,7 @@
 // id, with a base that passes before and after.
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { Readable } from 'node:stream';
 import { createHash } from 'node:crypto';
@@ -168,6 +168,10 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'size-fraction', plant: x => { x.model.size = 1.5; return x; }, fails: ['model-size'], why: 'an integer' },
     { id: 'kind', plant: x => { first(x.server).kind = 'rar'; return x; }, fails: ['kind'], why: 'zip or tgz' },
     { id: 'file-sha', plant: x => { first(x.server).files[0][2] = 'x'; return x; }, fails: ['file-sha256'], why: 'each kept file has a sha256' },
+    { id: 'file-path', plant: x => { first(x.server).files[0][0] = '../x'; return x; }, fails: ['file-path'], why: 'a kept file path goes through the path check' },
+    { id: 'file-size-negative', plant: x => { first(x.server).files[1][1] = -1; return x; }, fails: ['file-size'], why: 'a positive integer' },
+    { id: 'file-size-zero', plant: x => { first(x.server).files[1][1] = 0; return x; }, fails: ['file-size'], why: 'a positive integer, not zero' },
+    { id: 'asset-dotdot-inside', plant: x => { first(x.server).asset = 'llama-b1-bin-x..zip'; return x; }, fails: ['asset'], why: 'a name that holds .. at all' },
     { id: 'file-dup', plant: x => { first(x.server).files.push(['other/LICENSE', 1, 'a'.repeat(64)]); return x; }, fails: ['file-dup'], why: 'two files landing in one place' },
     { id: 'copy-with-a-path', plant: x => { first(x.server).files[0][3] = 'a/b.so.0'; return x; }, fails: ['file-copy'], why: 'a copy is named by one plain segment' },
     { id: 'copy-twice', plant: x => { first(x.server).files[0].push('a.so.0', 'b.so.0'); return x; }, fails: ['file-copy'], why: 'one copy at most' },
@@ -179,7 +183,7 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
   for (const r of rows) {
     test(`pin table shape: ${r.id}`, () => {
       const got = run(r.plant(base())).fails;
-      for (const id of r.fails) assert.ok(got.includes(id), `${r.id} should fail ${id}, got ${got.join(',')}`);
+      assert.deepEqual([...new Set(got)].sort(), [...r.fails].sort(), `${r.id} should fail exactly these rules`);
     });
   }
   test('pin table shape: base passes after the rows', () => assert.deepEqual(run(base()).fails, []));
@@ -189,7 +193,7 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
 {
   const NUL = String.fromCharCode(0);
   const rows = [
-    ['empty', '', 'empty'], ['absolute', '/etc/x', 'absolute'], ['dotdot', '../x', 'dotdot'], ['dotdot-mid', 'a/../b', 'dotdot'],
+    ['empty', '', 'empty'], ['absolute', '/etc/x', 'absolute'], ['dotdot', '../x', 'dotdot'], ['dotdot-mid', 'a/../b', 'dotdot'], ['dotdot-inside-a-name', 'a/b..c', 'dotdot'],
     ['backslash', 'a\\b', 'backslash'], ['drive', 'C:x', 'colon'], ['colon', 'a:b', 'colon'], ['nul', `a${NUL}b`, 'control'], ['control', 'a\u0007b', 'control'],
     ['trailing-dot', 'a/b.', 'trailing'], ['trailing-space', 'a/b ', 'trailing'], ['dir-trailing-dot', 'a./b', 'trailing'], ['con', 'CON', 'reserved'], ['aux-ext', 'x/aux.txt', 'reserved'], ['com1-lower', 'com1.dll', 'reserved'],
     ['lpt9', 'LPT9', 'reserved'], ['nul-name', 'bin/NUL.x', 'reserved'], ['double-slash', 'a//b', 'empty'],
@@ -254,6 +258,7 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
   for (const r of rows) {
     test(`fetch: ${r.id}`, async t => {
       const a = fetchArgs(t);
+      writeFileSync(a.out, 'a stale file from an earlier run');
       const transport = tr(...r.answers);
       if (r.passes) {
         assert.deepEqual(await clef.fetchFile({ ...a, transport }), { ok: true });
@@ -264,9 +269,13 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
       }
     });
   }
-  test('fetch: a short body is not kept as whole, and nothing follows a refused redirect', async t => {
+  test('fetch: a short body is refused and deleted unless the file resumes, and nothing follows a refused redirect', async t => {
     const a = fetchArgs(t);
-    await assert.rejects(clef.fetchFile({ ...a, transport: tr(ok(PAYLOAD.subarray(0, 5))) }), /network/);
+    await assert.rejects(clef.fetchFile({ ...a, transport: tr(ok(PAYLOAD.subarray(0, 5))) }), e => e instanceof clef.Refused && e.code === 'clef-size');
+    gone(a.out);
+    const r = fetchArgs(t);
+    await assert.rejects(clef.fetchFile({ ...r, transport: tr(ok(PAYLOAD.subarray(0, 5))), resume: true }), /network/);
+    assert.equal(statSync(r.out).size, 5, 'a resumable file keeps its bytes');
     const b = fetchArgs(t);
     const transport = tr(redirect('https://evil.test/x'), ok(PAYLOAD));
     await assert.rejects(clef.fetchFile({ ...b, transport }));
@@ -305,6 +314,18 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     await assert.rejects(clef.fetchFile({ ...a, transport: transportOf(() => ok(PAYLOAD.subarray(11), 206)), resume: true }), e => e.code === 'clef-hash');
     assert.equal(existsSync(a.out), false);
   });
+  test('resume: a partial already the pinned size is hash-checked and kept without a request; one that fails restarts from nothing', async t => {
+    const a = fetchArgs(t);
+    writeFileSync(a.out, PAYLOAD);
+    const none = transportOf(() => ({ status: 416 }));
+    assert.deepEqual(await clef.fetchFile({ ...a, transport: none, resume: true }), { ok: true });
+    assert.equal(none.calls.length, 0, 'no request for a whole file');
+    writeFileSync(a.out, Buffer.from(PAYLOAD.toString().replace('pinned', 'forged')));
+    const again = transportOf(() => ok(PAYLOAD));
+    assert.deepEqual(await clef.fetchFile({ ...a, transport: again, resume: true }), { ok: true });
+    assert.equal(again.calls[0].headers.range, undefined, 'a wrong whole-size file is asked for from byte 0');
+    assert.deepEqual(readFileSync(a.out), PAYLOAD);
+  });
   test('resume: without resume, an old partial file is not continued', async t => {
     const a = fetchArgs(t);
     writeFileSync(a.out, 'garbage!!!');
@@ -329,6 +350,10 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
   test('tar reader: reads files, folders and links without link data, drops a leading ./', () => {
     const r = clef.readTgz(tgz([{ name: './', type: '5' }, { name: './d/', type: '5' }, { name: './d/a.txt', data: 'hello' }, { name: './d/link', type: '2' }]), {});
     assert.deepEqual(r.entries.map(e => [e.path, e.kind, e.data && e.data.toString()]), [['d', 'dir', null], ['d/a.txt', 'file', 'hello'], ['d/link', 'link', null]]);
+  });
+  test('tar reader: a "." folder, a "./" entry with data and a size-0 "./" are skipped whole, and the entry after them is still read', () => {
+    const r = clef.readTgz(tgz([{ name: '.', type: '5' }, { name: './', data: 'x'.repeat(700) }, { name: './', type: '5' }, { name: 'real.txt', data: 'ok' }]), {});
+    assert.deepEqual(r.entries.map(e => [e.path, e.kind, e.data && e.data.toString()]), [['real.txt', 'file', 'ok']]);
   });
   const bads = [
     { id: 'zip-traversal', run: () => clef.readZip(zip([{ name: '../x', data: 'y' }]), {}), why: 'a name that leaves the folder' },
@@ -369,7 +394,9 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     mkdirSync(join(a.dir, 'partial'), { recursive: true });
     const archivePath = join(a.dir, 'partial', 'x.zip');
     writeFileSync(archivePath, zipBuf);
-    return () => clef.unpackServer({ dir: a.dir, key: 'win32-x64-cpu', archivePath, platform: 'win32', server: a.server });
+    const run = () => clef.unpackServer({ dir: a.dir, key: 'win32-x64-cpu', archivePath, platform: 'win32', server: a.server });
+    run.runtime = join(a.dir, 'runtime', 'b1');
+    return run;
   };
   test('unpack: a named file whose bytes differ from the table is clef-hash, and nothing is moved into place', t => {
     const z = zip([...Object.entries(FILES).map(([name, data]) => ({ name: name, data: name === EXE ? 'MZ forged' : data }))]);
@@ -384,7 +411,30 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     const linked = zip([...Object.entries(FILES).map(([name, data]) => ({ name, data, mode: name === EXE ? 0o120777 : 0o100644 }))]);
     assert.throws(unpackWith(t, linked), e => e.code === 'clef-archive');
     const extra = zip([...Object.entries(FILES).map(([name, data]) => ({ name, data })), { name: 'bin/libx.so', data: '../../etc/passwd', mode: 0o120777 }]);
-    unpackWith(t, extra)();
+    const run = unpackWith(t, extra);
+    run();
+    assert.deepEqual(readdirSync(run.runtime).sort(), ['LICENSE', 'ggml-cpu.dll', 'llama-server.exe'], 'the unnamed link left no file, link or copy');
+  });
+  test('unpack: a pinned file named twice in the archive is clef-archive, and nothing is moved into place', t => {
+    const twice = zip([{ name: EXE, data: 'MZ server' }, { name: EXE, data: 'MZ server' }, { name: 'bin/ggml-cpu.dll', data: 'cpu backend' }, { name: 'LICENSE', data: 'MIT text' }]);
+    const run = unpackWith(t, twice);
+    assert.throws(run, e => e instanceof clef.Refused && e.code === 'clef-archive');
+    assert.equal(existsSync(run.runtime), false);
+  });
+  // PACT-61 S6, Linux: the tgz branch writes the same files, and the server is made executable.
+  test('unpack: a tar.gz archive unpacks the named files, and on Linux the server is executable', t => {
+    const entries = [{ name: './build/', type: '5' }, ...Object.entries(FILES).map(([name, data]) => ({ name: `./build/${name}`, data })), { name: './build/notes.txt', data: 'not kept' }];
+    const buf = tgz(entries);
+    const files = ROWS().map(([p, s, h]) => [`build/${p}`, s, h]);
+    const server = { repo: 'ggml-org/llama.cpp', tag: 'b1', archives: { 'linux-x64-cpu': { asset: 'llama-b1-bin-ubuntu-x64.tar.gz', size: buf.length, sha256: sha(buf), kind: 'tgz', exe: `build/${EXE}`, files } } };
+    const a = setupArgs(t, { server });
+    mkdirSync(join(a.dir, 'partial'), { recursive: true });
+    const archivePath = join(a.dir, 'partial', 'x.tar.gz');
+    writeFileSync(archivePath, buf);
+    clef.unpackServer({ dir: a.dir, key: 'linux-x64-cpu', archivePath, platform: 'linux', server });
+    const runtime = join(a.dir, 'runtime', 'b1');
+    assert.deepEqual(readdirSync(runtime).sort(), ['LICENSE', 'ggml-cpu.dll', 'llama-server.exe']);
+    if (process.platform !== 'win32') assert.equal(statSync(join(runtime, 'llama-server.exe')).mode & 0o111, 0o111);
   });
   // PACT-61 C6: the Linux build holds its sonames as links; a link is never written, so the bytes are kept as a copy under the soname.
   test('unpack: a row\'s copy name keeps the same bytes as a regular file, and verify checks both', async t => {
@@ -430,6 +480,7 @@ test('setup without --yes prints the plan, makes no request, and writes nothing 
   const r = await clef.runSetup(a);
   assert.equal(a.transport.calls.length, 0);
   assert.deepEqual(readdirSync(a.dir), [], 'the clef folder holds nothing');
+  assert.deepEqual(readdirSync(dirname(a.dir)), ['pact-clef'], 'nothing is written beside the clef folder');
   assert.equal(r.lines.at(-1), 'run again with --yes to fetch');
   assert.match(r.lines.join('\n'), /^platform: win32-x64-cpu \(no Vulkan loader: CPU\)$/m);
   assert.match(r.lines.join('\n'), /^fetch: github\.com llama-b1-bin-win-cpu-x64\.zip [\d.]+ MB sha256 [0-9a-f]{8}$/m);
@@ -495,8 +546,23 @@ test('setup --yes fetches both files through their redirects, keeps them checked
   assert.deepEqual(readdirSync(join(a.dir, 'partial')), [], 'no partial file is left');
   assert.match(r.lines.join('\n'), /^kept: server b1 \(win32-x64-cpu\)$/m);
   const again = await clef.runSetup({ ...a, transport: transportOf(() => { throw new Error('a request was made'); }) });
-  assert.match(again.lines.join('\n'), /^present and checked, skipped: server b1 \(win32-x64-cpu\)$/m);
-  assert.match(again.lines.join('\n'), /^present and checked, skipped: model /m);
+  assert.match(again.lines.join('\n'), /^checked: server b1 \(win32-x64-cpu\)$/m);
+  assert.match(again.lines.join('\n'), /^checked: model /m);
+});
+
+// PACT-61 C4, S6: a file present at its pinned size is skipped only when its sha256 holds; one that fails is fetched again.
+test('setup --yes hashes a present file before skipping it, and fetches again one whose bytes changed at the same size', async t => {
+  const a = setupArgs(t, { yes: true });
+  await clef.runSetup(a);
+  writeFileSync(join(a.dir, 'runtime', 'b1', 'ggml-cpu.dll'), 'CPU BACKEND'); // same length as 'cpu backend'
+  writeFileSync(join(a.dir, 'models', `${sha(MODEL_BYTES)}.gguf`), Buffer.alloc(MODEL_BYTES.length, 1));
+  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, model: a.model }).failed.sort(), ['sha256:ggml-cpu.dll', `sha256:model ${sha(MODEL_BYTES).slice(0, 8)}`]);
+  const dry = await clef.runSetup({ ...a, yes: false });
+  assert.match(dry.lines.join('\n'), /^present \(sizes match\), skipped unless its sha256 fails: server b1/m, 'the plan does not claim a hash it did not make');
+  const again = await clef.runSetup({ ...a, transport: servingTransport() });
+  assert.match(again.lines.join('\n'), /^sha256 failed, fetching again: server b1$/m);
+  assert.match(again.lines.join('\n'), /^sha256 failed, fetching again: model /m);
+  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, model: a.model }).failed, []);
 });
 
 test('setup --yes: a failed fetch writes no setup.json and keeps nothing in place', async t => {
@@ -583,6 +649,20 @@ test('main: setup without --yes works from CLAUDE_CONFIG_DIR, goes to the clef f
   assert.deepEqual(moved, [join(env.CLAUDE_CONFIG_DIR, 'pact-clef')]);
   assert.equal(out.at(-1), 'RESULT: pass');
   assert.ok(out.includes('run again with --yes to fetch'));
+});
+
+// PACT-61 adversarial F1: the clef folder is never moved into the starting folder, or by a relative value, by the environment.
+test('claudeHome: CLAUDE_CONFIG_DIR counts only as an absolute path outside the starting folder', t => {
+  const outside = tempDir(t, 'clef-claude-');
+  const start = tempDir(t, 'clef-start-');
+  const home = join(tempDir(t, 'clef-userhome-'), 'h');
+  const fallback = join(home, '.claude');
+  assert.equal(clef.claudeHome({ CLAUDE_CONFIG_DIR: outside }, home, start), resolve(outside));
+  assert.equal(clef.claudeHome({ CLAUDE_CONFIG_DIR: join(start, 'cfg') }, home, start), fallback, 'inside the starting folder');
+  assert.equal(clef.claudeHome({ CLAUDE_CONFIG_DIR: start }, home, start), fallback, 'the starting folder itself');
+  assert.equal(clef.claudeHome({ CLAUDE_CONFIG_DIR: 'cfg' }, home, start), fallback, 'a relative value');
+  assert.equal(clef.claudeHome({ CLAUDE_CONFIG_DIR: '' }, home, start), fallback);
+  assert.equal(clef.claudeHome({}, home, start), fallback);
 });
 
 test('main: a refusal prints REFUSED and RESULT with the word, and exits 2', async t => {
