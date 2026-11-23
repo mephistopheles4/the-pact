@@ -55,6 +55,8 @@ const OVERLAY = 'claude/settings.overlay.json';
 // The review procedure file (#261): one file, by exact path, to one fixed live path.
 const REVIEW_FILE = 'claude/review.md';
 const REVIEW_DEST = 'pact/review.md';
+const REVIEW_DIAGRAMS_FILE = 'claude/review-diagrams.md';
+const REVIEW_DIAGRAMS_DEST = 'pact/review-diagrams.md';
 // The pact's hook script (#482): exactly claude/hooks/<name>.mjs, installed to pact/hooks/<name>.mjs only with --compact on.
 const PACT_HOOKS = Object.freeze(['compact-handoff']);
 // Settings that run a command, load code or reach a tool server. Refused by
@@ -552,6 +554,8 @@ function classify(root, report) {
         // The unrendered rules, copied by the install for the builder kit only.
       } else if (rel === REVIEW_FILE) {
         installs.push({ file: rel, dest: REVIEW_DEST, review: true });
+      } else if (rel === REVIEW_DIAGRAMS_FILE) {
+        installs.push({ file: rel, dest: REVIEW_DIAGRAMS_DEST });
       } else if (rel === OVERLAY) {
         overlay = true;
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {

@@ -112,8 +112,7 @@ Ask each lens to report in this shape:
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: edit
-  none, tell me, and go on. Post the round comment first. If a status edit is refused
+  `after <stage> further read (<your label>)`. More than one: update the newest and mention the duplicate there. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -187,15 +186,7 @@ trust the result. It is the diagram's heading. The type follows the sentence:
 A flowchart is never the default: a comment holds at most one, and use it only
 when no other row answers the sentence.
 
-- **The block.** Each diagram sits under its sentence, written exactly as
-  `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
-  `</div>`.
-- **Pins,** on flowcharts only, carry one colour meaning: an `open` finding takes
-  its severity's colour, `high` `#cf222e33`, `medium` `#bc4c0033`, `low`
-  `#d4a72c33`; a fixed one `#2da44e33`; every other row gets no pin. The border
-  is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
-  security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
-  `color:`.
+- Diagram format and pin colours: `review-diagrams.md`, beside this file.
 - **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
@@ -205,8 +196,6 @@ when no other row answers the sentence.
   cover posted findings only, and the title line says so. Its signal row says
   only `withheld, see chat`, nothing about what was held back, and it carries
   no severity mark or colour.
-- **A place that can't draw them** gets the title line, signal table and count line as plain text,
-  with no diagram.
 
 ## Posting
 
@@ -224,7 +213,6 @@ when no other row answers the sentence.
   diagram and no entry in the places both lenses flagged, and the state and
   open questions at a phase boundary name only the marker; it goes to me in
   chat.
-- **Where to post.** In the work's record; with no record, in chat.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
@@ -234,23 +222,7 @@ when no other row answers the sentence.
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
-- **Checkpoint log.** Log each checkpoint you settle in the work's record, as
-  your own pick under your own label, never as mine: a one-line why, the goal
-  you ran under (its work and where it came from, by kind), each
-  narrowing I gave there (by the kind of step it keeps), and a flag: the line
-  opens `Checkpoint (flagged):`, except the forms below. A pick
-  that leaves a security path open is flagged big: in a public record its line
-  is exactly "Owner's call: security, see chat", with the why in chat; in a
-  private record, one only I can read (a record anyone but me can read counts
-  as public), the line opens "Owner's call: security"
-  and carries the why. The why also goes in a note under
-  `~/.claude/pact/private/`, either way. A pick that would put a
-  withheld lens report or its findings, a secret,
-  the cleaner's tags or blocks, or anything else these rules keep out of the
-  record, in the record has the line exactly "withheld,
-  see chat", with no opener or flag, which wins over the security line, and the
-  why goes to me in chat; such a pick that would leave a security path open is
-  a heads-up: tell me in chat and go on. With no record, log in chat and in the result.
+- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint at level 3.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the
     ask lists are where the work starts, and a limit in my words, such as

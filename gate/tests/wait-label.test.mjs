@@ -250,9 +250,8 @@ export function collect(read = real, list = listReal) {
   return units;
 }
 
-// The units that are neither labelled nor to be: steps only the owner can
-// take, which are physical (paste, restart, sign in), never a wait.
-const EXEMPT = [{ file: 'claude/commands/scry.md', start: '- **Only you can do:**' }];
+// The units that are neither labelled nor to be: none now.
+const EXEMPT = [];
 const exempt = u => EXEMPT.some(e => e.file === u.file && u.text.startsWith(e.start));
 
 /** The failing units as lines naming the file, the unit's first words and the phrase that matched. */
