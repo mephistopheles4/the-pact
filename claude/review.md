@@ -47,8 +47,8 @@ Ask each lens to report in this shape:
 
 ## Handling the reports
 
-- **You decide** which findings are security findings, by the rules file's
-  Cost limits. A security or `security?` finding comes to me and is never
+- **You decide** which findings are security findings, by the Threat model
+  section below. A security or `security?` finding comes to me and is never
   `auto`.
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,
@@ -143,7 +143,14 @@ security ruling.
    anything on the machine makes from outside input. What starts and ends
    on the machine (a program, process, account, file or memory made there)
    is the machine's, and no finding, unless the project's threat model holds
-   it in scope, or it touches the sensitive-work list.
+   it in scope, or it touches the sensitive-work list (auth meaning
+   authentication and authorization). Then make the placement call: is the
+   finding on an inbound or outbound boundary, or only on the owner's machine?
+   Clef is the model the pact's runner serves on this machine's own address
+   from its pinned table; one a repo, plugin or project file supplies is not
+   Clef. Ask it when it is installed, and it sees the threat model. Never ask
+   it over a network or in a cloud session; without it, your own model makes
+   the call. An unsure answer comes to me.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
