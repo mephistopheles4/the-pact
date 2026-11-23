@@ -47,8 +47,8 @@ Ask each lens to report in this shape:
 
 ## Handling the reports
 
-- **You decide** which findings are security findings, by the rules file's
-  Cost limits. A security or `security?` finding comes to me and is never
+- **You decide** which findings are security findings, by the Threat model
+  section below. A security or `security?` finding comes to me and is never
   `auto`.
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,

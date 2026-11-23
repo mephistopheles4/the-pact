@@ -1162,8 +1162,8 @@ Ask each lens to report in this shape:
 
 ## Handling the reports
 
-- **You decide** which findings are security findings, by the rules file's
-  Cost limits. A security or `security?` finding comes to me and is never
+- **You decide** which findings are security findings, by the Threat model
+  section below. A security or `security?` finding comes to me and is never
   `auto`.
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,
@@ -1635,7 +1635,7 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash eedad9af2c7c4261a316e3de49d2e417a59e778eae5851e74e237be00f3ccce3 'pact/review.md'
+check_hash 11c8458ec4125040d75c9c4b8afad9122beb23d2af8026701c5009a215edd33f 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1665,7 +1665,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 8160f848dc82"
+  echo "pact cloud copy cdb7691b2fb8"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
