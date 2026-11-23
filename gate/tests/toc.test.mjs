@@ -77,12 +77,12 @@ test('toc: anchors follow GitHub: markup dropped, punctuation removed, repeats s
     '~~~~',
     '## 1. Check — V1',
     '## The `__init__` hook',
-    '## A <code>b</code> c',
+    '## [`foo`](x) bar',
     '## Same 1',
   ].join('\n');
   assert.deepEqual(
     headings(text).map(h => h.anchor),
-    ['title', 'install-with---apply', 'the-door-to-other-peoples-tools', 'a-linked-heading-bold-and-it', 'snake_case-stays', 'same', 'same-1', '1-check--v1', 'the-__init__-hook', 'a-b-c', 'same-1-1'],
+    ['title', 'install-with---apply', 'the-door-to-other-peoples-tools', 'a-linked-heading-bold-and-it', 'snake_case-stays', 'same', 'same-1', '1-check--v1', 'the-__init__-hook', 'foo-bar', 'same-1-1'],
   );
   assert.match(withToc(`${text}\n`), /- \[A linked heading, \*\*bold\*\* and _it_\]\(#a-linked-heading-bold-and-it\)/);
 });

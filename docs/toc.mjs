@@ -76,16 +76,16 @@ export function stripToc(text) {
   return lines.join(eol);
 }
 
-/** Inline Markdown outside code spans reduced to its text: links to their text, HTML tags and emphasis marks dropped. */
-const plainProse = s =>
+/** Emphasis marks dropped from inline Markdown outside code spans. Inline HTML is left as written: no heading here uses it. */
+const plainProse = s => s.replace(/\*+/g, '').replace(/(^|[^\p{L}\p{N}])_+(?=\S)|(?<=\S)_+(?=[^\p{L}\p{N}]|$)/gu, '$1');
+
+/** Inline Markdown reduced to the text GitHub renders: links to their text, then a code span keeps its text as written and the rest goes through plainProse. */
+const plain = s =>
   s
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/<\/?[A-Za-z][^>]*>/g, '')
-    .replace(/\*+/g, '')
-    .replace(/(^|[^\p{L}\p{N}])_+(?=\S)|(?<=\S)_+(?=[^\p{L}\p{N}]|$)/gu, '$1');
-
-/** Inline Markdown reduced to the text GitHub renders: a code span keeps its text as written, the rest goes through plainProse. */
-const plain = s => s.split(/(`+)([^`]*?)\1/).map((part, i) => (i % 3 === 0 ? plainProse(part) : i % 3 === 2 ? part : '')).join('');
+    .split(/(`+)([^`]*?)\1/)
+    .map((part, i) => (i % 3 === 0 ? plainProse(part) : i % 3 === 2 ? part : ''))
+    .join('');
 
 /** GitHub's anchor for heading text, before the repeat suffix. */
 export const slug = text =>
