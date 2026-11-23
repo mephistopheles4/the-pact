@@ -13,5 +13,6 @@ None yet.
 
 ## All specs
 
+- [0004-portable-toc](0004-portable-toc.md) — a portable table-of-contents script and its per-repo config, which grimoire, stacks and athanor adopt by choice
 - [0002-clef-runner](0002-clef-runner.md) — a pinned llama-server runner for Clef, as an opt-in pact tool, fetched by setup and run behind a loopback supervisor
 - [0001-athanor-pact-tool](0001-athanor-pact-tool.md) — athanor as an opt-in pact tool, installed from npm at a pinned version, with one shared guard hook
