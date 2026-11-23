@@ -79,6 +79,9 @@ export const OVERLAY_REL = 'claude/settings.overlay.json';
 // The review procedure file (#261): staged here, installed to one fixed live path.
 export const REVIEW_REL = 'claude/review.md';
 export const REVIEW_DEST = 'pact/review.md';
+// The diagram format file review.md points to: staged and installed beside it.
+export const REVIEW_DIAGRAMS_REL = 'claude/review-diagrams.md';
+export const REVIEW_DIAGRAMS_DEST = 'pact/review-diagrams.md';
 export const CONFIG_REL = 'pact/config.json';
 export const BLOCKS_REL = 'pact/blocks';
 export const PROJECT_CONFIG_REL = '.claude/pact-config.json';
@@ -915,6 +918,7 @@ export function expectedCopySet(stagedRels, commands = [], tools = [], compact =
       if (compact && PACT_HOOKS.includes(name)) out.push([rel, `${HOOKS_DEST}${name}.mjs`]);
       else if (!PACT_HOOKS.includes(name)) out.push([rel, null]);
     } else if (rel === REVIEW_REL) out.push([rel, REVIEW_DEST]);
+    else if (rel === REVIEW_DIAGRAMS_REL) out.push([rel, REVIEW_DIAGRAMS_DEST]);
     else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
     else out.push([rel, null]);
   }
@@ -991,8 +995,8 @@ export function checkSkillClash(commands, present) {
 export function checkNewPaths(repoFiles, record, live) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
-    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel.startsWith(TOOLS_DEST) || rel.startsWith(HOOKS_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
-    const always = rel === REVIEW_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel === `commands/${KIT_COMMAND}.md`;
+    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel.startsWith(TOOLS_DEST) || rel.startsWith(HOOKS_DEST) || rel === REVIEW_DEST || rel === REVIEW_DIAGRAMS_DEST) || listed.has(rel)) continue;
+    const always = rel === REVIEW_DEST || rel === REVIEW_DIAGRAMS_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel === `commands/${KIT_COMMAND}.md`;
     const next = always ? 'Move it out of the way, then install again.' : `Move it, or take its name out of the ${rel.startsWith(TOOLS_DEST) ? 'tools' : 'commands'} list.`;
     if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
   }

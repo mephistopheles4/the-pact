@@ -190,7 +190,7 @@ test('a project configuration may not hold tools', t => {
 
 // #464 T4: the how-to moved into review.md's Posting section; the part is its one-line pointer.
 const T2 = '- **Post through the poster,** as that section says.';
-const KEEP_RECORD = '- **Keep the record** as';
+const KEEP_RECORD = "- **Keep the record** in the work's record";
 const rendered = r => readFileSync(join(r.out, 'CLAUDE.md'), 'utf8');
 
 // #280 C6, C7

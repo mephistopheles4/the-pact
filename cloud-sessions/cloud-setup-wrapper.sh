@@ -588,7 +588,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   is, never its value. Pin a merge to its reviewed head. Claude's own
   permission prompts and classifier blocks still stop you; these rules add no
   stop of their own.
-- **Keep the record** as the Posting section of `~/.claude/pact/review.md` says.
+- **Keep the record** in the work's record, as the Posting section of `~/.claude/pact/review.md` says; with no record, in chat.
 
 ## How much checking
 
@@ -1104,6 +1104,24 @@ try {
 process.exitCode = 0;
 __CLAUDE_CONFIG_EOF__
 
+write_config 'pact/review-diagrams.md' <<'__CLAUDE_CONFIG_EOF__'
+# The pact's diagram format
+
+Read beside review.md's Diagrams section: how a review diagram is written and coloured.
+
+- **The block.** Each diagram sits under its sentence, written exactly as
+  `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
+  `</div>`.
+- **Pins,** on flowcharts only, carry one colour meaning: an `open` finding takes
+  its severity's colour, `high` `#cf222e33`, `medium` `#bc4c0033`, `low`
+  `#d4a72c33`; a fixed one `#2da44e33`; every other row gets no pin. The border
+  is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
+  security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
+  `color:`.
+- **A place that can't draw them** gets the title line, signal table and count line as plain text,
+  with no diagram.
+__CLAUDE_CONFIG_EOF__
+
 write_config 'pact/review.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact's review procedure
 
@@ -1211,8 +1229,7 @@ Ask each lens to report in this shape:
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: edit
-  none, tell me, and go on. Post the round comment first. If a status edit is refused
+  `after <stage> further read (<your label>)`. More than one: update the newest and mention the duplicate there. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -1293,23 +1310,13 @@ trust the result. It is the diagram's heading. The type follows the sentence:
 A flowchart is never the default: a comment holds at most one, and use it only
 when no other row answers the sentence.
 
-- **The block.** Each diagram sits under its sentence, written exactly as
-  `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
-  `</div>`.
-- **Pins,** on flowcharts only, carry one colour meaning: an `open` finding takes
-  its severity's colour, `high` `#cf222e33`, `medium` `#bc4c0033`, `low`
-  `#d4a72c33`; a fixed one `#2da44e33`; every other row gets no pin. The border
-  is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
-  security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
-  `color:`.
+- Diagram format and pin colours: `review-diagrams.md`, beside this file.
 - **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
   diagram that draws it, so it can't read as done.
 - **Every lens report posts** in the record word for word, like any other; nothing is withheld, but a report refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
-- **A place that can't draw them** gets the title line, signal table and count line as plain text,
-  with no diagram.
 
 ## Posting
 
@@ -1320,7 +1327,6 @@ when no other row answers the sentence.
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image.
-- **Where to post.** In the work's record; with no record, in chat.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
@@ -1330,13 +1336,7 @@ when no other row answers the sentence.
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
-- **Checkpoint log.** Log each checkpoint you settle in the work's record, as
-  your own pick under your own label, never as mine: a one-line why, the goal
-  you ran under (its work and where it came from, by kind), each
-  narrowing I gave there (by the kind of step it keeps), and a flag: the line
-  opens `Checkpoint (flagged):`, except the forms below. A pick
-  that leaves a security path open is flagged big; its line in the record opens
-  "Owner's call: security" and carries the why. With no record, log in chat and in the result.
+- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint at level 3.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the
     ask lists are where the work starts, and a limit in my words, such as
@@ -1347,8 +1347,8 @@ when no other row answers the sentence.
     corrected one if I corrected it: a leftovers list it covers means the
     work isn't done.
   - A pending read-back makes no work wait, at any seam, with or without a
-    standing goal. Post it `pending`, log the intent you went ahead on, within
-    the Checkpoint log's limits, and go on; I confirm or correct it later. A
+    standing goal. Post it `pending`, log the intent you went ahead on as a
+    checkpoint, and go on; I confirm or correct it later. A
     correction sends the work back to the stage it touches. Once the work is
     merged, published or installed, the correction is a new change, and you
     tell me what can't be undone.
@@ -1581,7 +1581,7 @@ echo "$(( ${#SKILLS[@]} - fail ))/${#SKILLS[@]} skills present"
 [ "$OFFICIAL_PRESENT" = "1" ] && echo "official marketplace present: claude-plugins-official is configured beside pact-pinned-plugins"
 [ "$OFFICIAL_PRESENT" = "unknown" ] && echo "official marketplace: unknown, the marketplace list could not be read"
 if command -v gh >/dev/null 2>&1; then echo "gh: $(gh --version | head -n 1)"; else echo "WARN: gh not found; the tracker rule fails closed"; fi
-EXPECTED_WRITES=13
+EXPECTED_WRITES=14
 echo "$CONFIG_WRITTEN config files written (expected $EXPECTED_WRITES)"
 
 # Each written file against the sha256 the generator gave it.
@@ -1595,7 +1595,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash e5408d4bdddb98185eccfa752d716c9385e88bb8b05a0a67327d68555a7b91cb 'CLAUDE.md'
+check_hash 7f12012ef2ff3f31f1ff32995695b7e4ff382caba837546ee0dcce2a2db2c898 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash 4fedc54d86f38a16089eeeb40509a8dd53515554415cf73e03e971a0d72c1412 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1606,7 +1606,8 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash df14a633216e925b2dc43f411af518f9fc9e18d153f8f84e7a733f5ff1551fdc 'pact/review.md'
+check_hash 3ea41220667e901a9566d43dc68baea519abe86273d4e120ecc273f4d18a9e55 'pact/review-diagrams.md'
+check_hash e8f655b596ab7dcb30d6c3fbab105e3e4cada74768d228a2cdd0e6a9c50f62b4 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1636,7 +1637,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy ea52cdca09f3"
+  echo "pact cloud copy 43fa46e6be56"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

@@ -55,7 +55,8 @@ test('seam A passes on the repo payload, and lists every file it would install',
     'agents/reader-lens.md',
     'agents/scout.md',
     'agents/unstated-lens.md',
-    // The review procedure file (#261), at its one fixed live path.
+    // The review procedure file (#261), at its one fixed live path, and the diagram format file beside it.
+    'pact/review-diagrams.md',
     'pact/review.md',
   ]);
   for (const l of installs) assert.match(l, /^INSTALL [0-9a-f]{64} \S+ \S+$/);
@@ -315,6 +316,13 @@ test('the review file installs to pact/review.md and nowhere else', t => {
   assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review\.md pact\/review\.md$/);
 });
 
+test('the diagram format file installs to pact/review-diagrams.md beside the review file', t => {
+  const r = expectPass(t, { 'claude/review-diagrams.md': review('Draw it.') });
+  const lines = r.stdout.split('\n').filter(l => l.includes(' claude/review-diagrams.md '));
+  assert.equal(lines.length, 1, r.out);
+  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review-diagrams\.md pact\/review-diagrams\.md$/);
+});
+
 // review-file
 test('bad case: no review file in the stage', t => {
   expectFail(t, {}, 'review-file', root => rmSync(join(root, 'claude', 'review.md')));
@@ -330,6 +338,9 @@ test('bad case: a second unknown file beside the review file is still refused', 
 const ZWSP = String.fromCodePoint(0x200b);
 test('bad case: an invisible character in the review file', t => {
   expectFail(t, { [RV]: review(`Read this, and cross${ZWSP} the reports.`) }, 'invisible');
+});
+test('bad case: an invisible character in the diagram format file', t => {
+  expectFail(t, { 'claude/review-diagrams.md': review(`Draw it, and keep${ZWSP} the block.`) }, 'invisible');
 });
 test('bad case: an invisible character in a pact command', t => {
   expectFail(t, { 'claude/commands/finis.md': `---\ndescription: Wrap up.\ndisable-model-invocation: true\n---\n\nWrap${ZWSP} up.\n` }, 'invisible');

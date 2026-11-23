@@ -459,12 +459,12 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   const setup = repoText(OUTPUTS.setup);
   const blocks = [...setup.matchAll(new RegExp(`^write_config '([^']+)' <<'${CONFIG_DELIM}'\\n([\\s\\S]*?)^${CONFIG_DELIM}$`, 'gm'))];
   const source = dest =>
-    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'pact/hooks/compact-handoff.mjs' ? 'claude/hooks/compact-handoff.mjs' : `claude/${dest}`;
+    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'pact/review-diagrams.md' ? 'claude/review-diagrams.md' : dest === 'pact/hooks/compact-handoff.mjs' ? 'claude/hooks/compact-handoff.mjs' : `claude/${dest}`;
   // The whole set, from the repo apart from seam A: the rules file, every
   // shipped agent (the lenses and scout, #262 S18) and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
   // #482: the cloud copy also carries the compact hook, at pact/hooks/.
-  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md', 'pact/hooks/compact-handoff.mjs'].sort();
+  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md', 'pact/review-diagrams.md', 'pact/hooks/compact-handoff.mjs'].sort();
   assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {
