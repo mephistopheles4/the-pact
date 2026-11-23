@@ -19,17 +19,18 @@
 //   1  RESULT: fail <words>    a file failed verify
 //   2  RESULT: refused <word>  a refusal (clef-pin, clef-platform, clef-space,
 //                              clef-node, clef-setpriv, clef-redirect, clef-size,
-//                              clef-hash, clef-archive) or a usage fault
+//                              clef-hash, clef-archive, clef-home) or a usage fault
 //
 // Node 24 or later, ESM, node: built-ins only. Every rule is an exported
 // function that takes what it needs as parameters (the transport, the origins,
 // the folder, the platform); only main reads the real values, and main runs
 // only when this file is the entry script. No flag reaches those parameters;
 // the one environment variable read, CLAUDE_CONFIG_DIR, picks the Claude home
-// folder and only as an absolute path outside the starting folder (claudeHome).
+// folder, only as an absolute path, and never one inside the starting folder
+// (claudeHome, assertRealFolders).
 
 import { createHash } from 'node:crypto';
-import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
+import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
 import { request as httpsRequest, Agent } from 'node:https';
 import { homedir } from 'node:os';
 import { dirname, join, posix, resolve, win32 } from 'node:path';
@@ -666,15 +667,17 @@ export const readArchive = (kind, buf, opts) => (kind === 'zip' ? readZip(buf, o
 // ---------------------------------------------------------------- the clef folder and the platform (S3, S6)
 
 /**
- * The Claude home folder: CLAUDE_CONFIG_DIR when it is an absolute path outside
- * the folder the command was started from, else ~/.claude. A relative value, or
- * one inside the starting folder (a cloned repo's own settings can set it),
- * is ignored: it would move where the runtime lands, and what later runs.
+ * The Claude home folder: CLAUDE_CONFIG_DIR when set, which must be an absolute
+ * path (clef-home otherwise, never a quiet fall-back that would move the clef
+ * folder with the start folder), else ~/.claude. A cloned repo's own settings
+ * can set it, so the folder it names is checked again with links resolved:
+ * assertRealFolders refuses one inside the starting folder.
  */
-export const claudeHome = (env = process.env, home = homedir(), cwd = process.cwd(), win = process.platform === 'win32') => {
+export const claudeHome = (env = process.env, home = homedir(), win = process.platform === 'win32') => {
   const v = env.CLAUDE_CONFIG_DIR;
-  if (v && (win ? win32 : posix).isAbsolute(v) && !insideOf(v, cwd, win)) return resolve(v);
-  return join(home, '.claude');
+  if (!v) return join(home, '.claude');
+  if (!(win ? win32 : posix).isAbsolute(v)) throw new Refused('clef-home', 'CLAUDE_CONFIG_DIR is set but is not an absolute path');
+  return resolve(v);
 };
 
 /** The clef folder (S3). */
@@ -704,6 +707,37 @@ const insideOf = (child, parent, win) => {
   const rel = P.relative(P.resolve(parent), P.resolve(child));
   return rel === '' || (!rel.startsWith('..') && !P.isAbsolute(rel));
 };
+
+/**
+ * Refuses (`clef-home`) a clef folder that, with links resolved, lies inside the
+ * folder the command was started from, and one whose runtime, models or
+ * partial folder is a link: prune deletes in those, and setup writes there.
+ * A start folder that does not resolve (a test's made-up one) is skipped.
+ */
+export function assertRealFolders(dir, cwd, win = process.platform === 'win32') {
+  let real;
+  try {
+    real = realpathSync(dir);
+  } catch {
+    throw new Refused('clef-home', 'the clef folder does not resolve to a real folder');
+  }
+  let start = null;
+  try {
+    start = realpathSync(cwd);
+  } catch {
+    // not a real folder: nothing to compare with
+  }
+  if (start !== null && insideOf(real, start, win)) throw new Refused('clef-home', 'the clef folder lies inside the folder the command was started from');
+  for (const sub of ['runtime', 'models', 'partial']) {
+    let s;
+    try {
+      s = lstatSync(join(dir, sub));
+    } catch {
+      continue;
+    }
+    if (s.isSymbolicLink()) throw new Refused('clef-home', `${sub} in the clef folder is a link`);
+  }
+}
 
 function readSetup(dir) {
   try {
@@ -765,7 +799,7 @@ export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, fre
   const need = (haveServer ? 0 : a.size) + (haveModel ? 0 : model.size);
   const needed = Math.ceil((need + (haveServer ? 0 : a.files.reduce((s, f) => s + f[1] * (f.length > 3 ? 2 : 1), 0))) * 1.1);
   if (free < needed) throw new Refused('clef-space', `the clef folder's drive has ${mb(free)} free and setup needs ${mb(needed)}`);
-  const lines = [`platform: ${pick.key} (${pick.why})`];
+  const lines = [`platform: ${pick.key} (${pick.why})`, `clef folder: ${dir}`];
   const items = [];
   if (haveServer) lines.push(`present (sizes match), skipped unless its sha256 fails: server ${server.tag} (${pick.key})`);
   else {
@@ -953,14 +987,23 @@ export async function main(argv, { env = process.env, platform = process.platfor
   const known = mode === 'setup' ? ['--cpu', '--yes'] : mode === 'verify' ? [] : null;
   if (!known) return refuse('usage', 'the modes are setup and verify');
   if (rest.length !== flags.size || rest.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${known.length ? known.join(' and ') : 'no flags'}`);
-  const home = claudeHome(env, undefined, cwd);
-  const dir = clefDir(home);
+  let dir;
+  try {
+    dir = clefDir(claudeHome(env));
+  } catch (e) {
+    return refuse(e.code ?? 'usage', quote(e.message));
+  }
   // Every mode starts from the clef folder and starts no program by a bare name (S6).
   try {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
-    chdir(dir);
   } catch {
     return refuse('usage', 'the clef folder cannot be made');
+  }
+  try {
+    assertRealFolders(dir, cwd);
+    chdir(dir);
+  } catch (e) {
+    return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be entered');
   }
   try {
     if (mode === 'verify') {
