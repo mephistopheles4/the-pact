@@ -105,10 +105,10 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
      no working exploit or payload (`adversarial-lens`, `behaviour-lens`,
      `data-lens`); checklists carried in the lens, never fetched
      (`adversarial-lens`, `data-lens`); fetched pages treated as untrusted
-     data (`adversarial-lens` alone, the one security lens with a fetch tool);
-     a missing tool never rebuilt through the shell (`adversarial-lens`,
-     `behaviour-lens`, `data-lens`). Here a security lens is one of these
-     three.
+     data (`adversarial-lens` and `behaviour-lens`, the two security lenses
+     that can load a page; `data-lens` cannot); a missing tool never rebuilt
+     through the shell (`adversarial-lens`, `behaviour-lens`, `data-lens`).
+     Here a security lens is one of these three.
 - **A rule added to or changed in the rules file carries its reason** in
   [`docs/rule-reasons.md`](docs/rule-reasons.md): the gap no other guardrail
   covers (Claude Code, the threat model, the poster, the cleaner, the gate,
