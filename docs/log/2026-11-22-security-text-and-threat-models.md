@@ -6,7 +6,7 @@ Cut: the rules file's "A security finding" and "Accepted threat classes" bullets
 
 Rewritten: the glossary's Accepted threat class entry now says adding or widening a class is a heavy checkpoint, and points at the rules file's one list (r124).
 
-Forced edits: the Hardening cost counts "guards for paths the project's threat model doesn't place in scope" (r020, forced by r021). review.md's Threat model step 2 adds the Clef placement call: is the finding on an inbound or outbound boundary, or only on the owner's machine; an unsure answer comes to the owner (r035, forced by r021). `AGENTS.md` and `docs/rule-reasons.md` no longer cite the protected-set route (r053, forced by r070).
+Forced edits: the Hardening cost counts "guards for paths the project's threat model doesn't place in scope" (r020, forced by r021). review.md's Threat model step 2 adds the placement call: is the finding on an inbound or outbound boundary, or only on the owner's machine. A session asks Clef when it is installed, else its own model makes the call; an unsure answer comes to the owner (r035, forced by r021). `AGENTS.md` and `docs/rule-reasons.md` no longer cite the protected-set route (r053, forced by r070).
 
 Why: the owner said r021 was "never asked for; it undoes what I ask for (loose 'security' calls get checks built)", and r070 "overcorrects a lot and stops much of the owner's work".
 

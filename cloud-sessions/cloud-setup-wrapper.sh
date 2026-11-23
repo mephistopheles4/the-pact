@@ -1258,10 +1258,11 @@ security ruling.
    anything on the machine makes from outside input. What starts and ends
    on the machine (a program, process, account, file or memory made there)
    is the machine's, and no finding, unless the project's threat model holds
-   it in scope, or it touches the sensitive-work list. Then make the Clef
-   placement call: ask whether the finding is on an inbound or outbound
-   boundary, or only on the owner's machine. Clef sees the threat model; an
-   unsure answer comes to me.
+   it in scope, or it touches the sensitive-work list. Then make the placement
+   call: is the finding on an inbound or outbound boundary, or only on the
+   owner's machine? Ask Clef when it is installed, and it sees the threat
+   model; without Clef, your own model makes the call. An unsure answer comes
+   to me.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
@@ -1634,7 +1635,7 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 107481d9f70b8c09aecfedc24e20458f888f5d3676319fe070174a4a8fe415ea 'pact/review.md'
+check_hash eedad9af2c7c4261a316e3de49d2e417a59e778eae5851e74e237be00f3ccce3 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1664,7 +1665,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 0fdf335e97ea"
+  echo "pact cloud copy 8160f848dc82"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
