@@ -1582,8 +1582,8 @@ const leadWord = (words, cell) => words.find(w => cell.startsWith(w) && !LETTER_
  * its emphasis and code span marks dropped, which can split the word on the
  * page. A severity word (high, medium or low), a `security?` after it and the
  * marks around them are skipped too, as the review procedure's Finding cell
- * puts them before the finding (#478). A finding that quotes the withheld text after other words
- * is not matched.
+ * puts them before the finding (#478). A finding that quotes the text `withheld, see chat` after
+ * other words is not matched.
  */
 function withheldAfter(cell, state) {
   const after = cell.slice(state.length);
