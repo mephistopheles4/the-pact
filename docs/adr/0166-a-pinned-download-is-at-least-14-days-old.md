@@ -4,15 +4,15 @@ PACT-65 (T3 of spec 0002, [`docs/spec/0002-clef-runner.md`](../spec/0002-clef-ru
 
 ## Decision
 
-Each file `clef` fetches, and the model, is pinned in `claude/tools/clef.mjs` only when it is at least 14 days old, counted per pinned file: each release asset by its `digest`, `created_at` and `updated_at`, and the model from the later of its commit date and the first date a record of this repo saw its sha256. A pin PR changes only the pin table and the files list, its record cites each file's age, and the security pair reads it like any change to the table. The tool checks size and sha256 at setup and verify; the age is held at review, not at run time.
+Each file `clef` fetches, and the model, is pinned in `claude/tools/clef.mjs` only when it is at least 14 days old, counted per pinned file: each release asset by its `digest`, `created_at` and `updated_at`, and the model from the Hugging Face Hub's own record of the pinned file's last change, the `lastCommit` date the tree API returns for that file at the pinned commit (a server time for a `huggingface_hub` upload; a commit pushed with git carries a date its pusher chose, so the pin record names the route when the Hub shows it). A pin PR changes only the pin table and the files list, its record cites each file's age, and the security pair reads it like any change to the table. The tool checks size and sha256 at setup and verify; the age is held at review, not at run time.
 
 ## Why
 
-The tool downloads a program and a model and runs them with the owner's rights, and a fresh upload has had no time to be caught if it is bad. The spike used a build under an hour old. The first pin is b12211 (2026-11-08) and the model's age counts from 2026-11-22, so the first pin record is dated 2026-12-06 or later; that delays the ticket that first runs Clef on the owner's machine to then.
+The tool downloads a program and a model and runs them with the owner's rights, and a fresh upload has had no time to be caught if it is bad. The spike used a build under an hour old. The first server pin is b12211 (2026-11-08), and the first model pin's file last changed on 2026-10-25, so both are already old enough.
 
 ## Consequences
 
 - A pin bump waits 14 days after the upstream release, a security fix upstream included.
 - After a bump is applied, `ensure` reports `not-set-up` with `pin-changed` (`status` shows the old tag) until `clef stop` then `clef setup --yes` run ([clef.md](../clef.md)).
-- The threat model's class "What you install and CI run" names the pinned llama.cpp build and Clef model; the age rule and the review of each pin PR are among its controls.
+- The threat model's class "What you install and CI run" names the pinned llama.cpp build and decision model; the age rule and the review of each pin PR are among its controls.
 - **Rollback:** revert the pin PR, then a dry run, the apply, and on each machine `clef stop` then `clef setup --yes`.

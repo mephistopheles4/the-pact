@@ -58,7 +58,7 @@ local session is inside the root of trust and doesn't cross, as
 `docs/agents/issue-tracker.md` says, and a cloud session reads it as data),
 outside pull requests read as text, a cloned repo's files, fetched pages, other
 sessions' messages and hand-offs, a trigger's prompt, a mic transcript, a file
-someone hands a session to load, and a Clef answer.
+someone hands a session to load, and a decision model's answer.
 
 **Controls:**
 
@@ -131,13 +131,13 @@ into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched by
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
-- **Clef, when on.** A pin table: fixed repos, size and sha256 per file,
+- **The decision model, when on.** A pin table: fixed repos, size and sha256 per file,
   checked before anything is kept; fixed redirect
   hosts, `https:` only; the tool's own archive readers, which write only pinned
   names; a fixed working folder and named environment; the listener's token,
   `Host` and `Origin` checks; the supervisor's answer check, which passes only
-  numbers and the caller's option keys. Held by rule alone: pins 14 days old and
-  each pin PR read by the security pair
+  numbers and the caller's option keys. Held by rule alone: pins 14 days old by
+  the Hub's own record, and each pin PR read by the security pair
   ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md)). Setup's
   kept files belong to the machine.
 - **Harness.** Folder trust and permission prompts, as above.
@@ -148,7 +148,7 @@ rule holds back trusting a project's mise config until the owner says so in chat
 Also accepted. What you install and CI run: the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
-dismiss alerts on `main`; a bad Clef build or model that passes the age rule
+dismiss alerts on `main`; a bad llama.cpp build or decision model that passes the age rule
 and review runs with the owner's rights, and a crafted model could exploit a
 parser bug. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.

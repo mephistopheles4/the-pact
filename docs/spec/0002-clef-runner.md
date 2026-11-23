@@ -71,10 +71,12 @@ The session took these picks, each logged as a checkpoint:
 4. **Pins at least 14 days old,** for the server build and the model alike,
    counted per pinned file (S5). The spike's b12635 was published under an
    hour before this spec, so the first server pin is b12211 (2026-11-08). The
-   model's age counts from the later of its commit date and the day this
-   repo first recorded its sha256 (2026-11-22), so the first pin record is
-   dated 2026-12-06 or later. That delays T4, and so the owner's own use, to
-   then.
+   model's age counts from the Hugging Face Hub's own record of the pinned
+   file's last change: the `lastCommit` date the tree API returns for that
+   file at the pinned commit. For a file uploaded through `huggingface_hub`
+   that is a server time. The first model pin, `Clef-Flash-Q4_K_M.gguf`
+   (sha256 `eef2968c…`), last changed 2026-10-25 at commit `6e2a164d`, so it
+   is already more than 14 days old.
 5. **The model:** ggml-org `Clef-Flash-GGUF`, `Clef-Flash-Q4_K_M.gguf`, at a
    full commit id, by sha256.
 6. **A supervisor in front of the server.** The tool's own node process. It
@@ -188,10 +190,12 @@ export const MODEL = Object.freeze({ repo: 'ggml-org/Clef-Flash-GGUF', commit: '
     and `updated_at` from the release API, each 14 days old or more, and
     whether the release is marked immutable;
   - the HF commit id, the file's sha256, and that the repo sits under the
-    `ggml-org` account. The model's age counts from the later of the commit
-    date (which its pusher sets) and the first date a record of this repo saw
-    that sha256; for the first pin that is the round-1 spec commit,
-    2026-11-22, so the first pin record is dated 2026-12-06 or later;
+    `ggml-org` account. The model's age counts from the `lastCommit` date the
+    Hub's tree API returns for the pinned file at the pinned commit
+    (`/api/models/<repo>/tree/<commit>?expand=true`), 14 days or more before
+    the record's date. For a `huggingface_hub` upload that is a server time;
+    a commit pushed with git carries a date its pusher chose, so the record
+    also says which route the commit came by when the Hub's page shows it;
   - C14's run on the new pin, which T4 makes for the first pin.
 - **The shape check,** in the tool and in a gate test, refuses: a `repo`
   other than `ggml-org/llama.cpp` or `ggml-org/Clef-Flash-GGUF` (the gate
@@ -455,7 +459,7 @@ It is not an agent-facing doc, so it is not on the doc budget list.
 - **Code that runs:** a llama.cpp release build from GitHub and a model file
   from Hugging Face, fetched at setup and run with the owner's rights; the
   build parses the model.
-- **Text into a session:** a Clef answer, held to numbers and the option keys
+- **Text into a session:** a decision model's answer, held to numbers and the option keys
   the caller sent. Its input is the caller's `state`, which can carry outside
   text.
 - **What leaves the machine:** setup's requests to the fixed hosts, carrying
@@ -482,13 +486,16 @@ running as the owner is out of scope.
 - **A bad pinned build or model.** A malicious release that passes the age
   rule and review runs with the owner's rights whenever Clef starts; a
   crafted GGUF could exploit a parser bug in the pinned build.
-- **Answers that steer.** Outside text in `state` can move Clef's numbers.
+- **Answers that steer.** Outside text in `state` can move the decision model's numbers.
   clef-pilot is watch-only, `decide` returns a probability, and what the
   rules keep for the owner still goes to them.
 
 **The class.** "What you install and CI run" widens to name the pinned
-llama.cpp build and Clef model. Widening a class merges only on the owner's
-own confirmation (a checkpoint). The threat model is near its word budget;
+llama.cpp build and decision model. The pact text, `review.md` and the threat
+model name the role, "a decision model", never the product; Clef is named
+only in the tools list, `claude/tools/clef.mjs`, `docs/clef.md` and the pin
+facts, so another System 1 model can replace it by a setting and a runner.
+Widening a class merges only on the owner's own confirmation (a checkpoint). The threat model is near its word budget;
 T3's PR lists each cut it makes to fit, and the security pair reads each cut
 as a control change.
 
@@ -496,7 +503,7 @@ as a control change.
 
 | Pull | Side taken | Driver |
 | --- | --- | --- |
-| Newest build (the spike's b12635) vs. a 14-day-old one | 14 days old, per file, re-tested; this delays T4, and the owner's own use, to 2026-12-06 or later | A fresh upload has had no time to be caught if bad |
+| Newest build (the spike's b12635) vs. a 14-day-old one | 14 days old, per file, re-tested | A fresh upload has had no time to be caught if bad |
 | Clef settles security sorts and severity vs. Clef advises and the session settles | The session settles; Clef's placement is a second opinion (S2 decision 5). For the owner to confirm, since it narrows the dogfooding ask | Outside text in `state` can push Clef to a confident wrong answer |
 | Fetch at install vs. at setup | At setup, behind `--yes` | No install pulls 6.7 GB unasked |
 | Re-hash at each start vs. at setup and verify | Setup and verify | Files at rest are the machine's; a 6.7 GB hash per start costs seconds to minutes |
@@ -631,8 +638,8 @@ must meet.
 
 1. **T1: the tool on the list, the pin table, setup and verify.** Covers S4,
    S5, and S6 but its live-supervisor refusal; claims C1, C2, C3, C4's first
-   sentence, C5 to C8, C21. Its pin record is dated 2026-12-06 or later (the
-   model's age, S2 pick 4). It runs no server.
+   sentence, C5 to C8, C21. Its pin record shows each pinned file's age (S2 pick 4, S5).
+   It runs no server.
 2. **T2: the supervisor.** Covers S7 and S6's live-supervisor refusal;
    claims C4's second sentence, C9 to C13, C16 to C19. Its record cites the
    lines of b12211's own source that show `--api-key-file`, `--no-webui` and

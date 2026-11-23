@@ -61,6 +61,7 @@ The supervisor stops itself after 30 minutes with no forwarded request, when the
 
 ## Things to know
 
+- **Pin age.** A pin is made only when each pinned file is at least 14 days old. A release asset's age counts from its `created_at` and `updated_at`; the model's counts from the Hugging Face Hub's own record of that file's last change (the tree API's `lastCommit` date at the pinned commit). Review holds the rule; the tool does not check it when it runs.
 - **A pin bump.** After an install that changes the pin table, `ensure` reports `not-set-up` with `pin-changed` (and `status` shows the old tag) until you run `clef stop` and then `clef setup --yes`. Setup refuses `clef-running` while a supervisor lives.
 - **`CLAUDE_CONFIG_DIR`.** A value you set is accepted only as an absolute path, and the tool refuses it (`clef-home`) when a session starts from a folder that contains it, because a cloned project's settings can set that variable. Start the session from beside it, or from a subfolder of it other than `pact-clef/`, instead.
 - **Linux.** Setup refuses a machine without `/usr/bin/setpriv` (`clef-setpriv`); it keeps the server from outliving the supervisor.
