@@ -676,7 +676,7 @@ export const readArchive = (kind, buf, opts) => (kind === 'zip' ? readZip(buf, o
 export const claudeHome = (env = process.env, home = homedir(), win = process.platform === 'win32') => {
   const v = env.CLAUDE_CONFIG_DIR;
   if (!v) return join(home, '.claude');
-  if (!(win ? win32 : posix).isAbsolute(v)) throw new Refused('clef-home', 'CLAUDE_CONFIG_DIR is set but is not an absolute path');
+  if (win ? !/^[A-Za-z]:[\\/]/.test(v) : !posix.isAbsolute(v)) throw new Refused('clef-home', 'CLAUDE_CONFIG_DIR is set but is not an absolute path' + (win ? ' with a drive letter' : ''));
   return resolve(v);
 };
 
@@ -708,26 +708,44 @@ const insideOf = (child, parent, win) => {
   return rel === '' || (!rel.startsWith('..') && !P.isAbsolute(rel));
 };
 
+const realOf = p => realpathSync.native(p);
+
 /**
- * Refuses (`clef-home`) a clef folder that, with links resolved, lies inside the
- * folder the command was started from, and one whose runtime, models or
- * partial folder is a link: prune deletes in those, and setup writes there.
- * A start folder that does not resolve (a test's made-up one) is skipped.
+ * Before the clef folder is made: refuses (`clef-home`) one that, with links
+ * resolved, would lie inside the folder the command was started from, judged
+ * on its nearest existing ancestor, so a refusal leaves nothing behind. A
+ * start folder that does not resolve is refused too.
  */
-export function assertRealFolders(dir, cwd, win = process.platform === 'win32') {
+export function assertOutsideStart(dir, cwd, win = process.platform === 'win32') {
+  let start;
+  try {
+    start = realOf(cwd);
+  } catch {
+    throw new Refused('clef-home', 'the folder the command was started from does not resolve');
+  }
+  let ancestor = resolve(dir);
+  while (!existsSync(ancestor)) {
+    const up = dirname(ancestor);
+    if (up === ancestor) throw new Refused('clef-home', 'the clef folder has no existing parent');
+    ancestor = up;
+  }
+  const real = join(realOf(ancestor), (win ? win32 : posix).relative(ancestor, resolve(dir)));
+  if (insideOf(real, start, win)) throw new Refused('clef-home', 'the clef folder lies inside the folder the command was started from');
+}
+
+/**
+ * After it is made: refuses (`clef-home`) one whose runtime, models or partial
+ * folder is a link (prune deletes in those, and setup writes there), and, with
+ * `checkStart`, one that now resolves inside the starting folder.
+ */
+export function assertRealFolders(dir, cwd, { checkStart = false, win = process.platform === 'win32' } = {}) {
   let real;
   try {
-    real = realpathSync(dir);
+    real = realOf(dir);
   } catch {
     throw new Refused('clef-home', 'the clef folder does not resolve to a real folder');
   }
-  let start = null;
-  try {
-    start = realpathSync(cwd);
-  } catch {
-    // not a real folder: nothing to compare with
-  }
-  if (start !== null && insideOf(real, start, win)) throw new Refused('clef-home', 'the clef folder lies inside the folder the command was started from');
+  if (checkStart) assertOutsideStart(real, cwd, win);
   for (const sub of ['runtime', 'models', 'partial']) {
     let s;
     try {
@@ -799,7 +817,7 @@ export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, fre
   const need = (haveServer ? 0 : a.size) + (haveModel ? 0 : model.size);
   const needed = Math.ceil((need + (haveServer ? 0 : a.files.reduce((s, f) => s + f[1] * (f.length > 3 ? 2 : 1), 0))) * 1.1);
   if (free < needed) throw new Refused('clef-space', `the clef folder's drive has ${mb(free)} free and setup needs ${mb(needed)}`);
-  const lines = [`platform: ${pick.key} (${pick.why})`, `clef folder: ${dir}`];
+  const lines = [`platform: ${pick.key} (${pick.why})`, `clef folder: ${quote(dir)}`];
   const items = [];
   if (haveServer) lines.push(`present (sizes match), skipped unless its sha256 fails: server ${server.tag} (${pick.key})`);
   else {
@@ -993,6 +1011,13 @@ export async function main(argv, { env = process.env, platform = process.platfor
   } catch (e) {
     return refuse(e.code ?? 'usage', quote(e.message));
   }
+  // The default folder is not outside input; a value from the environment is, so it is checked against the starting folder, before anything is made.
+  const fromEnv = Boolean(env.CLAUDE_CONFIG_DIR);
+  try {
+    if (fromEnv) assertOutsideStart(dir, cwd);
+  } catch (e) {
+    return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be checked');
+  }
   // Every mode starts from the clef folder and starts no program by a bare name (S6).
   try {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -1000,7 +1025,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
     return refuse('usage', 'the clef folder cannot be made');
   }
   try {
-    assertRealFolders(dir, cwd);
+    assertRealFolders(dir, cwd, { checkStart: fromEnv });
     chdir(dir);
   } catch (e) {
     return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be entered');

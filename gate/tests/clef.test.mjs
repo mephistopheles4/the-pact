@@ -644,36 +644,28 @@ test('main: setup without --yes works from CLAUDE_CONFIG_DIR, goes to the clef f
   const out = [];
   const env = { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') };
   const moved = [];
-  const code = await clef.main(['setup'], { env, platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: 'C:\\work', out: l => out.push(l), chdir: d => moved.push(d), exists: () => false, free: 1e12, transport: transportOf(() => { throw new Error('a request was made'); }) });
+  const code = await clef.main(['setup'], { env, platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: d => moved.push(d), exists: () => false, free: 1e12, transport: transportOf(() => { throw new Error('a request was made'); }) });
   assert.equal(code, 0, out.join('\n'));
   assert.deepEqual(moved, [join(env.CLAUDE_CONFIG_DIR, 'pact-clef')]);
   assert.equal(out.at(-1), 'RESULT: pass');
   assert.ok(out.includes('run again with --yes to fetch'));
 });
 
-// PACT-61 adversarial F1, behaviour E1: CLAUDE_CONFIG_DIR is an absolute path or a refusal, never a quiet fall-back that moves the clef folder with the start folder; one that lands inside the starting folder is refused too.
+// PACT-61 adversarial F1, behaviour E1: CLAUDE_CONFIG_DIR is an absolute path or a refusal, never a quiet fall-back that moves the clef folder with the start folder. On Windows it needs a drive letter: a root-relative value moves with the start folder's drive, and a network path is not a local folder.
 test('claudeHome: CLAUDE_CONFIG_DIR is used as an absolute path, a relative one is clef-home, and unset or empty is ~/.claude', t => {
   const outside = tempDir(t, 'clef-claude-');
   const home = join(tempDir(t, 'clef-userhome-'), 'h');
   assert.equal(clef.claudeHome({ CLAUDE_CONFIG_DIR: outside }, home), resolve(outside));
   assert.throws(() => clef.claudeHome({ CLAUDE_CONFIG_DIR: 'cfg' }, home), e => e instanceof clef.Refused && e.code === 'clef-home');
-  assert.throws(() => clef.claudeHome({ CLAUDE_CONFIG_DIR: '..\\x' }, home, true), e => e.code === 'clef-home');
+  for (const bad of ['..\\x', '\\x', '/x', '\\\\server\\share\\x', '//server/share/x', '\\\\?\\C:\\x', 'cfg']) {
+    assert.throws(() => clef.claudeHome({ CLAUDE_CONFIG_DIR: bad }, home, true), e => e.code === 'clef-home', bad);
+  }
+  assert.equal(clef.claudeHome({ CLAUDE_CONFIG_DIR: 'D:\\claude' }, home, true), resolve('D:\\claude'));
   assert.equal(clef.claudeHome({ CLAUDE_CONFIG_DIR: '' }, home), join(home, '.claude'));
   assert.equal(clef.claudeHome({}, home), join(home, '.claude'));
 });
 
-test('main: a relative CLAUDE_CONFIG_DIR, and one inside the starting folder, are refused clef-home before the clef folder is entered', async t => {
-  const start = tempDir(t, 'clef-start-');
-  for (const value of ['cfg', join(start, 'cfg')]) {
-    const out = [];
-    const code = await clef.main(['verify'], { env: { CLAUDE_CONFIG_DIR: value }, cwd: start, out: l => out.push(l), chdir: () => { throw new Error('chdir'); } });
-    assert.equal(code, 2, value);
-    assert.match(out.at(-2), /^REFUSED clef-home: /);
-    assert.equal(out.at(-1), 'RESULT: refused clef-home');
-  }
-});
-
-// PACT-61 adversarial E1 (round 2): the folder checks use real paths, so a link back into the start folder, or a linked runtime, models or partial folder, is refused.
+// PACT-61 adversarial E1, further read: the folder checks use real paths, run before anything is made, and bind only an environment value; the default folder may lie under the starting folder.
 {
   const link = (target, at) => {
     try {
@@ -683,19 +675,31 @@ test('main: a relative CLAUDE_CONFIG_DIR, and one inside the starting folder, ar
       return false;
     }
   };
-  test('assertRealFolders: a clef folder that resolves inside the starting folder through a link is clef-home; a plain one passes', t => {
+  const refusedHome = e => e instanceof clef.Refused && e.code === 'clef-home';
+  test('assertOutsideStart: a folder inside the starting folder is clef-home, also through a link and when its parents do not exist yet, and one beside it passes', t => {
     const root = tempDir(t, 'clef-real-');
     const start = join(root, 'repo');
     mkdirSync(start);
-    const outside = join(root, 'elsewhere', 'pact-clef');
-    mkdirSync(outside, { recursive: true });
-    assert.doesNotThrow(() => clef.assertRealFolders(outside, start));
+    mkdirSync(join(root, 'elsewhere'));
+    assert.doesNotThrow(() => clef.assertOutsideStart(join(root, 'elsewhere', 'a', 'pact-clef'), start));
+    assert.doesNotThrow(() => clef.assertOutsideStart(join(root, 'repo2', 'pact-clef'), start), 'a sibling with a shared prefix is outside');
+    assert.throws(() => clef.assertOutsideStart(join(start, 'a', 'b', 'pact-clef'), start), refusedHome);
+    assert.throws(() => clef.assertOutsideStart(start, start), refusedHome);
+    assert.equal(existsSync(join(start, 'a')), false, 'the check makes nothing');
     const via = join(root, 'via');
-    if (!link(start, via)) return t.skip('this machine cannot make a link');
-    const dir = join(via, 'pact-clef');
-    mkdirSync(dir);
-    assert.throws(() => clef.assertRealFolders(dir, start), e => e instanceof clef.Refused && e.code === 'clef-home');
-    assert.doesNotThrow(() => clef.assertRealFolders(dir, join(root, 'elsewhere')), 'only the starting folder counts');
+    if (link(start, via)) assert.throws(() => clef.assertOutsideStart(join(via, 'pact-clef'), start), refusedHome, 'through a link');
+  });
+  test('assertOutsideStart: a starting folder that does not resolve is clef-home, not a skip', t => {
+    const root = tempDir(t, 'clef-real-');
+    assert.throws(() => clef.assertOutsideStart(join(root, 'pact-clef'), join(root, 'nowhere')), refusedHome);
+  });
+  test('assertRealFolders: the start folder counts only with checkStart; a plain folder passes', t => {
+    const root = tempDir(t, 'clef-real-');
+    const dir = join(root, 'repo', 'pact-clef');
+    mkdirSync(dir, { recursive: true });
+    assert.doesNotThrow(() => clef.assertRealFolders(dir, join(root, 'repo')), 'the default folder may lie under the starting folder (a session started in the home folder)');
+    assert.throws(() => clef.assertRealFolders(dir, join(root, 'repo'), { checkStart: true }), refusedHome);
+    assert.doesNotThrow(() => clef.assertRealFolders(dir, join(root, 'elsewhere'), { checkStart: false }));
   });
   for (const sub of ['runtime', 'models', 'partial']) {
     test(`assertRealFolders: a linked ${sub} folder is clef-home`, t => {
@@ -705,10 +709,22 @@ test('main: a relative CLAUDE_CONFIG_DIR, and one inside the starting folder, ar
       const target = join(root, 'target');
       mkdirSync(target);
       if (!link(target, join(dir, sub))) return t.skip('this machine cannot make a link');
-      assert.throws(() => clef.assertRealFolders(dir, join(root, 'start')), e => e instanceof clef.Refused && e.code === 'clef-home');
+      assert.throws(() => clef.assertRealFolders(dir, join(root, 'start')), refusedHome);
     });
   }
-  test('main: a refusal of the clef folder prints REFUSED clef-home before any chdir', async t => {
+  test('main: a relative value, one inside the starting folder and one with no real starting folder are refused clef-home before anything is made', async t => {
+    const start = tempDir(t, 'clef-start-');
+    const cases = [['cfg', start], [join(start, 'cfg'), start], [join(start, 'a', 'b'), start], [join(tempDir(t, 'clef-claude-'), 'cfg'), join(start, 'nowhere')]];
+    for (const [value, cwd] of cases) {
+      const out = [];
+      const code = await clef.main(['verify'], { env: { CLAUDE_CONFIG_DIR: value }, cwd, out: l => out.push(l), chdir: () => { throw new Error('chdir'); } });
+      assert.equal(code, 2, value);
+      assert.match(out.at(-2), /^REFUSED clef-home: /);
+      assert.equal(out.at(-1), 'RESULT: refused clef-home');
+    }
+    assert.deepEqual(readdirSync(start), [], 'nothing was made inside the starting folder');
+  });
+  test('main: a linked runtime folder prints REFUSED clef-home before any chdir', async t => {
     const root = tempDir(t, 'clef-real-');
     const start = join(root, 'repo');
     mkdirSync(start);
@@ -728,7 +744,7 @@ test('main: a relative CLAUDE_CONFIG_DIR, and one inside the starting folder, ar
 test('main: a refusal prints REFUSED and RESULT with the word, and exits 2', async t => {
   const out = [];
   const env = { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') };
-  const code = await clef.main(['setup'], { env, platform: 'darwin', arch: 'arm64', execPath: 'C:\\node\\node.exe', cwd: 'C:\\work', out: l => out.push(l), chdir: () => {}, exists: () => false, transport: transportOf(() => ({ status: 500 })) });
+  const code = await clef.main(['setup'], { env, platform: 'darwin', arch: 'arm64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: () => {}, exists: () => false, transport: transportOf(() => ({ status: 500 })) });
   assert.equal(code, 2);
   assert.match(out.at(-2), /^REFUSED clef-platform: /);
   assert.equal(out.at(-1), 'RESULT: refused clef-platform');
