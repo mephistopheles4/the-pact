@@ -229,8 +229,12 @@ when no other row answers the sentence.
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
   change its scope), with your read-back in `intent`. My examples still become
-  claims with measures. Where no tool renders `quote`, `intent` and `signer`
-  for you, write the quoted ask, your read-back and a `Signed: <label>` line
+  claims with measures. The read-back, not a list, sets the work's edge: rows,
+  files or items the ask lists are where the work starts. A change the intent
+  needs is in scope, named as following from it; only a change for another
+  purpose comes to me. Check acceptance against the intent: a leftovers list
+  the intent covers means the work isn't done. Where no tool renders `quote`,
+  `intent` and `signer` for you, write the quoted ask, your read-back and a `Signed: <label>` line
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.

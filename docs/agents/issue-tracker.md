@@ -336,8 +336,9 @@ When a spec is cut into tickets (the thorough tier), each ticket is its own
 issue, linked to the parent issue as a GitHub sub-issue.
 
 - **The parent keeps the spec** and the claims. Each ticket issue names its
-  parent, its claims and what it depends on, so a session can build from it
-  alone.
+  parent, its intent, its claims and what it depends on, so a session can
+  build from it alone. The rows, files or items a ticket lists are where its
+  work starts, not its edge: the intent is.
 - **A ticket's plan, reviews and records live on its own issue.** Its PR signs
   `Signed: pr-<n>` with the ticket's number and closes the ticket issue, never
   the parent. When the last sub-issue closes, the session tells the owner the
