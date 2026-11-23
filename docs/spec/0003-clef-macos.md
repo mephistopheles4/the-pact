@@ -1,7 +1,7 @@
 # Spec delta: Clef on macOS (Apple Silicon, Metal) — V1
 
-Status: draft, revised after spec round 1 (executability-lens, unstated-lens,
-adversarial-lens). Amends [0002-clef-runner](0002-clef-runner.md); everything
+Status: draft, reviewed (two spec rounds, the second final: executability-lens,
+unstated-lens, adversarial-lens). Amends [0002-clef-runner](0002-clef-runner.md); everything
 0002 says holds on macOS unless a section here replaces it. The spec counts
 once it is on `main`.
 
@@ -40,10 +40,13 @@ The session took these picks, each logged as a checkpoint:
 5. **Linux and Windows don't change,** except where M4 says: a shared fix to
    the tar reader, and case folding. The Linux `setpriv` path and `/proc`
    sweep stay, and so does the Windows job object.
-6. **The threat model stays as it is,** except its ruleset line. Server
-   lifetime is the machine's own business there: an orphan listens only on
-   loopback, behind its key and an origin no page has. So the keeper and the
-   record are documented in `docs/clef.md`.
+6. **The threat model gains no lifetime control.** Server lifetime is the
+   machine's own business there: an orphan listens only on loopback, behind
+   its key and an origin no page has. So the keeper and the record are
+   documented in `docs/clef.md`. The threat model changes in three places
+   only. Its ruleset line names `gate-macos` (M7). Its decision-model
+   control gains "on macOS the caller's `TMPDIR` passes". Its control on
+   what runs names the pin-time Mach-O check beside the archive readers.
 
 ## M3 The pin table (amends 0002 S5)
 
@@ -80,10 +83,11 @@ The session took these picks, each logged as a checkpoint:
   macOS, because every Apple Silicon Mac has Metal.
 - **The archive reader** (shared with Linux). One link to a kept file uses
   T1's copy field (`destNames`), as `libggml-base.so.0` does today. A chain
-  of links that needs two copies is a stop-and-ask. A pax record that holds
-  only `SCHILY.xattr.*`, `LIBARCHIVE.*`, `mtime`, `atime` or `ctime` is read
-  and ignored. A pax record that holds `path`, `linkpath`, `size` or any
-  other key refuses (`clef-archive`).
+  of links that needs two copies is a stop-and-ask. A pax record, local
+  (`x`) or global (`g`), that holds only `SCHILY.xattr.*`, `LIBARCHIVE.*`,
+  `mtime`, `atime` or `ctime` is read and ignored. A pax record of either
+  kind that holds `path`, `linkpath`, `size` or any other key refuses
+  (`clef-archive`).
 - **The Mach-O check, at pin time.** `clef-files-list.mjs` reads, in node,
   the load commands of the server and of every kept Mach-O file, and prints
   them in the pin record. It flags:
@@ -91,8 +95,11 @@ The session took these picks, each logged as a checkpoint:
     `LC_LAZY_LOAD_DYLIB` that names a path outside `@rpath/`,
     `@loader_path/`, `@executable_path/`, `/usr/lib/` and `/System/`;
   - an `LC_RPATH` that isn't `@loader_path` or `@executable_path` and doesn't
-    stay inside the kept folder;
-  - an `@rpath/` name that doesn't resolve to a kept file.
+    stay inside the kept folder (`@loader_path` resolves against the file's
+    own folder, then `insideOf` decides);
+  - an `@rpath/` name that doesn't resolve to a kept file;
+  - a kept file whose first four bytes are a Mach-O or fat magic but which
+    isn't a thin arm64 Mach-O (`0xfeedfacf`, CPU type arm64).
 
   A flag is a stop-and-ask. The run also prints the `minos` of the server's
   `LC_BUILD_VERSION`, which sets the floor in M4's target line. A test with a
@@ -104,8 +111,8 @@ The session took these picks, each logged as a checkpoint:
   passed, and no `LD_LIBRARY_PATH`. The server finds its dylibs through the
   `@loader_path` and `@rpath` entries that the Mach-O check covers.
 - **Case folding.** `insideOf` and the checks built on it (`clef-node`,
-  `clef-home`, the unpack containment) fold case on `darwin` as well as
-  `win32`, as `gate/paths.mjs` already does, because APFS is case-insensitive
+  `clef-home`, the unpack containment), and `main`'s serve-folder check,
+  fold case on `darwin` as well as `win32`, as `gate/paths.mjs` already does, because APFS is case-insensitive
   by default.
 - **The arguments.** `-ngl 99` on Metal, as on Vulkan. `darwin-arm64-cpu`
   gets `--device none` instead, because the Metal build would otherwise
@@ -150,6 +157,8 @@ The session took these picks, each logged as a checkpoint:
     up to 5 s, then sends `SIGKILL`. It sends `{gone}` once it has reaped the
     server, then exits.
   - **The server exits:** the keeper sends `{gone}` and exits.
+  - The keeper exits only from `{gone}`'s send callback, never straight
+    after the send, so the message is on the channel before the keeper goes.
 - **Why the keeper is the server's parent.** Until the keeper reaps the
   server, the server's pid can't be reused.
 - **The supervisor's side.**
@@ -159,9 +168,12 @@ The session took these picks, each logged as a checkpoint:
   - With no `{pid}` within 10 s, it records `run.fail` (`exit`) and stops.
   - Its stop path sends the keeper `SIGTERM`, waits 7 s (longer than the
     keeper's 5 s), then sends `SIGKILL`.
-  - On any keeper exit without `{gone}`, it sends `SIGKILL` to `serverPid`.
-    Only a killed keeper exits without `{gone}`, and then the server lived
-    until that moment. It never signals `serverPid` after `{gone}`.
+  - It judges a keeper's end on the child's `close` event, after the IPC
+    channel and the pipes have drained, never on `exit`. If the keeper closes
+    without `{gone}` and a `serverPid` was accepted, it sends `SIGKILL` to
+    `serverPid`. Only a killed keeper closes without `{gone}`, and then the
+    server lived until that moment. It never signals `serverPid` after
+    `{gone}`, and never signals at all when no `{pid}` was accepted.
   - When the keeper exits on its own, it records `run.fail` and stops, as for
     a server that exits.
 - **What the keeper doesn't cover:** the supervisor and the keeper both
@@ -173,8 +185,13 @@ The session took these picks, each logged as a checkpoint:
 
 - **The record.** Once the supervisor accepts `{pid}`, it writes
   `run.server`: `{run, pid, port, started}`, where `port` is the server's own
-  port. The file has mode 0600. It and `run.key` are removed together, and
-  only after the sweep in the next item finds nothing left to end.
+  port. The file has mode 0600. On `darwin`, `run.server` and `run.key` are
+  removed together, in two places only:
+  - the supervisor's own clean stop, after `{gone}` (its `cleanFiles` path);
+  - the sweep, as its steps say. `stopRun` removes `run.key` only when it
+    held the lock and the sweep kept nothing.
+
+  A record whose `run.key` is missing goes to step 6.
 - **The sweep on macOS.** It runs where 0002 S7's sweep runs, under the same
   lock: in `ensure` before it spawns, in `clef stop`, in setup before it
   renames or removes a runtime folder, and in `clef remove`. It runs when
@@ -190,10 +207,11 @@ The session took these picks, each logged as a checkpoint:
   3. Both answer 401: ask once more with the run's key, from `run.key`. A 200
      means `SIGKILL` to `pid`, then remove the record and `run.key`. Any other
      answer goes to step 6.
-  4. Both answer 503: the server is still loading. Ask again every second,
-     within the caller's bound: `--wait` in `ensure`, which always asks at
-     least once, or 60 s in `stop`, `remove` and setup. When the bound runs
-     out, keep the record and `run.key`, as step 7 says.
+  4. Either answer is 503, or a request times out: the server may still be
+     loading. Wait a second and go back to step 2, within the caller's
+     bound: `--wait` in `ensure`, which always asks at least once, or 60 s
+     in `stop`, `remove` and setup. Two 401s on a later pass go to step 3.
+     When the bound runs out, keep the record and `run.key`, as step 7 says.
   5. No connection: try again for 2 s (the server listens before it loads the
      model), then go to step 6.
   6. Anything else: the listener isn't the run's server, so `pid` may be
@@ -220,8 +238,10 @@ The session took these picks, each logged as a checkpoint:
     install dry run);
   - `env -u NODE_OPTIONS node gate/tests/run.mjs full --skips gate/tests/macos-skips.txt`.
 - `gate-macos` joins `GATE_JOBS` in `gate/tests/workflow.test.mjs`. For each
-  bad case `gate-windows` has, it gets a twin, each seen to fail. That
-  includes a look-alike `gate-macos` job or check in another workflow, pins
+  bad case `gate-windows` has that applies to it, it gets a twin, each seen
+  to fail. The Windows-only cases (`shell: bash`, the `$HOME/.claude/agents`
+  line) get no twin, and the job-set message names all three jobs. The twins
+  include a look-alike `gate-macos` job or check in another workflow, pins
   that differ from `gate`'s, a renamed check, `if:` or `continue-on-error` on
   the job, another Node version, a fast tier, no skip list and no dry run.
 - `gate/tests/macos-skips.txt` works as `windows-skips.txt` does. The job
@@ -240,8 +260,10 @@ The session took these picks, each logged as a checkpoint:
   own checks, or on more than 10 failures outside `clef`.
 - **Test evidence becomes three jobs.** Every live mention of the two jobs
   gains `gate-macos`: `AGENTS.md` (both lines), `docs/agents/gate-tests.md`,
-  and `docs/threat-model.md`'s ruleset line. The threat-model line changes
-  in the same step in which the owner makes `gate-macos` a required check.
+  `.claude/hooks/athanor-guard.mjs`'s message and any test that holds its
+  text, and `docs/threat-model.md`'s ruleset line. The ruleset line goes in
+  a one-line PR, opened once the owner has made `gate-macos` a required
+  check.
   A new ADR, indexed, supersedes ADR 0141's two-job rule, and a dated log in
   `docs/log/` records the gate change.
 - GitHub's macOS runners have no usable Metal, so CI tests the CPU key and
@@ -251,8 +273,13 @@ The session took these picks, each logged as a checkpoint:
 ## M8 Docs (amends 0002 S10)
 
 - `docs/clef.md` gains:
-  - macOS arm64: built and tested in CI on CPU, with a stub server, and not
-    run end to end on Metal or on CPU;
+  - macOS arm64: built and tested in CI on macOS 15 arm64, on CPU, with a
+    stub server, and not run end to end on Metal or on CPU;
+  - `run.key`, `run.json` and `run.server` are mode 0600, but an access
+    list the folder inherits can still grant another account access;
+    `ls -le` shows one (as `docs/install.md` says for backups);
+  - if macOS blocks `llama-server` at start, what you see and how to clear
+    the quarantine attribute once `clef verify` passes;
   - the macOS floor, and the 16 GB expectation;
   - `--cpu`;
   - the keeper and the record, and their residuals (M5, M6);
@@ -261,8 +288,11 @@ The session took these picks, each logged as a checkpoint:
     exit 1;
   - Intel Macs and Rosetta.
 - The header list in `claude/tools/clef.mjs` gains the new refusal words.
-- `docs/install.md`'s "macOS: not tried" becomes "macOS: the dry run runs in
-  CI; an apply has not been tried".
+- `docs/install.md`'s "macOS: not tried" is worded as its Linux line is: CI
+  runs the dry run and the full suite, whose install tests apply into
+  throwaway folders.
+- 0002's "mode 0600 on Linux" for `run.key` and `run.json` reads "on Linux
+  and macOS".
 - `docs/reference.md` changes only if its `clef` row names platforms.
 
 ## M9 Rollback (amends 0002 S15)
@@ -288,12 +318,19 @@ The session took these picks, each logged as a checkpoint:
 
 ## M11 Accepted-risk candidates (Hardening, limit 0; not built unasked)
 
-- The keeper spawns whatever command its one message names. A command line
+- The keeper spawns whatever command, folder and environment its one
+  message names. A command line
   can hand it a channel through `NODE_CHANNEL_FD`, so a check that `file` is
   the runtime executable would close that. It adds no new reach, since a
   steered session can already run `node -e`.
 - Writing `run.server` before the keeper spawns would close the moment named
   in M5.
+- More Mach-O flags would close these gaps, each within the accepted class
+  "a bad pinned build runs with the owner's rights":
+  - `LC_LOAD_UPWARD_DYLIB`;
+  - any `LC_DYLD_ENVIRONMENT`;
+  - a `..` segment after an allowed prefix;
+  - a `/System/` path outside `/System/Library/`.
 
 ## M12 Out of scope (deferred)
 
@@ -316,7 +353,9 @@ The session took these picks, each logged as a checkpoint:
 - **C-M3** The tar reader keeps one linked file through the copy field,
   ignores an xattr-only pax record, and refuses a pax `path`, `linkpath` or
   `size` record. The files-list check flags a fixture whose load command
-  names `/usr/local/lib/x.dylib`, and one with an absolute `LC_RPATH`.
+  names `/usr/local/lib/x.dylib`, one with an absolute `LC_RPATH`, one with
+  `@loader_path/../x`, and a fat file. An xattr-only `g` header is ignored,
+  as an `x` one is.
 - **C-M4** Unpacking the macOS row sets mode 0755 on the executable. On
   `darwin`, the server's environment holds `PATH=/usr/bin:/bin` and the
   caller's `TMPDIR`. It holds no `LD_LIBRARY_PATH`, no `DYLD_*` name and no
@@ -332,7 +371,7 @@ The session took these picks, each logged as a checkpoint:
   - with the keeper sent `SIGKILL`, the supervisor ends the stub, records
     `run.fail` and exits;
   - a stub that exits on its own gets no signal from the supervisor, counted
-    through the kill seam;
+    through the kill seam, in 50 runs; so does a `clef stop`;
   - a stub that ignores `SIGTERM` is gone after `clef stop`;
   - the idle timeout ends the stub;
   - a missing stub executable leaves `run.fail` (`exit`) and no keeper;
@@ -352,7 +391,11 @@ The session took these picks, each logged as a checkpoint:
   - `remove --yes` exits 1 with the folder still present;
   - setup refuses `clef-orphan`.
 
-  A sweep while another `ensure` holds `run.lock` ends nothing. Each case
+  A stub that answers 503, then 401 with no key and with a wrong key, and
+  200 with the run's key, is ended and its record removed. A `clef stop`
+  while another `ensure` holds `run.lock`, with a 503 record, leaves both
+  files present. A clean `clef stop` leaves neither. A sweep while another
+  `ensure` holds `run.lock` ends nothing. Each case
   also runs on `gate` through the seams, and each is seen to fail when its
   rule is swapped.
 - **C-M8** `run.server` is mode 0600. No `clef` mode's output, and nothing
@@ -363,7 +406,8 @@ The session took these picks, each logged as a checkpoint:
   `status` prints `darwin-arm64-*` and its backend. `remove --yes` sweeps
   through M6, then deletes the folder.
 - **C-M11** On `darwin`, `planSetup` refuses `clef-node` for an `execPath`
-  that differs from the starting folder only in case.
+  that differs from the starting folder only in case, and `serve` started
+  from the runtime folder with a case-changed working folder is accepted.
 - **C-M12** `gate-macos` runs the full tier with its skip list, and
   `workflow.test.mjs` refuses each bad case M7 lists.
 
@@ -374,7 +418,8 @@ The session took these picks, each logged as a checkpoint:
 | The macOS rows as a stated pin exception, and the security pair's read of them | checkpoint | at Test |
 | The security pair (adversarial-lens, data-lens) on the diff: `gate.yml`, the keeper, the sweep, the tar reader | checkpoint | at Test |
 | Merging (`claude/tools/`, `.github/`, read closely) | checkpoint, pinned to the reviewed head | after Test |
-| Making `gate-macos` a required check, with the threat-model ruleset line | the owner's GitHub setting | after merge |
+| Making `gate-macos` a required check | the owner's GitHub setting | after merge |
+| The one-line PR for the threat-model ruleset line | checkpoint | once the check is required |
 | The threat-model scope pick (M2 pick 6) | the owner's call | before merge |
 | C14 on the first Mac (M3's trigger) | checkpoint | on first macOS setup |
 
@@ -384,4 +429,6 @@ The session took these picks, each logged as a checkpoint:
 - the Mach-O check flags anything;
 - the first `gate-macos` run hits M7's stop line;
 - `fork`'s IPC channel doesn't close on the runner when the supervisor gets
-  `SIGKILL`.
+  `SIGKILL`;
+- the threat model's two added clauses (M2 pick 6) can't fit its word cap
+  without a cut. The PR lists any cut, read as a control change.
