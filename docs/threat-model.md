@@ -146,8 +146,9 @@ setup, run with the owner's rights.
   grants it; each pin is held by hash.
 - **The decision model, when on.** A pin table (fixed repos; per-file size and
   sha256, checked before keeping); fixed redirect hosts, `https:` only; its
-  archive readers, writing only pinned names; a fixed working folder and
-  environment; listener token, `Host` and `Origin` checks; an answer check
+  archive readers, writing only pinned names; a pin-time Mach-O check (thin
+  arm64, no flags); a fixed working folder and environment (on macOS, also
+  `TMPDIR`, a per-user 0700 folder); listener token, `Host` and `Origin` checks; an answer check
   passing only numbers and the caller's keys. Held by rule alone: 14-day-old
   pins (the Hub's date, which a git push sets) and the security pair's read
   of each pin PR

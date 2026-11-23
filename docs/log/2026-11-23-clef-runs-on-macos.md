@@ -6,4 +6,6 @@ macOS has no way to end a child when its parent dies. So on macOS the supervisor
 
 The gate workflow gains `gate-macos`, and Test evidence becomes three jobs ([ADR 0170](../adr/0170-test-evidence-and-installs-rely-on-three-ci-jobs.md)). `gate/tests/macos-skips.txt` lists the cases that can't run on macOS. `gate-macos` plants a real Claude folder for its dry run, as `gate-windows` does, and the spec's M7 now says so: it runs the install against a real folder, which makes the dry run stricter. A last step, `.github/scripts/clef-smoke.mjs`, runs the pinned macOS server once with `--device none --version`.
 
+The threat model lists two new controls: the pin-time Mach-O check, and macOS's `TMPDIR` beside the fixed environment. Its word cap rises from 3,000 to 3,050 to fit them, with no cuts. The owner chose to approve it and leave the rewrite to PACT-39, which drops the word budgets.
+
 **Rolling back:** revert the PR. Setup on macOS refuses again, and the workflow goes back to two jobs.
