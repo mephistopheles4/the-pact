@@ -620,9 +620,27 @@ export function readZip(buf, { maxBytes, want = () => true } = {}) {
 
 const octal = (buf, from, to) => parseInt(buf.toString('latin1', from, to).replace(/\0.*$/, '').trim() || '0', 8);
 
+/** The pax keys the tar reader ignores (spec 0003 M4): none changes an entry's name, link, size or bytes. */
+const PAX_QUIET = /^(?:SCHILY\.xattr\..+|LIBARCHIVE\..+|mtime|atime|ctime)$/;
+
+/** Checks a pax header's records ("<length> <key>=<value>\n", the length counting the whole record); refuses unless every key is a quiet one. */
+function paxQuiet(body) {
+  let at = 0;
+  while (at < body.length) {
+    if (body[at] === 0) break;
+    const sp = body.indexOf(0x20, at);
+    const len = sp > at ? Number(body.toString('latin1', at, sp)) : NaN;
+    if (!/^[1-9]\d*$/.test(body.toString('latin1', at, sp)) || at + len > body.length || body[at + len - 1] !== 0x0a) throw bad('a pax header that does not read');
+    const rec = body.toString('utf8', sp + 1, at + len - 1);
+    const eq = rec.indexOf('=');
+    if (eq < 1 || !PAX_QUIET.test(rec.slice(0, eq))) throw bad('a pax header');
+    at += len;
+  }
+}
+
 /**
  * The entries of a gzipped ustar tar, as { path, kind, data }, and the entry
- * forms it used. A pax header, a GNU long name and any type but a regular file,
+ * forms it used. A pax header with any key but PAX_QUIET's, a GNU long name and any type but a regular file,
  * a folder or a link refuse. Every entry name goes through pathProblem
  * (a leading `./` is dropped first).
  */
@@ -646,7 +664,13 @@ export function readTgz(tgz, { maxBytes, want = () => true } = {}) {
     const size = octal(head, 124, 136);
     const type = String.fromCharCode(head[156] || 48);
     off += 512;
-    if (type === 'x' || type === 'g') throw bad('a pax header');
+    if (type === 'x' || type === 'g') {
+      // Spec 0003 M4: a pax header of either kind holding only xattr, LIBARCHIVE and time keys is read and ignored; any other key refuses.
+      if (off + size > buf.length) throw bad('an entry runs past the end of the file');
+      paxQuiet(buf.subarray(off, off + size));
+      off += Math.ceil(size / 512) * 512;
+      continue;
+    }
     if (type === 'L' || type === 'K') throw bad('a GNU long name');
     if (!['0', '5', '1', '2'].includes(type)) throw bad('an entry that is not a file, a folder or a link');
     const kind = type === '0' ? 'file' : type === '5' ? 'dir' : 'link';

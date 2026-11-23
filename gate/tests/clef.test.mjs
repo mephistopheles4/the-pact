@@ -85,6 +85,16 @@ function tgz(entries) {
   return gzipSync(Buffer.concat(parts));
 }
 
+/** A pax header's body: each record is "<length> <key>=<value>\n", the length counting the whole record. */
+function pax(pairs) {
+  return pairs.map(([k, v]) => {
+    const rest = ` ${k}=${v}\n`;
+    let n = rest.length + 1;
+    while (String(n).length + rest.length !== n) n = String(n).length + rest.length;
+    return `${n}${rest}`;
+  }).join('');
+}
+
 /** A fake transport: `route(url, headers)` gives { status, headers, body }; every request is recorded. */
 function transportOf(route) {
   const calls = [];
@@ -371,11 +381,23 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'zip-no-end', run: () => clef.readZip(Buffer.from('not a zip at all, no end record'), {}), why: 'not a zip' },
     { id: 'tar-traversal', run: () => clef.readTgz(tgz([{ name: '../x', data: 'y' }]), {}), why: 'a name that leaves the folder' },
     { id: 'tar-drive', run: () => clef.readTgz(tgz([{ name: 'C:x', data: 'y' }]), {}), why: 'a drive' },
-    { id: 'tar-pax', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: 'path=a\n' }]), {}), why: 'a pax header' },
+    { id: 'tar-pax', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: pax([['path', 'a']]) }]), {}), why: 'a pax header naming a path' },
+    // Spec 0003 M4: a pax record of either kind that names a path, a link, a size or any key off the list refuses.
+    { id: 'tar-pax-global-path', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'g', data: pax([['path', 'a']]) }, { name: 'a', data: 'y' }]), {}), why: 'a global pax header naming a path' },
+    { id: 'tar-pax-linkpath', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: pax([['mtime', '1'], ['linkpath', 'b']]) }, { name: 'a', data: 'y' }]), {}), why: 'a pax link path beside a time' },
+    { id: 'tar-pax-size', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: pax([['size', '9']]) }, { name: 'a', data: 'y' }]), {}), why: 'a pax size' },
+    { id: 'tar-pax-other-key', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: pax([['uname', 'x']]) }, { name: 'a', data: 'y' }]), {}), why: 'a pax key off the list' },
+    { id: 'tar-pax-malformed', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: '99 mtime=1\n' }, { name: 'a', data: 'y' }]), {}), why: 'a pax record whose length is wrong' },
     { id: 'tar-gnu-long', run: () => clef.readTgz(tgz([{ name: 'long', type: 'L', data: 'a'.repeat(200) }]), {}), why: 'a GNU long name' },
     { id: 'tar-device', run: () => clef.readTgz(tgz([{ name: 'dev', type: '3' }]), {}), why: 'a device' },
     { id: 'tar-not-gzip', run: () => clef.readTgz(Buffer.from('plain'), {}), why: 'not gzip' },
   ];
+  // Spec 0003 M4: the macOS build's tar holds xattr- and time-only pax records, local and global; they are read and ignored.
+  test('tar reader: a local or global pax header holding only xattr, LIBARCHIVE and time keys is ignored, and the entry after it is read', () => {
+    const quiet = pax([['SCHILY.xattr.com.apple.provenance', 'x'], ['LIBARCHIVE.creationtime', '1'], ['mtime', '1.5'], ['atime', '1'], ['ctime', '1']]);
+    const r = clef.readTgz(tgz([{ name: 'g', type: 'g', data: quiet }, { name: 'x', type: 'x', data: quiet }, { name: 'real.txt', data: 'ok' }]), {});
+    assert.deepEqual(r.entries.map(e => [e.path, e.kind, e.data && e.data.toString()]), [['real.txt', 'file', 'ok']]);
+  });
   for (const b of bads) test(`archive reader: ${b.id}`, () => assert.throws(b.run, e => e instanceof clef.Refused && e.code === 'clef-archive'));
   test('archive reader: the good archive reads', () => assert.equal(clef.readZip(ZIP(), { want }).entries.length, 5));
 
