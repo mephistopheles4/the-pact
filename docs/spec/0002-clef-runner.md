@@ -1,6 +1,6 @@
 # Spec: a pinned llama-server runner for Clef, as an opt-in pact tool — V1
 
-Status: draft, reviewed (two rounds), on the sensitive route; the owner kept the dogfooding bounds (S12). Four fixes from a Code Rabbit CLI review after the final round are not re-reviewed. The spec counts
+Status: draft, reviewed (two rounds and a security further read of four Code Rabbit CLI fixes), on the sensitive route; the owner kept the dogfooding bounds (S12). The spec counts
 once it is on `main`.
 
 ## S1 Objective
@@ -212,7 +212,8 @@ export const MODEL = Object.freeze({ repo: 'ggml-org/Clef-Flash-GGUF', commit: '
 Every `clef` mode (`setup`, `verify`, `ensure`, `serve`, `stop`, `status`,
 `remove`) first sets its working folder to the clef folder, and starts no
 program by a bare name: `serve` is started by `process.execPath`, the server
-by its absolute path under `runtime/<tag>/`, and nothing else is started.
+by its absolute path under `runtime/<tag>/`, and, on Linux only,
+`/usr/bin/setpriv` by that absolute path (S7). Nothing else is started.
 
 ### The plan
 
@@ -360,13 +361,18 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   server is started through `/usr/bin/setpriv --pdeathsig KILL --` (by that
   absolute path, from node's main thread), so the kernel kills it when the
   supervisor dies. Setup refuses a Linux machine without `/usr/bin/setpriv`
-  (`clef-setpriv`). As a second line, `ensure` and `clef stop` end an orphan:
-  a process whose `/proc/<pid>/exe` is the pinned server path and whose
-  recorded supervisor is gone.
-- **Off the list.** The supervisor checks, before each forwarded request and
-  once a minute, that `<Claude home>/pact/tools/clef.mjs` still exists. When
-  it is gone (`clef` came off the tools list), it ends the server, removes
-  `run.json` and `run.key`, and exits.
+  (`clef-setpriv`). As a second line, `ensure`, `clef stop` and setup end
+  every orphan, only while holding `run.lock`: a process whose
+  `/proc/<pid>/exe` lies under `<clef folder>/runtime/` (any tag, or a
+  deleted target there) and whose parent is not a live supervisor. Setup
+  sweeps before it renames or removes a runtime folder.
+- **Off the list.** At start, the supervisor records the size, mtime and
+  sha256 of its own script, the file it was started from (`import.meta.url`,
+  never a path rebuilt from the environment). Before each forwarded request
+  and once a minute, it checks that file again. When the file is gone or
+  changed (`clef` came off the tools list, or an apply changed the tool or
+  its pins), it ends the server, removes `run.json` and `run.key`, and exits;
+  the next `ensure` then runs the installed tool.
 - **Test seams.** The origins, the `https:` rule, the executable path, the
   environment list and the idle timeout are parameters of the tool's exported
   functions only. No flag and no environment variable reaches them (C17).
@@ -556,9 +562,12 @@ as a control change.
   the supervisor is killed, the server is gone (on `gate-windows` too). On
   `gate`, a stub server's supervisor sent `SIGKILL` leaves no stub process
   within 2 seconds; with `--pdeathsig` taken out in a test seam, the next
-  `ensure` ends the orphan. Setup on Linux without `/usr/bin/setpriv` refuses
-  `clef-setpriv`. Removing `clef.mjs` under a running supervisor stops it and
-  removes `run.json` within a minute.
+  `ensure` ends the orphan, also when its tag's folder was renamed or removed;
+  a sweep while another `ensure` holds `run.lock` kills nothing. Setup on
+  Linux without `/usr/bin/setpriv` refuses `clef-setpriv`. Removing or
+  changing the supervisor's own script under it stops it and removes
+  `run.json` within a minute, with `CLAUDE_CONFIG_DIR` set to a different
+  folder.
 - **C13** No `clef` mode's stdout or stderr holds the token or the key.
   `serve.log` holds no body, token, key, header value or argument list,
   including after a failed start. `clef status` prints neither.
