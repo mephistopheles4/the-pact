@@ -1,93 +1,154 @@
 # Spec: a portable table-of-contents script that a repo adopts by choice (V1)
 
-Status: draft, not yet reviewed. It counts once it is on `main`. It is stacked on the PR that adds `docs/toc.mjs`.
+Status: draft, revised from the research, not yet reviewed. It counts once it is on `main`. It is stacked on the PR that adds `docs/toc.mjs`.
+
+<!-- toc -->
+
+- [S1 Objective](#s1-objective)
+- [S2 Sources](#s2-sources)
+- [S3 The balance](#s3-the-balance)
+- [S4 Decisions](#s4-decisions)
+- [S5 The config and the script's changes](#s5-the-config-and-the-scripts-changes)
+- [S6 Adopting it in a repo](#s6-adopting-it-in-a-repo)
+- [S7 Repos](#s7-repos)
+- [S8 Keeping the copies current](#s8-keeping-the-copies-current)
+- [S9 Trade-offs](#s9-trade-offs)
+- [S10 Acceptance claims](#s10-acceptance-claims)
+- [S11 Tickets](#s11-tickets)
+  - [Stop and ask when](#stop-and-ask-when)
+- [S12 Rollback and out of scope](#s12-rollback-and-out-of-scope)
+
+<!-- /toc -->
 
 ## S1 Objective
 
-`docs/toc.mjs` writes and checks generated tables of contents in this repo. This spec makes it portable, so that grimoire, stacks and athanor can each adopt it by choice. Each copies the same file unchanged and keeps its own small config.
+`docs/toc.mjs` writes and checks generated tables of contents in this repo. This spec makes it portable, so that grimoire, stacks and athanor can each adopt it by choice. Each copies the same file and keeps its own small config.
 
-Adoption is opt-in per repo. No repo, and no long doc, is required to carry a table. The pact text (the rules file, `review.md` and the agents) states no such rule and gains none from this spec.
+The tables are for the models that read these repos, not for people. A table goes where Anthropic's guidance says it helps: a long reference doc that a model opens on demand and may read only in part. Adoption is opt-in per repo, and each repo picks its own docs. No repo, and no long doc, is required to carry a table. The pact text (the rules file, `review.md` and the agents) states no such rule, and this spec adds none.
 
-Intent (the owner, relayed by the lead, 2026-11-23): "I like the pull request 654. I would like to find a little way to make sure that this gets maintained properly and we don't forget about it. And also, we only did that currently in the pact, but I also want it to be on all my other repositories too, please." Narrowed the same day: "I don't think that we need to be so aggressive that we would add it to my Mephistopheles README or the aviation design system. My website probably doesn't need it either. Please don't overcorrect this as if it's a blanket rule."
+Intent (the owner, relayed by the lead, 2026-11-23): "I like the pull request 654. I would like to find a little way to make sure that this gets maintained properly and we don't forget about it. And also, we only did that currently in the pact, but I also want it to be on all my other repositories too, please." Narrowed the same day: "Please don't overcorrect this as if it's a blanket rule." And: "I am trying to improve navigatability for you, not for me ... We are trying to find the right balance here."
 
-## S2 Decisions
+## S2 Sources
 
-- **Vendored, not fetched.** Each adopting repo commits its own copy of `toc.mjs`. Its check runs offline in that repo's CI, and nothing fetches across repos at run time.
-- **One file, many configs.** The script is byte-identical in every repo. What differs lives in a JSON config beside it.
-- **Defaults are this repo's.** With no config file, the script behaves exactly as it does in PR 654, so this repo needs no config.
-- **The copy names its source.** Each copy's header carries the pact commit it was taken from. Updating means copying the new file and its new header line.
+Each was read on 2026-11-23. The quotes are verbatim.
 
-## S3 The config
+- Anthropic, [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices):
+  - "For reference files longer than 100 lines, include a table of contents at the top. This ensures Claude can see the full scope of available information even when previewing with partial reads."
+  - The reason: Claude "might use commands such as `head -100` to preview content rather than reading entire files."
+  - On SKILL.md: it "serves as an overview that points Claude to detailed materials as needed, like a table of contents in an onboarding guide." And: "Keep the `SKILL.md` body under 500 lines."
+- Anthropic, [Agent Skills overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview): a triggered skill's SKILL.md is read whole (its example is a `cat`). "Reference files load into context when read."
+- Claude Code, [How Claude remembers your project](https://code.claude.com/docs/en/memory):
+  - "Claude gets the whole of each CLAUDE.md file that loads at launch."
+  - "imported files load together with the CLAUDE.md that imports them."
+- Claude Code, [Tools reference](https://code.claude.com/docs/en/tools-reference): Read returns at most 25,000 tokens a call and pages a larger file with `offset` and `limit`.
+- Anthropic, [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (Sep 29, 2025):
+  - "CLAUDE.md files are naively dropped into context up front."
+  - "primitives like glob and grep allow it to navigate its environment and retrieve files just-in-time."
+  - Retrieval "enables progressive disclosure—in other words, allows agents to incrementally discover relevant context through exploration."
+- Anthropic, [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) (Oct 16, 2025):
+  - "it will load the skill by reading its full `SKILL.md` into context."
+  - "When the `SKILL.md` file becomes unwieldy, split its content into separate files and reference them."
 
-The config lives in `toc.config.json`, in the folder that holds `toc.mjs`. Every key is optional:
+## S3 The balance
+
+These findings come from S2. Where the sources are silent, the spec says so and leans to less.
+
+- **Threshold: over 100 lines.** It is the only figure the sources give, and its reason is a partial preview. No published evaluation stands behind it. The sources measure in lines while Read pages by tokens, and they don't address that difference. Nothing sourced points to another figure, so the script's default stays at 100.
+- **Docs that get a table:** long reference docs a model opens on demand, such as specs, guides, threat models and a skill's `references/` files.
+- **Docs that get none:**
+  - Files loaded whole, because a partial preview never happens to them: CLAUDE.md, what it imports (an AGENTS.md included), a SKILL.md body, agent definitions and commands. For these, the sources ask for short files with headers.
+  - **SKILL.md bodies.** The docs make SKILL.md itself the table of contents for its skill, linking its references one level deep.
+  - Docs written for people, such as a README. The sources are silent on them, so this leans to less.
+- **Each repo decides.** The config says which of its docs are covered. The list above is the guidance, not a rule.
+
+PR 654 follows the same balance in this repo. Its `AGENTS.md` and `README.md` are excluded, and the 100-line threshold stays.
+
+## S4 Decisions
+
+- **Vendored, not fetched.** Each adopting repo commits its own copy of `toc.mjs`. The check runs offline in that repo's CI, and nothing fetches across repos.
+- **One file, a small config.** Every copy matches the pact's file except one header line, `// Source: the-pact <commit>`, added when the file is copied. What differs between repos lives in the config.
+- **Defaults are this repo's.** With no config, the script behaves exactly as it does in PR 654. In an adopting repo, a config is required by S6.
+- **Anchor links.** The generated tables' links are right by construction. Hand-written anchor links are checked by this repo's own test only. Adopting repos don't get that check, which is out of scope (S12).
+
+## S5 The config and the script's changes
+
+The config lives in `toc.config.json`, in the folder that holds `toc.mjs`. Both keys are optional:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `maxUncoveredLines` | integer ≥ 1 | 100 | A doc is covered once it has more lines than this, its table not counted |
-| `exclude` | array of strings | this repo's `EXCLUDED` | Paths left out; an entry ending in `/` is a folder prefix, any other entry is one file |
-| `include` | array of strings | `[""]` (the whole repo) | Folder prefixes that are covered; a path must start with one of them |
-| `levels` | `[2, 3]` or `[2]` | `[2, 3]` | Which heading levels the table links |
+| `maxUncoveredLines` | integer ≥ 1 | 100 | A doc is covered once it has more lines than this, not counting its table |
+| `exclude` | array of strings | this repo's `EXCLUDED` | Paths left out, repo-relative. An entry ending in `/` is a folder prefix. An entry starting with `**/` matches a file of that name in any folder, such as `**/SKILL.md`. Any other entry is one file |
 
-An unknown key, a wrong type, or a value out of range is an error. The script prints `toc.config.json: <key>: <problem>` and exits 2 before reading any doc. A config replaces each default whole for the keys it sets; it never merges with the defaults.
+- **Bad config.** An unknown key, a wrong type or a value out of range is an error. The script prints `toc.config.json: <key>: <problem>` and exits 2 before reading any doc. A key that is set replaces its default whole; it never merges with it.
+- **The repo root.** It is what `git rev-parse --show-toplevel` prints, run from the script's folder, so the script works at any depth. PR 654's code takes the parent of the script's folder; this replaces that.
+- **Pure functions.** The core functions take the config as an argument, defaulting to this repo's values, so they stay pure and importable.
+- **Nothing else changes.** The anchors, the markers, where the table sits, the no-H2 rule, the unclosed-marker report and `--check`'s exit codes stay as they are in PR 654.
+- **New tests.** `gate/tests/toc.test.mjs` gains bad cases for: a `maxUncoveredLines` of 50, a folder entry in `exclude`, a `**/` entry, a file entry, a bad key that exits 2, and the script run from a nested folder.
 
-The repo root is the nearest folder above the script that holds a `.git` entry, as today's `trackedDocs` assumes. The script may sit at any depth; `docs/toc.mjs` and `scripts/toc.mjs` both work.
+## S6 Adopting it in a repo
 
-## S4 The script's changes
+Each adopting repo's ticket takes these steps:
 
-- It reads `toc.config.json` if present, as S3 says. The core functions take the config as an argument, defaulting to this repo's values, so they stay pure and importable.
-- Its header comment gains one line, `Source: the-pact <short hash>`, and a pointer to this spec.
-- Nothing else changes: the anchors, markers, placement, no-H2 rule, unclosed-marker report and `--check` exit codes stay exactly as they are in PR 654.
-- `gate/tests/toc.test.mjs` gains bad cases for the config: a doc covered under `include` and one outside it, an `exclude` file entry, `levels: [2]`, and a bad key that exits 2.
+1. **Check for marker clashes.** If any tracked Markdown file already uses `<!-- toc -->` or `<!-- /toc -->` (markdown-toc uses the same markers), stop and ask.
+2. **Copy the script.** Copy `docs/toc.mjs` from the pact at a named commit into the repo's script folder, adding the Source line.
+3. **Write the config.** Write `toc.config.json` from S3's balance: exclude logs, ADRs, test fixtures, files loaded whole (`CLAUDE.md`, an imported `AGENTS.md`, `**/SKILL.md`, agent and command files) and README files, unless the repo's ticket records a reason otherwise.
+4. **Generate and review.** Run the script, and read each table it writes.
+5. **Add the CI step.** Add `node <script folder>/toc.mjs --check` to CI, on every operating system the repo's CI runs.
+6. **Prove it can fail.** Show the CI step failing on a deliberately stale table (a heading renamed), and show it passing once the table is regenerated. Record both runs on the ticket.
+7. **Add the agent rule.** Add one line to the repo's agent instructions: after a heading change in a covered doc, run the script; changes to the vendored copy are read closely; to update the copy, copy the new file from the pact.
 
-## S5 Adopting it in a repo
+## S7 Repos
 
-Each adopting repo's ticket does the same steps:
-
-1. Copy `docs/toc.mjs` from the pact at a named commit to the repo's script folder.
-2. Write `toc.config.json` for the repo. Its exclusions follow the ones this repo chose (ADR 0168): logs, ADRs, fixtures, and files an agent loads whole (`CLAUDE.md`, `AGENTS.md` if the repo chooses), unless the repo decides otherwise.
-3. Run the script, then review the tables.
-4. Add `node <script folder>/toc.mjs --check` to the repo's CI.
-5. Add a bad case the repo's own suite or CI is seen to fail on: a stale table.
-6. Add one line to the repo's agent instructions: after a heading change, run the script; to update it, copy the new file from the pact.
-
-## S6 Repos
-
-| Repo | Script folder | CI step | Open questions |
+| Repo | Script folder | CI step | Notes |
 | --- | --- | --- | --- |
-| athanor | `scripts/` | `ci.yml`, beside its `node scripts/check-*.mjs` steps | Exclude `docs/adr/`. Two long ADRs have no H2 anyway. |
-| grimoire | `scripts/` | `check.yml`, from `scripts/check.mjs` or as its own step | **For the owner:** should each skill's `SKILL.md` be excluded and `references/` kept? A `SKILL.md` is loaded whole when its skill runs, like the pact's rules file, and Anthropic's guidance targets reference files. |
+| athanor | `scripts/` | `ci.yml`, beside its `node scripts/check-*.mjs` steps | Exclude `docs/adr/`. Two long ADRs have no H2, so they get no table anyway. |
+| grimoire | `scripts/` | `check.yml`, from `scripts/check.mjs` or as its own step | Exclude `**/SKILL.md` (S3). Its long `references/` files are covered. |
 | stacks | `scripts/` | `gates.yml`, as a `pnpm` gate script | Exclude `docs/log/` and `docs/adr/`. |
 
-## S7 Trade-offs
+Each ticket records the operating systems its CI runs on.
 
-- **Portability against drift.** A vendored copy can fall behind the pact's. The header line shows how far behind it is, and an update is a copy. No cross-repo check runs (S2). Driver: no business driver is named, so this leans to what is cheaper to reverse. A copy is one file and its CI step.
-- **One file against per-repo tuning.** The config holds what differs. Everything else stays identical, so a fix in the pact carries over by copying.
+## S8 Keeping the copies current
 
-## S8 Acceptance claims
+- Each copy's Source line shows which pact commit it came from.
+- When the pact's `docs/toc.mjs` changes, the PR that changes it lists each adopting repo as behind in its dated log. The owner decides whether to file updates.
+- No cross-repo check runs (S4).
+
+## S9 Trade-offs
+
+- **Portability against drift.** A vendored copy can fall behind. S8 makes that visible without a cross-repo fetch. No business driver is named, so this leans to what is cheaper to reverse: a copy is one file and one CI step.
+- **Coverage against cost.** A table costs context each time its doc is read. S3 keeps tables out of files loaded whole and docs written for people, where the sources give no reason for one.
+
+## S10 Acceptance claims
 
 - C1: with no `toc.config.json`, the script's output in this repo is byte-identical to PR 654's, and `--check` exits 0.
-- C2: each S3 key changes coverage or the table as stated, and each S4 bad case is seen to fail.
-- C3: a bad config exits 2 before any doc is read, naming the key.
-- C4: the script runs from any folder depth inside a repo.
-- C5: nothing in `claude/` changes (the pact text gains no rule).
+- C2: each S5 key changes coverage as stated, and each S5 bad case is seen to fail before its code exists.
+- C3: a bad config exits 2 before any doc is read, and the message names the key.
+- C4: the script runs from a nested folder and finds the repo root.
+- C5: nothing in `claude/` changes, so the pact text gains no rule.
+- C6: in each adopting repo, CI fails on a stale table and passes once it is regenerated, on each operating system its CI runs (S6 step 6).
+- C7: in each adopting repo, no file S3 says to leave out holds a table, unless the ticket records why.
 
-## S9 Tickets
+## S11 Tickets
 
 The work is cut into tickets, each its own session. A repo ticket starts only after this spec is approved and T1 has merged.
 
-- **T1 (this repo):** S3 and S4, the bad cases, and this spec's index line. It stacks on PR 654.
-- **T2 athanor, T3 grimoire, T4 stacks:** the S5 steps, one repo each. They are independent and can run side by side. T3 waits for the owner's answer on `SKILL.md`.
+- **T1 (this repo):** S5, its bad cases, and S8's log rule as one line in this repo's AGENTS.md. It stacks on PR 654.
+- **T2 athanor, T3 grimoire, T4 stacks:** the S6 steps, one repo each. They are independent and can run side by side.
 
 ### Stop and ask when
 
 - A repo's CI can't run Node 24.
 - A repo's own rules forbid a vendored script.
-- A generated table would break an anchor that existing links use.
+- A repo already uses the table markers (S6 step 1).
+- A generated table would change an anchor that existing links use.
 
-## S10 Rollback
+## S12 Rollback and out of scope
 
-T1: revert its PR. A repo ticket: revert that repo's PR. The copies are independent, so one revert touches no other repo.
+**Rollback.** For T1, revert its PR. For a repo ticket, revert that repo's PR. The copies are independent, so one revert touches no other repo.
 
-## S11 Out of scope
+**Out of scope:**
 
-aviation-design-system, aymandiab.com, mephistopheles4, dynners-api and pact-probe-sandbox (the owner's narrowing). Any rule in the pact text that would make tables required anywhere.
+- aviation-design-system, aymandiab.com, mephistopheles4, dynners-api and pact-probe-sandbox (the owner's narrowing).
+- Any rule in the pact text that would make tables required anywhere.
+- An anchor-link check in adopting repos.
+- A cross-repo drift check.
