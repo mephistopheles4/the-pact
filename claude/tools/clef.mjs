@@ -41,7 +41,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync,
 import { createServer as createHttpServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest, Agent } from 'node:https';
 import { createServer as createNetServer } from 'node:net';
-import { homedir, uptime as osUptime, userInfo } from 'node:os';
+import { homedir, machine as osMachine, uptime as osUptime, userInfo } from 'node:os';
 import { basename, dirname, join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync, gunzipSync } from 'node:zlib';
@@ -212,7 +212,7 @@ export const SERVER = Object.freeze({
       ['llama.exe', 105472, '274b849a0686c9e8fc539cce8f1f7c173b40dcc7668cc5f56262acb3b10a869d'],
       ['mtmd.dll', 2217472, 'cd5acb7df4e4cfa0260922b8bcfa80f112c8751995ae15fc7b2078457bcdcb01'],
       ]) }),
-    'linux-x64-cpu': Object.freeze({ asset: 'llama-b12211-bin-ubuntu-x64.tar.gz', size: 23109987, sha256: '962924b5431bc1237a9e5d26ba072d37b6fe05f79b495206e7ff6134887624c5', kind: 'tgz', exe: 'llama-b12211/llama-server',
+    'linux-x64-cpu': Object.freeze({ asset: 'llama-b12211-bin-ubuntu-x64.tar.gz', size: 23109987, sha256: '962924b5431bc1237a9e5d26ba072d37b6fe05f79b495206e7ff6134887624c5', kind: 'tgz', glibc: '2.34', exe: 'llama-b12211/llama-server',
       files: Object.freeze([
       ['llama-b12211/LICENSE', 1078, '94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d'],
       ['llama-b12211/ggml-rpc-server', 195536, 'e4ed7b961c67f9abf6b91c9409714c3a0154869d00fbfcf1f1e67f2a61dc89f5'],
@@ -266,7 +266,7 @@ export const SERVER = Object.freeze({
       ['llama-b12211/llama-tokenize', 45168, '7c3f70571062369fc096448742930ac934a7693473826fc7131186368946806e'],
       ['llama-b12211/llama-tts', 49928, 'b8cecb8b65c8816bcd99b40c35296a9a5d489967507de8a21258533239b42b78'],
       ]) }),
-    'linux-x64-vulkan': Object.freeze({ asset: 'llama-b12211-bin-ubuntu-vulkan-x64.tar.gz', size: 35924677, sha256: '9759acd293d3738f39d3ceed740bd3125d87dfb492ef8c4f00114d3393d37942', kind: 'tgz', exe: 'llama-b12211/llama-server',
+    'linux-x64-vulkan': Object.freeze({ asset: 'llama-b12211-bin-ubuntu-vulkan-x64.tar.gz', size: 35924677, sha256: '9759acd293d3738f39d3ceed740bd3125d87dfb492ef8c4f00114d3393d37942', kind: 'tgz', glibc: '2.34', exe: 'llama-b12211/llama-server',
       files: Object.freeze([
       ['llama-b12211/LICENSE', 1078, '94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d'],
       ['llama-b12211/ggml-rpc-server', 195536, 'e4ed7b961c67f9abf6b91c9409714c3a0154869d00fbfcf1f1e67f2a61dc89f5'],
@@ -321,6 +321,138 @@ export const SERVER = Object.freeze({
       ['llama-b12211/llama-tokenize', 45168, '7c3f70571062369fc096448742930ac934a7693473826fc7131186368946806e'],
       ['llama-b12211/llama-tts', 49928, 'b8cecb8b65c8816bcd99b40c35296a9a5d489967507de8a21258533239b42b78'],
       ]) }),
+    'linux-arm64-cpu': Object.freeze({ asset: 'llama-b12211-bin-ubuntu-arm64.tar.gz', size: 18759007, sha256: '6eed2da01c098f814170e941e11a8d91eed200a9a2923eac805fe116b14aff30', kind: 'tgz', glibc: '2.38', exe: 'llama-b12211/llama-server',
+      files: Object.freeze([
+      ['llama-b12211/LICENSE', 1078, '94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d'],
+      ['llama-b12211/ggml-rpc-server', 245704, '373bc8dea80a429bf35f7ea642d14f5da67276c54e4f109b79e8c33fb5f37cbd'],
+      ['llama-b12211/libggml-base.so.0.29.0', 870944, 'ad9a4e882c6ffdcc374f9d5cddbd38d3e79ff36cada06f950c9ad9b5fca174bf', 'libggml-base.so.0'],
+      ['llama-b12211/libggml-cpu-armv8.0_1.so', 1003640, 'b933df0037b5ecbec69f5db8fafe607d0b414a83ed1d845634a5217d4e59ac15'],
+      ['llama-b12211/libggml-cpu-armv8.2_1.so', 1070536, '22caf39239e77d80f613f67aab899c75e11ae1f9c176d52d3b6717621ae43f93'],
+      ['llama-b12211/libggml-cpu-armv8.2_2.so', 1070560, '016d916a9d9b9f58c1221dd0f52a64273d350572a68923079620bc1417c7b92a'],
+      ['llama-b12211/libggml-cpu-armv8.2_3.so', 1005536, '5c6b878490602f79ad8b430bef92626f530d7c0258242cd65775ec3a380ce271'],
+      ['llama-b12211/libggml-cpu-armv8.6_1.so', 1071416, '5a7d4c1df79e21dacc782aa371dc44283894596c1824469b8e7e7e2c754e252d'],
+      ['llama-b12211/libggml-cpu-armv8.6_2.so', 1071392, 'e2efe3c1ec908812b5eb0aa53d81b1943e89769ffbd17e085f2cd92571125e1d'],
+      ['llama-b12211/libggml-cpu-armv9.2_1.so', 1071432, '8ad22c8a7b70d8abda644aa5f795a10482ddee47ad2c60541bc3eddfcb038770'],
+      ['llama-b12211/libggml-cpu-armv9.2_2.so', 1071432, '0f4b29ded5da5e2dae750fcb1c79e4a96493f1b36e6822df0c6d20da2bee6dc7'],
+      ['llama-b12211/libggml-rpc.so', 337824, '0e63458aac7a97349e1237e3d7db950adb9ac81d6f7c0964439598b0d6c24bc4'],
+      ['llama-b12211/libggml.so.0.29.0', 77528, '6be1305cdda55f0001e87fae600f1148b2f0b9c8b3f98f60c33b4fdfe3cfaf64', 'libggml.so.0'],
+      ['llama-b12211/libllama-batched-bench-impl.so', 74368, '6e82de42365149eb08c79e5561e6a5b56b4cd4b659ce64337ff34220ec900a7a'],
+      ['llama-b12211/libllama-bench-impl.so', 469784, '0f48b48b5e70306601664bb753fe3ef09035815bbbb3bafbdb4fcc323e54a442'],
+      ['llama-b12211/libllama-cli-impl.so', 235312, '0cc7ef0bcb84cb68f453f68d3db7946f87624e28cd079c023fda567c390d42eb'],
+      ['llama-b12211/libllama-common.so.0.9.0', 5930104, '633d2ba78a7a37a65701eb4b0004f9e2d1c641c40793f3c239b093a212b9a73f', 'libllama-common.so.0'],
+      ['llama-b12211/libllama-completion-impl.so', 168672, '737a2a3d89a6c8653702aec92be965287af3b09980848936a06ae370a06b05f3'],
+      ['llama-b12211/libllama-fit-params-impl.so', 73000, '9331eb940cd861feba30545db7df3fbbbd50faa393e82bb6371a763fa1216dca'],
+      ['llama-b12211/libllama-perplexity-impl.so', 157360, '221a5ff0dd2b1bbd058f94969a556c96956643f8b8bd5aa7a9a6e0a31de78f24'],
+      ['llama-b12211/libllama-quantize-impl.so', 81160, '839bbfbab7086fb8da55ae9877403adaef650b82c6ac4d67ea5db2932a46bb3b'],
+      ['llama-b12211/libllama-server-impl.so', 7552664, '1ae837e0949e261ffb6e26c539bcd84f7ac6dababa8101175f1319a69dc9bd71'],
+      ['llama-b12211/libllama.so.0.9.0', 5236896, '227ad2580212eb8219b3157ed3fac41eb7b142e4f7e646de957754339ab013e5', 'libllama.so.0'],
+      ['llama-b12211/libmtmd.so.0.9.0', 2195616, 'cbd50a72300cb6fc41403610952f98d0568b3bf9d7c37c06369e4e038a6132e8', 'libmtmd.so.0'],
+      ['llama-b12211/llama', 76304, '956bbe645851187290f9c92384687b33f1e749aeb7c83294bffe5726803eeaf2'],
+      ['llama-b12211/llama-batched-bench', 70304, '09f20becdca03300c4555159035ee35a89c6592a88cbe0ece2c16586a5c4ebc4'],
+      ['llama-b12211/llama-bench', 72448, '64d6d0874d7492d4a89dfaed0b8f7a6afc938d0fbb9f01cb25def31831ea737d'],
+      ['llama-b12211/llama-cli', 1377184, '5d3cb8d37d85059f3508d85464dd61559ac5b6b47b0b7e55e72c29fabfe4e0b8'],
+      ['llama-b12211/llama-completion', 70304, 'e7d50fd11ccc28b19d9d9868204455f10a723a78c75e93f44bb158e0dd553c93'],
+      ['llama-b12211/llama-connect', 8450528, '6d04d8aeff7c3ed463b0f28a4de0c312c9768f1598762cc385858109e46c1901'],
+      ['llama-b12211/llama-fit-params', 70304, '80d389805a2eaecf2adb5da7e8d257735f1b6754b78c022780577ddad590e692'],
+      ['llama-b12211/llama-gemma3-cli', 71432, 'b4e5891316104e12a491d69c52a7e95faece98fe978ec1caeba9de3830fbfb1c'],
+      ['llama-b12211/llama-gguf-split', 78016, '12974d1154d7286bfaccf04d2bd3a980965b44e0e0213a29943352ab7873d830'],
+      ['llama-b12211/llama-imatrix', 228472, '77cb1c46d5b6023868cd13f12b827c83a4de8c9212ce1b482d937f56104b1d35'],
+      ['llama-b12211/llama-llava-cli', 71432, 'b4e5891316104e12a491d69c52a7e95faece98fe978ec1caeba9de3830fbfb1c'],
+      ['llama-b12211/llama-minicpmv-cli', 71432, 'b4e5891316104e12a491d69c52a7e95faece98fe978ec1caeba9de3830fbfb1c'],
+      ['llama-b12211/llama-mtmd-cli', 82392, 'e98af485f27f3c523c0541d818961ee8704909962949df648415c03b317e20e2'],
+      ['llama-b12211/llama-mtmd-debug', 76008, '666e976ba80ede30e5239a5f913ea3940cea38c2cefac5f95c3e1e9601047a0f'],
+      ['llama-b12211/llama-perplexity', 70304, 'e014db4ceefbc248dccfe4fb698adbcf41bdda97df6a994d56b914aecf7d9b3c'],
+      ['llama-b12211/llama-quantize', 72448, '4de7b7fc8ad0ebf17de78f40afa63de12af32e4f6c8f03a31a05ef7ddc8d38af'],
+      ['llama-b12211/llama-qwen2vl-cli', 71432, 'b4e5891316104e12a491d69c52a7e95faece98fe978ec1caeba9de3830fbfb1c'],
+      ['llama-b12211/llama-results', 75760, '86164845748ddcb573aae37dc4fa2b7c041f081ca4f51775bf37d5378270db9c'],
+      ['llama-b12211/llama-server', 72448, 'efead3f14fe1252a28e178b0ea34ee5e894426d5f123930c28fe0fbf08a47816'],
+      ['llama-b12211/llama-tokenize', 74656, 'a96ef67e23081b28f9e8467ac42278c07004475617dfe0059164a5f834450c73'],
+      ['llama-b12211/llama-tts', 75576, 'b82f15dc70cb883251fc301b0a971253c0a39d1fc6eea31a2333226bc3c2fe4a'],
+      ]) }),
+    'win32-arm64-cpu': Object.freeze({ asset: 'llama-b12211-bin-win-cpu-arm64.zip', size: 13236751, sha256: 'bf52f65602d713a4a13ed366a8ba8d924558bb43be04b7a37f4f5f506a6b6512', kind: 'zip', exe: 'llama-server.exe',
+      files: Object.freeze([
+      ['LICENSE-LLVM-OpenMP', 19741, 'fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4'],
+      ['ggml-base.dll', 694784, 'f6495acd2c54fcfd4d06dd88ab6091d8bfeeaa527f0a64211de0a028e8fa0919'],
+      ['ggml-cpu.dll', 843264, 'b75a5ffe47ab33aa8476e9376353f860f5140b44a620f3c582f024e535340f57'],
+      ['ggml-rpc-server.exe', 108032, '1519b567bbaa6d6d32a2e1886ebd8c69d44ca95f24a8137bdf7c6c05b2ae4bf6'],
+      ['ggml-rpc.dll', 218112, '960f39bc142242a15f664e5577c02673b21c4d1b5621ebf1aa37dc468eaaaa7b'],
+      ['ggml.dll', 69120, 'ac0fc875716ef475b7c8569ae3dc2d44df042c43f9f861d98967937fe37d85e1'],
+      ['libomp.dll', 764928, '26caae17f29aaf2238f664375b663cd306d596bc9e36e780fa88356c51fe876a'],
+      ['llama-batched-bench-impl.dll', 47104, '4ef89bb1721ff9e2f396562d94ce73cdd456b9251a629a7997516ca57adf4387'],
+      ['llama-batched-bench.exe', 10240, '2a9114ee63217701187272af7d31da8426e9e9b308d43f818cd2efe530e5ee71'],
+      ['llama-bench-impl.dll', 339456, 'a2ef4ccd3460554164eb4f5e5713051415ceb995ea4d3954cf4de38c48950ab6'],
+      ['llama-bench.exe', 10240, 'ded3abfed737e7c687229e8ed07292a70319ae81a1b22a352420033c05b1fe6f'],
+      ['llama-cli-impl.dll', 3083776, '0485710f51d79700b445e15f998a581f223d8de2af7adaab3dcfc92fbf57c1e7'],
+      ['llama-cli.exe', 10240, '40edf758f1a526c78230a025a6db601fb05cd3388014acd4b20c9b77d42ce968'],
+      ['llama-common.dll', 7407616, '5a3a9b268cb588ec9e662a3b7adc418d8070eda2c29b481716d87327b084ae72'],
+      ['llama-completion-impl.dll', 123904, '627b48f0ae58772ed55d9e1dc7b006ebec2effcd21fee3d9d248e5bcac6135f5'],
+      ['llama-completion.exe', 10240, 'e48bebbcc10b8c323fbdad2f518c8b3f85ea8f4b7a4498b83d83ddf2cd476b5b'],
+      ['llama-fit-params-impl.dll', 33792, '67d69825404de3f5fbcd1d6bd825bb00c0b96415b478237781fd56b00e17a416'],
+      ['llama-fit-params.exe', 10240, 'f2c0db63d5d501620067f4b8add99654fc4c90758bcf553189759111e1cf6001'],
+      ['llama-gemma3-cli.exe', 24064, 'c57a3ca36fc5796db7c523ca063a167e86ecfe0852d80e0547515adbecdb3a3b'],
+      ['llama-gguf-split.exe', 56320, 'f430a31921df9806fc7da01a381a4e93986009ece8670f7cc1d65e926f390458'],
+      ['llama-imatrix.exe', 199168, '5142708e010174d403cd6403e01e6cc0a3f3c46bfac56a0696c9f79bb1b60611'],
+      ['llama-llava-cli.exe', 24064, 'c57a3ca36fc5796db7c523ca063a167e86ecfe0852d80e0547515adbecdb3a3b'],
+      ['llama-minicpmv-cli.exe', 24064, 'c57a3ca36fc5796db7c523ca063a167e86ecfe0852d80e0547515adbecdb3a3b'],
+      ['llama-mtmd-cli.exe', 78336, '505ffe3a669da261c4b499068f4bd39342bc29643e07fa50a178c165acb43ce5'],
+      ['llama-mtmd-debug.exe', 44032, '914a51418e227baea63773239823212626275f360a5e3f33bda0722693bda4a6'],
+      ['llama-perplexity-impl.dll', 153088, '1c0af3d0d9e86c106b99f55cb28c34b82510495ad97bc198b2b535363eec41ce'],
+      ['llama-perplexity.exe', 10240, '3ee479540168cee5d6010f20b42962c26b36db4dd777c52b0e128c1e516f9330'],
+      ['llama-quantize-impl.dll', 125952, '8525ed2edbd30b1c741062f55718da92789f8497a89d1bde70d41fe6b51e8308'],
+      ['llama-quantize.exe', 10240, '82ad02906364108ceb697bcaa8014ce5b2d2d6ab978aebc3f3ae4ba13ebc4fbd'],
+      ['llama-qwen2vl-cli.exe', 24064, 'c57a3ca36fc5796db7c523ca063a167e86ecfe0852d80e0547515adbecdb3a3b'],
+      ['llama-results.exe', 37888, '578f2b6931869ceea33f7a896df1d0ad385306e562af4b637232f8b31d735261'],
+      ['llama-server-impl.dll', 9230336, 'b5085b678e2c31d29b7f050d004764c8394f94e07c4e9ee641b1f497fac37bcb'],
+      ['llama-server.exe', 10240, 'e390682e5a2baedfe61920282b607cd40c57b897e1d820415c61416dc79b49ec'],
+      ['llama-tokenize.exe', 50688, '4cb0f011c64af0edefc9240c546fd70662a182e9b36fd3e1b82298f18d221245'],
+      ['llama-tts.exe', 37376, 'd72fc11d28c95b667a2a7ad323a1c44182f066f48d2fb1d043205c2e121c419a'],
+      ['llama.dll', 3383808, '577fb63a4b8fd7e7eb6e8a546ec0acc3e2f297af5849351e3b220fea204256fb'],
+      ['llama.exe', 97792, 'cb1bab2ade8ee6463b87813717f541bfbd8f006ce3fd296c11f3503e7a1e7b0a'],
+      ['mtmd.dll', 1871360, 'b2c5d763d704275d1fa00209a3c3f04676ecdf9d33061f16a771858065ad83ce'],
+      ]) }),
+    'darwin-x64-cpu': Object.freeze({ asset: 'llama-b12211-bin-macos-x64.tar.gz', size: 12455590, sha256: '6055cc672cc5c744481bb88ac1a7739ff476966c8a190ddaa20676034693a358', kind: 'tgz', exe: 'llama-b12211/llama-server',
+      files: Object.freeze([
+      ['llama-b12211/LICENSE', 1078, '94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d'],
+      ['llama-b12211/ggml-rpc-server', 120016, '15e054f67fd1006ddf109175ad0f11639f08d432951608b8458239d56bf0b0cb'],
+      ['llama-b12211/libggml-base.0.29.0.dylib', 762632, '87e3b17739dbd8742b5617a9d8b97f06d1df4e1a099a27d593dda96d1b262fa3', 'libggml-base.0.dylib'],
+      ['llama-b12211/libggml-blas.0.29.0.dylib', 33688, 'afba8390b5fa33f310a57ec4fe8baecb895998447158b7ab2f0164e2340d8d67', 'libggml-blas.0.dylib'],
+      ['llama-b12211/libggml-cpu.0.29.0.dylib', 1607728, 'afe4b60a013ebf13b28f1d26b4a8236a21964022e6884a6369a71fa32cfe3f36', 'libggml-cpu.0.dylib'],
+      ['llama-b12211/libggml-rpc.0.29.0.dylib', 225024, '3e00986163d20e7474955be9b52e499e91d29b4df9789a7951a441c8cc8240f6', 'libggml-rpc.0.dylib'],
+      ['llama-b12211/libggml.0.29.0.dylib', 43216, '7ec8a597a9b330284d7de17798ffc8aaac0a150f85761d038dfff2b12ffb3017', 'libggml.0.dylib'],
+      ['llama-b12211/libllama-batched-bench-impl.dylib', 42888, '8567d9cfa648d0ab7c9f72123328b47d289230eb13a78d794f9ba78a27e1684b'],
+      ['llama-b12211/libllama-bench-impl.dylib', 305240, 'e6a9dd34d6388a11c37345928ddc55cfd67c42473fa6b29b6c4de14bacd133b9'],
+      ['llama-b12211/libllama-cli-impl.dylib', 237784, 'adbf9f669e6cfefd5892685b48395b17e30d8cf8b3c4b71ac75205bf84884785'],
+      ['llama-b12211/libllama-common.0.9.0.dylib', 8609360, 'b0eb4dc563a5a3e96d7d324683f70f7922f73550b563478a5b263ee5463bd2f2', 'libllama-common.0.dylib'],
+      ['llama-b12211/libllama-completion-impl.dylib', 107792, '36994e3adaccba3999247b33fb8a9e2061045ad1cc70e718688165c709e00fda'],
+      ['llama-b12211/libllama-fit-params-impl.dylib', 33392, '5c51c45ad6595ffd0df26fdbc507f757501d34beb1013bb220847149ace4180d'],
+      ['llama-b12211/libllama-perplexity-impl.dylib', 142184, '2f33faa3b3c3c26c3abfc18d8d29a17a8266077d8bdecca32fac294f47577b05'],
+      ['llama-b12211/libllama-quantize-impl.dylib', 75216, '35450de65893f8d8d46ffef0120820c8be7f3c038d95f5bd348fc925ecf99b63'],
+      ['llama-b12211/libllama-server-impl.dylib', 10246936, '0c727615c8b47e7ab5264eb95bd3734f4b29cc52962630a4e95b4aff78e0449b'],
+      ['llama-b12211/libllama.0.9.0.dylib', 4116744, '7a282a53825adc07a893bcd3b1806a6f2d0d12c0295dc1a361121d3d027ff6ff', 'libllama.0.dylib'],
+      ['llama-b12211/libmtmd.0.9.0.dylib', 1829384, '7a16015a1bb968182fd26dc56086fb06b71aa7e07e19455bc29fa54d894ae86a', 'libmtmd.0.dylib'],
+      ['llama-b12211/llama', 77128, '363531e45faec94dec0d877a96140f21d0770ee4a207b8ee3c399665d5779a1a'],
+      ['llama-b12211/llama-batched-bench', 16680, '370f9d9558e949f4e560538a3d50bf854d5c8e7003649eca8c08766aa883e68d'],
+      ['llama-b12211/llama-bench', 16664, '4d8a2c008036280936aa1411530852d933f6de223d9b8d6ccb7c0ca5398a8433'],
+      ['llama-b12211/llama-cli', 20744, '454ab69e56e50b1f30dffc9a8dd56bae4b11816c54f214406fc0b62a51e559bc'],
+      ['llama-b12211/llama-completion', 16664, '6e711c4868dc031cf27148ff9a03218d8b3467f136a967f5e6fe82d8810626b1'],
+      ['llama-b12211/llama-cvector-generator', 76792, '73c740409719cb9e81802f6812037a0936277e70bfafce1bce664d164cf78776'],
+      ['llama-b12211/llama-export-lora', 69824, 'c92b329b4190aeb64d7115ebd4d28d1d4e3bd68e6cd688b1e3c38f801699c618'],
+      ['llama-b12211/llama-fit-params', 16664, 'c38e635d96227f4f8ecf0468334a0361aa911da2d836331fc5d846f6a21f27e9'],
+      ['llama-b12211/llama-gemma3-cli', 14440, 'fe7d3f4472ea84bbbb95672633576af07df0ea6f9b37a8b92c4e698a4df534ae'],
+      ['llama-b12211/llama-gguf-split', 46952, 'd01eb4323680539d5865ab0a1f326177aed7728e668871a2a09fb021c356f805'],
+      ['llama-b12211/llama-imatrix', 196496, '50fa10231c6d0ff797c1b56b5c1611fd3f2bbd81740519449f876cc5922b82e2'],
+      ['llama-b12211/llama-llava-cli', 14440, 'aca81e9a9432b9efbd746c424de72195a1e4b724d64610ca1f28901e61671f83'],
+      ['llama-b12211/llama-minicpmv-cli', 14440, '221d42bb44606b16e6f21c9b127846c9dbc17682bea59d900408c141778fdfe8'],
+      ['llama-b12211/llama-mtmd-cli', 77640, '5f6f03fa56c8f78117291fd0f74e81b615a7c7e46928642178a579f380e33bc1'],
+      ['llama-b12211/llama-mtmd-debug', 53776, '56843e9280d97bb0da47dc0cb9246203b1ab9740ad6857df7c6bb5070adf6782'],
+      ['llama-b12211/llama-perplexity', 16664, '1bb094637b23f92a14fca4263df2b3e3e538afb79eac20928d10bb7ca832a5b6'],
+      ['llama-b12211/llama-quantize', 16664, '689c57bf38c3a137ce468bdc9b822c7c9cf39298c91e8046f3237ac875488bc5'],
+      ['llama-b12211/llama-qwen2vl-cli', 14440, 'f0056e4e1a9e127c3a99cff00e96dcff7770a3914981069568a18a815c24c4f7'],
+      ['llama-b12211/llama-results', 45008, '636412b20914c5dc8b9880c9c4609f2eeca12b404b2df11ed186682b33816f8f'],
+      ['llama-b12211/llama-server', 20760, '55364f57dea886f675fe240eaf2a3efd1700805447b24fef535f33b74a3d8941'],
+      ['llama-b12211/llama-tokenize', 40760, '814d69957f42d824a6d6cfc3c321a632377e2b5e204a142cc6840f8dd77dde36'],
+      ['llama-b12211/llama-tts', 45600, '8c36b6d614595d05f022024645cb6d351010686bb66b803c62638ab773d97cf6'],
+      ]) }),
     // Spec 0003 M3: one macOS arm64 archive serves both keys; Metal or CPU is picked by the server's arguments.
     'darwin-arm64-metal': MACOS_ARCHIVE,
     'darwin-arm64-cpu': MACOS_ARCHIVE,
@@ -345,7 +477,7 @@ export const SOURCES = Object.freeze({
 // The only two repos a pin may name. A test holds both names as its own constants.
 const SERVER_REPO = 'ggml-org/llama.cpp';
 const MODEL_REPO = 'ggml-org/Clef-Flash-GGUF';
-const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan', 'darwin-arm64-metal', 'darwin-arm64-cpu']);
+const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan', 'darwin-arm64-metal', 'darwin-arm64-cpu', 'linux-arm64-cpu', 'win32-arm64-cpu', 'darwin-x64-cpu']);
 
 const MAX_REDIRECTS = 4;
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -409,6 +541,8 @@ export function pinProblems(server = SERVER, model = MODEL, repos = { server: SE
     if (typeof a.sha256 !== 'string' || !HEX64.test(a.sha256)) out.push('sha256');
     if (!Number.isSafeInteger(a.size) || a.size <= 0) out.push('size');
     if (a.kind !== 'zip' && a.kind !== 'tgz') out.push('kind');
+    // Spec 0005 U3: a Linux row names the glibc floor U5 found, as a string such as '2.35'.
+    if (key.startsWith('linux-') && !(typeof a.glibc === 'string' && /^2\.[0-9]+$/.test(a.glibc))) out.push('glibc');
     const rows = Array.isArray(a.files) ? a.files : [];
     const dests = new Set();
     for (const row of rows) {
@@ -789,15 +923,67 @@ export function probeVulkan({ platform, exists = existsSync, systemRoot = proces
   return ['/usr/lib', '/usr/lib64', '/usr/lib/x86_64-linux-gnu', '/lib/x86_64-linux-gnu'].some(d => exists(`${d}/libvulkan.so.1`));
 }
 
-/** The platform key and why, or null when no archive fits. */
-export function pickPlatform({ platform, arch, vulkan, cpu }) {
+/**
+ * The platform key and why, or null when no archive fits. `machine` is what
+ * os.machine() reports: an x64 node on an arm64 Windows machine runs the x64
+ * build under emulation, where no Vulkan loader is checked (spec 0005 U4).
+ */
+export function pickPlatform({ platform, arch, vulkan, cpu, machine }) {
   // Spec 0003 M4: every Apple Silicon Mac has Metal, so no probe decides it.
-  if (platform === 'darwin') return arch === 'arm64' ? { key: `darwin-arm64-${cpu ? 'cpu' : 'metal'}`, backend: cpu ? 'cpu' : 'metal', why: cpu ? 'CPU forced by --cpu' : 'Apple Silicon: Metal' } : null;
+  if (platform === 'darwin') {
+    if (arch === 'arm64') return { key: `darwin-arm64-${cpu ? 'cpu' : 'metal'}`, backend: cpu ? 'cpu' : 'metal', why: cpu ? 'CPU forced by --cpu' : 'Apple Silicon: Metal' };
+    // Spec 0005 U4: an Intel Mac has a CPU build; node cannot tell Rosetta from one, so the words say what to use for Metal.
+    if (arch === 'x64') return { key: 'darwin-x64-cpu', backend: 'cpu', why: 'x64 node: CPU build; on Apple Silicon, use an arm64 node for Metal' };
+    return null;
+  }
   const os = platform === 'win32' ? 'win32' : platform === 'linux' ? 'linux' : null;
-  if (!os || arch !== 'x64') return null;
-  const useVulkan = vulkan && !cpu;
-  return { key: `${os}-x64-${useVulkan ? 'vulkan' : 'cpu'}`, backend: useVulkan ? 'vulkan' : 'cpu', why: cpu ? 'CPU forced by --cpu' : vulkan ? 'Vulkan loader found' : 'no Vulkan loader: CPU' };
+  if (!os || (arch !== 'x64' && arch !== 'arm64')) return null;
+  // Spec 0005 U4: arm64 never picks Vulkan, a loader found or not.
+  if (arch === 'arm64') return { key: `${os}-arm64-cpu`, backend: 'cpu', why: 'arm64: CPU (Vulkan on arm64 is not checked yet)' };
+  const emulated = os === 'win32' && machine === 'arm64';
+  const useVulkan = vulkan && !cpu && !emulated;
+  return { key: `${os}-x64-${useVulkan ? 'vulkan' : 'cpu'}`, backend: useVulkan ? 'vulkan' : 'cpu', why: cpu ? 'CPU forced by --cpu' : emulated ? 'x64 node on an arm64 machine: CPU' : vulkan ? 'Vulkan loader found' : 'no Vulkan loader: CPU' };
 }
+
+/** What os.machine() reports, or undefined where node lacks it. */
+const machineOf = () => {
+  try {
+    return osMachine();
+  } catch {
+    return undefined;
+  }
+};
+
+/** The glibc this node runs on, as the report states it (`'2.35'`), or null on a system with none (musl). */
+export function runtimeGlibc(report = process.report) {
+  let prior;
+  try {
+    prior = report?.excludeNetwork;
+    // The full report would look up the endpoints of open sockets; only one header field is wanted.
+    if (report) report.excludeNetwork = true;
+    const v = report?.getReport?.().header?.glibcVersionRuntime;
+    return typeof v === 'string' && v !== '' ? v : null;
+  } catch {
+    return null;
+  } finally {
+    try {
+      if (report) report.excludeNetwork = prior;
+    } catch {
+      // a report object that refuses the setting is left as it is
+    }
+  }
+}
+
+/** Whether glibc version `have` is below `floor`: major, then minor, each as an integer (`2.4` is below `2.35`). */
+export function glibcBelow(have, floor) {
+  const part = v => String(v).split('.').map(n => Number(n));
+  const [h1, h2 = 0] = part(have);
+  const [f1, f2 = 0] = part(floor);
+  return h1 < f1 || (h1 === f1 && h2 < f2);
+}
+
+/** The Visual C++ runtime files a Windows build imports (spec 0005 U4, decision 93): the x64 build also takes VCRUNTIME140_1. */
+const VC_RUNTIME = Object.freeze({ x64: ['MSVCP140.dll', 'VCRUNTIME140.dll', 'VCRUNTIME140_1.dll'], arm64: ['MSVCP140.dll', 'VCRUNTIME140.dll'] });
 
 // ---------------------------------------------------------------- setup (S6)
 
@@ -907,11 +1093,25 @@ function modelPresent(dir, model, setup) {
  * clef folder. Throws Refused (`clef-platform`, `clef-space`, `clef-node`,
  * `clef-setpriv`, `clef-pin`).
  */
-export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, model = MODEL }) {
+export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, model = MODEL, glibc, machine, systemRoot = process.env.SystemRoot ?? 'C:\\Windows', readMachine = process.platform === 'win32' ? machineOf : () => undefined }) {
   assertPins(server, model);
-  if (platform === 'darwin' && arch !== 'arm64') throw new Refused('clef-platform', 'no build for Intel Macs; on Apple Silicon, run setup with an arm64 node, not one under Rosetta');
-  const pick = pickPlatform({ platform, arch, vulkan: platform === 'darwin' ? false : vulkan ?? probeVulkan({ platform, exists }), cpu });
+  // Spec 0005 U4: no probe runs on macOS or on arm64, which never picks Vulkan.
+  const probes = (platform === 'win32' || platform === 'linux') && arch === 'x64';
+  const pick = pickPlatform({ platform, arch, vulkan: probes ? vulkan ?? probeVulkan({ platform, exists, systemRoot }) : false, cpu, machine: machine ?? (platform === 'win32' ? readMachine() : undefined) });
   if (!pick || !server.archives[pick.key]) throw new Refused('clef-platform', `no pinned server build for ${platform} ${arch}`);
+  // Spec 0005 U4, before any fetch: the C library the pinned Linux builds need.
+  if (platform === 'linux') {
+    const have = glibc === undefined ? runtimeGlibc() : glibc;
+    const floor = server.archives[pick.key].glibc;
+    if (have === null || have === '') throw new Refused('clef-platform', 'the pinned Linux builds need glibc; this system has none');
+    if (glibcBelow(have, floor)) throw new Refused('clef-platform', `this system has glibc ${have}; ${pick.key} needs ${floor} or newer. Use a newer glibc distribution`);
+  }
+  // Spec 0005 U4 (decision 93), before any fetch: the Windows builds import the Visual C++ runtime, which no archive carries.
+  if (platform === 'win32') {
+    const system32 = win32.join(systemRoot, 'System32');
+    const missing = VC_RUNTIME[pick.key.includes('-arm64-') ? 'arm64' : 'x64'].filter(name => !exists(win32.join(system32, name)));
+    if (missing.length) throw new Refused('clef-platform', `${pick.key} needs the Microsoft Visual C++ Redistributable, and %SystemRoot%\\System32 lacks ${missing.join(', ')}. Install the Redistributable for ${pick.key.includes('-arm64-') ? 'arm64' : 'x64'}`);
+  }
   if (platform === 'linux' && !exists('/usr/bin/setpriv')) throw new Refused('clef-setpriv', 'Linux needs /usr/bin/setpriv, which this machine does not have');
   if (insideOf(execPath, cwd, platform === 'win32', platform === 'darwin')) throw new Refused('clef-node', 'the node that runs setup lies inside the folder the command was started from');
   const a = server.archives[pick.key];
@@ -1182,9 +1382,10 @@ export function supervisorEnv(env, platform, runtime) {
 }
 
 /** The server's argument list: fixed in the tool, no part from a caller. The key is in a file, never on the command line. */
-export function serverArgs({ port, keyFile, modelPath, vulkan, metal, noDevice }) {
+export function serverArgs({ port, keyFile, modelPath, vulkan, metal, noDevice, cpu }) {
   // --cors-origins names an origin no page has, so a web page cannot read even the server's keyless /health.
-  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan || metal ? ['-ngl', '99'] : []), ...(noDevice ? ['--device', 'none'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath];
+  // Spec 0005 U4: -nr ends the list on a CPU backend; b12211 aborts loading Clef-Flash when the CPU backend repacks weights.
+  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan || metal ? ['-ngl', '99'] : []), ...(noDevice ? ['--device', 'none'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath, ...(cpu ? ['-nr'] : [])];
 }
 
 /** The program and arguments that start the server: on Linux through setpriv, so the kernel ends it when the supervisor dies. */
@@ -1656,7 +1857,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const serverPort = await freePort();
   writeFileSync(rp.key, `${serverKey}\n`, { mode: 0o600 });
   const exePath = exe ?? join(p.runtime, destName(ready.archive.exe, ready.archive.exe));
-  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan', metal: ready.setup.backend === 'metal', noDevice: ready.setup.platform === 'darwin-arm64-cpu' }), pdeathsig });
+  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan', metal: ready.setup.backend === 'metal', noDevice: ready.setup.platform === 'darwin-arm64-cpu', cpu: ready.setup.backend === 'cpu' }), pdeathsig });
   let stopping = false;
   let isReady = false;
   let lastForward = now();

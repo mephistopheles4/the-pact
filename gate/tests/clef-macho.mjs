@@ -9,7 +9,7 @@ const LC_RPATH = 0x8000001c;
 const LC_ID_DYLIB = 0xd;
 const LC_BUILD_VERSION = 0x32;
 const THIN_ARM64 = 0xfeedfacf;
-const CPU_ARM64 = 0x0100000c;
+const CPU = { arm64: 0x0100000c, x86_64: 0x01000007 };
 const MAGICS = new Set([0xfeedface, 0xfeedfacf, 0xcefaedfe, 0xcffaedfe, 0xcafebabe, 0xbebafeca, 0xcafebabf, 0xbfbafeca]);
 const ALLOWED = ['@rpath/', '@loader_path/', '@executable_path/', '/usr/lib/', '/System/'];
 
@@ -22,10 +22,10 @@ const cstr = (buf, at, end) => {
 };
 const version = v => `${v >>> 16}.${(v >>> 8) & 0xff}.${v & 0xff}`;
 
-/** The load commands of one thin arm64 Mach-O, as { loads: [{ kind, name }], rpaths, id, minos }; throws on another shape. */
-export function readMachO(buf) {
+/** The load commands of one thin Mach-O of `arch` (arm64 or x86_64), as { loads: [{ kind, name }], rpaths, id, minos }; throws on another shape. */
+export function readMachO(buf, arch = 'arm64') {
   if (buf.length < 32 || buf.readUInt32LE(0) !== THIN_ARM64) throw new Error('not a thin 64-bit Mach-O');
-  if (buf.readUInt32LE(4) !== CPU_ARM64) throw new Error('not arm64');
+  if (buf.readUInt32LE(4) !== CPU[arch]) throw new Error(`not ${arch}`);
   const ncmds = buf.readUInt32LE(16);
   const out = { loads: [], rpaths: [], id: null, minos: null };
   let at = 32;
@@ -49,13 +49,13 @@ export function readMachO(buf) {
  * the runtime folder will hold (a copy under a link's name included) to its
  * bytes. Each flag is a plain sentence; an empty list means the set passes.
  */
-export function machoFlags(files) {
+export function machoFlags(files, { arch = 'arm64' } = {}) {
   const flags = [];
   const read = new Map();
   for (const [name, buf] of files) {
     if (!looksMachO(buf)) continue;
     try {
-      read.set(name, readMachO(buf));
+      read.set(name, readMachO(buf, arch));
     } catch (e) {
       flags.push(`${name}: ${e.message}`);
     }

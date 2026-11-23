@@ -59,3 +59,22 @@ for (const [label, plant, says] of [
     assert.ok(flags.some(f => says.test(f)), flags.join('\n'));
   });
 }
+
+// #PACT-91 C-U4 (spec 0005 U5): the check takes the thin arch from the row.
+const X86 = 0x01000007;
+const x86set = () => new Map([
+  ['llama-server', macho([['rpath', '@loader_path'], ['load', '@rpath/libggml.0.dylib'], ['load', '/usr/lib/libSystem.B.dylib']], { cpu: X86 })],
+  ['libggml.0.dylib', macho([['rpath', '@loader_path'], ['load', '/usr/lib/libc++.1.dylib']], { cpu: X86 })],
+]);
+test('Mach-O check: an x86_64 set passes as x86_64', () => {
+  assert.deepEqual(machoFlags(x86set(), { arch: 'x86_64' }).flags, []);
+});
+for (const [label, set, arch, says] of [
+  ['an arm64 file checked as x86_64', good(), 'x86_64', /llama-server: not x86_64/],
+  ['a fat file checked as x86_64', new Map([['libggml.0.dylib', Buffer.from([0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2])]]), 'x86_64', /libggml\.0\.dylib: not a thin 64-bit Mach-O/],
+]) {
+  test(`bad case: the Mach-O check flags ${label}`, () => {
+    const { flags } = machoFlags(set, { arch });
+    assert.ok(flags.some(f => says.test(f)), flags.join('\n'));
+  });
+}

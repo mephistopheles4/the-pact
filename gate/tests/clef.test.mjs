@@ -125,6 +125,8 @@ const miniServer = (zipBuf = ZIP()) => ({
   tag: 'b1',
   archives: { 'win32-x64-cpu': { asset: 'llama-b1-bin-win-cpu-x64.zip', size: zipBuf.length, sha256: sha(zipBuf), kind: 'zip', exe: EXE, files: ROWS() }, 'win32-x64-vulkan': { asset: 'llama-b1-bin-win-vulkan-x64.zip', size: zipBuf.length, sha256: sha(zipBuf), kind: 'zip', exe: EXE, files: ROWS() } },
 });
+/** A one-row Linux table whose row names the glibc floor it needs (spec 0005 U3). */
+const linuxServer = (glibc = '2.35') => ({ ...miniServer(), archives: { 'linux-x64-cpu': { ...miniServer().archives['win32-x64-cpu'], asset: 'llama-b1-bin-ubuntu-x64.tar.gz', kind: 'tgz', glibc } } });
 const miniModel = () => ({ repo: 'ggml-org/Clef-Flash-GGUF', commit: 'a'.repeat(40), file: 'Clef-Flash-Q4_K_M.gguf', size: MODEL_BYTES.length, sha256: sha(MODEL_BYTES) });
 const hostsOf = { server: { origin: 'https://github.com', redirects: ['release-assets.githubusercontent.com'] }, model: { origin: 'https://huggingface.co', redirects: ['us.aws.cdn.hf.co'] } };
 /** Serves the mini table's archive and model, each through one redirect to its listed host. */
@@ -135,7 +137,7 @@ const servingTransport = (zipBuf = ZIP()) => transportOf(url => {
   if (url.host === 'us.aws.cdn.hf.co') return ok(MODEL_BYTES);
   return { status: 404 };
 });
-const setupArgs = (t, over = {}) => ({ dir: join(tempDir(t, 'clef-home-'), 'pact-clef'), platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: 'C:\\work', free: 1e12, vulkan: false, server: miniServer(), model: miniModel(), sources: hostsOf, transport: servingTransport(), ...over });
+const setupArgs = (t, over = {}) => ({ dir: join(tempDir(t, 'clef-home-'), 'pact-clef'), platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: 'C:\\work', free: 1e12, vulkan: false, exists: () => true, server: miniServer(), model: miniModel(), sources: hostsOf, transport: servingTransport(), ...over });
 
 // ------------------------------------------------------------ the pin table's shape (C3, C21)
 
@@ -147,6 +149,13 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
   assert.ok(Object.isFrozen(clef.SERVER) && Object.isFrozen(clef.MODEL) && Object.isFrozen(clef.SERVER.archives) && Object.isFrozen(clef.SOURCES));
   for (const key of ['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan']) {
     assert.equal(SOURCE_TEXT.split(`'${key}': Object.freeze(`).length, 2, `one row for ${key}`);
+    assert.ok(clef.SERVER.archives[key].files.length > 0, `${key} names the files it keeps`);
+  }
+  // #PACT-91 C-U2 (spec 0005 U3): the three new rows (the glibc floor is held by the shape check above).
+  const want = { 'linux-arm64-cpu': ['llama-b12211-bin-ubuntu-arm64.tar.gz', 'tgz'], 'win32-arm64-cpu': ['llama-b12211-bin-win-cpu-arm64.zip', 'zip'], 'darwin-x64-cpu': ['llama-b12211-bin-macos-x64.tar.gz', 'tgz'] };
+  for (const [key, [asset, kind]] of Object.entries(want)) {
+    assert.equal(SOURCE_TEXT.split(`'${key}': Object.freeze(`).length, 2, `one row for ${key}`);
+    assert.deepEqual([clef.SERVER.archives[key].asset, clef.SERVER.archives[key].kind], [asset, kind]);
     assert.ok(clef.SERVER.archives[key].files.length > 0, `${key} names the files it keeps`);
   }
   // Spec 0003 M3: both darwin keys name the one macOS row, which keeps the server and its .0.dylib copies.
@@ -200,7 +209,12 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'copy-twice', plant: x => { first(x.server).files[0].push('a.so.0', 'b.so.0'); return x; }, fails: ['file-copy'], why: 'one copy at most' },
     { id: 'copy-collides', plant: x => { first(x.server).files[0][3] = 'ggml-cpu.dll'; return x; }, fails: ['file-dup'], why: 'a copy landing on another kept file' },
     { id: 'exe-missing', plant: x => { first(x.server).exe = 'bin/nothing.exe'; return x; }, fails: ['exe'], why: 'the executable is one of the kept files' },
-    { id: 'platform-key', plant: x => { x.server.archives['darwin-x64-cpu'] = x.server.archives['win32-x64-cpu']; return x; }, fails: ['platform-key'], why: 'only the six platform keys; Intel Macs have none' },
+    { id: 'platform-key', plant: x => { x.server.archives['freebsd-x64-cpu'] = x.server.archives['win32-x64-cpu']; return x; }, fails: ['platform-key'], why: 'only the nine platform keys; FreeBSD has none' },
+    // #PACT-91 C-U2: a Linux row names its glibc floor as 2.<minor>.
+    { id: 'glibc-missing', plant: x => { const r = linuxServer().archives['linux-x64-cpu']; delete r.glibc; x.server.archives['linux-x64-cpu'] = r; return x; }, fails: ['glibc'], why: 'a Linux row without its glibc floor' },
+    { id: 'glibc-patch-level', plant: x => { x.server.archives['linux-x64-cpu'] = linuxServer('2.35.1').archives['linux-x64-cpu']; return x; }, fails: ['glibc'], why: 'major and minor only' },
+    { id: 'glibc-other-major', plant: x => { x.server.archives['linux-x64-cpu'] = linuxServer('3.0').archives['linux-x64-cpu']; return x; }, fails: ['glibc'], why: 'glibc is 2.x' },
+    { id: 'glibc-a-number', plant: x => { x.server.archives['linux-x64-cpu'] = linuxServer(2.35).archives['linux-x64-cpu']; return x; }, fails: ['glibc'], why: 'a string, since 2.4 and 2.40 must not collide' },
   ];
   test('pin table shape: base passes', () => assert.deepEqual(run(base()).fails, []));
   for (const r of rows) {
@@ -514,11 +528,9 @@ test('the probe picks Vulkan on the loader file and CPU without it, runs nothing
   assert.deepEqual(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: true, cpu: false }), { key: 'win32-x64-vulkan', backend: 'vulkan', why: 'Vulkan loader found' });
   assert.deepEqual(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: false, cpu: false }), { key: 'win32-x64-cpu', backend: 'cpu', why: 'no Vulkan loader: CPU' });
   assert.equal(clef.pickPlatform({ platform: 'linux', arch: 'x64', vulkan: true, cpu: true }).key, 'linux-x64-cpu');
-  // Spec 0003 M4: Apple Silicon picks Metal, or CPU with --cpu; an Intel Mac has no build.
+  // Spec 0003 M4: Apple Silicon picks Metal, or CPU with --cpu.
   assert.deepEqual(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: false }), { key: 'darwin-arm64-metal', backend: 'metal', why: 'Apple Silicon: Metal' });
   assert.deepEqual(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: true }), { key: 'darwin-arm64-cpu', backend: 'cpu', why: 'CPU forced by --cpu' });
-  assert.equal(clef.pickPlatform({ platform: 'darwin', arch: 'x64', vulkan: false, cpu: false }), null);
-  assert.equal(clef.pickPlatform({ platform: 'win32', arch: 'arm64', vulkan: false, cpu: false }), null);
   const probe = SOURCE_TEXT.slice(SOURCE_TEXT.indexOf('export function probeVulkan'), SOURCE_TEXT.indexOf('export function pickPlatform'));
   assert.ok(probe.length > 100);
   assert.doesNotMatch(probe, /spawn|exec|child_process/, 'the probe starts nothing');
@@ -537,6 +549,32 @@ test('the probe picks Vulkan on the loader file and CPU without it, runs nothing
   assert.doesNotMatch(SOURCE_TEXT, /execFile|execSync|spawnSync|shell: true/, 'no shell and no helper program');
   assert.equal(SOURCE_TEXT.split('spawn(').length - 1, 2, 'the supervisor and the server are the only programs started');
 });
+
+// #PACT-91 C-U1 (spec 0005 U4): the pick on arm64, on an Intel Mac and under emulation, and the arches it refuses.
+test('pickPlatform: arm64 on Windows and Linux picks CPU even with a Vulkan loader, and says why', () => {
+  const why = 'arm64: CPU (Vulkan on arm64 is not checked yet)';
+  for (const platform of ['win32', 'linux']) {
+    for (const vulkan of [true, false]) {
+      for (const cpu of [true, false]) assert.deepEqual(clef.pickPlatform({ platform, arch: 'arm64', vulkan, cpu }), { key: `${platform}-arm64-cpu`, backend: 'cpu', why });
+    }
+  }
+});
+
+test('pickPlatform: an Intel Mac picks darwin-x64-cpu with and without --cpu', () => {
+  const want = { key: 'darwin-x64-cpu', backend: 'cpu', why: 'x64 node: CPU build; on Apple Silicon, use an arm64 node for Metal' };
+  assert.deepEqual(clef.pickPlatform({ platform: 'darwin', arch: 'x64', vulkan: false, cpu: false }), want);
+  assert.deepEqual(clef.pickPlatform({ platform: 'darwin', arch: 'x64', vulkan: false, cpu: true }), want);
+});
+
+test('pickPlatform: an x64 node on an arm64 Windows machine picks CPU even with a Vulkan loader; elsewhere Vulkan holds', () => {
+  assert.deepEqual(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: true, cpu: false, machine: 'arm64' }), { key: 'win32-x64-cpu', backend: 'cpu', why: 'x64 node on an arm64 machine: CPU' });
+  assert.equal(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: true, cpu: false, machine: 'x86_64' }).key, 'win32-x64-vulkan');
+  assert.equal(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: true, cpu: false }).key, 'win32-x64-vulkan');
+});
+
+for (const [platform, arch] of [['linux', 'ia32'], ['win32', 'ia32'], ['linux', 's390x'], ['linux', 'ppc64'], ['darwin', 'ia32'], ['freebsd', 'x64']]) {
+  test(`pickPlatform: ${platform} ${arch} has no build`, () => assert.equal(clef.pickPlatform({ platform, arch, vulkan: false, cpu: false }), null));
+}
 
 // ------------------------------------------------------------ setup: the plan and the fetch (C4, C5, C7)
 
@@ -558,7 +596,7 @@ test('setup without --yes prints the plan, makes no request, and writes nothing 
 test('setup with the real table prints the real plan and still fetches nothing', async t => {
   const dir = join(tempDir(t, 'clef-home-'), 'pact-clef');
   const transport = transportOf(() => { throw new Error('a request was made'); });
-  const r = await clef.runSetup({ dir, platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: 'C:\\work', free: 1e12, vulkan: true, transport });
+  const r = await clef.runSetup({ dir, platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: 'C:\\work', free: 1e12, vulkan: true, machine: 'x86_64', exists: () => true, transport });
   assert.equal(transport.calls.length, 0);
   assert.match(r.lines.join('\n'), /fetch: github\.com llama-b12211-bin-win-vulkan-x64\.zip 37\.8 MB sha256 20954cba/);
   assert.match(r.lines.join('\n'), /fetch: huggingface\.co Clef-Flash-Q4_K_M\.gguf 6732\.8 MB sha256 eef2968c/);
@@ -577,13 +615,21 @@ test('setup with the real table prints the real plan and still fetches nothing',
     }
   };
   const rows = [
-    { id: 'no-platform-intel-mac', plant: () => ({ platform: 'darwin', arch: 'x64' }), fails: ['clef-platform'], why: 'Intel Macs have no build (spec 0003 M4)' },
-    { id: 'no-platform-arm', plant: () => ({ arch: 'arm64' }), fails: ['clef-platform'], why: 'Windows on ARM is out of scope' },
+    { id: 'no-platform-freebsd', plant: () => ({ platform: 'freebsd', arch: 'x64' }), fails: ['clef-platform'], why: 'FreeBSD has no build (spec 0005 C-U1; the Intel Mac refusal moved here)' },
+    { id: 'no-platform-ia32', plant: () => ({ arch: 'ia32' }), fails: ['clef-platform'], why: 'a 32-bit node has no build' },
     { id: 'no-row-for-key', plant: () => ({ server: { ...miniServer(), archives: {} } }), fails: ['clef-platform'], why: 'the table has no row for the platform' },
     { id: 'too-little-space', plant: () => ({ free: 100 }), fails: ['clef-space'], why: 'the drive cannot hold the files' },
     { id: 'node-in-the-folder', plant: () => ({ execPath: 'C:\\work\\evil\\node.exe', cwd: 'C:\\work' }), fails: ['clef-node'], why: 'a node inside the starting folder' },
     { id: 'node-in-the-folder-cased', plant: () => ({ execPath: 'c:\\WORK\\node.exe', cwd: 'C:\\work' }), fails: ['clef-node'], why: 'Windows compares names without case' },
-    { id: 'linux-without-setpriv', plant: () => ({ platform: 'linux', exists: () => false, server: { ...miniServer(), archives: { 'linux-x64-cpu': { ...miniServer().archives['win32-x64-cpu'], asset: 'llama-b1-bin-ubuntu-x64.tar.gz', kind: 'tgz' } } } }), fails: ['clef-setpriv'], why: 'Linux needs /usr/bin/setpriv' },
+    { id: 'linux-without-setpriv', plant: () => ({ platform: 'linux', exists: () => false, glibc: '2.35', server: linuxServer() }), fails: ['clef-setpriv'], why: 'Linux needs /usr/bin/setpriv' },
+    // #PACT-91 C-U3: the C library is checked before any fetch.
+    { id: 'linux-without-glibc', plant: () => ({ platform: 'linux', glibc: null, server: linuxServer() }), fails: ['clef-platform'], why: 'a musl system reports no glibc' },
+    { id: 'linux-glibc-below-the-row', plant: () => ({ platform: 'linux', glibc: '2.34', server: linuxServer('2.35') }), fails: ['clef-platform'], why: 'the row needs 2.35' },
+    { id: 'linux-glibc-2-4-below-2-35', plant: () => ({ platform: 'linux', glibc: '2.4', server: linuxServer('2.35') }), fails: ['clef-platform'], why: 'versions compare as integers, so 2.4 is below 2.35' },
+    // #PACT-91 C-U3 (decision 93): the Visual C++ runtime is checked before any fetch.
+    { id: 'windows-without-msvcp140', plant: () => ({ exists: p => !/MSVCP140\.dll$/i.test(p) }), fails: ['clef-platform'], why: 'MSVCP140.dll is missing from System32' },
+    { id: 'windows-without-vcruntime140', plant: () => ({ exists: p => !/VCRUNTIME140\.dll$/i.test(p) }), fails: ['clef-platform'], why: 'VCRUNTIME140.dll is missing from System32' },
+    { id: 'windows-x64-without-vcruntime140-1', plant: () => ({ exists: p => !/VCRUNTIME140_1\.dll$/i.test(p) }), fails: ['clef-platform'], why: 'the x64 build also needs VCRUNTIME140_1.dll' },
     { id: 'bad-pin', plant: () => ({ model: { ...miniModel(), commit: 'main' } }), fails: ['clef-pin'], why: 'a table that fails its shape check fetches nothing' },
   ];
   test('setup refusals: base passes', async t => assert.deepEqual((await run(base(), t)).fails, []));
@@ -595,6 +641,53 @@ test('setup with the real table prints the real plan and still fetches nothing',
     });
   }
   test('setup refusals: base passes after the rows', async t => assert.deepEqual((await run(base(), t)).fails, []));
+  // #PACT-91 C-U3: at or above the row's glibc, setup passes the check.
+  // The seam answers only for setpriv, so a pass also shows that no OpenSSL file is asked for (decision 93: no OpenSSL check on Linux).
+  for (const glibc of ['2.35', '2.36', '2.100', '3.0']) {
+    test(`setup: glibc ${glibc} passes a row that needs 2.35`, t => {
+      assert.doesNotThrow(() => clef.planSetup({ ...setupArgs(t), platform: 'linux', exists: p => p === '/usr/bin/setpriv', glibc, server: linuxServer('2.35') }));
+    });
+  }
+  // #PACT-91 C-U3: the real read takes glibcVersionRuntime from the report, asks it without network lookups, and answers null where there is none.
+  test('runtimeGlibc: reads glibcVersionRuntime, leaves excludeNetwork as it found it, and gives null for musl or a failing report', () => {
+    let seen;
+    const report = { excludeNetwork: false, getReport() { seen = this.excludeNetwork; return { header: { glibcVersionRuntime: '2.31', glibcVersionCompiler: '9.99' } }; } };
+    assert.equal(clef.runtimeGlibc(report), '2.31');
+    assert.equal(seen, true, 'the report is built without network lookups');
+    assert.equal(report.excludeNetwork, false, 'the setting is put back');
+    assert.equal(clef.runtimeGlibc({ getReport: () => ({ header: {} }) }), null);
+    assert.equal(clef.runtimeGlibc({ getReport() { throw new Error('no report'); } }), null);
+  });
+  test('setup: the glibc refusal names both versions, and the musl one says the builds need glibc', t => {
+    const plan = glibc => () => clef.planSetup({ ...setupArgs(t), platform: 'linux', exists: () => true, glibc, server: linuxServer('2.35') });
+    assert.throws(plan('2.34'), e => e.code === 'clef-platform' && /2\.34/.test(e.message) && /2\.35/.test(e.message) && /newer glibc distribution/.test(e.message));
+    assert.throws(plan(null), e => e.code === 'clef-platform' && e.message === 'the pinned Linux builds need glibc; this system has none');  });
+  // #PACT-91 C-U3 (decision 93): the message names the redistributable, the seam sees System32 paths, and the arm64 build needs no VCRUNTIME140_1.
+  test('setup: a missing Visual C++ runtime names the redistributable and the missing files, looks under the given system folder, and prints no environment path', t => {
+    const seen = [];
+    const exists = p => { seen.push(p); return !/MSVCP140\.dll$|VCRUNTIME140_1\.dll$/i.test(p); };
+    assert.throws(() => clef.planSetup({ ...setupArgs(t), exists, systemRoot: 'D:\\Win' }), e => e.code === 'clef-platform' && /Microsoft Visual C\+\+ Redistributable/.test(e.message) && /MSVCP140\.dll/.test(e.message) && /VCRUNTIME140_1\.dll/.test(e.message) && /%SystemRoot%\\System32/.test(e.message) && !/D:\\Win/.test(e.message));
+    assert.ok(seen.includes('D:\\Win\\System32\\MSVCP140.dll'), seen.join('\n'));
+  });
+  test('setup: the Vulkan probe looks under the same system folder', t => {
+    const seen = [];
+    clef.planSetup({ ...setupArgs(t), vulkan: undefined, exists: p => { seen.push(p); return true; }, systemRoot: 'D:\\Win' });
+    assert.ok(seen.some(p => /^D:.Win.System32.vulkan-1\.dll$/.test(p)), seen.join('\n'));
+  });
+  test('setup: the arm64 Windows build needs MSVCP140.dll and VCRUNTIME140.dll but not VCRUNTIME140_1.dll, and runs no Vulkan probe', t => {
+    const server = { ...miniServer(), archives: { 'win32-arm64-cpu': miniServer().archives['win32-x64-cpu'] } };
+    const seen = [];
+    assert.doesNotThrow(() => clef.planSetup({ ...setupArgs(t), arch: 'arm64', exists: p => { seen.push(p); return !/VCRUNTIME140_1\.dll$/i.test(p); }, vulkan: undefined, server }));
+    assert.ok(seen.length > 0 && !seen.some(p => /vulkan/i.test(p)), seen.join('\n'));
+    assert.throws(() => clef.planSetup({ ...setupArgs(t), arch: 'arm64', exists: p => !/VCRUNTIME140\.dll$/i.test(p), server }), e => e.code === 'clef-platform');
+  });
+  test('setup: an x64 node on an arm64 Windows machine plans the CPU build, told by the machine read when none is given', t => {
+    const plan = clef.planSetup({ ...setupArgs(t), vulkan: true, machine: 'arm64' });
+    assert.equal(plan.pick.key, 'win32-x64-cpu');
+    assert.match(plan.lines.join('\n'), /^platform: win32-x64-cpu \(x64 node on an arm64 machine: CPU\)$/m);
+    assert.equal(clef.planSetup({ ...setupArgs(t), vulkan: true, readMachine: () => 'arm64' }).pick.key, 'win32-x64-cpu');
+    assert.equal(clef.planSetup({ ...setupArgs(t), vulkan: true, readMachine: () => 'x86_64' }).pick.key, 'win32-x64-vulkan');
+  });
   test('setup: a node outside the starting folder, and a sibling with a shared prefix, are not inside it', t => {
     const plan = over => clef.planSetup({ ...setupArgs(t), free: 1e12, ...over });
     assert.doesNotThrow(() => plan({ execPath: 'C:\\work2\\node.exe', cwd: 'C:\\work' }));
@@ -710,7 +803,7 @@ test('main: setup without --yes works from CLAUDE_CONFIG_DIR, goes to the clef f
   const out = [];
   const env = { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') };
   const moved = [];
-  const code = await clef.main(['setup'], { env, platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: d => moved.push(d), exists: () => false, free: 1e12, transport: transportOf(() => { throw new Error('a request was made'); }) });
+  const code = await clef.main(['setup'], { env, platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: d => moved.push(d), exists: p => /(MSVCP140|VCRUNTIME140(_1)?)\.dll$/i.test(p), free: 1e12, transport: transportOf(() => { throw new Error('a request was made'); }) });
   assert.equal(code, 0, out.join('\n'));
   assert.deepEqual(moved, [join(env.CLAUDE_CONFIG_DIR, 'pact-clef')]);
   assert.equal(out.at(-1), 'RESULT: pass');
@@ -860,12 +953,14 @@ test('claudeHome: CLAUDE_CONFIG_DIR is used as an absolute path, a relative one 
   });
 }
 
-// Spec 0003 M4: on an Intel Mac, or a node under Rosetta, setup refuses in words that say what to do; on Apple Silicon no Vulkan probe runs.
-test('setup on darwin: x64 refuses with the Rosetta words, and arm64 looks for no Vulkan loader', t => {
-  assert.throws(() => clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'x64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12 }),
-    e => e.code === 'clef-platform' && e.message === 'no build for Intel Macs; on Apple Silicon, run setup with an arm64 node, not one under Rosetta');
+// #PACT-91 C-U1 (spec 0005 U4, replacing spec 0003 M4's Rosetta refusal): an x64 node on macOS plans the CPU build and says what to use for Metal; neither arch probes for Vulkan.
+test('setup on darwin: x64 plans the CPU build with the arm64-node words, and neither arch looks for a Vulkan loader', t => {
   const looked = [];
-  const plan = clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'arm64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12, exists: p => { looked.push(p); return false; } });
+  const exists = p => { looked.push(p); return false; };
+  const x64 = clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'x64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12, exists });
+  assert.equal(x64.pick.key, 'darwin-x64-cpu');
+  assert.match(x64.lines.join('\n'), /^platform: darwin-x64-cpu \(x64 node: CPU build; on Apple Silicon, use an arm64 node for Metal\)$/m);
+  const plan = clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'arm64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12, exists });
   assert.equal(plan.key ?? plan.pick?.key, 'darwin-arm64-metal');
   assert.deepEqual(looked.filter(p => /vulkan/i.test(p)), [], 'no Vulkan probe on macOS');
 });
@@ -878,7 +973,7 @@ test('setup on darwin: a node under another case of the starting folder is clef-
 test('main: a refusal prints REFUSED and RESULT with the word, and exits 2', async t => {
   const out = [];
   const env = { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') };
-  const code = await clef.main(['setup'], { env, platform: 'darwin', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: () => {}, exists: () => false, transport: transportOf(() => ({ status: 500 })) });
+  const code = await clef.main(['setup'], { env, platform: 'freebsd', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: () => {}, exists: () => false, transport: transportOf(() => ({ status: 500 })) });
   assert.equal(code, 2);
   assert.match(out.at(-2), /^REFUSED clef-platform: /);
   assert.equal(out.at(-1), 'RESULT: refused clef-platform');
