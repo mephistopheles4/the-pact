@@ -1347,12 +1347,8 @@ when no other row answers the sentence.
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
   change its scope), with your read-back in `intent`. My examples still become
-  claims with measures. The read-back, not a list, sets the work's edge: rows,
-  files or items the ask lists are where the work starts. A change the intent
-  needs is in scope, named as following from it; only a change for another
-  purpose comes to me. Check acceptance against the intent: a leftovers list
-  the intent covers means the work isn't done. Where no tool renders `quote`,
-  `intent` and `signer` for you, write the quoted ask, your read-back and a `Signed: <label>` line
+  claims with measures. Where no tool renders `quote`, `intent` and `signer`
+  for you, write the quoted ask, your read-back and a `Signed: <label>` line
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
@@ -1374,6 +1370,14 @@ when no other row answers the sentence.
   why goes to me in chat; such a pick that would leave a security path open is
   a heads-up: tell me in chat and go on. With no record, log in chat and in the result.
 - **The read-back.**
+  - The read-back, not a list, sets the work's edge: rows, files or items the
+    ask lists are where the work starts, and a limit in my words, such as
+    "only these rows", still lets in the edits they force. A change the
+    read-back needs is in scope, named in the record as following from it;
+    only a change for another purpose comes to me, or to the lead that
+    started your session. Check acceptance against the read-back, the
+    corrected one if I corrected it: a leftovers list it covers means the
+    work isn't done.
   - A pending read-back makes no work wait, at any seam, with or without a
     standing goal. Post it `pending`, log the intent you went ahead on, within
     the Checkpoint log's limits, and go on; I confirm or correct it later. A
@@ -1638,7 +1642,7 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 7d4948db2781981bcd59bf6fd5fe9cf28854b43fc140854657fa7ff7a7fbfcdc 'pact/review.md'
+check_hash 325e401f4d6b2be3845508ac3f0005f81bcd58de95522ddc083c4ea7ec137593 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1668,7 +1672,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 312bf97fe18b"
+  echo "pact cloud copy 1d8d8e331710"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

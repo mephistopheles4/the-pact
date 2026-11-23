@@ -229,12 +229,8 @@ when no other row answers the sentence.
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
   change its scope), with your read-back in `intent`. My examples still become
-  claims with measures. The read-back, not a list, sets the work's edge: rows,
-  files or items the ask lists are where the work starts. A change the intent
-  needs is in scope, named as following from it; only a change for another
-  purpose comes to me. Check acceptance against the intent: a leftovers list
-  the intent covers means the work isn't done. Where no tool renders `quote`,
-  `intent` and `signer` for you, write the quoted ask, your read-back and a `Signed: <label>` line
+  claims with measures. Where no tool renders `quote`, `intent` and `signer`
+  for you, write the quoted ask, your read-back and a `Signed: <label>` line
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
@@ -256,6 +252,14 @@ when no other row answers the sentence.
   why goes to me in chat; such a pick that would leave a security path open is
   a heads-up: tell me in chat and go on. With no record, log in chat and in the result.
 - **The read-back.**
+  - The read-back, not a list, sets the work's edge: rows, files or items the
+    ask lists are where the work starts, and a limit in my words, such as
+    "only these rows", still lets in the edits they force. A change the
+    read-back needs is in scope, named in the record as following from it;
+    only a change for another purpose comes to me, or to the lead that
+    started your session. Check acceptance against the read-back, the
+    corrected one if I corrected it: a leftovers list it covers means the
+    work isn't done.
   - A pending read-back makes no work wait, at any seam, with or without a
     standing goal. Post it `pending`, log the intent you went ahead on, within
     the Checkpoint log's limits, and go on; I confirm or correct it later. A
