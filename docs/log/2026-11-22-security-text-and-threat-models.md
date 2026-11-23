@@ -8,10 +8,12 @@ Rewritten: the glossary's Accepted threat class entry now says adding or widenin
 
 Forced edits: the Hardening cost counts "guards for paths the project's threat model doesn't place in scope" (r020, forced by r021). review.md's Threat model step 2 adds the placement call: is the finding on an inbound or outbound boundary, or only on the owner's machine. A session asks Clef when it is installed, else its own model makes the call; an unsure answer comes to the owner (r035, forced by r021). `AGENTS.md` and `docs/rule-reasons.md` no longer cite the protected-set route (r053, forced by r070). review.md's "You decide which findings are security findings" points at its own Threat model section, since the rules file no longer defines one (forced by r021), and `docs/install.md` describes Hardening in the new words (forced by r020).
 
+After the first Test round, on the owner's picks: Hardening also counts, with no threat model, guards for paths off the sensitive-work list (r020). Clef is the local decision model on this machine, never asked over a network or in a cloud session, and without it the session's own model decides (r035). The sentence of protected item 3 that said review.md's Threat model section changes "only by the same route" is dropped, with no pointer back (r070). The residual from the r022 cut, that no installed text says "with no threat model, flag the risk and record nothing", is accepted.
+
 Why: the owner said r021 was "never asked for; it undoes what I ask for (loose 'security' calls get checks built)", and r070 "overcorrects a lot and stops much of the owner's work".
 
 **Rolling back:** revert the merge, rerun the regens and reinstall from the dry run.
 
 ## Record
 
-- The ticket: PACT-45 on Linear.
+- The ticket: PACT-45 in the project's issue tracker.

@@ -145,9 +145,10 @@ security ruling.
    is the machine's, and no finding, unless the project's threat model holds
    it in scope, or it touches the sensitive-work list. Then make the placement
    call: is the finding on an inbound or outbound boundary, or only on the
-   owner's machine? Ask Clef when it is installed, and it sees the threat
-   model; without Clef, your own model makes the call. An unsure answer comes
-   to me.
+   owner's machine? Clef is the local decision model on this machine: ask it
+   when it is installed, and it sees the threat model. Never ask it over a
+   network or in a cloud session; without it, your own model makes the call.
+   An unsure answer comes to me.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it

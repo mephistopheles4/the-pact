@@ -396,7 +396,7 @@
     },
     {
       "cost": "Hardening",
-      "counted": "Guards for paths the project's threat model doesn't place in scope",
+      "counted": "Guards for paths the project's threat model doesn't place in scope; with none, paths off the sensitive-work list",
       "limit": "0",
       "atLimit": "Reported as a note; never built unasked"
     },

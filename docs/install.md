@@ -231,7 +231,8 @@ parts:
   A `NOTE:` line follows it when you edit `qualities` and the table has no
   Enough column: the shipped cost rows then reach no quality's lenses, so
   they limit the review itself, Hardening at 0 included, so no lens builds a
-  guard for a path the project's threat model doesn't place in scope.
+  guard for a path the project's threat model doesn't place in scope (with no
+  threat model, a path off the sensitive-work list).
   The line names the parts you edit and says whether your configuration
   changed since the last install. Read those parts in the rendered rules file
   (`--review-folder` writes it out) before you install. Only your home

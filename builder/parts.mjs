@@ -154,7 +154,7 @@ export const DEFAULT_PARTS = Object.freeze({
   // The cost limits (#278): what the work may spend to reach the qualities, and what happens at each limit.
   costLimits: [
     { cost: 'Tests added', counted: 'Tests that earn no claim: none backs one, it repeats one that already does, or it pins how the work is done rather than what it does.', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
-    { cost: 'Hardening', counted: "Guards for paths the project's threat model doesn't place in scope", limit: '0', atLimit: 'Reported as a note; never built unasked' },
+    { cost: 'Hardening', counted: "Guards for paths the project's threat model doesn't place in scope; with none, paths off the sensitive-work list", limit: '0', atLimit: 'Reported as a note; never built unasked' },
     { cost: 'Follow-up issues', counted: 'Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
     { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' },
     { cost: 'Review rounds', counted: 'Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own', limit: '2, the second declared final', atLimit: "A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage" },
