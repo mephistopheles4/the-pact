@@ -31,9 +31,8 @@ The answer has four sections, in this order. Only the asks are numbered.
   pick", N being the last number. If some asks are checkpoints (see My reply),
   name them: "Yes, 1 to 4 takes every pick except 3, which needs its own yes."
 
-  Ask, too, about each open "Owner's call: security" pick, with its private
-  note, until a `decision` post records my answer from chat; no session's own
-  pick or post answers it, and the record never carries the private note's why.
+  Ask, too, about each open "Owner's call: security" pick like any other, until
+  a `decision` post records my answer; the answer and its reason go in the record.
 - **Only you can do:** steps only I can take (paste, restart, sign in), a plain
   list, one line each, never numbered.
 - **Moving:** one line each: what is running and what holds it up. Leave out a
@@ -50,9 +49,7 @@ The answer has four sections, in this order. Only the asks are numbered.
   Numbers I leave out stay open and come back at the next `/scry`. Act on each
   ask one by one, as my confirmation for that ask. Afterwards name each
   number and what you did, in plain words. Any record of it names the ask in
-  words (its question, the pick taken, the facts given), never only its number;
-  for an "Owner's call: security" ask, the marker and the pick, never the
-  private note's why.
+  words (its question, the pick taken, the facts given), never only its number.
 - An ask that is a checkpoint in my rules file needs its own yes. My yes is
   a reply that names that number ("yes to 4"). A range ("Yes, 1 to 4") or an
   exclusion ("yes except 3") never reaches one: ask that number again. Where a

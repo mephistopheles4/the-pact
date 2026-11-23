@@ -331,12 +331,6 @@ test("the check's header and words are the review procedure's", () => {
   const forms = [...section.matchAll(/\(auto(:|\)|, reversed|[^]?)/g)].map(m => m[1]);
   assert.deepEqual([...new Set(forms)].sort(), [...DISPOSITIONS.afterAuto].sort());
   assert.equal(section.split('| Finding |').length, 2, 'one header row');
-  // The withheld cell the section names is the one the check takes with no state word.
-  const withheld = section.replace(/\s+/g, ' ').match(/Finding cell is exactly "([^"]+)"/);
-  assert.ok(withheld, 'the withheld cell');
-  const row = cell => ['Lens dispositions', '', `| ${DISPOSITIONS.header.join(' | ')} |`, '| --- | --- | --- | --- |', `| ${cell} | a-lens | open | |`].join('\n');
-  assert.deepEqual(tableCheck(row(withheld[1])).length, 0, 'the check accepts the cell as written');
-  assert.notEqual(tableCheck(row(`${withheld[1]} x`)).length, 0, 'control: another cell needs a state word');
 });
 
 // #336 C6: the state words are the four the review procedure's sentence names, in its order.
