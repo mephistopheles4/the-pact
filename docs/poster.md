@@ -22,6 +22,24 @@ With an agent app pinned, the poster posts as the app: [poster-app](poster-app.m
 In this page, "a session" is the Claude Code session running the poster, and
 "the owner" is the person whose `gh` account it posts as.
 
+<!-- toc -->
+
+- [Running it](#running-it)
+- [Surfaces](#surfaces)
+  - [Kinds](#kinds)
+  - [The quote and the read-back](#the-quote-and-the-read-back)
+  - [The two quotes](#the-two-quotes)
+  - [How the poster builds the body](#how-the-poster-builds-the-body)
+  - [Edits](#edits)
+- [The post fields](#the-post-fields)
+- [Results and exit codes](#results-and-exit-codes)
+  - [After exit 3: did it land?](#after-exit-3-did-it-land)
+- [Rule ids](#rule-ids)
+- [What the scans cover](#what-the-scans-cover)
+- [What the scans don't cover](#what-the-scans-dont-cover)
+
+<!-- /toc -->
+
 ## Running it
 
 Each shell gets its own command form, as `review.md` gives them:

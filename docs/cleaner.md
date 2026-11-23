@@ -6,6 +6,22 @@ commands. It is a pact tool, off by default; turn it on by listing
 `cleaner` in the `tools` key of `~/.claude/pact/config.json`. ADR 0124 says
 why it works this way.
 
+<!-- toc -->
+
+- [Use](#use)
+- [What it keeps](#what-it-keeps)
+- [Overriding a keep](#overriding-a-keep)
+- [With `--recoverable`](#with---recoverable)
+- [A stopped session's lock](#a-stopped-sessions-lock)
+- [A finished session](#a-finished-session)
+- [What it never does](#what-it-never-does)
+- [Exit codes](#exit-codes)
+- [Deny rules](#deny-rules)
+- [When it leaves something](#when-it-leaves-something)
+- [Rolling back](#rolling-back)
+
+<!-- /toc -->
+
 ## Use
 
 ```text
@@ -39,9 +55,8 @@ The ask rule on the override matches any text that holds `cleaner.mjs`,
   [With `--recoverable`](#with---recoverable)). Give it to both commands: a
   tag from a run without it never passes a run with it.
 
-The rules file tells a session to remove worktrees only through the cleaner:
-each removal is a checkpoint. `show`'s own
-last lines tell it the rest: show you the name-back as printed, in a fenced
+The rules file's cleaner line names `show` and `remove`; `show`'s own
+last lines tell the rest: show you the name-back as printed, in a fenced
 code block, in chat only, so no name's marks can restyle it, give a record only
 the result line's counts, never the tags or the name-back, and run `remove`
 with the tags of the blocks shown, `--recoverable` or not, as a checkpoint;
@@ -63,7 +78,7 @@ with an override tag, a third line, a checkpoint, says who may pass it.
   written and never resolved on disk; a device prefix before a drive letter
   counts as the plain drive path. A sessions folder, or a status file, that is
   a link or not a plain folder or file makes the run unavailable. A Windows
-  run doesn't see WSL sessions, or the other way.
+  run doesn't see WSL sessions, or the other way. Finished sessions: [below](#a-finished-session).
 - **Commits found nowhere else, on a detached HEAD:** a worktree whose
   detached HEAD has commits on no branch and no remote. After the folder
   goes, nothing would name them. On a branch the same commits are a soft risk
@@ -261,9 +276,9 @@ session <name> (pid <digits>)`. The cleaner calls a lock a *session lock* only
 when its reason is exactly that, with the worktree's own folder name; any other
 reason, or none, is an *other lock*. A session still running is kept as "in
 use" before any lock is read, since its status file names the worktree as its
-cwd, so a session lock here is a stopped session's.
+cwd, so a session lock here is a stopped session's, or a finished one's.
 
-`show` says `locked by a stopped session; remove unlocks it` for a session lock
+`show` says `locked by a stopped session; remove unlocks it` for a session lock (not a finished session's)
 and, for any other, `locked, its holder is not named: the override lifts the
 lock` when the block has an override tag (a soft risk, see
 [Overriding a keep](#overriding-a-keep)), else `locked, git will refuse`; a yes
@@ -274,6 +289,39 @@ git refuses, the cleaner locks the worktree again with the same reason, and
 says `the lock was not put back` if that fails too. Neither the reason nor the
 pid is ever printed.
 
+## A finished session
+
+A background session is **finished** when its status file, named `<pid>.json`,
+says kind `bg`, status `idle`, an 8-hex `jobId` that opens its `sessionId`, and
+a positive whole `pid`. Anything else is live.
+
+A worktree is read on as free, its tag covering the jobId, pid and switch,
+when one finished session holds it, its lock carries that pid, and no other
+status file carries its jobId or sessionId. It says `in use by a finished
+background session; remove stops it first`. Otherwise it stays in use; with no `claude`
+(from an absolute `PATH` entry; no shim) or the **stop
+switch** on, a line says which. The switch is
+on when `~/.claude/settings.json`'s `permissions.deny` holds `Bash(claude stop
+*)` or `PowerShell(claude stop *)`, or the file is a link, not plain, not
+strict JSON, or has a `deny` that is no list of strings.
+
+A plant must also rewrite the victim's status file and the lock, which any
+owner process can; the tie stops only one that leaves them as written.
+
+`remove`, in order:
+
+1. On a yes, changed or untracked files: `left, git would refuse, so the
+   session was not stopped`.
+2. It reads both again; a difference is `left, it changed since the read`.
+3. `claude stop <jobId>` by absolute path, no shell, 30 s; a failure is `left, the session did
+   not stop`.
+4. It waits up to 15 s until no status file names the folder and the pid is
+   gone (a failed read counts as held), else `left, the session stopped but
+   still holds the folder; run show again`.
+5. The removal; an override's last read runs after the wait.
+
+The report line starts `session stopped, `.
+
 ## What it never does
 
 It forces only on a fresh override pair, and passes `--force` at most once,
@@ -281,7 +329,7 @@ in a `git worktree remove`; it never passes `-f`, `-D` or `--delete`, never
 pushes or prunes, never touches a stash, and never removes anything its
 name-back didn't name with the same facts. It asks no remote for anything, but
 in a partial clone a read without `--recoverable` could make git fetch a
-missing object. It unlocks a session lock, and lifts any other lock only for an
+missing object. It never stops a live session, or any while the stop switch is on. It unlocks a session lock, and lifts any other lock only for an
 override. Without an override, git's own refusals stand: a worktree with
 changed or untracked files, another lock or a submodule is left. Without
 `--recoverable`, a worktree's ignored files, such as `.env`, go with its
@@ -291,7 +339,7 @@ It runs git by an absolute path from `PATH`, from an empty folder, with an
 empty hooks folder and `--no-optional-locks -c core.fsmonitor=false -c
 log.showSignature=false`, then the three pins, and without `GIT_DIR`, `GIT_WORK_TREE`,
 `GIT_INDEX_FILE` and `GIT_COMMON_DIR`. Its output is fixed words and relative
-names, every name escaped and every file name in quotes; it never prints an absolute path, a session id,
+names, every name escaped and every file name in quotes; it never prints an absolute path, a session or job id, a pid,
 file contents, a stash subject or git's own output.
 
 ## Exit codes
@@ -321,6 +369,8 @@ The install also adds two ask rules, `Bash(*cleaner.mjs*remove*--override*)` and
 They make Claude Code ask before a `remove --override` runs. They are a speed bump: a spelling that
 splits `cleaner.mjs`, `remove` or `--override` apart, or runs the tool through a wrapper that hides
 them, gets past. If `settings.json` is not strict JSON the install leaves it alone and warns.
+
+Its own stop is held back while `session-stop-deny` is on.
 
 They are a speed bump with the classifier behind them, not a gate: other
 spellings of the same commands get past them (a flag before the subcommand, a

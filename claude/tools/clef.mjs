@@ -1916,7 +1916,7 @@ function stateOf(live) {
  * prints a token: the caller reads the token from run.json. States: ready,
  * starting, not-set-up (exit 3), failed (exit 4).
  */
-export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill, line = lifetimeLine({ platform }), sweep = sweepServer }) {
+export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill, liveCheck = liveSupervisor, line = lifetimeLine({ platform }), sweep = sweepServer }) {
   const rp = runPaths(dir);
   const secs = Math.min(60, Math.max(0, Number.isFinite(wait) ? wait : 0));
   const deadline = Date.now() + secs * 1000;
@@ -1928,7 +1928,7 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
   };
   const lastFail = failed();
   if (lastFail) return { out: lastFail, code: 4 };
-  let live = await liveSupervisor(dir);
+  let live = await liveCheck(dir);
   const waitFor = async () => {
     for (;;) {
       live = await liveSupervisor(dir);
@@ -1939,10 +1939,16 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
       await sleep(100);
     }
   };
-  if (live) return live.health.ready || secs === 0 ? { out: stateOf(live), code: 0 } : waitFor();
-  const wasLocked = !takeLock(dir);
-  if (!wasLocked) rmSync(rp.run, { force: true });
-  if (wasLocked) return waitFor();
+  const settled = () => (live.health.ready || secs === 0 ? { out: stateOf(live), code: 0 } : waitFor());
+  if (live) return settled();
+  if (!takeLock(dir)) return waitFor();
+  // The check above ran before the lock: a supervisor may have been started, written run.json and let go of the lock since.
+  live = await liveCheck(dir);
+  if (live) {
+    releaseLock(dir);
+    return settled();
+  }
+  rmSync(rp.run, { force: true });
   try {
     if (platform === 'linux') sweepOrphans({ dir, procRoot, kill });
     // Spec 0003 M6: a server still loading under an old record is left to load; nothing new is spawned beside it.

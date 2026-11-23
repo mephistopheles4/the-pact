@@ -2,6 +2,13 @@
 
 Read this before you install, roll back, change configuration, tools or a project install, or touch the builder page or the cloud copy. `AGENTS.md`'s "Installing" gives the go-ahead and dry-run-first rules; [install](../install.md) is the owner's how-to; this adds what a session needs.
 
+<!-- toc -->
+
+- [Changes here reach every project](#changes-here-reach-every-project)
+- [Rolling back](#rolling-back)
+
+<!-- /toc -->
+
 ## Changes here reach every project
 
 `claude/` is a payload, not documentation. Once installed, an edit there changes

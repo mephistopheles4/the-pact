@@ -17,6 +17,16 @@ appended system prompt, with any files the case's `with.txt` names, and
 `<case>-without` is the case as it is. It prints the commands to run, and runs
 none of them.
 
+<!-- toc -->
+
+- [Limits](#limits)
+- [Running a round](#running-a-round)
+- [Adding a case](#adding-a-case)
+- [Probes](#probes)
+- [Claude Code version](#claude-code-version)
+
+<!-- /toc -->
+
 ## Limits
 
 - Haiku, agent and judge, one run per arm (`--ablation none --runs 1`).

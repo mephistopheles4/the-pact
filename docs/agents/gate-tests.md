@@ -2,6 +2,15 @@
 
 Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change or cut a gate test. `AGENTS.md`'s "Running the gate's tests" gives the commands, the athanor default and what counts as a pass; this adds the rest.
 
+<!-- toc -->
+
+- [Running the gate's tests](#running-the-gates-tests)
+- [Athanor](#athanor)
+  - [The hook](#the-hook)
+- [Writing a gate test](#writing-a-gate-test)
+
+<!-- /toc -->
+
 ## Running the gate's tests
 
 - **The tiers.** Run them through [`gate/tests/run.mjs`](../../gate/tests/run.mjs), from the repo root, with `NODE_OPTIONS` cleared in the shell first, as for the install script.

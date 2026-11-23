@@ -3,6 +3,37 @@
 Status: draft, reviewed (two rounds and a security further read of four Code Rabbit CLI fixes), on the sensitive route; the owner kept the dogfooding bounds (S12). The spec counts
 once it is on `main`.
 
+<!-- toc -->
+
+- [S1 Objective](#s1-objective)
+- [S2 Decisions](#s2-decisions)
+- [S3 Terms](#s3-terms)
+- [S4 The tool on the tools list](#s4-the-tool-on-the-tools-list)
+- [S5 The pin table](#s5-the-pin-table)
+- [S6 Setup: the plan, the fetch, the checks](#s6-setup-the-plan-the-fetch-the-checks)
+  - [The plan](#the-plan)
+  - [The fetch](#the-fetch)
+  - [Unpacking](#unpacking)
+  - [Verify](#verify)
+- [S7 The supervisor](#s7-the-supervisor)
+  - [Ensure](#ensure)
+  - [Serve](#serve)
+  - [Stop, status, remove](#stop-status-remove)
+- [S8 clef-pilot](#s8-clef-pilot)
+- [S9 Removal](#s9-removal)
+- [S10 Owner's doc](#s10-owners-doc)
+- [S11 Threat model](#s11-threat-model)
+- [S12 Trade-offs](#s12-trade-offs)
+- [S13 Target environments](#s13-target-environments)
+- [S14 Acceptance claims](#s14-acceptance-claims)
+- [S15 Rollback](#s15-rollback)
+- [S16 Tickets](#s16-tickets)
+  - [Needs the owner](#needs-the-owner)
+  - [Stop and ask when](#stop-and-ask-when)
+- [S17 Out of scope (deferred)](#s17-out-of-scope-deferred)
+
+<!-- /toc -->
+
 ## S1 Objective
 
 The pact ships `clef`, an opt-in pact tool that runs Clef, the local decision

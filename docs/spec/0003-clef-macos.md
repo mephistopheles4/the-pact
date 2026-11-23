@@ -5,6 +5,26 @@ unstated-lens, adversarial-lens). Amends [0002-clef-runner](0002-clef-runner.md)
 0002 says holds on macOS unless a section here replaces it. The spec counts
 once it is on `main`.
 
+<!-- toc -->
+
+- [M1 Objective](#m1-objective)
+- [M2 Decisions](#m2-decisions)
+- [M3 The pin table (amends 0002 S5)](#m3-the-pin-table-amends-0002-s5)
+- [M4 Setup and serve on macOS (amends 0002 S6, S7, S13)](#m4-setup-and-serve-on-macos-amends-0002-s6-s7-s13)
+- [M5 The keeper: the first line](#m5-the-keeper-the-first-line)
+- [M6 The server record and keyed probe: the second line](#m6-the-server-record-and-keyed-probe-the-second-line)
+- [M7 CI (amends 0002 S13)](#m7-ci-amends-0002-s13)
+- [M8 Docs (amends 0002 S10)](#m8-docs-amends-0002-s10)
+- [M9 Rollback (amends 0002 S15)](#m9-rollback-amends-0002-s15)
+- [M10 Trade-offs](#m10-trade-offs)
+- [M11 Accepted-risk candidates (Hardening, limit 0; not built unasked)](#m11-accepted-risk-candidates-hardening-limit-0-not-built-unasked)
+- [M12 Out of scope (deferred)](#m12-out-of-scope-deferred)
+- [M13 Acceptance claims](#m13-acceptance-claims)
+- [M14 Needs the owner](#m14-needs-the-owner)
+- [M15 Stop and ask when](#m15-stop-and-ask-when)
+
+<!-- /toc -->
+
 ## M1 Objective
 
 0002 put macOS out of scope (S17), giving no reason except that Windows was the

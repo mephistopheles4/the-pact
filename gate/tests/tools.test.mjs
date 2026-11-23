@@ -271,7 +271,7 @@ test('with the poster off, the rules file is the no-configuration render byte fo
 // ------------------------------------------------------------ the cleaner's part and deny rules (#438)
 
 // #464 T4: the how-to moved into the cleaner's own printed output.
-const CLEANER_PART = '- **Remove worktrees only through the cleaner:** each removal is a checkpoint.';
+const CLEANER_PART = '- **Remove worktrees only through the cleaner,** `node ~/.claude/pact/tools/cleaner.mjs show` (PowerShell: `node "$HOME/.claude/pact/tools/cleaner.mjs" show`), then `remove` with its tags; it stops a finished session first. Each removal is a checkpoint.';
 
 // #438 C14
 test('with the cleaner on, the rules file holds its part after the poster\'s; off, it is the no-configuration render', t => {
