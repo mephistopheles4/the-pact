@@ -29,9 +29,12 @@
 // folder, only as an absolute path, and never one inside the starting folder
 // (claudeHome, assertRealFolders).
 
-import { createHash } from 'node:crypto';
-import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
+import { createServer as createHttpServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest, Agent } from 'node:https';
+import { createServer as createNetServer } from 'node:net';
 import { homedir, userInfo } from 'node:os';
 import { dirname, join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1003,9 +1006,641 @@ export function verify({ dir, server = SERVER, model = MODEL }) {
   return { lines, failed };
 }
 
+// ---------------------------------------------------------------- the supervisor (S7)
+
+const SETPRIV = '/usr/bin/setpriv';
+const IDLE_MS = 30 * 60_000;
+const CHECK_MS = 60_000;
+const FAIL_BACKOFF_MS = 10 * 60_000;
+const START_TIMEOUT_MS = 180_000;
+const MAX_BODY = 256 * 1024;
+const MAX_REPLY = 1 << 20;
+const MAX_QUESTIONS = 64;
+const FORWARD_TIMEOUT_MS = 60_000;
+const LOG_CAP = 1 << 20;
+/** The only names from the caller's environment that reach the supervisor and the server (S7). */
+const ENV_PASS = Object.freeze(['SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LOCALAPPDATA', 'XDG_RUNTIME_DIR']);
+
+/** The files the supervisor keeps in the clef folder. */
+export const runPaths = dir => ({ run: join(dir, 'run.json'), lock: join(dir, 'run.lock'), key: join(dir, 'run.key'), fail: join(dir, 'run.fail'), log: join(dir, 'serve.log') });
+
+const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const unit = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
+
+function readJsonFile(path) {
+  try {
+    const j = JSON.parse(readFileSync(path, 'utf8'));
+    return isObj(j) ? j : null;
+  } catch {
+    return null;
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid < 1) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
+  }
+}
+
+/** One line in serve.log: reason words and counts only, never a body, token, key, header value or argument. The file is capped at 1 MB. */
+function logLine(dir, line) {
+  try {
+    const p = runPaths(dir).log;
+    let size = 0;
+    try {
+      size = statSync(p).size;
+    } catch {
+      // no log yet
+    }
+    if (size > LOG_CAP) writeFileSync(p, '', { mode: 0o600 });
+    appendFileSync(p, `${new Date().toISOString()} ${line}\n`, { mode: 0o600 });
+  } catch {
+    // a log that cannot be written never stops the work
+  }
+}
+
+function writeFail(dir, reason, now = Date.now) {
+  try {
+    writeFileSync(runPaths(dir).fail, `${JSON.stringify({ time: now(), reason })}\n`, { mode: 0o600 });
+  } catch {
+    // nothing to record to
+  }
+}
+
+/** The environment the supervisor and the server run with: a named list from the caller, a fixed PATH, and on Linux the runtime folder as the library path. */
+export function serveEnv(env, platform, runtime) {
+  const out = {};
+  for (const n of ENV_PASS) if (env[n] !== undefined) out[n] = env[n];
+  const root = env.SYSTEMROOT ?? env.SystemRoot ?? 'C:\\Windows';
+  out.PATH = platform === 'win32' ? `${root}\\System32;${root}` : '/usr/bin:/bin';
+  if (platform === 'linux') out.LD_LIBRARY_PATH = runtime;
+  return out;
+}
+
+/** The server's argument list: fixed in the tool, no part from a caller. The key is in a file, never on the command line. */
+export function serverArgs({ port, keyFile, modelPath, vulkan }) {
+  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', ...(vulkan ? ['-ngl', '99'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath];
+}
+
+/** The program and arguments that start the server: on Linux through setpriv, so the kernel ends it when the supervisor dies. */
+export function launchCommand({ platform, exe, exePrefix = [], args, setpriv = SETPRIV, pdeathsig = true }) {
+  if (platform === 'linux' && pdeathsig) return { file: setpriv, args: ['--pdeathsig', 'KILL', '--', exe, ...exePrefix, ...args] };
+  return { file: exe, args: [...exePrefix, ...args] };
+}
+
+/** One GET or POST to a loopback port: { status, json } (json null when the body is not JSON), or null on any failure. */
+function httpJson({ port, path, method = 'GET', token, body, timeoutMs = 5000 }) {
+  return new Promise(resolveP => {
+    const data = body === undefined ? null : Buffer.from(JSON.stringify(body));
+    const headers = { host: `127.0.0.1:${port}`, accept: 'application/json' };
+    if (token) headers.authorization = `Bearer ${token}`;
+    if (data) {
+      headers['content-type'] = 'application/json';
+      headers['content-length'] = String(data.length);
+    }
+    const req = httpRequest({ host: '127.0.0.1', port, path, method, headers, agent: false, timeout: timeoutMs }, res => {
+      const chunks = [];
+      let n = 0;
+      res.on('data', c => {
+        n += c.length;
+        if (n > MAX_REPLY) {
+          req.destroy();
+          resolveP(null);
+        } else chunks.push(c);
+      });
+      res.on('end', () => {
+        let json = null;
+        try {
+          json = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        } catch {
+          // not JSON
+        }
+        resolveP({ status: res.statusCode, json });
+      });
+      res.on('error', () => resolveP(null));
+    });
+    req.on('timeout', () => req.destroy());
+    req.on('error', () => resolveP(null));
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+/**
+ * The live check (S7). No other process's command line is read and no helper
+ * runs. A supervisor is live only when run.json's pid is alive and its /health,
+ * asked with the token, returns { run, pid, serverPid } equal to run.json's.
+ * Returns { run, health } or null.
+ */
+export async function liveSupervisor(dir) {
+  const run = readJsonFile(runPaths(dir).run);
+  if (!run || !pidAlive(run.pid) || !Number.isInteger(run.port) || typeof run.token !== 'string') return null;
+  const r = await httpJson({ port: run.port, path: '/health', token: run.token, timeoutMs: 2000 });
+  if (!r || r.status !== 200 || !isObj(r.json)) return null;
+  const h = r.json;
+  return h.run === run.run && h.pid === run.pid && h.serverPid === run.serverPid ? { run, health: h } : null;
+}
+
+/** run.lock: created exclusive; a lock whose pid is gone is stale and removed. */
+function takeLock(dir, pid = process.pid) {
+  const p = runPaths(dir).lock;
+  for (let i = 0; i < 2; i++) {
+    try {
+      writeFileSync(p, `${pid}\n`, { flag: 'wx', mode: 0o600 });
+      return true;
+    } catch (e) {
+      if (e.code !== 'EEXIST') return false;
+      const held = Number.parseInt(String(readFileSyncSafe(p)).trim(), 10);
+      if (pidAlive(held)) return false;
+      rmSync(p, { force: true });
+    }
+  }
+  return false;
+}
+
+function readFileSyncSafe(p) {
+  try {
+    return readFileSync(p, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function releaseLock(dir, pid = process.pid) {
+  const p = runPaths(dir).lock;
+  if (Number.parseInt(readFileSyncSafe(p).trim(), 10) === pid) rmSync(p, { force: true });
+}
+
+/**
+ * Ends every orphan server on Linux: a process whose /proc/<pid>/exe lies under
+ * <clef folder>/runtime/ (any tag, or a deleted target there) and whose parent is
+ * not the live supervisor. Called only while holding run.lock. Returns the pids
+ * it ended.
+ */
+export function sweepOrphans({ dir, procRoot = '/proc', kill = pid => process.kill(pid, 'SIGKILL'), liveSupervisorPid = null }) {
+  const ended = [];
+  const base = `${posix.resolve(dir.split('\\').join('/'))}/runtime/`;
+  let names;
+  try {
+    names = readdirSync(procRoot);
+  } catch {
+    return ended;
+  }
+  for (const n of names) {
+    if (!/^[0-9]+$/.test(n)) continue;
+    const pid = Number(n);
+    if (pid === process.pid) continue;
+    let exe;
+    try {
+      exe = readlinkSync(join(procRoot, n, 'exe'));
+    } catch {
+      continue;
+    }
+    exe = exe.replace(/ \(deleted\)$/, '');
+    if (!exe.startsWith(base)) continue;
+    let ppid = null;
+    try {
+      const stat = readFileSync(join(procRoot, n, 'stat'), 'utf8');
+      ppid = Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]);
+    } catch {
+      continue;
+    }
+    if (liveSupervisorPid !== null && ppid === liveSupervisorPid) continue;
+    try {
+      kill(pid);
+      ended.push(pid);
+    } catch {
+      // already gone
+    }
+  }
+  return ended;
+}
+
+/** Why the tool is not set up for the table, or null: a word and the setup. */
+function notSetUp(dir, platform, server = SERVER, model = MODEL) {
+  const setup = readSetup(dir);
+  if (!setup) return { reason: 'missing' };
+  const a = server.archives[setup.platform];
+  if (setup.tag !== server.tag || setup.model !== model.sha256 || !a) return { reason: 'pin-changed' };
+  const p = paths(dir, server, model);
+  if (!existsSync(join(p.runtime, destName(a.exe, a.exe))) || !existsSync(p.model)) return { reason: 'missing' };
+  return { setup, archive: a, paths: p };
+}
+
+/** A copy of what a file is now: size, mtime and sha256, or null when it is gone. */
+function fingerprint(path) {
+  try {
+    const s = statSync(path);
+    return { size: s.size, mtimeMs: s.mtimeMs, sha256: sha256Of(readFileSync(path)) };
+  } catch {
+    return null;
+  }
+}
+const sameFingerprint = (a, b) => a !== null && b !== null && a.size === b.size && a.mtimeMs === b.mtimeMs && a.sha256 === b.sha256;
+
+/**
+ * The body the supervisor returns, built from checked values only: for each
+ * asked question id, a finite number in [0,1] (noul, score), or a choice that is
+ * one of the criteria keys sent, with a probability in [0,1] for each sent key
+ * and no other key. Anything else is null, and the caller answers no-answer.
+ */
+export function checkedAnswer(questions, raw) {
+  if (!isObj(questions) || !isObj(raw)) return null;
+  const ids = Object.keys(questions);
+  if (ids.length === 0 || ids.length > MAX_QUESTIONS || Object.keys(raw).length !== ids.length) return null;
+  const out = [];
+  for (const id of ids) {
+    const q = questions[id];
+    if (!isObj(q) || !Object.hasOwn(raw, id) || !isObj(raw[id])) return null;
+    const a = raw[id];
+    const keys = Object.keys(a);
+    if (q.type === 'noul' || q.type === 'score') {
+      if (keys.length !== 1 || keys[0] !== q.type || !unit(a[q.type])) return null;
+      out.push([id, { [q.type]: a[q.type] }]);
+    } else if (q.type === 'choice') {
+      if (!isObj(q.criteria)) return null;
+      const options = Object.keys(q.criteria);
+      if (keys.length !== 2 || !Object.hasOwn(a, 'choice') || !Object.hasOwn(a, 'probabilities')) return null;
+      if (typeof a.choice !== 'string' || !options.includes(a.choice) || !isObj(a.probabilities)) return null;
+      const given = Object.keys(a.probabilities);
+      if (given.length !== options.length || !options.every(k => Object.hasOwn(a.probabilities, k) && unit(a.probabilities[k]))) return null;
+      out.push([id, { choice: a.choice, probabilities: Object.fromEntries(options.map(k => [k, a.probabilities[k]])) }]);
+    } else return null;
+  }
+  return Object.fromEntries(out);
+}
+
+/** The questions a caller sent, or null when the body is not { state, questions } with a usable question set. */
+function checkedRequest(body) {
+  if (!isObj(body) || !isObj(body.questions)) return null;
+  const ids = Object.keys(body.questions);
+  if (ids.length === 0 || ids.length > MAX_QUESTIONS) return null;
+  for (const id of ids) {
+    const q = body.questions[id];
+    if (!isObj(q) || !['noul', 'score', 'choice'].includes(q.type) || (q.type === 'choice' && !isObj(q.criteria))) return null;
+  }
+  return body;
+}
+
+const tokenEqual = (given, wanted) => timingSafeEqual(createHash('sha256').update(String(given)).digest(), createHash('sha256').update(wanted).digest());
+
+function freePort() {
+  return new Promise((resolveP, reject) => {
+    const s = createNetServer();
+    s.once('error', reject);
+    s.listen(0, '127.0.0.1', () => {
+      const { port } = s.address();
+      s.close(() => resolveP(port));
+    });
+  });
+}
+
+/**
+ * The supervisor: `clef serve`, started detached by `ensure`. It binds
+ * 127.0.0.1 on a port the OS picks, starts the server on another loopback port
+ * with the key in a file, answers only GET /health and POST /v1/systemone to a
+ * caller with the token, and returns only a body it built from checked values.
+ * It ends the server and itself after `idleMs` with no forwarded request, when
+ * its own script changes or goes, on a signal, and when the server exits.
+ * Resolves { done, stop } once it is serving; `done` resolves with the reason.
+ * Test seams are parameters here only: exe and exePrefix (the server program),
+ * pdeathsig, the timings, and scriptUrl.
+ */
+export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now }) {
+  const ready = notSetUp(dir, platform, server, model);
+  if (!ready.setup) {
+    writeFail(dir, 'setup', now);
+    throw new Refused('clef-setup', `not set up (${ready.reason})`);
+  }
+  const rp = runPaths(dir);
+  const p = ready.paths;
+  const scriptPath = fileURLToPath(scriptUrl);
+  const own = fingerprint(scriptPath);
+  const token = randomBytes(32).toString('hex');
+  const serverKey = randomBytes(32).toString('hex');
+  const runId = randomBytes(16).toString('hex');
+  rmSync(rp.run, { force: true });
+  writeFileSync(rp.key, `${serverKey}\n`, { mode: 0o600 });
+  const serverPort = await freePort();
+  const exePath = exe ?? join(p.runtime, destName(ready.archive.exe, ready.archive.exe));
+  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan' }), pdeathsig });
+  let stopping = false;
+  let isReady = false;
+  let lastForward = now();
+  let child;
+  let httpServer;
+  let resolveDone;
+  let onSignal;
+  let onExit;
+  const done = new Promise(r => (resolveDone = r));
+  const timers = [];
+  let lines = 0;
+  const childExited = new Promise(r => {
+    try {
+      child = spawn(cmd.file, cmd.args, { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false });
+    } catch {
+      child = null;
+      r();
+      return;
+    }
+    child.on('error', () => r());
+    child.on('exit', () => r());
+    for (const s of [child.stdout, child.stderr]) s.on('data', buf => { for (const b of buf) if (b === 10) lines++; });
+  });
+  const cleanFiles = () => {
+    const cur = readJsonFile(rp.run);
+    if (!cur || cur.run === runId) rmSync(rp.run, { force: true });
+    rmSync(rp.key, { force: true });
+  };
+  const stop = async reason => {
+    if (stopping) return done;
+    stopping = true;
+    for (const t of timers) clearInterval(t);
+    if (onSignal) {
+      process.off('SIGTERM', onSignal);
+      process.off('SIGINT', onSignal);
+      process.off('exit', onExit);
+    }
+    try {
+      httpServer?.closeAllConnections?.();
+      httpServer?.close();
+    } catch {
+      // already closed
+    }
+    if (child && child.exitCode === null && child.signalCode === null) {
+      child.kill();
+      await Promise.race([childExited, sleep(5000)]);
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    }
+    cleanFiles();
+    logLine(dir, `stopped ${reason} lines ${lines}`);
+    releaseLock(dir);
+    resolveDone(reason);
+    return done;
+  };
+  if (!child) {
+    writeFail(dir, 'exit', now);
+    cleanFiles();
+    throw new Refused('clef-setup', 'the server could not be started');
+  }
+  childExited.then(() => {
+    if (!stopping) {
+      writeFail(dir, 'exit', now);
+      stop('exit');
+    }
+  });
+  const reply = (res, status, word, close = false) => {
+    const body = JSON.stringify({ error: word });
+    res.writeHead(status, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), 'cache-control': 'no-store', ...(close ? { connection: 'close' } : {}) });
+    res.end(body);
+    if (close) {
+      // The rest of an unread body is read and dropped for a moment, so the caller sees the refusal and not a reset.
+      res.req.resume();
+      setTimeout(() => res.req.destroy(), 2000).unref();
+    }
+  };
+  const scriptChanged = () => !sameFingerprint(own, fingerprint(scriptPath));
+  httpServer = createHttpServer((req, res) => {
+    const port = httpServer.address().port;
+    if (req.headers.host !== `127.0.0.1:${port}`) return reply(res, 400, 'host', true);
+    if (req.headers.origin !== undefined) return reply(res, 403, 'origin', true);
+    const auth = req.headers.authorization;
+    if (typeof auth !== 'string' || !auth.startsWith('Bearer ') || !tokenEqual(auth.slice(7), token)) return reply(res, 401, 'auth', true);
+    if (req.method === 'GET' && req.url === '/health') {
+      const body = JSON.stringify({ run: runId, pid: process.pid, serverPid: child.pid, ready: isReady });
+      res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), 'cache-control': 'no-store' });
+      return res.end(body);
+    }
+    if (req.url !== '/v1/systemone') return reply(res, 404, 'route', true);
+    if (req.method !== 'POST') return reply(res, 405, 'method', true);
+    const type = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+    if (type !== 'application/json') return reply(res, 415, 'content-type', true);
+    if (Number(req.headers['content-length'] ?? 0) > MAX_BODY) return reply(res, 413, 'too-large', true);
+    const chunks = [];
+    let n = 0;
+    let refused = false;
+    req.on('data', c => {
+      n += c.length;
+      if (n > MAX_BODY && !refused) {
+        refused = true;
+        reply(res, 413, 'too-large', true);
+      } else if (!refused) chunks.push(c);
+    });
+    req.on('error', () => {});
+    req.on('end', async () => {
+      if (refused) return;
+      let parsed = null;
+      try {
+        parsed = checkedRequest(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      } catch {
+        // not JSON
+      }
+      if (!parsed) return reply(res, 400, 'body');
+      if (scriptChanged()) {
+        reply(res, 503, 'stopping');
+        stop('changed');
+        return;
+      }
+      if (!isReady) return reply(res, 503, 'not-ready');
+      lastForward = now();
+      const t0 = Date.now();
+      const r = await httpJson({ port: serverPort, path: '/v1/systemone', method: 'POST', token: serverKey, body: { state: parsed.state, questions: parsed.questions }, timeoutMs: FORWARD_TIMEOUT_MS });
+      const answer = r && r.status === 200 ? checkedAnswer(parsed.questions, r.json) : null;
+      logLine(dir, `forward ${answer ? 'answer' : 'no-answer'} ms ${Date.now() - t0}`);
+      if (!answer) return reply(res, 502, 'no-answer');
+      const body = JSON.stringify(answer);
+      res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), 'cache-control': 'no-store' });
+      res.end(body);
+    });
+  });
+  httpServer.on('clientError', (e, socket) => socket.destroy());
+  await new Promise((resolveP, reject) => {
+    httpServer.once('error', reject);
+    httpServer.listen(0, '127.0.0.1', resolveP);
+  });
+  const port = httpServer.address().port;
+  writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: child.pid, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
+  releaseLock(dir);
+  logLine(dir, `serving ready no`);
+  const startedAt = now();
+  timers.push(setInterval(async () => {
+    if (isReady || stopping) return;
+    const r = await httpJson({ port: serverPort, path: '/health', token: serverKey, timeoutMs: 1000 });
+    if (r && r.status === 200 && !isReady) {
+      isReady = true;
+      logLine(dir, `server ready ms ${now() - startedAt}`);
+    } else if (!isReady && now() - startedAt > startTimeoutMs && !stopping) {
+      writeFail(dir, 'timeout', now);
+      stop('timeout');
+    }
+  }, pollMs));
+  timers.push(setInterval(() => {
+    if (stopping) return;
+    if (now() - lastForward > idleMs) stop('idle');
+    else if (scriptChanged()) stop('changed');
+  }, checkMs));
+  onSignal = () => stop('signal');
+  onExit = () => {
+    try {
+      child?.kill();
+    } catch {
+      // gone
+    }
+    cleanFiles();
+  };
+  if (!stopping) {
+    process.once('SIGTERM', onSignal);
+    process.once('SIGINT', onSignal);
+    process.once('exit', onExit);
+  }
+  return { done, stop };
+}
+
+/** The ready check for `ensure`: the state a live supervisor is in, with its URL. */
+function stateOf(live) {
+  return { url: `http://127.0.0.1:${live.run.port}`, state: live.health.ready ? 'ready' : 'starting' };
+}
+
+/**
+ * `clef ensure` (S7): one result, { out, code }. It never fetches and never
+ * prints a token: the caller reads the token from run.json. States: ready,
+ * starting, not-set-up (exit 3), failed (exit 4).
+ */
+export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill }) {
+  const rp = runPaths(dir);
+  const secs = Math.min(60, Math.max(0, Number.isFinite(wait) ? wait : 0));
+  const deadline = Date.now() + secs * 1000;
+  const setup = notSetUp(dir, platform, server, model);
+  if (!setup.setup) return { out: { state: 'not-set-up', reason: setup.reason }, code: 3 };
+  const failed = () => {
+    const f = readJsonFile(rp.fail);
+    return f && typeof f.time === 'number' && now() - f.time < FAIL_BACKOFF_MS ? { state: 'failed', reason: ['exit', 'timeout', 'setup'].includes(f.reason) ? f.reason : 'exit' } : null;
+  };
+  const lastFail = failed();
+  if (lastFail) return { out: lastFail, code: 4 };
+  let live = await liveSupervisor(dir);
+  if (live) return { out: stateOf(live), code: 0 };
+  const wasLocked = !takeLock(dir);
+  if (!wasLocked) rmSync(rp.run, { force: true });
+  const waitFor = async () => {
+    for (;;) {
+      live = await liveSupervisor(dir);
+      if (live && (live.health.ready || secs === 0 || Date.now() >= deadline)) return { out: stateOf(live), code: 0 };
+      const f = failed();
+      if (f) return { out: f, code: 4 };
+      if (Date.now() >= deadline) return live ? { out: stateOf(live), code: 0 } : { out: { state: 'starting' }, code: 0 };
+      await sleep(100);
+    }
+  };
+  if (wasLocked) return waitFor();
+  try {
+    if (platform === 'linux') sweepOrphans({ dir, procRoot, kill });
+    const cmd = supervisorCommand ? supervisorCommand() : { file: execPath, args: [scriptPath, 'serve'] };
+    const child = spawn(cmd.file, cmd.args, { cwd: setup.paths.runtime, env: serveEnv(env, platform, setup.paths.runtime), detached: true, stdio: 'ignore', windowsHide: true, shell: false });
+    child.on('error', () => {});
+    child.unref();
+    // The supervisor holds the lock until it has written run.json.
+    writeFileSync(rp.lock, `${child.pid}\n`, { mode: 0o600 });
+  } catch {
+    releaseLock(dir);
+    writeFail(dir, 'exit', now);
+    return { out: { state: 'failed', reason: 'exit' }, code: 4 };
+  }
+  if (secs === 0) return { out: { state: 'starting' }, code: 0 };
+  return waitFor();
+}
+
+/**
+ * `clef stop` (S7): ends only the supervisor its /health just reported, then
+ * clears run.json, run.key and run.fail. With none live it ends nothing.
+ * Returns { lines, code }.
+ */
+export async function stopRun({ dir, platform = process.platform, procRoot, kill, waitMs = 10_000 }) {
+  const rp = runPaths(dir);
+  const live = await liveSupervisor(dir);
+  const locked = takeLock(dir);
+  try {
+    if (live) {
+      try {
+        process.kill(live.run.pid);
+      } catch {
+        // gone already
+      }
+      const until = Date.now() + waitMs;
+      while (pidAlive(live.run.pid) && Date.now() < until) await sleep(50);
+    }
+    if (locked && platform === 'linux') sweepOrphans({ dir, procRoot, kill, liveSupervisorPid: null });
+  } finally {
+    if (locked) releaseLock(dir);
+  }
+  rmSync(rp.run, { force: true });
+  rmSync(rp.key, { force: true });
+  rmSync(rp.fail, { force: true });
+  return { lines: [live ? 'stopped' : 'none running'], code: 0 };
+}
+
+/** `clef status` (S7): setup's platform, tag, backend and model prefix, the run state, and the last failure word. Never a token, key or path outside the clef folder. */
+export async function statusRun({ dir, platform = process.platform, server = SERVER, model = MODEL, now = Date.now }) {
+  const setup = readSetup(dir);
+  const lines = [];
+  if (!setup) lines.push('setup: none');
+  else lines.push(`platform: ${quote(setup.platform)}`, `tag: ${quote(setup.tag)}`, `backend: ${quote(setup.backend)}`, `model: ${quote(String(setup.model).slice(0, 8))}`);
+  const live = await liveSupervisor(dir);
+  lines.push(`run: ${live ? (live.health.ready ? 'ready' : 'starting') : 'stopped'}`);
+  const f = readJsonFile(runPaths(dir).fail);
+  lines.push(`last failure: ${f && ['exit', 'timeout', 'setup'].includes(f.reason) ? f.reason : 'none'}`);
+  return { lines, code: 0 };
+}
+
+/** The size of a folder in bytes, following no link. */
+function folderBytes(path) {
+  let total = 0;
+  let entries;
+  try {
+    entries = readdirSync(path, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const e of entries) {
+    const p = join(path, e.name);
+    if (e.isSymbolicLink()) continue;
+    if (e.isDirectory()) total += folderBytes(p);
+    else {
+      try {
+        total += lstatSync(p).size;
+      } catch {
+        // gone while counting
+      }
+    }
+  }
+  return total;
+}
+
+/**
+ * `clef remove` (S7): prints the clef folder and its size. With `yes` it stops a
+ * live supervisor, then deletes the clef folder, following no link out of it.
+ */
+export async function removeRun({ dir, yes = false, platform = process.platform, procRoot, kill }) {
+  const lines = [`clef folder: ${quote(dir)}`, `size: ${mb(folderBytes(dir))}`];
+  if (!yes) return { lines: [...lines, 'run again with --yes to delete it'], code: 0 };
+  await stopRun({ dir, platform, procRoot, kill });
+  // A server that has just been ended can hold its folder for a moment on Windows.
+  rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  lines.push('removed');
+  return { lines, code: 0 };
+}
+
 // ---------------------------------------------------------------- the command
 
 const quote = s => JSON.stringify(String(s)).slice(1, -1);
+
+const MODES = Object.freeze({ setup: ['--cpu', '--yes'], verify: [], ensure: [], serve: [], stop: [], status: [], remove: ['--yes'] });
 
 /** Runs one mode. `io` is { out(line), }; returns the exit code. */
 export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome() } = {}) {
@@ -1015,10 +1650,21 @@ export async function main(argv, { env = process.env, platform = process.platfor
     return 2;
   };
   const [mode, ...rest] = argv;
-  const flags = new Set(rest);
-  const known = mode === 'setup' ? ['--cpu', '--yes'] : mode === 'verify' ? [] : null;
-  if (!known) return refuse('usage', 'the modes are setup and verify');
-  if (rest.length !== flags.size || rest.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${known.length ? known.join(' and ') : 'no flags'}`);
+  const known = Object.hasOwn(MODES, mode) ? MODES[mode] : null;
+  if (!known) return refuse('usage', 'the modes are setup, verify, ensure, stop, status and remove');
+  let wait = 0;
+  let flagArgs = rest;
+  if (mode === 'ensure') {
+    const i = rest.indexOf('--wait');
+    if (i !== -1) {
+      const v = rest[i + 1];
+      if (!/^[0-9]{1,2}$/.test(v ?? '') || Number(v) > 60) return refuse('usage', 'ensure --wait takes whole seconds, at most 60');
+      wait = Number(v);
+      flagArgs = [...rest.slice(0, i), ...rest.slice(i + 2)];
+    }
+  }
+  const flags = new Set(flagArgs);
+  if (flagArgs.length !== flags.size || flagArgs.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${known.length ? known.join(' and ') : mode === 'ensure' ? '--wait <seconds>' : 'no flags'}`);
   let dir;
   try {
     dir = clefDir(claudeHome(env, account ?? homedir()));
@@ -1040,7 +1686,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
   }
   try {
     assertRealFolders(dir, cwd, { checkStart: fromEnv });
-    chdir(dir);
+    chdir(mode === 'remove' ? dirname(dir) : dir);
   } catch (e) {
     return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be entered');
   }
@@ -1051,10 +1697,36 @@ export async function main(argv, { env = process.env, platform = process.platfor
       out(r.failed.length ? `RESULT: fail ${r.failed.length}` : 'RESULT: pass');
       return r.failed.length ? 1 : 0;
     }
-    const r = await runSetup({ dir, yes: flags.has('--yes'), cpu: flags.has('--cpu'), platform, arch, execPath, cwd, transport, exists, free });
-    for (const l of r.lines) out(l);
-    out('RESULT: pass');
-    return 0;
+    if (mode === 'ensure') {
+      const r = await ensure({ dir, wait, platform, env, execPath });
+      out(JSON.stringify(r.out));
+      return r.code;
+    }
+    if (mode === 'serve') {
+      const h = await serve({ dir, platform, env });
+      const reason = await h.done;
+      return ['exit', 'timeout'].includes(reason) ? 1 : 0;
+    }
+    if (mode === 'stop' || mode === 'status' || mode === 'remove') {
+      const r = mode === 'stop' ? await stopRun({ dir, platform }) : mode === 'status' ? await statusRun({ dir, platform }) : await removeRun({ dir, yes: flags.has('--yes'), platform });
+      for (const l of r.lines) out(l);
+      out('RESULT: pass');
+      return r.code;
+    }
+    if (platform === 'linux' && !exists(SETPRIV)) return refuse('clef-setpriv', 'this machine has no /usr/bin/setpriv, which keeps the server from outliving the supervisor');
+    if (await liveSupervisor(dir)) return refuse('clef-running', 'a supervisor is running; run `clef stop` first');
+    const yes = flags.has('--yes');
+    const locked = yes ? takeLock(dir) : true;
+    if (!locked) return refuse('clef-running', 'a supervisor is starting; run `clef stop` first');
+    try {
+      if (yes && platform === 'linux') sweepOrphans({ dir });
+      const r = await runSetup({ dir, yes, cpu: flags.has('--cpu'), platform, arch, execPath, cwd, transport, exists, free });
+      for (const l of r.lines) out(l);
+      out('RESULT: pass');
+      return 0;
+    } finally {
+      if (yes) releaseLock(dir);
+    }
   } catch (e) {
     if (e instanceof Refused) return refuse(e.code, quote(e.message));
     return refuse('clef-fetch', `the fetch did not finish (${quote(e.message)}); run setup again`);
