@@ -791,6 +791,8 @@ export function probeVulkan({ platform, exists = existsSync, systemRoot = proces
 
 /** The platform key and why, or null when no archive fits. */
 export function pickPlatform({ platform, arch, vulkan, cpu }) {
+  // Spec 0003 M4: every Apple Silicon Mac has Metal, so no probe decides it.
+  if (platform === 'darwin') return arch === 'arm64' ? { key: `darwin-arm64-${cpu ? 'cpu' : 'metal'}`, backend: cpu ? 'cpu' : 'metal', why: cpu ? 'CPU forced by --cpu' : 'Apple Silicon: Metal' } : null;
   const os = platform === 'win32' ? 'win32' : platform === 'linux' ? 'linux' : null;
   if (!os || arch !== 'x64') return null;
   const useVulkan = vulkan && !cpu;
@@ -906,7 +908,8 @@ function modelPresent(dir, model, setup) {
  */
 export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, model = MODEL }) {
   assertPins(server, model);
-  const pick = pickPlatform({ platform, arch, vulkan: vulkan ?? probeVulkan({ platform, exists }), cpu });
+  if (platform === 'darwin' && arch !== 'arm64') throw new Refused('clef-platform', 'no build for Intel Macs; on Apple Silicon, run setup with an arm64 node, not one under Rosetta');
+  const pick = pickPlatform({ platform, arch, vulkan: platform === 'darwin' ? false : vulkan ?? probeVulkan({ platform, exists }), cpu });
   if (!pick || !server.archives[pick.key]) throw new Refused('clef-platform', `no pinned server build for ${platform} ${arch}`);
   if (platform === 'linux' && !exists('/usr/bin/setpriv')) throw new Refused('clef-setpriv', 'Linux needs /usr/bin/setpriv, which this machine does not have');
   if (insideOf(execPath, cwd, platform === 'win32')) throw new Refused('clef-node', 'the node that runs setup lies inside the folder the command was started from');

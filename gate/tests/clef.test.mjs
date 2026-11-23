@@ -499,7 +499,10 @@ test('the probe picks Vulkan on the loader file and CPU without it, runs nothing
   assert.deepEqual(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: true, cpu: false }), { key: 'win32-x64-vulkan', backend: 'vulkan', why: 'Vulkan loader found' });
   assert.deepEqual(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: false, cpu: false }), { key: 'win32-x64-cpu', backend: 'cpu', why: 'no Vulkan loader: CPU' });
   assert.equal(clef.pickPlatform({ platform: 'linux', arch: 'x64', vulkan: true, cpu: true }).key, 'linux-x64-cpu');
-  assert.equal(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: false }), null);
+  // Spec 0003 M4: Apple Silicon picks Metal, or CPU with --cpu; an Intel Mac has no build.
+  assert.deepEqual(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: false }), { key: 'darwin-arm64-metal', backend: 'metal', why: 'Apple Silicon: Metal' });
+  assert.deepEqual(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: true }), { key: 'darwin-arm64-cpu', backend: 'cpu', why: 'CPU forced by --cpu' });
+  assert.equal(clef.pickPlatform({ platform: 'darwin', arch: 'x64', vulkan: false, cpu: false }), null);
   assert.equal(clef.pickPlatform({ platform: 'win32', arch: 'arm64', vulkan: false, cpu: false }), null);
   const probe = SOURCE_TEXT.slice(SOURCE_TEXT.indexOf('export function probeVulkan'), SOURCE_TEXT.indexOf('export function pickPlatform'));
   assert.ok(probe.length > 100);
@@ -547,7 +550,7 @@ test('setup with the real table prints the real plan and still fetches nothing',
     }
   };
   const rows = [
-    { id: 'no-platform-macos', plant: () => ({ platform: 'darwin', arch: 'arm64' }), fails: ['clef-platform'], why: 'macOS is out of scope' },
+    { id: 'no-platform-intel-mac', plant: () => ({ platform: 'darwin', arch: 'x64' }), fails: ['clef-platform'], why: 'Intel Macs have no build (spec 0003 M4)' },
     { id: 'no-platform-arm', plant: () => ({ arch: 'arm64' }), fails: ['clef-platform'], why: 'Windows on ARM is out of scope' },
     { id: 'no-row-for-key', plant: () => ({ server: { ...miniServer(), archives: {} } }), fails: ['clef-platform'], why: 'the table has no row for the platform' },
     { id: 'too-little-space', plant: () => ({ free: 100 }), fails: ['clef-space'], why: 'the drive cannot hold the files' },
@@ -821,10 +824,20 @@ test('claudeHome: CLAUDE_CONFIG_DIR is used as an absolute path, a relative one 
   });
 }
 
+// Spec 0003 M4: on an Intel Mac, or a node under Rosetta, setup refuses in words that say what to do; on Apple Silicon no Vulkan probe runs.
+test('setup on darwin: x64 refuses with the Rosetta words, and arm64 looks for no Vulkan loader', t => {
+  assert.throws(() => clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'x64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12 }),
+    e => e.code === 'clef-platform' && e.message === 'no build for Intel Macs; on Apple Silicon, run setup with an arm64 node, not one under Rosetta');
+  const looked = [];
+  const plan = clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'arm64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12, exists: p => { looked.push(p); return false; } });
+  assert.equal(plan.key ?? plan.pick?.key, 'darwin-arm64-metal');
+  assert.deepEqual(looked.filter(p => /vulkan/i.test(p)), [], 'no Vulkan probe on macOS');
+});
+
 test('main: a refusal prints REFUSED and RESULT with the word, and exits 2', async t => {
   const out = [];
   const env = { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') };
-  const code = await clef.main(['setup'], { env, platform: 'darwin', arch: 'arm64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: () => {}, exists: () => false, transport: transportOf(() => ({ status: 500 })) });
+  const code = await clef.main(['setup'], { env, platform: 'darwin', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: () => {}, exists: () => false, transport: transportOf(() => ({ status: 500 })) });
   assert.equal(code, 2);
   assert.match(out.at(-2), /^REFUSED clef-platform: /);
   assert.equal(out.at(-1), 'RESULT: refused clef-platform');
