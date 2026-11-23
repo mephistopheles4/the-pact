@@ -470,7 +470,11 @@ test('the probe picks Vulkan on the loader file and CPU without it, runs nothing
   assert.equal(clef.pickPlatform({ platform: 'linux', arch: 'x64', vulkan: true, cpu: true }).key, 'linux-x64-cpu');
   assert.equal(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: false }), null);
   assert.equal(clef.pickPlatform({ platform: 'win32', arch: 'arm64', vulkan: false, cpu: false }), null);
-  assert.doesNotMatch(SOURCE_TEXT, /child_process|spawn|execFile/, 'T1 starts no program');
+  const probe = SOURCE_TEXT.slice(SOURCE_TEXT.indexOf('export function probeVulkan'), SOURCE_TEXT.indexOf('export function pickPlatform'));
+  assert.ok(probe.length > 100);
+  assert.doesNotMatch(probe, /spawn|exec|child_process/, 'the probe starts nothing');
+  assert.doesNotMatch(SOURCE_TEXT, /execFile|execSync|spawnSync|\bfork\(|shell: true/, 'no shell and no helper program');
+  assert.equal(SOURCE_TEXT.split('spawn(').length - 1, 2, 'the supervisor and the server are the only programs started');
 });
 
 // ------------------------------------------------------------ setup: the plan and the fetch (C4, C5, C7)
@@ -633,7 +637,7 @@ test('main: refuses an unknown mode, an unknown flag and a repeated flag, before
   const out = [];
   const env = { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') };
   const common = { env, out: l => out.push(l), chdir: () => { throw new Error('chdir'); }, transport: transportOf(() => { throw new Error('a request was made'); }) };
-  for (const argv of [[], ['serve'], ['setup', '--url', 'x'], ['setup', '--yes', '--yes'], ['verify', '--yes']]) {
+  for (const argv of [[], ['nonsense'], ['setup', '--url', 'x'], ['setup', '--yes', '--yes'], ['verify', '--yes'], ['ensure', '--wait'], ['ensure', '--wait', '61'], ['ensure', '--wait', 'x'], ['ensure', '--yes'], ['stop', '--yes'], ['status', 'x'], ['remove', '--wait', '1'], ['serve', '--yes']]) {
     out.length = 0;
     assert.equal(await clef.main(argv, common), 2, argv.join(' '));
     assert.match(out.at(-1), /^RESULT: refused usage$/);
