@@ -5,9 +5,12 @@
 // The fix for a table is `node docs/toc.mjs`; for an anchor link, correct the
 // link or the heading.
 import assert from 'node:assert/strict';
-import { posix } from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, posix } from 'node:path';
 import { test } from 'node:test';
-import { TOC_CLOSE, TOC_OPEN, covered, headings, problems, stripToc, tocBlock, trackedDocs, withToc } from '../../docs/toc.mjs';
+import { DEFAULTS, TOC_CLOSE, TOC_OPEN, covered, headings, problems, stripToc, tocBlock, trackedDocs, withToc } from '../../docs/toc.mjs';
 import { REPO } from './text.mjs';
 
 const FIX = 'run `node docs/toc.mjs`';
@@ -117,4 +120,170 @@ test('toc: writing twice changes nothing, the table sits before the first H2, an
   assert.doesNotMatch(w, /(?<!\r)\n/, 'every line ending stays CRLF');
   assert.ok(w.includes(`${TOC_CLOSE}\r\n`));
   assert.equal(stripToc(w), crlf);
+});
+
+// PACT-84 (spec 0004): the script reads toc.config.json from its own folder, finds its repo root with
+// git, and a vendored copy, marked by a Source line at line 2, refuses to run without a config.
+const SCRIPT = join(REPO, 'docs', 'toc.mjs');
+const SOURCE = '// Source: the-pact 0fde975';
+const CONFIG_FILE = 'toc.config.json';
+
+/** A doc with no table: 4 lines (title, blank, one H2, blank) and `n` body lines, so n + 4 in all. */
+const longDoc = n => `# T\n\n## H\n\n${'line\n'.repeat(n)}`;
+
+/** The environment for a child run: none of our git or NODE_OPTIONS variables leaks in, `ceiling` stops git looking above it, `extra` is added last, and `noPath` leaves it no PATH, so no git. */
+function childEnv(ceiling, noPath = false, extra = {}) {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(GIT_|NODE_OPTIONS$)/i.test(k)));
+  if (ceiling) env.GIT_CEILING_DIRECTORIES = ceiling;
+  Object.assign(env, extra);
+  if (noPath) {
+    for (const k of Object.keys(env)) if (/^path$/i.test(k)) delete env[k];
+    env.PATH = '';
+  }
+  return env;
+}
+
+/**
+ * A temporary folder with `files` written (path to text), a copy of the script in the folder `at` (repo-relative),
+ * its `toc.config.json` holding `config` when that is given, the Source line added on request, and a git repo made
+ * of it unless `git` is false. Calls `fn(dir)`, then removes it.
+ */
+function withRepo({ files = {}, at = 'scripts', source = false, config, git = true }, fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'toc-'));
+  try {
+    const script = readFileSync(SCRIPT, 'utf8').split('\n');
+    if (source) script.splice(1, 0, SOURCE);
+    mkdirSync(join(dir, at), { recursive: true });
+    writeFileSync(join(dir, at, 'toc.mjs'), script.join('\n'));
+    if (config !== undefined) writeFileSync(join(dir, at, CONFIG_FILE), config);
+    for (const [p, text] of Object.entries(files)) {
+      mkdirSync(join(dir, posix.dirname(p)), { recursive: true });
+      writeFileSync(join(dir, p), text);
+    }
+    if (git) {
+      execFileSync('git', ['init', '-q'], { cwd: dir, env: childEnv() });
+      execFileSync('git', ['add', '-A'], { cwd: dir, env: childEnv() });
+    }
+    return fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** Runs the copy in the folder `at` of `dir` with `args`, from `cwd` (default `dir`), `env` added to the child's: { status, stdout, stderr }. */
+function runToc(dir, args, { at = 'scripts', cwd = dir, noPath = false, env = {} } = {}) {
+  const r = spawnSync(process.execPath, [join(dir, at, 'toc.mjs'), ...args], { cwd, encoding: 'utf8', env: childEnv(dirname(dir), noPath, env) });
+  return { status: r.status, stdout: r.stdout, stderr: r.stderr };
+}
+
+// PACT-84 C1
+test('toc: with no config, --check passes in this repo on its committed tables', () => {
+  const r = spawnSync(process.execPath, [SCRIPT, '--check'], { cwd: REPO, encoding: 'utf8', env: childEnv() });
+  assert.deepEqual({ status: r.status, stdout: r.stdout }, { status: 0, stdout: '' });
+});
+
+// PACT-84 C2
+test('toc: maxUncoveredLines sets the threshold, and exclude takes folders, files and **/ names, replacing the default whole', () => {
+  const doc60 = longDoc(56);
+  assert.equal(covered('docs/a.md', doc60), false, 'under the default threshold');
+  assert.equal(covered('docs/a.md', doc60, { ...DEFAULTS, maxUncoveredLines: 50 }), true, 'over a threshold of 50');
+  assert.equal(covered('docs/a.md', doc60, { ...DEFAULTS, maxUncoveredLines: 60 }), false, 'a doc of exactly 60 lines is not over 60');
+  const cfg = { maxUncoveredLines: 50, exclude: ['docs/old/', 'docs/skip.md', '**/CLAUDE.md'] };
+  for (const p of ['docs/old/a.md', 'docs/old/deep/a.md', 'docs/skip.md', 'CLAUDE.md', 'a/b/CLAUDE.md']) assert.equal(covered(p, doc60, cfg), false, p);
+  for (const p of ['docs/oldest/a.md', 'docs/sub/skip.md', 'NOTCLAUDE.md', 'a/NOTCLAUDE.md', 'docs/a.md']) assert.equal(covered(p, doc60, cfg), true, p);
+  assert.equal(covered('docs/log/a.md', doc60, cfg), true, 'a key that is set replaces its default whole');
+  assert.deepEqual(problems([{ path: 'docs/a.md', text: doc60 }], cfg), ['docs/a.md: no table of contents']);
+  assert.deepEqual(problems([{ path: 'docs/a.md', text: withToc(doc60) }], cfg), []);
+  assert.deepEqual(problems([{ path: 'CLAUDE.md', text: withToc(doc60) }], cfg), ['CLAUDE.md: holds a table of contents but is not covered']);
+});
+
+// PACT-84 C2, C3
+test('toc: the config in the script folder sets the threshold in a run, and a bad config exits 2 with one line and writes nothing', () => {
+  const files = { 'docs/a.md': longDoc(56) };
+  withRepo({ files, config: '{"maxUncoveredLines": 50}' }, dir => {
+    assert.deepEqual(runToc(dir, ['--check']), { status: 1, stdout: 'docs/a.md: no table of contents\n', stderr: '' });
+    assert.equal(runToc(dir, []).stdout, 'wrote docs/a.md\n');
+    assert.equal(readFileSync(join(dir, 'docs/a.md'), 'utf8'), withToc(files['docs/a.md']));
+    assert.equal(runToc(dir, ['--check']).status, 0);
+  });
+  withRepo({ files, config: `﻿{"maxUncoveredLines": 50}` }, dir => assert.equal(runToc(dir, ['--check']).stdout, 'docs/a.md: no table of contents\n', 'a config saved with a byte order mark is read'));
+  withRepo({ files }, dir => {
+    mkdirSync(join(dir, 'scripts', CONFIG_FILE));
+    assert.deepEqual(runToc(dir, ['--check']), { status: 2, stdout: 'toc.config.json: not readable: EISDIR\n', stderr: '' }, 'a config that cannot be read is an error, not the defaults');
+  });
+  const rows = [
+    ['an unknown key', '{"maxUncovered": 50}', 'toc.config.json: maxUncovered: unknown key'],
+    ['a string threshold', '{"maxUncoveredLines": "50"}', 'toc.config.json: maxUncoveredLines: must be an integer of at least 1'],
+    ['a threshold of 0', '{"maxUncoveredLines": 0}', 'toc.config.json: maxUncoveredLines: must be an integer of at least 1'],
+    ['a fractional threshold', '{"maxUncoveredLines": 1.5}', 'toc.config.json: maxUncoveredLines: must be an integer of at least 1'],
+    ['exclude as a string', '{"exclude": "docs/"}', 'toc.config.json: exclude: must be an array of strings'],
+    ['exclude holding a number', '{"exclude": ["docs/", 1]}', 'toc.config.json: exclude: must be an array of strings'],
+    ['null', 'null', 'toc.config.json: not an object'],
+    ['an array', '[]', 'toc.config.json: not an object'],
+  ];
+  for (const [name, config, line] of rows) {
+    withRepo({ files: { 'docs/a.md': longDoc(120) }, config }, dir => {
+      for (const args of [[], ['--check']]) assert.deepEqual(runToc(dir, args), { status: 2, stdout: `${line}\n`, stderr: '' }, `${name} ${args.join(' ')}`);
+      assert.equal(readFileSync(join(dir, 'docs/a.md'), 'utf8'), longDoc(120), `${name}: no doc written`);
+    });
+  }
+  withRepo({ files: { 'docs/a.md': longDoc(120) }, config: '{"exclude": [' }, dir => {
+    for (const args of [[], ['--check']]) {
+      const r = runToc(dir, args);
+      assert.equal(r.status, 2, args.join(' '));
+      assert.match(r.stdout, /^toc\.config\.json: not valid JSON: .+\n$/);
+    }
+    assert.equal(readFileSync(join(dir, 'docs/a.md'), 'utf8'), longDoc(120));
+  });
+});
+
+// PACT-84 C3
+test('toc: a copy with a Source line at line 2 and no config exits 2 and writes nothing, and a Source line that is malformed or off line 2 does not mark a vendored copy', () => {
+  const files = { 'docs/a.md': longDoc(120) };
+  withRepo({ files, source: true }, dir => {
+    for (const args of [[], ['--check']]) assert.deepEqual(runToc(dir, args), { status: 2, stdout: 'toc.config.json: missing in a vendored copy\n', stderr: '' }, args.join(' '));
+    assert.equal(readFileSync(join(dir, 'docs/a.md'), 'utf8'), files['docs/a.md']);
+  });
+  withRepo({ files, source: true, config: '{}' }, dir => assert.equal(runToc(dir, ['--check']).stdout, 'docs/a.md: no table of contents\n', 'an empty config is a config'));
+  withRepo({ files, source: true }, dir => {
+    const path = join(dir, 'scripts/toc.mjs');
+    writeFileSync(path, readFileSync(path, 'utf8').replace(`${SOURCE}\n`, `${SOURCE}\r\n`));
+    assert.equal(runToc(dir, ['--check']).stdout, 'toc.config.json: missing in a vendored copy\n', 'a Source line with a CRLF ending is still one');
+  });
+  for (const [name, line, index] of [
+    ['a Source line on line 3', SOURCE, 2],
+    ['a Source line with a word that is not a commit', '// Source: the-pact latest', 1],
+    ['a Source line with a short commit', '// Source: the-pact abc123', 1],
+    ['a Source line with a trailing word', `${SOURCE} extra`, 1],
+  ]) {
+    withRepo({ files }, dir => {
+      const path = join(dir, 'scripts/toc.mjs');
+      const script = readFileSync(path, 'utf8').split('\n');
+      script.splice(index, 0, line);
+      writeFileSync(path, script.join('\n'));
+      assert.equal(runToc(dir, ['--check']).stdout, 'docs/a.md: no table of contents\n', `${name}: not a vendored copy, so the defaults apply`);
+    });
+  }
+});
+
+// PACT-84 C3
+test('toc: outside a git work tree, or with git missing, the script exits 2 with one line', () => {
+  const line = 'toc.mjs: not in a git work tree\n';
+  withRepo({ git: false }, dir => assert.deepEqual(runToc(dir, ['--check']), { status: 2, stdout: line, stderr: '' }));
+  withRepo({}, dir => assert.deepEqual(runToc(dir, ['--check'], { noPath: true }), { status: 2, stdout: line, stderr: '' }));
+});
+
+// PACT-84 C4
+test("toc: run from two levels deep in a temporary git repo, the script finds that repo's root", () => {
+  const files = { 'docs/a.md': longDoc(120), 'x/y/z/other.md': longDoc(120) };
+  withRepo({ files, at: 'tools/vendor', config: '{}' }, dir => {
+    const off = { status: 1, stdout: 'docs/a.md: no table of contents\nx/y/z/other.md: no table of contents\n', stderr: '' };
+    for (const cwd of [dir, join(dir, 'x/y'), dirname(dir)]) assert.deepEqual(runToc(dir, ['--check'], { at: 'tools/vendor', cwd }), off, `from ${cwd}`);
+    // Git exports these to a hook: in a linked worktree, GIT_DIR is absolute and points the root at the wrong folder.
+    const hook = { GIT_DIR: join(dir, '.git'), GIT_INDEX_FILE: join(dir, '.git', 'index'), GIT_PREFIX: 'x/y/' };
+    assert.deepEqual(runToc(dir, ['--check'], { at: 'tools/vendor', cwd: join(dir, 'x/y'), env: hook }), off, 'git variables from a hook do not move the root');
+    assert.equal(runToc(dir, [], { at: 'tools/vendor', cwd: join(dir, 'x/y') }).stdout, 'wrote docs/a.md\nwrote x/y/z/other.md\n');
+    assert.equal(readFileSync(join(dir, 'docs/a.md'), 'utf8'), withToc(files['docs/a.md']));
+    assert.equal(runToc(dir, ['--check'], { at: 'tools/vendor' }).status, 0);
+  });
 });

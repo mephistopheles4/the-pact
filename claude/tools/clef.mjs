@@ -42,7 +42,7 @@ import { createServer as createHttpServer, request as httpRequest } from 'node:h
 import { request as httpsRequest, Agent } from 'node:https';
 import { createServer as createNetServer } from 'node:net';
 import { homedir, machine as osMachine, uptime as osUptime, userInfo } from 'node:os';
-import { dirname, join, posix, resolve, win32 } from 'node:path';
+import { basename, dirname, join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync, gunzipSync } from 'node:zlib';
 
@@ -1835,8 +1835,10 @@ export async function serve({ dir, platform = process.platform, env = process.en
   }
   const rp = runPaths(dir);
   const p = ready.paths;
-  const scriptPath = fileURLToPath(scriptUrl);
-  const own = fingerprint(scriptPath);
+  const watchedPath = fileURLToPath(scriptUrl);
+  const own = fingerprint(watchedPath);
+  // The keeper is this module's own file, whatever script the supervisor watches (spec 0003: its own script, import.meta.url).
+  const scriptPath = fileURLToPath(import.meta.url);
   const token = randomBytes(32).toString('hex');
   const serverKey = randomBytes(32).toString('hex');
   const runId = randomBytes(16).toString('hex');
@@ -1976,7 +1978,6 @@ export async function serve({ dir, platform = process.platform, env = process.en
     throw new Refused('clef-setup', 'the server could not be started');
   }
   const serverPidOf = () => (useKeeper ? serverPid : child.pid);
-  if (useKeeper) writeFileSync(rp.server, `${JSON.stringify({ run: runId, pid: serverPid, port: serverPort, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
   childExited.then(() => {
     if (!stopping) {
       writeFail(dir, 'exit', now);
@@ -1993,7 +1994,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
       setTimeout(() => res.req.destroy(), 2000).unref();
     }
   };
-  const scriptChanged = () => !sameFingerprint(own, fingerprint(scriptPath));
+  const scriptChanged = () => !sameFingerprint(own, fingerprint(watchedPath));
   httpServer = createHttpServer((req, res) => {
     const port = httpServer.address().port;
     if (req.headers.host !== `127.0.0.1:${port}`) return reply(res, 400, 'host', true);
@@ -2053,6 +2054,8 @@ export async function serve({ dir, platform = process.platform, env = process.en
       httpServer.once('error', reject);
       httpServer.listen(0, '127.0.0.1', resolveP);
     });
+    // Inside the try: a failure here ends the keeper and the server, as one after rp.run does.
+    if (useKeeper) writeFileSync(rp.server, `${JSON.stringify({ run: runId, pid: serverPid, port: serverPort, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
     const port = httpServer.address().port;
     writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: serverPidOf(), started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
   } catch (e) {
@@ -2379,6 +2382,19 @@ export async function main(argv, { env = process.env, platform = process.platfor
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+
+/** True when this file is the script node was started with, compared by real path (macOS reaches /var through /private/var). */
+const startedAsScript = () => {
+  try {
+    const self = fileURLToPath(import.meta.url);
+    if (!process.argv[1]) return false;
+    if (resolve(process.argv[1]) === self) return true;
+    // Only a script of this file's name is looked up on disk, so an importer touches no file.
+    return basename(process.argv[1]) === basename(self) && realpathSync(process.argv[1]) === realpathSync(self);
+  } catch {
+    return false;
+  }
+};
+if (startedAsScript()) {
   process.exitCode = await main(process.argv.slice(2));
 }
