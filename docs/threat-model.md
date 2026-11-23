@@ -96,16 +96,15 @@ rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`, and
 the checkpoint rule, where each step the rules keep for the owner (an install
 apply, mise trust, a merge, anything made public or sent beyond the record, a
 deletion nothing can restore) is the session's own logged pick, reviewed after,
-with no wait of the pact's own; the stop and removal rules above.
+with no wait but the cleaner's override rule; the stop and removal rules above.
 A change that loosens the cleaner's checks or the pact's deny rules is a spec
 change.
 
 Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; an open
-security pick's report goes to the work's record on the project's issue tracker, word
-for word with its why, so a reader of a public tracker can read it and search
-for its "Owner's call: security" opener; outside text can steer the framing of a finding; what its
+security pick's report goes to the work's record on the project's issue tracker,
+flagged, so a reader of a public tracker can read it; outside text can steer the framing of a finding; what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
@@ -137,9 +136,9 @@ into Scriptorium.
   grants it; each pin is held by hash.
 - **Harness.** Folder trust and permission prompts, as above.
 
-**Residual:** What you install and CI run; Pinned design-system code. Rule it
-rests on, a control: never trust a project's mise config without the owner's
-word (`AGENTS.md`). Also accepted. What you install and CI run: the cloud
+**Residual:** What you install and CI run; Pinned design-system code. No pact
+rule holds back trusting a project's mise config: it is a checkpoint, the
+session's own logged pick. Also accepted. What you install and CI run: the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`. Pinned design-system code: each re-pin is reviewed
@@ -153,8 +152,8 @@ like any change to this repo.
 
 - **GitHub.** An active ruleset on `main`, with no bypass actor: a pull
   request is required, `gate` and `gate-windows` must pass, and deletion and
-  force-push are blocked. It needs no approving review, so the owner's merge
-  is the review.
+  force-push are blocked. It needs no approving review: a merge is a
+  checkpoint, which the owner reviews after.
 - **The pact's tools.** The install gate (`gate/install.mjs`) runs a dry run
   first, applies only with the commit id the dry run printed, takes only plain
   files and safe paths, and checks install mechanics only: the owner vets the
@@ -163,8 +162,8 @@ like any change to this repo.
 **Residual:** The pact gets loosened; Review rests on rules. Rules they rest
 on, each a control: an install apply, mise trust and every merge are
 checkpoints, the session's own logged pick, a merge pinned to its reviewed
-head and all reviewed after; the pact adds no wait of its own, so only Claude
-Code's prompts and classifier stop one. Also accepted. Review rests on rules: a
+head and all reviewed after; the rules add no wait, so Claude Code's prompts
+and classifier, the ruleset's checks and the install's dry run stop one. Also accepted. Review rests on rules: a
 read-only lens takes the base on trust; the table check doesn't pair a state
 word with a disposition; a lens launched as a teammate, against the procedure,
 can pass what it read to, or write tasks for, the owner's other sessions and
@@ -286,8 +285,8 @@ they do not size them.
 
 Each "Also accepted" line above details what the class it names covers; it is not a class of its own. No class accepts the failure of a control that works without the session's cooperation (the harness's prompts and deny rules, the poster's refusals for a post sent through it): bring it to the owner.
 
-- **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, and bypass the rules, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
-- **A session takes checkpoints alone.** A session takes each checkpoint, a call the rules keep for the owner, on its own logged pick, open security picks included, with no wait of the pact's own, on words from any prompt or replies it can't tell from its starter's.
+- **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, and take a step the rules keep for the owner, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
+- **A session takes checkpoints alone.** A session takes each checkpoint, a call the rules keep for the owner, on its own logged pick, open security picks included, with no wait but the cleaner's override rule, on words from any prompt or replies it can't tell from its starter's.
 - **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, and the gate's unscanned test files run with the owner's rights or a write token.
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
