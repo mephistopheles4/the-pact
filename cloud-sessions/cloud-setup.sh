@@ -698,24 +698,11 @@ trade-off.
   of proportion to the risk it closes, and I see both.
 - **An empty limit** is my judgment: a finding that spends that cost comes to
   me as a trade-off.
-- **A security finding** names an attacker in scope in the project's threat
-  model as it stood before the change (the file its agent instructions name,
-  else `docs/threat-model.md`), placed as review.md's Threat model section
-  said before the change, or touches the sensitive-work list, auth meaning
-  authentication and authorization. With no threat model, the list
-  decides. The session that sorts the findings decides; another lens marks a
-  doubtful one "security?", and its row is never `auto`.
-- **Accepted threat classes** live only in the project's threat model, one
-  line each: what it covers, never the steps. A finding that fits one needs
-  nothing. A finding that fits none comes to me as a new class, and only a merge
-  I confirm, a checkpoint, adds or widens one. A change that removes a
-  control still comes to me, and so does a change to the threat model's scope.
-  With no threat model, flag the risk and record nothing.
 
 | Cost | Counted as | Limit | At the limit |
 | --- | --- | --- | --- |
 | Tests added | Tests that earn no claim: none backs one, it repeats one that already does, or it pins how the work is done rather than what it does. | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
-| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as a note; never built unasked |
+| Hardening | Guards for paths the project's threat model doesn't place in scope | 0 | Reported as a note; never built unasked |
 | Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |
 | Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |
 | Review rounds | Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own | 2, the second declared final | A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage |
@@ -1269,7 +1256,10 @@ security ruling.
    anything on the machine makes from outside input. What starts and ends
    on the machine (a program, process, account, file or memory made there)
    is the machine's, and no finding, unless the project's threat model holds
-   it in scope, or it touches the sensitive-work list.
+   it in scope, or it touches the sensitive-work list. Then make the Clef
+   placement call: ask whether the finding is on an inbound or outbound
+   boundary, or only on the owner's machine. Clef sees the threat model; an
+   unsure answer comes to me.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
@@ -1631,7 +1621,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash bab0032d2d8122268278b6797e4c5ead400b06bced9cdb8dc28c279f5e565700 'CLAUDE.md'
+check_hash 0027c9aeadaa4ec12d62fff6edb4d5d159ef78c730a85d9fa979671568d78e71 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash 4fedc54d86f38a16089eeeb40509a8dd53515554415cf73e03e971a0d72c1412 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1642,7 +1632,7 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 212bc869c481bda1fc31a7608eb0fdac7b152b3f9173003189768b0f8c384dfc 'pact/review.md'
+check_hash 107481d9f70b8c09aecfedc24e20458f888f5d3676319fe070174a4a8fe415ea 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1672,7 +1662,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy dee2ae88c5b6"
+  echo "pact cloud copy 0fdf335e97ea"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

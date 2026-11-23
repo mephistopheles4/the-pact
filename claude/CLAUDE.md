@@ -163,25 +163,12 @@ trade-off.
   of proportion to the risk it closes, and I see both.
 - **An empty limit** is my judgment: a finding that spends that cost comes to
   me as a trade-off.
-- **A security finding** names an attacker in scope in the project's threat
-  model as it stood before the change (the file its agent instructions name,
-  else `docs/threat-model.md`), placed as review.md's Threat model section
-  said before the change, or touches the sensitive-work list, auth meaning
-  authentication and authorization. With no threat model, the list
-  decides. The session that sorts the findings decides; another lens marks a
-  doubtful one "security?", and its row is never `auto`.
-- **Accepted threat classes** live only in the project's threat model, one
-  line each: what it covers, never the steps. A finding that fits one needs
-  nothing. A finding that fits none comes to me as a new class, and only a merge
-  I confirm, a checkpoint, adds or widens one. A change that removes a
-  control still comes to me, and so does a change to the threat model's scope.
-  With no threat model, flag the risk and record nothing.
 
 <!-- pact:begin cost-limits -->
 | Cost | Counted as | Limit | At the limit |
 | --- | --- | --- | --- |
 | Tests added | Tests that earn no claim: none backs one, it repeats one that already does, or it pins how the work is done rather than what it does. | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
-| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as a note; never built unasked |
+| Hardening | Guards for paths the project's threat model doesn't place in scope | 0 | Reported as a note; never built unasked |
 | Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |
 | Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |
 | Review rounds | Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own | 2, the second declared final | A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage |

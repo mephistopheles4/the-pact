@@ -78,14 +78,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Read closely:** `claude/tools/`,
   the gate's code (`gate/` but its tests), `cloud-sessions/`,
   `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
-  (whose text counts), `docs/agents/agent-apps.md`, the protected set below,
+  (whose text counts), `docs/agents/agent-apps.md`,
   `gate/tests/workflow.test.mjs`, `.github/`, `docs/spec/`.
-- **The protected set** (the offers paragraph, the sensitive-work default and
-  the security lenses' carried rules) is cut or weakened, and the lens roster
-  changed, only by a spec change read by the spec pair and the security pair.
-  They hold by review, not by a gate check: the gate checks install
-  mechanics only (ADR 0069), and the owner vets the pact's text as they would
-  any skill. Probes: [evals](evals/README.md#probes). The full text:
+- Probes: [evals](evals/README.md#probes). The full text:
   1. **The offers paragraph** in the pact's Lenses section, all of it: a lens
      offered with a one-line reason, and answered by me; the one-line
      exception said aloud, and never for work that matches the list; a repo's
@@ -117,8 +112,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   covers (Claude Code, the threat model, the poster, the cleaner, the gate,
   hooks). A rule nobody can write one for is a duplicate and goes. A rule the
   threat model names as a control never counts as covered by it, since the
-  threat model relies on it, and a protected-set rule goes only by the
-  protected-set route. The rules file and
+  threat model relies on it. The rules file and
   each agent stay within their word budgets in
   `gate/tests/rule-budget.test.mjs`; raising one is a spec change.
 - **The agent-facing docs say what holds now:** the docs

@@ -34,7 +34,7 @@ This file is never installed.
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |
-| Lenses are offers | The protected set: an offer is a checkpoint, answered by whoever steers the session: the owner, or the lead at level 3. |
+| Lenses are offers | An offer is a checkpoint, answered by whoever steers the session: the owner, or the lead at level 3. |
 | Before you run a lens or post to the record, read `~/.claude/pact/review.md` | Points to the procedure, which no tool loads. |
 | Qualities | The owner's quality list, with the lens that checks each. No tool measures them. |
 | Trade-off points | What a spec must record about trade-offs. No tool reads a spec. |
@@ -43,8 +43,6 @@ This file is never installed.
 | One rule | No finding is dropped silently at a limit. Nothing else routes findings. |
 | The security bar | When a security fix is due. No tool weighs a fix's cost against its risk. |
 | An empty limit | Who decides an unset limit. Nothing else would. |
-| A security finding | The definition the sorter uses, and that it places a finding on a boundary as the guide says, so a path wholly on the machine is no finding. The classifier judges actions, not findings. |
-| Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Work that won't converge | Two rounds without converging, or off the plan, get the options named and a pick. No tool counts rounds. |
 | A standing goal | What sets one, and that a session started for it carries it. The harness's goal command only keeps a session going. |

@@ -143,7 +143,10 @@ security ruling.
    anything on the machine makes from outside input. What starts and ends
    on the machine (a program, process, account, file or memory made there)
    is the machine's, and no finding, unless the project's threat model holds
-   it in scope, or it touches the sensitive-work list.
+   it in scope, or it touches the sensitive-work list. Then make the Clef
+   placement call: ask whether the finding is on an inbound or outbound
+   boundary, or only on the owner's machine. Clef sees the threat model; an
+   unsure answer comes to me.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
