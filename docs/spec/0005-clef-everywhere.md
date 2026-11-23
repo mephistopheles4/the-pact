@@ -420,7 +420,7 @@ code changes:
 ## U10 The experiment, and what it found
 
 Run before the spec's approval, with the lead's OK (decision 64), on a
-throwaway branch `pact-85-e2e-experiment` with no PR, never merged, deleted
+throwaway `pact-e2e-experiment` branch with no PR, never merged, deleted
 once the spec is approved. Its workflow runs on a push to that branch only and
 keeps the lockdown every workflow keeps. On each runner it fetched the pinned
 archive and the model through the tool's own fetch (size and sha256 checked),
@@ -453,7 +453,7 @@ the user only as `ensure` → `failed`, `exit` (U18).
 
 0003's session builds the keeper and the darwin branches. The shared lines
 are agreed before either side writes them, and each agreement is recorded as
-a comment on PACT-85:
+a comment on this work's PACT issue:
 
 - `lifetimeLine` (U6) is the single switch; 0003 keys its keeper code on
   `keeper`. Done in 0003's d735bef; T2 starts when its branch has
@@ -526,7 +526,7 @@ evidence on its own head.
   `ppc64`. The probe runs no process. 0003's Rosetta tests flip with it, and
   `main`'s refusal test moves to `freebsd`.
 - **C-U2** The shape check passes the three new rows and the `glibc` field
-  on all four Linux rows, and refuses a Linux row without `glibc`. `files`
+  on all three Linux rows, and refuses a Linux row without `glibc`. `files`
   came from `clef-files-list.mjs`. The pin record shows each asset's
   `digest`, `created_at`, `updated_at` and the release's immutability, and
   cites U10's six-case runs as C14 for each new row, with their numbers and
