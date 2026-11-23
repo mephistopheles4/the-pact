@@ -51,7 +51,7 @@ createServer((req, res) => {
   }
   let b = '';
   req.on('data', c => (b += c));
-  req.on('end', () => {
+  req.on('end', () => setTimeout(() => {
     appendFileSync(cfg.requests, 'x\\n');
     if (cfg.mode === 'status500') { res.writeHead(500); return res.end('SECRET-SERVER-TEXT'); }
     if (cfg.mode === 'text') { res.writeHead(200); return res.end('SECRET-SERVER-TEXT'); }
@@ -73,7 +73,7 @@ createServer((req, res) => {
     const reply = cfg.mode === 'bare' ? out : { model: 'SECRET-SERVER-TEXT', answers: out, usage: { input_tokens: 1, output_tokens: 0 } };
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(reply));
-  });
+  }, cfg.answerDelayMs || 0));
 }).listen(Number(arg('--port')), '127.0.0.1');
 `;
 
@@ -406,6 +406,18 @@ test('serve: a forwarded request keeps it alive past the idle time', async t => 
     const r = await call({ port, token, body: { state: {}, questions: QUESTIONS } });
     assert.equal(r.status, 200, `request ${i}`);
   }
+});
+
+// PACT-82: the idle time counts from the last forward's end, and never runs out while one is in flight.
+test('serve: a forward slower than the idle time is answered, and the idle time counts from its end', async t => {
+  const f = fixture(t, { answerDelayMs: 900 });
+  const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 400, checkMs: 50, pollMs: 50 });
+  f.stoppers.push(() => h.stop('test'));
+  const { port, token } = (await ready(f)).run;
+  const body = { state: {}, questions: QUESTIONS };
+  assert.equal((await call({ port, token, body })).status, 200, 'the slow forward is answered');
+  await sleep(150);
+  assert.equal((await call({ port, token, body })).status, 200, 'still up after the forward ended');
 });
 
 test('serve: a server that exits ends the supervisor and records run.fail with a fixed word', async t => {
@@ -1218,9 +1230,15 @@ test('serve on the keeper line: a stop sends the server no signal from the super
   assert.ok(await gone(live.run.serverPid, 1000), 'SIGKILL after the keeper\'s wait');
 });
 
-test('serve on the keeper line: the idle time ends the server', async t => {
+test('serve on the keeper line: the idle time ends the server, counted from ready, not from start', async t => {
   const f = fixture(t);
-  const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 400, checkMs: 100, pollMs: 50, ...KEEPER });
+  // PACT-82: a slow start (the keeper hop on macOS) must not use up the idle time. After its first read the clock
+  // stands 1 s ahead, a start slower than the idle time and far inside the start timeout. The stub is not ready for
+  // its first 300 ms, so idle checks run before ready.
+  f.setCfg({ readyAfterMs: 300 });
+  let reads = 0;
+  const now = () => Date.now() + (reads++ > 0 ? 1000 : 0);
+  const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 400, checkMs: 50, pollMs: 50, now, ...KEEPER });
   f.stoppers.push(() => h.stop('test'));
   const live = await ready(f);
   assert.equal(await h.done, 'idle');
