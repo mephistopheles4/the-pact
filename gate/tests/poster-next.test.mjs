@@ -113,7 +113,7 @@ test('PACT-48: two refusals of one rule print its NEXT line once, straight above
 });
 
 /** An ask item (a quote and a pending read-back) the fake GitHub holds as comment 9001. */
-const ASK = `## The ask\n\n> The owner asked for a plain thing.\n\nSaid in this session's chat, 2026-11-11. Quote for the intent and the start.\n\n## Understood intent\n\nA plain thing is wanted.\n\nRead-back: not yet confirmed.\n\nA plain body.\n\nSigned: ${LABEL}\n`;
+const ASK = `## The ask\n\n> The owner asked for a plain thing.\n\nSaid in this session's chat, 2026-11-11. Started the intent and the task.\n\n## Understood intent\n\nA plain thing is wanted.\n\nRead-back: not yet confirmed.\n\nA plain body.\n\nSigned: ${LABEL}\n`;
 const QUOTE = [{ text: 'The owner asked for a plain thing.', source: 'chat', when: '2026-11-11', role: 'both' }];
 
 test('PACT-48: the target, ask, status and confirm refusals each print their own NEXT line', t => {

@@ -120,7 +120,7 @@ They are the nine examples, one per surface in the table's order; the
 block is kept equal to the map by hand, since no test reads this page. The four
 edit examples edit an item that is not an ask item. An edit of an ask item
 (any issue, pull request, spec or decision posted with a quote) also carries
-that item's own `quote` and `intent`, copied from the item (Edits). A
+that item's own `quote` (or `intent_none` and `start_none`) and `intent`, copied from the item (Edits). A
 `pull-request-edit` signs as the create example does.
 
 ### Kinds
@@ -130,9 +130,9 @@ surfaces it may go to and to its quote and read-back:
 
 | Kind | Surfaces | `quote` and `intent` | Rendered mark |
 | --- | --- | --- | --- |
-| `issue` | `issue` | required, as two quotes | none |
-| `pull-request` | `pull-request` | required, as two quotes | none |
-| `spec` | `issue-comment` | required, as two quotes | none |
+| `issue` | `issue` | required: two quotes, each a passage or a no-owner-words reason (The two quotes) | none |
+| `pull-request` | `pull-request` | required: two quotes, each a passage or a no-owner-words reason | none |
+| `spec` | `issue-comment` | required: two quotes, each a passage or a no-owner-words reason | none |
 | `decision` | `issue-comment` | required | `Owner decision, from chat.` when every passage's source is `chat`, else `Relayed owner words, not a decision mark.` |
 | `status` | `issue-comment` | refused | none |
 | `lens-report` | `issue-comment`, `pull-request-review` | refused | none |
@@ -167,27 +167,6 @@ hold a personal detail. The text outside its spans must be 20 characters or
 more, no two spans touch, and a passage holds at most three. The session
 tells the owner in chat what it left out.
 
-### The two quotes
-
-An `issue`, `pull-request` or `spec` carries two of the owner's quotes: the
-words that started the intent and the words that started this task. Each
-passage has a `role`: `intent`, `start`, or `both` for one passage that did
-both. Each of the two is a passage with that role, or a one-line reason in
-`intent_none` or `start_none` (1 to 200 characters, the form of `intent_skip`)
-that no owner words are behind it, such as `no owner words: started from a
-session's note`. A post that fills a side with neither, or with both, is
-refused (`post/missing quote.intent` or `quote.start`, `post/field`), and a
-passage with no `role` is refused `post/missing quote[n].role`. With both
-sides reasoned, `quote` may be left out. A `decision` quotes the owner's
-decision words, takes no `role`, `intent_none` or `start_none`, and keeps its
-one `quote`.
-
-The source line ends with ` Quote for the intent.`, ` Quote for the start.` or
-` Quote for the intent and the start.`, and a reason shows as `No owner words
-for the intent: <reason>` or `No owner words for the start: <reason>`, after the
-passages. An item posted before the roles has neither line, and an edit
-carries what the item holds.
-
 A quoted create post takes `intent`, or `intent_skip` in its place, never both: a
 one-line reason (at most 200 characters) that there is no reading to give. A
 `decision` takes no `intent_skip`. The body shows it as `## Understood intent`,
@@ -208,9 +187,31 @@ poster renders the read-back line itself:
   after an edit moves the status, with the struck original and the corrected
   text for a correction
 
-`intent.text`, `intent.corrected` and `intent_skip` are refused `post/owned-line` when a line
+`intent.text`, `intent.corrected`, `intent_skip`, `intent_none` and `start_none` are refused `post/owned-line` when a line
 holds a heading, a fence opening, an HTML heading tag or one of the poster's
 owned lines (below), read as the page shows it. An unclosed HTML comment or fold in the body before the signature is refused `text/hidden-line`.
+
+### The two quotes
+
+An `issue`, `pull-request` or `spec` carries two of the owner's quotes: the
+words that started the intent and the words that started this task. Each
+passage has a `role`: `intent`, `start`, or `both` for one passage that did
+both. Each of the two is a passage with that role, or a one-line reason in
+`intent_none` or `start_none` (1 to 200 characters, the form of `intent_skip`)
+that no owner words are behind it, such as `it came from a session's note`.
+`intent_none` is about the quote; `intent_skip` is about the read-back. A post
+that leaves a side with neither, or fills it with both, is refused
+(`post/missing quote.intent` or `quote.start`, `post/field`), and a passage
+with no `role` is refused `post/missing quote[n].role`. With both sides
+reasoned, `quote` may be left out. A `decision` quotes the owner's decision
+words, takes no `role`, `intent_none` or `start_none`, and keeps its one
+`quote`.
+
+The source line ends with ` Started the intent.`, ` Started the task.` or
+` Started the intent and the task.`, and a reason shows as `No owner words
+started the intent: <reason>` or `No owner words started the task: <reason>`,
+after the passages. An item posted before the roles has neither line, and an
+edit carries what the item holds.
 
 ### How the poster builds the body
 
@@ -232,7 +233,7 @@ a line starting `Answers:`. The source line follows its passage, and is one of:
 - `From the owner's comment <comment>, <when>.` for a `tracker` one
 
 Each ends with its role line when it has one, and a line starting `No owner
-words for the intent:` or `No owner words for the start:` is owned too.
+words started the intent:` or `No owner words started the task:` is owned too.
 
 A `body_file` that holds
 one outside a fence is refused `post/owned-line`. The prose check skips the
@@ -461,7 +462,7 @@ nothing sent.
 | `post/json` | The post file isn't JSON, or its top level isn't an object; `where` is always `post file` |
 | `post/unknown` | A field no surface knows, `__proto__`, `constructor` and `toString` included |
 | `post/field` | A field the schema knows but this surface or kind refuses (`kind` on an edit, `reason` on a create, `labels` on a pull request, `answers` off a `decision`, `quote`, `intent`, `intent_skip`, `intent_none` or `start_none` where the kind or item refuses them, a quote side given both a passage and its reason, `role` off an `issue`, `pull-request` or `spec`, `quote[n].comment` off a `tracker` passage, `via` off a `relayed` one) |
-| `post/missing` | A required field is missing |
+| `post/missing` | A required field is missing, or a quote side has neither a passage nor its reason |
 | `post/type` | A field has the wrong type |
 | `post/pattern` | A value misses its pattern or enum, such as a `body_file` of `..`, `a/b`, `a\b`, `c:x` or a link name |
 | `post/length` | A value is over its bound or under its minimum |
@@ -470,7 +471,7 @@ nothing sent.
 | `post/status` | A create post of `corrected`, one of `confirmed` with a `relayed` or `tracker` passage, or a chat-marked `decision` posted `pending` |
 | `post/when` | A passage's `when` isn't a real date, carries a time of day, or is after tomorrow in UTC |
 | `post/tracker` | A `tracker` passage whose comment is another author's, in another repo, doesn't hold the passage's text, or whose text outside its `[left out]` spans is under 20 characters, with touching spans or more than three; `where` is `quote[n].comment` or `quote[n].text`, and none of the comment's text is printed |
-| `post/owned-line` | A `body_file` outside a fence, or `intent.text`, `intent.corrected` `intent_skip`, `intent_none` or `start_none`, holds a line the poster owns, or the intent fields hold a heading, a fence opening or an HTML heading |
+| `post/owned-line` | A `body_file` outside a fence, or `intent.text`, `intent.corrected`, `intent_skip`, `intent_none` or `start_none`, holds a line the poster owns, or the intent fields hold a heading, a fence opening or an HTML heading |
 | `text/hidden-line` | The rendered body, before its `Signed:` line, opens an HTML comment or a fold it doesn't close |
 | `file/unreadable` | The file can't be read |
 | `file/link` | The file is a link |

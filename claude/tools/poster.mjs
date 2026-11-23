@@ -95,7 +95,7 @@ const OPT = 'opt';
 const BYKIND = 'kind';
 const COMMON_FIELDS = { repo: REQ, as: OPT, signer: REQ, body_file: REQ };
 const CREATE_FIELDS = { kind: REQ, quote: BYKIND, intent: BYKIND, intent_skip: BYKIND, intent_none: BYKIND, start_none: BYKIND };
-/** An edit's quote and intent (or the intent's skip reason): the quote with one of the two, or none of them, and the item decides which (S6.1). */
+/** An edit's ask, its quote passages or its no-owner-words reasons, with its reading (`intent` or `intent_skip`), or none of them; the item decides which (S6.1). */
 const EDIT_ASK = { quote: OPT, intent: OPT, intent_skip: OPT, intent_none: OPT, start_none: OPT };
 
 /**
@@ -534,7 +534,7 @@ const FIXED_START = [
   /^said in this session's chat/,
   /^relayed by /,
   /^from the owner's comment/,
-  /^no owner words for the (?:intent|start):/,
+  /^no owner words started the (?:intent|task):/,
   /^relayed owner words/,
   /^heard in chat by /,
   /^#{1,6}[ \t]*(?:the ask|understood intent)[ \t]*#*$/,
@@ -723,7 +723,7 @@ const HEARD_RE = new RegExp(`^Heard in chat by (${SIGNER_SOURCE})\\.$`);
 const HEARD_START_RE = /^heard in chat by /;
 const quoteLines = (text, blank) => text.split(LINE_END_RE).map(l => (blank ? '' : l === '' ? '>' : `> ${l}`)).join('\n');
 /** What a passage's role adds to its source line (PACT-77); a passage with none, as in an older item, adds nothing. */
-const ROLE_LINE = { intent: ' Quote for the intent.', start: ' Quote for the start.', both: ' Quote for the intent and the start.' };
+const ROLE_LINE = { intent: ' Started the intent.', start: ' Started the task.', both: ' Started the intent and the task.' };
 const sourceLine = q => {
   const role = q.role === undefined ? '' : ROLE_LINE[q.role];
   if (q.source === 'chat') return `Said in this session's chat, ${q.when}.${role}`;
@@ -765,8 +765,8 @@ function askSegments(p, blankQuotes = false) {
     segments.push({ where: 'quote', text: '## The ask' });
     (p.quote ?? []).forEach((q, i) => segments.push({ where: `quote[${i}]`, text: `${quoteLines(q.text, blankQuotes)}\n\n${sourceLine(q)}` }));
     // The side with no owner words says so plainly (PACT-77).
-    if (p.intentNone !== undefined) segments.push({ where: 'intent_none', text: `No owner words for the intent: ${p.intentNone}` });
-    if (p.startNone !== undefined) segments.push({ where: 'start_none', text: `No owner words for the start: ${p.startNone}` });
+    if (p.intentNone !== undefined) segments.push({ where: 'intent_none', text: `No owner words started the intent: ${p.intentNone}` });
+    if (p.startNone !== undefined) segments.push({ where: 'start_none', text: `No owner words started the task: ${p.startNone}` });
     segments.push({ where: 'intent', text: p.intentSkip === undefined ? intentBlock(p.intent) : skippedBlock(p.intentSkip) });
   }
   return segments;
@@ -2712,11 +2712,11 @@ export const NEXT_FOR = Object.freeze({
   'edit/confirm': "NEXT: intent.comment must be this login's own decision comment on this item's issue or pull request, an ask item the owner confirmed in chat that names this item in Answers:. Post that decision first, then edit.",
   'post/missing intent': "NEXT: a post with a quote needs its Understood intent: give `intent` ({ text, status }), what you took the owner's words to mean. If there is nothing to read into them, give `intent_skip` instead, one line saying why, and no `intent`.",
   'post/field intent_skip': 'NEXT: give `intent` or `intent_skip`, never both, and no `intent_skip` on a decision or on a post with no quote. Keep the one that fits and post again.',
-  'post/missing quote.intent': "NEXT: an issue, pull request or spec carries the owner's words that started the intent. Give a passage with `role` `intent` (or `both`), or, if no owner words started it, `intent_none`: one line saying so, such as \"no owner words: started from a session's note\".",
-  'post/missing quote.start': "NEXT: an issue, pull request or spec carries the owner's words that started this task. Give a passage with `role` `start` (or `both`), or, if no owner words started it, `start_none`: one line saying so, such as \"no owner words: started from a session's note\".",
-  'post/missing quote[0].role': "NEXT: each passage of an issue, pull request or spec says which quote it is: `role` is `intent`, `start` or `both`.",
-  'post/field intent_none': 'NEXT: give the intent a passage or `intent_none`, never both, and no `intent_none` on a decision or a post with no quote. Keep the one that fits and post again.',
-  'post/field start_none': 'NEXT: give the start a passage or `start_none`, never both, and no `start_none` on a decision or a post with no quote. Keep the one that fits and post again.',
+  'post/missing quote.intent': "NEXT: an issue, pull request or spec carries the owner's words that started the intent. Give a passage with `role` `intent` (or `both`), or, if no owner words started it, `intent_none`: one line of why, such as \"it came from a session's note\". It shows as \"No owner words started the intent: <why>\".",
+  'post/missing quote.start': "NEXT: an issue, pull request or spec carries the owner's words that started this task. Give a passage with `role` `start` (or `both`), or, if no owner words started it, `start_none`: one line of why, such as \"it came from a session's note\". It shows as \"No owner words started the task: <why>\".",
+  'post/missing quote[n].role': 'NEXT: each passage of an issue, pull request or spec says which quote it is: `role` is `intent`, `start` or `both`.',
+  'post/field intent_none': 'NEXT: give the intent a passage or `intent_none`, never both, and no `intent_none` on a decision or on a kind that takes no quote (a note, status, review, reply or lens report). Keep the one that fits and post again.',
+  'post/field start_none': 'NEXT: give the task a passage or `start_none`, never both, and no `start_none` on a decision or on a kind that takes no quote (a note, status, review, reply or lens report). Keep the one that fits and post again.',
   'secret/env': "NEXT: remove the value from the named field and post again; the line names the variable, never the value. A lens report stays as it is: tell the owner where it is, in chat, and don't post it.",
   'text/hidden': 'NEXT: remove the hidden character from the named field and post again. A lens report stays as it is: tell the owner where it is, in chat, and don\'t post it.',
   // PACT-52: the usage, field, file, text, fence, link and table rules (usage/unknown-option has OLD_OPTION_NEXT).
@@ -2762,7 +2762,7 @@ export const NEXT_FOR = Object.freeze({
 const refused = (refusals, notes = [], count = refusals.length) => {
   // An old command line is told its one fixed line, which already covers the missing --post.
   const old = refusals.some(r => r.rule === 'usage/unknown-option');
-  const next = [...new Set(refusals.filter(r => !(old && r.rule === 'usage/missing-option')).map(r => NEXT_FOR[`${r.rule} ${r.where}`] ?? NEXT_FOR[r.rule]).filter(Boolean))];
+  const next = [...new Set(refusals.filter(r => !(old && r.rule === 'usage/missing-option')).map(r => NEXT_FOR[`${r.rule} ${r.where}`] ?? NEXT_FOR[`${r.rule} ${r.where.replace(/\[\d+\]/g, '[n]')}`] ?? NEXT_FOR[r.rule]).filter(Boolean))];
   return {
     code: 2,
     lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...notes, ...next, ...(old ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${count}`],

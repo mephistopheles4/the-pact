@@ -561,11 +561,11 @@ test('C5: the rendered body of a two-passage issue, pending, is the spec\'s lite
     '> First line of the first passage.',
     '> Its second line.',
     '',
-    "Said in this session's chat, 2026-11-11. Quote for the intent.",
+    "Said in this session's chat, 2026-11-11. Started the intent.",
     '',
     '> The second passage.',
     '',
-    'Relayed by backlog-lead from its chat, 2026-11-10. Quote for the start.',
+    'Relayed by backlog-lead from its chat, 2026-11-10. Started the task.',
     '',
     '## Understood intent',
     '',
@@ -590,7 +590,7 @@ test('C5: a CRLF passage, an empty quote line, a tracker source line and a confi
   const r = run(t, 'issue', { ...ISSUE, quote, intent: { ...INTENT, status: 'pending' } }, { gh: w.gh, dry: false });
   assert.equal(r.code, 0, out(r));
   const body = JSON.parse(w.calls.find(c => c.args.includes('POST')).input).body;
-  assert.ok(body.startsWith('## The ask\n\n> one\n> two\n> three\n>\n> four\n\nSaid in this session\'s chat, 2026-11-11. Quote for the intent and the start.\n\n> A tracker passage, long enough to pass.\n\nFrom the owner\'s comment 7777, 2026-11-10. Quote for the intent and the start.\n\n## Understood intent'), body);
+  assert.ok(body.startsWith('## The ask\n\n> one\n> two\n> three\n>\n> four\n\nSaid in this session\'s chat, 2026-11-11. Started the intent and the task.\n\n> A tracker passage, long enough to pass.\n\nFrom the owner\'s comment 7777, 2026-11-10. Started the intent and the task.\n\n## Understood intent'), body);
   const confirmed = sent(t, 'issue', { ...ISSUE, intent: { ...INTENT, status: 'confirmed' } }, 'Body.\n');
   assert.ok(confirmed.includes("\n\nI read it so.\n\nRead-back: confirmed in this session's chat.\n\nBody.\n\nSigned: plan-524"), confirmed);
 });

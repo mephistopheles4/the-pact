@@ -23,7 +23,7 @@ export const sent = (text, signer = SIGNER) => `${text.replace(/(?:\r?\n)+$/, ''
 
 /** The body of a ported issue or pull request: the ask, the read-back, the text, the signature. */
 export const sentWithAsk = text =>
-  `## The ask\n\n> ${QUOTE[0].text}\n\nSaid in this session's chat, ${QUOTE[0].when}. Quote for the intent and the start.\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\n${sent(text)}`;
+  `## The ask\n\n> ${QUOTE[0].text}\n\nSaid in this session's chat, ${QUOTE[0].when}. Started the intent and the task.\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\n${sent(text)}`;
 
 let counter = 0;
 

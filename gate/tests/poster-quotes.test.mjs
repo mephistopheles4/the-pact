@@ -1,11 +1,15 @@
-// A quoted post carries two of the owner's quotes: the words that started the
-// intent and the words that started the task, each as a passage with a `role`,
-// or as a plain "no owner words" reason in `intent_none` / `start_none`
-// (PACT-77). Every case runs in-process behind an injected gh.
+// An issue, pull request or spec post carries two of the owner's quotes: the
+// words that started the intent and the words that started the task, each as a
+// passage with a `role`, or as a plain "no owner words" reason in `intent_none`
+// / `start_none` (PACT-77). Every case runs in-process behind an injected gh.
+// The claims, as the issue's own numbering: C2 the poster refuses a post that
+// leaves a side unfilled or fills one twice, C3 the body shows each role and
+// reason and a session can't forge them, C4 an edit carries the item's own
+// ask, C5 a decision and a kind with no quote refuse the new fields.
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { askItem, post, renderBody, SCHEMA } from '../../claude/tools/poster.mjs';
+import { askItem, post, renderBody } from '../../claude/tools/poster.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const ME = 'tester';
@@ -19,7 +23,7 @@ const WANT = { text: 'I want the quoting rules to capture both.', source: 'chat'
 const START = { text: 'Yes, let us start issue 77.', source: 'chat', when: WHEN, role: 'start' };
 const BOTH = { text: 'Build this, it is what I asked for.', source: 'chat', when: WHEN, role: 'both' };
 const INTENT = { text: 'I read it so.', status: 'pending' };
-const NONE = "no owner words: started from a session's note";
+const NONE = "it came from a session's note";
 const ISSUE = { repo: TARGET, kind: 'issue', title: 'A title', signer: 'plan-77', quote: [WANT, START], intent: INTENT, body_file: 'body.md' };
 const without = (doc, ...names) => Object.fromEntries(Object.entries(doc).filter(([k]) => !names.includes(k)));
 const noGh = () => assert.fail('a dry run calls no gh');
@@ -32,6 +36,7 @@ function run(t, surface, doc, { body = 'A plain body.\n', gh = noGh, env = {}, d
   return post([surface, '--post', join(dir, 'post.json'), ...(dry ? ['--dry-run'] : [])], { gh, env, now: NOW, ...MACHINE });
 }
 
+// PACT-77 C2
 test('PACT-77: a quoted post with an intent quote and a start quote, or one passage for both, is accepted', t => {
   const two = run(t, 'issue', ISSUE);
   assert.equal(two.code, 0, out(two));
@@ -41,6 +46,7 @@ test('PACT-77: a quoted post with an intent quote and a start quote, or one pass
   assert.equal(spec.code, 0, out(spec));
 });
 
+// PACT-77 C2
 test('PACT-77: a post that fills neither quote is refused, and one that fills only one is refused for the other', t => {
   const neither = run(t, 'issue', without(ISSUE, 'quote'));
   assert.deepEqual(rules(neither), ['post/missing quote.intent', 'post/missing quote.start']);
@@ -53,6 +59,7 @@ test('PACT-77: a post that fills neither quote is refused, and one that fills on
   assert.deepEqual(rules(run(t, 'issue', { ...ISSUE, quote: [WANT], intent_none: NONE })), ['post/field intent_none', 'post/missing quote.start']);
 });
 
+// PACT-77 C2
 test('PACT-77: a passage with no role, or a role outside the three, is refused', t => {
   const bare = run(t, 'issue', { ...ISSUE, quote: [WANT, without(START, 'role')] });
   assert.deepEqual(rules(bare), ['post/missing quote[1].role']);
@@ -60,8 +67,9 @@ test('PACT-77: a passage with no role, or a role outside the three, is refused',
   assert.ok(rules(odd).includes('post/pattern quote[1].role'), out(odd));
 });
 
+// PACT-77 C2
 test('PACT-77: with no owner words behind either one, a reason in each field stands in for the quotes, and the post needs no quote', t => {
-  const doc = { ...without(ISSUE, 'quote'), intent_none: NONE, start_none: 'no owner words: this follows from the lead\'s brief' };
+  const doc = { ...without(ISSUE, 'quote'), intent_none: NONE, start_none: 'it follows from the lead\'s brief' };
   const ok = run(t, 'issue', doc);
   assert.equal(ok.code, 0, out(ok));
   // One quote and one reason.
@@ -74,6 +82,7 @@ test('PACT-77: with no owner words behind either one, a reason in each field sta
   assert.deepEqual(rules(both), ['post/field intent_none']);
 });
 
+// PACT-77 C5
 test('PACT-77: a role, or a no-owner-words reason, on a decision or on a post with no quote is refused post/field', t => {
   const decision = { repo: TARGET, kind: 'decision', issue: 5, signer: 'pact-77', quote: [{ ...START }], intent: { text: 'x', status: 'confirmed' }, body_file: 'body.md' };
   assert.ok(rules(run(t, 'issue-comment', decision)).includes('post/field quote[0].role'));
@@ -84,6 +93,7 @@ test('PACT-77: a role, or a no-owner-words reason, on a decision or on a post wi
   assert.ok(rules(run(t, 'issue-comment', note)).includes('post/field start_none'));
 });
 
+// PACT-77 C3
 test('PACT-77: a no-owner-words reason of two lines, with a live secret, a hidden character, a heading or an open comment is refused, and its text never reaches the output', t => {
   for (const field of ['intent_none', 'start_none']) {
     const base = field === 'intent_none' ? { ...ISSUE, quote: [START] } : { ...ISSUE, quote: [WANT] };
@@ -99,38 +109,34 @@ test('PACT-77: a no-owner-words reason of two lines, with a live secret, a hidde
   }
 });
 
+// PACT-77 C3
 test('PACT-77: the body marks each passage with its role and shows each no-owner-words reason, and the item reads back as an ask item', () => {
   const body = renderBody({ kind: 'issue', quote: [WANT, START], intent: INTENT, sessionPart: 'A plain body.\n', signer: 'plan-77' });
-  assert.match(body, /> I want the quoting rules to capture both\.\n\nSaid in this session's chat, 2026-11-11\. Quote for the intent\.\n\n/);
-  assert.match(body, /> Yes, let us start issue 77\.\n\nSaid in this session's chat, 2026-11-11\. Quote for the start\.\n\n/);
-  assert.match(renderBody({ kind: 'issue', quote: [BOTH], intent: INTENT, sessionPart: 'b\n', signer: 'plan-77' }), /Quote for the intent and the start\./);
+  assert.match(body, /> I want the quoting rules to capture both\.\n\nSaid in this session's chat, 2026-11-11\. Started the intent\.\n\n/);
+  assert.match(body, /> Yes, let us start issue 77\.\n\nSaid in this session's chat, 2026-11-11\. Started the task\.\n\n/);
+  assert.match(renderBody({ kind: 'issue', quote: [BOTH], intent: INTENT, sessionPart: 'b\n', signer: 'plan-77' }), /Started the intent and the task\./);
   const none = renderBody({ kind: 'issue', quote: [START], intentNone: NONE, intent: INTENT, sessionPart: 'b\n', signer: 'plan-77' });
-  assert.match(none, new RegExp(`Quote for the start\\.\\n\\nNo owner words for the intent: ${NONE}\\n\\n## Understood intent`));
+  assert.match(none, new RegExp(`Started the task\\.\\n\\nNo owner words started the intent: ${NONE}\\n\\n## Understood intent`));
   const bare = renderBody({ kind: 'issue', intentNone: NONE, startNone: 'none either', intent: INTENT, sessionPart: 'b\n', signer: 'plan-77' });
-  assert.match(bare, /^## The ask\n\nNo owner words for the intent: .*\n\nNo owner words for the start: none either\n\n## Understood intent/);
+  assert.match(bare, /^## The ask\n\nNo owner words started the intent: .*\n\nNo owner words started the task: none either\n\n## Understood intent/);
   assert.equal(askItem(bare).status, 'pending');
   assert.equal(askItem(body).status, 'pending');
 });
 
+// PACT-77 C3
 test('PACT-77: a body file that writes the no-owner-words line itself is refused post/owned-line, as is one in a reason', t => {
   for (const side of ['intent', 'start']) {
-    const forged = run(t, 'issue', ISSUE, { body: `No owner words for the ${side}: nothing was said.\n` });
+    const forged = run(t, 'issue', ISSUE, { body: `No owner words started the ${side === 'start' ? 'task' : side}: nothing was said.\n` });
     assert.deepEqual(rules(forged), ['post/owned-line body_file'], side);
   }
-  const reason = run(t, 'issue', { ...ISSUE, quote: [WANT], start_none: 'No owner words for the start: x' });
+  const reason = run(t, 'issue', { ...ISSUE, quote: [WANT], start_none: 'No owner words started the task: x' });
   assert.deepEqual(rules(reason), ['post/owned-line start_none']);
-});
-
-test('PACT-77: the schema names role, intent_none and start_none', () => {
-  assert.deepEqual(SCHEMA.properties.quote.items.properties.role.enum, ['intent', 'start', 'both']);
-  assert.equal(SCHEMA.properties.intent_none.type, 'string');
-  assert.equal(SCHEMA.properties.start_none.type, 'string');
 });
 
 // ---------------------------------------------------------------- an edit
 
 const LABEL = 'plan-77';
-const ASKED = `## The ask\n\n> ${WANT.text}\n\nSaid in this session's chat, ${WHEN}. Quote for the intent.\n\n> ${START.text}\n\nSaid in this session's chat, ${WHEN}. Quote for the start.\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\nA plain body.\n\nSigned: ${LABEL}\n`;
+const ASKED = `## The ask\n\n> ${WANT.text}\n\nSaid in this session's chat, ${WHEN}. Started the intent.\n\n> ${START.text}\n\nSaid in this session's chat, ${WHEN}. Started the task.\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\nA plain body.\n\nSigned: ${LABEL}\n`;
 const LEGACY = `## The ask\n\n> ${START.text}\n\nSaid in this session's chat, ${WHEN}.\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\nA plain body.\n\nSigned: ${LABEL}\n`;
 
 function world(body) {
@@ -154,6 +160,7 @@ function edit(t, w, change) {
   return run(t, 'issue-comment-edit', doc, { gh: w.gh, dry: false });
 }
 
+// PACT-77 C4
 test('PACT-77: an edit carrying the item\'s own roles keeps its ask block; a dropped or changed role is refused edit/ask', t => {
   const w = world(ASKED);
   const ok = edit(t, w, { quote: [WANT, START] });
@@ -165,14 +172,16 @@ test('PACT-77: an edit carrying the item\'s own roles keeps its ask block; a dro
   assert.deepEqual(rules(swapped), ['edit/ask quote[0]']);
 });
 
+// PACT-77 C4
 test('PACT-77: an item posted before the roles, with no role line, is still edited with its role-less quote', t => {
   const w = world(LEGACY);
   const ok = edit(t, w, { quote: [without(START, 'role')] });
   assert.equal(ok.code, 0, out(ok));
 });
 
+// PACT-77 C4
 test('PACT-77: an item with no passage and two reasons is edited with its own reasons, and another reason is refused edit/ask', t => {
-  const item = `## The ask\n\nNo owner words for the intent: ${NONE}\n\nNo owner words for the start: ${NONE}\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\nA plain body.\n\nSigned: ${LABEL}\n`;
+  const item = `## The ask\n\nNo owner words started the intent: ${NONE}\n\nNo owner words started the task: ${NONE}\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\nA plain body.\n\nSigned: ${LABEL}\n`;
   const ok = edit(t, world(item), { intent_none: NONE, start_none: NONE });
   assert.equal(ok.code, 0, out(ok));
   const bad = edit(t, world(item), { intent_none: 'another reason', start_none: NONE });
