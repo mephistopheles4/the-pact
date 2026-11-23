@@ -2756,3 +2756,815 @@ The plans, reviews, decisions and proof are comments on #280, #284, #285 and #28
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/293)
 - [The QA pair's review and Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/293#issuecomment-6227257791)
+
+## CI runs the full tier
+
+**2026-10-17** — **2026-10-17.** #303, from #298. The `gate` workflow's Linux job runs the gate suite's `full` tier, so the six Linux-only tests in the install-tier files run before every merge. Tier: quick.
+
+### What was built
+
+- **The workflow.** `.github/workflows/gate.yml` runs `run.mjs full` in place of `fast`. Its lockdown, pinned actions and Node 24 are unchanged; the runner's cap of four stays.
+- **The lockdown test.** `workflow.test.mjs` requires the step to run `full`, with bad cases for a workflow that runs `fast`, adds an argument, or drops the step.
+
+### Decisions
+
+- [ADR 0081](../adr/0081-ci-runs-the-full-tier.md).
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/303)
+
+## Cost limits reach the lenses
+
+**2026-10-17** — **2026-10-17.** The last ticket of #278. The rules, the review procedure and the nine lens contracts now carry the Cost limits that T1 (#287) and T2 (#288) put in place, and the owner's direction on accepted risks (#300) is built in. Tier: thorough.
+
+### What was built (#289)
+
+- **The rules text.** A Trade-off points rule replaces "Name both sides", a Business drivers rule says where the driver comes from, "accepting a risk" joins the decisions that are always the owner's, and a matched accepted risk is reported as one line marked accepted by the threat model, not dropped.
+- **The review procedure.** What each lens is handed, the running count in a trade-off row's reason text, finding the threat model at the base, the session's check of every diff for a threat-model edit, the accepted-risk step, the sorting, and a Trade-offs slot in the report and the review comment.
+- **The nine lens contracts** carry the trade-off outcome; the security pair also carries the ALARP bar, the definition of a security finding, the before-the-change rule, the one-line listing, the undated and weakened entry rules, and the detail level. The carried rules of the protected set are untouched.
+- **The threat model** names what counts as security and the public-record detail level, and R31 now covers a committed threat model's entries.
+- **The cloud copy** was regenerated and `cloud-setup-wrapper.sh` changed.
+
+### Decisions
+
+- [ADR 0077](../adr/0077-a-security-fix-is-due-unless-grossly-out-of-proportion.md), [ADR 0078](../adr/0078-a-projects-cost-limits-are-the-second-allowance-that-is-not-only-tighter.md) and [ADR 0079](../adr/0079-a-cost-reaches-lenses-only-through-enough.md).
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/289)
+- [The spec, revision 5](https://github.com/mephistopheles4/the-pact/issues/278#issuecomment-6205162535)
+- [The owner's direction on accepted risks, #300](https://github.com/mephistopheles4/the-pact/issues/300)
+- [The plan](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234385149)
+- [The QA pair's review](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234665986), [the gatekeeper's](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234666303) and [the standards pair's](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234666664)
+- [The Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234668708)
+- [The security pair's review](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234948824) and [its dispositions](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234949148), run once on the owner's pick
+- [The follow-up for the familiars contracts, #304](https://github.com/mephistopheles4/the-pact/issues/304)
+
+## A project cost name holds no middle dot, and a level names a cost row
+
+**2026-10-17** — **2026-10-17.** The project render joins a quality's Enough cell with a middle dot (U+00B7), and a lens reads that cell to learn which cost rows hold it back. The dry run counted a row as named from the resolved `enoughCosts` only, so a cost name holding the dot, or a level equal to a cost name, made the warning and the rules file disagree (the first from #299's review, adversarial-lens F1; the second from this issue's own trace). Tier: standard.
+
+### What was built (#318)
+
+- **The render refuses U+00B7 in a project cost name,** under the existing rule `project-cost-limits`. The reason names the row by position and the middle dot, never the cost's text.
+- **A cost row counts as named** when its name matches a segment of a quality's rendered Enough cell, split on the dot and compared ignoring case and surrounding space. The level counts as a segment. The set comes from the same function that writes the cell.
+- **Unchanged:** the `COST-LIMITS-UNNAMED` line, the installer's parser, the WARN wording, and the rendered bytes of every project accepted before and still accepted. A project whose cost name held the dot now refuses, and fixes its own file.
+- **Docs.** Both install docs say a cost name holds no middle dot; `docs/install.md` says a level that names a cost counts. R31 in `docs/threat-model.md` carries the new refusal and the accepted residual class (lookalike dots, other wording, a home cost's name in a project with no Cost limits), added in its own commit on the owner's word.
+
+### Decisions
+
+- Refuse U+00B7 only, in both fields: no lookalike dots and no Unicode normalization (owner, Q3 A). The remaining cases are accepted in R31 by class (Q5 A).
+- No new ADR: [ADR 0079](../adr/0079-a-cost-reaches-lenses-only-through-enough.md) and #299 decided the warning; this keeps its count true to the rendered cell.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/318)
+- [The owner's route and Q2, Q3](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6241870701)
+- [The spec, revision 1](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6241894734) and [its four-lens review](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6241971135)
+- [The owner's Q4 to Q6](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242141657)
+- [The spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242164279) and [its settled dispositions](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242168126)
+- [The go-ahead to build, push and open the PR](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242299080)
+- [The Test review: the QA pair](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242659275), [the standards pair](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242659841), [unstated-lens](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242660426), [the security pair](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242660874) (run on the owner's answer A to the Test offer, relayed by the head chef) and [the Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/318#issuecomment-6242661370)
+
+## The gate lockdown refuses a skip, and the Linux-only tests can't skip on CI
+
+**2026-10-17** — **2026-10-17.** #310 and #311, from the QA pair's review of #303. Tier: quick.
+
+### What was built
+
+- **The lockdown test (#310).** `lockdownProblems` refuses an `if:` or a `continue-on-error` anywhere in the gate workflow, the job and its steps included, with a bad case for each key on the job and on a step, and for an `if` under a quoted key or in a flow mapping.
+- **The Linux-only install tests (#311).** A new test helper, `skipUnlessLinuxCi`, with a test of its own, skips as before off CI but fails the test on Linux when `CI` is set. The root-account and `mkfifo` skips use it; the Windows skips can't fire on Linux and stay as they were.
+- **Two tests now assert their titles (#311).** The signal test asserts the runner was staged before the signal; the mode test runs `--apply` on a 0664 settings file, asserts the file was merged, and asserts the mode is kept.
+
+### Decisions
+
+- None lasting; no ADR.
+
+### Record
+
+- [#310](https://github.com/mephistopheles4/the-pact/issues/310)
+- [#311](https://github.com/mephistopheles4/the-pact/issues/311)
+
+## good-enough-lens retires
+
+**2026-10-17** — **2026-10-17.** The one ticket of #281. The spec pair is now `executability-lens` and `unstated-lens`; `good-enough-lens` is gone from the pact, the builder, the gate's lists and the cloud copy. Tier: standard.
+
+### What was built (#302)
+
+- **The gate.** The render keeps a fixed retired list. An `agents` key naming the lens is refused with a message of constants only; an edit block or a project qualities list naming it draws a `RETIRED-NAME` render line that the install turns into a dry-run warning; a live agent file with the name draws one fixed dry-run line and is left alone. The lens left `CONFIGURABLE_AGENTS`, `AGENT_NAMES` and `SECURITY_DOUBT`. Each new check has a test that shows it catching a bad case.
+- **The lens text.** `executability-lens` gained the stop test and the security guard, written out in full. The lens file and its contract are deleted, and the tension pair retired from `CONTEXT.md` and the review procedure.
+- **The rules text and builder.** The Design row, the Lenses table, the builder parts, five presets and three example blocks follow. The builder page drops the name from a loaded file with a note, and was rebuilt.
+- **Docs and the cloud copy.** The README and its figure, `docs/reference.md`, `docs/install.md` and `docs/threat-model.md` follow the roster. `gen.mjs` was rerun; its diff held the lens, the tables and the executability text only, and `cloud-setup-wrapper.sh` changed.
+
+### Decisions
+
+- [ADR 0080](../adr/0080-the-spec-pair-is-executability-lens-and-unstated-lens.md).
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/302)
+- [The request and spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/281#issuecomment-6233548373)
+
+## integrity-lens points both ways
+
+**2026-10-17** — **2026-10-17.** `integrity-lens` only ever pointed toward more tests. The owner chose that it also asks whether each test earns its place, with cut-pointing findings that are low and never blocking alone. Tier: standard.
+
+### What was built (#276)
+
+- **The lens file** asks the widened question and reports three new kinds: a test that backs nothing, a duplicate test, and a cover that does not catch. Each finding says "points: strengthen" or "points: cut"; the cut list is an optional input.
+- **The question widened everywhere:** the lens table in the rules file, Scriptorium's QA pair, the README and its figure, and the example block. `docs/reference.md` never quotes it and is unchanged.
+- **The review procedure** gains one line: a cut finding on a test that guards a sensitive-work item is a security finding, never `auto`.
+- **The contract** goes to 0.4.0, with the cries-wolf count leaving out a dismissal for a project rule the lens was not handed. The minus-one bullet in `docs/agents/gate-tests.md` follows.
+- **Rebuilt:** `cloud-sessions/`, `builder/scriptorium.html` and the figures. No gate test was added or cut.
+
+### Decisions
+
+- [ADR 0084](../adr/0084-integrity-lens-points-both-ways.md): the cut kinds, and why backing is read from the test's own text.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/276)
+- [The spec, revision 3](https://github.com/mephistopheles4/the-pact/issues/276#issuecomment-6243289991)
+- [The spec pair's review of revision 1](https://github.com/mephistopheles4/the-pact/issues/276#issuecomment-6243227136)
+
+## The lens contracts record the Cost limits
+
+**2026-10-17** — **2026-10-17.** A follow-up from #289 (T4 of #278). Tier: quick.
+
+### What was built (#304)
+
+- **The contracts.** Each of the eight live lens contracts in `familiars/` gains a minor version, a version row and a dated Decided entry under question 10 for the "Cost limits and trade-offs" section #289 added to its lens file. `adversarial-lens` and `data-lens` gain a second entry for "The security bar, and accepted risks". The issue counted nine; `good-enough-lens` retired in #302, and `scout` has no such section.
+- **No generator.** Nothing builds the lens files from the contracts, so the contracts stay a record kept by hand.
+- **The cloud copy.** `gen.mjs` was rerun.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/304)
+
+## The mismatch check drops effort
+
+**2026-10-17** — **2026-10-17.** Tier: quick.
+
+### What was built (#306)
+
+- **The rule.** "Say a mismatch first" in `claude/CLAUDE.md` names the tier and the model only. A session cannot read its own reasoning effort reliably: twice in one day, sessions started at high effort reported a lower one while the app's read-back showed high. Where effort matters, the person or a lead session reads it from the app's session settings.
+- **The cloud copy.** `gen.mjs` was rerun; `cloud-setup-wrapper.sh` changed, so it is pasted into the cloud environment's setup field again after merge.
+- **No ADR.** The change narrows one bullet; the reason is recorded here and on the issue.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/306)
+
+## Scriptorium lists your own presets
+
+**2026-10-17** — **2026-10-17.** The owner kept a personal preset in `~/.claude/pact/presets/` and wanted Scriptorium to list it beside the shipped ones. Tier: standard, with the security pair on the spec and the diff; the owner declined the full sensitive route, relayed by the head chef.
+
+### What was built (#283)
+
+- **`builder/build.mjs`** gains `personalPresetsDir` and `personalPresets`: the installed kit reads `pact/presets/*.json`, checks each as a builder file, and carries the ones that pass into the page's `ownPresets`. A bad file is left out with a `FINDING` line; a clone reads nothing. `loadBuilder` also refuses a file over 1 MiB before reading it and a `__proto__` key at any depth, returns `givenParts`, and two messages stopped quoting file text.
+- **The page** lists them under "Your presets"; `startPicks` keeps agent rows ticked only for a shipped preset, and `takeNote` says why for the others.
+- **`gate/install-core.mjs`**: `pact/presets` joins the never-touch list, with a test row seen to fail first.
+- **`/scriptorium`, the docs and `CONTEXT.md`** say the kit reads the folder; `cloud-sessions/` and the committed page were regenerated.
+
+### Decisions
+
+- [ADR 0085](../adr/0085-a-persons-own-presets-are-read-from-one-folder-beside-the-kit.md): one fixed folder beside the kit, treated as shared files for agent rows.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/283)
+- [The spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243270715)
+- [The owner's earlier answers](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243104977) and [the go-ahead on revision 2](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243312506)
+- [The spec pair's review](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243269325), [the security pair's](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243269683) and [the dispositions](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243270326)
+- [The QA pair's review](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243723126), [the standards pair's](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243723405), [the unstated-lens review](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243723748) and [the security pair's](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243724070), with [the Lens dispositions table](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243724350). Five of the seven reports held a local path and stayed local, so those comments mark them withheld.
+- [The owner's answers on the Test findings](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243605644)
+- [The follow-up issue for escaped invisible characters](https://github.com/mephistopheles4/the-pact/issues/327)
+
+## The poster drops its path-shape rule
+
+**2026-10-17** — **2026-10-17.** The poster's `path/local` rule refused any text shaped like a local path, which withheld whole lens reports and ordinary prose. The owner dropped it and accepted the risk. Tier: quick.
+
+### What was built (#326)
+
+- **The poster** loses `path/local` and its patterns; `path/machine` is unchanged.
+- **Its tests** lose path/local's eight cases and gain two: one shows that a drive-letter path, a network share and another user's home post; one runs `path/machine` on a Windows-shaped machine, whose other-slash, drive-letter and project-folder forms path/local used to hide.
+- **The rules file's poster bullet**, `docs/poster.md` and `docs/reference.md` name a path of this machine's, not any local path.
+- **The threat model** records the accepted risk and updates the poster's scan line.
+- **Regenerated:** `cloud-sessions/` and `builder/scriptorium.html`, both already in step.
+
+### Decisions
+
+- [ADR 0086](../adr/0086-the-poster-refuses-only-this-machines-own-paths.md): the poster refuses only this machine's own paths.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/326)
+- [The tier and the declined sensitive route](https://github.com/mephistopheles4/the-pact/issues/326#issuecomment-6243713061); the owner accepted the risk in the issue body
+
+## The poster prints what to do next
+
+**2026-10-17** — **2026-10-17.** #294 was its own single ticket. On exit 1 and exit 3 the poster prints a `NEXT:` line above its `RESULT:` line, so a session in another project knows not to post again. Tier: standard.
+
+### What was built (#294)
+
+- **The poster.** `claude/tools/poster.mjs` builds each line in one place. Exit 3 (the failed post call, and a fault while sending) names the page and the checked login, and says what to do on found, not found and can't tell. Exit 1 (no usable id, failed or unusable read-back, mismatch, a fault after sending) says the post landed and must not be posted again, in the link, page or mismatch form. The header comment says so.
+- **The tests.** The existing exit cases assert the second-last line; the fault table gains a row for a fault after sending before the id is read; two new cases cover exits 0, 2 and 4 printing none, and no gh or body text reaching a line, including gh text that itself starts with `NEXT:`. Runs use a machine user name that differs from the login. Each new check was seen to fail against a broken poster: line removed, moved below `RESULT:`, taking gh text, taking the machine user name, the wrong form.
+- **The page.** `docs/poster.md` describes the line on the three rows, in the intro and under "After exit 3"; a doc test requires it on the three rows and in the poster's header.
+- **The cloud copy.** `gen.mjs` was rerun; nothing under `cloud-sessions/` changed, `cloud-setup-wrapper.sh` included.
+
+### Decisions
+
+- [ADR 0082](../adr/0082-the-poster-prints-the-steps-after-a-result-that-may-be-public.md).
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/294)
+- [The spec, revision 1](https://github.com/mephistopheles4/the-pact/issues/294#issuecomment-6238326385)
+- [The spec reviews of revision 1](https://github.com/mephistopheles4/the-pact/issues/294#issuecomment-6238460196) and [the security pair's](https://github.com/mephistopheles4/the-pact/issues/294#issuecomment-6238460651)
+- [Their final dispositions](https://github.com/mephistopheles4/the-pact/issues/294#issuecomment-6239621329)
+- [The spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/294#issuecomment-6239622092)
+
+## The poster refuses wrapped prose and relative links
+
+**2026-10-17** — **2026-10-17.** The stacks repository retired its own poster, which reflowed hard-wrapped paragraphs and fixed repository-relative links before posting. The pact's poster does neither, so a body written in a repo file's style could land ragged or with a dead link and still read back `verified`. The owner chose that the poster refuses such a body instead of rewriting it. Tier: standard.
+
+### What was built (#317)
+
+- **Two checks** in `claude/tools/poster.mjs`, `proseCheck`, run after the content scan and the table check on the body only: `text/hard-wrap` and `link/relative`. Each refusal names the line and column, once per rule; a dry run runs them too.
+- **The rules file's poster part** says "a table, wrap or link refusal on a line inside a lens report means its fence is too short". `cloud-sessions/` and `builder/scriptorium.html` were regenerated.
+- **`docs/poster.md`** names both rules, how to fix each, and that `issue` has no `--parent`. The threat model's input-rules bullet gains one sentence naming both checks; no scope or accepted risk changed.
+- **Tests** in `gate/tests/poster-prose.test.mjs`: a table with the passing shapes in its base and thirteen must-refuse rows, two tests through `post`, one worst-case timing test.
+
+### Decisions
+
+- [ADR 0083](../adr/0083-the-poster-refuses-wrapped-prose-and-relative-links.md): refuse, don't rewrite.
+- The Tests added limit was passed (18 added against 7 claims) and the owner accepted it.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/317)
+- [The spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242013729) and [its S5 correction](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242047066)
+- [The spec pair's review of revision 1](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6241989353)
+- [The QA pair's review](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242584187), [the standards pair's](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242584570), [the unstated-lens review](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242584920) and [the security pair's](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242585211), each with its Lens dispositions table
+
+## The threat model says how crypto and data migrations stand here
+
+**2026-10-17** — **2026-10-17.** #321, from the security pair's review of #317. `docs/threat-model.md` gains a section, "Crypto and data migrations here", before "The risks at a glance", in the wording the owner approved on the issue, revised twice at Test on the owner's word after behaviour-lens found gaps; the owner capped it at one last round, with anything further going to a follow-up issue. No accepted-risk entry, scope line or chart point changed. Tier: quick.
+
+### What was built (#321)
+
+- **Crypto.** One rule: hashes detect change and never authenticate, apart from the builder page's policy hashes. Four uses named: git's SHA-1 object ids, SHA-256 checks in the install record and the cloud setup script, the apply binding to the rendered hash when a configuration applies (R14, R22), and the builder page's policy hashes. Random bytes only name a temporary file.
+- **Data migrations.** No database; the install migrates its own state, in the Claude home folder and a project install's rules file and record. The install deletes any unchanged recorded file the pact no longer ships; the #262, #302 and #265 cases are named. A change to the install record's format, the configuration's format, the settings overlay or what an install removes counts as a data migration.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/321)
+
+## The threat model names the poster's own checks
+
+**2026-10-17** — **2026-10-17.** #316, from the security pair's review of #294. `docs/threat-model.md` gains a section, "The poster's own checks", that names the poster's login check, its owner checks and its input rules as a boundary in code, by their rule ids. No accepted-risk entry, scope line or chart point changed. Tier: quick.
+
+### What was built (#316)
+
+- **The threat model.** A new section before "What you may tweak" names each check by class, says which risks it bears on (R2, R4, R11 to R16, and R3, R13, R29 for the scans), and says where it does not hold: posts not sent through the poster, installs with it off, and a rewritten poster (R14).
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/316)
+
+## A project's unnamed cost rows warn
+
+**2026-10-17** — **2026-10-17.** A project's own `costLimits` row that no quality's `enoughCosts` names holds back no lens (ADR 0079). #288 refused an unknown name and a repeat for projects but said nothing about that case. Now the project dry run warns. Tier: standard.
+
+### What was built (#299)
+
+- **The render** prints `COST-LIMITS-UNNAMED <positions>` straight after `COST-LIMITS`, only when a row is unnamed. The positions are the rows' 1-based places in `costLimits`, ascending; the line holds digits and spaces and never a cost's text.
+- **The installer's parser** reads the line into a list and refuses a second line, a line with no `COST-LIMITS`, positions out of order or repeated, and a position past the row count. A misshapen line falls through to the existing unknown-line refusal.
+- **The dry run** prints one `WARN:` line in the Project block, after the retired-name warnings, naming the rows by position and telling the reader to read them in the project's file before binding them. It says what the render checked (no quality's `enoughCosts` names the row), not that the row binds no lens, since a crafted configuration can read as naming a row the render never matched (adversarial-lens). The install still goes ahead.
+- **Docs.** `docs/install.md` names the warning. R31 in `docs/threat-model.md` names the warning, added on the owner's word.
+
+### Decisions
+
+- [ADR 0079](../adr/0079-a-cost-reaches-lenses-only-through-enough.md) already decided a warning for a cost no quality names; this carries it to projects, so no new ADR.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/299)
+- [The spec, revision 1](https://github.com/mephistopheles4/the-pact/issues/299#issuecomment-6239837303)
+- [The spec pair's review](https://github.com/mephistopheles4/the-pact/issues/299#issuecomment-6239900674) and [the spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/299#issuecomment-6239951119)
+- [The R31 row](https://github.com/mephistopheles4/the-pact/issues/299#issuecomment-6239953323)
+
+## Cloud fetches pinned
+
+**2026-10-18** — **2026-10-18.** #183, ticket T3, carrying #182. The cloud setup fetched its skills and plugins at their latest versions, as root, at every cloud start. It now fetches each third-party repo at a pinned commit, installs plugins from a local marketplace whose catalog a source check reduces, and times every step against one budget. Tier: thorough, sensitive route; built on Opus at high, test-first, in a cloud thread of the live environment.
+
+### What was built
+
+- **`cloud-sessions/gen.mjs`** holds `CLOUD_REPO_PINS`, six repos each at a 40-hex commit, and writes them at `__CLOUD_REPO_PINS__` as `unset REPO_PIN` and one `declare -rA REPO_PIN=( … )` line. `assemble()` refuses (`cloud/pin`) a key or value out of shape or holding a line break, a repo the head fetches with no pin, a pin nothing uses, a template line that writes `REPO_PIN`, and a `${REPO_PIN[…]}` expansion that defaults, assigns or tests, and a code line in the setup head before the pins, which are its first code line; each pin's value appears once in each script.
+- **`tpl-setup-head.sh`**: the `skills` CLI, the `git clone` fallback, the find-by-name search, the "only missing skills" filter and the two opt-ins are gone; a set opt-in prints a `WARN`. New: `FETCH_BUDGET=270` and `left` at the top; `third_party`, which runs every `git`, `claude` and `node` command of the plugins and skills steps token-free and timed, its output to a log that is never printed; `fetch_pinned`; `PLUGIN_SOURCE_CHECK` and `PROXY_LINE_PROGRAM`, two node programs held as quoted heredocs. The plugins step runs before the skills step. It fetches and checks the marketplace in a stage, and only a checked tree with its reduced catalog replaces the kept folder; a listed plugin that no longer passes is uninstalled first, or the last checked tree stays. Both steps list trees NUL-separated (`ls-tree -z`), so git quotes no name. The Node block's two network steps are timed against the budget, and a spent budget fails it as `node: time`.
+- **The skills list** follows the pinned trees: `pr`, `retro` and `implement-spec` moved to `skills/engineering/`, and `resolving-merge-conflicts`, gone upstream, left the list. It has 51 skills.
+- **`tpl-setup-tail.sh`**: the Result prints `skipped (time)`, `not fetched at pin`, `skipped (source)` and `not installed` when each has a name, names an official marketplace already present (or `unknown` when the list can't be read), says when a refused skill's older copy is kept, prints the proxy line, and removes the step and log folders. A skill whose path failed the checks counts as `MISSING`.
+- **Tests: +4.** The repo-pin refusals (11 bad rows); no fetch at a moving ref (4 plants); no bare `git`, `claude` or `node` in the plugins and skills steps (1 plant); both scripts parse under `bash -n` (1 bad parse). The assemble tests' stand-in head gained the placeholder and takes no repo pins; the Node block's order test now ends at the plugins step and holds plugins before skills; the token test lists the proxy line. Run before the build, 5 failed and the rest passed. Each repo-pin check in `assemble()`, each regex taken whole, was then broken in a copy and seen to fail its test; the key-shape row was made specific after one such run showed another check catching it. The spec said the Node block's order test stays unchanged; it changed because the plugins step now sits between the Node block and the skills step, and the slice still holds the same Node block. The stand-in head puts the repo pins first, as the real head now does.
+- **The test drivers** change their stand-in plugin id to `superpowers@pact-pinned-plugins`, extract the Node block up to the plugins step with the budget lines, say a cloud proxy may answer as the owner, and run the T3 cases below.
+
+### The first pins
+
+Taken at 19:38 UTC in a cloud thread of the live environment. Each is its repo's default-branch tip at that time, the same commits the round-3 probe named as candidates.
+
+| Repo | Pin | Confirmed |
+| --- | --- | --- |
+| `anthropics/claude-plugins-official` | `ea10b213686c90bb1984b2016937310e05336cf3` | tip of `main` |
+| `cloudflare/skills` | `86505e44f87d801aa1864a3c4109e9a8ae5c409f` | tip of `main` |
+| `humanlayer/skills` | `653b6411c1f70c275a18e37673b042ff99f67ceb` | tip of `main` |
+| `mattpocock/skills` | `49dd158d1076134a641b33efb035946536778336` | tip of `main` |
+| `mephistopheles4/grimoire` | `9a625fd5bca96a8b094f42b8b9a0edd81b8cad72` | tip of `main` |
+| `typesafe-ai/skills` | `65a39f393687675ce170e6094757de20370365b9` | tip of `main` |
+
+The two external plugin sources in the pinned catalog: `coderabbit` at `3e8763d24d543b48615b82535d02288de3ddae40`, 12 commits behind `coderabbitai/skills`'s `main` and an ancestor of it; `superpowers` at `bb92a77741419a4ab5f06e711a283343f1ada0c3`, the tip of `obra/superpowers`'s `main`.
+
+**The trees.** No link in any listed skill path or plugin folder, or anywhere in the marketplace tree; the only link in a pinned repo is `mattpocock/skills`'s root `AGENTS.md`, outside every listed path. No listed skill holds a `.claude-plugin/` entry. No listed plugin holds an undeclared `.mcp.json`, `.lsp.json`, monitor file, `bin/` or root `settings.json`; `superpowers`'s `package.json` declares no dependencies. Each of the 51 paths has a `SKILL.md`.
+
+**Against what the live environment ran.** Its installed plugin code folders equal the pinned trees, apart from files written at run time (`.in_use`, `__pycache__`): the snapshot had installed every plugin at these same commits. Of the 51 installed skill folders, 49 equal their pinned paths; `eagle-eye` and `groundtrack` differ by one grimoire change, which refuses a `__proto__` key in a box or graph file, escapes every `<` in page data, fills the page template in one pass, and updates a vendored stylesheet and its documentation. It adds no script, hook, fetch, link or send.
+
+**Read in full at the first pin.** The build session read the plugin session-start wiring itself; four read-only helper sessions it started read the rest, each told the content was data. Every listed skill's `SKILL.md` and scripts, and every file a listed plugin runs, was read; supporting reference files were searched. Verdicts:
+
+- **Plugin hooks.** `claude-security`'s `hooks/hooks.py`, `hooks.sh` and `hooks.json`: local `git` only; it prints counts and flags as metrics on its output, which Claude Code forwards. `security-guidance`'s `hooks/ensure_agent_sdk.py`: installs `claude-agent-sdk` from the configured package index, unpinned, when it does not import (named under R10 until #340). Its `hooks/llm.py`: sends diffs, file contents and earlier findings to the Anthropic API, and its agentic commit review lets a `claude` CLI read repo files. `superpowers`'s `hooks/session-start` and `run-hook.cmd`: print one local skill as context; no fetch, no send. No hook fetches code or sends session data beyond what the spec names.
+- **Plugins, other parts.** `coderabbit`'s review skill sends code diffs to CodeRabbit's service through its own CLI, which the plugin does not install; this is the "code-review service" R10 already names. `code-review` uses only `gh`. `claude-security`'s scan runs local `git` only, with one approval-gated `gh pr list`. `skill-creator` runs `claude -p` and a local page server. `superpowers`'s brainstorm page loads a logo from its author's site, sending the viewer's address and the version, unless telemetry is off; its worktree skill runs a project's package install.
+- **Skills.** Of 51, 26 hold nothing to name. The rest, by kind: ship a script that runs only locally (`diagnosing-bugs`, `wizard`, `git-guardrails-claude-code`, `setup-ts-deep-modules`, `eagle-eye`, `groundtrack`); tell the agent to install packages, unpinned (`setup-pre-commit`, `migrate-to-shoehorn`, `setup-ts-deep-modules`, `agents-sdk`, `cloudflare`, `sandbox-migrate-to-next`, `web-perf`, `wrangler`); start a background session seeded with the conversation (`claude-handoff`); post to a tracker or push (`prototype`, `to-spec`, `to-tickets`, `triage`, `wayfinder`, `implement-spec`, `setup-matt-pocock-skills`); send data to a named host (`wizard` to GitHub secrets, `turnstile-spin` to Cloudflare's API, `eagle-eye`'s gated audit to TypeSafe or OpenRouter, `improve-codebase-architecture`'s page loading two CDN scripts); and one fetch at a moving ref, `turnstile-spin`'s `persist-skill.sh`, which clones `cloudflare/skills` at its default branch into a project when the person agrees. All of these are in what the live environment ran before T3.
+
+### Driver runs
+
+Run in a throwaway container from an Ubuntu 24.04 image with `git`, `curl` and `gnupg` (`buildpack-deps:noble-scm`, `jq` added), because Docker Hub refused the plain image (rate limit) and the cloud proxy refuses plain-HTTP apt. The container got the proxy's address through a forwarder on the Docker bridge, and the image's CA store with the proxy's CA added; no host network, no credentials of its own, one read-only mount. The proxy still answered the container's GitHub requests as the owner's account, so code in it had the owner's GitHub reach (see the proxy line below).
+
+Both drivers, run side by side on the final scripts before the wrapper driver's T3 section was cut (after the Test review's fixes), gave the same output apart from temp folder names, and the same as the run before those fixes apart from the marker and the redacted login. In one wrapper run the wrong-mise-pin hand check failed at the download, not the hash, so it read `node: download`; the rerun matched the setup driver line for line.
+
+- **Two passes from nothing installed:** Node 24.22.0, all five skill repos at their pins, 51/51 skills, 12 config files, the marker; the snapshot after pass 2 equals the one after pass 1. No `claude` in the image, so the plugins read `not installed`, as the spec expects.
+- **The Node block's hand checks** (T1's, rerun): each wrong pin, a blocked download, `paranoid` off and a non-x86_64 machine fail with their reason; the block alone takes 9 s.
+- **C3, C14:** with grimoire's pin set to a commit it doesn't hold and typesafe-ai's key removed, those three skills are named under `not fetched at pin`, git's own output is absent from the setup's output, the config is written, the marker prints, and the installed `eagle-eye` is left as it was.
+- **C4:** from a fixture repo, the skill holding a link and the one holding `.claude-plugin/plugin.json` read `MISSING`, and only the good one is copied.
+- **C5:** on a fixture marketplace, only the contained path plugin and the external one with a `sha` pass; the other eight are each named under `skipped (source)`; the catalog is reduced to those two under the new name, with no other top-level field; one `marketplace add`, two installs. A link as the catalog file and an unparsable catalog each install nothing, add no marketplace and name every listed plugin; the file the link pointed at is unchanged. The link in the plugin folder has a non-ASCII name since the Test review. The first run of this case failed because the driver's plugins-only extract stopped before the Node block put Node on the PATH; the driver was fixed, not the setup.
+- **C7:** an email field prints only the login, a line break in the login and a non-JSON body print `unexpected` (the body's marker is not printed), and a 401 prints `anonymous`.
+- **C12:** with `FETCH_BUDGET=1`, all 51 skills are named under `skipped (time)` and none under `not fetched at pin`, and Node fails as `node: time`. The proxy line reads `unexpected`, since the image has no Node of its own.
+- **C17:** a set `INSTALL_ANTHROPIC_SKILLS` prints its `WARN`.
+- **C18:** with `timeout` hidden, no `git` command runs and every skill is named under `not fetched at pin`.
+- **C20:** an installed skill edited and given a stray file equals its pinned path after a run, with no nested or leftover folder; all 51 setup-copied skills equal their pinned paths.
+- **The proxy line**, in every full run: the proxy answered the container's token-free request as an authenticated account (the drivers print it as `<a login>`). So a process in a session reaches GitHub through the proxy whatever the token variables hold, as D7 records.
+
+### Test review
+
+The QA pair (behaviour-lens, integrity-lens) and the security pair (adversarial-lens, data-lens) read the change at Test, each alone; none found anything high. The reviews and their Lens dispositions are on #183. Fixed in this change, each seen to fail on the build's head and pass after, on local fixtures with a stub `claude`:
+
+- **The plugin check ran after the swap.** `fetch_pinned` replaced the kept, in-place-loaded marketplace folder before the check, so a refusal left an unchecked tree with the upstream catalog there. Now the check runs in a stage, and a refusal over a kept folder leaves its commit and catalog unchanged. A listed plugin that stops passing is uninstalled before the swap, and a failed uninstall keeps the last checked tree (added after the security-guidance hook flagged the first order, uninstall after the swap).
+- **Quoted names hid links.** Without `-z`, `git ls-tree` quotes a name holding a non-ASCII byte, so a plugin holding such a link passed. It is now skipped. The driver's C5 link fixture now has such a name.
+- **The inline `settings` key passed** while a root `settings.json` was refused. It is refused now. No pinned listed plugin carries it.
+- **The skills step's listing file was appended to, not replaced,** so a link in one skill refused every skill after it in the same repo. It fails closed, and the build's drivers didn't meet it. Each listing now starts empty.
+- **`read -ra REPO_PIN` and a code line before the pins** were not refused by `assemble()`; both are now.
+- **From adversarial-lens's rerun on these fixes:** a line led by a no-break space and a hash passed the pins-first check as a comment, though bash runs it; the check now reads each line's raw text. A path source holding a control character, which the line-split link listing could misplace, is refused. An uninstall refused for time is named under `skipped (time)`.
+- **Smaller:** an official-marketplace lookup that fails reads `unknown`; a refused skill whose older copy stays says so; `cp`, `mv` and `mktemp` errors go to the step log; the drivers redact the login in their full passes too.
+
+### On the owner's word
+
+At hand-off the owner took every pick (in chat, in the build thread, 2026-10-18):
+
+- **Threat model:** R10 narrowed, with the proxy's reach and each pinned send approved by name; the input checks named under the plugins section; the #182 line; snapshot leftovers under data migrations. Accepted: R45 (the repo pins), the SHA-1 residual in the crypto paragraph, and R46 (four step gaps: the shared Node budget, the step log left on an early end, the refused plugin step's Result, and the jq-less freeze).
+- **The 7-day deadline** for an advisory against a repo pin stays in ADR 0091, and the advisory watch takes the new prompt posted on #183.
+- **Tests:** none added beyond the 22 the spec kept. The wrapper driver's T3 section is cut: it ran the same generated setup as the setup driver's, case for case (integrity-lens). The wrapper driver keeps its passes, Node checks and merge tests.
+- **The ADR is 0091 and the risks are R45 and R46:** #336 merged first and took ADR 0090 and R41 to R44.
+
+### Decisions
+
+- [ADR 0091](../adr/0091-the-cloud-setup-fetches-third-party-code-by-pinned-commit.md) — The cloud setup fetches third-party code by pinned commit.
+
+### Record
+
+- [Spec, revision 4](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6254212833), and its [sign-off](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6254239546)
+- [Round-3 probe notes](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6254213123)
+- [Design review, round 1](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6253802332) and its [dispositions](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6253802775)
+- [Design review, round 2](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6254213415) and its [dispositions](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6254213889)
+- [Design review, round 3](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6254214153) and its [dispositions](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6254214454)
+
+## The cloud setup drops the skill-creator plugin
+
+**2026-10-18** — **2026-10-18.** #183, from T3's live run. In the live environment claude.ai syncs a `skill-creator` skill into every session, beside the `skill-creator` plugin the cloud setup installed from the pinned marketplace. The two loaded side by side under separate prefixes. The owner chose to keep the synced one and remove the pinned one. Tier: quick.
+
+### What was built
+
+- **The plugin list.** `cloud-sessions/tpl-setup-head.sh` installs six plugins from `pact-pinned-plugins`, not seven: `skill-creator` is gone from the install list and from the list the Result names when the CLI is missing. The generated setup and wrapper are rebuilt, and the hand-check driver's unparsable-catalog case lists the same six.
+- **Not changed.** R46 in the threat model still says "all seven plugins". That entry is an accepted risk, so its wording is the owner's to change.
+- **Live.** A session started from an earlier snapshot may still hold the old `skill-creator` install, since the setup doesn't uninstall plugins it no longer lists. A fresh image doesn't install it.
+
+### Record
+
+- [T3 live run](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6255647146)
+- [C9 decision](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6255698165)
+
+## Delta-aware lens reviews
+
+**2026-10-18** — **2026-10-18.** #336. Lenses judged every round as if it were the first, so a re-run lost what had changed. Now every lens run is handed the base, the state before the work began, each finding carries its state against it, and only what the work introduced or worsened gates, with security findings keeping full weight. Tier: thorough, sensitive route; built on Opus at high, test-first, as one ticket.
+
+### What was built
+
+- **`claude/review.md`:** every lens run is handed the base, checked as an ancestor first; a follow-up is also handed the revision diff and only its own rows of the last Lens dispositions table, as `E` rows, with a withheld row's place line written by the session; restarts, full passes and the deletion of kept-local reports on the owner's word. The report template gives each finding, trade-off and accepted-risk line a state and an `E` link, adds Earlier findings and the by-lens table of the state words, and scopes the Verdict to `new` and `updated` findings and `unchanged` security ones. The review comment gains the base line, Notes and Earlier findings; a new section, Findings and their state, says how the session sorts. The Lens dispositions table gains the state-word sentence and `noted`.
+- **The poster:** `DISPOSITIONS` gains the four state words and `noted`; a new rule, `table/state`, refuses a read row whose Finding cell doesn't start with a state word, unless the row is `skipped` or the cell is exactly "withheld, see chat", at the cell's line and column, with no cell text.
+- **Docs:** `docs/poster.md`, `CONTEXT.md` (base, follow-up, full pass, and the table's entry), a dated "Decided" line under question 10 of each of the eight lens contracts, and the regenerated cloud sessions.
+- **Tests: +3 −0,** in `gate/tests/poster-table.test.mjs`: C4 (the `table/state` bad and good cases, and a `skipped` row's Finding cell not read), C6 (the poster's state words equal `review.md`'s sentence) and C10 (a body breaking every `table/` rule, with a marker in each cell, gets refusals that hold no marker). Run before the rule existed, all three failed, and so did the fixtures test's new `table/state` counts; C10 was also seen to fail with one rule's refusal made to quote its line. Existing rows gained the lead word `new`, their pinned columns moved by four, and the `all-dash-row` plant's expected rules gained `table/state`, as the spec says. Two rows in `gate/tests/poster-prose.test.mjs` also gained the lead word, and one pinned column there moved by four.
+
+### Decided at Build
+
+- **The C7 counts matched** the spec's (30, 8, 2, 0, 13, 7, 1, 21, 0, 5, 3, in sorted order), with the two header-refused fixtures at 0.
+- **`poster-prose.test.mjs` takes the lead word too.** The spec named only `poster-table.test.mjs`, but the prose test posts a Lens dispositions table, so its rows needed the same lead word and column move. No expected rule list changed, so it isn't one of the spec's stops; the QA pair reads it at Test.
+- **Within a row, `table/state` is named first,** at the Finding cell, before the Lens and Disposition cells' refusals, so refusals read left to right.
+
+### Changed at Test
+
+- **The Test review** (all seven lenses, under the installed rules, on the owner's word) found nothing high. C10 was not met: one medium path each under V2 ("taken earlier" couldn't judge severity and failed open on an unknown class) and V8 (the base line was read with no author test, and git counts a commit as its own ancestor). Five mechanical findings were fixed on the session's call.
+- **The owner took every pick,** and the spec was amended: the base is checked against the parent of the work's first commit, found from the work itself, and a base line counts only from a comment that counts; "taken earlier" reads severity from the review comment and fails closed; a withheld row never takes a state word, and the poster refuses one before the withheld text, with three more bad cases in the C4 test (seen to fail first); a secret's place line names its file only; kept-local reports are named for deletion at every hand-off; a missing state is `new`, and a lowered one goes to the owner; plus wording for `updated`, `absent`, restarts, overflow notes and the Rerun cell. Tests stay `+3 −0`.
+
+- **The follow-up** (security pair, QA pair, reader-lens, on `05485a7`) found the first round's V2 and V8 paths absent, but left new mediums: a withheld finding's state could reach the record outside its Finding cell, "taken earlier" ignored an accepted risk eased at the same severity, and the poster's withheld check read the whole cell. It also found a defect the amendment brought in: after a merge from main, a restart's base failed the parent check. Having gone round twice, the session stopped; the owner chose to keep going, checked by a walk-through.
+- **Amended again:** on a branch the base is the merge base derived at every round, restarting when a merge or rebase moves it; on the default branch it is exactly the parent of the work's first commit; at Design it is never older than the last recorded base. Nothing in the record gives a withheld finding's state, class or severity. "Taken earlier" also needs likelihood no higher and no accepted risk eased. The poster reads only what follows the lead state word, in any case or markup, with more C4 cases (seen to fail first, and each catching its broken version). Plus wording from the reader-lens. Tests stay `+3 −0`.
+- **The second follow-up** (security pair and integrity-lens, on `5ce1666`) found V2 holding, but withheld metadata still leaking, through a continuing report and the verdict line, plus a stop defect: the first Test round compared its base with Design's. The owner chose to simplify and finish, with one last round.
+- **Amended a third time:** each stage compares only with its own last base line, so Design to Test is a first round; on the default branch the base and the first commit are named to the owner before the first round's lenses run; at Design the last base must be an ancestor of the new one. The scattered withheld clauses became one coarse rule: a fixed row with one bare Disposition word, continuing reports kept local, and a verdict over posted findings only. The poster also refuses a withheld row whose Disposition is anything but one bare word, and the C4 test gained cases for other markup, a soft hyphen inside the word, quotes and the four Disposition shapes (seen to fail first). Tests stay `+3 −0`.
+- **The last round** (security pair and QA pair, on `9de57a3`) found nothing high and every base path closed. Two lenses found one medium leak: a follow-up report that finds a withheld finding `absent` continues nothing, so it would be posted. The owner chose to fix it and ship: a follow-up report handed a withheld row as an `E` row is kept local whatever it says. integrity-lens's four test gaps in C4 went to a follow-up issue, so the QA pair reads them there.
+
+### After merge
+
+- **Four accepted risks recorded** in `docs/threat-model.md`, on the owner's word in chat: R41 (the poster doesn't pair a state word with a Disposition word) and R42 (a read-only lens takes the session's word on the base), the two Hardening trade-offs; R43 (a posted security row's state shows whether its item sits in published code); R44 (kept-local reports sit unencrypted on the session's disk).
+
+### Decisions
+
+- [ADR 0090](../adr/0090-lens-findings-carry-their-state-against-the-base.md) — Lens findings carry their state against the base.
+
+### Record
+
+- [Owner decision: the sensitive route](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6252865675)
+- [Spec, revision 1](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253131020)
+- [Spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253137727)
+- [Design review, round 1: the spec pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253136686)
+- [Design review, round 1: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253137007)
+- [Design review, round 1: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253137396)
+- [Design review, round 2: the spec pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253528585)
+- [Design review, round 2: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253528957)
+- [Design review, round 2: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253529396)
+- [Spec, revision 3](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253529801)
+- [Owner sign-off, revision 3](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253550049)
+- [Spec amended at sign-off: C10](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253604935)
+- [Lens dispositions, final: the owner accepted every open row](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253605302)
+- [Ticket cut](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253685001)
+- [Build state, at the Build-to-Test boundary](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253849726)
+- [Test review: the QA pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254073725)
+- [Test review: unstated-lens](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254074071)
+- [Test review: the standards pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254074460)
+- [Test review: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254074863)
+- [Test review: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254075227)
+- [Spec amended after the Test review](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254188375)
+- [Test follow-up: the QA pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254346650)
+- [Test follow-up: reader-lens](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254346957)
+- [Test follow-up: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254347316)
+- [Test follow-up: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254347678)
+- [Spec amended after the Test follow-up](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254494167)
+- [Second Test follow-up: integrity-lens](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611004)
+- [Second Test follow-up: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611425)
+- [Second Test follow-up: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611814)
+- [Spec amended after the second Test follow-up](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254730976)
+- [Last Test round: the QA pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254852446)
+- [Last Test round: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254852879)
+- [Last Test round: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254853306)
+- [Spec amended after the last Test round](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6255109202)
+
+## Node 24 in cloud sessions
+
+**2026-10-18** — **2026-10-18.** #183, ticket T1. The cloud image ships Node 22, and the install and the gate refuse anything below 24. The cloud setup now installs a pinned, verified Node 24 through mise and puts it on the PATH. Tier: thorough, sensitive route; built on Opus at high, test-first.
+
+### What was built
+
+- **The Node block** in `cloud-sessions/tpl-setup-head.sh`, before the skills step. It refuses any machine but `x86_64`, downloads the pinned mise with the GitHub token variables unset, and checks its hash before unpacking. It then writes mise's global config with `paranoid` on and a lockfile holding the Node archive's hash, and asks mise whether `paranoid` is on. It installs the pinned Node with `MISE_SAFE=1 MISE_LOCKED=1` from a temp folder and checks the installed `bin/node`. Only then does it write `node`, `npm` and `npx` wrappers in `/root/.local/bin`. Any failure removes the wrappers it wrote and names its reason.
+- **The Result section** runs `/root/.local/bin/node` by path and turns the marker `INCOMPLETE (… node: <reason>)` on any Node failure or a version other than the pin.
+- **`gen.mjs`** holds the pins in `CLOUD_PINS` and writes them as five plain assignments. `assemble()` refuses a pin out of its shape, one set twice, defaulted in an expansion, or whose value appears anywhere else (`cloud/pin`).
+- **Tests: +3.** One holds the block's checks in order, every pin once and every fetch without the tokens. One holds the `cloud/pin` refusals, among them a wrong length, a shell metacharacter, a line break, a `${VAR:-…}` or `${VAR-…}` default and an `export` reassignment. One holds each committed key file to the hash its README records. The marker test changed for the new condition, and the assemble tests' stand-in head gained the pins placeholder. Run before the build, the new tests and the marker test failed, and the rest passed; each case added after the lenses was seen to catch a broken copy of the code.
+- **The test drivers** install `curl` and `gnupg`, show the wrappers and `paranoid` after each pass, and run the hand checks below. Their stale `familiars/scout.md` path (scout moved to `claude/agents/`) is fixed.
+- **`cloud-sessions/keys/`** holds Node's active-releaser keyring and mise's minisign key, with their sources and hashes. **`AGENTS.md`** says a session never marks a project's mise config trusted, by any of the five means mise offers, without the owner's word in chat.
+- **`docs/threat-model.md`**, on the owner's word at hand-off. The crypto paragraph names the two keys and the pins. R10 now says mise and Node are pinned. R35 covers the pins, R36 a trusted mise config and R37 the two hardening gaps from Design review.
+
+### The pins, re-checked at build time
+
+- **Node 24.22.0:** `SHASUMS256.txt.sig` checked with `gpgv` against the committed keyring (nodejs/release-keys at `481637f`, the active releasers' keys only): a good signature from `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`, which nodejs/node's README lists. The archive hash in the checked file, `28ea0a43…4228c`, matches the download. `bin/node` hashes to `67ca5783…751c`.
+- **mise 2026.10.2:** the release's `SHASUMS256.txt` checked with `minisign` against the committed key (jdx/mise at tag `v2026.10.2`), key id `64113EDF160FDEC2`, which aqua-registry's mise entry also names. A copy with one byte changed failed the check. The tarball hash in the checked file, `79a2bf0f…db788`, matches the download.
+- **One departure from the signed-off procedure:** `minisign` came from Ubuntu 24.04's package archive (`minisign 0.11-1`, checked by apt's signed index), not from a pinned release checked by hash. The owner accepted it at hand-off, and ADR 0088 now allows either source.
+
+### Hand checks
+
+Run with the test driver in an `ubuntu:24.04` container. In a cloud container the network goes only through a proxy, so the container got the proxy's address and its CA bundle through a forwarder on the Docker bridge, with no host network and no credentials.
+
+- **C5:** two passes give the same snapshot, the same three wrappers and `v24.22.0`.
+- **C3:** a wrong mise pin, a wrong archive pin and a wrong binary pin each print their mismatch `WARN`, leave no wrapper and read `INCOMPLETE (12 of 12 written, 0 hash mismatches, node: hash)`. A wrong mise pin leaves no mise; a wrong archive or binary pin leaves the checked mise and no Node install, aliases included. A missing mise release reads `node: download`, and `paranoid` off in the config reads `node: config` and leaves no mise.
+- **C4:** under a `uname` stub printing `aarch64`, the block is skipped with a `WARN` and `node: arch`.
+- **C8, in the container:** the block alone took 8 to 10 s from nothing installed, over four runs.
+- **C10, in the container:** in a folder holding an untrusted `mise.toml` that asks for Node 22, `mise install` refuses with "are not trusted" and installs nothing, and `node --version` through the wrapper prints `v24.22.0`. The half of C10 that runs `mise trust` was not run: `AGENTS.md` keeps that for the owner's word.
+- **C1, in the container:** `mise exec node@22 -- node --version` printed `v22.23.3`.
+
+### The run in a cloud session (D2)
+
+The owner pasted the PR's wrapper (`75c6d57`) straight into the live cloud environment, not a separate one, so D2 ran there. A fresh session reported on #183:
+
+- **C1:** `node`, `npm` and `npx` in the Bash tool and on the PATH `claude` gives its hooks: `v24.22.0`, `11.19.1`, `11.19.1`. `mise exec node@22 -- node --version` printed `v22.23.3`. Nothing ran the image's Node 22.
+- **C2, as reworded:** 2,155 passed, 9 skipped and one failed, the #333 test.
+- **C7:** the same 53 skill entries and 7 plugins as a session on the old setup. `resolving-merge-conflicts` is missing from both, so the skills line reads 51/52 on either setup. The gap predates this change.
+- **C8:** the Node block took 10 s or less.
+- **C10:** an untrusted `mise.toml` was refused with "are not trusted", and the wrapper printed `v24.22.0`. On the owner's word, `mise trust` in that one folder let `mise install` go ahead, and the wrapper still printed `v24.22.0`.
+- **The marker** wasn't seen. The session's copy of the setup log stopped about 4 s before the end. The script that ran matches the `75c6d57` wrapper byte for byte, and every condition for the marker held.
+
+### The full suite in a cloud container
+
+On Node 24.22.0, with `NODE_OPTIONS` and the token variables unset, 240 tests failed: the install refuses while `GIT_CONFIG_COUNT` is set, and a cloud session sets it, with its `GIT_CONFIG_KEY_*` and `GIT_CONFIG_VALUE_*` pairs. With those unset too, 2,154 passed and one failed: "a project holding the real home folder refuses", which fails the same way on `main` in a cloud container, where the home folder is `/root`. So C2's command, as the spec words it, can't pass in a cloud session yet. The owner took C2 reworded: it also unsets the `GIT_CONFIG_*` variables, and names that one test as a known cloud failure until [#333](https://github.com/mephistopheles4/the-pact/issues/333) fixes it. CI's full run on Linux is the Test evidence.
+
+### The owner's decisions at hand-off
+
+Taken in chat on 2026-10-18, from the build's picks on the Test review:
+
+- **Threat model:** the edits above (R35 to R37).
+- **npm and npx get no pin of their own.** mise's lockfile check covers the whole archive, and the driver showed it refusing a wrong archive hash.
+- **The fetches unset the two GitHub token variables only.** The cloud environment sets no other GitHub token variable, and such a token would go only to GitHub.
+- **The integrity-lens rows marked `security?` are fixed.**
+- **No re-check in the Result section.** The skills and plugins steps could undo the Node block's checks, but R10 already accepts that.
+- **The mise rule stays in this repo.** The cloud rules copy is the pact itself, so other repos' cloud sessions rely on judgment (R36).
+- **The `mise trust` half of C10 runs in the test environment (D2),** on the owner's word there.
+- **Node's coming 24.x security release doesn't hold this PR.** The test-environment run and the merge go ahead on 24.22.0, which leaves sessions no more exposed than the image's Node 22. The pin is bumped after the release, as an ordinary bump: D2 is a one-off first run of the new block, and a bump changes only pin values. ADR 0088 now sets a 7-day limit for a security bump.
+
+### Decisions
+
+- [ADR 0088](../adr/0088-the-cloud-setup-installs-a-pinned-verified-node.md) — The cloud setup installs a pinned, verified Node.
+
+### Record
+
+- [Plan, signed off](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250226884)
+- [Design review, round 1](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250252522)
+- [Design review, round 2](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250267526)
+- [Test review](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250771419)
+
+## Node through mise
+
+**2026-10-18** — **2026-10-18.** Volta, which the repo named for installing Node, is unmaintained; its README recommends mise. The owner asked to move to mise. Tier: quick.
+
+### What was built
+
+- **`docs/agents/gate-tests.md`** now says `mise use -g node@24` gets the current LTS.
+- **ADR 0029** gains a "Since" line pointing to the new ADR; its cap and LTS floor stand.
+- **No gate code changed.** CI uses `actions/setup-node`, and the cloud-session setup never used Volta.
+
+### Decisions
+
+- [ADR 0087](../adr/0087-node-is-installed-with-mise.md) — Node is installed with mise.
+
+### Record
+
+- The owner's request and go-ahead were in chat on 2026-10-18; no issue was filed. The PR that carries this entry is the record.
+
+## Scriptorium's canvas takes the réseau
+
+**2026-10-18** — **2026-10-18.** The aviation design system replaced its graph-paper ground with réseau crosses ([aviation-design-system#10](https://github.com/mephistopheles4/aviation-design-system/pull/10)). The owner asked for Scriptorium to follow. Tier: quick.
+
+### What was built
+
+- **The workflow canvas** in `builder/scriptorium.html` drops the two-tier lines (24 px at ink 3.5%, 120 px at 8.5%) for one 13 px cross at the middle of each 120 px division, in `--av-ink-30`, the same cross, pitch and ink as the design system's `.av-grid`.
+- **The crosses are drawn by `draw()`** on the canvas element that already draws the links, under them, and pan and zoom with the world. The design system stages its cross as an SVG data URL, but Scriptorium's CSP has `img-src 'none'`, which refuses it; drawing keeps the CSP as it was.
+- **The unused `--av-grid-minor` and `--av-grid-major` tokens** are gone from both themes, and the canvas no longer sets its background size and position each frame.
+- **Not here:** the README figures in `docs/img` still draw a 24 px line grid.
+
+### Record
+
+- The owner's request and go-ahead were in chat on 2026-10-18; no issue was filed. The PR that carries this entry is the record.
+
+## The threat model's crypto paragraph names its other hash uses
+
+**2026-10-18** — **2026-10-18.** #324, from the last `behaviour-lens` round on #321. The crypto paragraph in `docs/threat-model.md` said the pact uses hashes "in four places", which read as the full list. It now says "four main places" and ends the list with the other uses that work the same way. The owner picked the wording. No accepted-risk entry, control or chart point changed. Tier: quick.
+
+### What was built (#324)
+
+- **The threat model.** "Four places" becomes "four main places", and one sentence after the list names the install's internal hand-offs, the project install's rules file and record, and CI's actions pinned to full commit ids as using hashes the same way, "among them" so it claims no complete list.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/324)
+
+## Tracker authors through REST
+
+**2026-10-18** — **2026-10-18.** #183, ticket T2. A cloud thread's proxy refuses GraphQL, so every author read in `docs/agents/issue-tracker.md` failed there and nothing on the tracker counted. Author reads now go through a checker in code that uses REST, and with a token set the login is announced rather than confirmed. Tier: thorough, sensitive route; built on Opus at high, test-first.
+
+### What was built
+
+- **The checker,** `gate/tracker-authors-core.mjs` and its command line `gate/tracker-authors.mjs`, after the gate's core and command-line split. `issue <n>` or `pr <n>` on the fixed repo; anything else exits 2 before any call. It reads `user` first and keeps only its login, then the issue or PR through REST, 100 a page with explicit page numbers. A failed, empty, misshapen, repeated, capped or miscounted read stops with one fixed `FAIL stop/<id>` line and no content. On success it prints one record per item, then the SUMMARY line, the only place a verdict is taken from. Its gh runner pins the host, drops the debug variables, and runs from a new empty folder with no shell. Every line it prints escapes C1 controls, the line and paragraph separators and every format character.
+- **The decisions:** a comment counts only when the owner's account wrote it and it shows no edit; an issue, PR or review body never counts, since REST shows no editor; a label counts only when the owner's account applied it last and the issue still carries it; a PR is insiders' code only when the owner's account opened it from this repo and every commit, the head last, is the owner's.
+- **The doc:** "Whose text counts" has the announce-and-proceed steps, and a new "When GraphQL is refused" section says how to tell, how to run the checker from `main`, and how to read it. The GraphQL reads say they need GraphQL.
+- **Tests: +43.** `gate/tests/tracker-authors.test.mjs`, in `fast`: five tables (comments, bodies, labels, insiders, stops) and thirteen tests (the hidden flag, three child runs on bad input, six on the runner and the output, one on a record decide() can't read). The Test review added eight: the PR body, a commit with no linked author, a commit committed by another account, a head commit that isn't one, a comment without its times, that last test, the head commit in an insiders' PR's SUMMARY, and a pending review left out. Run before the checker existed, the file could not load; with the core but no command line, the three child runs failed. Each check was then seen to catch a broken copy of the code, one at a time. Three guard lists in the gate's tests name the two new files: the core import guard, the helper import guard and the install smoke test's gate list.
+
+### Decided at Build
+
+- **A review comment's hidden flag is `null`.** REST carries no `minimized` field for review comments; the owner chose to mark it unknown, and the doc says to summarise any record whose `hidden` isn't `false`.
+- **After the Test review, reviews' hidden flag is `null` too.** REST carries no `minimized` field on a review either, and GitHub can hide one, so the owner's "unknown" applies to reviews as well.
+- **A comment without both its times stops the read** (`stop/shape`), as S13 asks for a missing field, rather than counting as unedited.
+- **Stops fire in the table's order within each call;** the cap and the counts are checked after the last read, and the shape checks on a record's fields (a comment's times, a record decide() can't read) after those, except the head commit's, which fires right after the PR read. Every stop exits 1 with no verdict, so which one names a bad read changes nothing a session does.
+- **From the Test review, on the owner's word** (decision cards in the build thread): an insiders' PR is named `pull:<n>@<head commit>` in the SUMMARY, the commit to check out; the doc's run step checks that `origin` is this repo, and spells out PowerShell 7; the owner's unsubmitted review is left out; the 100-review cap stays, listed in the threat model as a way to block a read. The owner accepted R39: an unsigned commit is credited to an account by its email. The owner also accepted R40: the run step's origin check reads the path, not the host; and declined test rows for a login match in the reverse direction and for a loosened head-commit pattern.
+- **The install stages the checker** with the rest of `gate/` and hashes it into the manifest, so the install smoke test's gate list names both files (ADR 0089). The next dry run shows the gate changed.
+- **The threat model,** on the owner's word at hand-off. R38 accepts that a session takes whatever account its token belongs to as the owner. R1's control names the checker, "Strangers on the tracker" says the login is announced and an edited item doesn't count through REST, the #188 line says cloud sessions now read authors, and a new section lists the checker's own checks and what it can't see.
+
+### Decisions
+
+- [ADR 0089](../adr/0089-tracker-authors-are-read-through-rest-where-graphql-is-refused.md) — Tracker authors are read through REST where GraphQL is refused, and the login is announced.
+
+### Record
+
+- [Spec, revision 5, signed off](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6251845896)
+- [Design review, round 1](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6251846347)
+- [Design review, round 2](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6251846789)
+- [C10 live run](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252050011)
+- [Test review: the security pair](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252629086)
+- [Test review: the QA pair, three rounds](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252630257)
+- [Test review: integrity-lens reports](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252630440)
+- [Test review: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252630593)
+
+## The pact's default configuration and skill sources
+
+**2026-10-19** — **2026-10-19.** #183, ticket T4a. A home install with no `pact/config.json` rendered the pact's plain text, and only the cloud setup's script knew which skills a session gets. A config-less home install now renders the pact's default configuration, Level 3 · Full, generated from its preset, and a configuration may name skill sources by pinned commit (ADR 0094). Tier: thorough, sensitive route; built in a cloud thread, test-first.
+
+### What was built
+
+- **`builder/default-config.mjs`** writes `builder/default-config/` from `builder/presets/level-3-full.json`, as the page saves that preset taken whole; `--check` exits 1 on a stale copy, and the kit refuses to regenerate.
+- **The renderer** takes the default folder as an optional fourth argument, reads it only when the person has no file, prints `CONFIG default`, takes the digest over `default`, and names the default in its notice. It checks `skills` (`config-skills`) and prints a `SKILL` line per path after `TOOLS`.
+- **The installer** passes the staged default on a home install only; parses `CONFIG default` and `SKILL` lines (`render-skill-twice`, `render-skill-count`, a skill with no configuration is `render-none-extras`); names the default and its digest in the Configuration block, says when the person's own configuration is gone (C35), prints a security-defaults line and a `skills:` block; records the default's digest and no configuration file. The builder kit lists the default folder and its generator.
+- **The builder and its page** accept `skills` with the same checks in the same words (`builder/parts.mjs`'s `skillsProblems`), keep it on load and save, write it to `config.json`, show it as a preset row, and name each source in Export before Save.
+- **AGENTS.md** gains the generator line and D12's sensitive-route line. `docs/install.md`, `docs/reference.md` and the README say what the default is; ADR 0091's bump procedure names the new pin homes and the owner's approval of sends.
+
+### Tests
+
+- **New:** `default-config.test.mjs` (the committed copy is current and a stale one fails `--check`; the page's save equals the generator's files, with and without skills; the default's workflow names the six skills; a person's render is the same with or without the default folder; 18 D4 rows refused alike, in the same words, by the page's checker, the renderer and the builder; the page keeps `skills`; AGENTS.md's D12 line). In `install-core.test.mjs`, 7 renderer-line rows and one with no configuration, and a parse of the default with skills. In `config-install.test.mjs`, the dry run of the default (C1), a configuration with skills (C6) and the gone configuration (C35).
+- **Changed by D3, each because a config-less install now renders the default:** every config-less `--apply` in the install tests first takes the dry run's rendered hash (`applyBound`); the tests that expected `CONFIG none`, "no configuration" or the plain render on a home install now expect the default; the planted no-configuration rows plant a renderer with no default folder, so they still reach `CONFIG none`; the usage rows count the optional fourth argument.
+- **Ready for C9:** the page's reset and Save tests read what they expect from `builder/default-config/config.json`, and the default's dry-run test expects a `skills:` line exactly when the default names skills, so the preset's `skills` entry lands with no test change. Each still pins the content through the C3 and C4 tests.
+- **Since the lens review:** rows for the tightened skill-source shapes, the default folder's refusals and the 100-path boundary; the security-defaults line's changed-since check; Export's skill-sources line. Full tier at the head: 2249 tests, one failure, #333; with the C9 pin applied, the same.
+- **The owner's picks (chat, 2026-10-19):** C9 landed; the threat-model edits applied; executability-lens read the install path for Safety (one medium, two low, all text fixes). Windows full tier at 8dffabe: 2249 tests, 0 fail, #333 included (C10); install dry run pass, drift 0.
+- **After merging main (#272):** this decision is ADR 0094, since #272 took 0093; #272's backup tests apply through the dry run's rendered hash like every other config-less apply. Full tier on the merge: 2262 tests, one failure, #333.
+- **After the merge (owner, chat, 2026-10-19):** the Safety review's medium row, the dry run's skills-block wording, is accepted as fixed in 8dffabe; a repo's skill named like one the default lists is recorded as a known route under R15, accepted.
+- **Not run green here:** "a project holding the real home folder refuses" (#333) fails only in a cloud container, where home is `/root`.
+
+### The first pin of `addyosmani/agent-skills`
+
+Read in a cloud thread at commit `aeac41d4d005999432bb7312f7ff06383a91d59d`, an ancestor of the repo's `main`. Each of the six folders holds only `SKILL.md`, read in full: frontmatter `name` and `description` only, no link, no script, no URL. Sends of session data to an outside host: none that a skill makes itself. One flow for the owner to rule on with C9: `code-review-and-quality` and `shipping-and-launch` suggest `npm audit`, `pip-audit` or `cargo audit`, which send a project's dependency list (names and versions, no code) to the package registry when a session runs them. Noted for the owner: the skills point to sibling skills and to `../../references/*.md` that the six paths don't carry; `incremental-implementation` commits after every slice; `spec-driven-development` writes plans into the repo; `code-review-and-quality` sets a softer approval bar than the review procedure. **C9:** the owner approved the pin and its sends in chat on 2026-10-19, the audit flow included, and the preset's `skills` entry landed with no test change.
+
+### Record
+
+- Spec revision 7 and its sign-off: #183, comment 6259891767.
+- The Test lens review, first round for all seven lenses at 969542d, with its Lens dispositions: #183, comments [6260628618](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260628618), [6260629093](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260629093) and [6260629617](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260629617).
+- PR #346.
+- The executability-lens review and the settled dispositions: #183, comment [6267526951](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6267526951).
+
+## Undoable installs
+
+**2026-10-19** — **2026-10-19.** #272. The install kept no backup: a first install replaced the person's rules file, an apply merged their `settings.json`, and the undo steps rested on a copy the person was asked to make by hand. Now every apply backs up what it replaces before its first write, and undo is a documented copy-back. The gate's tests lost their table framework and a sweep trimmed what only guarded a test helper. Tier: thorough, sensitive route; planned and built on Opus at high, test-first, in four tickets: T0 to T3.
+
+### What was built
+
+- **T1, plain loops (PR #345, merged first):** every former table row runs as a plain `test()` with the same assertions, and `tables.mjs` and `tables.test.mjs` are gone (ADR 0092). Tests: +0 −29.
+- **T0, the threat model:** R47, the backups as plain copies on disk, reworded on the owner's word so it claims nothing about the Claude home folder's access; the R14 widening for a planted backup; R47's chart point (0.30, 0.55, "Guard closely") and at-a-glance row.
+- **T2a, the backup:** `takeBackup` in `gate/install-io.mjs`, on injected file operations, after every check and before `CHECKS DONE`: a staging folder, each copy written exclusively with fsync and read back against the hash the plan read, the manifest last, a link test before and again before the rename, Unix modes `0700` and `0600`, and a clean-up by a walk that never follows a link. The runner memoises the plan's live reads for it, prints `BACKUP STARTED` and the backup's name, and names the backup in a refusal after the first write; the runner and the bootstrap name the staging folder when a run ends after `BACKUP STARTED` any other way. `pact/backups` joins the protected paths.
+- **T2b, retention and docs:** `pruneBackups` after a verified apply: the ten newest, this run's included, every one named after this run's, and every one taken with no record stay. A pruning error is one warning. The dry run prints the `Backup:` line and counts staging folders and entries the prune leaves. `docs/install.md`'s step 3 now describes the backups, "Undo an apply" replaces the manual-copy undo, with its manifest checks; Rolling back gains two lines; the threat model gains the backups in what the pact puts on the machine and the data in reach, the crypto and data-migration sentences, and R13's corrected sentence.
+- **T3, the sweep:** a one-off sweep under q3, ADR 0057's D2 set aside for #272 only. Two tests cut, both in `no-skill-names.test.mjs`, each a minus-one duplicate of a bad case beside it. Four more first cut came back at Test, their cover being unable to catch what they caught; everything else examined stays under the never-cut list (ADR 0093).
+- **Tests in this PR: +15 −2.** T2's fifteen tests back C1 to C9 and C15 to C17 (3 of 2 past the limit, taken by the owner in q10), plus one assertion on an existing double-apply case for C18. Two existing tests changed: the agent-picks audit gained the new test file, and the poster-off case now checks that the only copy of the deleted poster is in the apply's backup.
+
+### Decided at Build
+
+- **One pull request for T0, T2 and T3,** by the owner's word, relayed by the head chef: each ticket its own commit, T2 split as T2a and T2b, as the cut allows.
+- **R47 reworded,** by the owner's word, relayed: the backups get the same access as the Claude home folder they sit in, so they are exactly as exposed as the `settings.json` and rules file beside them. The confirmation gate (q11) and the stop for an unconfirmed folder are gone. The Unix modes stay (build q1, A).
+- **The bootstrap reaches its 250-line budget exactly,** with the backup-started state in four added lines.
+- **The sweep cut little,** because the never-cut list outranks the criteria: `agent-picks` is ADR 0034's pin, `gate-run.test` backs ADR 0032 and guards silent passes, and `pact-marks` pins the marks the renderer edits by.
+
+### Changed at Test
+
+- **The Test review** (all seven lenses, first round, on cdd66c2) was blocking on three lenses: integrity-lens found four sweep covers that could not catch what their tests caught; reader-lens found two install-guide steps that misled a person undoing by hand; data-lens found the unencrypted copies of `settings.json` with no accepted risk in force, since R47 is this PR's own edit.
+- **Fix round one** (e0c4358) took every mechanical finding: the four tests went back, so the sweep cuts two; the undo checks the manifest before the record goes and picks the oldest backup taken with no record; a `pact/backups` that is not a plain folder warns and refuses by name; the clean-up and prune re-check a folder before each entry; three refusals say what to do next; eleven test gaps closed. R47 took option A's wording as the proposed text (q2, open for the owner).
+- **The follow-ups** (integrity-lens and reader-lens, on 0fb57ef): integrity-lens found every earlier gap closed but three; reader-lens found the full-uninstall test misfired after the drift route. **Fix round two**, the last, took both: the guide says a backup taken after moving the record aside is not a first install's, the mode refusal is planted with group and other bits each alone, and the narrowing check names the folder it narrows.
+- **The head chef's decisions, relayed for the owner:** q3, A, executability-lens skipped at Test, the safe state resting on C3, C15, C16 and C17; q4, A, the dry run's prune left unpreviewed, said in the guide, with the counted line (B) left for the owner.
+
+### Decisions
+- [ADR 0092](../adr/0092-gate-bad-cases-are-plain-test-loops.md) — Gate bad cases are plain test() loops.
+- [ADR 0093](../adr/0093-installs-back-up-what-they-replace.md) — Installs back up what they replace.
+
+### Record
+
+- [The comment of 2026-10-12, what PR #274 changed](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6134067089)
+- [Tier and route proposal](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6255433876)
+- [Spec, revision 1](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6255783806)
+- [Spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6255960331)
+- [Design review, round one: the spec pair](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6255973430)
+- [Design review, round one: the security pair](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6255978531)
+- [Spec, revision 3](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6256021551)
+- [Spec, revision 4](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6256173546)
+- [Design review, round two: the spec pair](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6256187398)
+- [Design review, round two: the security pair](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6256187773)
+- [Spec, revision 5](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6256534536)
+- [Design review, round three: executability-lens](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6256537924)
+- [The ticket cut](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6256541134)
+- [The box of decisions, rebuilt](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6256883250)
+- [T1 claimed](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6258604593)
+- [T1 build done](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6259360621)
+- [T1 Test review](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6259595405)
+- [T1 integrity-lens follow-up](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6259695108)
+- [T0, T2 and T3 claimed](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6259772109)
+- [T3's cut list](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6260202309)
+- [Test review, first round](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6260636231)
+- [Test follow-up: integrity-lens](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6260819343)
+- [Test follow-up: reader-lens](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6260819777)
+
+## A Windows job in CI
+
+**2026-10-19** — **2026-10-19.** #351, T1 of #348. Since #303, CI ran the gate on Linux only, so nothing ran the suite on Windows before a merge except a session on the owner's machine, and every Test waited on a local Windows `full` run. Now `gate.yml` has a second job, `gate-windows`, and both CI jobs passing on the reviewed head are the Test evidence. Tier: thorough, sensitive route; planned on Opus at high, built on Opus at high, test-first.
+
+### What was built
+
+- **The job:** `gate-windows` on pinned `windows-2025`, with a 45-minute limit, running the install dry run and `full` under Git Bash (`shell: bash`), with the same pinned actions as `gate`. No matrix, no `if:`, no `continue-on-error`.
+- **The concurrency group** at the file's top level, keyed by the ref on a pull request and by the commit on a push, with `cancel-in-progress`: a newer push to a pull request cancels the older run of both jobs, and every push to `main` keeps its own run.
+- **The lockdown test** reads each job on its own through the file's YAML reader: exactly the two jobs, each on its runner with a time limit, the dry run and `full` in each, no matrix, `shell: bash` on the Windows steps, every checkout keeping no token, the concurrency group as written, and no other workflow naming `gate-windows`. Fifteen bad cases, one per check, each seen to fail by name before the reader was written. The four existing first-job cases now expect the job's name in their message, and so does "runs an old Node".
+- **The Test evidence moves to CI:** `AGENTS.md` and the gate-tests doc say both CI jobs on the reviewed head are the Test evidence, the PR comes before Test, and the Test record cites both run links and the head commit. On the sensitive route the security pair reads the local diff before the push.
+- **Records:** ADR 0095, amending ADRs 0041 and 0081; the threat model's R21, R26 and crypto-section lines name both jobs, and none calls `gate-windows` required yet.
+- **The skip list** (the owner's q2): the runner gains `--skips <file>`, for `full` only, which fails a passing run unless it skipped exactly the listed tests, by file and name, and prints each difference. `gate-windows` runs it with `gate/tests/windows-skips.txt`, taken from one local PowerShell `full` run at the PR's head and the job's first runs.
+- **The security pair's fixes** (q3): the push rule (read every pushed commit; wait for the pair's read when it is due or offered, squashed to one commit; a `.github/` or lockdown diff waits for the pair or the owner; each cited run names its commit); `gate.yml` held to an exact allow-list; the concurrency wording, with a re-run of a cancelled run on `main`; and the folder check reading past trailing comments and quoted keys. The threat-model edits by q4: R21's added sentence withdrawn, R23 and R27 given dated lines for the push rule.
+
+### Decided at Build
+
+- **No local Git Bash run,** by the owner's word, relayed: the local `full` runs in Docker through the #96 fixture, as a building check; Windows evidence comes only from `gate-windows`. `gate-windows` keeps `shell: bash` (q1), recorded in ADR 0095 with its alternative and the trigger to revisit.
+- **Messages name the job.** Problems a job's steps cause carry the job id, so a bad case shows which job it caught.
+- **The every-checkout rule sits in the common lockdown,** so it holds every workflow file, not only `gate.yml`.
+
+### Changed at Test
+
+- **The first Windows CI run failed 238 install tests** that this change doesn't touch: GitHub's Windows image gives the temp folder a short 8.3 name with a `~`, which the install refuses in a Claude home by design, and the tests made their homes there. Reproduced here with a short-name temp folder. By the owner's q6 the test helpers now make their temp folders under the temp folder's long name.
+- **The security pair's follow-up** found only lows. By q7 the push rule now ties the pair's read to the pushed commit and says what a declined offer and a later push need; a Windows skip that guards installer path or link handling goes to the owner; the `--skips` list refuses a line out of its shape by its line number; the triggers and the Windows job's action pins are held exactly. The follow-up read's F1 (line-break characters in a workflow) and F3 (other workflows read with the YAML reader) are filed as follow-up issues. By q8, a killed run's leftover junit report in the temp folder is an accepted risk under R21.
+- **The next Windows run** left two real failures. An outside-home project case still built its folder from the short temp name, fixed under q6. The unreadable-file case can't plant its file on GitHub's runner, whose elevated account reads past a deny: by the owner's q10 its plant now checks that it took, as on Linux, and it joins the Windows skip list as a reviewed skip of an installer file guard; it still runs on Linux and on Windows unelevated.
+- **The run after that** passed every test but failed its skip check on three runner-only skips. By the owner's q11 the Windows dry-run step plants a real Claude folder in the runner's home, so the two real-folder project guards run there, and render-config's unreadable-file case joins the list as a reviewed skip.
+- **At Test,** `main` was merged in and every Test lens ran on the new merge base. The lenses' wording fixes went in, and the gate-tests doc gained spec S7's stop for a required Windows check that fails on code a change doesn't touch. By the owner's q14 three more lockdown bad cases pin the full step's bash, setup-node's equal pin and `cancel-in-progress`; by q12 the threat model's crypto line covers every workflow's actions again. q13 and q15 to q17 left their findings as they were.
+
+### Owner steps after the merge
+
+- After the first green run on `main`: add `gate-windows` to main's ruleset as a required check, with GitHub Actions as its expected source (D1).
+- Then the follow-up docs PR records the ruleset read and names `gate-windows` as required in the threat model; T1 closes when it merges.
+- For a rollback: remove `gate-windows` from the ruleset before the revert merges.
+
+### Decisions
+- [ADR 0095](../adr/0095-ci-runs-the-gate-on-windows-too.md) — CI runs the gate on Windows too.
+
+### Record
+
+- [Spec, revision 1](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6268017076)
+- [Spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6268446235)
+- [Spec, revision 3](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6268496508)
+- [Design review: the spec pair](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6269502824)
+- [Design review: the security pair](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6269503696)
+- [Design review dispositions](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6269504529)
+- [Spec, revision 4](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6269505459)
+- [Spec, revision 5](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6269823072)
+- [Design follow-up: executability-lens](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6269823912)
+- [Follow-up dispositions](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6269824685)
+- [Revision 6 dispositions](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6270045593)
+- [Spec, revision 6](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6270046591)
+- [The proceed record](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6270102103)
+- [T1 pointer to revision 6](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270099775)
+- [T1 claimed](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270130519)
+- [The local `full` in Docker, the owner's word](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270522398)
+- [Build: the security pair's first read](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270651128)
+- [Its dispositions](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270656698)
+- [The owner's q1 and q2](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270666700)
+- [The owner's q3 to q5](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270892768)
+- [Build: the security pair's follow-up read](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6271295786)
+- [Its dispositions](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6271301257)
+- [The stop on the first Windows run](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6271847954)
+- [The owner's q6 to q8](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6271912714)
+- [Build: the security pair's second follow-up read](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272201120)
+- [Its dispositions](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272201873)
+- [The owner's q9](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272311956)
+- [CI after the q6 fix](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272368309)
+- [The owner's q10](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272492391)
+- [C4: the probe](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272692493)
+- [The owner's q11](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272839549)
+- [C3: both jobs on the head](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272989648)
+- [The hand-over at the end of the build](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272999099)
+- [Test: the Docker full run at the merge with main](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273160137)
+- [Test: CI on the merged head](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273550370)
+- [Test review: the QA pair](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273643084)
+- [Test review: the standards pair](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273643893)
+- [Test review: unstated-lens](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273644648)
+- [Test review: the security pair](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273645453)
+- [Test review dispositions](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273646317)
+
+## The stays-local list drops this machine's paths
+
+**2026-10-21** — **2026-10-21.** The rules file's poster bullet kept a lens report local when the poster refused it for a path of this machine's. The owner dropped that item from the list and asked for nothing in its place. Tier: quick.
+
+### What was built (no issue)
+
+- **The rules file's poster bullet** (`gate/render-core.mjs`) no longer names a path of this machine's among the refusals that keep a lens report local. The rest of the list keeps its words, rewrapped, and the poster's `path/machine` rule is unchanged.
+- **Its test** (`gate/tests/tools.test.mjs`) holds the new text byte for byte.
+- **`docs/poster.md`** drops the same item in its two places.
+- **Regenerated:** `cloud-sessions/`, `builder/scriptorium.html` and `builder/default-config/`, all already in step.
+
+### Decisions
+
+- No ADR. In practice little changes: the bullet still keeps local a report refused for a personal detail, and the review procedure's read before posting, unchanged, still counts this machine's home or temp folder path, user name and host name as one.

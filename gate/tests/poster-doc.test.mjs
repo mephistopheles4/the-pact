@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { KINDS, post, renderBody } from '../../claude/tools/poster.mjs';
+import { KINDS, NEXT_FOR, post, renderBody } from '../../claude/tools/poster.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const ME = 'tester';
@@ -193,7 +193,8 @@ test('C2: a post file that is not JSON, or whose top level is not an object, is 
   for (const text of ['not json zzmarker {', '{"repo": zzmarker}', '["zzmarker"]', 'null', '"zzmarker"', '5', '{"repo":"x"} zzmarker']) {
     const r = run(t, 'issue-comment', text);
     refuses(r, 'post/json', 'post file', ['zzmarker']);
-    assert.equal(r.lines.length, 2, out(r));
+    assert.deepEqual(r.lines.slice(1), [NEXT_FOR['post/json'], 'RESULT: refused 1'], out(r));
+    assert.equal(r.lines.length, 3, out(r));
   }
 });
 
