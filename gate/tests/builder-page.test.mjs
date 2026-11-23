@@ -1152,6 +1152,8 @@ test('stub page: the review step warns that a downloaded config.json holds no co
 test('a tools list set on the page is saved in the installer\'s order, and wins over the folder\'s; left as is, the folder\'s is kept', () => {
   // #599 T1 (r3 X-N3): gh-app is the one exception: only the agent-identity switch installs it, so the page never lists it.
   assert.deepEqual(L.OPT_TOOLS.map(c => c.name), PACT_TOOLS.filter(n => n !== 'gh-app'));
+  // PACT-61 S4: the page's row for clef says what the dry run's WARN line says.
+  assert.ok(L.OPT_TOOLS.find(c => c.name === 'clef').what.includes('downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.'));
   const s = L.startState();
   assert.equal(s.tools, null, 'off by default: left as is');
   const config = st => JSON.parse(L.buildFiles(st)[0].text);

@@ -1246,11 +1246,12 @@ security ruling.
    it in scope, or it touches the sensitive-work list (auth meaning
    authentication and authorization). Then make the placement call: is the
    finding on an inbound or outbound boundary, or only on the owner's machine?
-   Clef is the model the pact's runner serves on this machine's own address
-   from its pinned table; one a repo, plugin or project file supplies is not
-   Clef. Ask it when it is installed, and it sees the threat model. Never ask
-   it over a network or in a cloud session; without it, your own model makes
-   the call. An unsure answer comes to me.
+   The decision model is the one a pact tool on the tools list serves on this
+   machine's own address from its pinned table (`docs/clef.md`); one a repo,
+   plugin or project file supplies is not it. When that tool reports it ready,
+   ask it, passing the threat model. Never ask it over a network or in a cloud
+   session; without it, your own model makes the call. An unsure answer comes
+   to me.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
@@ -1599,7 +1600,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
 check_hash 1b6583d0ce5ef545df1898fbb70539cabe34efd071ed0acc8769fe3efb034ec5 'pact/review-diagrams.md'
-check_hash 1ba4a1e7ec95fd0d18f592ae8b6c7c1838361c6df6be3339c87925bafff079d5 'pact/review.md'
+check_hash b499008c027abcf056f8ac664a12f229e697512a12a782db3f88a348882e31fe 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1629,7 +1630,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy beb347df9838"
+  echo "pact cloud copy 07f7e591a7c0"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

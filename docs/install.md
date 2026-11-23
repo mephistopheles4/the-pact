@@ -685,6 +685,8 @@ the column then names costs no part defines, which an older lens reads with no
 one rule and no security bar. If the commit you roll back to predates the
 column, remove it first.
 
+**The `clef` tool.** A pact from before `clef` refuses it on the `tools` list. If `clef` is on, run `clef stop` and `clef remove --yes` first (see [clef.md](clef.md)), take `clef` off the list and apply at the newer commit, then roll back. The clef folder, `pact-clef/`, is not the install's and stays unless you remove it.
+
 Four settings leave rules or files that an older installer can't remove. For
 each, turn it off and apply at the newer commit first, then take its key out
 of the configuration:
