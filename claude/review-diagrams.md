@@ -1,6 +1,6 @@
 # The pact's diagram format
 
-Read beside review.md's Diagrams section: how a review diagram is written and coloured.
+How a review diagram is written and coloured; read it beside review.md's Diagrams section.
 
 - **The block.** Each diagram sits under its sentence, written exactly as
   `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
@@ -11,5 +11,5 @@ Read beside review.md's Diagrams section: how a review diagram is written and co
   is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
   security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
   `color:`.
-- **A place that can't draw them** gets the title line, signal table and count line as plain text,
+- **A place that can't draw diagrams** gets the title line, signal table and count line as plain text,
   with no diagram.
