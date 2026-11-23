@@ -1214,8 +1214,8 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tool
   }
   // A tool's part is empty in the source, and filled only while the tool is on.
   for (const name of tools) {
-    // gh-app alone has no part: the helper is not named in the rules file (#603).
-    if (name === 'gh-app') continue;
+    // A tool with no TOOL_PARTS row has no part: gh-app is not named in the rules file (#603), nor is clef (PACT-61 S2 pick 1).
+    if (!TOOL_PARTS.has(name)) continue;
     const { mark, template } = TOOL_PARTS.get(name);
     const p = pairs.get(mark);
     if (!p) return fail(mark, 'the part is not in the source');

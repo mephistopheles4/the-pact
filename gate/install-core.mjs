@@ -25,7 +25,7 @@ export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium'
 // configuration's tools list names it; gh-app is the exception: it is on the
 // list so seam A takes its file, but the tools list refuses it, and only the
 // agent-identity switch (a later ticket of #599) installs it.
-export const PACT_TOOLS = Object.freeze(['poster', 'cleaner', 'gh-app']);
+export const PACT_TOOLS = Object.freeze(['poster', 'cleaner', 'clef', 'gh-app']);
 const TOOLS_DEST = 'pact/tools/';
 // The pact's hook script (#482), the install's own copy of PACT_HOOKS in gate/seam-a-core.mjs: claude/hooks/<name>.mjs installs to HOOKS_DEST<name>.mjs only while the auto-compact window is on.
 export const PACT_HOOKS = Object.freeze(['compact-handoff']);
@@ -38,6 +38,7 @@ const HOOK_WINDOW_TOKEN = '__PACT_WINDOW__';
 const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
   cleaner: ' and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.',
+  clef: ' and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.',
   'gh-app': ' and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS in every session runs as the app; an askpass program, an SSH remote and a global git write still go around it (docs/agent-identity.md).',
 });
 // The cleaner's deny rules (#438 S2.3): settings.json holds them only while

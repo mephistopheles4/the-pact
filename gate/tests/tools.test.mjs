@@ -22,7 +22,7 @@ const GOOD = "console.log('a tool');\n";
 // #280 C3
 test('the pact tool list is one list: the install keeps the same names in the same order', () => {
   assert.deepEqual([...INSTALL_TOOLS], [...PACT_TOOLS]);
-  assert.deepEqual([...PACT_TOOLS], ['poster', 'cleaner', 'gh-app']);
+  assert.deepEqual([...PACT_TOOLS], ['poster', 'cleaner', 'clef', 'gh-app']);
   assert.ok(Object.isFrozen(PACT_TOOLS) && Object.isFrozen(INSTALL_TOOLS));
 });
 
@@ -111,6 +111,21 @@ test('seam A passes over the helper file: scanned and kept off, or listed when -
   assert.match(bad.stdout, /^FAIL invisible: claude\/tools\/gh-app\.mjs line 1: /m, bad.out);
 });
 
+// PACT-61 C2: seam A takes clef's file and lists it for install only when --tools names it.
+test('seam A passes over the clef file: scanned and kept off, or listed when --tools names it', t => {
+  const file = 'claude/tools/clef.mjs';
+  const root = stage(t, { [file]: GOOD });
+  const off = runSeamA(root, undefined, { tools: 'none' });
+  assert.equal(off.code, 0, off.out);
+  assert.doesNotMatch(off.stdout, /tools\//, off.out);
+  const on = runSeamA(root, undefined, { tools: 'clef' });
+  assert.equal(on.code, 0, on.out);
+  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/tools\/clef\.mjs pact\/tools\/clef\.mjs$/m, on.out);
+  const bad = runSeamA(stage(t, { [file]: "console.log('a​tool');\n" }), undefined, { tools: 'none' });
+  assert.equal(bad.code, 1, bad.out);
+  assert.match(bad.stdout, /^FAIL invisible: claude\/tools\/clef\.mjs line 1: /m, bad.out);
+});
+
 // #280 C3
 test('seam A takes --tools before or after --commands', t => {
   const r = seamWith(t, { [TOOL]: GOOD }, ['--tools', 'poster', '--commands', 'none', '--compact', 'off']);
@@ -165,6 +180,18 @@ test('the renderer always prints one TOOLS line, straight after COMMANDS: none, 
   const on = renderWith(t, '{"schema": 1, "commands": ["finis"], "tools": ["poster"]}');
   assert.equal(on.code, 0, on.out);
   assert.deepEqual(on.lines.slice(-3), ['COMMANDS finis', 'TOOLS poster', 'RESULT: pass']);
+});
+
+// PACT-61 C1, C2: clef is a tool on the list, off by default, and adds no text to the rules file.
+test('clef on: the TOOLS line names it, in PACT_TOOLS order, and the rules file gains no text', t => {
+  const noNotice = s => s.replace(/\n\*\*Configuration in effect\.\*\*[^\n]*\n[^\n]*\n/, '');
+  const off = renderWith(t, '{"schema": 1, "tools": []}');
+  const on = renderWith(t, '{"schema": 1, "tools": ["clef", "poster"]}');
+  assert.equal(on.code, 0, on.out);
+  assert.deepEqual(on.lines.slice(-2), ['TOOLS poster,clef', 'RESULT: pass']);
+  const onlyClef = renderWith(t, '{"schema": 1, "tools": ["clef"]}');
+  assert.equal(noNotice(readFileSync(join(onlyClef.out, 'CLAUDE.md'), 'utf8')), noNotice(readFileSync(join(off.out, 'CLAUDE.md'), 'utf8')), 'clef alone changes no byte but the notice');
+  assert.deepEqual(renderWith(t, null).lines.filter(l => l.startsWith('TOOLS')), ['TOOLS none'], 'off by default');
 });
 
 // #280 C1: the digest. The part's own effect on the hash is held by the byte-for-byte test below (C6).
