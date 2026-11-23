@@ -159,6 +159,13 @@ The session took these picks, each logged as a checkpoint:
   - **The server exits:** the keeper sends `{gone}` and exits.
   - The keeper exits only from `{gone}`'s send callback, never straight
     after the send, so the message is on the channel before the keeper goes.
+- **The one fork.** The supervisor starts the keeper with
+  `fork(scriptPath, ['keep'], …)`, running `clef.mjs` itself. This is the one
+  process `clef.mjs` starts that isn't the server. `clef.test.mjs`'s source
+  scan, which refuses `fork(` anywhere in the file, allows exactly that one
+  call. A second `fork(`, or one naming another script or mode, still fails
+  it. No shell, `exec*` or `spawnSync` is allowed anywhere. The QA pair reads
+  this loosening at Test.
 - **Why the keeper is the server's parent.** Until the keeper reaps the
   server, the server's pid can't be reused.
 - **The supervisor's side.**
@@ -168,8 +175,10 @@ The session took these picks, each logged as a checkpoint:
   - With no `{pid}` within 10 s, it records `run.fail` (`exit`) and stops.
   - Its stop path sends the keeper `SIGTERM`, waits 7 s (longer than the
     keeper's 5 s), then sends `SIGKILL`.
-  - It judges a keeper's end on the child's `close` event, after the IPC
-    channel and the pipes have drained, never on `exit`. If the keeper closes
+  - It judges a keeper's end once the keeper has exited and its IPC
+    channel has closed, so that every message it sent has been read. It
+    never judges on `exit` alone, and never on `close`: the server holds
+    the keeper's pipes, so `close` waits for the server. If the keeper closes
     without `{gone}` and a `serverPid` was accepted, it sends `SIGKILL` to
     `serverPid`. Only a killed keeper closes without `{gone}`, and then the
     server lived until that moment. It never signals `serverPid` after
