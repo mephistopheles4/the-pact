@@ -337,7 +337,7 @@ const TOOL_PARTS = new Map([
   })],
   ['cleaner', Object.freeze({
     mark: 'tool-cleaner',
-    template: Object.freeze(['- **Remove worktrees only through the cleaner:** a recoverable removal is a checkpoint, any other a checkpoint that waits.']),
+    template: Object.freeze(['- **Remove worktrees only through the cleaner:** each removal is a checkpoint.']),
   })],
 ]);
 
