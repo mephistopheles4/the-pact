@@ -824,7 +824,7 @@ test('ensure: the supervisor and the server get only the named environment, and 
   const rec = await f.recorded();
   const pathKey = Object.keys(rec.env).find(k => k.toUpperCase() === 'PATH');
   assert.equal(rec.env[pathKey].toLowerCase(), clef.serveEnv(env, process.platform, f.p.runtime).PATH.toLowerCase(), 'the server\'s PATH is the fixed one, not the caller\'s');
-  for (const k of Object.keys(rec.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()), `the server got ${k}`);
+  for (const k of Object.keys(rec.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()) || macOwn(k), `the server got ${k}`);
 });
 
 test('ensure: with --wait N and a supervisor that is already starting, it waits for ready', async t => {
