@@ -13,6 +13,8 @@
 # (a reviewed skip of an installer file guard, the owner's q10). render-config's
 # unreadable-file case skips there for the same reason (q11).
 agent-settings.test.mjs bad case: an agent file that is a link is refused
+clef-run.test.mjs ensure: the orphan sweep runs only while it holds run.lock
+clef-run.test.mjs sweepOrphans: ends a process whose exe lies under runtime/ and whose parent is not the live supervisor, and nothing else
 cloud-sessions.test.mjs cloud copy: both generated setup scripts parse under bash -n
 cloud-sessions.test.mjs #482 C10: the cloud tail writes the hook groups and the window as the install does, keeps an owner hook, and a merge that drops it is seen to fail
 config-install.test.mjs bad case: an unreadable configuration file refuses, and -Apply writes nothing
