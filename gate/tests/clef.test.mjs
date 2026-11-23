@@ -740,6 +740,15 @@ test('claudeHome: CLAUDE_CONFIG_DIR is used as an absolute path, a relative one 
     const via = join(root, 'via');
     if (link(start, via)) assert.throws(() => clef.assertOutsideStart(join(via, 'pact-clef'), start), refusedHome, 'through a link');
   });
+  // Spec 0003 M4: macOS's default volume folds case, so a clef folder named in another case of the starting folder is inside it.
+  test('assertOutsideStart: with case folding, a folder under another case of the starting folder is clef-home', t => {
+    const root = tempDir(t, 'clef-fold-');
+    const start = join(root, 'repo');
+    mkdirSync(start);
+    const cased = join(root, 'REPO', 'pact-clef');
+    assert.throws(() => clef.assertOutsideStart(cased, start, false, true), refusedHome);
+    if (process.platform === 'linux') assert.doesNotThrow(() => clef.assertOutsideStart(cased, start, false, false), 'without folding, another case is another folder');
+  });
   test('assertOutsideStart: a starting folder that does not resolve is clef-home, not a skip', t => {
     const root = tempDir(t, 'clef-real-');
     assert.throws(() => clef.assertOutsideStart(join(root, 'pact-clef'), join(root, 'nowhere')), refusedHome);
@@ -844,6 +853,11 @@ test('setup on darwin: x64 refuses with the Rosetta words, and arm64 looks for n
   const plan = clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'arm64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12, exists: p => { looked.push(p); return false; } });
   assert.equal(plan.key ?? plan.pick?.key, 'darwin-arm64-metal');
   assert.deepEqual(looked.filter(p => /vulkan/i.test(p)), [], 'no Vulkan probe on macOS');
+});
+
+// Spec 0003 M4: on macOS the node check folds case too.
+test('setup on darwin: a node under another case of the starting folder is clef-node', t => {
+  assert.throws(() => clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'arm64', execPath: '/WORK/evil/node', cwd: '/work', free: 1e12 }), e => e.code === 'clef-node');
 });
 
 test('main: a refusal prints REFUSED and RESULT with the word, and exits 2', async t => {

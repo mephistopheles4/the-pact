@@ -803,10 +803,11 @@ export function pickPlatform({ platform, arch, vulkan, cpu }) {
 
 const mb = n => `${(n / 1e6).toFixed(1)} MB`;
 
-/** Whether `child` is `parent` or below it, by the platform's own rules (Windows compares without case). */
-const insideOf = (child, parent, win) => {
+/** Whether `child` is `parent` or below it, by the platform's own rules (Windows compares without case; with `fold`, so does a POSIX path, as macOS's default volume does, spec 0003 M4). */
+const insideOf = (child, parent, win, fold = false) => {
   const P = win ? win32 : posix;
-  const rel = P.relative(P.resolve(parent), P.resolve(child));
+  const f = s => (fold && !win ? s.toLowerCase() : s);
+  const rel = P.relative(f(P.resolve(parent)), f(P.resolve(child)));
   return rel === '' || (!rel.startsWith('..') && !P.isAbsolute(rel));
 };
 
@@ -818,7 +819,7 @@ const realOf = p => realpathSync.native(p);
  * on its nearest existing ancestor, so a refusal leaves nothing behind. A
  * start folder that does not resolve is refused too.
  */
-export function assertOutsideStart(dir, cwd, win = process.platform === 'win32') {
+export function assertOutsideStart(dir, cwd, win = process.platform === 'win32', fold = process.platform === 'darwin') {
   let start;
   try {
     start = realOf(cwd);
@@ -832,7 +833,7 @@ export function assertOutsideStart(dir, cwd, win = process.platform === 'win32')
     ancestor = up;
   }
   const real = join(realOf(ancestor), (win ? win32 : posix).relative(ancestor, resolve(dir)));
-  if (insideOf(real, start, win)) throw new Refused('clef-home', 'the clef folder lies inside the folder the command was started from');
+  if (insideOf(real, start, win, fold)) throw new Refused('clef-home', 'the clef folder lies inside the folder the command was started from');
 }
 
 /**
@@ -912,7 +913,7 @@ export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, fre
   const pick = pickPlatform({ platform, arch, vulkan: platform === 'darwin' ? false : vulkan ?? probeVulkan({ platform, exists }), cpu });
   if (!pick || !server.archives[pick.key]) throw new Refused('clef-platform', `no pinned server build for ${platform} ${arch}`);
   if (platform === 'linux' && !exists('/usr/bin/setpriv')) throw new Refused('clef-setpriv', 'Linux needs /usr/bin/setpriv, which this machine does not have');
-  if (insideOf(execPath, cwd, platform === 'win32')) throw new Refused('clef-node', 'the node that runs setup lies inside the folder the command was started from');
+  if (insideOf(execPath, cwd, platform === 'win32', platform === 'darwin')) throw new Refused('clef-node', 'the node that runs setup lies inside the folder the command was started from');
   const a = server.archives[pick.key];
   const setup = readSetup(dir);
   const haveServer = serverPresent(dir, pick.key, server, setup);
@@ -1832,7 +1833,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
     // `ensure` starts the supervisor from runtime/<tag>/ of the clef folder it checked, and passes it CLAUDE_CONFIG_DIR. `serve` works the folder out as every mode does and runs only from that one's runtime/<tag>/: a folder of the right shape that is not the account's is refused.
     let same = false;
     try {
-      const norm = p => (platform === 'win32' ? realOf(p).toLowerCase() : realOf(p));
+      const norm = p => (platform === 'win32' || platform === 'darwin' ? realOf(p).toLowerCase() : realOf(p));
       same = norm(join(dir, 'runtime', SERVER.tag)) === norm(cwd);
     } catch {
       same = false;
