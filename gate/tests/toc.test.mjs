@@ -49,7 +49,7 @@ test('toc: the check reports a covered doc with no table, a stale one, and a tab
 
 // PACT-78 C6
 test('toc: the excluded paths and short docs are not covered, and the table never counts toward the line threshold', () => {
-  for (const p of ['docs/log/2026-01-01-x.md', 'docs/adr/0001-x.md', 'gate/tests/fixtures/x.md', 'claude/CLAUDE.md', 'cloud-sessions/CLAUDE.cloud.md', 'claude/agents/x-lens.md', 'claude/commands/x.md']) assert.equal(covered(p, LONG), false, p);
+  for (const p of ['docs/log/2026-01-01-x.md', 'docs/adr/0001-x.md', 'gate/tests/fixtures/x.md', 'claude/CLAUDE.md', 'cloud-sessions/CLAUDE.cloud.md', 'claude/agents/x-lens.md', 'claude/commands/x.md', 'AGENTS.md', 'README.md']) assert.equal(covered(p, LONG), false, p);
   assert.equal(covered('docs/a.md', LONG), true);
   assert.equal(covered('docs/a.txt', LONG), false);
   const at100 = 'line\n'.repeat(98).replace(/^/, '# T\n## H\n');
