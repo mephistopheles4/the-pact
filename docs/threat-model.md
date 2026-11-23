@@ -100,7 +100,7 @@ Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; an open
 security pick is logged, flagged big, in the work's record on the project's issue tracker,
-where a public tracker's reader can read it; outside text can steer the framing of a finding, and, in a caller's `state`, a decision model's numbers, its placement call unbounded until T4 (spec 0002 S12); what its
+where a public tracker's reader can read it; outside text can steer the framing of a finding, and, in a caller's `state`, a decision model's numbers, its placement call unbounded until T4; what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
@@ -114,7 +114,7 @@ free hand's design pick can cover what a change stores, logs or sends.
 publisher, CI actions and dependencies, mise configs, a program a clone or
 version pin supplies that runs by bare name, the pinned design system inlined
 into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched by
-`clef setup --yes`, run with the owner's rights, the build parsing the model.
+`clef setup --yes`, run with the owner's rights.
 
 **Controls:**
 
@@ -131,13 +131,13 @@ into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched by
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
-- **The decision model, when on.** A pin table: fixed repos, size and sha256 per file,
-  checked before anything is kept; fixed redirect
-  hosts, `https:` only; the tool's own archive readers, which write only pinned
-  names; a fixed working folder and named environment; the listener's token,
-  `Host` and `Origin` checks; the supervisor's answer check, which passes only
-  numbers and the caller's option keys. Held by rule alone: pins 14 days old by
-  the Hub's own record, and each pin PR read by the security pair
+- **The decision model, when on.** A pin table (fixed repos; size and sha256
+  per file, checked before keeping); fixed redirect hosts, `https:` only; its
+  archive readers, writing only pinned names; a fixed working folder and
+  environment; the listener's token, `Host` and `Origin` checks; an answer
+  check passing only numbers and the caller's option keys. Held by rule alone:
+  14-day-old pins (by the Hub's record) and the security pair's read of each
+  pin PR
   ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md)). Setup's
   kept files belong to the machine.
 - **Harness.** Folder trust and permission prompts, as above.
@@ -148,9 +148,8 @@ rule holds back trusting a project's mise config until the owner says so in chat
 Also accepted. What you install and CI run: the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
-dismiss alerts on `main`; a bad llama.cpp build or decision model that passes the age rule
-and review runs with the owner's rights, and a crafted model could exploit a
-parser bug. Pinned design-system code: each re-pin is reviewed
+dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
+with the owner's rights, and a crafted model could exploit a parser bug. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs
@@ -186,7 +185,7 @@ itself.
 cloud or Remote Control sessions, an account whose token a session holds, an
 agent app's installation token, and
 anything else a session sends off the machine: a push, a fetch or search
-(`clef setup --yes`'s, to fixed hosts), a connector call.
+(`clef setup --yes`'s requests), a connector call.
 
 **Controls:**
 

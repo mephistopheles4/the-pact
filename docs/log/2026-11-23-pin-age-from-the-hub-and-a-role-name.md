@@ -6,4 +6,8 @@ PACT-61, on the stack of PRs 644 to 646 (spec 0002). Two changes, both on T3's b
 
 **The role name.** `review.md` and the threat model say "a decision model", not the product. Clef is named only in the tools list, `claude/tools/clef.mjs`, `docs/clef.md`, the spec and the pin facts, so another System 1 model can replace it by a setting and a runner, with no change to the rules.
 
+**The threat model's word cap.** The merge with main and the role rename took it to 3,023 words; it is 3,000 again, at the cap. Each cut is for the security pair to read as a control change, and none removes a control: the clause "the build parsing the model" from the Crosses sentence (the parser-bug risk stays in the Residual); the decision-model control bullet's wording tightened with the same controls; "spec 0002 S12" shortened to "S12"; "to fixed hosts" dropped from the Leaves-the-machine sentence (the control bullet still names fixed redirect hosts). `docs/reference.md`'s `clef` rows were trimmed to stay in its budget.
+
+**Cloud copy.** `review.md` changed, so `cloud-sessions/gen.mjs` rebuilt the cloud copy; after this merges, paste `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again.
+
 **Rolling back:** revert the merge; the spec, the ADR and the doc return to counting from the first recorded date.
