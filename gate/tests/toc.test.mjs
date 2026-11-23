@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join, posix } from 'node:path';
 import { test } from 'node:test';
-import { EXCLUDED, MAX_UNCOVERED_LINES, TOC_CLOSE, TOC_OPEN, covered, headings, problems, stripToc, tocBlock, trackedDocs, withToc } from '../../docs/toc.mjs';
+import { DEFAULTS, TOC_CLOSE, TOC_OPEN, covered, headings, problems, stripToc, tocBlock, trackedDocs, withToc } from '../../docs/toc.mjs';
 import { REPO } from './text.mjs';
 
 const FIX = 'run `node docs/toc.mjs`';
@@ -127,13 +127,11 @@ test('toc: writing twice changes nothing, the table sits before the first H2, an
 const SCRIPT = join(REPO, 'docs', 'toc.mjs');
 const SOURCE = '// Source: the-pact 0fde975';
 const CONFIG_FILE = 'toc.config.json';
-/** The pact's defaults as a config. */
-const DEFAULTS = { maxUncoveredLines: MAX_UNCOVERED_LINES, exclude: EXCLUDED };
 
-/** A doc of `n` body lines after a title and one H2, with no table. */
+/** A doc with no table: 4 lines (title, blank, one H2, blank) and `n` body lines, so n + 4 in all. */
 const longDoc = n => `# T\n\n## H\n\n${'line\n'.repeat(n)}`;
 
-/** The environment for a child run: none of our git variables leaks in, git stops looking above `ceiling`, and `noPath` leaves it no PATH, so no git. */
+/** The environment for a child run: none of our git or NODE_OPTIONS variables leaks in, `ceiling` stops git looking above it, `extra` is added last, and `noPath` leaves it no PATH, so no git. */
 function childEnv(ceiling, noPath = false, extra = {}) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(GIT_|NODE_OPTIONS$)/i.test(k)));
   if (ceiling) env.GIT_CEILING_DIRECTORIES = ceiling;
@@ -146,8 +144,9 @@ function childEnv(ceiling, noPath = false, extra = {}) {
 }
 
 /**
- * A temporary folder with `files` written (path to text), a copy of the script at `at` (a folder, repo-relative),
- * the Source line added on request, and a git repo made of it unless `git` is false. Calls `fn(dir)`, then removes it.
+ * A temporary folder with `files` written (path to text), a copy of the script in the folder `at` (repo-relative),
+ * its `toc.config.json` holding `config` when that is given, the Source line added on request, and a git repo made
+ * of it unless `git` is false. Calls `fn(dir)`, then removes it.
  */
 function withRepo({ files = {}, at = 'scripts', source = false, config, git = true }, fn) {
   const dir = mkdtempSync(join(tmpdir(), 'toc-'));
@@ -171,14 +170,14 @@ function withRepo({ files = {}, at = 'scripts', source = false, config, git = tr
   }
 }
 
-/** Runs the copy at `at` in `dir` with `args`, from `cwd` (default `dir`): { status, stdout, stderr }. */
+/** Runs the copy in the folder `at` of `dir` with `args`, from `cwd` (default `dir`), `env` added to the child's: { status, stdout, stderr }. */
 function runToc(dir, args, { at = 'scripts', cwd = dir, noPath = false, env = {} } = {}) {
   const r = spawnSync(process.execPath, [join(dir, at, 'toc.mjs'), ...args], { cwd, encoding: 'utf8', env: childEnv(dirname(dir), noPath, env) });
   return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
 // PACT-84 C1
-test('toc: with no config the script behaves as before, and --check passes in this repo', () => {
+test('toc: with no config, --check passes in this repo on its committed tables', () => {
   const r = spawnSync(process.execPath, [SCRIPT, '--check'], { cwd: REPO, encoding: 'utf8', env: childEnv() });
   assert.deepEqual({ status: r.status, stdout: r.stdout }, { status: 0, stdout: '' });
 });
@@ -239,7 +238,7 @@ test('toc: the config in the script folder sets the threshold in a run, and a ba
 });
 
 // PACT-84 C3
-test('toc: a copy with a Source line at line 2 and no config exits 2 and writes nothing, and a line that is not a Source line makes no copy', () => {
+test('toc: a copy with a Source line at line 2 and no config exits 2 and writes nothing, and a Source line that is malformed or off line 2 does not mark a vendored copy', () => {
   const files = { 'docs/a.md': longDoc(120) };
   withRepo({ files, source: true }, dir => {
     for (const args of [[], ['--check']]) assert.deepEqual(runToc(dir, args), { status: 2, stdout: 'toc.config.json: missing in a vendored copy\n', stderr: '' }, args.join(' '));
@@ -251,7 +250,7 @@ test('toc: a copy with a Source line at line 2 and no config exits 2 and writes 
     writeFileSync(path, readFileSync(path, 'utf8').replace(`${SOURCE}\n`, `${SOURCE}\r\n`));
     assert.equal(runToc(dir, ['--check']).stdout, 'toc.config.json: missing in a vendored copy\n', 'a Source line with a CRLF ending is still one');
   });
-  for (const [name, line, at] of [
+  for (const [name, line, index] of [
     ['a Source line on line 3', SOURCE, 2],
     ['a Source line with a word that is not a commit', '// Source: the-pact latest', 1],
     ['a Source line with a short commit', '// Source: the-pact abc123', 1],
@@ -260,7 +259,7 @@ test('toc: a copy with a Source line at line 2 and no config exits 2 and writes 
     withRepo({ files }, dir => {
       const path = join(dir, 'scripts/toc.mjs');
       const script = readFileSync(path, 'utf8').split('\n');
-      script.splice(at, 0, line);
+      script.splice(index, 0, line);
       writeFileSync(path, script.join('\n'));
       assert.equal(runToc(dir, ['--check']).stdout, 'docs/a.md: no table of contents\n', `${name}: not a vendored copy, so the defaults apply`);
     });

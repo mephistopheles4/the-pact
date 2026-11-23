@@ -109,7 +109,7 @@ The rules file's Workflow table runs the same six stages, Plan to Maintain: what
 
 ## Repos that vendor `docs/toc.mjs`
 
-A row turns `adopted` when that repo's PR merges.
+`planned`: no copy yet. A one-line PR here marks a row `adopted` after its PR merges.
 
 | Repo | Script | State |
 |---|---|---|

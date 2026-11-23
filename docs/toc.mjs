@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 // Writes each long doc's table of contents from its headings (PACT-78).
 //
-//   node docs/toc.mjs           write every covered doc whose table is missing or stale
-//   node docs/toc.mjs --check   write nothing; list each doc that is off, exit 1 if any
+//   node <this file>           write every covered doc whose table is missing or stale
+//   node <this file> --check   write nothing; list each doc that is off, exit 1 if any
 //
-// A doc is covered when it is a tracked Markdown file of over 100 lines, its
-// table not counted, outside the excluded paths below. Its table sits between
-// the TOC_OPEN and TOC_CLOSE lines, just before its first H2, and links each H2
-// and H3 by GitHub's anchor. gate/tests/toc.test.mjs fails while a table is
+// A doc is covered when it is a tracked Markdown file of over maxUncoveredLines
+// lines (100 by default), its table not counted, and outside the exclude list
+// (EXCLUDED by default, below). Its table sits between the TOC_OPEN and
+// TOC_CLOSE lines, just before its first H2, and links each H2 and H3 by
+// GitHub's anchor. In the pact, gate/tests/toc.test.mjs fails while a table is
 // missing or stale, and the word budgets count a doc without it (stripToc).
 //
 // The script is portable (PACT-84, spec 0004): another repo vendors this file
 // unchanged, and its own toc.config.json, beside the file, sets the threshold
 // and the exclusions. A copy carries a Source line at line 2, naming the pact
-// commit it came from, and then refuses to run without a config.
+// commit it came from, and then refuses to run without a config. The defaults
+// are the pact's own.
 //
 // Importing this module reads no file and starts no process. Run as a script,
 // it finds the repo root with git, from the folder the script sits in, and
