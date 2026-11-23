@@ -1,7 +1,7 @@
 // The long docs' tables of contents (PACT-78): docs/toc.mjs writes each
 // covered doc's table from its headings, and these tests fail while one is
 // missing or stale, while a doc that isn't covered holds one, and while an
-// in-repo anchor link into a covered doc misses the anchors toc.mjs computes.
+// in-repo anchor link into a tracked doc misses the anchors toc.mjs computes.
 // The fix for a table is `node docs/toc.mjs`; for an anchor link, correct the
 // link or the heading.
 import assert from 'node:assert/strict';
@@ -88,7 +88,7 @@ test('toc: anchors follow GitHub: markup dropped, punctuation removed, repeats s
 });
 
 // PACT-78 C3
-test('toc: every in-repo anchor link into a covered doc names an anchor that doc has', () => {
+test('toc: every in-repo anchor link into a tracked doc names an anchor that doc has', () => {
   const files = trackedDocs(REPO);
   const by = new Map(files.map(f => [f.path, f]));
   const missing = [];
@@ -96,12 +96,12 @@ test('toc: every in-repo anchor link into a covered doc names an anchor that doc
   for (const f of files) {
     for (const [, target, anchor] of f.text.matchAll(/\]\(([^)\s#]*)#([^)\s]+)\)/g)) {
       const t = by.get(target ? posix.normalize(posix.join(posix.dirname(f.path), target)) : f.path);
-      if (!t || !covered(t.path, t.text)) continue;
+      if (!t) continue;
       if (t !== f) seen++;
       if (!headings(t.text).some(h => h.anchor === anchor)) missing.push(`${f.path}: #${anchor} in ${t.path}`);
     }
   }
-  assert.ok(seen > 0, 'no anchor link from one doc into another covered doc was found');
+  assert.ok(seen > 0, 'no anchor link from one doc into another was found');
   assert.deepEqual(missing, []);
 });
 
