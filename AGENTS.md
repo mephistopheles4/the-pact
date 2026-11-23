@@ -13,8 +13,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Dry run first,** as [install](docs/agents/install.md) says: show the owner
   the dry run; on drift, or the warning that the checkout is behind the last
   install, stop and ask.
-- **Apply only on the owner's go-ahead** (a checkpoint (the rules file's
-  one list)), with the apply command the dry run printed, and check that it
+- **Apply only on the owner's go-ahead** (a checkpoint), with the apply command
+  the dry run printed, and check that it
   exits zero.
 - **Before rolling back,** run the four checks in
   [Roll back to an older version](docs/install.md#roll-back-to-an-older-version), before any checkout;
