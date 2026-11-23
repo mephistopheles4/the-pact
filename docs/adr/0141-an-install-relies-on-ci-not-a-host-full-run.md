@@ -1,5 +1,7 @@
 # An install relies on CI, not a host full run
 
+Superseded in part by [ADR 0170](0170-test-evidence-and-installs-rely-on-three-ci-jobs.md) (2026-11-23): the install relies on three jobs, with `gate-macos` added.
+
 Before an install, the owner's session no longer runs the gate's `full` suite on the host (#494). The install relies on `gate` and `gate-windows` passing on the commit it installs, which is a commit on `main`.
 
 This amends [ADR 0104](0104-a-hook-holds-local-gate-runs-to-athanor.md) and the "What stays on the host" list of [ADR 0099](0099-local-gate-runs-go-through-athanor-by-default.md): `full` before an install leaves that list. The host still runs `changed` for a quick pick, and any run athanor can't do goes through `--host-fallback=<reason>`.

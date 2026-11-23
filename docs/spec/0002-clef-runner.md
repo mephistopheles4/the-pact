@@ -117,7 +117,7 @@ The session took these picks, each logged as a checkpoint:
    `clef setup --cpu` forces CPU.
 8. **Platforms:** Windows x64, run end to end in T4. Linux x64 is built and
    unit-tested in CI, and not run end to end in this work; `docs/clef.md`
-   says so. macOS is out (S17).
+   says so. macOS is in through [0003](0003-clef-macos.md).
 
 ## S3 Terms
 
@@ -372,7 +372,7 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   the server key.
 - **Ports.** The supervisor binds `127.0.0.1` on a port the OS picks. The
   server starts on another OS-picked loopback port with `--host 127.0.0.1`,
-  `--api-key-file <clef folder>/run.key` (mode 0600 on Linux, removed at
+  `--api-key-file <clef folder>/run.key` (mode 0600 on Linux and macOS, removed at
   stop), `--no-webui`, `--no-slots`, `-ngl 99` on Vulkan, and
   `-c 16384 -ub 4096 -b 4096`. The argument list is fixed in the tool; no
   part comes from a caller. The key never appears on a command line.
@@ -380,7 +380,7 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   and to find the ready line; their text is discarded. No verbose flag is
   passed.
 - **`run.json`** holds `port`, `token`, `run`, `pid`, `serverPid`, `started`
-  (mode 0600 on Linux; on Windows it inherits the profile folder's ACL).
+  (mode 0600 on Linux and macOS; on Windows it inherits the profile folder's ACL).
 - **Routes.** Only `GET /health` and `POST /v1/systemone`. Every request
   needs `Authorization: Bearer <caller token>` and a `Host` of
   `127.0.0.1:<port>`. A request with an `Origin` header, a body over 256 KB,
@@ -736,7 +736,7 @@ reads this spec, each ticket's diff and T4's clef-pilot edit.
 
 ## S17 Out of scope (deferred)
 
-- macOS, Windows on ARM, CUDA or ROCm builds.
+- Windows on ARM, CUDA or ROCm builds. (macOS moved into [0003](0003-clef-macos.md).)
 - A Linux end-to-end run, until someone turns `clef` on on Linux or CI gains
   a Linux machine that can run the model.
 - Clef 27B, other quants, and the mmproj (image) file.

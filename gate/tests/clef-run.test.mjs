@@ -6,9 +6,10 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync as clefRm, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { request } from 'node:http';
 import { join } from 'node:path';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import * as clef from '../../claude/tools/clef.mjs';
 import { REPO } from './text.mjs';
@@ -29,7 +30,19 @@ const key = readFileSync(arg('--api-key-file'), 'utf8').trim();
 writeFileSync(cfg.record, JSON.stringify({ args, cwd: process.cwd(), env: process.env, pid: process.pid, key }));
 const t0 = Date.now();
 if (cfg.exitAfterMs) setTimeout(() => process.exit(1), cfg.exitAfterMs);
+if (cfg.ignoreTerm) process.on('SIGTERM', () => {});
+// A server busy on the keeper's pipes: a broken pipe is an error event, which this one ignores, so only a signal ends it.
+if (cfg.writeLoop) { process.stdout.on('error', () => {}); setInterval(() => process.stdout.write('loading\\n'), 5); }
 createServer((req, res) => {
+  // /props as b12211 answers it: the ready check comes before the key check (spec 0003 M6).
+  if (req.url === '/props') {
+    const how = req.headers.authorization === undefined ? 'none' : req.headers.authorization === 'Bearer ' + key ? 'right' : 'wrong';
+    if (cfg.propsLog) appendFileSync(cfg.propsLog, how + '\\n');
+    if (cfg.anyBearer) { res.writeHead(200); return res.end('{}'); }
+    if (cfg.propsNotReady || (cfg.readyAfterMs && Date.now() - t0 < cfg.readyAfterMs)) { res.writeHead(503); return res.end('{}'); }
+    res.writeHead(how === 'right' ? 200 : 401);
+    return res.end('{}');
+  }
   if (req.headers.authorization !== 'Bearer ' + key) { res.writeHead(401); return res.end('no'); }
   if (req.url === '/health') {
     if (cfg.notReady || (cfg.readyAfterMs && Date.now() - t0 < cfg.readyAfterMs)) { res.writeHead(503); return res.end('{}'); }
@@ -38,7 +51,7 @@ createServer((req, res) => {
   }
   let b = '';
   req.on('data', c => (b += c));
-  req.on('end', () => {
+  req.on('end', () => setTimeout(() => {
     appendFileSync(cfg.requests, 'x\\n');
     if (cfg.mode === 'status500') { res.writeHead(500); return res.end('SECRET-SERVER-TEXT'); }
     if (cfg.mode === 'text') { res.writeHead(200); return res.end('SECRET-SERVER-TEXT'); }
@@ -60,7 +73,7 @@ createServer((req, res) => {
     const reply = cfg.mode === 'bare' ? out : { model: 'SECRET-SERVER-TEXT', answers: out, usage: { input_tokens: 1, output_tokens: 0 } };
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(reply));
-  });
+  }, cfg.answerDelayMs || 0));
 }).listen(Number(arg('--port')), '127.0.0.1');
 `;
 
@@ -149,6 +162,11 @@ test('serverArgs: the list is fixed, the key is a file, and Vulkan adds -ngl 99'
   const v = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', vulkan: true });
   assert.deepEqual(v.slice(10, 12), ['-ngl', '99']);
   assert.ok(!a.includes('--api-key'), 'no key on the command line');
+  // Spec 0003 M4: Metal offloads as Vulkan does; macOS's CPU key names no device, so Metal is never used.
+  assert.deepEqual(clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', metal: true }).slice(10, 12), ['-ngl', '99']);
+  const c = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', noDevice: true });
+  assert.deepEqual(c.slice(10, 12), ['--device', 'none']);
+  assert.ok(!c.includes('-ngl'));
 });
 
 test('launchCommand: Linux goes through /usr/bin/setpriv --pdeathsig KILL, and the seam drops it', () => {
@@ -167,6 +185,12 @@ test('serveEnv: only the named names pass, PATH is set, LD_LIBRARY_PATH only on 
   assert.deepEqual(Object.keys(l).sort(), ['HOME', 'LD_LIBRARY_PATH', 'PATH', 'SYSTEMROOT']);
   assert.equal(l.PATH, '/usr/bin:/bin');
   assert.equal(l.LD_LIBRARY_PATH, '/r');
+  assert.equal(clef.serveEnv({ ...env, TMPDIR: '/t' }, 'linux', '/r').TMPDIR, undefined, 'TMPDIR passes on macOS only');
+  // Spec 0003 M4: on macOS the caller's TMPDIR passes, and no DYLD_* or library path is set.
+  const m = clef.serveEnv({ ...env, TMPDIR: '/var/folders/x/T/', DYLD_INSERT_LIBRARIES: '/e.dylib', DYLD_LIBRARY_PATH: '/e' }, 'darwin', '/r');
+  assert.deepEqual(Object.keys(m).sort(), ['HOME', 'PATH', 'SYSTEMROOT', 'TMPDIR']);
+  assert.equal(m.PATH, '/usr/bin:/bin');
+  assert.equal(m.TMPDIR, '/var/folders/x/T/');
 });
 
 test('checkedAnswer: a body built from checked values, and every other shape is null', () => {
@@ -257,6 +281,8 @@ test('serve: an answer is built from checked values, with the fixed server argum
   const allowed = new Set([...'SYSTEMROOT WINDIR TEMP TMP HOME USERPROFILE LOCALAPPDATA XDG_RUNTIME_DIR PATH LD_LIBRARY_PATH'.split(' ')]);
   // Windows itself fills in these when it starts a process for the user; none comes from the caller.
   if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE', 'USERDOMAIN', 'USERNAME']) allowed.add(n);
+  // macOS's own runtime sets this one in each process it starts, when it is missing; it never comes from the caller.
+  if (process.platform === 'darwin') for (const n of [MAC_OWN, 'TMPDIR']) allowed.add(n);
   for (const k of Object.keys(rec.env)) assert.ok(allowed.has(k.toUpperCase()), `${k} is not on the list`);
   const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
   assert.deepEqual(Object.keys(run).sort(), ['pid', 'port', 'run', 'serverPid', 'started', 'token']);
@@ -355,6 +381,18 @@ test('serve: a forwarded request keeps it alive past the idle time', async t => 
     const r = await call({ port, token, body: { state: {}, questions: QUESTIONS } });
     assert.equal(r.status, 200, `request ${i}`);
   }
+});
+
+// PACT-82: the idle time counts from the last forward's end, and never runs out while one is in flight.
+test('serve: a forward slower than the idle time is answered, and the idle time counts from its end', async t => {
+  const f = fixture(t, { answerDelayMs: 900 });
+  const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 400, checkMs: 50, pollMs: 50 });
+  f.stoppers.push(() => h.stop('test'));
+  const { port, token } = (await ready(f)).run;
+  const body = { state: {}, questions: QUESTIONS };
+  assert.equal((await call({ port, token, body })).status, 200, 'the slow forward is answered');
+  await sleep(150);
+  assert.equal((await call({ port, token, body })).status, 200, 'still up after the forward ended');
 });
 
 test('serve: a server that exits ends the supervisor and records run.fail with a fixed word', async t => {
@@ -758,10 +796,14 @@ test('main: ensure, status, stop and remove run from the clef folder (remove fro
 // ------------------------------------------------------------ the real start path, the lock and the kill (round 1)
 
 const NAMED_ENV = new Set('SYSTEMROOT WINDIR TEMP TMP HOME USERPROFILE LOCALAPPDATA XDG_RUNTIME_DIR PATH LD_LIBRARY_PATH'.split(' '));
+/** The one name macOS's runtime sets in every process it starts when it is missing (spec 0003 M7); the caller's copy never passes. */
+const MAC_OWN = '__CF_USER_TEXT_ENCODING';
+/** On macOS, that name, and TMPDIR, which clef passes there (spec 0003 M4). */
+const macOwn = k => process.platform === 'darwin' && (k === MAC_OWN || k === 'TMPDIR');
 // Windows itself fills in these when it starts a process for the user; Node copies them from the caller's own environment.
 if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE', 'USERDOMAIN', 'USERNAME']) NAMED_ENV.add(n);
 const sameFolder = (a, b) => realpathSync.native(a).toLowerCase() === realpathSync.native(b).toLowerCase();
-const POISON = { NODE_OPTIONS: '--no-warnings', GGML_BACKEND_PATH: '/evil', LLAMA_ARG_HOST: '0.0.0.0', HF_TOKEN: 'secret', VK_ICD_FILENAMES: '/evil', SECRET_X: 's' };
+const POISON = { NODE_OPTIONS: '--no-warnings', GGML_BACKEND_PATH: '/evil', LLAMA_ARG_HOST: '0.0.0.0', HF_TOKEN: 'secret', VK_ICD_FILENAMES: '/evil', SECRET_X: 's', DYLD_INSERT_LIBRARIES: '/evil.dylib', DYLD_LIBRARY_PATH: '/evil', [MAC_OWN]: 'POISON' };
 
 test('supervisorEnv: the named list plus CLAUDE_CONFIG_DIR when set; the server\'s list never carries it', () => {
   const env = { HOME: '/h', CLAUDE_CONFIG_DIR: '/c', NODE_OPTIONS: '--x' };
@@ -783,7 +825,8 @@ test('ensure: the supervisor it starts is `node <script> serve` run from runtime
   assert.deepEqual(seen.argv, ['serve']);
   assert.ok(sameFolder(seen.cwd, f.p.runtime), 'started from runtime/<tag>/');
   const named = new Set([...NAMED_ENV, 'CLAUDE_CONFIG_DIR']);
-  for (const k of Object.keys(seen.env)) assert.ok(named.has(k.toUpperCase()), `${k} is not on the list`);
+  for (const k of Object.keys(seen.env)) assert.ok(named.has(k.toUpperCase()) || macOwn(k), `${k} is not on the list`);
+  assert.notEqual(seen.env[MAC_OWN], 'POISON', 'the caller\'s own copy of the macOS name is not passed');
   assert.ok(Object.keys(seen.env).some(k => k.toUpperCase() === 'PATH'), 'the named environment is passed, not an empty one');
   assert.equal(seen.env.CLAUDE_CONFIG_DIR, f.cfgHome, 'the supervisor gets the variable so it works out the same folder');
 });
@@ -814,12 +857,13 @@ test('ensure: the supervisor and the server get only the named environment, and 
   const env = { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome };
   assert.equal((await ensure(f, { wait: 20, env })).out.state, 'ready');
   const sup = JSON.parse(readFileSync(join(f.root, 'supervisor-env.json'), 'utf8'));
-  for (const k of Object.keys(sup.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()) || k === 'CLAUDE_CONFIG_DIR', `the supervisor got ${k}`);
+  for (const k of Object.keys(sup.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()) || k === 'CLAUDE_CONFIG_DIR' || macOwn(k), `the supervisor got ${k}`);
   assert.ok(sameFolder(sup.cwd, f.p.runtime));
   const rec = await f.recorded();
   const pathKey = Object.keys(rec.env).find(k => k.toUpperCase() === 'PATH');
   assert.equal(rec.env[pathKey].toLowerCase(), clef.serveEnv(env, process.platform, f.p.runtime).PATH.toLowerCase(), 'the server\'s PATH is the fixed one, not the caller\'s');
-  for (const k of Object.keys(rec.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()), `the server got ${k}`);
+  for (const k of Object.keys(rec.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()) || macOwn(k), `the server got ${k}`);
+  for (const e of [sup.env, rec.env]) assert.notEqual(e[MAC_OWN], 'POISON', 'the caller\'s own copy of the macOS name is not passed');
 });
 
 test('ensure: with --wait N and a supervisor that is already starting, it waits for ready', async t => {
@@ -945,4 +989,455 @@ test('the supervisor source: only the named routes, no shell, no wildcard bind, 
   assert.equal(SOURCE_TEXT.split("listen(0, '127.0.0.1'").length - 1, 2, 'the supervisor and the port probe bind loopback only');
   assert.doesNotMatch(SOURCE_TEXT, /process\.env\.(GGML|LLAMA|HF_|VK_)/);
   assert.doesNotMatch(SOURCE_TEXT, /logLine\([^)]*(token|serverKey|body)/i);
+});
+
+// ------------------------------------------------------------ the keeper (spec 0003 M5)
+
+/** A fake keeper process: its sends are recorded, and a send's callback runs on the next turn. */
+function fakeProc() {
+  const p = new EventEmitter();
+  p.sent = [];
+  p.exits = [];
+  p.send = (m, cb) => {
+    p.sent.push(m);
+    if (cb) setImmediate(cb);
+  };
+  p.exit = code => p.exits.push(code);
+  return p;
+}
+/** A fake server child that records the signals it is sent. */
+function fakeServer(pid = 4242) {
+  const c = new EventEmitter();
+  c.pid = pid;
+  c.signals = [];
+  c.kill = sig => c.signals.push(sig);
+  return c;
+}
+const MSG = { file: '/r/llama-server', args: ['--x'], cwd: '/r', env: { PATH: '/usr/bin:/bin' } };
+
+test('keep: refuses clef-keep without an IPC channel', () => {
+  const p = new EventEmitter();
+  assert.throws(() => clef.keep({ proc: p }), e => e instanceof clef.Refused && e.code === 'clef-keep');
+});
+
+test('keep: spawns what the one message names, sends {pid}, and on the server\'s exit leaves only from {gone}\'s send callback', async () => {
+  const p = fakeProc();
+  const srv = fakeServer();
+  let spawned;
+  clef.keep({ proc: p, spawnFn: (file, args, o) => ((spawned = { file, args, o }), srv) });
+  p.emit('message', MSG);
+  assert.deepEqual([spawned.file, spawned.args, spawned.o.cwd, spawned.o.env, spawned.o.shell], [MSG.file, MSG.args, MSG.cwd, MSG.env, false]);
+  assert.deepEqual(spawned.o.stdio, ['ignore', 'inherit', 'inherit']);
+  assert.deepEqual(p.sent, [{ pid: 4242 }]);
+  srv.emit('exit', 0);
+  assert.deepEqual(p.sent.at(-1), { gone: true });
+  assert.deepEqual(p.exits, [], 'not straight after the send');
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(p.exits, [0]);
+});
+
+test('keep: the channel closing sends the server SIGKILL and the keeper leaves', () => {
+  const p = fakeProc();
+  const srv = fakeServer();
+  clef.keep({ proc: p, spawnFn: () => srv });
+  p.emit('message', MSG);
+  p.emit('disconnect');
+  assert.deepEqual(srv.signals, ['SIGKILL']);
+  assert.deepEqual(p.exits, [0]);
+});
+
+test('keep: SIGTERM sends the server SIGTERM, then SIGKILL after the wait', async () => {
+  const p = fakeProc();
+  const srv = fakeServer();
+  clef.keep({ proc: p, spawnFn: () => srv, termWaitMs: 20 });
+  p.emit('message', MSG);
+  p.emit('SIGTERM');
+  assert.deepEqual(srv.signals, ['SIGTERM']);
+  await new Promise(r => setTimeout(r, 60));
+  assert.deepEqual(srv.signals, ['SIGTERM', 'SIGKILL']);
+});
+
+// Spec 0003 M5: the keeper waits 5 seconds after SIGTERM, which the supervisor's 7-second wait must outlast.
+test('keep: the default wait after SIGTERM is 5 seconds', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const p = fakeProc();
+  const srv = fakeServer();
+  clef.keep({ proc: p, spawnFn: () => srv });
+  p.emit('message', MSG);
+  p.emit('SIGTERM');
+  t.mock.timers.tick(4999);
+  assert.deepEqual(srv.signals, ['SIGTERM']);
+  t.mock.timers.tick(1);
+  assert.deepEqual(srv.signals, ['SIGTERM', 'SIGKILL']);
+});
+
+test('bad case: keep ends the server on a second message', () => {
+  const p = fakeProc();
+  const srv = fakeServer();
+  clef.keep({ proc: p, spawnFn: () => srv });
+  p.emit('message', MSG);
+  p.emit('message', MSG);
+  assert.deepEqual(srv.signals, ['SIGKILL']);
+});
+
+for (const [label, m] of [['a shell string for args', { ...MSG, args: 'rm -rf /' }], ['a number in the environment', { ...MSG, env: { X: 1 } }], ['a missing folder', { file: MSG.file, args: MSG.args, env: MSG.env }], ['an extra key', { ...MSG, extra: 1 }]]) {
+  test(`bad case: keep spawns nothing and leaves on a first message with ${label}`, () => {
+    const p = fakeProc();
+    let spawned = false;
+    clef.keep({ proc: p, spawnFn: () => ((spawned = true), fakeServer()) });
+    p.emit('message', m);
+    assert.equal(spawned, false);
+    assert.deepEqual(p.exits, [1]);
+  });
+}
+
+test('keep: a spawn that throws sends {error: spawn} and leaves from its callback', async () => {
+  const p = fakeProc();
+  clef.keep({ proc: p, spawnFn: () => { throw new Error('ENOENT'); } });
+  p.emit('message', MSG);
+  assert.deepEqual(p.sent, [{ error: 'spawn' }]);
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(p.exits, [1]);
+});
+
+test('main: keep without an IPC channel refuses clef-keep and works out no folder', async t => {
+  const out = [];
+  const code = await clef.main(['keep'], { env: { CLAUDE_CONFIG_DIR: 'not absolute' }, out: l => out.push(l), chdir: () => assert.fail('no folder work') });
+  assert.equal(code, 2);
+  assert.equal(out.at(-1), 'RESULT: refused clef-keep');
+  // From a command line there is no message to act on, so no program is started.
+  const children = () => process._getActiveHandles().filter(h => h.constructor?.name === 'ChildProcess').length;
+  const before = children();
+  await clef.main(['keep'], { out: () => {}, chdir: () => assert.fail('no folder work') });
+  assert.equal(children(), before, 'no child process was started');
+});
+
+test('lifetimeLine: a job object on Windows, the keeper on macOS, setpriv on Linux', () => {
+  assert.equal(clef.lifetimeLine({ platform: 'win32' }), 'job-object');
+  assert.equal(clef.lifetimeLine({ platform: 'darwin' }), 'keeper');
+  assert.equal(clef.lifetimeLine({ platform: 'linux' }), 'setpriv');
+});
+
+const KEEPER = { line: 'keeper' };
+
+test('serve on the keeper line: the server answers, its pid is the keeper\'s child, and a stop ends it', async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f, KEEPER);
+  const live = await ready(f);
+  const r = await call({ port: live.run.port, token: live.run.token, body: { state: { s: 1 }, questions: QUESTIONS } });
+  assert.equal(r.status, 200);
+  const sp = live.run.serverPid;
+  assert.equal((await f.recorded()).pid, sp, 'serverPid is the server, not the keeper');
+  assert.ok(h.keeperPid !== sp && h.keeperPid !== process.pid);
+  await h.stop('test');
+  assert.ok(await gone(sp, 9000), 'the server is ended');
+});
+
+// Spec 0003 C-M4: the keeper itself runs in the named environment, not the supervisor's.
+test('serve on the keeper line: the keeper is forked in serveEnv\'s environment and with no node flags', async t => {
+  const f = fixture(t);
+  const env = { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome };
+  let seen;
+  await startServe(t, f, { ...KEEPER, env, onKeeperOptions: o => (seen = o) });
+  await ready(f);
+  assert.deepEqual(Object.keys(seen.env).sort(), Object.keys(clef.serveEnv(env, process.platform, f.p.runtime)).sort());
+  for (const k of Object.keys(POISON)) assert.ok(!(k in seen.env) || seen.env[k] !== POISON[k], `the keeper got ${k}`);
+  assert.equal('CLAUDE_CONFIG_DIR' in seen.env, false);
+  assert.deepEqual(seen.execArgv, []);
+});
+
+// Spec 0003 C-M5: the darwin rows of setup.json reach the server's arguments through serve.
+for (const [row, backend, flags] of [['darwin-arm64-cpu', 'cpu', ['--device', 'none']], ['darwin-arm64-metal', 'metal', ['-ngl', '99']]]) {
+  test(`serve: a ${row} setup gives the server ${flags.join(' ')}`, async t => {
+    const f = fixture(t);
+    const a = clef.SERVER.archives[row];
+    writeFileSync(join(f.p.runtime, clef.destName(a.exe, a.exe)), 'x');
+    writeFileSync(f.p.setup, JSON.stringify({ ...JSON.parse(readFileSync(f.p.setup, 'utf8')), platform: row, backend }));
+    await startServe(t, f, { platform: 'darwin', line: 'job-object', env: { ...process.env } });
+    const rec = await f.recorded();
+    const at = rec.args.indexOf(flags[0]);
+    assert.ok(at >= 0, `${flags[0]} is among the arguments`);
+    assert.deepEqual(rec.args.slice(at, at + 2), flags);
+    assert.equal(rec.args.includes('--device') || rec.args.includes('-ngl'), true);
+    assert.equal(rec.args.includes(flags[0] === '-ngl' ? '--device' : '-ngl'), false, 'only the one that row names');
+  });
+}
+
+test('serve on the keeper line: with the keeper sent SIGKILL, the supervisor ends the server, records run.fail and stops', async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f, KEEPER);
+  const live = await ready(f);
+  process.kill(h.keeperPid, 'SIGKILL');
+  assert.equal(await h.done, 'exit');
+  assert.ok(await gone(live.run.serverPid, 3000), 'the server went with its keeper');
+  assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).reason, 'exit');
+});
+
+test('serve on the keeper line: a supervisor killed outright leaves no server behind within 2 seconds', async t => {
+  // The server is busy writing to the keeper's pipes, which break when the supervisor dies (spec 0003 C-M6).
+  const f = fixture(t, { writeLoop: true });
+  f.stoppers.push(() => stopFixture(f));
+  assert.equal((await ensure(f, { wait: 20, supervisorCommand: wrapperFor(f, ", line: 'keeper'") })).out.state, 'ready');
+  const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
+  assert.ok(alive(run.serverPid));
+  process.kill(run.pid, 'SIGKILL');
+  assert.ok(await gone(run.serverPid, 2000), 'the keeper ended the server when its channel closed');
+});
+
+test('serve on the keeper line: a server that exits on its own gets no signal from the supervisor', async t => {
+  const runs = process.platform === 'darwin' ? 50 : 3;
+  for (let i = 0; i < runs; i++) {
+    const f = fixture(t, { exitAfterMs: 300 });
+    const sent = [];
+    const h = await startServe(t, f, { ...KEEPER, kill: (pid, sig) => sent.push([pid, sig]) });
+    assert.equal(await h.done, 'exit');
+    assert.deepEqual(sent, [], `run ${i + 1}: no signal after {gone}`);
+  }
+});
+
+test('serve on the keeper line: a stop sends the server no signal from the supervisor, and a server that ignores SIGTERM is still ended', { skip: WIN && 'Windows has no SIGTERM to catch; its line is the job object (not run)' }, async t => {
+  const f = fixture(t, { ignoreTerm: true });
+  const sent = [];
+  const h = await startServe(t, f, { ...KEEPER, kill: (pid, sig) => sent.push([pid, sig]) });
+  const live = await ready(f);
+  await h.stop('test');
+  assert.deepEqual(sent, [], 'the keeper reaped it and said {gone}');
+  assert.ok(await gone(live.run.serverPid, 1000), 'SIGKILL after the keeper\'s wait');
+});
+
+test('serve on the keeper line: the idle time ends the server, counted from ready, not from start', async t => {
+  const f = fixture(t);
+  // PACT-82: a slow start (the keeper hop on macOS) must not use up the idle time. After its first read the clock
+  // stands 1 s ahead, a start slower than the idle time and far inside the start timeout. The stub is not ready for
+  // its first 300 ms, so idle checks run before ready.
+  f.setCfg({ readyAfterMs: 300 });
+  let reads = 0;
+  const now = () => Date.now() + (reads++ > 0 ? 1000 : 0);
+  const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 400, checkMs: 50, pollMs: 50, now, ...KEEPER });
+  f.stoppers.push(() => h.stop('test'));
+  const live = await ready(f);
+  assert.equal(await h.done, 'idle');
+  assert.ok(await gone(live.run.serverPid, 9000));
+});
+
+test('serve on the keeper line: a missing server executable leaves run.fail (exit) and no keeper', async t => {
+  const f = fixture(t);
+  await assert.rejects(clef.serve({ dir: f.dir, exe: join(f.root, 'no-such-server'), pdeathsig: false, idleMs: 60_000, checkMs: 60_000, pollMs: 50, ...KEEPER, keeperPidMs: 5000 }), e => e.code === 'clef-setup');
+  assert.ok(existsSync(f.run.fail));
+  assert.equal(existsSync(f.run.key), false);
+});
+
+// ------------------------------------------------------------ the server record and keyed probe (spec 0003 M6)
+
+/** A stub server left running as an orphan, with run.server and run.key written as its supervisor would have. */
+async function orphan(t, f, cfgExtra = {}, { started = new Date().toISOString(), pid } = {}) {
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const key = randomHex();
+  writeFileSync(f.run.key, `${key}\n`);
+  f.setCfg({ propsLog: join(f.root, 'props.txt'), ...cfgExtra });
+  const child = spawn(process.execPath, [f.stub, f.cfg, '--port', String(port), '--api-key-file', f.run.key], { stdio: 'ignore' });
+  t.after(() => child.kill('SIGKILL'));
+  for (let i = 0; i < 100 && (await clef.probeProps({ port, timeoutMs: 200 })) === 'refused'; i++) await sleep(50);
+  clefRm(join(f.root, 'props.txt'), { force: true });
+  writeFileSync(f.run.server, JSON.stringify({ run: 'old', pid: pid ?? child.pid, port, started }));
+  return { child, port, key, props: () => (existsSync(join(f.root, 'props.txt')) ? readFileSync(join(f.root, 'props.txt'), 'utf8').split('\n').filter(Boolean) : []) };
+}
+const randomHex = () => Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+const noSpawn = () => assert.fail('nothing is spawned beside a loading orphan');
+
+test('serve on the keeper line: run.server names the server, is mode 0600, and goes with run.key on a stop', async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f, { line: 'keeper' });
+  const live = await ready(f);
+  const rec = JSON.parse(readFileSync(f.run.server, 'utf8'));
+  assert.deepEqual(Object.keys(rec).sort(), ['pid', 'port', 'run', 'started']);
+  assert.equal(rec.pid, live.run.serverPid);
+  assert.equal(rec.run, live.run.run);
+  if (!WIN) assert.equal(statSync(f.run.server).mode & 0o777, 0o600);
+  await h.stop('test');
+  assert.equal(existsSync(f.run.server), false);
+  assert.equal(existsSync(f.run.key), false);
+});
+
+test('sweep: an orphan is ended only after it refuses no key and a wrong key and takes the run\'s key', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f);
+  const r = await clef.sweepServer({ dir: f.dir, boundMs: 5000 });
+  assert.equal(r.result, 'ended');
+  assert.deepEqual(o.props(), ['none', 'wrong', 'right']);
+  assert.ok(await gone(o.child.pid, 3000));
+  assert.equal(existsSync(f.run.server), false);
+  assert.equal(existsSync(f.run.key), false);
+});
+
+for (const [label, cfgExtra, rec, why] of [
+  ['answers 200 to any bearer', { anyBearer: true }, {}, 'never sent the key'],
+  ['is a record dated before boot', {}, { started: new Date(0).toISOString() }, 'step 1'],
+]) {
+  test(`sweep: a record whose listener ${label} ends nothing and is removed`, async t => {
+    const f = fixture(t);
+    const o = await orphan(t, f, cfgExtra, rec);
+    const killed = [];
+    const r = await clef.sweepServer({ dir: f.dir, boundMs: 5000, kill: p => killed.push(p) });
+    assert.equal(r.result, 'dropped', why);
+    assert.deepEqual(killed, []);
+    assert.ok(!o.props().includes('right'), 'the run\'s key never went out');
+    assert.equal(existsSync(f.run.server), false);
+  });
+}
+
+test('sweep: a live pid whose port stays closed for 2 s ends nothing and is removed', async t => {
+  const f = fixture(t);
+  const other = sleeperProcess(f);
+  writeFileSync(f.run.key, `${randomHex()}\n`);
+  writeFileSync(f.run.server, JSON.stringify({ run: 'old', pid: other.pid, port: 1, started: new Date().toISOString() }));
+  const killed = [];
+  const t1 = Date.now();
+  assert.equal((await clef.sweepServer({ dir: f.dir, boundMs: 5000, kill: p => killed.push(p) })).result, 'dropped');
+  assert.ok(Date.now() - t1 >= 1900, 'it waited the 2 s');
+  assert.deepEqual(killed, []);
+  assert.ok(alive(other.pid));
+});
+
+test('sweep: an orphan still loading keeps its record: ensure starts nothing, stop and remove exit 1, status names it', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f, { propsNotReady: true });
+  const t1 = Date.now();
+  const e = await clef.ensure({ dir: f.dir, wait: 0, line: 'keeper', supervisorCommand: noSpawn });
+  assert.deepEqual(e.out, { state: 'starting' });
+  assert.ok(Date.now() - t1 < 1000, 'within 1 s');
+  const st = await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 300 });
+  assert.equal(st.code, 1);
+  assert.deepEqual(st.lines, [`orphan still loading (pid ${o.child.pid}); run stop again`]);
+  assert.ok(existsSync(f.run.server) && existsSync(f.run.key), 'removing nothing');
+  const rm = await clef.removeRun({ dir: f.dir, yes: true, line: 'keeper', orphanWaitMs: 300 });
+  assert.equal(rm.code, 1);
+  assert.ok(existsSync(f.dir), 'remove deletes nothing');
+  const status = await clef.statusRun({ dir: f.dir });
+  assert.ok(status.lines.includes(`orphan: pid ${o.child.pid}`));
+  assert.ok(alive(o.child.pid));
+  // Spec 0003 C-M8: the run's key is in none of what the commands print.
+  const shown = [JSON.stringify(e.out), ...st.lines, ...rm.lines, ...status.lines].join('\n');
+  assert.ok(!shown.includes(o.key), 'no output holds the run key');
+  assert.ok(!(await clef.statusRun({ dir: f.dir })).lines.join('\n').includes(o.key));
+});
+
+test('sweep: an orphan that finishes loading during the sweep is ended', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f, { readyAfterMs: 1500 });
+  const r = await clef.sweepServer({ dir: f.dir, boundMs: 10_000 });
+  assert.equal(r.result, 'ended', `probes: ${o.props().join(',')}`);
+  assert.ok(await gone(o.child.pid, 3000));
+});
+
+test('stop on the keeper line: a stop under another holder\'s lock leaves run.key', async t => {
+  const f = fixture(t);
+  writeFileSync(f.run.key, `${randomHex()}\n`);
+  writeFileSync(f.run.lock, `${process.pid}\n`);
+  await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 300 });
+  assert.ok(existsSync(f.run.key));
+});
+
+test('main: setup on macOS refuses clef-orphan while a recorded server is still loading, before any fetch', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f, { propsNotReady: true });
+  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, platform: 'darwin', arch: 'arm64', exists: () => true, orphanWaitMs: 300 };
+  for (const argv of [['setup', '--yes'], ['setup']]) {
+    const out = [];
+    assert.equal(await clef.main(argv, { ...base, out: l => out.push(l) }), 2, argv.join(' '));
+    assert.equal(out.at(-1), 'RESULT: refused clef-orphan');
+    assert.ok(!out.join('\n').includes(o.key), `${argv.join(' ')}: no output holds the run key`);
+  }
+  assert.ok(existsSync(f.run.server) && alive(o.child.pid), 'the record and the server are left');
+});
+
+// Spec 0003 M6 step 4: `setup --yes` sweeps with the 60-second bound, as stop does, and the tests that need less inject it.
+test('main: setup --yes on macOS sweeps an old server with a 60 second bound', async t => {
+  const f = fixture(t);
+  const seen = [];
+  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, platform: 'darwin', arch: 'arm64', exists: () => true, out: () => {} };
+  assert.equal(await clef.main(['setup', '--yes'], { ...base, sweep: async o => (seen.push(o.boundMs), { result: 'kept', pid: 1 }) }), 2);
+  assert.deepEqual(seen, [60_000]);
+  assert.equal(await clef.main(['setup', '--yes'], { ...base, orphanWaitMs: 300, sweep: async o => (seen.push(o.boundMs), { result: 'kept', pid: 1 }) }), 2);
+  assert.deepEqual(seen, [60_000, 300], 'a test can inject a shorter bound');
+});
+
+// Spec 0003 C-M7, C-M10: a stop under another holder's lock with a loading record leaves both files; remove --yes sweeps an orphan, then deletes the folder.
+test('stop on the keeper line: under another holder\'s lock, a loading record and its key are left and nothing is ended', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f, { propsNotReady: true });
+  writeFileSync(f.run.lock, `${process.pid}\n`);
+  const st = await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 300 });
+  assert.equal(st.code, 0);
+  assert.ok(existsSync(f.run.server) && existsSync(f.run.key));
+  assert.ok(alive(o.child.pid));
+  assert.deepEqual(o.props(), [], 'a sweep it does not hold the lock for sends nothing');
+});
+
+test('remove --yes on the keeper line: an orphan is swept (keyed) and ended, then the folder is deleted', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f);
+  const r = await clef.removeRun({ dir: f.dir, yes: true, line: 'keeper', orphanWaitMs: 5000 });
+  assert.equal(r.code, 0);
+  assert.deepEqual(o.props(), ['none', 'wrong', 'right']);
+  assert.ok(await gone(o.child.pid, 3000));
+  assert.equal(existsSync(f.dir), false);
+});
+
+test('stop on the keeper line: a clean stop of an orphan leaves neither run.server nor run.key, and no output holds the key', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f);
+  const key = readFileSync(f.run.key, 'utf8').trim();
+  const st = await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 5000 });
+  assert.equal(st.code, 0);
+  assert.equal(existsSync(f.run.server) || existsSync(f.run.key), false);
+  assert.ok(await gone(o.child.pid, 3000));
+  assert.ok(!st.lines.join('\n').includes(key));
+});
+
+// Spec 0003 C-M11: macOS folds case, so the runtime folder named in another case is the same folder and serve starts from it.
+test('main: on macOS, serve from the runtime folder named in another case is accepted', { skip: process.platform !== 'darwin' && 'needs the case-folding macOS file system (runs on gate-macos)' }, async t => {
+  const f = fixture(t);
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: f.cfgHome };
+  const cased = f.p.runtime.replace(/runtime(?=\/[^/]*$)/, 'RunTime');
+  assert.notEqual(cased, f.p.runtime);
+  const out = [];
+  const code = await clef.main(['serve'], { env, cwd: cased, account: f.cfgHome, out: l => out.push(l), chdir: () => {}, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
+  assert.equal(code, 0, out.join('\n'));
+  assert.match(readFileSync(f.run.log, 'utf8'), /stopped idle/);
+});
+
+// The same check on every job: `real` stands for a file system that keeps case, so only the fold in `norm` can make the two spellings equal.
+test('main: on macOS, serve from the runtime folder named in another case is accepted, on any file system', async t => {
+  const f = fixture(t);
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: f.cfgHome };
+  const cased = f.p.runtime.replace(/runtime(?=[\\/][^\\/]*$)/, 'RunTime');
+  assert.notEqual(cased, f.p.runtime);
+  const out = [];
+  const code = await clef.main(['serve'], { env, platform: 'darwin', cwd: cased, account: f.cfgHome, real: p => p, out: l => out.push(l), chdir: () => {}, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
+  assert.equal(code, 0, out.join('\n'));
+  assert.match(readFileSync(f.run.log, 'utf8'), /stopped idle/);
+});
+
+// gate-macos on 020f852 (run 45221886335): every test here passed, then the file never exited, and the job ran to its
+// 45-minute cap. Something a test started outlived it. This names whatever child process or pipe is still open once
+// every test has ended, ends it, and fails the file, so a leak fails fast with its name instead of holding the job.
+after(async () => {
+  const own = new Set([process.stdin, process.stdout, process.stderr]);
+  const open = () => process._getActiveHandles().filter(h => !own.has(h) && (h.constructor?.name === 'ChildProcess' || (h.constructor?.name === 'Socket' && !h.destroyed)));
+  // A process a test has just ended can take a moment to be reaped.
+  for (let i = 0; i < 30 && open().length; i++) await sleep(100);
+  const left = open();
+  const names = left.map(h => (h.constructor.name === 'ChildProcess' ? `child ${h.pid} ${(h.spawnargs ?? []).slice(-2).join(' ')}` : `pipe ${h._handle?.fd ?? '?'}`));
+  for (const h of left) {
+    try {
+      if (h.constructor.name === 'ChildProcess') {
+        h.disconnect?.();
+        h.kill('SIGKILL');
+      } else h.destroy();
+    } catch {
+      // gone already
+    }
+  }
+  assert.deepEqual(names, [], 'nothing a test started is left open');
 });

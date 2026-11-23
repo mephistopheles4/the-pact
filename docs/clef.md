@@ -31,7 +31,7 @@ A refusal is one line, `REFUSED <word>: <reason>`. Every mode but `ensure` ends 
 
 **Backend and speed.** Setup picks Vulkan when it finds the Vulkan loader (a file check; nothing runs), else CPU; `--cpu` forces CPU. On CPU a call takes about 2 seconds, so people without a GPU are expected to leave the tool off.
 
-**Platforms.** Windows x64 is the target. Linux x64 is built and unit-tested in CI and has not been run end to end; macOS is not supported.
+**Platforms.** Windows x64 is the target. Linux x64 is built and unit-tested in CI and has not been run end to end. macOS arm64 (Apple Silicon) is built and tested in CI on macOS 15, on CPU with a stub server, and has not been run end to end on Metal or on CPU; [macOS](#macos) says what differs there.
 
 ## How a caller uses it
 
@@ -66,6 +66,17 @@ The supervisor stops itself after 30 minutes with no forwarded request, when the
 - **`CLAUDE_CONFIG_DIR`.** A value you set is accepted only as an absolute path, and the tool refuses it (`clef-home`) when the command starts from a folder that contains that Claude home folder, because a cloned project's settings can set that variable. Start from beside your Claude home folder, or from a subfolder of it other than `pact-clef/`, instead.
 - **Linux.** Setup refuses a machine without `/usr/bin/setpriv` (`clef-setpriv`); it keeps the server from outliving the supervisor.
 - **Logs.** `serve.log` in the clef folder holds counts, timings and reason words only, capped at 1 MB.
+
+## macOS
+
+- **What it needs.** An Apple Silicon Mac on macOS 13.3 or later (the build's floor), with an arm64 Node 24. Expect 16 GB of memory to be the floor. Setup picks Metal, and `--cpu` picks CPU. Intel Macs, and an x64 node under Rosetta, are refused with `clef-platform`.
+- **Quarantine.** The tool's own downloads carry no quarantine mark. If macOS still blocks `llama-server` at start ("cannot be opened" or "not verified"), run `clef verify` first. Once it passes, run `xattr -dr com.apple.quarantine <clef folder>/runtime`.
+- **The files.** `run.key`, `run.json` and `run.server` are mode 0600. An access list the folder inherits can still grant another account access: `ls -le` shows one, as [install.md](install.md) says for backups.
+- **The keeper.** macOS has no way to end a child when its parent dies. So the supervisor starts a small keeper (`clef keep`, the same script, reached over a channel only the supervisor holds), and the keeper starts the server. When the supervisor dies, the channel closes and the keeper ends the server. `clef keep` run by hand refuses `clef-keep`.
+- **The record.** If the supervisor and the keeper are both killed, the server can outlive them. `run.server` records its pid and port. The next `ensure`, `stop`, `setup --yes` or `remove --yes` ends it, but only once it refuses a request with no key and with a wrong key and then takes the run's key. A record from before the last boot, or one whose port answers otherwise, is removed and nothing is ended.
+- **An orphan still loading.** While a recorded server is still loading, `ensure` says `starting` and starts nothing. `stop` prints `orphan still loading (pid <n>); run stop again` and exits 1. `remove --yes` exits 1 and deletes nothing, setup refuses `clef-orphan`, and `status` prints the pid. Run `clef stop` again once it has loaded. A server that never loads stays until you end that pid yourself or reboot; check first with `ps -p <pid>` that the pid is a `llama-server`, since a pid can be reused.
+- **Two more controls.** On macOS the caller's `TMPDIR` passes to the server, beside the named environment. A pin PR checks each Mach-O file in the build: thin arm64, no flags, its `minos` printed. The threat model lists both.
+- **What isn't covered.** A server started in the moment before `run.server` is written, whose supervisor and keeper are then both killed, is not recorded. Find it with `ps` and end it yourself.
 
 ## Turning it off and removing it
 

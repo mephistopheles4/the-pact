@@ -598,7 +598,7 @@ test('cloud copy: every git, claude and node command in the plugins and skills s
 });
 
 // #183 T3 C13
-test('cloud copy: both generated setup scripts parse under bash -n', { skip: WIN && 'not run: bash is not on a Windows runner by default' }, () => {
+test('cloud copy: both generated setup scripts parse under bash -n', { skip: (WIN && 'not run: bash is not on a Windows runner by default') || (process.platform === 'darwin' && 'not run: the scripts run on the cloud images, and macOS ships bash 3.2') }, () => {
   for (const rel of [OUTPUTS.setup, OUTPUTS.wrapper]) {
     const r = spawnSync('bash', ['-n', join(REPO, ...rel.split('/'))], { encoding: 'utf8' });
     assert.equal(r.status, 0, `${rel}: ${r.stderr}`);

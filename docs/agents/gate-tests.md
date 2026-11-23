@@ -49,11 +49,12 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs
   `full` on Node 24.
 - **`changed` on the host is for when athanor can't run.** The hook refuses it
-  while athanor works, because host runs slow the owner's machine and CI's two
-  jobs cover both platforms. When athanor can't run, `fast` with the fallback
+  while athanor works, because host runs slow the owner's machine and CI's three
+  jobs cover all three platforms. When athanor can't run, `fast` with the fallback
   covers building. athanor can't run `changed` itself ([Athanor](#athanor)).
-- **Test evidence is CI's two jobs passing on the reviewed head:** `gate` on
-  Linux and `gate-windows` on Windows, each running `full`. CI runs
+- **Test evidence is CI's three jobs passing on the reviewed head:** `gate` on
+  Linux, `gate-macos` on macOS and `gate-windows` on Windows, each running
+  `full`. CI runs
   only on a pull request or a push to `main`, so the session pushes its branch
   and opens a draft PR before Test. The Test record names each run's commit as
   GitHub shows it, which must be the head it cites. No local `full` at Test is

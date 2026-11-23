@@ -11,6 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { Readable } from 'node:stream';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { crc32, deflateRawSync, gzipSync } from 'node:zlib';
 import * as clef from '../../claude/tools/clef.mjs';
 import { REPO } from './text.mjs';
@@ -85,6 +86,16 @@ function tgz(entries) {
   return gzipSync(Buffer.concat(parts));
 }
 
+/** A pax header's body: each record is "<length> <key>=<value>\n", the length counting the whole record. */
+function pax(pairs) {
+  return pairs.map(([k, v]) => {
+    const rest = ` ${k}=${v}\n`;
+    let n = rest.length + 1;
+    while (String(n).length + rest.length !== n) n = String(n).length + rest.length;
+    return `${n}${rest}`;
+  }).join('');
+}
+
 /** A fake transport: `route(url, headers)` gives { status, headers, body }; every request is recorded. */
 function transportOf(route) {
   const calls = [];
@@ -138,6 +149,13 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     assert.equal(SOURCE_TEXT.split(`'${key}': Object.freeze(`).length, 2, `one row for ${key}`);
     assert.ok(clef.SERVER.archives[key].files.length > 0, `${key} names the files it keeps`);
   }
+  // Spec 0003 M3: both darwin keys name the one macOS row, which keeps the server and its .0.dylib copies.
+  const mac = clef.SERVER.archives['darwin-arm64-metal'];
+  assert.equal(clef.SERVER.archives['darwin-arm64-cpu'], mac, 'both darwin keys name one row');
+  assert.equal(mac.asset, 'llama-b12211-bin-macos-arm64.tar.gz');
+  assert.equal(mac.kind, 'tgz');
+  assert.equal(mac.exe, 'llama-b12211/llama-server');
+  assert.ok(mac.files.some(r => r[3] === 'libggml-base.0.dylib'), 'a dylib is kept under the name the server loads');
   assert.deepEqual(clef.SOURCES.server.redirects, ['release-assets.githubusercontent.com', 'objects.githubusercontent.com']);
   assert.deepEqual(clef.SOURCES.model.redirects, ['us.aws.cdn.hf.co']);
 });
@@ -158,6 +176,10 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'asset-query', plant: x => { first(x.server).asset = 'llama-b1-bin-x.zip?a=b'; return x; }, fails: ['asset'], why: 'no query' },
     { id: 'asset-fragment', plant: x => { first(x.server).asset = 'llama-b1-bin-x.zip#f'; return x; }, fails: ['asset'], why: 'no fragment' },
     { id: 'asset-prefix', plant: x => { first(x.server).asset = 'other-b1-bin-x.zip'; return x; }, fails: ['asset'], why: 'an asset starts llama-<tag>-bin-' },
+    // Spec 0003 M3: two keys may name one asset only when their rows are equal field for field.
+    { id: 'asset-shared-unequal', plant: x => { x.server.archives['win32-x64-vulkan'].asset = first(x.server).asset; x.server.archives['win32-x64-vulkan'].size += 1; return x; }, fails: ['asset-shared'], why: 'one asset, two different rows' },
+    { id: 'asset-shared-unequal-files', plant: x => { const v = x.server.archives['win32-x64-vulkan']; v.asset = first(x.server).asset; v.size = first(x.server).size; v.sha256 = first(x.server).sha256; v.files = first(x.server).files.map(r => [...r]); v.files[0][1] += 1; return x; }, fails: ['asset-shared'], why: 'one asset, rows equal in size and sha256 but not in a kept file' },
+    { id: 'asset-shared-unequal-kind', plant: x => { const v = x.server.archives['win32-x64-vulkan']; const a = first(x.server); v.asset = a.asset; v.size = a.size; v.sha256 = a.sha256; v.files = a.files.map(r => [...r]); v.kind = a.kind === 'zip' ? 'tgz' : 'zip'; return x; }, fails: ['asset-shared'], why: 'one asset, rows equal in size, sha256 and files but not in kind' },
     { id: 'commit-short', plant: x => { x.model.commit = 'abc123'; return x; }, fails: ['commit'], why: 'a full commit, never a branch' },
     { id: 'commit-branch', plant: x => { x.model.commit = 'main'; return x; }, fails: ['commit'], why: 'a branch moves' },
     { id: 'commit-upper', plant: x => { x.model.commit = 'A'.repeat(40); return x; }, fails: ['commit'], why: 'lower-case hex' },
@@ -178,7 +200,7 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'copy-twice', plant: x => { first(x.server).files[0].push('a.so.0', 'b.so.0'); return x; }, fails: ['file-copy'], why: 'one copy at most' },
     { id: 'copy-collides', plant: x => { first(x.server).files[0][3] = 'ggml-cpu.dll'; return x; }, fails: ['file-dup'], why: 'a copy landing on another kept file' },
     { id: 'exe-missing', plant: x => { first(x.server).exe = 'bin/nothing.exe'; return x; }, fails: ['exe'], why: 'the executable is one of the kept files' },
-    { id: 'platform-key', plant: x => { x.server.archives['darwin-arm64-cpu'] = x.server.archives['win32-x64-cpu']; return x; }, fails: ['platform-key'], why: 'only the four platform keys' },
+    { id: 'platform-key', plant: x => { x.server.archives['darwin-x64-cpu'] = x.server.archives['win32-x64-cpu']; return x; }, fails: ['platform-key'], why: 'only the six platform keys; Intel Macs have none' },
   ];
   test('pin table shape: base passes', () => assert.deepEqual(run(base()).fails, []));
   for (const r of rows) {
@@ -371,11 +393,23 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'zip-no-end', run: () => clef.readZip(Buffer.from('not a zip at all, no end record'), {}), why: 'not a zip' },
     { id: 'tar-traversal', run: () => clef.readTgz(tgz([{ name: '../x', data: 'y' }]), {}), why: 'a name that leaves the folder' },
     { id: 'tar-drive', run: () => clef.readTgz(tgz([{ name: 'C:x', data: 'y' }]), {}), why: 'a drive' },
-    { id: 'tar-pax', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: 'path=a\n' }]), {}), why: 'a pax header' },
+    { id: 'tar-pax', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: pax([['path', 'a']]) }]), {}), why: 'a pax header naming a path' },
+    // Spec 0003 M4: a pax record of either kind that names a path, a link, a size or any key off the list refuses.
+    { id: 'tar-pax-global-path', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'g', data: pax([['path', 'a']]) }, { name: 'a', data: 'y' }]), {}), why: 'a global pax header naming a path' },
+    { id: 'tar-pax-linkpath', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: pax([['mtime', '1'], ['linkpath', 'b']]) }, { name: 'a', data: 'y' }]), {}), why: 'a pax link path beside a time' },
+    { id: 'tar-pax-size', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: pax([['size', '9']]) }, { name: 'a', data: 'y' }]), {}), why: 'a pax size' },
+    { id: 'tar-pax-other-key', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: pax([['uname', 'x']]) }, { name: 'a', data: 'y' }]), {}), why: 'a pax key off the list' },
+    { id: 'tar-pax-malformed', run: () => clef.readTgz(tgz([{ name: 'pax', type: 'x', data: '99 mtime=1\n' }, { name: 'a', data: 'y' }]), {}), why: 'a pax record whose length is wrong' },
     { id: 'tar-gnu-long', run: () => clef.readTgz(tgz([{ name: 'long', type: 'L', data: 'a'.repeat(200) }]), {}), why: 'a GNU long name' },
     { id: 'tar-device', run: () => clef.readTgz(tgz([{ name: 'dev', type: '3' }]), {}), why: 'a device' },
     { id: 'tar-not-gzip', run: () => clef.readTgz(Buffer.from('plain'), {}), why: 'not gzip' },
   ];
+  // Spec 0003 M4: the macOS build's tar holds xattr- and time-only pax records, local and global; they are read and ignored.
+  test('tar reader: a local or global pax header holding only xattr, LIBARCHIVE and time keys is ignored, and the entry after it is read', () => {
+    const quiet = pax([['SCHILY.xattr.com.apple.provenance', 'x'], ['LIBARCHIVE.creationtime', '1'], ['mtime', '1.5'], ['atime', '1'], ['ctime', '1']]);
+    const r = clef.readTgz(tgz([{ name: 'g', type: 'g', data: quiet }, { name: 'x', type: 'x', data: quiet }, { name: 'real.txt', data: 'ok' }]), {});
+    assert.deepEqual(r.entries.map(e => [e.path, e.kind, e.data && e.data.toString()]), [['real.txt', 'file', 'ok']]);
+  });
   for (const b of bads) test(`archive reader: ${b.id}`, () => assert.throws(b.run, e => e instanceof clef.Refused && e.code === 'clef-archive'));
   test('archive reader: the good archive reads', () => assert.equal(clef.readZip(ZIP(), { want }).entries.length, 5));
 
@@ -389,6 +423,18 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     assert.deepEqual(readdirSync(runtime).sort(), ['LICENSE', 'ggml-cpu.dll', 'llama-server.exe']);
     assert.equal(readFileSync(join(runtime, 'llama-server.exe'), 'utf8'), 'MZ server');
     assert.equal(existsSync(join(a.dir, 'runtime', 'b1.partial')), false);
+  });
+  // Spec 0003 M4: the macOS executable gets mode 0755, as the Linux one does.
+  test('unpack: on macOS the executable gets mode 0755', { skip: process.platform === 'win32' && 'Windows keeps no mode bits (not run)' }, t => {
+    const body = Buffer.from('server');
+    const tgzBuf = tgz([{ name: 'b/llama-server', data: body }]);
+    const row = { asset: 'llama-b1-bin-macos-arm64.tar.gz', size: tgzBuf.length, sha256: sha(tgzBuf), kind: 'tgz', exe: 'b/llama-server', files: [['b/llama-server', body.length, sha(body)]] };
+    const a = setupArgs(t, { server: { ...miniServer(), archives: { 'darwin-arm64-metal': row } } });
+    mkdirSync(join(a.dir, 'partial'), { recursive: true });
+    const archivePath = join(a.dir, 'partial', 'x.tar.gz');
+    writeFileSync(archivePath, tgzBuf);
+    clef.unpackServer({ dir: a.dir, key: 'darwin-arm64-metal', archivePath, platform: 'darwin', server: a.server });
+    assert.equal(statSync(join(a.dir, 'runtime', 'b1', 'llama-server')).mode & 0o777, 0o755);
   });
   const unpackWith = (t, zipBuf, tweak = s => s) => {
     const a = setupArgs(t, { server: tweak(miniServer()) });
@@ -468,12 +514,27 @@ test('the probe picks Vulkan on the loader file and CPU without it, runs nothing
   assert.deepEqual(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: true, cpu: false }), { key: 'win32-x64-vulkan', backend: 'vulkan', why: 'Vulkan loader found' });
   assert.deepEqual(clef.pickPlatform({ platform: 'win32', arch: 'x64', vulkan: false, cpu: false }), { key: 'win32-x64-cpu', backend: 'cpu', why: 'no Vulkan loader: CPU' });
   assert.equal(clef.pickPlatform({ platform: 'linux', arch: 'x64', vulkan: true, cpu: true }).key, 'linux-x64-cpu');
-  assert.equal(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: false }), null);
+  // Spec 0003 M4: Apple Silicon picks Metal, or CPU with --cpu; an Intel Mac has no build.
+  assert.deepEqual(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: false }), { key: 'darwin-arm64-metal', backend: 'metal', why: 'Apple Silicon: Metal' });
+  assert.deepEqual(clef.pickPlatform({ platform: 'darwin', arch: 'arm64', vulkan: false, cpu: true }), { key: 'darwin-arm64-cpu', backend: 'cpu', why: 'CPU forced by --cpu' });
+  assert.equal(clef.pickPlatform({ platform: 'darwin', arch: 'x64', vulkan: false, cpu: false }), null);
   assert.equal(clef.pickPlatform({ platform: 'win32', arch: 'arm64', vulkan: false, cpu: false }), null);
   const probe = SOURCE_TEXT.slice(SOURCE_TEXT.indexOf('export function probeVulkan'), SOURCE_TEXT.indexOf('export function pickPlatform'));
   assert.ok(probe.length > 100);
   assert.doesNotMatch(probe, /spawn|exec|child_process/, 'the probe starts nothing');
-  assert.doesNotMatch(SOURCE_TEXT, /execFile|execSync|spawnSync|\bfork\(|shell: true/, 'no shell and no helper program');
+  // Spec 0003 M5: the one fork is the supervisor starting its keeper from this same file.
+  assert.equal(SOURCE_TEXT.split(/\bfork\(/).length - 1, 1, 'one fork');
+  assert.match(SOURCE_TEXT, /\bfork\(scriptPath, \['keep'\], keeperOptions\)/);
+  // The keeper is this file, run with no node flags and the node that runs the supervisor (no execPath).
+  assert.ok(SOURCE_TEXT.includes('const scriptPath = fileURLToPath(import.meta.url);'), 'the keeper is this file, not the watched script');
+  const options = SOURCE_TEXT.match(/const keeperOptions = \{[^\n]*\};/)?.[0] ?? '';
+  assert.match(options, /\bexecArgv: \[\]/);
+  assert.doesNotMatch(options, /execPath/);
+  assert.match(options, /env: serveEnv\(env, platform, p\.runtime\)/);
+  // The only way in to child processes is the one import line.
+  assert.ok(SOURCE_TEXT.includes("import { fork, spawn } from 'node:child_process';\n"), 'the one child_process import');
+  assert.equal(SOURCE_TEXT.split('child_process').length - 1, 1, 'nothing else names child_process');
+  assert.doesNotMatch(SOURCE_TEXT, /execFile|execSync|spawnSync|shell: true/, 'no shell and no helper program');
   assert.equal(SOURCE_TEXT.split('spawn(').length - 1, 2, 'the supervisor and the server are the only programs started');
 });
 
@@ -516,7 +577,7 @@ test('setup with the real table prints the real plan and still fetches nothing',
     }
   };
   const rows = [
-    { id: 'no-platform-macos', plant: () => ({ platform: 'darwin', arch: 'arm64' }), fails: ['clef-platform'], why: 'macOS is out of scope' },
+    { id: 'no-platform-intel-mac', plant: () => ({ platform: 'darwin', arch: 'x64' }), fails: ['clef-platform'], why: 'Intel Macs have no build (spec 0003 M4)' },
     { id: 'no-platform-arm', plant: () => ({ arch: 'arm64' }), fails: ['clef-platform'], why: 'Windows on ARM is out of scope' },
     { id: 'no-row-for-key', plant: () => ({ server: { ...miniServer(), archives: {} } }), fails: ['clef-platform'], why: 'the table has no row for the platform' },
     { id: 'too-little-space', plant: () => ({ free: 100 }), fails: ['clef-space'], why: 'the drive cannot hold the files' },
@@ -694,6 +755,15 @@ test('claudeHome: CLAUDE_CONFIG_DIR is used as an absolute path, a relative one 
     const via = join(root, 'via');
     if (link(start, via)) assert.throws(() => clef.assertOutsideStart(join(via, 'pact-clef'), start), refusedHome, 'through a link');
   });
+  // Spec 0003 M4: macOS's default volume folds case, so a clef folder named in another case of the starting folder is inside it.
+  test('assertOutsideStart: with case folding, a folder under another case of the starting folder is clef-home', t => {
+    const root = tempDir(t, 'clef-fold-');
+    const start = join(root, 'repo');
+    mkdirSync(start);
+    const cased = join(root, 'REPO', 'pact-clef');
+    assert.throws(() => clef.assertOutsideStart(cased, start, process.platform === 'win32', true), refusedHome);
+    if (process.platform === 'linux') assert.doesNotThrow(() => clef.assertOutsideStart(cased, start, false, false), 'without folding, another case is another folder');
+  });
   test('assertOutsideStart: a starting folder that does not resolve is clef-home, not a skip', t => {
     const root = tempDir(t, 'clef-real-');
     assert.throws(() => clef.assertOutsideStart(join(root, 'pact-clef'), join(root, 'nowhere')), refusedHome);
@@ -790,10 +860,25 @@ test('claudeHome: CLAUDE_CONFIG_DIR is used as an absolute path, a relative one 
   });
 }
 
+// Spec 0003 M4: on an Intel Mac, or a node under Rosetta, setup refuses in words that say what to do; on Apple Silicon no Vulkan probe runs.
+test('setup on darwin: x64 refuses with the Rosetta words, and arm64 looks for no Vulkan loader', t => {
+  assert.throws(() => clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'x64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12 }),
+    e => e.code === 'clef-platform' && e.message === 'no build for Intel Macs; on Apple Silicon, run setup with an arm64 node, not one under Rosetta');
+  const looked = [];
+  const plan = clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'arm64', execPath: '/opt/node/bin/node', cwd: tempDir(t, 'clef-start-'), free: 1e12, exists: p => { looked.push(p); return false; } });
+  assert.equal(plan.key ?? plan.pick?.key, 'darwin-arm64-metal');
+  assert.deepEqual(looked.filter(p => /vulkan/i.test(p)), [], 'no Vulkan probe on macOS');
+});
+
+// Spec 0003 M4: on macOS the node check folds case too.
+test('setup on darwin: a node under another case of the starting folder is clef-node', t => {
+  assert.throws(() => clef.planSetup({ dir: tempDir(t, 'clef-dir-'), platform: 'darwin', arch: 'arm64', execPath: '/WORK/evil/node', cwd: '/work', free: 1e12 }), e => e.code === 'clef-node');
+});
+
 test('main: a refusal prints REFUSED and RESULT with the word, and exits 2', async t => {
   const out = [];
   const env = { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') };
-  const code = await clef.main(['setup'], { env, platform: 'darwin', arch: 'arm64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: () => {}, exists: () => false, transport: transportOf(() => ({ status: 500 })) });
+  const code = await clef.main(['setup'], { env, platform: 'darwin', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: tempDir(t, 'clef-start-'), out: l => out.push(l), chdir: () => {}, exists: () => false, transport: transportOf(() => ({ status: 500 })) });
   assert.equal(code, 2);
   assert.match(out.at(-2), /^REFUSED clef-platform: /);
   assert.equal(out.at(-1), 'RESULT: refused clef-platform');
@@ -804,4 +889,32 @@ test('main: verify with no setup fails with a word and exit 1', async t => {
   const code = await clef.main(['verify'], { env: { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') }, out: l => out.push(l), chdir: () => {} });
   assert.equal(code, 1);
   assert.deepEqual(out, ['missing: setup.json', 'RESULT: fail 1']);
+});
+
+// Spec 0003 C-M9, C-M10: setup on macOS keeps the darwin row, verify re-hashes it, status names it, and nothing it fetched is quarantined.
+test('setup on macOS: the darwin row is kept, verify re-hashes it, status names its platform and backend, and no fetched file is quarantined', async t => {
+  const body = Buffer.from('server');
+  const lib = Buffer.from('dylib');
+  const tgzBuf = tgz([{ name: 'b/llama-server', data: body }, { name: 'b/libggml.0.1.dylib', data: lib }]);
+  const row = { asset: 'llama-b1-bin-macos-arm64.tar.gz', size: tgzBuf.length, sha256: sha(tgzBuf), kind: 'tgz', exe: 'b/llama-server', files: [['b/libggml.0.1.dylib', lib.length, sha(lib), 'libggml.0.dylib'], ['b/llama-server', body.length, sha(body)]] };
+  const server = { ...miniServer(), archives: { 'darwin-arm64-metal': row, 'darwin-arm64-cpu': row } };
+  const a = setupArgs(t, { yes: true, platform: 'darwin', arch: 'arm64', execPath: '/opt/node/bin/node', cwd: '/work', server, transport: servingTransport(tgzBuf) });
+  await clef.runSetup(a);
+  const runtime = join(a.dir, 'runtime', 'b1');
+  assert.deepEqual(readdirSync(runtime).sort(), ['libggml.0.1.dylib', 'libggml.0.dylib', 'llama-server']);
+  assert.deepEqual(clef.verify({ dir: a.dir, server, model: a.model }).failed, []);
+  writeFileSync(join(runtime, 'libggml.0.dylib'), 'DYLIB');
+  assert.deepEqual(clef.verify({ dir: a.dir, server, model: a.model }).failed, ['sha256:libggml.0.dylib'], 'the copy is re-hashed too');
+  const st = await clef.statusRun({ dir: a.dir });
+  assert.ok(st.lines.includes('platform: darwin-arm64-metal') && st.lines.includes('backend: metal'), st.lines.join('|'));
+  // xattr exits non-zero for a missing file too, so each file is shown to exist first, on every job.
+  const fetched = [join(runtime, 'llama-server'), join(a.dir, 'models', `${sha(MODEL_BYTES)}.gguf`)];
+  for (const f of fetched) assert.ok(existsSync(f), `${f} was fetched`);
+  if (process.platform === 'darwin') {
+    for (const f of fetched) {
+      const r = spawnSync('/usr/bin/xattr', ['-p', 'com.apple.quarantine', f], { encoding: 'utf8' });
+      assert.notEqual(r.status, 0, `no quarantine on ${f}`);
+      assert.match(r.stderr, /No such xattr: com\.apple\.quarantine/, 'it failed because the attribute is absent');
+    }
+  }
 });

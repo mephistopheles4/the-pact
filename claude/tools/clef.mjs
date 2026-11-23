@@ -23,7 +23,7 @@
 //   2  RESULT: refused <word>  a refusal (clef-pin, clef-platform, clef-space,
 //                              clef-node, clef-setpriv, clef-redirect, clef-size,
 //                              clef-hash, clef-archive, clef-home, clef-running,
-//                              clef-fetch) or a usage fault
+//                              clef-orphan, clef-keep, clef-fetch) or a usage fault
 // `ensure` prints its JSON line and exits 0 (ready or starting), 3 (not set up)
 // or 4 (failed); docs/clef.md has its states.
 //
@@ -35,18 +35,66 @@
 // folder, only as an absolute path, and never one inside the starting folder
 // (claudeHome, assertRealFolders).
 
-import { spawn } from 'node:child_process';
+import { fork, spawn } from 'node:child_process';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, rmdirSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
 import { createServer as createHttpServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest, Agent } from 'node:https';
 import { createServer as createNetServer } from 'node:net';
-import { homedir, userInfo } from 'node:os';
-import { dirname, join, posix, resolve, win32 } from 'node:path';
+import { homedir, uptime as osUptime, userInfo } from 'node:os';
+import { basename, dirname, join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync, gunzipSync } from 'node:zlib';
 
 // ---------------------------------------------------------------- the pin table
+
+/** The macOS arm64 build (spec 0003 M3), named by both darwin keys. */
+const MACOS_ARCHIVE = Object.freeze({ asset: 'llama-b12211-bin-macos-arm64.tar.gz', size: 16711245, sha256: '4da4edb437358d31d55938ad849d262ca31b0e0ffb35e9caedb727a0cd5a8f0f', kind: 'tgz', exe: 'llama-b12211/llama-server',
+  files: Object.freeze([
+  ['llama-b12211/LICENSE', 1078, '94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d'],
+  ['llama-b12211/ggml-metal-tuning', 87696, 'bcd4adea51d936aa77758c7a5a5d4dd4834205a2488e17050a2c607af86a4f67'],
+  ['llama-b12211/ggml-rpc-server', 133024, '38f67707c237046cfe29921bb5854a57eedcc9a32a581f275ed394f2cee92116'],
+  ['llama-b12211/libggml-base.0.29.0.dylib', 772312, 'a27679374a505439de2220d7c87e52bb371a04568ca7b106c3668e7ba3f92862', 'libggml-base.0.dylib'],
+  ['llama-b12211/libggml-blas.0.29.0.dylib', 58776, '786754ac19bff80ad4ca76d44d3031f32593772f38d9da819b428dc702f63339', 'libggml-blas.0.dylib'],
+  ['llama-b12211/libggml-cpu.0.29.0.dylib', 959344, '0cae225e9b2f9fcb0c64a1f21f855dcb2ee83c059f503cd37cbff331d509c6a6', 'libggml-cpu.0.dylib'],
+  ['llama-b12211/libggml-metal.0.29.0.dylib', 5688168, 'f02a10b8d7d04cc901f24752f8652288e234dd4e4216f0ca291a5bb6bfd510c8', 'libggml-metal.0.dylib'],
+  ['llama-b12211/libggml-rpc.0.29.0.dylib', 243600, '1b4d7b2187abe3eda371ce6a72843125b4c6d07a7f14baea5929ede6b5b89d37', 'libggml-rpc.0.dylib'],
+  ['llama-b12211/libggml.0.29.0.dylib', 60016, 'f2b3b1a494448bb17a7bfe6111873326ba2872bdbc52a95c6f1140c6868261b8', 'libggml.0.dylib'],
+  ['llama-b12211/libllama-batched-bench-impl.dylib', 56576, 'ea42410725d43ce4dc61f361171e9ce2642c2141cadac34975dee626902074aa'],
+  ['llama-b12211/libllama-bench-impl.dylib', 323016, '19ac409f52fd0d45174aebdfb3a03d0c49acbc7a6f8b89648f16895d364795ec'],
+  ['llama-b12211/libllama-cli-impl.dylib', 255240, 'cc07c0d4798d33669f65dfa275a755575277eb08dfb3049bcb14d3bf22c534c2'],
+  ['llama-b12211/libllama-common.0.9.0.dylib', 8094584, 'c49abb00ca8e1a3ab809fd122a2867f6924d61456878d85df4d5d8129628decc', 'libllama-common.0.dylib'],
+  ['llama-b12211/libllama-completion-impl.dylib', 121808, '240ee5168ff18ab6dff29dd2168438f079179ba0f6b51a841d18f16f6f493496'],
+  ['llama-b12211/libllama-fit-params-impl.dylib', 55264, '8c60cc35f7b3fc018686a293e37eb1a485142ee3bb55512ce66839eea8d98367'],
+  ['llama-b12211/libllama-perplexity-impl.dylib', 156384, 'ab36bba0f9873b64712660e36b7201572c11d5efd086d1a3c55cb44524895db9'],
+  ['llama-b12211/libllama-quantize-impl.dylib', 96496, 'f5a8d325802712841b640da755ddce17c6ef4e01bde3c3bcda2144186e9c040b'],
+  ['llama-b12211/libllama-server-impl.dylib', 9837128, '83a4a30eb428545bc3d5ec5158e10661de978ebc67fdb86e0cb09c2f8aecdda6'],
+  ['llama-b12211/libllama.0.9.0.dylib', 3810368, '74e5225102fef73ebf89a5197775766265004a1874b4df5c2ec1003d82e30a90', 'libllama.0.dylib'],
+  ['llama-b12211/libmtmd.0.9.0.dylib', 1693200, '18f8a5f51ee3c1d76f909db00d72a1e2123ad5bb2d90c055f597aa99faee4318', 'libmtmd.0.dylib'],
+  ['llama-b12211/llama', 107320, '577e4440a8fce23621f1a8d80f4a0eb6a0bf3d5b209ae05bcd2e18513fb42b4c'],
+  ['llama-b12211/llama-batched-bench', 33488, 'a6a8e0ff2d78ccd311a0917cd07f410a4395c0bd511ecec949eae28af21de028'],
+  ['llama-b12211/llama-bench', 33464, '6d042ef032678056645d50e8e153cf101c9da616e6ee97455085254cbd6137db'],
+  ['llama-b12211/llama-cli', 49960, '22b2065b1d006ae33a02e009b445e5c26bc441d68bffeb67c4dfb5ba23b92ffe'],
+  ['llama-b12211/llama-completion', 33472, 'e04882cff3d2aba1dee284ad844a96fa5e95bd363a38cc6cfb4fae682d21a37e'],
+  ['llama-b12211/llama-connect', 8251536, 'a2e54e1198276037f05882b5142641cd4c55c7fbdd748fcb10a4a8109c723d59'],
+  ['llama-b12211/llama-cvector-generator', 102296, '6a1de0ffbdfaecca41984c11689b3bfa66f36391972d0dadcc18d24ce5aaf6f2'],
+  ['llama-b12211/llama-export-lora', 99856, 'd8526dd4300e2ef15028879b695306bcfe25c8a5970375852ca046d0f46015b8'],
+  ['llama-b12211/llama-fit-params', 33472, 'e7da4e292a53ea445ecab8051d55e68aa8f90492eef0819d3a1b5cc2fdf97607'],
+  ['llama-b12211/llama-gemma3-cli', 35344, 'f7f9126b0881654bdb4c9ceab6de40f42e31998fa0c775505b5979ef7e8e567e'],
+  ['llama-b12211/llama-gguf-split', 60000, '183d71c37f5db7660a3e7bfb2d81a3aa68ca0fdb3e36230a4276ad72f17b9c05'],
+  ['llama-b12211/llama-imatrix', 206320, '17fcc746efa3b11312d5f3064bef32a1425ce39ed5f4cd7142d1e273ce58d878'],
+  ['llama-b12211/llama-llava-cli', 35344, '9a77293c34faa94ae6955f9b1da3dca9fa55cf09fcd0fff87c96f5ec44b9d547'],
+  ['llama-b12211/llama-minicpmv-cli', 35344, '4baffe08bb410686ee032b1b2ff9a948bbde3fdc014dddf750f36978e3b40589'],
+  ['llama-b12211/llama-mtmd-cli', 103648, 'ad3fab1bf43c11eb6d2852792cfd0c1c59dab996a5a804849a41e68d45b076d6'],
+  ['llama-b12211/llama-mtmd-debug', 75824, '73fc8f269a379333b6ccff05f9d21bd6d9c4c094181afb382467f0531dacfe0d'],
+  ['llama-b12211/llama-perplexity', 33472, '3059af5f1197fb99ec7eb7260b28e4e59a3d0e9b915a7fec5b313cd9efe07a75'],
+  ['llama-b12211/llama-quantize', 33472, '47d49e414ae08afe3a8515768eed9f2b87186e719dc2e272cf38289c75c01ef9'],
+  ['llama-b12211/llama-qwen2vl-cli', 35344, '9be4a36b2587c0216009b1ed59ac79b1e4dd2e885f326e8aeffac8aa37761d31'],
+  ['llama-b12211/llama-results', 58912, 'a330b36d5f932de1df768dbc8532512eefd40d0ecc1879f48d964b8986743db9'],
+  ['llama-b12211/llama-server', 49984, 'e7e3c60a5e612460d095bfd219047040d6bb9d0b56466aae30a480980b676959'],
+  ['llama-b12211/llama-tokenize', 58736, 'b3573499a413db7cbbf4d05f2da07b619d6b7896930c344581ff8fb72b830544'],
+  ['llama-b12211/llama-tts', 59144, '74b796837548030f0bddc6168c376f6cd4d8b3a797d3e43020156da589309cf1'],
+  ]) });
 
 /** The server build (S5). `files` rows are [path in the archive, size, sha256]. */
 export const SERVER = Object.freeze({
@@ -273,6 +321,9 @@ export const SERVER = Object.freeze({
       ['llama-b12211/llama-tokenize', 45168, '7c3f70571062369fc096448742930ac934a7693473826fc7131186368946806e'],
       ['llama-b12211/llama-tts', 49928, 'b8cecb8b65c8816bcd99b40c35296a9a5d489967507de8a21258533239b42b78'],
       ]) }),
+    // Spec 0003 M3: one macOS arm64 archive serves both keys; Metal or CPU is picked by the server's arguments.
+    'darwin-arm64-metal': MACOS_ARCHIVE,
+    'darwin-arm64-cpu': MACOS_ARCHIVE,
   }),
 });
 
@@ -294,7 +345,7 @@ export const SOURCES = Object.freeze({
 // The only two repos a pin may name. A test holds both names as its own constants.
 const SERVER_REPO = 'ggml-org/llama.cpp';
 const MODEL_REPO = 'ggml-org/Clef-Flash-GGUF';
-const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan']);
+const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan', 'darwin-arm64-metal', 'darwin-arm64-cpu']);
 
 const MAX_REDIRECTS = 4;
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -372,6 +423,8 @@ export function pinProblems(server = SERVER, model = MODEL, repos = { server: SE
       }
     }
     if (rows.length && !rows.some(r => r[0] === a.exe)) out.push('exe');
+    // Spec 0003 M3: two keys may name one asset only when their rows are equal field for field.
+    if (keys.some(k => k !== key && server.archives[k].asset === a.asset && JSON.stringify(server.archives[k]) !== JSON.stringify(a))) out.push('asset-shared');
   }
   return [...new Set(out)];
 }
@@ -620,9 +673,27 @@ export function readZip(buf, { maxBytes, want = () => true } = {}) {
 
 const octal = (buf, from, to) => parseInt(buf.toString('latin1', from, to).replace(/\0.*$/, '').trim() || '0', 8);
 
+/** The pax keys the tar reader ignores (spec 0003 M4): none changes an entry's name, link, size or bytes. */
+const PAX_QUIET = /^(?:SCHILY\.xattr\..+|LIBARCHIVE\..+|mtime|atime|ctime)$/;
+
+/** Checks a pax header's records ("<length> <key>=<value>\n", the length counting the whole record); refuses unless every key is a quiet one. */
+function paxQuiet(body) {
+  let at = 0;
+  while (at < body.length) {
+    if (body[at] === 0) break;
+    const sp = body.indexOf(0x20, at);
+    const len = sp > at ? Number(body.toString('latin1', at, sp)) : NaN;
+    if (!/^[1-9]\d*$/.test(body.toString('latin1', at, sp)) || at + len > body.length || body[at + len - 1] !== 0x0a) throw bad('a pax header that does not read');
+    const rec = body.toString('utf8', sp + 1, at + len - 1);
+    const eq = rec.indexOf('=');
+    if (eq < 1 || !PAX_QUIET.test(rec.slice(0, eq))) throw bad('a pax header');
+    at += len;
+  }
+}
+
 /**
  * The entries of a gzipped ustar tar, as { path, kind, data }, and the entry
- * forms it used. A pax header, a GNU long name and any type but a regular file,
+ * forms it used. A pax header with any key but PAX_QUIET's, a GNU long name and any type but a regular file,
  * a folder or a link refuse. Every entry name goes through pathProblem
  * (a leading `./` is dropped first).
  */
@@ -646,7 +717,13 @@ export function readTgz(tgz, { maxBytes, want = () => true } = {}) {
     const size = octal(head, 124, 136);
     const type = String.fromCharCode(head[156] || 48);
     off += 512;
-    if (type === 'x' || type === 'g') throw bad('a pax header');
+    if (type === 'x' || type === 'g') {
+      // Spec 0003 M4: a pax header of either kind holding only xattr, LIBARCHIVE and time keys is read and ignored; any other key refuses.
+      if (off + size > buf.length) throw bad('an entry runs past the end of the file');
+      paxQuiet(buf.subarray(off, off + size));
+      off += Math.ceil(size / 512) * 512;
+      continue;
+    }
     if (type === 'L' || type === 'K') throw bad('a GNU long name');
     if (!['0', '5', '1', '2'].includes(type)) throw bad('an entry that is not a file, a folder or a link');
     const kind = type === '0' ? 'file' : type === '5' ? 'dir' : 'link';
@@ -714,6 +791,8 @@ export function probeVulkan({ platform, exists = existsSync, systemRoot = proces
 
 /** The platform key and why, or null when no archive fits. */
 export function pickPlatform({ platform, arch, vulkan, cpu }) {
+  // Spec 0003 M4: every Apple Silicon Mac has Metal, so no probe decides it.
+  if (platform === 'darwin') return arch === 'arm64' ? { key: `darwin-arm64-${cpu ? 'cpu' : 'metal'}`, backend: cpu ? 'cpu' : 'metal', why: cpu ? 'CPU forced by --cpu' : 'Apple Silicon: Metal' } : null;
   const os = platform === 'win32' ? 'win32' : platform === 'linux' ? 'linux' : null;
   if (!os || arch !== 'x64') return null;
   const useVulkan = vulkan && !cpu;
@@ -724,10 +803,11 @@ export function pickPlatform({ platform, arch, vulkan, cpu }) {
 
 const mb = n => `${(n / 1e6).toFixed(1)} MB`;
 
-/** Whether `child` is `parent` or below it, by the platform's own rules (Windows compares without case). */
-const insideOf = (child, parent, win) => {
+/** Whether `child` is `parent` or below it, by the platform's own rules (Windows compares without case; with `fold`, so does a POSIX path, as macOS's default volume does, spec 0003 M4). */
+const insideOf = (child, parent, win, fold = false) => {
   const P = win ? win32 : posix;
-  const rel = P.relative(P.resolve(parent), P.resolve(child));
+  const f = s => (fold && !win ? s.toLowerCase() : s);
+  const rel = P.relative(f(P.resolve(parent)), f(P.resolve(child)));
   return rel === '' || (!rel.startsWith('..') && !P.isAbsolute(rel));
 };
 
@@ -739,7 +819,7 @@ const realOf = p => realpathSync.native(p);
  * on its nearest existing ancestor, so a refusal leaves nothing behind. A
  * start folder that does not resolve is refused too.
  */
-export function assertOutsideStart(dir, cwd, win = process.platform === 'win32') {
+export function assertOutsideStart(dir, cwd, win = process.platform === 'win32', fold = process.platform === 'darwin') {
   let start;
   try {
     start = realOf(cwd);
@@ -753,7 +833,7 @@ export function assertOutsideStart(dir, cwd, win = process.platform === 'win32')
     ancestor = up;
   }
   const real = join(realOf(ancestor), (win ? win32 : posix).relative(ancestor, resolve(dir)));
-  if (insideOf(real, start, win)) throw new Refused('clef-home', 'the clef folder lies inside the folder the command was started from');
+  if (insideOf(real, start, win, fold)) throw new Refused('clef-home', 'the clef folder lies inside the folder the command was started from');
 }
 
 /**
@@ -829,10 +909,11 @@ function modelPresent(dir, model, setup) {
  */
 export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, model = MODEL }) {
   assertPins(server, model);
-  const pick = pickPlatform({ platform, arch, vulkan: vulkan ?? probeVulkan({ platform, exists }), cpu });
+  if (platform === 'darwin' && arch !== 'arm64') throw new Refused('clef-platform', 'no build for Intel Macs; on Apple Silicon, run setup with an arm64 node, not one under Rosetta');
+  const pick = pickPlatform({ platform, arch, vulkan: platform === 'darwin' ? false : vulkan ?? probeVulkan({ platform, exists }), cpu });
   if (!pick || !server.archives[pick.key]) throw new Refused('clef-platform', `no pinned server build for ${platform} ${arch}`);
   if (platform === 'linux' && !exists('/usr/bin/setpriv')) throw new Refused('clef-setpriv', 'Linux needs /usr/bin/setpriv, which this machine does not have');
-  if (insideOf(execPath, cwd, platform === 'win32')) throw new Refused('clef-node', 'the node that runs setup lies inside the folder the command was started from');
+  if (insideOf(execPath, cwd, platform === 'win32', platform === 'darwin')) throw new Refused('clef-node', 'the node that runs setup lies inside the folder the command was started from');
   const a = server.archives[pick.key];
   const setup = readSetup(dir);
   const haveServer = serverPresent(dir, pick.key, server, setup);
@@ -901,7 +982,7 @@ export function unpackServer({ dir, key, archivePath, platform, server = SERVER 
     written.add(row[0]);
   }
   for (const row of a.files) if (!written.has(row[0])) throw bad('a pinned file is not in the archive');
-  if (platform === 'linux') chmodSync(join(p.runtimePartial, destName(a.exe, a.exe)), 0o755);
+  if (platform === 'linux' || platform === 'darwin') chmodSync(join(p.runtimePartial, destName(a.exe, a.exe)), 0o755);
   const aside = `${p.runtime}.old`;
   rmSync(aside, { recursive: true, force: true });
   if (existsSync(p.runtime)) renameWithRetry(p.runtime, aside);
@@ -1023,12 +1104,14 @@ const MAX_BODY = 256 * 1024;
 const MAX_REPLY = 1 << 20;
 const MAX_QUESTIONS = 64;
 const FORWARD_TIMEOUT_MS = 60_000;
+/** How long the supervisor waits for the keeper's {pid} (spec 0003 M5). */
+const KEEPER_PID_MS = 10_000;
 const LOG_CAP = 1 << 20;
 /** The only names from the caller's environment that reach the supervisor and the server (S7). */
 const ENV_PASS = Object.freeze(['SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LOCALAPPDATA', 'XDG_RUNTIME_DIR']);
 
 /** The files the supervisor keeps in the clef folder. */
-export const runPaths = dir => ({ run: join(dir, 'run.json'), lock: join(dir, 'run.lock'), key: join(dir, 'run.key'), fail: join(dir, 'run.fail'), log: join(dir, 'serve.log') });
+export const runPaths = dir => ({ run: join(dir, 'run.json'), lock: join(dir, 'run.lock'), key: join(dir, 'run.key'), fail: join(dir, 'run.fail'), log: join(dir, 'serve.log'), server: join(dir, 'run.server') });
 
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const unit = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
@@ -1086,6 +1169,8 @@ export function serveEnv(env, platform, runtime) {
   const root = env.SYSTEMROOT ?? env.SystemRoot ?? 'C:\\Windows';
   out.PATH = platform === 'win32' ? `${root}\\System32;${root}` : '/usr/bin:/bin';
   if (platform === 'linux') out.LD_LIBRARY_PATH = runtime;
+  // Spec 0003 M4: TMPDIR names the user's private temp folder on macOS; without it the process falls back to /tmp.
+  if (platform === 'darwin' && env.TMPDIR !== undefined) out.TMPDIR = env.TMPDIR;
   return out;
 }
 
@@ -1097,12 +1182,89 @@ export function supervisorEnv(env, platform, runtime) {
 }
 
 /** The server's argument list: fixed in the tool, no part from a caller. The key is in a file, never on the command line. */
-export function serverArgs({ port, keyFile, modelPath, vulkan }) {
+export function serverArgs({ port, keyFile, modelPath, vulkan, metal, noDevice }) {
   // --cors-origins names an origin no page has, so a web page cannot read even the server's keyless /health.
-  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan ? ['-ngl', '99'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath];
+  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan || metal ? ['-ngl', '99'] : []), ...(noDevice ? ['--device', 'none'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath];
 }
 
 /** The program and arguments that start the server: on Linux through setpriv, so the kernel ends it when the supervisor dies. */
+/**
+ * What ends the server when its supervisor dies (spec 0003 M2, pick 3): a job
+ * object on Windows, setpriv's parent-death signal on Linux, the keeper on
+ * macOS. Linux keeps setpriv here; setup refuses clef-setpriv without it.
+ */
+export function lifetimeLine({ platform }) {
+  return platform === 'win32' ? 'job-object' : platform === 'darwin' ? 'keeper' : 'setpriv';
+}
+
+/** The keeper's one message, as the supervisor builds it: a command, its folder and its environment, each a plain string or list of strings. */
+const launchMessage = m =>
+  isObj(m) && Object.keys(m).sort().join() === 'args,cwd,env,file' && typeof m.file === 'string' && Array.isArray(m.args) && m.args.every(a => typeof a === 'string') && typeof m.cwd === 'string' && isObj(m.env) && Object.values(m.env).every(v => typeof v === 'string');
+
+/**
+ * The keeper (spec 0003 M5): forked by the supervisor with an IPC channel, it
+ * is the server's parent and ends the server when that channel closes. It
+ * reads no environment and works out no folder: it runs only what the
+ * supervisor's one message names.
+ */
+export function keep({ proc = process, spawnFn = spawn, termWaitMs = 5000 } = {}) {
+  if (typeof proc.send !== 'function') throw new Refused('clef-keep', "keep runs only as the supervisor's child, over its channel");
+  let server = null;
+  let got = 0;
+  let ended = false;
+  const signal = sig => {
+    try {
+      server?.kill(sig);
+    } catch {
+      // already gone
+    }
+  };
+  const leave = code => {
+    if (ended) return;
+    ended = true;
+    proc.exit(code);
+  };
+  // The keeper leaves only from the send's callback, so the message is on the channel before it goes.
+  const sendThenLeave = (msg, code) => {
+    try {
+      proc.send(msg, () => leave(code));
+    } catch {
+      leave(code);
+    }
+  };
+  proc.on('disconnect', () => {
+    signal('SIGKILL');
+    leave(0);
+  });
+  const term = () => {
+    if (!server) return leave(0);
+    signal('SIGTERM');
+    setTimeout(() => signal('SIGKILL'), termWaitMs).unref();
+  };
+  proc.on('SIGTERM', term);
+  proc.on('SIGINT', term);
+  proc.on('message', m => {
+    got++;
+    if (got > 1 || !launchMessage(m)) {
+      if (server) signal('SIGKILL');
+      else leave(1);
+      return;
+    }
+    try {
+      server = spawnFn(m.file, m.args, { cwd: m.cwd, env: m.env, stdio: ['ignore', 'inherit', 'inherit'], shell: false, windowsHide: true });
+    } catch {
+      return sendThenLeave({ error: 'spawn' }, 1);
+    }
+    server.on('error', () => {
+      if (!server.pid) sendThenLeave({ error: 'spawn' }, 1);
+    });
+    server.on('exit', () => {
+      if (server.pid) sendThenLeave({ gone: true }, 0);
+    });
+    if (server.pid) proc.send({ pid: server.pid });
+  });
+}
+
 export function launchCommand({ platform, exe, exePrefix = [], args, setpriv = SETPRIV, pdeathsig = true }) {
   if (platform === 'linux' && pdeathsig) return { file: setpriv, args: ['--pdeathsig', 'KILL', '--', exe, ...exePrefix, ...args] };
   return { file: exe, args: [...exePrefix, ...args] };
@@ -1233,6 +1395,105 @@ function releaseLock(dir, pid = process.pid) {
  * not the live supervisor. Called only while holding run.lock. Returns the pids
  * it ended.
  */
+/**
+ * One GET /props to the recorded loopback port (spec 0003 M6): the status code,
+ * 'timeout', 'refused' when nothing listens, or 'error'. The key, when given,
+ * goes only to 127.0.0.1.
+ */
+export function probeProps({ port, key = null, timeoutMs = 5000 }) {
+  return new Promise(resolveP => {
+    let done = false;
+    const end = v => {
+      if (!done) {
+        done = true;
+        resolveP(v);
+      }
+    };
+    const req = httpRequest({ host: '127.0.0.1', port, path: '/props', method: 'GET', headers: { host: `127.0.0.1:${port}`, ...(key ? { authorization: `Bearer ${key}` } : {}) }, agent: false }, res => {
+      res.resume();
+      end(res.statusCode);
+    });
+    req.setTimeout(timeoutMs, () => {
+      end('timeout');
+      req.destroy();
+    });
+    req.on('error', e => end(e.code === 'ECONNREFUSED' ? 'refused' : 'error'));
+    req.end();
+  });
+}
+
+const isServerRecord = r => isObj(r) && typeof r.run === 'string' && Number.isInteger(r.pid) && r.pid >= 2 && Number.isInteger(r.port) && r.port > 0 && r.port < 65536 && typeof r.started === 'string' && Number.isFinite(Date.parse(r.started));
+
+/**
+ * The keeper line's second line (spec 0003 M6): ends a server a run.server
+ * record names only once it refuses no key and a wrong key and takes the run's
+ * key. Returns { result: 'none' | 'ended' | 'dropped' | 'kept', pid }. The
+ * caller holds run.lock and has checked that no live supervisor owns the run.
+ */
+export async function sweepServer({ dir, boundMs, now = Date.now, uptime = osUptime, alive = pidAlive, kill = pid => process.kill(pid, 'SIGKILL'), probe = probeProps, pause = sleep }) {
+  const rp = runPaths(dir);
+  if (!existsSync(rp.server)) return { result: 'none', pid: null };
+  const rec = readJsonFile(rp.server);
+  const drop = () => {
+    rmSync(rp.server, { force: true });
+    rmSync(rp.key, { force: true });
+  };
+  if (!isServerRecord(rec)) {
+    drop();
+    return { result: 'dropped', pid: null };
+  }
+  // Step 1: a record from before this boot, or a dead pid, names nothing to end.
+  if (Date.parse(rec.started) < now() - uptime() * 1000 || !alive(rec.pid)) {
+    drop();
+    return { result: 'dropped', pid: rec.pid };
+  }
+  const key = readFileSyncSafe(rp.key).trim();
+  if (!HEX64.test(key)) {
+    drop();
+    return { result: 'dropped', pid: rec.pid };
+  }
+  const deadline = now() + boundMs;
+  let noConnSince = null;
+  for (;;) {
+    // Step 2: no key, then a fresh wrong one.
+    const a = await probe({ port: rec.port });
+    const b = await probe({ port: rec.port, key: randomBytes(32).toString('hex') });
+    if (a === 401 && b === 401) {
+      // Step 3: only now does the run's key go out.
+      const c = await probe({ port: rec.port, key });
+      if (c === 200) {
+        try {
+          kill(rec.pid);
+        } catch {
+          // gone already
+        }
+        drop();
+        return { result: 'ended', pid: rec.pid };
+      }
+      drop();
+      return { result: 'dropped', pid: rec.pid };
+    }
+    if (a === 503 || b === 503 || a === 'timeout' || b === 'timeout') {
+      // Step 4: it may still be loading.
+      noConnSince = null;
+      if (now() >= deadline) return { result: 'kept', pid: rec.pid };
+      await pause(1000);
+      continue;
+    }
+    if (a === 'refused' || b === 'refused') {
+      // Step 5: the server listens before it loads, so a refusal gets 2 s.
+      noConnSince ??= now();
+      if (now() - noConnSince < 2000) {
+        await pause(200);
+        continue;
+      }
+    }
+    // Step 6: not the run's server.
+    drop();
+    return { result: 'dropped', pid: rec.pid };
+  }
+}
+
 export function sweepOrphans({ dir, procRoot = '/proc', kill = pid => process.kill(pid, 'SIGKILL'), liveSupervisorPid = null }) {
   const ended = [];
   const base = `${posix.resolve(dir.split('\\').join('/'))}/runtime/`;
@@ -1373,9 +1634,10 @@ function freePort() {
  * its own script changes or goes, on a signal, and when the server exits.
  * Resolves { done, stop } once it is serving; `done` resolves with the reason.
  * Test seams are parameters here only: exe and exePrefix (the server program),
- * pdeathsig, the timings, and scriptUrl.
+ * pdeathsig, the timings, scriptUrl, and onKeeperOptions (shown the options
+ * the keeper is forked with).
  */
-export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now }) {
+export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig), onKeeperOptions = () => {} }) {
   const ready = notSetUp(dir, platform, server, model);
   if (!ready.setup) {
     writeFail(dir, 'exit', now);
@@ -1383,8 +1645,10 @@ export async function serve({ dir, platform = process.platform, env = process.en
   }
   const rp = runPaths(dir);
   const p = ready.paths;
-  const scriptPath = fileURLToPath(scriptUrl);
-  const own = fingerprint(scriptPath);
+  const watchedPath = fileURLToPath(scriptUrl);
+  const own = fingerprint(watchedPath);
+  // The keeper is this module's own file, whatever script the supervisor watches (spec 0003: its own script, import.meta.url).
+  const scriptPath = fileURLToPath(import.meta.url);
   const token = randomBytes(32).toString('hex');
   const serverKey = randomBytes(32).toString('hex');
   const runId = randomBytes(16).toString('hex');
@@ -1392,10 +1656,11 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const serverPort = await freePort();
   writeFileSync(rp.key, `${serverKey}\n`, { mode: 0o600 });
   const exePath = exe ?? join(p.runtime, destName(ready.archive.exe, ready.archive.exe));
-  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan' }), pdeathsig });
+  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan', metal: ready.setup.backend === 'metal', noDevice: ready.setup.platform === 'darwin-arm64-cpu' }), pdeathsig });
   let stopping = false;
   let isReady = false;
   let lastForward = now();
+  let inFlight = 0;
   let child;
   let httpServer;
   let resolveDone;
@@ -1404,21 +1669,56 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const done = new Promise(r => (resolveDone = r));
   const timers = [];
   let lines = 0;
+  // Spec 0003 M5: on the keeper line the supervisor's child is the keeper, and the server's pid comes from its first message.
+  const useKeeper = line === 'keeper';
+  let serverPid = null;
+  let gotGone = false;
   const childExited = new Promise(r => {
     try {
-      child = spawn(cmd.file, cmd.args, { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false });
+      const keeperOptions = { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [], windowsHide: true };
+      onKeeperOptions(keeperOptions);
+      child = useKeeper
+        ? fork(scriptPath, ['keep'], keeperOptions)
+        : spawn(cmd.file, cmd.args, { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false });
     } catch {
       child = null;
       r();
       return;
     }
     child.on('error', () => r());
-    child.on('exit', () => r());
+    if (useKeeper) {
+      // Judged once the keeper has exited and its channel has closed, so every message it sent has been read: a keeper that ends without {gone} was killed, and its server lived until then.
+      // Not on 'close': the server holds the keeper's pipes, so they close only when the server goes (spec 0003 M5, as built).
+      let exited = false;
+      let disconnected = false;
+      const judge = () => {
+        if (!exited || !disconnected) return;
+        if (!gotGone && serverPid !== null) {
+          try {
+            kill(serverPid, 'SIGKILL');
+          } catch {
+            // already gone
+          }
+        }
+        r();
+      };
+      child.on('exit', () => {
+        exited = true;
+        disconnected ||= !child.connected;
+        setImmediate(judge);
+      });
+      child.on('disconnect', () => {
+        disconnected = true;
+        setImmediate(judge);
+      });
+    } else child.on('exit', () => r());
     for (const s of [child.stdout, child.stderr]) s.on('data', buf => { for (const b of buf) if (b === 10) lines++; });
   });
   const cleanFiles = () => {
     const cur = readJsonFile(rp.run);
     if (!cur || cur.run === runId) rmSync(rp.run, { force: true });
+    // Spec 0003 M6: this run's server record goes with its key, on the supervisor's own stop.
+    if (readJsonFile(rp.server)?.run === runId) rmSync(rp.server, { force: true });
     // run.key is this run's only when it still holds this run's key; a newer run's is left alone.
     if (readFileSyncSafe(rp.key).trim() === serverKey) rmSync(rp.key, { force: true });
   };
@@ -1440,7 +1740,8 @@ export async function serve({ dir, platform = process.platform, env = process.en
     if (child && child.exitCode === null && child.signalCode === null) {
       child.kill();
       let giveUp;
-      await Promise.race([childExited, new Promise(r => (giveUp = setTimeout(r, 5000)))]);
+      // The keeper waits 5 s for its server, so the supervisor waits 7 s for the keeper.
+      await Promise.race([childExited, new Promise(r => (giveUp = setTimeout(r, useKeeper ? 7000 : 5000)))]);
       clearTimeout(giveUp);
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
     }
@@ -1450,11 +1751,46 @@ export async function serve({ dir, platform = process.platform, env = process.en
     resolveDone(reason);
     return done;
   };
+  if (child && useKeeper) {
+    serverPid = await new Promise(resolveP => {
+      let first = true;
+      const timer = setTimeout(() => resolveP(null), keeperPidMs);
+      child.on('message', m => {
+        if (!first) {
+          if (isObj(m) && Object.keys(m).join() === 'gone' && m.gone === true) gotGone = true;
+          return;
+        }
+        first = false;
+        clearTimeout(timer);
+        const ok = isObj(m) && Object.keys(m).join() === 'pid' && Number.isInteger(m.pid) && m.pid >= 2 && m.pid !== process.pid && m.pid !== child.pid;
+        resolveP(ok ? m.pid : null);
+      });
+      childExited.then(() => {
+        clearTimeout(timer);
+        resolveP(null);
+      });
+      try {
+        child.send({ file: cmd.file, args: cmd.args, cwd: p.runtime, env: serveEnv(env, platform, p.runtime) });
+      } catch {
+        resolveP(null);
+      }
+    });
+    if (serverPid === null) {
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        // already gone
+      }
+      await childExited;
+      child = null;
+    }
+  }
   if (!child) {
     writeFail(dir, 'exit', now);
     cleanFiles();
     throw new Refused('clef-setup', 'the server could not be started');
   }
+  const serverPidOf = () => (useKeeper ? serverPid : child.pid);
   childExited.then(() => {
     if (!stopping) {
       writeFail(dir, 'exit', now);
@@ -1471,7 +1807,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
       setTimeout(() => res.req.destroy(), 2000).unref();
     }
   };
-  const scriptChanged = () => !sameFingerprint(own, fingerprint(scriptPath));
+  const scriptChanged = () => !sameFingerprint(own, fingerprint(watchedPath));
   httpServer = createHttpServer((req, res) => {
     const port = httpServer.address().port;
     if (req.headers.host !== `127.0.0.1:${port}`) return reply(res, 400, 'host', true);
@@ -1479,7 +1815,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
     const auth = req.headers.authorization;
     if (typeof auth !== 'string' || !auth.startsWith('Bearer ') || !tokenEqual(auth.slice(7), token)) return reply(res, 401, 'auth', true);
     if (req.method === 'GET' && req.url === '/health') {
-      const body = JSON.stringify({ run: runId, pid: process.pid, serverPid: child.pid, ready: isReady });
+      const body = JSON.stringify({ run: runId, pid: process.pid, serverPid: serverPidOf(), ready: isReady });
       res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), 'cache-control': 'no-store' });
       return res.end(body);
     }
@@ -1514,9 +1850,17 @@ export async function serve({ dir, platform = process.platform, env = process.en
         return;
       }
       if (!isReady) return reply(res, 503, 'not-ready');
+      // The idle time runs from the last forward's end, and never while one is in flight.
       lastForward = now();
+      inFlight++;
       const t0 = Date.now();
-      const r = await httpJson({ port: serverPort, path: '/v1/systemone', method: 'POST', token: serverKey, body: { state: parsed.state, questions: parsed.questions }, timeoutMs: FORWARD_TIMEOUT_MS });
+      let r;
+      try {
+        r = await httpJson({ port: serverPort, path: '/v1/systemone', method: 'POST', token: serverKey, body: { state: parsed.state, questions: parsed.questions }, timeoutMs: FORWARD_TIMEOUT_MS });
+      } finally {
+        inFlight--;
+        lastForward = now();
+      }
       const answer = r && r.status === 200 ? serverAnswer(parsed.questions, r.json) : null;
       logLine(dir, `forward ${answer ? 'answer' : 'no-answer'} ms ${Date.now() - t0}`);
       if (!answer) return reply(res, 502, 'no-answer');
@@ -1531,8 +1875,10 @@ export async function serve({ dir, platform = process.platform, env = process.en
       httpServer.once('error', reject);
       httpServer.listen(0, '127.0.0.1', resolveP);
     });
+    // Inside the try: a failure here ends the keeper and the server, as one after rp.run does.
+    if (useKeeper) writeFileSync(rp.server, `${JSON.stringify({ run: runId, pid: serverPid, port: serverPort, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
     const port = httpServer.address().port;
-    writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: child.pid, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
+    writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: serverPidOf(), started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
   } catch (e) {
     // The server is already running: end it before the failure goes up, or nothing would.
     writeFail(dir, 'exit', now);
@@ -1547,6 +1893,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
     const r = await httpJson({ port: serverPort, path: '/health', token: serverKey, timeoutMs: 1000 });
     if (r && r.status === 200 && !isReady) {
       isReady = true;
+      lastForward = now();
       logLine(dir, `server ready ms ${now() - startedAt}`);
     } else if (!isReady && now() - startedAt > startTimeoutMs && !stopping) {
       writeFail(dir, 'timeout', now);
@@ -1555,7 +1902,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
   }, pollMs));
   timers.push(setInterval(() => {
     if (stopping) return;
-    if (now() - lastForward > idleMs) stop('idle');
+    if (isReady && inFlight === 0 && now() - lastForward > idleMs) stop('idle');
     else if (scriptChanged()) stop('changed');
   }, checkMs));
   onSignal = () => stop('signal');
@@ -1572,7 +1919,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
     process.once('SIGINT', onSignal);
     process.once('exit', onExit);
   }
-  return { done, stop };
+  return { done, stop, keeperPid: useKeeper ? child.pid : null };
 }
 
 /** The ready check for `ensure`: the state a live supervisor is in, with its URL. */
@@ -1585,7 +1932,7 @@ function stateOf(live) {
  * prints a token: the caller reads the token from run.json. States: ready,
  * starting, not-set-up (exit 3), failed (exit 4).
  */
-export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill, liveCheck = liveSupervisor }) {
+export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill, liveCheck = liveSupervisor, line = lifetimeLine({ platform }), sweep = sweepServer }) {
   const rp = runPaths(dir);
   const secs = Math.min(60, Math.max(0, Number.isFinite(wait) ? wait : 0));
   const deadline = Date.now() + secs * 1000;
@@ -1620,6 +1967,11 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
   rmSync(rp.run, { force: true });
   try {
     if (platform === 'linux') sweepOrphans({ dir, procRoot, kill });
+    // Spec 0003 M6: a server still loading under an old record is left to load; nothing new is spawned beside it.
+    if (line === 'keeper' && (await sweep({ dir, boundMs: secs * 1000 })).result === 'kept') {
+      releaseLock(dir);
+      return { out: { state: 'starting' }, code: 0 };
+    }
     const cmd = supervisorCommand ? supervisorCommand() : { file: execPath, args: [scriptPath, 'serve'] };
     const child = spawn(cmd.file, cmd.args, { cwd: setup.paths.runtime, env: supervisorEnv(env, platform, setup.paths.runtime), detached: true, stdio: 'ignore', windowsHide: true, shell: false });
     child.on('error', () => {});
@@ -1640,7 +1992,7 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
  * clears run.json, run.key and run.fail. With none live it ends nothing.
  * Returns { lines, code }.
  */
-export async function stopRun({ dir, platform = process.platform, procRoot, kill, waitMs = 10_000 }) {
+export async function stopRun({ dir, platform = process.platform, procRoot, kill, waitMs = 10_000, line = lifetimeLine({ platform }), orphanWaitMs = 60_000, sweep = sweepServer }) {
   const rp = runPaths(dir);
   const live = await liveSupervisor(dir);
   const locked = takeLock(dir);
@@ -1655,11 +2007,16 @@ export async function stopRun({ dir, platform = process.platform, procRoot, kill
       while (pidAlive(live.run.pid) && Date.now() < until) await sleep(50);
     }
     if (locked && platform === 'linux') sweepOrphans({ dir, procRoot, kill, liveSupervisorPid: null });
+    if (locked && line === 'keeper') {
+      const r = await sweep({ dir, boundMs: orphanWaitMs });
+      if (r.result === 'kept') return { lines: [`orphan still loading (pid ${r.pid}); run stop again`], code: 1 };
+    }
   } finally {
     if (locked) releaseLock(dir);
   }
   rmSync(rp.run, { force: true });
-  rmSync(rp.key, { force: true });
+  // Spec 0003 M6: on the keeper line the key goes only when this stop held the lock, so a record kept by another holder keeps its key.
+  if (line !== 'keeper' || locked) rmSync(rp.key, { force: true });
   rmSync(rp.fail, { force: true });
   return { lines: [live ? 'stopped' : 'none running'], code: 0 };
 }
@@ -1672,6 +2029,9 @@ export async function statusRun({ dir, platform = process.platform, server = SER
   else lines.push(`platform: ${quote(setup.platform)}`, `tag: ${quote(setup.tag)}`, `backend: ${quote(setup.backend)}`, `model: ${quote(String(setup.model).slice(0, 8))}`);
   const live = await liveSupervisor(dir);
   lines.push(`run: ${live ? (live.health.ready ? 'ready' : 'starting') : 'stopped'}`);
+  // Spec 0003 M6: a server record no live supervisor owns names an orphan.
+  const orphan = live ? null : readJsonFile(runPaths(dir).server);
+  if (isServerRecord(orphan)) lines.push(`orphan: pid ${orphan.pid}`);
   const f = readJsonFile(runPaths(dir).fail);
   lines.push(`last failure: ${f && ['exit', 'timeout'].includes(f.reason) ? f.reason : 'none'}`);
   return { lines, code: 0 };
@@ -1705,10 +2065,11 @@ function folderBytes(path) {
  * `clef remove` (S7): prints the clef folder and its size. With `yes` it stops a
  * live supervisor, then deletes the clef folder, following no link out of it.
  */
-export async function removeRun({ dir, yes = false, platform = process.platform, procRoot, kill }) {
+export async function removeRun({ dir, yes = false, platform = process.platform, procRoot, kill, line = lifetimeLine({ platform }), orphanWaitMs, sweep }) {
   const lines = [`clef folder: ${quote(dir)}`, `size: ${mb(folderBytes(dir))}`];
   if (!yes) return { lines: [...lines, 'run again with --yes to delete it'], code: 0 };
-  await stopRun({ dir, platform, procRoot, kill });
+  const stopped = await stopRun({ dir, platform, procRoot, kill, line, ...(orphanWaitMs === undefined ? {} : { orphanWaitMs }), ...(sweep ? { sweep } : {}) });
+  if (stopped.code !== 0) return { lines: [...lines, ...stopped.lines], code: stopped.code };
   // A server that has just been ended can hold its folder for a moment on Windows.
   rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   lines.push('removed');
@@ -1722,13 +2083,23 @@ const quote = s => JSON.stringify(String(s)).slice(1, -1);
 const MODES = Object.freeze({ setup: ['--cpu', '--yes'], verify: [], ensure: [], serve: [], stop: [], status: [], remove: ['--yes'] });
 
 /** Runs one mode. `io` is { out(line), }; returns the exit code. */
-export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome(), serveOptions = {} } = {}) {
+export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome(), serveOptions = {}, real = realOf, sweep = sweepServer, orphanWaitMs = 60_000 } = {}) {
   const refuse = (word, why) => {
     out(`REFUSED ${word}: ${why}`);
     out(`RESULT: refused ${word}`);
     return 2;
   };
   const [mode, ...rest] = argv;
+  // Spec 0003 M5: the keeper is dispatched before any folder work, and reads nothing from the environment.
+  if (mode === 'keep' && rest.length === 0) {
+    try {
+      keep();
+      return 0;
+    } catch (e) {
+      if (e instanceof Refused) return refuse(e.code, e.message);
+      throw e;
+    }
+  }
   const known = Object.hasOwn(MODES, mode) ? MODES[mode] : null;
   if (!known) return refuse('usage', 'the modes are setup, verify, ensure, stop, status and remove');
   let wait = 0;
@@ -1756,7 +2127,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
     // `ensure` starts the supervisor from runtime/<tag>/ of the clef folder it checked, and passes it CLAUDE_CONFIG_DIR. `serve` works the folder out as every mode does and runs only from that one's runtime/<tag>/: a folder of the right shape that is not the account's is refused.
     let same = false;
     try {
-      const norm = p => (platform === 'win32' ? realOf(p).toLowerCase() : realOf(p));
+      const norm = p => (platform === 'win32' || platform === 'darwin' ? real(p).toLowerCase() : real(p));
       same = norm(join(dir, 'runtime', SERVER.tag)) === norm(cwd);
     } catch {
       same = false;
@@ -1813,6 +2184,12 @@ export async function main(argv, { env = process.env, platform = process.platfor
     const locked = yes ? takeLock(dir) : true;
     if (!locked) return refuse('clef-running', 'a supervisor is starting; run `clef stop` first');
     try {
+      // Spec 0003 M6 step 7: a server still loading under an old record keeps setup off its files. The plan only reads the record; --yes sweeps it.
+      if (lifetimeLine({ platform }) === 'keeper') {
+        const rec = readJsonFile(runPaths(dir).server);
+        const kept = yes ? (await sweep({ dir, boundMs: orphanWaitMs })).result === 'kept' : isServerRecord(rec) && pidAlive(rec.pid);
+        if (kept) return refuse('clef-orphan', 'a server from an earlier run is still loading; run `clef stop` again once it is ready');
+      }
       if (yes && platform === 'linux') sweepOrphans({ dir });
       const r = await runSetup({ dir, yes, cpu: flags.has('--cpu'), platform, arch, execPath, cwd, transport, exists, free });
       for (const l of r.lines) out(l);
@@ -1827,6 +2204,19 @@ export async function main(argv, { env = process.env, platform = process.platfor
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+
+/** True when this file is the script node was started with, compared by real path (macOS reaches /var through /private/var). */
+const startedAsScript = () => {
+  try {
+    const self = fileURLToPath(import.meta.url);
+    if (!process.argv[1]) return false;
+    if (resolve(process.argv[1]) === self) return true;
+    // Only a script of this file's name is looked up on disk, so an importer touches no file.
+    return basename(process.argv[1]) === basename(self) && realpathSync(process.argv[1]) === realpathSync(self);
+  } catch {
+    return false;
+  }
+};
+if (startedAsScript()) {
   process.exitCode = await main(process.argv.slice(2));
 }

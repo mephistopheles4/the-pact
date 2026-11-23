@@ -47,9 +47,14 @@ const FULL = 'env -u NODE_OPTIONS node gate/tests/run.mjs full';
 const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"';
 const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\n${DRY_RUN}\n`;
 // The Windows step also plants a real Claude folder with a plain subfolder in the runner's home, as the Linux container's image does, so the installer's real-folder guards run (q11).
+const REAL_DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`;
+// Spec 0003 M7: the macOS job also runs the pinned server once (--device none --version) through .github/scripts/clef-smoke.mjs, so a Mac run shows the real server starting.
+const SMOKE = 'env -u NODE_OPTIONS node .github/scripts/clef-smoke.mjs';
 const GATE_JOBS = [
-  ['gate', 'ubuntu-24.04', FULL, DRY_STEP],
-  ['gate-windows', 'windows-2025', `${FULL} --skips gate/tests/windows-skips.txt`, `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`],
+  ['gate', 'ubuntu-24.04', FULL, DRY_STEP, false],
+  // Spec 0003 M7 (amended): the macOS arm64 job plants the real Claude folder as Windows does, a tightening of the dry run, with its skips checked against its own committed list.
+  ['gate-macos', 'macos-15', `${FULL} --skips gate/tests/macos-skips.txt`, REAL_DRY_STEP, true],
+  ['gate-windows', 'windows-2025', `${FULL} --skips gate/tests/windows-skips.txt`, REAL_DRY_STEP, false],
 ];
 // Pull requests share a group per ref, so a newer push cancels the older run; each push to main has a group of its own commit.
 const CANCELS = 'does not hold the concurrency group that cancels an older run only on a pull request';
@@ -79,8 +84,8 @@ function lockdownProblems(src) {
   if (!same(w.on, { pull_request: null, push: { branches: ['main'] } })) out.push('does not run on every pull request and every push to main');
   if (!same(w.concurrency, CONCURRENCY)) out.push(CANCELS);
   const jobs = isMap(w.jobs) ? w.jobs : {};
-  if (!same(Object.keys(jobs).sort(), GATE_JOBS.map(([id]) => id).sort())) out.push('holds other jobs than gate and gate-windows');
-  for (const [id, runner, fullLine, dryStep] of GATE_JOBS) {
+  if (!same(Object.keys(jobs).sort(), GATE_JOBS.map(([id]) => id).sort())) out.push('holds other jobs than gate, gate-macos and gate-windows');
+  for (const [id, runner, fullLine, dryStep, smoke] of GATE_JOBS) {
     if (!isMap(jobs[id])) continue;
     const job = jobs[id];
     const win = id === 'gate-windows';
@@ -88,9 +93,9 @@ function lockdownProblems(src) {
     // The check's name is what the ruleset requires.
     if (job.name !== id) out.push(`${id}'s check is not named ${id}`);
     const raw = Array.isArray(job.steps) ? job.steps : [];
-    if (raw.length !== 4) out.push(`${id} holds other steps than checkout, setup-node, the dry run and the full tier`);
+    if (raw.length !== (smoke ? 5 : 4)) out.push(`${id} holds other steps than checkout, setup-node, the dry run, the full tier${smoke ? ' and the server smoke run' : ''}`);
     const runKeys = ['name', 'run', ...(win ? ['shell'] : [])];
-    [['uses', 'with'], ['uses', 'with'], runKeys, runKeys].forEach((keys, i) => extras(`${id}'s step ${i + 1}`, raw[i], keys));
+    [['uses', 'with'], ['uses', 'with'], runKeys, runKeys, ...(smoke ? [runKeys] : [])].forEach((keys, i) => extras(`${id}'s step ${i + 1}`, raw[i], keys));
     extras(`${id}'s step 1's with`, raw[0]?.with, ['persist-credentials']);
     extras(`${id}'s step 2's with`, raw[1]?.with, ['node-version']);
     if (isMap(raw[2]) && raw[2].run !== dryStep) out.push(`${id}'s dry-run step runs other lines than the dry run`);
@@ -105,14 +110,17 @@ function lockdownProblems(src) {
     const full = steps.filter(s => s.run === fullLine);
     if (!dryRun.length) out.push(`${id} does not run the install dry run`);
     if (!full.length) out.push(`${id} does not run the full tier`);
+    if (smoke && !(isMap(raw[4]) && raw[4].run === SMOKE)) out.push(`${id} does not run the pinned server smoke step`);
     // Git Bash runs the env -u lines above unchanged; pwsh, the runner's default, would not.
     if (win && [...dryRun, ...full].some(s => s.shell !== 'bash')) out.push(`${id} does not run its steps in bash`);
   }
   // F4: the Windows job uses the very commits of checkout and setup-node that gate uses.
   const pinned = id => (Array.isArray(jobs[id]?.steps) ? jobs[id].steps : []).map(s => (isMap(s) ? s.uses : undefined));
-  [0, 1].forEach(i => {
-    if (pinned('gate-windows')[i] !== pinned('gate')[i]) out.push(`gate-windows's step ${i + 1} is not pinned to gate's commit`);
-  });
+  for (const id of ['gate-macos', 'gate-windows']) {
+    [0, 1].forEach(i => {
+      if (pinned(id)[i] !== pinned('gate')[i]) out.push(`${id}'s step ${i + 1} is not pinned to gate's commit`);
+    });
+  }
   return out;
 }
 
@@ -395,6 +403,9 @@ const realFolder = (names = readdirSync(WORKFLOWS), read = n => readFileSync(joi
 // A plant in the Windows job only: the job is the file's last, so its text runs from its key to the end.
 const WINDOWS_JOB = '\n  gate-windows:\n';
 const inWindows = plant => s => s.slice(0, s.indexOf(WINDOWS_JOB)) + plant(s.slice(s.indexOf(WINDOWS_JOB)));
+// A plant in the macOS job only: it sits between gate and gate-windows.
+const MACOS_JOB = '\n  gate-macos:\n';
+const inMacos = plant => s => s.slice(0, s.indexOf(MACOS_JOB)) + plant(s.slice(s.indexOf(MACOS_JOB), s.indexOf(WINDOWS_JOB))) + s.slice(s.indexOf(WINDOWS_JOB));
 
 test('the gate workflow keeps its lockdown', () => {
   assert.deepEqual(lockdownProblems(readFileSync(WORKFLOW, 'utf8')), []);
@@ -432,8 +443,33 @@ for (const [label, plant, says] of [
   ['carries on after the gate job fails', s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    continue-on-error: true\n'), 'lets the gate carry on after an error'],
   ['drops the push trigger', s => s.replace('  push:\n    branches: [main]\n', ''), 'does not run on every pull request and every push to main'],
   // #351 C2 (#348 S4.2): the two jobs, each read on its own.
-  ['adds a third job', s => `${s}  extra:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 5\n    steps:\n      - run: echo ok\n`, 'holds other jobs than gate and gate-windows'],
-  ['drops the Windows job', s => s.slice(0, s.indexOf(WINDOWS_JOB) + 1), 'holds other jobs than gate and gate-windows'],
+  ['adds a third job', s => `${s}  extra:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 5\n    steps:\n      - run: echo ok\n`, 'holds other jobs than gate, gate-macos and gate-windows'],
+  // Spec 0003 M7: a twin of each gate-windows case that applies to the macOS job.
+  ['drops the macOS job', s => s.slice(0, s.indexOf(MACOS_JOB) + 1) + s.slice(s.indexOf(WINDOWS_JOB) + 1), 'holds other jobs than gate, gate-macos and gate-windows'],
+  ['runs gate-macos on macos-latest', inMacos(s => s.replace('runs-on: macos-15', 'runs-on: macos-latest')), 'gate-macos does not run on macos-15'],
+  ['runs gate-macos on a self-hosted runner', inMacos(s => s.replace('runs-on: macos-15', 'runs-on: self-hosted')), 'gate-macos does not run on macos-15'],
+  ['drops the macOS time limit', inMacos(s => s.replace('    timeout-minutes: 45\n', '')), 'gate-macos has no time limit'],
+  ['runs the fast tier on macOS', inMacos(s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs fast')), 'gate-macos does not run the full tier'],
+  ['drops the skip list on macOS', inMacos(s => s.replace(' --skips gate/tests/macos-skips.txt', '')), 'gate-macos does not run the full tier'],
+  ['points macOS at the Windows skip list', inMacos(s => s.replace('gate/tests/macos-skips.txt', 'gate/tests/windows-skips.txt')), 'gate-macos does not run the full tier'],
+  ['drops the macOS dry run', inMacos(s => s.replace(/ {10}env -u NODE_OPTIONS node gate\/install\.mjs.*\n/, '')), 'gate-macos does not run the install dry run'],
+  ['runs a line before the macOS dry run', inMacos(s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home"\n')), "gate-macos's dry-run step runs other lines than the dry run"],
+  ['drops the real Claude folder on macOS', inMacos(s => s.replace('          mkdir -p "$HOME/.claude/agents"\n', '')), "gate-macos's dry-run step runs other lines than the dry run"],
+  ['keeps the token in the macOS checkout', inMacos(s => s.replace('persist-credentials: false', 'persist-credentials: true')), 'leaves the token in the checkout'],
+  ['runs an old Node on macOS', inMacos(s => s.replace("node-version: '24'", "node-version: '20'")), 'gate-macos runs another Node than the floor'],
+  ['pins the macOS checkout apart from gate', inMacos(s => s.replace(/actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${'3'.repeat(40)}`)), "gate-macos's step 1 is not pinned to gate's commit"],
+  ['pins the macOS setup-node apart from gate', inMacos(s => s.replace(/actions\/setup-node@[0-9a-f]{40}/, `actions/setup-node@${'3'.repeat(40)}`)), "gate-macos's step 2 is not pinned to gate's commit"],
+  ['renames the macOS check', inMacos(s => s.replace('    name: gate-macos\n', '    name: macos\n')), "gate-macos's check is not named gate-macos"],
+  ['skips the macOS job on a condition', inMacos(s => s.replace('    timeout-minutes: 45\n', '    timeout-minutes: 45\n    if: false\n')), 'lets the gate job or a step be skipped'],
+  ['carries on after the macOS job fails', inMacos(s => s.replace('    timeout-minutes: 45\n', '    timeout-minutes: 45\n    continue-on-error: true\n')), 'lets the gate carry on after an error'],
+  ['sets a shell on a macOS step', inMacos(s => s.replace('      - name: Gate suite, full tier\n        run:', '      - name: Gate suite, full tier\n        shell: sh\n        run:')), extraKey("gate-macos's step 4", 'shell')],
+  // Spec 0003 M7: the macOS job runs the pinned server once; the smoke step is required, held to its one line, and held to the macOS job alone.
+  ['drops the macOS smoke step', inMacos(s => s.replace(/ {6}- name: Pinned macOS server smoke run\n {8}run: .*(?:\n|$)/, '')), 'gate-macos holds other steps than checkout, setup-node, the dry run, the full tier and the server smoke run'],
+  ['runs another line in the macOS smoke step', inMacos(s => s.replace('node .github/scripts/clef-smoke.mjs', 'node .github/scripts/clef-smoke.mjs || true')), 'gate-macos does not run the pinned server smoke step'],
+  ['sets a shell on the macOS smoke step', inMacos(s => s.replace('      - name: Pinned macOS server smoke run\n        run:', '      - name: Pinned macOS server smoke run\n        shell: sh\n        run:')), extraKey("gate-macos's step 5", 'shell')],
+  ['adds the smoke step to gate', s => s.replace('      - name: Gate suite, full tier\n        run: env -u NODE_OPTIONS node gate/tests/run.mjs full\n', '      - name: Gate suite, full tier\n        run: env -u NODE_OPTIONS node gate/tests/run.mjs full\n      - name: Pinned macOS server smoke run\n        run: env -u NODE_OPTIONS node .github/scripts/clef-smoke.mjs\n'), 'gate holds other steps than checkout, setup-node, the dry run, the full tier'],
+  ['runs gate-macos on a matrix', inMacos(s => s.replace('    runs-on: macos-15\n', '    strategy:\n      matrix:\n        os: [macos-15]\n    runs-on: macos-15\n')), 'gate-macos runs on a matrix'],
+  ['drops the Windows job', s => s.slice(0, s.indexOf(WINDOWS_JOB) + 1), 'holds other jobs than gate, gate-macos and gate-windows'],
   ['moves gate to another runner', s => s.replace('runs-on: ubuntu-24.04', 'runs-on: ubuntu-latest'), 'gate does not run on ubuntu-24.04'],
   ['runs gate-windows on windows-latest', inWindows(s => s.replace('runs-on: windows-2025', 'runs-on: windows-latest')), 'gate-windows does not run on windows-2025'],
   ['drops the Windows time limit', inWindows(s => s.replace('    timeout-minutes: 45\n', '')), 'gate-windows has no time limit'],
@@ -483,6 +519,13 @@ for (const [label, other, says] of [
   // #351 C2 (#348 S4.2): gate-windows is the second required check's name.
   ['defines a job named gate-windows', OTHER.replace('  lint:', '  gate-windows:'), 'other.yml defines a job or check named gate-windows'],
   ['names a job gate-windows', OTHER.replace('    runs-on:', '    name: gate-windows\n    runs-on:'), 'other.yml defines a job or check named gate-windows'],
+  // Spec 0003 M7: gate-macos is the third required check's name.
+  ['defines a job named gate-macos', OTHER.replace('  lint:', '  gate-macos:'), 'other.yml defines a job or check named gate-macos'],
+  ['names a job gate-macos', OTHER.replace('    runs-on:', '    name: gate-macos\n    runs-on:'), 'other.yml defines a job or check named gate-macos'],
+  ['names a job gate-macos before a comment', OTHER.replace('    runs-on:', '    name: gate-macos # look-alike\n    runs-on:'), 'other.yml defines a job or check named gate-macos'],
+  ['defines a quoted job id gate-macos', OTHER.replace('  lint:', "  'gate-macos':"), 'other.yml defines a job or check named gate-macos'],
+  ['defines a job id GATE-MACOS', OTHER.replace('  lint:', '  GATE-MACOS:'), 'other.yml defines a job or check named gate-macos'],
+  ['names a job gate-macos in a stripped literal block', OTHER.replace('    runs-on:', '    name: |-\n      gate-macos\n    runs-on:'), 'other.yml defines a job or check named gate-macos'],
   // #351, the first read's F4 (q3): a trailing comment or a quoted key doesn't hide the name.
   ['names a job gate-windows before a comment', OTHER.replace('    runs-on:', '    name: gate-windows # look-alike\n    runs-on:'), 'other.yml defines a job or check named gate-windows'],
   ['defines a quoted job id gate-windows', OTHER.replace('  lint:', "  'gate-windows':"), 'other.yml defines a job or check named gate-windows'],

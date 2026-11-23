@@ -30,13 +30,14 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   adds what your change can reach (`--base <ref>`, `--list`).
 - **Local runs go through athanor** (`athanor run`, `athanor run fast`); run on
   the host only when athanor can't, with the fallback reason its hook asks for.
-- **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
+- **The full suite runs** at Test, by CI's three jobs on the reviewed head; and
   locally after a rebase or merge that brought in other work, and after a
-  final change set (through athanor). An install relies on CI's two jobs
+  final change set (through athanor). An install relies on CI's three jobs
   passing on the commit it installs.
-- **Test evidence is CI's two jobs,** `gate` and `gate-windows`, passing on
-  the reviewed head, so push the branch and open a draft PR before Test. The
-  Test record cites both run links and each run's commit, which is the head.
+- **Test evidence is CI's three jobs,** `gate`, `gate-macos` and
+  `gate-windows`, passing on the reviewed head, so push the branch and open a
+  draft PR before Test. The
+  Test record cites each run link and each run's commit, which is the head.
   A `changed` run is never Test evidence.
 - Read a change under Read closely before pushing.
 - **A run passes only** when it exits 0 and its last line is the runner's

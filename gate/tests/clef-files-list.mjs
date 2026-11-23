@@ -12,11 +12,12 @@
 // The scratch folder must not lie inside this repo. Nothing from the archives
 // is run. This is the only real download before T4. Importing this file does
 // nothing: it runs only as the entry script.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SERVER, archiveUrl, fetchFile, makeTransport, readArchive } from '../../claude/tools/clef.mjs';
+import { machoFlags } from './clef-macho.mjs';
 
 const REPO = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
@@ -57,9 +58,19 @@ async function run(argv) {
     console.log(`kept: ${wanted.length} file(s), ${wanted.reduce((s, e) => s + e.data.length, 0)} bytes`);
     // A soname the build holds as a link (libllama.so.0 -> libllama.so.0.9.0) is kept as a copy of its target's bytes: a row's fourth item.
     const copyOf = new Map();
-    for (const l of entries.filter(e => e.kind === 'link' && inDir(e) && /\.so\.\d+$/.test(e.path) && e.target && !e.target.includes('/'))) copyOf.set(`${dir}${l.target}`, l.path.slice(dir.length));
+    for (const l of entries.filter(e => e.kind === 'link' && inDir(e) && /\.so\.\d+$|\.\d+\.dylib$/.test(e.path) && e.target && !e.target.includes('/'))) copyOf.set(`${dir}${l.target}`, l.path.slice(dir.length));
     const rows = wanted.sort((x, y) => (x.path < y.path ? -1 : 1)).map(e => [e.path, e.data.length, createHash('sha256').update(e.data).digest('hex'), ...(copyOf.has(e.path) ? [copyOf.get(e.path)] : [])]);
     console.log(`copies kept under a soname: ${[...copyOf.values()].join(' ') || 'none'}`);
+    if (a.kind === 'tgz' && key.startsWith('darwin-')) {
+      // Spec 0003 M4: the load commands of each kept Mach-O file, and the flags; a flag is a stop-and-ask.
+      for (const l of entries.filter(e => e.kind === 'link')) console.log(`link: ${l.path} -> ${l.target}`);
+      const base = p => p.slice(dir.length);
+      const named = new Map(wanted.filter(inDir).map(e => [base(e.path), e.data]));
+      for (const [k, c] of copyOf) named.set(c, named.get(base(k)));
+      const { flags, read } = machoFlags(named);
+      for (const [n, m] of read) console.log(`macho: ${n} id=${m.id ?? '-'} minos=${m.minos ?? '-'} rpaths=${m.rpaths.join(',') || '-'} loads=${m.loads.map(l => l.name).join(' ') || '-'}`);
+      console.log(flags.length ? flags.map(f => `FLAG: ${f}`).join('\n') : 'flags: none');
+    }
     console.log(`exe: '${exe.path}',`);
     console.log('files: Object.freeze([');
     for (const r of rows) console.log(`  ${JSON.stringify(r).replaceAll('"', "'").replaceAll(',', ', ')},`);
@@ -70,4 +81,17 @@ async function run(argv) {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = await run(process.argv.slice(2));
+
+/** True when this file is the script node was started with, compared by real path (macOS reaches /var through /private/var). */
+const startedAsScript = () => {
+  try {
+    const self = fileURLToPath(import.meta.url);
+    if (!process.argv[1]) return false;
+    if (resolve(process.argv[1]) === self) return true;
+    // Only a script of this file's name is looked up on disk, so an importer touches no file.
+    return basename(process.argv[1]) === basename(self) && realpathSync(process.argv[1]) === realpathSync(self);
+  } catch {
+    return false;
+  }
+};
+if (startedAsScript()) process.exitCode = await run(process.argv.slice(2));
