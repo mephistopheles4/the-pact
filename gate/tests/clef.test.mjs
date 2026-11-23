@@ -519,7 +519,10 @@ test('the probe picks Vulkan on the loader file and CPU without it, runs nothing
   const probe = SOURCE_TEXT.slice(SOURCE_TEXT.indexOf('export function probeVulkan'), SOURCE_TEXT.indexOf('export function pickPlatform'));
   assert.ok(probe.length > 100);
   assert.doesNotMatch(probe, /spawn|exec|child_process/, 'the probe starts nothing');
-  assert.doesNotMatch(SOURCE_TEXT, /execFile|execSync|spawnSync|\bfork\(|shell: true/, 'no shell and no helper program');
+  // Spec 0003 M5: the one fork is the supervisor starting its keeper from this same file.
+  assert.equal(SOURCE_TEXT.split(/\bfork\(/).length - 1, 1, 'one fork');
+  assert.match(SOURCE_TEXT, /\bfork\(scriptPath, \['keep'\],/);
+  assert.doesNotMatch(SOURCE_TEXT, /execFile|execSync|spawnSync|shell: true/, 'no shell and no helper program');
   assert.equal(SOURCE_TEXT.split('spawn(').length - 1, 2, 'the supervisor and the server are the only programs started');
 });
 
@@ -746,7 +749,7 @@ test('claudeHome: CLAUDE_CONFIG_DIR is used as an absolute path, a relative one 
     const start = join(root, 'repo');
     mkdirSync(start);
     const cased = join(root, 'REPO', 'pact-clef');
-    assert.throws(() => clef.assertOutsideStart(cased, start, false, true), refusedHome);
+    assert.throws(() => clef.assertOutsideStart(cased, start, process.platform === 'win32', true), refusedHome);
     if (process.platform === 'linux') assert.doesNotThrow(() => clef.assertOutsideStart(cased, start, false, false), 'without folding, another case is another folder');
   });
   test('assertOutsideStart: a starting folder that does not resolve is clef-home, not a skip', t => {

@@ -35,7 +35,7 @@
 // folder, only as an absolute path, and never one inside the starting folder
 // (claudeHome, assertRealFolders).
 
-import { spawn } from 'node:child_process';
+import { fork, spawn } from 'node:child_process';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, rmdirSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
 import { createServer as createHttpServer, request as httpRequest } from 'node:http';
@@ -1104,6 +1104,8 @@ const MAX_BODY = 256 * 1024;
 const MAX_REPLY = 1 << 20;
 const MAX_QUESTIONS = 64;
 const FORWARD_TIMEOUT_MS = 60_000;
+/** How long the supervisor waits for the keeper's {pid} (spec 0003 M5). */
+const KEEPER_PID_MS = 10_000;
 const LOG_CAP = 1 << 20;
 /** The only names from the caller's environment that reach the supervisor and the server (S7). */
 const ENV_PASS = Object.freeze(['SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LOCALAPPDATA', 'XDG_RUNTIME_DIR']);
@@ -1186,6 +1188,83 @@ export function serverArgs({ port, keyFile, modelPath, vulkan, metal, noDevice }
 }
 
 /** The program and arguments that start the server: on Linux through setpriv, so the kernel ends it when the supervisor dies. */
+/**
+ * What ends the server when its supervisor dies (spec 0003 M2, pick 3): a job
+ * object on Windows, setpriv's parent-death signal on Linux, the keeper on
+ * macOS. Linux keeps setpriv here; setup refuses clef-setpriv without it.
+ */
+export function lifetimeLine({ platform }) {
+  return platform === 'win32' ? 'job-object' : platform === 'darwin' ? 'keeper' : 'setpriv';
+}
+
+/** The keeper's one message, as the supervisor builds it: a command, its folder and its environment, each a plain string or list of strings. */
+const launchMessage = m =>
+  isObj(m) && Object.keys(m).sort().join() === 'args,cwd,env,file' && typeof m.file === 'string' && Array.isArray(m.args) && m.args.every(a => typeof a === 'string') && typeof m.cwd === 'string' && isObj(m.env) && Object.values(m.env).every(v => typeof v === 'string');
+
+/**
+ * The keeper (spec 0003 M5): forked by the supervisor with an IPC channel, it
+ * is the server's parent and ends the server when that channel closes. It
+ * reads no environment and works out no folder: it runs only what the
+ * supervisor's one message names.
+ */
+export function keep({ proc = process, spawnFn = spawn, termWaitMs = 5000 } = {}) {
+  if (typeof proc.send !== 'function') throw new Refused('clef-keep', "keep runs only as the supervisor's child, over its channel");
+  let server = null;
+  let got = 0;
+  let ended = false;
+  const signal = sig => {
+    try {
+      server?.kill(sig);
+    } catch {
+      // already gone
+    }
+  };
+  const leave = code => {
+    if (ended) return;
+    ended = true;
+    proc.exit(code);
+  };
+  // The keeper leaves only from the send's callback, so the message is on the channel before it goes.
+  const sendThenLeave = (msg, code) => {
+    try {
+      proc.send(msg, () => leave(code));
+    } catch {
+      leave(code);
+    }
+  };
+  proc.on('disconnect', () => {
+    signal('SIGKILL');
+    leave(0);
+  });
+  const term = () => {
+    if (!server) return leave(0);
+    signal('SIGTERM');
+    setTimeout(() => signal('SIGKILL'), termWaitMs).unref();
+  };
+  proc.on('SIGTERM', term);
+  proc.on('SIGINT', term);
+  proc.on('message', m => {
+    got++;
+    if (got > 1 || !launchMessage(m)) {
+      if (server) signal('SIGKILL');
+      else leave(1);
+      return;
+    }
+    try {
+      server = spawnFn(m.file, m.args, { cwd: m.cwd, env: m.env, stdio: ['ignore', 'inherit', 'inherit'], shell: false, windowsHide: true });
+    } catch {
+      return sendThenLeave({ error: 'spawn' }, 1);
+    }
+    server.on('error', () => {
+      if (!server.pid) sendThenLeave({ error: 'spawn' }, 1);
+    });
+    server.on('exit', () => {
+      if (server.pid) sendThenLeave({ gone: true }, 0);
+    });
+    if (server.pid) proc.send({ pid: server.pid });
+  });
+}
+
 export function launchCommand({ platform, exe, exePrefix = [], args, setpriv = SETPRIV, pdeathsig = true }) {
   if (platform === 'linux' && pdeathsig) return { file: setpriv, args: ['--pdeathsig', 'KILL', '--', exe, ...exePrefix, ...args] };
   return { file: exe, args: [...exePrefix, ...args] };
@@ -1458,7 +1537,7 @@ function freePort() {
  * Test seams are parameters here only: exe and exePrefix (the server program),
  * pdeathsig, the timings, and scriptUrl.
  */
-export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now }) {
+export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig) }) {
   const ready = notSetUp(dir, platform, server, model);
   if (!ready.setup) {
     writeFail(dir, 'exit', now);
@@ -1487,16 +1566,47 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const done = new Promise(r => (resolveDone = r));
   const timers = [];
   let lines = 0;
+  // Spec 0003 M5: on the keeper line the supervisor's child is the keeper, and the server's pid comes from its first message.
+  const useKeeper = line === 'keeper';
+  let serverPid = null;
+  let gotGone = false;
   const childExited = new Promise(r => {
     try {
-      child = spawn(cmd.file, cmd.args, { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false });
+      child = useKeeper
+        ? fork(scriptPath, ['keep'], { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [], windowsHide: true })
+        : spawn(cmd.file, cmd.args, { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false });
     } catch {
       child = null;
       r();
       return;
     }
     child.on('error', () => r());
-    child.on('exit', () => r());
+    if (useKeeper) {
+      // Judged once the keeper has exited and its channel has closed, so every message it sent has been read: a keeper that ends without {gone} was killed, and its server lived until then.
+      // Not on 'close': the server holds the keeper's pipes, so they close only when the server goes (spec 0003 M5, as built).
+      let exited = false;
+      let disconnected = false;
+      const judge = () => {
+        if (!exited || !disconnected) return;
+        if (!gotGone && serverPid !== null) {
+          try {
+            kill(serverPid, 'SIGKILL');
+          } catch {
+            // already gone
+          }
+        }
+        r();
+      };
+      child.on('exit', () => {
+        exited = true;
+        disconnected ||= !child.connected;
+        setImmediate(judge);
+      });
+      child.on('disconnect', () => {
+        disconnected = true;
+        setImmediate(judge);
+      });
+    } else child.on('exit', () => r());
     for (const s of [child.stdout, child.stderr]) s.on('data', buf => { for (const b of buf) if (b === 10) lines++; });
   });
   const cleanFiles = () => {
@@ -1523,7 +1633,8 @@ export async function serve({ dir, platform = process.platform, env = process.en
     if (child && child.exitCode === null && child.signalCode === null) {
       child.kill();
       let giveUp;
-      await Promise.race([childExited, new Promise(r => (giveUp = setTimeout(r, 5000)))]);
+      // The keeper waits 5 s for its server, so the supervisor waits 7 s for the keeper.
+      await Promise.race([childExited, new Promise(r => (giveUp = setTimeout(r, useKeeper ? 7000 : 5000)))]);
       clearTimeout(giveUp);
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
     }
@@ -1533,11 +1644,46 @@ export async function serve({ dir, platform = process.platform, env = process.en
     resolveDone(reason);
     return done;
   };
+  if (child && useKeeper) {
+    serverPid = await new Promise(resolveP => {
+      let first = true;
+      const timer = setTimeout(() => resolveP(null), keeperPidMs);
+      child.on('message', m => {
+        if (!first) {
+          if (isObj(m) && Object.keys(m).join() === 'gone' && m.gone === true) gotGone = true;
+          return;
+        }
+        first = false;
+        clearTimeout(timer);
+        const ok = isObj(m) && Object.keys(m).join() === 'pid' && Number.isInteger(m.pid) && m.pid >= 2 && m.pid !== process.pid && m.pid !== child.pid;
+        resolveP(ok ? m.pid : null);
+      });
+      childExited.then(() => {
+        clearTimeout(timer);
+        resolveP(null);
+      });
+      try {
+        child.send({ file: cmd.file, args: cmd.args, cwd: p.runtime, env: serveEnv(env, platform, p.runtime) });
+      } catch {
+        resolveP(null);
+      }
+    });
+    if (serverPid === null) {
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        // already gone
+      }
+      await childExited;
+      child = null;
+    }
+  }
   if (!child) {
     writeFail(dir, 'exit', now);
     cleanFiles();
     throw new Refused('clef-setup', 'the server could not be started');
   }
+  const serverPidOf = () => (useKeeper ? serverPid : child.pid);
   childExited.then(() => {
     if (!stopping) {
       writeFail(dir, 'exit', now);
@@ -1562,7 +1708,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
     const auth = req.headers.authorization;
     if (typeof auth !== 'string' || !auth.startsWith('Bearer ') || !tokenEqual(auth.slice(7), token)) return reply(res, 401, 'auth', true);
     if (req.method === 'GET' && req.url === '/health') {
-      const body = JSON.stringify({ run: runId, pid: process.pid, serverPid: child.pid, ready: isReady });
+      const body = JSON.stringify({ run: runId, pid: process.pid, serverPid: serverPidOf(), ready: isReady });
       res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), 'cache-control': 'no-store' });
       return res.end(body);
     }
@@ -1615,7 +1761,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
       httpServer.listen(0, '127.0.0.1', resolveP);
     });
     const port = httpServer.address().port;
-    writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: child.pid, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
+    writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: serverPidOf(), started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
   } catch (e) {
     // The server is already running: end it before the failure goes up, or nothing would.
     writeFail(dir, 'exit', now);
@@ -1655,7 +1801,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
     process.once('SIGINT', onSignal);
     process.once('exit', onExit);
   }
-  return { done, stop };
+  return { done, stop, keeperPid: useKeeper ? child.pid : null };
 }
 
 /** The ready check for `ensure`: the state a live supervisor is in, with its URL. */
@@ -1806,6 +1952,16 @@ export async function main(argv, { env = process.env, platform = process.platfor
     return 2;
   };
   const [mode, ...rest] = argv;
+  // Spec 0003 M5: the keeper is dispatched before any folder work, and reads nothing from the environment.
+  if (mode === 'keep' && rest.length === 0) {
+    try {
+      keep();
+      return 0;
+    } catch (e) {
+      if (e instanceof Refused) return refuse(e.code, e.message);
+      throw e;
+    }
+  }
   const known = Object.hasOwn(MODES, mode) ? MODES[mode] : null;
   if (!known) return refuse('usage', 'the modes are setup, verify, ensure, stop, status and remove');
   let wait = 0;

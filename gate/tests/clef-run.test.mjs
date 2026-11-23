@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync as clefRm, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -29,6 +30,7 @@ const key = readFileSync(arg('--api-key-file'), 'utf8').trim();
 writeFileSync(cfg.record, JSON.stringify({ args, cwd: process.cwd(), env: process.env, pid: process.pid, key }));
 const t0 = Date.now();
 if (cfg.exitAfterMs) setTimeout(() => process.exit(1), cfg.exitAfterMs);
+if (cfg.ignoreTerm) process.on('SIGTERM', () => {});
 createServer((req, res) => {
   if (req.headers.authorization !== 'Bearer ' + key) { res.writeHead(401); return res.end('no'); }
   if (req.url === '/health') {
@@ -936,4 +938,186 @@ test('the supervisor source: only the named routes, no shell, no wildcard bind, 
   assert.equal(SOURCE_TEXT.split("listen(0, '127.0.0.1'").length - 1, 2, 'the supervisor and the port probe bind loopback only');
   assert.doesNotMatch(SOURCE_TEXT, /process\.env\.(GGML|LLAMA|HF_|VK_)/);
   assert.doesNotMatch(SOURCE_TEXT, /logLine\([^)]*(token|serverKey|body)/i);
+});
+
+// ------------------------------------------------------------ the keeper (spec 0003 M5)
+
+/** A fake keeper process: its sends are recorded, and a send's callback runs on the next turn. */
+function fakeProc() {
+  const p = new EventEmitter();
+  p.sent = [];
+  p.exits = [];
+  p.send = (m, cb) => {
+    p.sent.push(m);
+    if (cb) setImmediate(cb);
+  };
+  p.exit = code => p.exits.push(code);
+  return p;
+}
+/** A fake server child that records the signals it is sent. */
+function fakeServer(pid = 4242) {
+  const c = new EventEmitter();
+  c.pid = pid;
+  c.signals = [];
+  c.kill = sig => c.signals.push(sig);
+  return c;
+}
+const MSG = { file: '/r/llama-server', args: ['--x'], cwd: '/r', env: { PATH: '/usr/bin:/bin' } };
+
+test('keep: refuses clef-keep without an IPC channel', () => {
+  const p = new EventEmitter();
+  assert.throws(() => clef.keep({ proc: p }), e => e instanceof clef.Refused && e.code === 'clef-keep');
+});
+
+test('keep: spawns what the one message names, sends {pid}, and on the server\'s exit leaves only from {gone}\'s send callback', async () => {
+  const p = fakeProc();
+  const srv = fakeServer();
+  let spawned;
+  clef.keep({ proc: p, spawnFn: (file, args, o) => ((spawned = { file, args, o }), srv) });
+  p.emit('message', MSG);
+  assert.deepEqual([spawned.file, spawned.args, spawned.o.cwd, spawned.o.env, spawned.o.shell], [MSG.file, MSG.args, MSG.cwd, MSG.env, false]);
+  assert.deepEqual(spawned.o.stdio, ['ignore', 'inherit', 'inherit']);
+  assert.deepEqual(p.sent, [{ pid: 4242 }]);
+  srv.emit('exit', 0);
+  assert.deepEqual(p.sent.at(-1), { gone: true });
+  assert.deepEqual(p.exits, [], 'not straight after the send');
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(p.exits, [0]);
+});
+
+test('keep: the channel closing sends the server SIGKILL and the keeper leaves', () => {
+  const p = fakeProc();
+  const srv = fakeServer();
+  clef.keep({ proc: p, spawnFn: () => srv });
+  p.emit('message', MSG);
+  p.emit('disconnect');
+  assert.deepEqual(srv.signals, ['SIGKILL']);
+  assert.deepEqual(p.exits, [0]);
+});
+
+test('keep: SIGTERM sends the server SIGTERM, then SIGKILL after the wait', async () => {
+  const p = fakeProc();
+  const srv = fakeServer();
+  clef.keep({ proc: p, spawnFn: () => srv, termWaitMs: 20 });
+  p.emit('message', MSG);
+  p.emit('SIGTERM');
+  assert.deepEqual(srv.signals, ['SIGTERM']);
+  await new Promise(r => setTimeout(r, 60));
+  assert.deepEqual(srv.signals, ['SIGTERM', 'SIGKILL']);
+});
+
+for (const [label, second] of [['a second message', MSG], ['a message of another shape', { ...MSG, extra: 1 }]]) {
+  test(`bad case: keep ends the server on ${label}`, () => {
+    const p = fakeProc();
+    const srv = fakeServer();
+    clef.keep({ proc: p, spawnFn: () => srv });
+    p.emit('message', MSG);
+    p.emit('message', second);
+    assert.deepEqual(srv.signals, ['SIGKILL']);
+  });
+}
+
+for (const [label, m] of [['a shell string for args', { ...MSG, args: 'rm -rf /' }], ['a number in the environment', { ...MSG, env: { X: 1 } }], ['a missing folder', { file: MSG.file, args: MSG.args, env: MSG.env }]]) {
+  test(`bad case: keep spawns nothing and leaves on a first message with ${label}`, () => {
+    const p = fakeProc();
+    let spawned = false;
+    clef.keep({ proc: p, spawnFn: () => ((spawned = true), fakeServer()) });
+    p.emit('message', m);
+    assert.equal(spawned, false);
+    assert.deepEqual(p.exits, [1]);
+  });
+}
+
+test('keep: a spawn that throws sends {error: spawn} and leaves from its callback', async () => {
+  const p = fakeProc();
+  clef.keep({ proc: p, spawnFn: () => { throw new Error('ENOENT'); } });
+  p.emit('message', MSG);
+  assert.deepEqual(p.sent, [{ error: 'spawn' }]);
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(p.exits, [1]);
+});
+
+test('main: keep without an IPC channel refuses clef-keep and works out no folder', async t => {
+  const out = [];
+  const code = await clef.main(['keep'], { env: { CLAUDE_CONFIG_DIR: 'not absolute' }, out: l => out.push(l), chdir: () => assert.fail('no folder work') });
+  assert.equal(code, 2);
+  assert.equal(out.at(-1), 'RESULT: refused clef-keep');
+});
+
+test('lifetimeLine: a job object on Windows, the keeper on macOS, setpriv on Linux', () => {
+  assert.equal(clef.lifetimeLine({ platform: 'win32' }), 'job-object');
+  assert.equal(clef.lifetimeLine({ platform: 'darwin' }), 'keeper');
+  assert.equal(clef.lifetimeLine({ platform: 'linux' }), 'setpriv');
+});
+
+const KEEPER = { line: 'keeper' };
+
+test('serve on the keeper line: the server answers, its pid is the keeper\'s child, and a stop ends it', async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f, KEEPER);
+  const live = await ready(f);
+  const r = await call({ port: live.run.port, token: live.run.token, body: { state: { s: 1 }, questions: QUESTIONS } });
+  assert.equal(r.status, 200);
+  const sp = live.run.serverPid;
+  assert.equal((await f.recorded()).pid, sp, 'serverPid is the server, not the keeper');
+  assert.ok(h.keeperPid !== sp && h.keeperPid !== process.pid);
+  await h.stop('test');
+  assert.ok(await gone(sp, 9000), 'the server is ended');
+});
+
+test('serve on the keeper line: with the keeper sent SIGKILL, the supervisor ends the server, records run.fail and stops', async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f, KEEPER);
+  const live = await ready(f);
+  process.kill(h.keeperPid, 'SIGKILL');
+  assert.equal(await h.done, 'exit');
+  assert.ok(await gone(live.run.serverPid, 3000), 'the server went with its keeper');
+  assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).reason, 'exit');
+});
+
+test('serve on the keeper line: a supervisor killed outright leaves no server behind within 2 seconds', async t => {
+  const f = fixture(t);
+  f.stoppers.push(() => stopFixture(f));
+  assert.equal((await ensure(f, { wait: 20, supervisorCommand: wrapperFor(f, ", line: 'keeper'") })).out.state, 'ready');
+  const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
+  assert.ok(alive(run.serverPid));
+  process.kill(run.pid, 'SIGKILL');
+  assert.ok(await gone(run.serverPid, 2000), 'the keeper ended the server when its channel closed');
+});
+
+test('serve on the keeper line: a server that exits on its own gets no signal from the supervisor', async t => {
+  const runs = process.platform === 'darwin' ? 50 : 3;
+  for (let i = 0; i < runs; i++) {
+    const f = fixture(t, { exitAfterMs: 300 });
+    const sent = [];
+    const h = await startServe(t, f, { ...KEEPER, kill: (pid, sig) => sent.push([pid, sig]) });
+    assert.equal(await h.done, 'exit');
+    assert.deepEqual(sent, [], `run ${i + 1}: no signal after {gone}`);
+  }
+});
+
+test('serve on the keeper line: a stop sends the server no signal from the supervisor, and a server that ignores SIGTERM is still ended', { skip: WIN && 'Windows has no SIGTERM to catch; its line is the job object (not run)' }, async t => {
+  const f = fixture(t, { ignoreTerm: true });
+  const sent = [];
+  const h = await startServe(t, f, { ...KEEPER, kill: (pid, sig) => sent.push([pid, sig]) });
+  const live = await ready(f);
+  await h.stop('test');
+  assert.deepEqual(sent, [], 'the keeper reaped it and said {gone}');
+  assert.ok(await gone(live.run.serverPid, 1000), 'SIGKILL after the keeper\'s wait');
+});
+
+test('serve on the keeper line: the idle time ends the server', async t => {
+  const f = fixture(t);
+  const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 400, checkMs: 100, pollMs: 50, ...KEEPER });
+  f.stoppers.push(() => h.stop('test'));
+  const live = await ready(f);
+  assert.equal(await h.done, 'idle');
+  assert.ok(await gone(live.run.serverPid, 9000));
+});
+
+test('serve on the keeper line: a missing server executable leaves run.fail (exit) and no keeper', async t => {
+  const f = fixture(t);
+  await assert.rejects(clef.serve({ dir: f.dir, exe: join(f.root, 'no-such-server'), pdeathsig: false, idleMs: 60_000, checkMs: 60_000, pollMs: 50, ...KEEPER, keeperPidMs: 5000 }), e => e.code === 'clef-setup');
+  assert.ok(existsSync(f.run.fail));
+  assert.equal(existsSync(f.run.key), false);
 });
