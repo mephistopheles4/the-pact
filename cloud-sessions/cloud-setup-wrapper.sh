@@ -1313,7 +1313,7 @@ when no other row answers the sentence.
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
   diagram that draws it, so it can't read as done.
-- **Every lens report posts** in the record word for word, like any other; nothing is withheld, but a report refused for a live secret stays local.
+- **Every lens report posts** in the record word for word, like any other; nothing is withheld, but a report refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 - **A place that can't draw them** gets the title line, signal table and count line as plain text,
   with no diagram.
 
@@ -1612,7 +1612,7 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash 1a489255ab3ad0374a7ffbac6b8431fef0a6612deaef25440529f6cac7850ff6 'pact/review.md'
+check_hash 3a7c792b96bdcfd4d78edfa22ff38e06aca490222e8bd3123c32cfc9beebd355 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1642,7 +1642,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 5680f605c668"
+  echo "pact cloud copy f26acfac3381"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

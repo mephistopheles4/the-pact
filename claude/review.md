@@ -193,7 +193,7 @@ when no other row answers the sentence.
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
   diagram that draws it, so it can't read as done.
-- **Every lens report posts** in the record word for word, like any other; nothing is withheld, but a report refused for a live secret stays local.
+- **Every lens report posts** in the record word for word, like any other; nothing is withheld, but a report refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 - **A place that can't draw them** gets the title line, signal table and count line as plain text,
   with no diagram.
 

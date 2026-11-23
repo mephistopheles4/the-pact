@@ -103,7 +103,7 @@ change.
 Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; an open
-security pick's report goes to the issue on the project's issue tracker, word
+security pick's report goes to the work's record on the project's issue tracker, word
 for word with its why, so a reader of a public tracker can read it and search
 for its "Owner's call: security" opener; outside text can steer the framing of a finding; what its
 rules would tell the owner reaches them through its starter; usage holds only

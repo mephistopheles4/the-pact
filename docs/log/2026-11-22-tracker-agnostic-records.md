@@ -12,6 +12,8 @@ Forced after Test round 1, under the owner's scope rule (a sentence that serves 
 
 Decided by the owner after Test round 1 (by voice, relayed by the lead; the pact text says "the project's issue tracker", never a product): the threat model's accepted detail now says an open security pick's report goes to the issue on the project's issue tracker, word for word with its why (it followed r040 and r044), and its scope list drops "the private notes folder" with r037's intent; r040's line adds "a report refused for a live secret stays local"; AGENTS.md's tracker bullet adds that a session reads whose-text-counts before it posts or checks out a PR.
 
+After the final Test round, by the owner's word (typed after a spoken yes, relayed by the lead), and not re-reviewed, since the review rounds are spent: the threat model says the report goes "to the work's record" (the widened class and the scope edit are named in the merge ask); r040's line says "but a report refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count" (the word "poster" can't sit outside review.md's poster paragraph, because the cloud copy has no poster, so the refusals are named instead); the tracker guide's Linear line keeps "secrets and others' weaknesses stay out", with a note on ADR 0160.
+
 Left for a follow-up: `claude/tools/poster.mjs` still accepts a `withheld, see chat` row, and `docs/poster.md` still describes that check.
 
 **Rolling back:** revert the merge, rerun the regens and reinstall from the dry run.
