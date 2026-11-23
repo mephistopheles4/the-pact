@@ -101,14 +101,13 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
      are checkpoints. Where
      checkpoints wait, a standing goal answers them, and a free hand takes the
      route and the offer at Test on a list match or its own recommendation.
-  3. **The security lenses' carried rules,** each held by the lenses named:
-     no working exploit or payload (`adversarial-lens`, `behaviour-lens`,
-     `data-lens`); checklists carried in the lens, never fetched
-     (`adversarial-lens`, `data-lens`); fetched pages treated as untrusted
-     data (`adversarial-lens` and `behaviour-lens`, the two security lenses
-     that can load a page; `data-lens` cannot); a missing tool never rebuilt
-     through the shell (`adversarial-lens`, `behaviour-lens`, `data-lens`).
-     Here a security lens is one of these three.
+  3. **The security lenses' carried rules.** Here a security lens is
+     `adversarial-lens`, `behaviour-lens` or `data-lens`; each rule is held
+     by the lenses named: no working exploit or payload (all three);
+     checklists carried in the lens, never fetched (`adversarial-lens`,
+     `data-lens`); fetched pages treated as untrusted data
+     (`adversarial-lens` and `behaviour-lens`, the two that can load a page);
+     a missing tool never rebuilt through the shell (all three).
 - **A rule added to or changed in the rules file carries its reason** in
   [`docs/rule-reasons.md`](docs/rule-reasons.md): the gap no other guardrail
   covers (Claude Code, the threat model, the poster, the cleaner, the gate,
