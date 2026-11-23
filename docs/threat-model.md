@@ -103,8 +103,8 @@ change.
 Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; an open
-security pick's report goes to the work's record on the project's issue tracker,
-flagged, so a reader of a public tracker can read it; outside text can steer the framing of a finding; what its
+security pick is logged in the work's record on the project's issue tracker,
+flagged big, so a reader of a public tracker can read it; outside text can steer the framing of a finding; what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
