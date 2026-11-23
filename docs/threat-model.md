@@ -10,9 +10,8 @@ Bring the owner what the guide's step 5 lists, every `security?` row
 included; no class covers a change that weakens a rule or control, adds a
 route for outside text into a session or more reach to one that reads it,
 adds text to files sessions load, or writes a secret into text sessions
-read. The full guide is the pact's review procedure, The threat model
-section (`~/.claude/pact/review.md`; public copy:
-https://github.com/mephistopheles4/the-pact/blob/main/claude/review.md).
+read. The full guide is the review procedure's Threat model section
+([`~/.claude/pact/review.md`](../claude/review.md)).
 
 [`SECURITY.md`](../SECURITY.md) says how to report a hole.
 
@@ -50,19 +49,16 @@ flowchart LR
   session --> B4
   B4 --> readers
 
-  style B1 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
-  style B2 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
-  style B3 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
-  style B4 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
 ```
 
 ### Text into a session
 
-**Crosses:** tracker text (GitHub issues; text on the owner's private issue tracker, in
-the workspace the owner's local pin names, as `docs/agents/issue-tracker.md` says, and in a local session, is inside the
-root of trust and doesn't cross; a cloud session reads it as data), outside pull requests read
-as text, a cloned repo's files, fetched pages, other sessions' messages and hand-offs, a trigger's
-prompt, a mic transcript, a file someone hands a session to load.
+**Crosses:** tracker text (GitHub issues; the owner's pinned private tracker text in a
+local session is inside the root of trust and doesn't cross, as
+`docs/agents/issue-tracker.md` says, and a cloud session reads it as data),
+outside pull requests read as text, a cloned repo's files, fetched pages, other
+sessions' messages and hand-offs, a trigger's prompt, a mic transcript, a file
+someone hands a session to load, and a decision model's answer.
 
 **Controls:**
 
@@ -104,7 +100,7 @@ Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; an open
 security pick is logged, flagged big, in the work's record on the project's issue tracker,
-where a public tracker's reader can read it; outside text can steer the framing of a finding; what its
+where a public tracker's reader can read it; outside text can steer the framing of a finding, and, in a caller's `state`, a decision model's numbers, its placement call unbounded until T4; what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
@@ -117,7 +113,8 @@ free hand's design pick can cover what a change stores, logs or sends.
 **Crosses:** plugins and skills, the cloud setup's upstream pins, this repo's
 publisher, CI actions and dependencies, mise configs, a program a clone or
 version pin supplies that runs by bare name, the pinned design system inlined
-into Scriptorium.
+into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
+setup, run with the owner's rights.
 
 **Controls:**
 
@@ -134,6 +131,15 @@ into Scriptorium.
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
+- **The decision model, when on.** A pin table (fixed repos; per-file size and
+  sha256, checked before keeping); fixed redirect hosts, `https:` only; its
+  archive readers, writing only pinned names; a fixed working folder and
+  environment; listener token, `Host` and `Origin` checks; an answer check
+  passing only numbers and the caller's keys. Held by rule alone: 14-day-old
+  pins (by the Hub's date, which a git push sets) and the security pair's read
+  of each pin PR
+  ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md)). Setup's
+  kept files belong to the machine.
 - **Harness.** Folder trust and permission prompts, as above.
 
 **Residual classes:** What you install and CI run; Pinned design-system code. A pact
@@ -142,7 +148,8 @@ rule holds back trusting a project's mise config until the owner says so in chat
 Also accepted. What you install and CI run: the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
-dismiss alerts on `main`. Pinned design-system code: each re-pin is reviewed
+dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
+with the owner's rights, and a crafted model could exploit a parser bug. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs
@@ -177,8 +184,8 @@ itself.
 **Crosses:** posts, pull requests and comments on the tracker, messages to
 cloud or Remote Control sessions, an account whose token a session holds, an
 agent app's installation token, and
-anything else a session sends off the machine: a push, a fetch or search, a
-connector call.
+anything else a session sends off the machine: a push, a fetch or search
+(`clef setup --yes`'s requests), a connector call.
 
 **Controls:**
 
@@ -237,19 +244,19 @@ first to cut every live token.
 stays in scope though it runs as the owner.
 
 **Out of scope:** the machine: the owner's own computer, or a sandbox run on
-it. It covers every program, process, account, file and memory made there. A
-local tool's data on a user's own computer is that user's machine. A cloud
-session's sandbox, a service a project deploys, and that service's users'
-devices are not the machine. What starts and ends on the machine is no
-finding: other local accounts, unencrypted copies (the install's backups,
-kept-local reports, hand-off notes), a program
-already running as the owner that nothing in scope started, supplied or
-steered, and loss of work with no attacker. In a cloud session these copies
-sit in Anthropic's sandbox: not the machine, but out of scope as Anthropic's;
-code that reached the sandbox from outside stays in scope. What the machine makes from outside input stays outside input. The machine's
-own antivirus, account isolation and disk encryption hold it. Also out: the
-owner's own edits and own account's edit in the browser; Claude Code,
-Anthropic's models and servers, and GitHub; the provider of a synced or backed-up copy, though
+it, with every program, process, account, file and memory made there. A local
+tool's data on a user's own computer is that user's machine. A cloud session's
+sandbox, a service a project deploys, and that service's users' devices are not
+the machine. What starts and ends on the machine is no finding: other local
+accounts, unencrypted copies (the install's backups, kept-local reports,
+hand-off notes), a program already running as the owner that nothing in scope
+started, supplied or steered, and loss of work with no attacker. In a cloud
+session these copies sit in Anthropic's sandbox: out of scope as Anthropic's,
+though code that reached it from outside stays in scope. What the machine makes
+from outside input stays outside input. The machine's own antivirus, account
+isolation and disk encryption hold it. Also out: the owner's own edits and own
+account's edit in the browser; Claude Code, Anthropic's models and servers, and
+GitHub; the provider of a synced or backed-up copy, though
 [`install.md`](install.md)'s rule to never sync, share or commit the backups
 folder still holds.
 
@@ -258,47 +265,19 @@ tracker account. Whoever controls either counts as the owner, and so do whoever 
 Each pinned agent app's private key is one too, for code: its holder's PRs
 count as insiders' code, and recovering the owner's account doesn't revoke it.
 
-## Residual risk
-
-```mermaid
-quadrantChart
-  title Residual risk by accepted class
-  x-axis Unlikely --> Likely
-  y-axis Minor --> Severe
-  quadrant-1 Act now
-  quadrant-2 Guard closely
-  quadrant-3 Accept
-  quadrant-4 Watch
-  Text steers a session: [0.56, 0.86]
-  Who counts as you: [0.40, 0.82]
-  Posts are public: [0.80, 0.75]
-  What you install and CI run: [0.22, 0.92]
-  The pact gets loosened: [0.45, 0.72]
-  Review rests on rules: [0.45, 0.56]
-  A session takes checkpoints alone: [0.45, 0.70]
-  Pinned design-system code: [0.12, 0.55]
-```
-
-Each class sits by what is left after the controls above. Likelihood and
-impact run from 0 to 1: judgement, not measurement. They rank the classes;
-they do not size them.
-
 ## Accepted threat classes
 
 Each "Also accepted" line above details what the class it names covers; it is not a class of its own. No class accepts the failure of a control that works without the session's cooperation (the harness's prompts and deny rules, the poster's refusals for a post sent through it): bring it to the owner.
 
 - **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, to take a step the rules keep for the owner, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
 - **A session takes checkpoints alone.** A session takes each checkpoint, a call the rules keep for the owner, as its own logged pick, open security picks included, on words from any prompt or replies it can't tell from its starter's; nothing waits but the cleaner's override rule, an install apply and mise trust.
-- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, and the gate's unscanned test files run with the owner's rights or a write token.
+- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, the pinned llama.cpp build and decision model, and the gate's unscanned test files run with the owner's rights or a write token.
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
 - **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, except on the owner's private issue tracker (`docs/agents/issue-tracker.md`), and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
 - **Who counts as you.** Every session posts as the owner, or as a pinned agent app and can still write as the owner by the routes above; an app's key holder counts as the owner for code. A lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
 
-## Open issues
+## Open gaps
 
-- **#180:** no setting yet for trusted accounts on a team repo.
-- **#419:** the poster's edit checks read the source text, not GitHub's rendered page.
-- **#519:** the cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree.
-- **#449:** this repo's own rules on secrets and personal details.
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided.

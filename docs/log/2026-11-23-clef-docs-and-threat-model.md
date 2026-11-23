@@ -1,0 +1,33 @@
+# Clef's owner doc, the threat-model class and the rollback check
+
+PACT-65, T3 of spec 0002. It adds `docs/clef.md` (what `clef` fetches and from where, about 7 GB of disk, the commands, the CPU speed note, how a caller uses it, Linux built and unit-tested only, the licenses, the pin-bump and `CLAUDE_CONFIG_DIR` notes, and `clef stop` then `clef remove --yes` before turning it off); a paragraph in `docs/install.md`'s "Roll back to an older version" (take `clef` off the tools list and apply first); [ADR 0166](../adr/0166-a-pinned-download-is-at-least-14-days-old.md) for the 14-day pin age; and the threat-model edit below.
+
+**The threat model.** Under Code that runs it adds the llama.cpp build and the model (crosses), a control bullet for the decision model (the pin table, fixed redirect hosts, the tool's own archive readers, the fixed working folder and named environment, the listener's token, `Host` and `Origin` checks, the supervisor's answer check; the age rule and the security pair's read of each pin PR marked as held by rule alone; setup's kept files the machine's), and a residual sentence (a bad pinned build or model, a crafted model). Under Text into a session it adds a decision model's answer as a crossing, and, in that section's Also accepted, outside text in `state` moving its numbers with its placement call unbounded until T4. Under What leaves the machine it adds `clef setup --yes`'s requests to fixed hosts. The accepted class "What you install and CI run" now names the pinned llama.cpp build and decision model.
+
+**For the owner to confirm before merge** (a checkpoint, in PACT-65's status and PR 646): (1) the class widening; (2) the new route for a decision model's answer into a session, which no class covers; (3) that spec S11's clef-pilot answer check and S2 decision 5's bounds are not in the threat model yet, because they are T4's (`review.md` has the session ask the decision model for the placement call; the bound that the session places the finding too is the owner's call before T4, spec S12).
+
+**The cuts that make room** (the file was 2,984 words against a cap of 3,000; it is 3,000 now, at the cap). Each is listed because the security pair reads each cut as a control change; none removes a control's statement.
+
+1. The "Residual risk" section: its quadrant chart (class rank by likelihood and impact), its heading and its caption (101 words). It is a figure over the classes below it, which are unchanged; the chart can come back from git when the budget allows.
+2. The four `style` lines of the first flowchart (dashed subgraph borders; cosmetic).
+3. The public-copy URL of `review.md` in the opening paragraph; the path now links the repo's `claude/review.md`.
+4. The Text-into-session crosses parenthetical about the owner's private tracker, reworded shorter ("pinned" stands for "in the workspace the owner's local pin names"; `docs/agents/issue-tracker.md` holds the rule).
+5. Out of scope: reworded shorter, no item removed.
+6. "Open issues" became "Open gaps": the same four gaps in prose, without the GitHub issue numbers, since all four issues are closed on GitHub. Whether any of them lives on Linear is for the owner to say.
+
+The text edited sits on `main` after PACT-68's wording of checkpoints; PACT-45's threat-model text may land after this and need a merge.
+
+**The model's age.** It counts from the Hugging Face Hub's own record of the pinned file's last change: the `lastCommit` date the tree API returns for that file at the pinned commit. It no longer counts from the day this repo first recorded the file's sha256. For a `huggingface_hub` upload that is a server time; a commit pushed with git carries a date its pusher chose, and the Hub shows no field for the route. The 14-day rule is unchanged for every pin, and no code checks it: review holds it. The first model pin's file (`Clef-Flash-Q4_K_M.gguf`, sha256 `eef2968c…`) last changed on 2026-10-25, so the "not before 2026-12-06" line is gone from the spec, ADR 0166 and the doc. This loosens one control, a date a pusher can pick against a date the pact recorded itself, so the security pair read it. It added to the pin record: the route when the commit's title or message shows it, with a git or unshown route going to the owner; the pinned commit on `main` with a `ggml-org` member as author; and the security pair re-fetching the Hub's tree and `main` commits itself. The threat model's control bullet says a git push sets the Hub's date. Open for the owner: a date the pusher can't set (a scanner's first sighting of the hash) beside the Hub's would close the backdating gap; that is the owner's call.
+
+**The role name.** `review.md` and the threat model say "a decision model", not the product. Clef, the product, is named only where the tool is: the tools list and its install warning, `claude/tools/clef.mjs`, `docs/clef.md`, the reference and docs-index rows, the spec and the pin facts. Another System 1 model can then replace it with its own pin table and runner, with no change to those rules; a new runner, model source or runtime still changes the class "What you install and CI run" and its controls, and the security pair reads it. The `review.md` passage now says what the decision model is (a pact tool on the tools list, serving this machine's own address) and when to ask it (when that tool reports it ready).
+
+**The threat model's word cap.** The merge with main and the role rename took it to 3,023 words; it is 3,000 again, at the cap. Each cut is for the security pair to read as a control change, and none removes a control: the clause "the build parsing the model" from the Crosses sentence (the parser-bug risk stays in the Residual); the decision-model control bullet's wording tightened with the same controls; "spec 0002 S12" shortened to "S12"; "to fixed hosts" dropped from the Leaves-the-machine sentence (the control bullet still names fixed redirect hosts); and "by `clef setup --yes`" shortened to "at setup" in the Crosses sentence. `docs/reference.md`'s `clef` rows were trimmed to stay in its budget. Two reader findings that need a few words more at the cap are left for the owner: the base text's "pinned private tracker", and "unbounded until T4".
+
+**Cloud copy.** `review.md` changed, so `cloud-sessions/gen.mjs` rebuilt the cloud copy; after this merges, paste `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again.
+
+**Rolling back:** revert the merge. Take `clef` off the tools list and apply first if it is on ([install.md](../install.md#roll-back-to-an-older-version)).
+
+## Record
+
+- The ticket: PACT-65 on Linear, and its parent PACT-61.
+- The pull request: see the ticket.
