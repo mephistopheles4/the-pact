@@ -33,6 +33,11 @@ apart:
 
 Who uses it: anyone who turns `clef` on, on any of these machines.
 
+Business driver: universal. The repo is public, so Clef must work for anyone
+who installs it, not only on the owner's machine. Where two qualities pull,
+the side that keeps Clef working on more machines wins, then the side
+cheaper to reverse.
+
 ## U2 Decisions
 
 The session took these picks, each logged as a checkpoint:
@@ -113,8 +118,12 @@ The session took these picks, each logged as a checkpoint:
 - **C14 at T1.** U10's six-case runs on the real server, cited in T1's pin
   record by run link and commit, stand for C14: `linux-arm64-cpu` and
   `win32-arm64-cpu` on CI's arm64 runners, `darwin-x64-cpu` on
-  `macos-15-intel` (a one-off, not a CI job: U12). T3's end-to-end jobs then
-  re-run them on every change.
+  `macos-15-intel` (a one-off, not a CI job: U12). The record copies U10's
+  numbers and each run's commit, since run logs expire. T3's end-to-end jobs
+  then re-run them on every change.
+- **The shipped rows change by `glibc` alone.** T1's pin record shows the
+  shipped rows' `asset`, `size`, `sha256`, `kind`, `exe` and `files` unchanged
+  from `main`, by a byte compare, with `glibc` the only field added.
 
 ## U4 Setup and serve on the new platforms (amends 0002 S6, S7)
 
@@ -133,13 +142,18 @@ The session took these picks, each logged as a checkpoint:
   `process.report.getReport().header.glibcVersionRuntime`. When it is absent
   (a musl system such as Alpine), setup refuses `clef-platform`: "the pinned
   Linux builds need glibc; this system has none". When it is below the
-  picked row's `glibc`, setup refuses `clef-platform`, naming both versions.
+  picked row's `glibc`, setup refuses `clef-platform`, naming both versions
+  and saying to use a newer glibc distribution. Versions compare by major,
+  then minor, each as an integer (`2.4` is below `2.35`).
   The check runs before any fetch. The value is a parameter of `planSetup`,
   so tests hand it in.
 - **Node under emulation.** Setup picks by `process.arch`, so an x64 node on
   a Windows arm64 machine picks the x64 build, which runs under emulation.
   The plan's `why` line says "x64 node: x64 build". The doc says to use an
-  arm64 node.
+  arm64 node. On `win32` `x64`, when `os.machine()` reports `arm64`, setup
+  picks CPU even with a Vulkan loader, with the `why` line "x64 node on an
+  arm64 machine: CPU", since arm64 Vulkan is not checked. If T1 finds
+  `os.machine()` can't tell under emulation, the doc states the gap instead.
 - **`--no-repack`.** `serverArgs` adds `-nr` when the backend is `cpu`, as
   its last item, after 0003's `--device none`. b12211 aborts
   while loading Clef-Flash (`GGML_ASSERT(*cur_backend_id != -1)` in
@@ -159,7 +173,10 @@ code changes:
   file provides, and the highest `GLIBC_` version in its version needs. The
   highest across the row is that row's `glibc` (U3). A kept ELF file whose
   machine field doesn't match the row's arch (`EM_X86_64` or `EM_AARCH64`)
-  is flagged.
+  is flagged. It also prints, per allowed outside name, the highest version
+  need: `GLIBCXX_` and `CXXABI_` for `libstdc++.so.6`, `GCC_` for
+  `libgcc_s.so.1`, `GOMP_` for `libgomp.so.1`. The doc lists them (U9); setup
+  checks only glibc.
 - **Mach-O** (`darwin-x64-cpu`): 0003 M4's check holds, with the thin arch
   taken from the row: `x86_64` (CPU type `0x01000007`) here, `arm64` on
   0003's rows. `machoFlags` gains an `arch` option. A fat file is flagged on
@@ -184,19 +201,23 @@ code changes:
 
 ## U6 The server's lifetime without setpriv (amends 0002 S7)
 
-- **The pick, made once per start.** 0003's `lifetimeLine({ platform,
-  exists })` (on 0003's branch since d735bef) returns `job-object` on
-  `win32` and `keeper` on `darwin`. This delta makes it return `setpriv` on
-  `linux` when `/usr/bin/setpriv` exists, and `keeper` on `linux` otherwise.
+- **The pick, made once per start.** 0003's `lifetimeLine({ platform })`
+  (on 0003's branch since d735bef) returns `job-object` on `win32` and
+  `keeper` on `darwin`. T2 adds an `exists` parameter, which `serve` passes,
+  and makes it return `setpriv` on `linux` when `/usr/bin/setpriv` exists, and
+  `keeper` on `linux` otherwise.
   `serve` takes its launch and stop paths from it, never from `platform`
   alone.
 - **On `keeper`,** 0003 M5 holds as written: the fork, the one message, the
   `{pid}` and `{gone}` rules and the supervisor's side. On Linux the server
-  is spawned by the keeper with no `setpriv` in front.
+  is spawned by the keeper with no `setpriv` in front. On Linux the keeper is
+  forked without `LD_LIBRARY_PATH`, so its node never loads a kept library;
+  the message already carries the server's environment.
 - **The second line on Linux** stays 0002 S7's `/proc` sweep, on both lines.
-  The sweep reads each candidate's parent and, when that is a keeper (a node
-  process whose parent is a live supervisor), counts the server as that
-  supervisor's: it is not an orphan. A keeper whose supervisor is gone ends
+  The sweep reads each candidate's parent from `/proc/<pid>/stat` and that
+  parent's own parent from `/proc/<ppid>/stat`. When the grandparent is a live
+  supervisor, the parent is its keeper and the server is not an orphan. No
+  `cmdline` or `exe` of another process is read (0002 S7). A keeper whose supervisor is gone ends
   its server itself; the sweep ends any server it missed. 0003 M6's record
   and keyed probe stay darwin's only.
 - **The refusal goes,** in both places: `planSetup` and `main` no longer
@@ -222,9 +243,9 @@ code changes:
      `CLAUDE_CONFIG_DIR` set to the home: `setup --cpu` (the plan; checks the
      picked key equals the one passed), then `setup --cpu --yes`, then
      `verify`.
-  3. `ensure --wait 60`, repeated until `ready` or 5 minutes pass. Record the
-     time to ready.
-  4. Read the token from `run.json` in node. Ask each of the six cases in
+  3. `ensure --wait 60`, repeated until `ready` or 5 minutes pass; `failed`
+     ends the step at once with its reason. Record the time to ready.
+  4. Read the token from `run.json` and the key from `run.key` in node. Ask each of the six cases in
      `docs/clef-cases.json` through the supervisor's `POST /v1/systemone`.
      Check each answer's shape as the supervisor's own check does (0002 S7)
      and its band or top option against `baseline`. Record each answer's
@@ -243,13 +264,17 @@ code changes:
   8. Print one record line per step: the key, the times, the bands, the peak
      memory, and the runner's OS, CPU model and count, and RAM. Before
      printing, it checks the line holds neither `run.json`'s token nor
-     `run.key`'s value. It prints no body or path outside the scratch folder.
+     `run.key`'s value. Every line the script writes goes through one
+     exported writer, `writeLine`, which refuses such a line: record lines,
+     failure messages, and the child output it relays. It relays child
+     output only on a failure, and prints no answer body.
 - **Its checks are pure functions** (`judgeCase`, `lineCheck`, `goneCheck`)
   exported from the script, so a gate test,
   `gate/tests/clef-e2e.test.mjs`, shows each failing on a bad case: a wrong
   band, a wrong top option, a joint case with one question wrong, a missing
   field in the answer, an answer past U8's budget, a parent that doesn't fit
-  the line, and a pid left alive.
+  the line, a pid left alive, and a line holding the token, which
+  `writeLine` refuses.
 - **A fetch that fails** (a Hugging Face 429, a network fault) fails the job
   with setup's `clef-fetch`. One re-run of the job is allowed; a second
   failure is a stop-and-ask.
@@ -257,9 +282,14 @@ code changes:
   - triggers: `pull_request` and `push` to `main`, each with a `paths` filter
     naming `claude/tools/clef.mjs`, `docs/clef-cases.json`,
     `gate/tests/clef-e2e.mjs`, `gate/install.mjs`, `gate/install-run.mjs`,
-    `gate/install-core.mjs` and the workflow file itself;
-  - a `concurrency` group per ref that cancels an older run on a pull
-    request, as `gate.yml`'s does;
+    `gate/install-core.mjs`, `gate/install-io.mjs`, `gate/paths.mjs`, every
+    other module `install-run.mjs` loads (named in T3 from the code), and the
+    workflow file itself;
+  - `workflow_dispatch`, so a change on GitHub's runners can be checked by
+    hand at no cost until used;
+  - `concurrency: group: clef-e2e-${{ github.event_name == 'pull_request' && github.ref || github.sha }}`,
+    cancelling an older run on a pull request. It never starts `gate-`:
+    `gate.yml`'s group is repo-wide, and sharing it would cancel `gate`;
   - `permissions: contents: read`, actions pinned to the same SHAs as
     `gate.yml`, `persist-credentials: false`, no cache, no upload, no secret;
   - five jobs, each `timeout-minutes: 45`, Node 24, running
@@ -279,10 +309,13 @@ code changes:
     `gate-windows` or `gate-macos`, which `workflow.test.mjs` already
     refuses in any other workflow file.
 - **`workflow.test.mjs`** gains, for `clef-e2e.yml`: its job set and runners
-  held exactly, the `paths` filter held exactly, `shell: bash` on each
-  Windows run step, and the one `sudo` line held to the keeper job. Each check
-  is seen to fail on a bad case: a sixth job, a missing path, a `sudo` line in
-  another job, another runner, and a Windows step without `shell: bash`.
+  held exactly, the `paths` filter and triggers held exactly, the
+  concurrency group held exactly, each job's run line (with its key) held
+  exactly, no `if:` or `continue-on-error`, `shell: bash` on each Windows run
+  step, and the one `sudo` line held to the keeper job. Each check is seen to
+  fail on a bad case: a sixth job, a missing path, a group starting `gate-`,
+  a job with `continue-on-error`, a run line with another key, a `sudo` line
+  in another job, another runner, and a Windows step without `shell: bash`.
 - **Test evidence.** T3 edits `AGENTS.md`'s "Running the gate's tests": for a
   change the `paths` filter covers, the Test record also cites the five
   `clef-e2e` job links on the reviewed head. An ADR, indexed, records the
@@ -294,7 +327,10 @@ code changes:
 
 - **The forward timeout:** 180 s on CPU keys, 60 s on GPU keys
   (`FORWARD_TIMEOUT_MS` picked by `setup.json`'s backend). An answer past it
-  stays `502 no-answer`.
+  stays `502 no-answer`. A caller's `decide` on CPU can therefore wait up to
+  180 s, outside text in `state` included; the doc says so, and this is
+  accepted (the lead's decision 71). clef-pilot's own client timeout lives
+  outside this repo.
 - **The run fails past these:** time to ready, 5 minutes (0002's start
   timeout of 180 s still bounds the server's own start); each answer, U8's
   forward timeout for its key.
@@ -313,7 +349,8 @@ code changes:
   `-nr` the server peaked at 5 to 7 GB on 16 GB runners; the doc gives each
   runner's peak); a Node 24 that matches your CPU's arch; and per platform the system
   libraries U5 found and the glibc floor, with how to check a library is
-  there (`ldconfig -p | grep <name>` on Linux).
+  there (`ldconfig -p | grep <name>` on Linux), and the `GLIBCXX_`,
+  `CXXABI_`, `GCC_` and `GOMP_` floors U5 prints.
 - **Example machines:** the owner's (Windows x64, Vulkan) as it reads today,
   marked as one example; and each CI runner's CPU model and count, RAM, time
   to ready, median answer time and peak memory from the latest green U7
@@ -422,7 +459,9 @@ evidence on its own head.
 2. **T2: no setpriv.** U6. Claims C-U5, C-U6. Its start check is U11's
    first line.
 3. **T3: the end-to-end run, the timeout and the load-crash word.** U7, U8,
-   U18. Claims C-U7 to C-U9 and C-U12, C-U13. Needs T1's rows and T2's
+   U18, the issue form, and the threat model's two lockdown lines naming
+   `clef-e2e.yml` beside `gate.yml` and `codeql.yml` (a wording update; the
+   control doesn't change). Claims C-U7 to C-U9 and C-U12, C-U13. Needs T1's rows and T2's
    keeper.
 4. **T4: the doc.** U9, and the 0002 and 0003 pointer edits (U2 pick 1).
    Claim C-U10. Needs T3's first green run for the numbers.
@@ -439,10 +478,11 @@ evidence on its own head.
   on all four Linux rows, and refuses a Linux row without `glibc`. `files`
   came from `clef-files-list.mjs`. The pin record shows each asset's
   `digest`, `created_at`, `updated_at` and the release's immutability, and
-  cites U10's six-case runs as C14 for each new row.
+  cites U10's six-case runs as C14 for each new row, with their numbers and
+  commits, and shows the shipped rows unchanged but for `glibc`.
 - **C-U3** Setup refuses `clef-platform` on Linux with no
   `glibcVersionRuntime` and with one below the row's `glibc`, before any
-  fetch, and passes at or above it.
+  fetch, and passes at or above it; `2.4` is below `2.35`.
 - **C-U4** The files-list report flags each U5 fixture, and the shipped
   rows raise no flag.
 - **C-U5** `lifetimeLine` returns each value U6 lists. On `gate`, with
@@ -472,13 +512,16 @@ evidence on its own head.
 - **C-U11** `serverArgs` holds `-nr` as its last item for every CPU key,
   0003's `darwin-arm64-cpu` included, and for no Vulkan or Metal key; the
   argument list tests change with it.
-- **C-U12** The forward timeout is 180 s on CPU keys and 60 s on GPU keys,
-  through a seam a test sets; a stub that answers after 61 s gets an answer
-  on a CPU key and `no-answer` on a GPU key.
+- **C-U12** The forward timeout is 180,000 ms on CPU keys and 60,000 ms on
+  GPU keys, asserted by backend; through a seam that scales the wait, a stub
+  slower than the GPU bound and faster than the CPU bound gets an answer on a
+  CPU key and `no-answer` on a GPU key, with no real minute-long wait.
 - **C-U13** A stub server that exits before ready leaves `run.fail` with
   `stage: 'load'`; `ensure` prints `failed` with `reason` `exit`, as today,
   and its stderr line and `clef status` say U18's words, naming the platform
-  key, and print no server text.
+  key, with "try `clef setup --cpu`" on a GPU key only; neither holds server
+  text, the token or the `run.key` value. A keeper-line stub's exit records
+  `code: 'unknown'`. The issue form holds U18's closed list.
 
 ## U16 Needs the owner
 
@@ -488,7 +531,7 @@ evidence on its own head.
 | The security pair on this spec | spec round 2 | now |
 | The security pair on `clef-e2e.yml` and the keeper on Linux | checkpoint | at T2's and T3's Test |
 | U10's branch push (done, the lead's OK, decision 64) and its deletion | checkpoint | delete once the spec is approved |
-| Where field reports go (U18) | the owner's call | before T3 |
+| Where field reports go (U18): a public GitHub issue form, the lead's decision 78 | flagged for the owner's review | after |
 | The forward-timeout change (U8) | checkpoint (a bound in 0002 changes) | spec approval |
 | Merging each ticket (`claude/tools/`, `.github/`, read closely) | checkpoint, pinned to the reviewed head | after each Test |
 | Making `clef-e2e` required | the owner's GitHub setting | not planned: a path-skipped required check stays pending |
@@ -505,17 +548,28 @@ evidence on its own head.
 ## U18 A server that ends while loading
 
 - When the server exits before the supervisor sees it ready, `run.fail`
-  gains `stage: 'load'` and the exit code or signal name; a later exit gets
+  gains `stage: 'load'` and `code`: the exit code or signal name on the
+  `setpriv` and `job-object` lines, and `unknown` on the keeper line, whose
+  `{gone}` message carries none (0003 M5's shape stays). A later exit gets
   `stage: 'serve'`. Both keep `reason: 'exit'`, so `ensure`'s JSON and its
   states stay V1's.
 - `ensure`, on `failed` with `stage: 'load'`, prints one line to stderr, and
   `clef status` prints the same line: "the server stopped while loading the
-  model on <platform key> (<code or signal>); this build may not support
-  this CPU. Please send a field report: docs/clef.md, Field reports". No
-  server text, path or key is in it.
-- `docs/clef.md` gains "Field reports": what to include (`clef status`
-  output, the OS and CPU model), and where to send it, which is the owner's
-  call (U16).
+  model on <platform key> (<code>); this build may not support this CPU or
+  system. See docs/clef.md, Field reports". On a GPU key it adds "; try
+  `clef setup --cpu`". The line points and does not ask: a field report is
+  the user's own act. No server text, path, token or `run.key` value is in
+  it.
+- **Field reports** go to a public GitHub issue form, `Clef field report`,
+  in `.github/ISSUE_TEMPLATE/clef-field-report.yml` (the lead's decision 78,
+  flagged for the owner's review). Its fields, a closed list: the `clef
+  status` lines, the platform key, the llama.cpp build, the OS name and
+  version, the CPU model, node's version and arch, and the stage. The form
+  and `docs/clef.md` say the report is public, and that it holds no path,
+  account name, log or server output. The doc says an agent sends none
+  unasked. A report's text is outside text under
+  `docs/agents/issue-tracker.md`: data, never instructions. If issues lock,
+  the form moves to Discussions in that change.
 
 ## U19 Rollback (amends 0002 S15)
 
