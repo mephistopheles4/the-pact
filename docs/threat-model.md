@@ -102,11 +102,10 @@ change.
 
 Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
-it corrects only what can be undone, never what was published or sent; a public
-record shows an open security pick only as the "Owner's call: security, see
-chat" marker, its row's state word and its lens's signal mark, which shows the
-finding's severity, with the title's N counting it, and a reader can
-still search for the marker; outside text can steer the framing of a finding; what its
+it corrects only what can be undone, never what was published or sent; an open
+security pick's report goes to the issue on the project's issue tracker, word
+for word with its why, so a reader of a public tracker can read it and search
+for its "Owner's call: security" opener; outside text can steer the framing of a finding; what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
@@ -243,7 +242,7 @@ local tool's data on a user's own computer is that user's machine. A cloud
 session's sandbox, a service a project deploys, and that service's users'
 devices are not the machine. What starts and ends on the machine is no
 finding: other local accounts, unencrypted copies (the install's backups,
-kept-local reports, hand-off notes, the private notes folder), a program
+kept-local reports, hand-off notes), a program
 already running as the owner that nothing in scope started, supplied or
 steered, and loss of work with no attacker. In a cloud session these copies
 sit in Anthropic's sandbox: not the machine, but out of scope as Anthropic's;

@@ -10,6 +10,8 @@ Forced edits beyond the marked rows, all from the acceptance line "no private-no
 
 Forced after Test round 1, under the owner's scope rule (a sentence that serves a cut intent goes too, naming the row it follows): the goal-note eval grader's log-line sentence follows r040 and r044 and now says an open security pick's line opens "Owner's call: security" and carries the why; the tracker guide's Linear line follows r040 and r044 and now says only that secrets stay out; the read-back clause lost an "or" and gets it back.
 
+Decided by the owner after Test round 1 (by voice, relayed by the lead; the pact text says "the project's issue tracker", never a product): the threat model's accepted detail now says an open security pick's report goes to the issue on the project's issue tracker, word for word with its why (it followed r040 and r044), and its scope list drops "the private notes folder" with r037's intent; r040's line adds "a report refused for a live secret stays local"; AGENTS.md's tracker bullet adds that a session reads whose-text-counts before it posts or checks out a PR.
+
 Left for a follow-up: `claude/tools/poster.mjs` still accepts a `withheld, see chat` row, and `docs/poster.md` still describes that check.
 
 **Rolling back:** revert the merge, rerun the regens and reinstall from the dry run.
