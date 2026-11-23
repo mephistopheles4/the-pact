@@ -1310,12 +1310,19 @@ when no other row answers the sentence.
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image.
 - **Keep the record where the project keeps it.** Post with `signer` set to
-  your session's short label. Give each issue, ticket, spec, decision and pull
-  request my ask in `quote`, exactly (the sentences that define the work or
-  change its scope), with your read-back in `intent`. My examples still become
-  claims with measures. Where no tool renders `quote`, `intent` and `signer`
-  for you, write the quoted ask, your read-back and a `Signed: <label>` line
-  yourself, as plain text. With no record, quote it in each
+  your session's short label. Give each decision my ask in `quote`, exactly
+  (the sentences that define the work or change its scope), with your
+  read-back in `intent`. Give each issue, ticket, spec and pull request two
+  exact quotes of mine in `quote`, each passage with a `role`: the words that
+  started the intent (`intent`) and the words that started this task
+  (`start`), or one passage for both (`both`). When no words of mine are
+  behind one of them, say so in `intent_none` or `start_none`, such as "no
+  owner words: started from a session's note", and quote nothing for it; a
+  session's own note is never my words. A post that fills neither is refused.
+  My examples still become claims with measures. Where no tool renders
+  `quote`, `intent` and `signer` for you, write the quoted ask (both quotes,
+  or that none of mine is behind one), your read-back and a `Signed: <label>`
+  line yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint at level 3.
@@ -1589,7 +1596,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
 check_hash 3ea41220667e901a9566d43dc68baea519abe86273d4e120ecc273f4d18a9e55 'pact/review-diagrams.md'
-check_hash e8f655b596ab7dcb30d6c3fbab105e3e4cada74768d228a2cdd0e6a9c50f62b4 'pact/review.md'
+check_hash 6bd1d5ab8f9a94845243dd75cf0d9ad3b266cf8bb77c8438a8059116fd147ad3 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1619,7 +1626,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 2652fee1e78b"
+  echo "pact cloud copy 3f6db52fb4af"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

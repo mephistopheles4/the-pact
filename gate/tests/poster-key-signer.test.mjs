@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { SCHEMA, post } from '../../claude/tools/poster.mjs';
+import { withRoles } from './poster-roles.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const ME = 'tester';
@@ -21,7 +22,7 @@ const noGh = () => assert.fail('a dry run calls no gh');
 
 function run(t, surface, doc, { gh = noGh, dry = true, body = 'A plain body.\n' } = {}) {
   const dir = tempDir(t, 'abcd-poster-key-');
-  writeTree(dir, { 'body.md': body, 'post.json': JSON.stringify(doc) });
+  writeTree(dir, { 'body.md': body, 'post.json': JSON.stringify(withRoles(doc)) });
   return post([surface, '--post', join(dir, 'post.json'), ...(dry ? ['--dry-run'] : [])], { gh, env: {}, now: NOW, ...MACHINE });
 }
 

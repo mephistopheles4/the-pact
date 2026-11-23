@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { KINDS, NEXT_FOR, post, renderBody } from '../../claude/tools/poster.mjs';
+import { withRoles } from './poster-roles.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const ME = 'tester';
@@ -38,7 +39,7 @@ const noGh = () => assert.fail('a refused dry run calls no gh');
 /** Write the post document (an object, or raw text) and the body file, and run the poster on it. */
 function run(t, surface, doc, { body = 'A plain body.\n', gh = noGh, env = {}, dry = true, extra = {} } = {}) {
   const dir = tempDir(t, 'pact-poster-doc-');
-  writeTree(dir, { 'body.md': body, ...extra, 'post.json': typeof doc === 'string' ? doc : JSON.stringify(doc) });
+  writeTree(dir, { 'body.md': body, ...extra, 'post.json': typeof doc === 'string' ? doc : JSON.stringify(withRoles(doc)) });
   return post([surface, '--post', join(dir, 'post.json'), ...(dry ? ['--dry-run'] : [])], { gh, env, now: NOW, ...MACHINE });
 }
 
@@ -282,7 +283,9 @@ test('C3: quote or intent on a kind that refuses them is refused, and so is thei
   refuses(run(t, 'review-thread-reply', { ...BASE['review-thread-reply'], intent: INTENT }), 'post/field', 'intent');
   for (const [surface, doc] of [['issue', ISSUE], ['pull-request', BASE['pull-request']], ['issue-comment', SPEC], ['issue-comment', DECISION]]) {
     const r = run(t, surface, without(doc, 'quote', 'intent'));
-    assert.ok(has(r, 'post/missing', 'quote') && has(r, 'post/missing', 'intent'), `${doc.kind}: ${out(r)}`);
+    // An issue, pull request or spec names the two quotes it lacks (PACT-77); a decision, its one quote.
+    const lacks = doc.kind === 'decision' ? ['quote'] : ['quote.intent', 'quote.start'];
+    assert.ok(lacks.every(where => has(r, 'post/missing', where)) && has(r, 'post/missing', 'intent'), `${doc.kind}: ${out(r)}`);
   }
 });
 
@@ -547,8 +550,8 @@ test('C5: the rendered body of a two-passage issue, pending, is the spec\'s lite
     ...ISSUE,
     signer: 'issue-524',
     quote: [
-      { text: 'First line of the first passage.\nIts second line.', source: 'chat', when: '2026-11-11' },
-      { text: 'The second passage.', source: 'relayed', via: 'backlog-lead', when: '2026-11-10' },
+      { text: 'First line of the first passage.\nIts second line.', source: 'chat', when: '2026-11-11', role: 'intent' },
+      { text: 'The second passage.', source: 'relayed', via: 'backlog-lead', when: '2026-11-10', role: 'start' },
     ],
     intent: { text: 'The read-back.', status: 'pending' },
   };
@@ -558,11 +561,11 @@ test('C5: the rendered body of a two-passage issue, pending, is the spec\'s lite
     '> First line of the first passage.',
     '> Its second line.',
     '',
-    "Said in this session's chat, 2026-11-11.",
+    "Said in this session's chat, 2026-11-11. Quote for the intent.",
     '',
     '> The second passage.',
     '',
-    'Relayed by backlog-lead from its chat, 2026-11-10.',
+    'Relayed by backlog-lead from its chat, 2026-11-10. Quote for the start.',
     '',
     '## Understood intent',
     '',
@@ -587,7 +590,7 @@ test('C5: a CRLF passage, an empty quote line, a tracker source line and a confi
   const r = run(t, 'issue', { ...ISSUE, quote, intent: { ...INTENT, status: 'pending' } }, { gh: w.gh, dry: false });
   assert.equal(r.code, 0, out(r));
   const body = JSON.parse(w.calls.find(c => c.args.includes('POST')).input).body;
-  assert.ok(body.startsWith('## The ask\n\n> one\n> two\n> three\n>\n> four\n\nSaid in this session\'s chat, 2026-11-11.\n\n> A tracker passage, long enough to pass.\n\nFrom the owner\'s comment 7777, 2026-11-10.\n\n## Understood intent'), body);
+  assert.ok(body.startsWith('## The ask\n\n> one\n> two\n> three\n>\n> four\n\nSaid in this session\'s chat, 2026-11-11. Quote for the intent and the start.\n\n> A tracker passage, long enough to pass.\n\nFrom the owner\'s comment 7777, 2026-11-10. Quote for the intent and the start.\n\n## Understood intent'), body);
   const confirmed = sent(t, 'issue', { ...ISSUE, intent: { ...INTENT, status: 'confirmed' } }, 'Body.\n');
   assert.ok(confirmed.includes("\n\nI read it so.\n\nRead-back: confirmed in this session's chat.\n\nBody.\n\nSigned: plan-524"), confirmed);
 });
