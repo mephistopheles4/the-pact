@@ -6,6 +6,22 @@ commands. It is a pact tool, off by default; turn it on by listing
 `cleaner` in the `tools` key of `~/.claude/pact/config.json`. ADR 0124 says
 why it works this way.
 
+<!-- toc -->
+
+- [Use](#use)
+- [What it keeps](#what-it-keeps)
+- [Overriding a keep](#overriding-a-keep)
+- [With `--recoverable`](#with---recoverable)
+- [A stopped session's lock](#a-stopped-sessions-lock)
+- [A finished session](#a-finished-session)
+- [What it never does](#what-it-never-does)
+- [Exit codes](#exit-codes)
+- [Deny rules](#deny-rules)
+- [When it leaves something](#when-it-leaves-something)
+- [Rolling back](#rolling-back)
+
+<!-- /toc -->
+
 ## Use
 
 ```text

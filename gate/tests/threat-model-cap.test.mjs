@@ -7,13 +7,14 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { stripToc } from '../../docs/toc.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const CAP = 3000;
 
-/** Words: runs of non-whitespace, so CRLF and LF count the same. */
-const words = text => text.split(/\s+/).filter(Boolean).length;
+/** Words: runs of non-whitespace, so CRLF and LF count the same, with the table of contents left out (PACT-78). */
+const words = text => stripToc(text).split(/\s+/).filter(Boolean).length;
 
 /** A line naming the file, its count and the cap when the file goes past it, else nothing. */
 const overCap = (name, text) => (words(text) > CAP ? [`${name}: ${words(text)} words, cap ${CAP}`] : []);
@@ -41,4 +42,11 @@ test('threat-model cap: a copy at exactly the cap passes', () => {
 // #544 C9
 test('threat-model cap: words are runs of non-whitespace, whatever the separator', () => {
   assert.equal(words('a b\r\nc\td\n- e '), 6);
+});
+
+// PACT-78 C4
+test('threat-model cap: a table of contents does not count, and one word past the cap outside it still does', () => {
+  const toc = `<!-- toc -->\n\n${'- [Heading](#heading)\n'.repeat(50)}\n<!-- /toc -->\n\n`;
+  assert.deepEqual(overCap('at cap', `${toc}${'word\n'.repeat(CAP)}`), []);
+  assert.deepEqual(overCap('over', `${toc}${'word\n'.repeat(CAP + 1)}`), [`over: ${CAP + 1} words, cap ${CAP}`]);
 });

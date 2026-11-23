@@ -4,6 +4,17 @@ What is in this repo, where each part installs, which agent runs at which
 effort, and what never goes in. For what the pact is and why, read the
 [README](../README.md); to install it, follow [install.md](install.md).
 
+<!-- toc -->
+
+- [What's here](#whats-here)
+- [Pact commands](#pact-commands)
+- [Pact tools](#pact-tools)
+- [The familiars, by effort](#the-familiars-by-effort)
+- [The moves and Anthropic's playbook](#the-moves-and-anthropics-playbook)
+- [What never goes in here](#what-never-goes-in-here)
+
+<!-- /toc -->
+
 ## What's here
 
 | Path | What it is | Installs to |

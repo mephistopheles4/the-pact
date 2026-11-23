@@ -3,6 +3,18 @@
 How to run a lens and handle its report. The rules file's Workflow says which
 lenses to offer, and when.
 
+<!-- toc -->
+
+- [Running a lens](#running-a-lens)
+- [The report template](#the-report-template)
+- [Handling the reports](#handling-the-reports)
+- [The threat model](#the-threat-model)
+- [Diagrams](#diagrams)
+- [Posting](#posting)
+- [Lens dispositions](#lens-dispositions)
+
+<!-- /toc -->
+
 ## Running a lens
 
 - **Inputs.** Give each lens, as local files: what it reviews (a spec with its
