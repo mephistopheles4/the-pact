@@ -48,8 +48,8 @@ const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNE
 const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\n${DRY_RUN}\n`;
 // The Windows step also plants a real Claude folder with a plain subfolder in the runner's home, as the Linux container's image does, so the installer's real-folder guards run (q11).
 const REAL_DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`;
-// Spec 0003 M7: the macOS job also runs the pinned server once (--device none --version) through gate/clef-smoke.mjs, so a Mac run shows the real server starting.
-const SMOKE = 'env -u NODE_OPTIONS node gate/clef-smoke.mjs';
+// Spec 0003 M7: the macOS job also runs the pinned server once (--device none --version) through gate/tests/clef-smoke.mjs, so a Mac run shows the real server starting.
+const SMOKE = 'env -u NODE_OPTIONS node gate/tests/clef-smoke.mjs';
 const GATE_JOBS = [
   ['gate', 'ubuntu-24.04', FULL, DRY_STEP, false],
   // Spec 0003 M7 (amended): the macOS arm64 job plants the real Claude folder as Windows does, a tightening of the dry run, with its skips checked against its own committed list.
@@ -465,9 +465,9 @@ for (const [label, plant, says] of [
   ['sets a shell on a macOS step', inMacos(s => s.replace('      - name: Gate suite, full tier\n        run:', '      - name: Gate suite, full tier\n        shell: sh\n        run:')), extraKey("gate-macos's step 4", 'shell')],
   // Spec 0003 M7: the macOS job runs the pinned server once; the smoke step is required, held to its one line, and held to the macOS job alone.
   ['drops the macOS smoke step', inMacos(s => s.replace(/ {6}- name: Pinned macOS server smoke run\n {8}run: .*(?:\n|$)/, '')), 'gate-macos holds other steps than checkout, setup-node, the dry run, the full tier and the server smoke run'],
-  ['runs another line in the macOS smoke step', inMacos(s => s.replace('node gate/clef-smoke.mjs', 'node gate/clef-smoke.mjs || true')), 'gate-macos does not run the pinned server smoke step'],
+  ['runs another line in the macOS smoke step', inMacos(s => s.replace('node gate/tests/clef-smoke.mjs', 'node gate/tests/clef-smoke.mjs || true')), 'gate-macos does not run the pinned server smoke step'],
   ['sets a shell on the macOS smoke step', inMacos(s => s.replace('      - name: Pinned macOS server smoke run\n        run:', '      - name: Pinned macOS server smoke run\n        shell: sh\n        run:')), extraKey("gate-macos's step 5", 'shell')],
-  ['adds the smoke step to gate', s => s.replace('      - name: Gate suite, full tier\n        run: env -u NODE_OPTIONS node gate/tests/run.mjs full\n', '      - name: Gate suite, full tier\n        run: env -u NODE_OPTIONS node gate/tests/run.mjs full\n      - name: Pinned macOS server smoke run\n        run: env -u NODE_OPTIONS node gate/clef-smoke.mjs\n'), 'gate holds other steps than checkout, setup-node, the dry run, the full tier'],
+  ['adds the smoke step to gate', s => s.replace('      - name: Gate suite, full tier\n        run: env -u NODE_OPTIONS node gate/tests/run.mjs full\n', '      - name: Gate suite, full tier\n        run: env -u NODE_OPTIONS node gate/tests/run.mjs full\n      - name: Pinned macOS server smoke run\n        run: env -u NODE_OPTIONS node gate/tests/clef-smoke.mjs\n'), 'gate holds other steps than checkout, setup-node, the dry run, the full tier'],
   ['runs gate-macos on a matrix', inMacos(s => s.replace('    runs-on: macos-15\n', '    strategy:\n      matrix:\n        os: [macos-15]\n    runs-on: macos-15\n')), 'gate-macos runs on a matrix'],
   ['drops the Windows job', s => s.slice(0, s.indexOf(WINDOWS_JOB) + 1), 'holds other jobs than gate, gate-macos and gate-windows'],
   ['moves gate to another runner', s => s.replace('runs-on: ubuntu-24.04', 'runs-on: ubuntu-latest'), 'gate does not run on ubuntu-24.04'],

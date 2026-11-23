@@ -6,14 +6,14 @@
 // in the server's fixed folder and environment. The run passes only when that
 // exits 0. It starts no model and opens no port, and reads no secret.
 //
-// usage: node gate/clef-smoke.mjs
+// usage: node gate/tests/clef-smoke.mjs
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SERVER, archiveUrl, destName, fetchFile, makeTransport, paths, serveEnv, unpackServer } from '../claude/tools/clef.mjs';
+import { SERVER, archiveUrl, destName, fetchFile, makeTransport, paths, serveEnv, unpackServer } from '../../claude/tools/clef.mjs';
 
 /** The pin row the run uses: Apple Silicon's CPU build, which names no device. */
 export const KEY = 'darwin-arm64-cpu';

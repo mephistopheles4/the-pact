@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { Readable } from 'node:stream';
 import { gzipSync } from 'node:zlib';
 import { SERVER } from '../../claude/tools/clef.mjs';
-import { KEY, smoke } from '../clef-smoke.mjs';
+import { KEY, smoke } from './clef-smoke.mjs';
 import { tempDir } from './tree.mjs';
 
 const sha = b => createHash('sha256').update(b).digest('hex');
