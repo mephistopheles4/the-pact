@@ -172,7 +172,7 @@ function takeShipped(id) {
 
 // #564 C4a, C7: a preset's saved configuration holds no settings, the dry run says checkpoints never wait, and the installed rules hold no wait line.
 test('S13: a shipped preset\'s saved configuration holds no settings key for checkpoints: the dry run shows the NOTE and no WARN, and the installed rules hold no "Checkpoints wait" line', t => {
-  for (const id of ['level-1-beginner', 'level-3-full']) {
+  for (const id of ['beginner', 'full']) {
     const s = takeShipped(id);
     assert.equal(s.checkpointStops, undefined, 'the page state holds no such switch');
     const repo = makeRepo(t);

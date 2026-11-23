@@ -20,7 +20,7 @@ import { tempDir } from './tree.mjs';
 const WIN = process.platform === 'win32';
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');
 const PAGE_NAME = basename(PAGE_REL);
-// The page starts at Level 3 · Full, so a save from its start is the pact's default configuration (#183 T4a).
+// The page starts at the Full preset, so a save from its start is the pact's default configuration (#183 T4a).
 const DEFAULT_CONFIG = JSON.parse(readFileSync(join(REPO, 'builder', 'default-config', 'config.json'), 'utf8'));
 const sha256b64 = s => createHash('sha256').update(s, 'utf8').digest('base64');
 
@@ -793,8 +793,8 @@ test('bad builder file: agent files with a bad name, no text, or a web address a
   }
 });
 
-// #262: Reset comes back to where the page started, Level 3 · Full, not the plain pact.
-test('reset puts the usage value, every part and every agent back to where the page started, Level 3 · Full, and undo puts it all back', () => {
+// #262: Reset comes back to where the page started, the Full preset, not the plain pact.
+test('reset puts the usage value, every part and every agent back to where the page started, the Full preset, and undo puts it all back', () => {
   const s = L.initialState();
   assert.equal(L.atDefaults(s), true);
   assert.equal(L.atStart(s), false, 'the plain pact is not where the page starts');
@@ -811,9 +811,9 @@ test('reset puts the usage value, every part and every agent back to where the p
   assert.equal(before, changed);
   assert.equal(L.atStart(s), true);
   const start = L.initialState();
-  L.takePreset(start, L.PACT.presets.find(p => p.id === 'level-3-full'), L.presetPicks(L.PACT.presets.find(p => p.id === 'level-3-full')));
+  L.takePreset(start, L.PACT.presets.find(p => p.id === 'full'), L.presetPicks(L.PACT.presets.find(p => p.id === 'full')));
   assert.deepEqual(JSON.parse(JSON.stringify(s)), JSON.parse(JSON.stringify(start)));
-  // A reset page saves Level 3 · Full: its workflow edit, no settings, no agents.
+  // A reset page saves the Full preset: its workflow edit, no settings, no agents.
   // #183 T4a C4: what a reset page saves is the pact's default configuration, skills included once it has them.
   assert.deepEqual(JSON.parse(L.buildFiles(s).find(f => f.path === 'pact/config.json').text), DEFAULT_CONFIG);
   L.restoreAll(s, before);
@@ -1259,7 +1259,7 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
     for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 0));
     return folder.written;
   };
-  // The page starts from Level 3 · Full, so even an untouched save carries its workflow.
+  // The page starts from the Full preset, so even an untouched save carries its workflow.
   const kept = await save(fakeFolder({ 'config.json': '{"schema":1,"commands":["finis"]}' }));
   assert.deepEqual(JSON.parse(kept['config.json']), { ...DEFAULT_CONFIG, commands: ['finis'] });
   assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
@@ -1495,9 +1495,9 @@ for (const [name, block, refusedByPage] of BLOCKS) {
 // #262 addendum 4: a shipped preset carries only what its file gives; a refused one stops the build.
 test('a shipped preset is carried with only the parts, models and agent files it gives; a refused preset stops the build', t => {
   const dir = tempDir(t, 'pact-presets-');
-  writeFileSync(join(dir, 'level-1.json'), JSON.stringify({ schema: 1, title: 'Level 1', tiers: [{ id: 'only', name: 'Only', fits: 'All work', plan: 'none', build: 'Sonnet, medium' }], agentFiles: { mine: '---\nname: mine\n---\n' } }));
+  writeFileSync(join(dir, 'plain.json'), JSON.stringify({ schema: 1, title: 'Plain', tiers: [{ id: 'only', name: 'Only', fits: 'All work', plan: 'none', build: 'Sonnet, medium' }], agentFiles: { mine: '---\nname: mine\n---\n' } }));
   const [p] = shippedPresets(REPO, pactData(REPO), dir);
-  assert.deepEqual([p.id, p.title, Object.keys(p.parts), Object.keys(p.agentFiles)], ['level-1', 'Level 1', ['tiers'], ['mine']]);
+  assert.deepEqual([p.id, p.title, Object.keys(p.parts), Object.keys(p.agentFiles)], ['plain', 'Plain', ['tiers'], ['mine']]);
   writeFileSync(join(dir, 'z-bad.json'), JSON.stringify({ schema: 1, tiers: [] }));
   assert.throws(() => shippedPresets(REPO, pactData(REPO), dir), /the preset z-bad\.json is refused: .*1 to 6 tiers/);
 });
@@ -1790,16 +1790,23 @@ test('C7: a presets folder that is a file stops nothing: one finding, no presets
 });
 
 // #283 C3
-test('C3: a personal level-3-full lands nowhere and shadows nothing', t => {
+test('C3: a personal full lands nowhere and shadows nothing', t => {
   const k = kitHome(t);
   mkdirSync(k.presets, { recursive: true });
-  writeFileSync(join(k.presets, 'level-3-full.json'), JSON.stringify({ schema: 1, title: 'Fake', tiers: ONE_TIER }));
+  writeFileSync(join(k.presets, 'full.json'), JSON.stringify({ schema: 1, title: 'Fake', tiers: ONE_TIER }));
   const { text } = ownPage(t, k, builderFile(t, GOOD, GOOD_BLOCKS));
   const Lp = pageLogic(text);
-  const shipped = shippedPresets(REPO, pactData(REPO)).find(p => p.id === 'level-3-full');
-  assert.deepEqual(Lp.PACT.presets.find(p => p.id === 'level-3-full'), shipped);
+  const shipped = shippedPresets(REPO, pactData(REPO)).find(p => p.id === 'full');
+  assert.deepEqual(Lp.PACT.presets.find(p => p.id === 'full'), shipped);
   assert.equal(Lp.PACT.ownPresets.length, 1);
   assert.deepEqual(Lp.startState().parts.tiers, shipped.parts.tiers);
+});
+
+// PACT-72: a preset is a configuration, never an autonomy setting, so no shipped preset's id or title says "level".
+test('PACT-72: no shipped preset carries the word level in its id or title', () => {
+  const shipped = shippedPresets(REPO, pactData(REPO));
+  assert.ok(shipped.length >= 6 && shipped.some(p => p.id === 'full'));
+  assert.deepEqual(shipped.filter(p => /\blevel\b/i.test(`${p.id} ${p.title}`.replaceAll('-', ' '))).map(p => p.id), []);
 });
 
 /** Run `expr` inside the page's script, so identity of its data holds. */

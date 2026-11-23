@@ -362,7 +362,7 @@ test('the dry run shows a Configuration block that names the pact\'s default whe
   const lines = r.stdout.replaceAll('\r\n', '\n').split('\n');
   const c = lines.indexOf('Configuration:');
   assert.ok(c >= 0, r.out);
-  assert.match(lines[c + 1], /^ {2}configuration: the pact's default, Level 3 · Full \([0-9a-f]{12}\): you have no pact\/config\.json$/);
+  assert.match(lines[c + 1], /^ {2}configuration: the pact's default, Full \([0-9a-f]{12}\): you have no pact\/config\.json$/);
   assert.ok(c < lines.findIndex(l => /^Gate: /.test(l)), r.out);
 });
 

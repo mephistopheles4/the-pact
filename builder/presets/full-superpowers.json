@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "title": "Level 3 · Full",
+  "title": "Full · Superpowers skills",
   "tiers": [
     {
       "id": "quick",
@@ -200,18 +200,9 @@
     "layout": {},
     "skills": [
       {
-        "id": "plan-prototype",
-        "stage": "plan",
-        "skill": "prototype",
-        "mode": "offered",
-        "when": "words",
-        "words": "when my intent is still forming",
-        "on": true
-      },
-      {
-        "id": "design-spec",
+        "id": "design-brainstorm",
         "stage": "design",
-        "skill": "spec-driven-development",
+        "skill": "superpowers:brainstorming",
         "mode": "used",
         "when": "tiers",
         "words": "",
@@ -222,9 +213,35 @@
         "on": true
       },
       {
-        "id": "build-incremental",
+        "id": "design-plans",
+        "stage": "design",
+        "skill": "superpowers:writing-plans",
+        "mode": "used",
+        "when": "tiers",
+        "words": "",
+        "tiers": [
+          "standard",
+          "thorough"
+        ],
+        "on": true
+      },
+      {
+        "id": "build-execute",
         "stage": "build",
-        "skill": "incremental-implementation",
+        "skill": "superpowers:executing-plans",
+        "mode": "used",
+        "when": "tiers",
+        "words": "",
+        "tiers": [
+          "standard",
+          "thorough"
+        ],
+        "on": true
+      },
+      {
+        "id": "build-tdd",
+        "stage": "build",
+        "skill": "superpowers:test-driven-development",
         "mode": "used",
         "when": "tiers",
         "words": "",
@@ -236,9 +253,9 @@
         "on": true
       },
       {
-        "id": "build-tdd",
-        "stage": "build",
-        "skill": "test-driven-development",
+        "id": "test-verify",
+        "stage": "test",
+        "skill": "superpowers:verification-before-completion",
         "mode": "used",
         "when": "tiers",
         "words": "",
@@ -252,7 +269,7 @@
       {
         "id": "test-review",
         "stage": "test",
-        "skill": "code-review-and-quality",
+        "skill": "superpowers:requesting-code-review",
         "mode": "offered",
         "when": "tiers",
         "words": "",
@@ -263,9 +280,9 @@
         "on": true
       },
       {
-        "id": "deploy-launch",
+        "id": "deploy-finish",
         "stage": "deploy",
-        "skill": "shipping-and-launch",
+        "skill": "superpowers:finishing-a-development-branch",
         "mode": "offered",
         "when": "tiers",
         "words": "",
@@ -277,32 +294,14 @@
         "on": true
       },
       {
-        "id": "maintain-docs",
+        "id": "maintain-debug",
         "stage": "maintain",
-        "skill": "documentation-and-adrs",
+        "skill": "superpowers:systematic-debugging",
         "mode": "offered",
-        "when": "tiers",
-        "words": "",
-        "tiers": [
-          "standard",
-          "thorough"
-        ],
+        "when": "words",
+        "words": "when a bug comes in",
         "on": true
       }
     ]
-  },
-  "skills": [
-    {
-      "repo": "addyosmani/agent-skills",
-      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
-      "paths": [
-        "skills/spec-driven-development",
-        "skills/incremental-implementation",
-        "skills/test-driven-development",
-        "skills/code-review-and-quality",
-        "skills/shipping-and-launch",
-        "skills/documentation-and-adrs"
-      ]
-    }
-  ]
+  }
 }

@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { changedParts, checkBuilder, isKit } from './build.mjs';
 
-export const DEFAULT_PRESET_REL = 'builder/presets/level-3-full.json';
+export const DEFAULT_PRESET_REL = 'builder/presets/full.json';
 export const DEFAULT_DIR_REL = 'builder/default-config';
 
 /** The default's files from the preset under `root`: [{ path, text }], config.json first, paths relative to the default folder. */

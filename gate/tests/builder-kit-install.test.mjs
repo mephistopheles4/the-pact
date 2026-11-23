@@ -37,7 +37,7 @@ test('the builder kit installs with no commands list, holds the unrendered rules
   assert.equal(readFileSync(join(kit, 'claude', 'rules.source.md'), 'utf8'), readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8'), 'the kit holds the unrendered rules');
   assert.ok(!listTree(kit).some(rel => /(^|[\\/])CLAUDE\.md$/.test(rel)), 'the kit holds no file named CLAUDE.md');
   assert.deepEqual(readdirSync(join(kit, 'claude', 'agents')).sort(), readdirSync(join(repo, 'claude', 'agents')).sort());
-  assert.ok(existsSync(join(kit, 'gate', 'render-core.mjs')) && existsSync(join(kit, 'builder', 'presets', 'level-3-full.json')));
+  assert.ok(existsSync(join(kit, 'gate', 'render-core.mjs')) && existsSync(join(kit, 'builder', 'presets', 'full.json')));
   assert.ok(!existsSync(join(h, 'rules.source.md')), 'the rules source goes only to the kit');
 
   const env = { ...process.env };

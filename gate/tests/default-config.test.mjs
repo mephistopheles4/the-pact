@@ -92,7 +92,7 @@ test('bad case: a stale copy of the default fails the generator\'s --check, and 
 test('the page saves for the default preset exactly the files the generator writes, with and without skills', t => {
   for (const r of [REPO, root(t, withPresetSkills(SKILLS))]) {
     const page = buildPage(r, PAGE);
-    const saved = onPage(page, `(() => { const s = initialState(); const p = PACT.presets.find(p => p.id === 'level-3-full'); takePreset(s, p, presetPicks(p)); return buildFiles(s); })()`);
+    const saved = onPage(page, `(() => { const s = initialState(); const p = PACT.presets.find(p => p.id === 'full'); takePreset(s, p, presetPicks(p)); return buildFiles(s); })()`);
     const want = defaultFiles(r).map(f => ({ path: `pact/${f.path}`, text: f.text }));
     assert.deepEqual(saved.map(f => ({ path: f.path, text: f.text })), want);
   }

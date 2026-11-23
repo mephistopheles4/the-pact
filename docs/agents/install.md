@@ -152,7 +152,7 @@ how every session in every repo behaves. So:
   text, the renderer's lists, the example blocks or a preset in
   `builder/presets/`, run `node builder/build.mjs` to refresh it; a gate test
   fails until you do. After a change to the pact text, the builder or
-  `builder/presets/level-3-full.json`, also run
+  `builder/presets/full.json`, also run
   `node builder/default-config.mjs` to refresh `builder/default-config/`, the
   pact's default configuration; `--check` exits 1, and a gate test fails,
   while it is stale. A

@@ -507,7 +507,7 @@ const SKILL_PATHS_MAX = 100;
 // reads when the Claude home folder holds no user file, and the preset it is
 // generated from, by title (a test holds the title equal to the preset's).
 export const DEFAULT_CONFIG_DIR = 'builder/default-config';
-export const DEFAULT_CONFIG_NAME = 'Level 3 · Full';
+export const DEFAULT_CONFIG_NAME = 'Full';
 
 /**
  * The renderer's lines (S6, R5 to R8), every one before RESULT matched to one

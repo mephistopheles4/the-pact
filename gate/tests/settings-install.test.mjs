@@ -47,7 +47,7 @@ test('--apply removes the retired ask rules, keeps the owner\'s own, sets auto m
   // ADR 0094: the only top-level warning left is the pact's default's own security-defaults line.
   const warns = again.stdout.split(/\r?\n/).filter(l => l.startsWith('WARN: '));
   assert.equal(warns.length, 1, again.out);
-  assert.match(warns[0], /^WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration \(Level 3 · Full\) renders; it edits workflow, which changes the pact's security defaults; .* The default is unchanged since the last install\.$/, again.out);
+  assert.match(warns[0], /^WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration \(Full\) renders; it edits workflow, which changes the pact's security defaults; .* The default is unchanged since the last install\.$/, again.out);
   assert.doesNotMatch(again.stdout, /retired ask rules/m, again.out);
 });
 // #464 T2: the overlay no longer sets these keys; a live file that holds them keeps them.

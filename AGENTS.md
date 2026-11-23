@@ -54,7 +54,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 ## In the same change
 
 - After a change to the pact text, the builder or
-  `builder/presets/level-3-full.json`, run `node builder/default-config.mjs`
+  `builder/presets/full.json`, run `node builder/default-config.mjs`
   to refresh [`builder/default-config/`](builder/default-config/), the
   pact's default configuration.
 - After a change to a figure source in `docs/img/src/`, run
