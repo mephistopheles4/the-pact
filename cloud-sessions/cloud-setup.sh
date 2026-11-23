@@ -1319,8 +1319,8 @@ when no other row answers the sentence.
   passage for both (role `both`). When no words of mine are behind one of
   them, say so in `intent_none` or `start_none`, one line of why, such as "it
   came from a session's note", and quote nothing for it; a session's own note
-  is never my words. A post that leaves either one unfilled, or fills one
-  twice, is refused. My examples still become claims with measures. Where no
+  is never my words. A post that leaves either one unfilled, or gives one both
+  a passage and a reason, is refused. My examples still become claims with measures. Where no
   tool renders `quote`, `intent` and `signer` for you, write the two quotes
   (or "no owner words: <why>" for one), your read-back and a `Signed: <label>`
   line yourself, as plain text. With no record, quote it in each
@@ -1597,7 +1597,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
 check_hash 1b6583d0ce5ef545df1898fbb70539cabe34efd071ed0acc8769fe3efb034ec5 'pact/review-diagrams.md'
-check_hash 6986cf49d7e753d07c45d245678e9131af2f400137ab08d1653284bdff6bd716 'pact/review.md'
+check_hash 1ba4a1e7ec95fd0d18f592ae8b6c7c1838361c6df6be3339c87925bafff079d5 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1627,7 +1627,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 656b0956166a"
+  echo "pact cloud copy beb347df9838"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

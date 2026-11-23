@@ -212,8 +212,8 @@ when no other row answers the sentence.
   passage for both (role `both`). When no words of mine are behind one of
   them, say so in `intent_none` or `start_none`, one line of why, such as "it
   came from a session's note", and quote nothing for it; a session's own note
-  is never my words. A post that leaves either one unfilled, or fills one
-  twice, is refused. My examples still become claims with measures. Where no
+  is never my words. A post that leaves either one unfilled, or gives one both
+  a passage and a reason, is refused. My examples still become claims with measures. Where no
   tool renders `quote`, `intent` and `signer` for you, write the two quotes
   (or "no owner words: <why>" for one), your read-back and a `Signed: <label>`
   line yourself, as plain text. With no record, quote it in each

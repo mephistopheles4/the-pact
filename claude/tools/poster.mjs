@@ -2734,7 +2734,7 @@ export const NEXT_FOR = Object.freeze({
   'post/length': 'NEXT: the named field is empty or over its length limit; `schema` prints the bounds. Fix it and run again.',
   'post/kind': 'NEXT: each surface takes only some kinds, and `schema` lists them. Pick a kind this surface takes, or change the surface.',
   'post/signer': "NEXT: a `status` post signs `status-<issue>`, with the number of the issue it sits on; every other kind signs your session's label, never one starting `status-`.",
-  'post/status': "NEXT: a new post's read-back can't be `corrected`, and is `confirmed` only when every quote is from chat; a decision from chat is posted `confirmed`, never `pending`. Fix `intent.status` and run again.",
+  'post/status': "NEXT: a new post's read-back can't be `corrected`, and is `confirmed` only when there is a quote and every quote is from chat; a decision from chat is posted `confirmed`, never `pending`. Fix `intent.status` and run again.",
   'post/when': "NEXT: a passage's `when` is a real date as `YYYY-MM-DD`, with no time of day, and no later than tomorrow in UTC.",
   'post/tracker': "NEXT: a `tracker` passage quotes this login's own comment in this repo, word for word, with at least 20 characters outside its `[left out]` spans, no touching spans and at most three. Fix the passage, or give its source as chat or relayed.",
   'post/owned-line': "NEXT: take the poster's own line (a signature, an `Edited:` line, a decision mark or a heading of the ask) out of the named field; the poster writes them. The read-back fields take no heading or fence either.",

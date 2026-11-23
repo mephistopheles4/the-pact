@@ -175,7 +175,7 @@ carries as `quote` and `intent_skip`, word for word.
 
 `intent` is the session's read-back of the quote, with a `status`:
 `pending`, `confirmed` or `corrected`. A create post takes `pending`, or
-`confirmed` only when every passage's source is `chat`
+`confirmed` only when there is a passage and every passage's source is `chat`
 (`post/status` otherwise): a relay or a goal holder's reply never confirms a
 read-back. No work waits on a pending one (`review.md`). `corrected` and
 `intent.comment` are refused on a create post. The

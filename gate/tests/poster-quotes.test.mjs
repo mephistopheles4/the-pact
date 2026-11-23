@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { askItem, post, renderBody } from '../../claude/tools/poster.mjs';
+import { askItem, NEXT_FOR, post, renderBody } from '../../claude/tools/poster.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const ME = 'tester';
@@ -63,6 +63,8 @@ test('PACT-77: a post that fills neither quote is refused, and one that fills on
 test('PACT-77: a passage with no role, or a role outside the three, is refused', t => {
   const bare = run(t, 'issue', { ...ISSUE, quote: [WANT, without(START, 'role')] });
   assert.deepEqual(rules(bare), ['post/missing quote[1].role']);
+  // The hint for a passage past the first is the role's own, not the generic one.
+  assert.equal(bare.lines.at(-2), NEXT_FOR['post/missing quote[n].role']);
   const odd = run(t, 'issue', { ...ISSUE, quote: [WANT, { ...START, role: 'other' }] });
   assert.ok(rules(odd).includes('post/pattern quote[1].role'), out(odd));
 });
@@ -78,8 +80,13 @@ test('PACT-77: with no owner words behind either one, a reason in each field sta
   // A reason and a passage for the same one: refused.
   const twice = run(t, 'issue', { ...ISSUE, quote: [WANT, START], start_none: NONE });
   assert.deepEqual(rules(twice), ['post/field start_none']);
+  assert.equal(twice.lines.at(-2), NEXT_FOR['post/field start_none']);
   const both = run(t, 'issue', { ...ISSUE, quote: [BOTH], intent_none: NONE });
   assert.deepEqual(rules(both), ['post/field intent_none']);
+  assert.equal(both.lines.at(-2), NEXT_FOR['post/field intent_none']);
+  // With no passage there are no owner words to confirm a read-back against.
+  const confirmed = run(t, 'issue', { ...doc, intent: { ...INTENT, status: 'confirmed' } });
+  assert.deepEqual(rules(confirmed), ['post/status intent.status']);
 });
 
 // PACT-77 C5
@@ -88,9 +95,13 @@ test('PACT-77: a role, or a no-owner-words reason, on a decision or on a post wi
   assert.ok(rules(run(t, 'issue-comment', decision)).includes('post/field quote[0].role'));
   const ok = run(t, 'issue-comment', { ...decision, quote: [without(START, 'role')] });
   assert.equal(ok.code, 0, out(ok));
-  assert.ok(rules(run(t, 'issue-comment', { ...decision, quote: [without(START, 'role')], intent_none: NONE })).includes('post/field intent_none'));
-  const note = { repo: TARGET, kind: 'note', issue: 5, signer: 'build-77', start_none: NONE, body_file: 'body.md' };
-  assert.ok(rules(run(t, 'issue-comment', note)).includes('post/field start_none'));
+  const note = { repo: TARGET, kind: 'note', issue: 5, signer: 'build-77', body_file: 'body.md' };
+  // Each field is refused on a decision and on a kind that takes no quote.
+  for (const field of ['intent_none', 'start_none']) {
+    const onDecision = run(t, 'issue-comment', { ...decision, quote: [without(START, 'role')], [field]: NONE });
+    assert.deepEqual(rules(onDecision), [`post/field ${field}`], field);
+    assert.deepEqual(rules(run(t, 'issue-comment', { ...note, [field]: NONE })), [`post/field ${field}`], field);
+  }
 });
 
 // PACT-77 C3
