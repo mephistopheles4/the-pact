@@ -8,7 +8,7 @@ Fixed in the pact text: the checkpoint log said "at level 3", which `CONTEXT.md`
 
 Fixed in the docs: `docs/reference.md` lists `review-diagrams.md` and says how a `/scry` reply works; `CONTEXT.md` loses the withheld row and splits the Autonomy mode entry in two sentences; `AGENTS.md`, `docs/install.md` and `docs/rule-reasons.md` lose a tacked-on clause, take a bold lead, and name the mode. The PACT-46 log is dated 2026-11-22, the merge's date.
 
-Left open for the owner, since they change a control's text and are security findings: the threat model says an install apply and mise trust wait for no one, while `AGENTS.md` says an apply waits for the owner's go-ahead, and the threat model lists mise trust as a rule-kept step and, in another paragraph, as a step no rule holds back. Also left: the probes in `AGENTS.md` that still say "where checkpoints wait" (PACT-43 and the rest of PACT-50 own them), and the Record lists of the PACT-44 and PACT-46 logs, which name the ticket because a Linear comment has no id to cite without a link.
+Settled by the owner's call, a control's text changed to match `AGENTS.md`: the threat model now says an install apply and mise trust wait for the owner's word in chat, and keeps its word cap; a merge stays the session's own logged pick. Left open: the probes in `AGENTS.md` that still say "where checkpoints wait" (PACT-43 and the rest of PACT-50 own them), and the Record lists of the PACT-44 and PACT-46 logs, which name the ticket because a Linear comment has no id to cite without a link.
 
 Because this change writes a log, the 27 logs dated before 2026-10-22 are folded into `docs/log/older.md`, one level down under their own titles, in a commit of their own. No file links to them.
 
