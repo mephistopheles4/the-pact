@@ -143,7 +143,7 @@ All three run CI on Ubuntu with Node 24. Each ticket confirms that and records i
 The work is cut into tickets, each its own session. A repo ticket starts only after this spec is approved and T1 has merged.
 
 - **T1 (this repo):** S5 and its bad cases, the list of adopters in `docs/reference.md` (three rows, `planned`), and S8's rule as one line in AGENTS.md. AGENTS.md has a 1,750-word budget and `docs/reference.md` a 2,200-word one. If either addition doesn't fit, T1 may shorten only its own new text; otherwise it stops and asks. Raising a budget is a spec change. T1 stacks on PR 654.
-- **Filing.** Once this spec is approved, T1's session files T2 to T4 as PACT sub-issues of PACT-84, one per repo.
+- **Filing.** Once this spec is approved, T1's session files T2 to T4 as PACT sub-issues of this spec's issue, one per repo.
 - **T2 athanor, T3 grimoire, T4 stacks:** the S6 steps, one repo each. They are independent and can run side by side. When a repo's PR merges, a one-line PR here marks its row `adopted` (S8).
 
 ### Needs the owner
