@@ -11,6 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { Readable } from 'node:stream';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { crc32, deflateRawSync, gzipSync } from 'node:zlib';
 import * as clef from '../../claude/tools/clef.mjs';
 import { REPO } from './text.mjs';
@@ -877,4 +878,28 @@ test('main: verify with no setup fails with a word and exit 1', async t => {
   const code = await clef.main(['verify'], { env: { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') }, out: l => out.push(l), chdir: () => {} });
   assert.equal(code, 1);
   assert.deepEqual(out, ['missing: setup.json', 'RESULT: fail 1']);
+});
+
+// Spec 0003 C-M9, C-M10: setup on macOS keeps the darwin row, verify re-hashes it, status names it, and nothing it fetched is quarantined.
+test('setup on macOS: the darwin row is kept, verify re-hashes it, status names its platform and backend, and no fetched file is quarantined', async t => {
+  const body = Buffer.from('server');
+  const lib = Buffer.from('dylib');
+  const tgzBuf = tgz([{ name: 'b/llama-server', data: body }, { name: 'b/libggml.0.1.dylib', data: lib }]);
+  const row = { asset: 'llama-b1-bin-macos-arm64.tar.gz', size: tgzBuf.length, sha256: sha(tgzBuf), kind: 'tgz', exe: 'b/llama-server', files: [['b/libggml.0.1.dylib', lib.length, sha(lib), 'libggml.0.dylib'], ['b/llama-server', body.length, sha(body)]] };
+  const server = { ...miniServer(), archives: { 'darwin-arm64-metal': row, 'darwin-arm64-cpu': row } };
+  const a = setupArgs(t, { yes: true, platform: 'darwin', arch: 'arm64', execPath: '/opt/node/bin/node', cwd: '/work', server, transport: servingTransport(tgzBuf) });
+  await clef.runSetup(a);
+  const runtime = join(a.dir, 'runtime', 'b1');
+  assert.deepEqual(readdirSync(runtime).sort(), ['libggml.0.1.dylib', 'libggml.0.dylib', 'llama-server']);
+  assert.deepEqual(clef.verify({ dir: a.dir, server, model: a.model }).failed, []);
+  writeFileSync(join(runtime, 'libggml.0.dylib'), 'DYLIB');
+  assert.deepEqual(clef.verify({ dir: a.dir, server, model: a.model }).failed, ['sha256:libggml.0.dylib'], 'the copy is re-hashed too');
+  const st = await clef.statusRun({ dir: a.dir });
+  assert.ok(st.lines.includes('platform: darwin-arm64-metal') && st.lines.includes('backend: metal'), st.lines.join('|'));
+  if (process.platform === 'darwin') {
+    for (const f of [join(runtime, 'llama-server'), join(a.dir, 'models', `${sha(MODEL_BYTES)}.gguf`)]) {
+      const r = spawnSync('/usr/bin/xattr', ['-p', 'com.apple.quarantine', f], { encoding: 'utf8' });
+      assert.notEqual(r.status, 0, `no quarantine on ${f}`);
+    }
+  }
 });

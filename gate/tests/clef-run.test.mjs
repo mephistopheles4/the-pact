@@ -1273,3 +1273,36 @@ test('main: setup on macOS refuses clef-orphan while a recorded server is still 
   }
   assert.ok(existsSync(f.run.server) && alive(o.child.pid), 'the record and the server are left');
 });
+
+// Spec 0003 C-M7, C-M10: a stop under another holder's lock with a loading record leaves both files; remove --yes sweeps an orphan, then deletes the folder.
+test('stop on the keeper line: under another holder\'s lock, a loading record and its key are left and nothing is ended', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f, { propsNotReady: true });
+  writeFileSync(f.run.lock, `${process.pid}\n`);
+  const st = await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 300 });
+  assert.equal(st.code, 0);
+  assert.ok(existsSync(f.run.server) && existsSync(f.run.key));
+  assert.ok(alive(o.child.pid));
+  assert.deepEqual(o.props(), [], 'a sweep it does not hold the lock for sends nothing');
+});
+
+test('remove --yes on the keeper line: an orphan is swept (keyed) and ended, then the folder is deleted', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f);
+  const r = await clef.removeRun({ dir: f.dir, yes: true, line: 'keeper', orphanWaitMs: 5000 });
+  assert.equal(r.code, 0);
+  assert.deepEqual(o.props(), ['none', 'wrong', 'right']);
+  assert.ok(await gone(o.child.pid, 3000));
+  assert.equal(existsSync(f.dir), false);
+});
+
+test('stop on the keeper line: a clean stop of an orphan leaves neither run.server nor run.key, and no output holds the key', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f);
+  const key = readFileSync(f.run.key, 'utf8').trim();
+  const st = await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 5000 });
+  assert.equal(st.code, 0);
+  assert.equal(existsSync(f.run.server) || existsSync(f.run.key), false);
+  assert.ok(await gone(o.child.pid, 3000));
+  assert.ok(!st.lines.join('\n').includes(key));
+});
