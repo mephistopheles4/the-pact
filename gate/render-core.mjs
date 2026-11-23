@@ -381,20 +381,7 @@ trade-off.
 - **The security bar.** A security fix is due unless its cost is grossly out
   of proportion to the risk it closes, and I see both.
 - **An empty limit** is my judgment: a finding that spends that cost comes to
-  me as a trade-off.
-- **A security finding** names an attacker in scope in the project's threat
-  model as it stood before the change (the file its agent instructions name,
-  else \`docs/threat-model.md\`), placed as review.md's Threat model section
-  said before the change, or touches the sensitive-work list, auth meaning
-  authentication and authorization. With no threat model, the list
-  decides. The session that sorts the findings decides; another lens marks a
-  doubtful one "security?", and its row is never \`auto\`.
-- **Accepted threat classes** live only in the project's threat model, one
-  line each: what it covers, never the steps. A finding that fits one needs
-  nothing. A finding that fits none comes to me as a new class, and only a merge
-  I confirm, a checkpoint, adds or widens one. A change that removes a
-  control still comes to me, and so does a change to the threat model's scope.
-  With no threat model, flag the risk and record nothing.`;
+  me as a trade-off.`;
 
 // At most nine cost rows, like the qualities: the install reads the count as one digit.
 const COST_LIMITS_MAX = 9;
