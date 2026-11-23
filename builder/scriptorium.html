@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-Y9j44TP0GRsn9SDxHNdM9RAMj8p4gY1YpkP2Gyxs47E='; style-src 'sha256-S2Yb8Hr4A0JsECL7XTC5R8gLnf0v9AmN5bXlYNuQwJM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-8ytxbq+bRrpcpl/hX3BO5BQys0kpRWspNJ7r5d4B/OM='; style-src 'sha256-RbumkGszRnPVm+IvPb53I2EPFCIahNDSEDn/8R4QuAs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1271,6 +1271,8 @@ label:has(> input[type="checkbox"]) { min-height: 24px; }
 .wf-skill .wf-q b { color: var(--av-caution); }
 .wf-skill-name { font-size: var(--av-t-annot); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
 .wf-skill-cmd { font-size: var(--av-t-micro); color: var(--av-ink-70); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wf-skill.wf-bad, .wf-skill.wf-bad.wf-pass { border-color: var(--av-failure); }
+.wf-skill.wf-bad .wf-skill-cmd { color: var(--av-ink); font-weight: 600; }
 .wf-skill.wf-pass { border-color: var(--av-normal); border-style: solid; }
 .wf-skill.wf-off { opacity: .55; }
 .wf-skill.wf-fired { animation: wf-fire .7s ease-out; }
@@ -6606,11 +6608,11 @@ function workflowEditor(host, state, changed) {
   }
   const whenText = o => (o.when === 'words' ? o.words || '(your words)' : o.when === 'tiers' ? cap(tiersWords(state.parts, o.tiers)) : WF_WHEN_LABELS[o.when] || o.when);
   const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
-  /** A card's words: three lines at most on the card, the whole text in its tooltip and in the inspector. */
-  const wordsOf = o => {
-    const text = whenText(o);
-    return el('span', { class: 'wf-words', title: text, text });
-  };
+  /** A card's words: three lines at most on the card; the whole text is the card's help (cardHelp) and is in the inspector. */
+  const wordsOf = o => el('span', { class: 'wf-words', text: whenText(o) });
+  /** What a card says when it is hovered or takes the focus: its whole words, and the skill or command name the card may cut. */
+  const cardHelp = n => (n.kind === 'skill' ? `${n.k.skill}${n.k.command ? ` · ${n.k.command}` : ''} · ${n.k.mode}: ${whenText(n.k)}` : `${n.o.agents.join(', ')}: ${whenText(n.o)}`);
+  const badCommand = k => Object.hasOwn(k, 'command') && !COMMAND_RE.test(k.command);
   const tierIds = () => state.parts.tiers.map(t => t.id);
   // An offer's or a skill's condition: picking "at these tiers" starts from every tier but the lightest.
   const setWhen = (o, v) => {
@@ -6773,10 +6775,17 @@ function workflowEditor(host, state, changed) {
           n.k.on = !n.k.on;
           edited(false);
         });
-        box = el('div', { class: 'wf-node wf-skill' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: `skill · ${n.k.mode}` }), wordsOf(n.k)), sw), el('div', { class: 'wf-skill-name', text: n.k.skill }), ...(n.k.command ? [el('div', { class: 'wf-skill-cmd', text: n.k.command })] : []), port('top'), dismiss(n, n.k.skill));
+        // A command the check refuses is marked with a glyph and a name that says so, never by colour alone.
+        const bad = badCommand(n.k);
+        box = el('div', { class: `wf-node wf-skill${bad ? ' wf-bad' : ''}` }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: `skill · ${n.k.mode}` }), wordsOf(n.k)), sw), el('div', { class: 'wf-skill-name', text: n.k.skill }), ...(Object.hasOwn(n.k, 'command') ? [el('div', { class: 'wf-skill-cmd', text: `${bad ? '⚠ ' : ''}${n.k.command}` })] : []), port('top'), dismiss(n, n.k.skill));
+        if (bad) {
+          box.setAttribute('role', 'group');
+          box.setAttribute('aria-label', `${n.k.skill}: the command ${n.k.command} is invalid`);
+        }
       } else box = el('div', { class: `wf-node wf-agent${n.loose ? ' wf-agent--loose' : ''}` }, n.name, port('in'), dismiss(n, n.name));
       box.dataset.id = n.id;
       box.tabIndex = 0;
+      if (n.kind === 'cond' || n.kind === 'skill') box.setAttribute('data-av-help', cardHelp(n));
       box.style.left = `${p.x}px`;
       box.style.top = `${p.y}px`;
       box.addEventListener('keydown', e => {
@@ -7147,9 +7156,56 @@ function workflowEditor(host, state, changed) {
     const y0 = Math.min(...ys) - 120;
     const x1 = Math.max(...xs) + 240;
     const y1 = Math.max(...ys) + 80;
-    const k = Math.min(1.2, Math.max(0.3, Math.min(r.width / (x1 - x0), r.height / (y1 - y0))));
-    ui.view = { k, x: -x0 * k + (r.width - (x1 - x0) * k) / 2, y: -y0 * k };
+    // Never smaller than 0.6, where the cards stay readable. A graph too wide for that starts at its top-left, the first stage, and is panned for the rest.
+    const k = Math.min(1.2, Math.max(FIT_FLOOR, Math.min(r.width / (x1 - x0), r.height / (y1 - y0))));
+    const room = (r.width - (x1 - x0) * k) / 2;
+    ui.view = { k, x: -x0 * k + Math.max(0, room), y: -y0 * k };
     refresh();
+  }
+  // A card's drawn height, or 0 while it is not drawn (a page not shown yet, or a card not made): then the fixed step stands in.
+  const heightOf = id => {
+    const box = nodeEl(id);
+    return (box && box.offsetHeight) || 0;
+  };
+  const GAP = 30;
+  const FIT_FLOOR = 0.6;
+  /** What a card takes up in its column: a condition's lenses stand beside it, so it takes the taller of the two. */
+  const blockOf = (n, h) => (n.kind === 'cond' ? Math.max(h, Math.max(1, n.o.agents.length) * 40) : h);
+  const cards = () => nodes().filter(n => n.kind !== 'agent');
+  // Each card's height as last laid out, so an edit that changes one can move what stands below it.
+  const heights = new Map();
+  const rememberHeights = () => {
+    heights.clear();
+    for (const n of cards()) if (heightOf(n.id)) heights.set(n.id, heightOf(n.id));
+  };
+  /**
+   * After an edit redrew the cards: a card whose drawn height changed moves the cards below it in its
+   * column, and a condition's lenses with them, by the difference. Nothing in another column moves, and no x changes.
+   * It runs inside the edit, before the edit is recorded, so the move is part of the same undo step.
+   */
+  function restack() {
+    const all = cards();
+    const moves = new Map();
+    for (const n of all) {
+      const was = heights.get(n.id);
+      const now = heightOf(n.id);
+      if (!was || !now) continue;
+      const delta = blockOf(n, now) - blockOf(n, was);
+      if (!delta) continue;
+      const at = pos(n.id);
+      for (const m of all) {
+        if (m.id !== n.id && pos(m.id).x === at.x && pos(m.id).y > at.y) {
+          moves.set(m.id, (moves.get(m.id) || 0) + delta);
+          if (m.kind === 'cond') for (const a of m.o.agents) moves.set(`${m.id}/${a}`, (moves.get(`${m.id}/${a}`) || 0) + delta);
+        }
+      }
+    }
+    for (const [id, dy] of moves) {
+      pos(id).y += dy;
+      const box = nodeEl(id);
+      if (box) box.style.top = `${pos(id).y}px`;
+    }
+    rememberHeights();
   }
   /** Stages left to right in the order the work takes them; under each, its conditions with their lenses to the right. */
   function arrange(animate) {
@@ -7160,12 +7216,6 @@ function workflowEditor(host, state, changed) {
       moves.push([id, x, y]);
       placed.add(id);
     };
-    // A card's drawn height, or 0 while it is not drawn (a page not shown yet, or a card not made): then the fixed step stands in.
-    const heightOf = id => {
-      const box = nodeEl(id);
-      return (box && box.offsetHeight) || 0;
-    };
-    const GAP = 30;
     let x = 40;
     for (const st of stagesInOrder(g)) {
       put(st.id, x, 60);
@@ -7368,15 +7418,22 @@ function workflowEditor(host, state, changed) {
     return t;
   };
   /** A skill's optional command: empty drops it; one the check would refuse is marked invalid as it is typed. */
-  const commandBox = k => {
-    const mark = b => b.setAttribute('aria-invalid', String(!!k.command && !COMMAND_RE.test(k.command)));
+  const commandField = k => {
+    const id = `command-rule-${k.id}`;
+    const rule = el('p', { class: 'av-callout av-callout--failure', id, role: 'status', text: '' });
+    const paint = b => {
+      const bad = badCommand(k);
+      b.setAttribute('aria-invalid', String(bad));
+      rule.hidden = !bad;
+      rule.textContent = bad ? 'Lowercase letters, digits and hyphens, starting with a letter; up to 40 characters.' : '';
+    };
     const b = input(k.command || '', v => {
       if (v.trim()) k.command = v.trim();
       else delete k.command;
-      mark(b);
-    }, { placeholder: 'optional, e.g. shape', 'aria-label': 'Command', spellcheck: 'false' });
-    mark(b);
-    return b;
+      paint(b);
+    }, { placeholder: 'optional, e.g. shape', 'aria-label': 'Command', 'aria-describedby': id, spellcheck: 'false' });
+    paint(b);
+    return [withTip(field('Command', b), 'A command of the skill to name beside it, such as shape.'), rule];
   };
   const pickList = (options, value, set, label) => {
     const s = el('select', { 'aria-label': label }, ...options.map(([v, t]) => el('option', { value: v, text: t })));
@@ -7484,7 +7541,7 @@ function workflowEditor(host, state, changed) {
         el('h2', { text: 'Skill' }),
         el('p', { class: 'av-annot', text: `At ${st ? st.name : "no stage yet: wire a stage's bottom port here"}.` }),
         ...skillPicker(k),
-        withTip(field('Command', commandBox(k)), 'A command of the skill that you want named with it: lowercase letters, digits and hyphens, starting with a letter, up to 40 characters.'),
+        ...commandField(k),
         withTip(field('Offered or used', pickList([['offered', 'Offered: Claude offers it, I answer'], ['used', 'Used: Claude runs it']], k.mode, v => (k.mode = v), 'mode')), 'Offered: Claude names the skill and why, and waits for your yes. Used: Claude runs it at this stage.'),
         field('When', pickList(Object.entries(WF_WHEN_LABELS), k.when, v => setWhen(k, v), 'when')),
         ...(k.when === 'tiers' ? [tierChips(k)] : []),
@@ -7644,6 +7701,7 @@ function workflowEditor(host, state, changed) {
   function edited(full = true) {
     renderSim();
     renderNodes();
+    restack();
     if (full) {
       renderLibrary();
       renderPanel();
@@ -7655,6 +7713,7 @@ function workflowEditor(host, state, changed) {
     renderSim();
     renderLibrary();
     renderNodes();
+    rememberHeights();
     renderPanel();
   }
 
@@ -7671,6 +7730,7 @@ function workflowEditor(host, state, changed) {
     blind = false;
     arrange(false);
     renderNodes();
+    rememberHeights();
     history.now = snapshot();
   }
   autoArrange();
@@ -7682,6 +7742,7 @@ function workflowEditor(host, state, changed) {
       all();
       requestAnimationFrame(() => {
         settleLayout();
+        rememberHeights();
         if (!ui.fitted) {
           ui.fitted = true;
           fit();

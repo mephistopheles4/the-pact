@@ -946,7 +946,7 @@ test('stub page: card words carry a three-line clamp and their full text, and "I
   const classes = n => String(n.className || '').split(' ');
   const words = () => P.find(P.ids.wf, n => classes(n).includes('wf-words'));
   assert.ok(words().length > 10, 'the cards draw their words');
-  for (const w of words()) assert.equal(w.attrs['data-av-help'], w.textContent, 'the tooltip holds the whole text');
+  for (const w of words()) assert.equal(w.attrs['data-av-help'], undefined, 'the help is on the card, not the span (C12)');
   assert.match(PAGE, /\.wf-words \{[^}]*display: -webkit-box;[^}]*-webkit-line-clamp: 3;[^}]*overflow: hidden/);
   const card = P.find(P.ids.wf, n => classes(n).includes('wf-skill') && n.text.includes('during grilling'))[0];
   card.listeners.keydown.forEach(f => f({ key: 'Enter', target: card }));
@@ -969,6 +969,116 @@ test('stub page: card words carry a three-line clamp and their full text, and "I
   assert.equal(offerBox.attrs.rows, '3');
   typeInto(offerBox, 'the change\ntouches billing');
   assert.equal(offerBox.value, 'the change touches billing');
+});
+
+/** A card's stand-in sizes for the stub canvas, by class: [width, height]. */
+const CARD_SIZE = { 'wf-stage': [200, 70], 'wf-cond': [168, 130], 'wf-skill': [188, 140], 'wf-agent': [168, 28] };
+const cardClasses = n => String(n.className || '').split(' ');
+const cardSize = n => Object.entries(CARD_SIZE).find(([c]) => cardClasses(n).includes(c));
+/** Open a card's inspector on a stub page, as Enter on the focused card does. */
+const openCard = (P, card) => card.listeners.keydown.forEach(f => f({ key: 'Enter', target: card }));
+
+// PACT-96 C10: a card that grows or shrinks after an edit moves the cards below it in its column, and only those.
+test('stub page: an edit that changes a card\'s height moves the cards below it in the same column by the difference, recorded as one undo step', () => {
+  const grown = {};
+  const P = bootPage({ measure: n => (cardSize(n) ? (grown[n.dataset.id] ?? cardSize(n)[1][1]) : 0) });
+  const boxes = () => Object.fromEntries(P.find(P.ids.wf, n => cardClasses(n).includes('wf-node')).map(n => [n.dataset.id, { x: parseFloat(n.style.left), y: parseFloat(n.style.top), h: (grown[n.dataset.id] ?? cardSize(n)[1][1]), w: cardSize(n)[1][0] }]));
+  const overlapping = b => {
+    const v = Object.entries(b);
+    const hits = [];
+    for (let i = 0; i < v.length; i += 1) for (let j = i + 1; j < v.length; j += 1) {
+      const [, p] = v[i];
+      const [, q] = v[j];
+      if (p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h) hits.push(`${v[i][0]} / ${v[j][0]}`);
+    }
+    return hits;
+  };
+  P.flush();
+  const before = boxes();
+  assert.deepEqual(overlapping(before), []);
+  const edited = 'plan-eagle-eye';
+  const below = Object.keys(before).filter(id => before[id].x === before[edited].x && before[id].y > before[edited].y);
+  assert.ok(below.length >= 2, 'cards stand below it in its column');
+  const card = P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === edited)[0];
+  openCard(P, card);
+  grown[edited] = before[edited].h + 50;
+  typeInto(P.find(P.ids.wf, n => n.attrs['aria-label'] === 'In your words')[0], 'a much longer way of saying when two questions are linked');
+  const after = boxes();
+  for (const id of Object.keys(before)) {
+    const moved = below.includes(id) || below.some(b => id.startsWith(`${b}/`));
+    assert.deepEqual([after[id].x, after[id].y], [before[id].x, before[id].y + (moved ? 50 : 0)], id);
+  }
+  assert.deepEqual(overlapping(after), [], 'nothing overlaps after the edit');
+  // One undo step takes the words and the move back together.
+  const undo = P.button(P.ids.wf, '↶');
+  assert.equal(undo.disabled, false);
+  undo.click();
+  assert.deepEqual(boxes(), Object.fromEntries(Object.entries(before).map(([id, b]) => [id, { ...b, h: id === edited ? b.h + 50 : b.h }])));
+  assert.equal(undo.disabled, true, 'the edit and its move were one step');
+});
+
+// PACT-96 C11: a command the check refuses shows its rule under the field and a mark on the card, and both clear once it is valid.
+test('stub page: an invalid command shows its rule under the field, linked by aria-describedby, and marks the skill card; a valid one clears both', () => {
+  const P = bootPage();
+  const card = id => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === id)[0];
+  openCard(P, card('plan-impeccable-shape'));
+  const box = () => P.find(P.ids.wf, n => n.attrs['aria-label'] === 'Command')[0];
+  const note = () => P.find(P.ids.wf, n => n.attrs.id === box().attrs['aria-describedby'])[0];
+  assert.equal(box().value, 'shape');
+  assert.ok(box().attrs['aria-describedby'] && note(), 'the field is linked to its message');
+  assert.equal(note().hidden, true, 'a valid command shows no message');
+  typeInto(box(), 'Bad cmd');
+  assert.equal(note().hidden, false);
+  assert.equal(note().textContent, 'Lowercase letters, digits and hyphens, starting with a letter; up to 40 characters.');
+  assert.equal(box().attrs['aria-invalid'], 'true');
+  const marked = card('plan-impeccable-shape');
+  assert.ok(cardClasses(marked).includes('wf-bad'));
+  assert.match(marked.text, /⚠/);
+  assert.match(marked.attrs['aria-label'], /command Bad cmd is invalid/);
+  typeInto(box(), 'shape');
+  assert.equal(note().hidden, true);
+  assert.equal(box().attrs['aria-invalid'], 'false');
+  const clean = card('plan-impeccable-shape');
+  assert.ok(!cardClasses(clean).includes('wf-bad'));
+  assert.doesNotMatch(clean.text, /⚠/);
+  assert.equal(clean.attrs['aria-label'], undefined);
+});
+
+// PACT-96 C12: the card, which takes the focus, carries its whole words and its skill name as its help.
+test('stub page: a card carries its full words and its skill or command name as its help, a long name included', () => {
+  const P = bootPage();
+  const card = id => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === id)[0];
+  const help = card('plan-eagle-eye').attrs['data-av-help'];
+  assert.match(help, /grimoire:eagle-eye/);
+  assert.match(help, /during grilling, when questions are linked/);
+  assert.equal(card('plan-eagle-eye').attrs.tabIndex ?? card('plan-eagle-eye').tabIndex, 0, 'the card takes the focus');
+  assert.match(card('plan-impeccable-shape').attrs['data-av-help'], /impeccable:impeccable · shape/);
+  assert.match(card('test-qa-pair').attrs['data-av-help'], /behaviour-lens, integrity-lens/);
+  const long = `plugin:${'a'.repeat(60)}`;
+  openCard(P, card('plan-eagle-eye'));
+  typeInto(P.find(P.ids.wf, n => n.attrs['aria-label'] === 'Skill or command')[0], long);
+  assert.ok(card('plan-eagle-eye').attrs['data-av-help'].includes(long), 'a cut name is whole in the help');
+});
+
+// PACT-96 C13: the first fit, Fit and Arrange keep a readable zoom, and the first view starts at the first stage.
+test('stub page: fit never zooms below 0.6, and the first view starts at the first stage', () => {
+  const P = bootPage({ measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  const world = P.find(P.ids.wf, n => cardClasses(n).includes('wf-world'))[0];
+  const view = () => {
+    const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/.exec(world.style.transform);
+    return { x: Number(m[1]), y: Number(m[2]), k: Number(m[3]) };
+  };
+  const atFirstStage = (v, why) => {
+    assert.ok(v.k >= 0.6, `${why}: k ${v.k}`);
+    assert.ok(v.x + 40 * v.k >= 0 && v.x + 40 * v.k < 1000 && v.y + 60 * v.k >= 0 && v.y + 60 * v.k < 700, `${why}: the first stage is on the canvas`);
+  };
+  P.flush();
+  atFirstStage(view(), 'first open');
+  P.button(P.ids.wf, 'Fit').click();
+  atFirstStage(view(), 'Fit');
+  P.button(P.ids.wf, 'Arrange').click();
+  P.flush();
+  atFirstStage(view(), 'Arrange');
 });
 
 // #464 T8 C1 to C4: every rule the pact installs is readable on the page, and reading it changes nothing a save writes.
