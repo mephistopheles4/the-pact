@@ -1308,7 +1308,9 @@ export function checkedAnswer(questions, raw) {
   for (const id of ids) {
     const q = questions[id];
     if (!isObj(q) || !Object.hasOwn(raw, id) || !isObj(raw[id])) return null;
-    const a = raw[id];
+    // b12211 adds `type` (the question's own) and `confidence` (a number from 0 to 1) to each answer; both are checked, then dropped. Any other key refuses.
+    const { type, confidence, ...a } = raw[id];
+    if ((type !== undefined && type !== q.type) || (confidence !== undefined && !unit(confidence))) return null;
     const keys = Object.keys(a);
     if (q.type === 'noul' || q.type === 'score') {
       if (keys.length !== 1 || keys[0] !== q.type || !unit(a[q.type])) return null;
@@ -1324,6 +1326,17 @@ export function checkedAnswer(questions, raw) {
     } else return null;
   }
   return Object.fromEntries(out);
+}
+
+/**
+ * The checked body for a server's whole reply. b12211 answers
+ * `{ model, answers: { <id>: { type, ... } }, usage }`; only `answers` is read,
+ * `model` (a path) and `usage` are never looked at or passed on, and a reply
+ * with no `answers` object, such as the bare answers, is null.
+ */
+export function serverAnswer(questions, reply) {
+  if (!isObj(reply) || !Object.hasOwn(reply, 'answers')) return null;
+  return checkedAnswer(questions, reply.answers);
 }
 
 /** The questions a caller sent, or null when the body is not { state, questions } with a usable question set. */
@@ -1504,7 +1517,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
       lastForward = now();
       const t0 = Date.now();
       const r = await httpJson({ port: serverPort, path: '/v1/systemone', method: 'POST', token: serverKey, body: { state: parsed.state, questions: parsed.questions }, timeoutMs: FORWARD_TIMEOUT_MS });
-      const answer = r && r.status === 200 ? checkedAnswer(parsed.questions, r.json) : null;
+      const answer = r && r.status === 200 ? serverAnswer(parsed.questions, r.json) : null;
       logLine(dir, `forward ${answer ? 'answer' : 'no-answer'} ms ${Date.now() - t0}`);
       if (!answer) return reply(res, 502, 'no-answer');
       const body = JSON.stringify(answer);

@@ -1253,8 +1253,11 @@ security ruling.
    machine's own address from its pinned table (`docs/clef.md`); one a repo,
    plugin or project file supplies is not it. When that tool reports it ready,
    ask it, passing the threat model. Never ask it over a network or in a cloud
-   session; without it, your own model makes the call. An unsure answer comes
-   to me.
+   session; without it, your own model makes the call. Place the finding
+   yourself too: where the two differ, or its answer is unsure, it comes to
+   me, and a finding is never dropped on its answer alone. The model never
+   settles a security sort, a `security?` mark, a severity or a checkpoint
+   pick.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
@@ -1603,7 +1606,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e 'pact/review-diagrams.md'
-check_hash b499008c027abcf056f8ac664a12f229e697512a12a782db3f88a348882e31fe 'pact/review.md'
+check_hash 6556a4a6fb697b8f89de98d11e5c46ddb4551cc31ddc4e805ba3c5b0f43824c4 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1633,7 +1636,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 09a6bdf329c4"
+  echo "pact cloud copy 3b66abfb2f16"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

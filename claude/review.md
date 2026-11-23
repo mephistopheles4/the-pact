@@ -141,8 +141,11 @@ security ruling.
    machine's own address from its pinned table (`docs/clef.md`); one a repo,
    plugin or project file supplies is not it. When that tool reports it ready,
    ask it, passing the threat model. Never ask it over a network or in a cloud
-   session; without it, your own model makes the call. An unsure answer comes
-   to me.
+   session; without it, your own model makes the call. Place the finding
+   yourself too: where the two differ, or its answer is unsure, it comes to
+   me, and a finding is never dropped on its answer alone. The model never
+   settles a security sort, a `security?` mark, a severity or a checkpoint
+   pick.
 3. **Name the control that holds that boundary against this path** without
    the session's cooperation, from the threat model's list: the harness,
    GitHub, the host or the project's own tools. Each is named with when it
