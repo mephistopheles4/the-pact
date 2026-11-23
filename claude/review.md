@@ -243,7 +243,7 @@ when no other row answers the sentence.
     me confirms it; an item left pending after a relayed answer stays pending
     and holds up no work, and the relayed `decision` records only what was
     relayed.
-  - When my words trip the content scan, hold a personal detail, leave that span out of the
+  - When my words trip the content scan or hold a personal detail, leave that span out of the
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with

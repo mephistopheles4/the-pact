@@ -1369,7 +1369,7 @@ when no other row answers the sentence.
     me confirms it; an item left pending after a relayed answer stays pending
     and holds up no work, and the relayed `decision` records only what was
     relayed.
-  - When my words trip the content scan, hold a personal detail, leave that span out of the
+  - When my words trip the content scan or hold a personal detail, leave that span out of the
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
@@ -1610,7 +1610,7 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash b7dea4b164d6c16036c7a8daef03d205ccad9fad926a5c45987d31acc9d1209f 'pact/review.md'
+check_hash 8aa668db38c760f08991b9357ca87f50df6a0c7d63c790d66c9b89635b5ad9a3 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1640,7 +1640,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 6df5ae20e2f4"
+  echo "pact cloud copy 811afdae258c"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

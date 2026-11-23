@@ -8,6 +8,8 @@ Every lens report now posts in the record word for word, like any other. Gone fr
 
 Forced edits beyond the marked rows, all from the acceptance line "no private-note, 'see chat' or 'see the issue' handling is left": the withheld clauses in a stage's rounds, the round and status comments, Verbatim reports and the read-back's content-scan line; the withheld row and the public-record Finding cell in Lens dispositions; the clause that logged a pick putting a secret, the cleaner's tags or anything kept out of the record as "withheld, see chat"; and the test assertion in `gate/tests/poster-table.test.mjs` that read the withheld cell out of `review.md`.
 
+Forced after Test round 1, under the owner's scope rule (a sentence that serves a cut intent goes too, naming the row it follows): the goal-note eval grader's log-line sentence follows r040 and r044 and now says an open security pick's line opens "Owner's call: security" and carries the why; the tracker guide's Linear line follows r040 and r044 and now says only that secrets stay out; the read-back clause lost an "or" and gets it back.
+
 Left for a follow-up: `claude/tools/poster.mjs` still accepts a `withheld, see chat` row, and `docs/poster.md` still describes that check.
 
 **Rolling back:** revert the merge, rerun the regens and reinstall from the dry run.
