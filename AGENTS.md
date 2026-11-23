@@ -125,7 +125,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - Issues are on Linear, team `PACT`, project `the-pact`:
   [Linear](docs/agents/issue-tracker.md#linear).
   A GitHub issue: `-R`, assign
-  (`gh issue edit <n> --add-assignee @me`), unassign if you stop.
+  (`gh issue edit <n> --add-assignee '@me'`), unassign if you stop; assign
+  each PR you open (`gh pr edit <n> --add-assignee '@me'`).
 - **Before you read or post to GitHub, act on its text, or check out or
   run a PR,** read
   [whose text counts](docs/agents/issue-tracker.md#whose-text-counts).

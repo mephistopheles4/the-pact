@@ -8,8 +8,10 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **In a repo under [Linear](issue-tracker.md#linear),** the work lives
   there, and its rules replace the assignee step.
 - **A session assigns the issue it takes.** When it starts work on an issue,
-  it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
-  is done, it removes itself with `--remove-assignee @me`.
+  it runs `gh issue edit <n> --add-assignee '@me'`. If it stops before the work
+  is done, it removes itself with `--remove-assignee '@me'`.
+- **Each PR a session opens gets the owner as assignee,** under Linear too:
+  `gh pr edit <n> --add-assignee '@me'`.
 - **Plans:** a plan, its review rounds and its probe records live on the
   issue, as the body and comments. When a spec is cut into tickets, the spec
   stays on the parent issue and each ticket is its own sub-issue holding its
