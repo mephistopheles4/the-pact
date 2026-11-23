@@ -250,7 +250,7 @@ test('the poster looks for the pin file where the helper writes it', () => {
 
 // #604 C6: post/tracker accepts a comment the owner wrote and refuses one an app wrote
 test('C6: post/tracker refuses an app-written comment quoted as the owner\'s, and accepts a comment the owner wrote', async t => {
-  const issue = { kind: 'issue', title: 'A plain title', quote: [{ text: WORDS, source: 'tracker', comment: 4001, when: '2026-11-11' }], intent: { text: 'I read it so.', status: 'pending' } };
+  const issue = { kind: 'issue', title: 'A plain title', quote: [{ text: WORDS, source: 'tracker', comment: 4001, when: '2026-11-11', role: 'both' }], intent: { text: 'I read it so.', status: 'pending' } };
   const comment = login => ({ [`repos/${TARGET}/issues/comments/4001`]: { id: 4001, user: { login }, issue_url: `${API}/issues/5`, body: `Before. ${WORDS} After.` } });
   const bad = setup(t, { gh: github({ items: comment(BOT) }) });
   const by = await run(t, bad, 'issue', issue);

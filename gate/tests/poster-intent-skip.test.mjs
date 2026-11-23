@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { askItem, post, renderBody } from '../../claude/tools/poster.mjs';
+import { withRoles } from './poster-roles.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const ME = 'tester';
@@ -24,7 +25,7 @@ const rules = r => r.lines.filter(l => l.startsWith('REFUSED ')).map(l => l.slic
 
 function run(t, surface, doc, { body = 'A plain body.\n', gh = noGh, env = {}, dry = true } = {}) {
   const dir = tempDir(t, 'pact-poster-skip-');
-  writeTree(dir, { 'body.md': body, 'post.json': JSON.stringify(doc) });
+  writeTree(dir, { 'body.md': body, 'post.json': JSON.stringify(withRoles(doc)) });
   return post([surface, '--post', join(dir, 'post.json'), ...(dry ? ['--dry-run'] : [])], { gh, env, now: NOW, ...MACHINE });
 }
 

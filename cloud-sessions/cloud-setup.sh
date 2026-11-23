@@ -1311,12 +1311,20 @@ when no other row answers the sentence.
   renders as a mention, link or image.
 - **Every lens report posts** in the record word for word, like any other. One refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 - **Keep the record where the project keeps it.** Post with `signer` set to
-  your session's short label. Give each issue, ticket, spec, decision and pull
-  request my ask in `quote`, exactly (the sentences that define the work or
-  change its scope), with your read-back in `intent`. My examples still become
-  claims with measures. Where no tool renders `quote`, `intent` and `signer`
-  for you, write the quoted ask, your read-back and a `Signed: <label>` line
-  yourself, as plain text. With no record, quote it in each
+  your session's short label. Give each decision my ask in `quote`, exactly
+  (the sentences that define the work or change its scope), with your
+  read-back in `intent`. Give each issue, ticket, spec and pull request two
+  quotes of mine in `quote`, each exactly and only the sentences that started
+  it, each passage with a `role`: the words that started the intent (role
+  `intent`) and the words that started this task (role `start`), or one
+  passage for both (role `both`). When no words of mine are behind one of
+  them, say so in `intent_none` or `start_none`, one line of why, such as "it
+  came from a session's note", and quote nothing for it; a session's own note
+  is never my words. A post that leaves either one unfilled, or gives one both
+  a passage and a reason, is refused. My examples still become claims with measures. Where no
+  tool renders `quote`, `intent` and `signer` for you, write the two quotes
+  (or "no owner words: <why>" for one), your read-back and a `Signed: <label>`
+  line yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint in Turbo mode.
@@ -1590,7 +1598,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
 check_hash 1b6583d0ce5ef545df1898fbb70539cabe34efd071ed0acc8769fe3efb034ec5 'pact/review-diagrams.md'
-check_hash 8dbb3d5e7b3fb3253769282f0cab4c062f6cf034be0b5ff712e6e1aafa1e7bc7 'pact/review.md'
+check_hash b499008c027abcf056f8ac664a12f229e697512a12a782db3f88a348882e31fe 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1620,7 +1628,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 06266412045b"
+  echo "pact cloud copy 07f7e591a7c0"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

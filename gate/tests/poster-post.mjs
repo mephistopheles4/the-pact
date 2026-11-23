@@ -11,7 +11,7 @@ import { post } from '../../claude/tools/poster.mjs';
 /** The signer every ported post carries. */
 export const SIGNER = 'test-524';
 /** The ask and read-back a ported issue or pull request carries. */
-export const QUOTE = Object.freeze([Object.freeze({ text: 'The owner asked for a plain thing.', source: 'chat', when: '2026-11-11' })]);
+export const QUOTE = Object.freeze([Object.freeze({ text: 'The owner asked for a plain thing.', source: 'chat', when: '2026-11-11', role: 'both' })]);
 export const INTENT = Object.freeze({ text: 'A plain thing is wanted.', status: 'pending' });
 
 const KIND = { issue: 'issue', 'pull-request': 'pull-request', 'issue-comment': 'note', 'pull-request-review': 'review', 'review-thread-reply': 'reply' };
@@ -23,7 +23,7 @@ export const sent = (text, signer = SIGNER) => `${text.replace(/(?:\r?\n)+$/, ''
 
 /** The body of a ported issue or pull request: the ask, the read-back, the text, the signature. */
 export const sentWithAsk = text =>
-  `## The ask\n\n> ${QUOTE[0].text}\n\nSaid in this session's chat, ${QUOTE[0].when}.\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\n${sent(text)}`;
+  `## The ask\n\n> ${QUOTE[0].text}\n\nSaid in this session's chat, ${QUOTE[0].when}. Started the intent and the task.\n\n## Understood intent\n\n${INTENT.text}\n\nRead-back: not yet confirmed.\n\n${sent(text)}`;
 
 let counter = 0;
 

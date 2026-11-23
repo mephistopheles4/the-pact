@@ -94,9 +94,9 @@ const REQ = 'req';
 const OPT = 'opt';
 const BYKIND = 'kind';
 const COMMON_FIELDS = { repo: REQ, as: OPT, signer: REQ, body_file: REQ };
-const CREATE_FIELDS = { kind: REQ, quote: BYKIND, intent: BYKIND, intent_skip: BYKIND };
-/** An edit's quote and intent (or the intent's skip reason): the quote with one of the two, or none of them, and the item decides which (S6.1). */
-const EDIT_ASK = { quote: OPT, intent: OPT, intent_skip: OPT };
+const CREATE_FIELDS = { kind: REQ, quote: BYKIND, intent: BYKIND, intent_skip: BYKIND, intent_none: BYKIND, start_none: BYKIND };
+/** An edit's ask, its quote passages or its no-owner-words reasons, with its reading (`intent` or `intent_skip`), or none of them; the item decides which (S6.1). */
+const EDIT_ASK = { quote: OPT, intent: OPT, intent_skip: OPT, intent_none: OPT, start_none: OPT };
 
 /**
  * Each surface's own post fields: `req` is required, `opt` optional, `kind`
@@ -124,12 +124,14 @@ export const isEdit = surface => EDITS.has(surface);
 
 /**
  * Each kind of create post: the surfaces it goes to, and whether it carries
- * the owner's quote and the read-back (S4).
+ * the owner's quote and the read-back (S4). A `roles` kind sorts its quote into
+ * the words that started the intent and the words that started the task, or
+ * says there are none (PACT-77).
  */
 export const KINDS = Object.freeze({
-  issue: { surfaces: ['issue'], quoted: true },
-  'pull-request': { surfaces: ['pull-request'], quoted: true },
-  spec: { surfaces: ['issue-comment'], quoted: true },
+  issue: { surfaces: ['issue'], quoted: true, roles: true },
+  'pull-request': { surfaces: ['pull-request'], quoted: true, roles: true },
+  spec: { surfaces: ['issue-comment'], quoted: true, roles: true },
   decision: { surfaces: ['issue-comment'], quoted: true },
   status: { surfaces: ['issue-comment'], quoted: false },
   'lens-report': { surfaces: ['issue-comment', 'pull-request-review'], quoted: false },
@@ -287,6 +289,8 @@ export const SCHEMA = Object.freeze({
         properties: {
           text: { type: 'string', minLength: 1, maxLength: 4000 },
           source: { enum: ['chat', 'relayed', 'tracker'] },
+          // Which of the two quotes the passage is (PACT-77): the words that started the intent, the words that started the task, or one passage for both.
+          role: { enum: ['intent', 'start', 'both'] },
           comment: ID,
           via: { type: 'string', pattern: VIA_RE.source },
           when: { type: 'string', pattern: WHEN_RE.source, 'x-rule': 'post/when' },
@@ -307,6 +311,9 @@ export const SCHEMA = Object.freeze({
     // The one-line reason a post carries no Understood intent: its own field, never part of `intent` (PACT-48).
     // No leading or trailing space: the item is read back as a skipped one only from `Skipped: ` and a non-space (PACT-48).
     intent_skip: { type: 'string', minLength: 1, maxLength: 200, pattern: '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$' },
+    // The one-line reason no owner words started the intent, or the task (PACT-77), in place of that quote's passages; the form of `intent_skip`.
+    intent_none: { type: 'string', minLength: 1, maxLength: 200, pattern: '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$' },
+    start_none: { type: 'string', minLength: 1, maxLength: 200, pattern: '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$' },
     body_file: { type: 'string', pattern: BODY_FILE_RE.source },
     reason: { type: 'string', minLength: 1, maxLength: 200, pattern: ONE_LINE_RE_SOURCE },
   },
@@ -320,7 +327,7 @@ export const EXAMPLES = Object.freeze({
     title: 'A clear one-line title',
     labels: ['bug'],
     signer: 'plan-12',
-    quote: [{ text: 'The words the owner said, exactly.', source: 'chat', when: '2026-11-11' }],
+    quote: [{ text: 'The words the owner said, exactly.', source: 'chat', when: '2026-11-11', role: 'both' }],
     intent: { text: 'What the session took those words to mean.', status: 'pending' },
     body_file: 'body.md',
   },
@@ -332,7 +339,7 @@ export const EXAMPLES = Object.freeze({
     base: 'main',
     draft: true,
     signer: 'pr-12',
-    quote: [{ text: 'The words the owner said, exactly.', source: 'chat', when: '2026-11-11' }],
+    quote: [{ text: 'The words the owner said, exactly.', source: 'chat', when: '2026-11-11', role: 'both' }],
     intent: { text: 'What the session took those words to mean.', status: 'pending' },
     body_file: 'body.md',
   },
@@ -527,6 +534,7 @@ const FIXED_START = [
   /^said in this session's chat/,
   /^relayed by /,
   /^from the owner's comment/,
+  /^no owner words started the (?:intent|task):/,
   /^relayed owner words/,
   /^heard in chat by /,
   /^#{1,6}[ \t]*(?:the ask|understood intent)[ \t]*#*$/,
@@ -582,6 +590,23 @@ function bodyOwned(text) {
 }
 
 /**
+ * A create post of a kind that sorts its quote (PACT-77): the words that started
+ * the intent and the words that started the task are each a passage with that
+ * role, or a reason in `intent_none` / `start_none`, never both for one. A
+ * passage with no role gets its own refusal, so the two sides aren't counted then.
+ */
+function rolesRules(doc, out) {
+  const passages = Array.isArray(doc.quote) ? doc.quote : [];
+  if (!passages.every(q => isObject(q) && typeof q.role === 'string')) return;
+  for (const side of ['intent', 'start']) {
+    const none = `${side}_none`;
+    const covered = passages.some(q => q.role === side || q.role === 'both');
+    if (covered && Object.hasOwn(doc, none)) out.push({ rule: 'post/field', where: none });
+    else if (!covered && !Object.hasOwn(doc, none)) out.push({ rule: 'post/missing', where: `quote.${side}` });
+  }
+}
+
+/**
  * The refusals for the shape of a post that parsed against the schema: the
  * fields a surface takes, the kind table, the signer, the quote, and the
  * intent. `now` is the poster's own clock.
@@ -603,21 +628,27 @@ function postRules(doc, surface, now) {
   // The reading of the owner's words, or the reason there is none: one of the two, never both (PACT-48).
   const reading = has('intent') || has('intent_skip');
   if (has('intent') && has('intent_skip')) out.push({ rule: 'post/field', where: 'intent_skip' });
+  // The ask: passages, or the reasons a quote has none (PACT-77).
+  const asked = has('quote') || has('intent_none') || has('start_none');
   if (edit) {
-    // An edit carries the quote with its reading, or neither; whether it may is the item's to say (S6.1).
-    if ((has('quote') || reading) && !has('quote')) out.push({ rule: 'post/missing', where: 'quote' });
-    if ((has('quote') || reading) && !reading) out.push({ rule: 'post/missing', where: 'intent' });
+    // An edit carries the ask with its reading, or neither; whether it may is the item's to say (S6.1).
+    if (reading && !asked) out.push({ rule: 'post/missing', where: 'quote' });
+    if (asked && !reading) out.push({ rule: 'post/missing', where: 'intent' });
   } else {
     const row = typeof kind === 'string' && Object.hasOwn(KINDS, kind) ? KINDS[kind] : null;
     if (row && !row.surfaces.includes(surface)) out.push({ rule: 'post/kind', where: 'kind' });
     if (!row || !row.surfaces.includes(surface)) return out;
     if (row.quoted) {
-      if (!has('quote')) out.push({ rule: 'post/missing', where: 'quote' });
+      if (row.roles) rolesRules(doc, out);
+      else {
+        if (!has('quote')) out.push({ rule: 'post/missing', where: 'quote' });
+        for (const name of ['intent_none', 'start_none']) if (has(name)) out.push({ rule: 'post/field', where: name });
+      }
       if (!reading) out.push({ rule: 'post/missing', where: 'intent' });
       // A decision's reading is a read-back the owner answers, so it never skips one.
       if (kind === 'decision' && has('intent_skip')) out.push({ rule: 'post/field', where: 'intent_skip' });
     } else {
-      for (const name of ['quote', 'intent', 'intent_skip']) if (has(name)) out.push({ rule: 'post/field', where: name });
+      for (const name of ['quote', 'intent', 'intent_skip', 'intent_none', 'start_none']) if (has(name)) out.push({ rule: 'post/field', where: name });
     }
     if (has('answers') && kind !== 'decision' && fields.answers !== undefined) out.push({ rule: 'post/field', where: 'answers' });
     if (typeof doc.signer === 'string') {
@@ -626,12 +657,15 @@ function postRules(doc, surface, now) {
     }
     if (!row.quoted) return out;
   }
-  if (typeof doc.intent_skip === 'string' && intentOwned(doc.intent_skip)) out.push({ rule: 'post/owned-line', where: 'intent_skip' });
-  if (!Array.isArray(doc.quote)) return out;
-
-  doc.quote.forEach((q, i) => {
+  for (const name of ['intent_skip', 'intent_none', 'start_none']) {
+    if (typeof doc[name] === 'string' && intentOwned(doc[name])) out.push({ rule: 'post/owned-line', where: name });
+  }
+  const passages = Array.isArray(doc.quote) ? doc.quote : [];
+  passages.forEach((q, i) => {
     const at = `quote[${i}]`;
     if (!isObject(q)) return;
+    // A role sorts a passage into the intent's words or the task's; a create post of a kind that sorts needs one, any other kind takes none, and an edit's item says whether it holds one (PACT-77).
+    if (!edit && Object.hasOwn(q, 'role') !== Boolean(KINDS[kind]?.roles)) out.push({ rule: Object.hasOwn(q, 'role') ? 'post/field' : 'post/missing', where: `${at}.role` });
     if (q.source === 'tracker') {
       if (!Object.hasOwn(q, 'comment')) out.push({ rule: 'post/missing', where: `${at}.comment` });
       else if (typeof q.text === 'string' && trackerShape(q.text)) out.push({ rule: 'post/tracker', where: `${at}.text` });
@@ -651,7 +685,7 @@ function postRules(doc, surface, now) {
     if (intent.status === 'corrected') out.push({ rule: 'post/status', where: 'intent.status' });
     if (Object.hasOwn(intent, 'comment')) out.push({ rule: 'post/field', where: 'intent.comment' });
     if (Object.hasOwn(intent, 'corrected')) out.push({ rule: 'post/field', where: 'intent.corrected' });
-    const chat = doc.quote.every(q => isObject(q) && q.source === 'chat');
+    const chat = passages.length > 0 && passages.every(q => isObject(q) && q.source === 'chat');
     if (intent.status === 'confirmed' && !chat) out.push({ rule: 'post/status', where: 'intent.status' });
     if (kind === 'decision' && chat && intent.status === 'pending') out.push({ rule: 'post/status', where: 'intent.status' });
   }
@@ -688,10 +722,13 @@ const heardMark = signer => `Heard in chat by ${signer}.`;
 const HEARD_RE = new RegExp(`^Heard in chat by (${SIGNER_SOURCE})\\.$`);
 const HEARD_START_RE = /^heard in chat by /;
 const quoteLines = (text, blank) => text.split(LINE_END_RE).map(l => (blank ? '' : l === '' ? '>' : `> ${l}`)).join('\n');
+/** What a passage's role adds to its source line (PACT-77); a passage with none, as in an older item, adds nothing. */
+const ROLE_LINE = { intent: ' Started the intent.', start: ' Started the task.', both: ' Started the intent and the task.' };
 const sourceLine = q => {
-  if (q.source === 'chat') return `Said in this session's chat, ${q.when}.`;
-  if (q.source === 'relayed') return `Relayed by ${q.via} from its chat, ${q.when}.`;
-  return `From the owner's comment ${q.comment}, ${q.when}.`;
+  const role = q.role === undefined ? '' : ROLE_LINE[q.role];
+  if (q.source === 'chat') return `Said in this session's chat, ${q.when}.${role}`;
+  if (q.source === 'relayed') return `Relayed by ${q.via} from its chat, ${q.when}.${role}`;
+  return `From the owner's comment ${q.comment}, ${q.when}.${role}`;
 };
 const readBack = intent => {
   if (intent.status === 'corrected') return `Read-back: corrected in comment ${intent.comment}.`;
@@ -724,9 +761,12 @@ function askSegments(p, blankQuotes = false) {
     segments.push({ where: 'mark', text: mark });
     if (p.answers !== undefined) segments.push({ where: 'answers', text: `Answers: ${p.answers}.` });
   }
-  if (p.quote !== undefined) {
+  if (p.quote !== undefined || p.intentNone !== undefined || p.startNone !== undefined) {
     segments.push({ where: 'quote', text: '## The ask' });
-    p.quote.forEach((q, i) => segments.push({ where: `quote[${i}]`, text: `${quoteLines(q.text, blankQuotes)}\n\n${sourceLine(q)}` }));
+    (p.quote ?? []).forEach((q, i) => segments.push({ where: `quote[${i}]`, text: `${quoteLines(q.text, blankQuotes)}\n\n${sourceLine(q)}` }));
+    // The side with no owner words says so plainly (PACT-77).
+    if (p.intentNone !== undefined) segments.push({ where: 'intent_none', text: `No owner words started the intent: ${p.intentNone}` });
+    if (p.startNone !== undefined) segments.push({ where: 'start_none', text: `No owner words started the task: ${p.startNone}` });
     segments.push({ where: 'intent', text: p.intentSkip === undefined ? intentBlock(p.intent) : skippedBlock(p.intentSkip) });
   }
   return segments;
@@ -808,6 +848,8 @@ export function buildPlan(parsed, now = new Date(), heard = false) {
   if (doc.quote !== undefined) plan.quote = doc.quote;
   if (doc.intent !== undefined) plan.intent = doc.intent;
   if (doc.intent_skip !== undefined) plan.intentSkip = doc.intent_skip;
+  if (doc.intent_none !== undefined) plan.intentNone = doc.intent_none;
+  if (doc.start_none !== undefined) plan.startNone = doc.start_none;
   plan.signer = doc.signer;
   if (doc.reason !== undefined) plan.reason = doc.reason;
 
@@ -824,7 +866,9 @@ export function buildPlan(parsed, now = new Date(), heard = false) {
   if (isObject(doc.intent)) {
     for (const name of ['text', 'corrected']) if (typeof doc.intent[name] === 'string' && hidesAhead(doc.intent[name])) plan.late.push({ rule: 'text/hidden-line', where: `intent.${name}` });
   }
-  if (typeof doc.intent_skip === 'string' && hidesAhead(doc.intent_skip)) plan.late.push({ rule: 'text/hidden-line', where: 'intent_skip' });
+  for (const name of ['intent_skip', 'intent_none', 'start_none']) {
+    if (typeof doc[name] === 'string' && hidesAhead(doc[name])) plan.late.push({ rule: 'text/hidden-line', where: name });
+  }
 
   plan.sessionPart = body.text;
   plan.reasons = isEdit(surface) ? [reasonLine(plan.reason, plan.signer)] : [];
@@ -2372,8 +2416,9 @@ function confirmChecks(plan, ask, who, io, ctx) {
 
 /** An ask-item edit's checks after the item read (S6.1a): { refusals } or { lines } when one fails, else {}. Sets what the render needs on `plan`. */
 function askEdit(plan, ask, who, io, ctx) {
-  if (ask === null && plan.quote === undefined) return {};
-  if (ask === null || plan.quote === undefined) {
+  const asked = plan.quote !== undefined || plan.intentNone !== undefined || plan.startNone !== undefined;
+  if (ask === null && !asked) return {};
+  if (ask === null || !asked) {
     const rule = ask === null ? 'post/field' : 'post/missing';
     return { refusals: [{ rule, where: 'quote' }, { rule, where: 'intent' }] };
   }
@@ -2387,7 +2432,7 @@ function askEdit(plan, ask, who, io, ctx) {
     // The item keeps its own signer; the reason says who heard the owner (S6.2b). A decision an app wrote says it was heard in chat (#599, S8).
     plan.reason = d.heard ? `${plan.reason}, confirmed, as heard in chat by ${d.label}` : `${plan.reason}, heard by ${d.label}`;
   }
-  if (plan.quote.some(q => q.source === 'tracker')) {
+  if ((plan.quote ?? []).some(q => q.source === 'tracker')) {
     const t = trackerChecks(plan, who.owner, io, ctx);
     if (t.lines || t.refusals.length) return t;
   }
@@ -2667,6 +2712,11 @@ export const NEXT_FOR = Object.freeze({
   'edit/confirm': "NEXT: intent.comment must be this login's own decision comment on this item's issue or pull request, an ask item the owner confirmed in chat that names this item in Answers:. Post that decision first, then edit.",
   'post/missing intent': "NEXT: a post with a quote needs its Understood intent: give `intent` ({ text, status }), what you took the owner's words to mean. If there is nothing to read into them, give `intent_skip` instead, one line saying why, and no `intent`.",
   'post/field intent_skip': 'NEXT: give `intent` or `intent_skip`, never both, and no `intent_skip` on a decision or on a post with no quote. Keep the one that fits and post again.',
+  'post/missing quote.intent': "NEXT: an issue, pull request or spec carries the owner's words that started the intent. Give a passage with `role` `intent` (or `both`), or, if no owner words started it, `intent_none`: one line of why, such as \"it came from a session's note\". It shows as \"No owner words started the intent: <why>\".",
+  'post/missing quote.start': "NEXT: an issue, pull request or spec carries the owner's words that started this task. Give a passage with `role` `start` (or `both`), or, if no owner words started it, `start_none`: one line of why, such as \"it came from a session's note\". It shows as \"No owner words started the task: <why>\".",
+  'post/missing quote[n].role': 'NEXT: each passage of an issue, pull request or spec says which quote it is: `role` is `intent`, `start` or `both`.',
+  'post/field intent_none': 'NEXT: give the intent a passage or `intent_none`, never both, and no `intent_none` on a decision or on a kind that takes no quote (a note, status, review, reply or lens report). Keep the one that fits and post again.',
+  'post/field start_none': 'NEXT: give the task a passage or `start_none`, never both, and no `start_none` on a decision or on a kind that takes no quote (a note, status, review, reply or lens report). Keep the one that fits and post again.',
   'secret/env': "NEXT: remove the value from the named field and post again; the line names the variable, never the value. A lens report stays as it is: tell the owner where it is, in chat, and don't post it.",
   'text/hidden': 'NEXT: remove the hidden character from the named field and post again. A lens report stays as it is: tell the owner where it is, in chat, and don\'t post it.',
   // PACT-52: the usage, field, file, text, fence, link and table rules (usage/unknown-option has OLD_OPTION_NEXT).
@@ -2684,7 +2734,7 @@ export const NEXT_FOR = Object.freeze({
   'post/length': 'NEXT: the named field is empty or over its length limit; `schema` prints the bounds. Fix it and run again.',
   'post/kind': 'NEXT: each surface takes only some kinds, and `schema` lists them. Pick a kind this surface takes, or change the surface.',
   'post/signer': "NEXT: a `status` post signs `status-<issue>`, with the number of the issue it sits on; every other kind signs your session's label, never one starting `status-`.",
-  'post/status': "NEXT: a new post's read-back can't be `corrected`, and is `confirmed` only when every quote is from chat; a decision from chat is posted `confirmed`, never `pending`. Fix `intent.status` and run again.",
+  'post/status': "NEXT: a new post's read-back can't be `corrected`, and is `confirmed` only when there is a quote and every quote is from chat; a decision from chat is posted `confirmed`, never `pending`. Fix `intent.status` and run again.",
   'post/when': "NEXT: a passage's `when` is a real date as `YYYY-MM-DD`, with no time of day, and no later than tomorrow in UTC.",
   'post/tracker': "NEXT: a `tracker` passage quotes this login's own comment in this repo, word for word, with at least 20 characters outside its `[left out]` spans, no touching spans and at most three. Fix the passage, or give its source as chat or relayed.",
   'post/owned-line': "NEXT: take the poster's own line (a signature, an `Edited:` line, a decision mark or a heading of the ask) out of the named field; the poster writes them. The read-back fields take no heading or fence either.",
@@ -2712,7 +2762,7 @@ export const NEXT_FOR = Object.freeze({
 const refused = (refusals, notes = [], count = refusals.length) => {
   // An old command line is told its one fixed line, which already covers the missing --post.
   const old = refusals.some(r => r.rule === 'usage/unknown-option');
-  const next = [...new Set(refusals.filter(r => !(old && r.rule === 'usage/missing-option')).map(r => NEXT_FOR[`${r.rule} ${r.where}`] ?? NEXT_FOR[r.rule]).filter(Boolean))];
+  const next = [...new Set(refusals.filter(r => !(old && r.rule === 'usage/missing-option')).map(r => NEXT_FOR[`${r.rule} ${r.where}`] ?? NEXT_FOR[`${r.rule} ${r.where.replace(/\[\d+\]/g, '[n]')}`] ?? NEXT_FOR[r.rule]).filter(Boolean))];
   return {
     code: 2,
     lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...notes, ...next, ...(old ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${count}`],
@@ -2747,6 +2797,8 @@ function prepare(argv, io, app) {
       if (plan.intent.corrected !== undefined) fields.push({ field: 'intent.corrected', text: plan.intent.corrected });
     }
     if (plan.intentSkip !== undefined) fields.push({ field: 'intent_skip', text: plan.intentSkip });
+    if (plan.intentNone !== undefined) fields.push({ field: 'intent_none', text: plan.intentNone });
+    if (plan.startNone !== undefined) fields.push({ field: 'start_none', text: plan.startNone });
     if (plan.reason !== undefined) fields.push({ field: 'reason', text: plan.reason });
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env };
