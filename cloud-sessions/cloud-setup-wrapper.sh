@@ -1371,8 +1371,8 @@ when no other row answers the sentence.
     corrected one if I corrected it: a leftovers list it covers means the
     work isn't done.
   - A pending read-back makes no work wait, at any seam, with or without a
-    standing goal. Post it `pending`, log the intent you went ahead on, within
-    the Checkpoint log's limits, and go on; I confirm or correct it later. A
+    standing goal. Post it `pending`, log the intent you went ahead on as a
+    checkpoint, and go on; I confirm or correct it later. A
     correction sends the work back to the stage it touches. Once the work is
     merged, published or installed, the correction is a new change, and you
     tell me what can't be undone.
@@ -1635,7 +1635,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
 check_hash 3ea41220667e901a9566d43dc68baea519abe86273d4e120ecc273f4d18a9e55 'pact/review-diagrams.md'
-check_hash 08b99fe47ceb813820499b8eb074672cd2a75c9682e59c135d7d9f032b8b2778 'pact/review.md'
+check_hash 646e42bdaea7b4a244843caf3b5652484894127a059c4a622f9957e15d7c3aa2 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1665,7 +1665,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 4e9e4876577c"
+  echo "pact cloud copy eb8fc3e90550"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

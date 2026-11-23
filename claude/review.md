@@ -233,8 +233,8 @@ when no other row answers the sentence.
     corrected one if I corrected it: a leftovers list it covers means the
     work isn't done.
   - A pending read-back makes no work wait, at any seam, with or without a
-    standing goal. Post it `pending`, log the intent you went ahead on, within
-    the Checkpoint log's limits, and go on; I confirm or correct it later. A
+    standing goal. Post it `pending`, log the intent you went ahead on as a
+    checkpoint, and go on; I confirm or correct it later. A
     correction sends the work back to the stage it touches. Once the work is
     merged, published or installed, the correction is a new change, and you
     tell me what can't be undone.

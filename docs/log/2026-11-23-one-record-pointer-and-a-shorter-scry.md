@@ -8,7 +8,7 @@ On more than one status comment, a session updates the newest and mentions the d
 
 The diagram block, the pin colours and the no-diagram rule moved to `claude/review-diagrams.md`, installed as `pact/review-diagrams.md` beside `review.md`; `review.md` keeps one line pointing at it. The install, seam A and the cloud copy carry the file like `review.md`: it never overwrites a live file the record doesn't list.
 
-`/scry` answers a very short numbered list, each item a bold question and an italic pick, then one "There's also …" line for what is running and what landed, with detail on request. The facts line, the Only you can do, Moving and Done sections, the five-line Done cap and the rule voiding numbers after a compaction or a resume are cut. The wait-label test lost its exemption for the Only you can do section.
+`/scry` answers a very short numbered list, each item a bold question and an italic pick, then one "There's also …" line for what is running and what landed, with detail on request. The facts line, the Moving and Done sections, the five-line Done cap and the rule voiding numbers after a compaction or a resume are cut; Only you can do stays a plain unnumbered list. The read-back bullet in `review.md` no longer points at the Checkpoint log's limits, which r043 removed.
 
 Why: the owner found `/scry` overwhelming, and asked for one pointer to the record and fewer words in the log.
 

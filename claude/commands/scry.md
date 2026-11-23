@@ -11,15 +11,14 @@ nothing else. Use no decision ids, session ids, tab names or tool names.
 
 - **A very short numbered list of next steps,** from 1, in the order I should
   take them: those that block running work first, then oldest first. One item
-  per decision for me, pick I may revisit (a checkpoint's pick included) or
-  step only I can take. Each is two parts, in this order:
+  per decision for me or pick I may revisit (a checkpoint's pick included).
+  Each is two parts, in this order:
   - **The question, in bold, one line,** naming the PR or issue in plain words,
     in your own words, never a stranger's title. If the change touches hooks,
     settings or setup that runs as root (or anything else the project's rules
     on the base branch say to read closely), or the step can't be undone, say
     so in that line.
-  - ***The pick,* in italics, last.** Every item has one; for a step I take
-    myself, the pick is the step.
+  - ***The pick,* in italics, last.** Every item has one.
 
   With two or more items that have picks, end the list with one line: "Yes, 1
   to N takes every pick", N being the last number.
@@ -27,6 +26,8 @@ nothing else. Use no decision ids, session ids, tab names or tool names.
   Every open "Owner's call: security" pick has its item too, with its private
   note, until a `decision` post records my answer from chat; no session's own
   pick or post answers it, and the record never carries the private note's why.
+- **Only you can do:** steps only I can take (paste, restart, sign in), a plain
+  list, one line each, never numbered.
 - **One line naming what else there is:** "There's also …", the running work,
   what landed since I last asked, and anything else not in the list, each in a
   few words. I ask for the detail of any of it.
