@@ -1,6 +1,6 @@
 # Spec: a pinned llama-server runner for Clef, as an opt-in pact tool — V1
 
-Status: draft, reviewed (two rounds), on the sensitive route. One call waits for the owner: the dogfooding bounds (S12). The spec counts
+Status: draft, reviewed (two rounds), on the sensitive route; the owner kept the dogfooding bounds (S12). Four fixes from a Code Rabbit CLI review after the final round are not re-reviewed. The spec counts
 once it is on `main`.
 
 ## S1 Objective
@@ -233,7 +233,7 @@ itself. It prints:
 Setup refuses, with no fetch: a platform with no row (`clef-platform`); too
 little space (`clef-space`); a live supervisor (`clef-running`: "run `clef
 stop` first"); a node path inside the folder the command was started from
-(`clef-node`).
+(`clef-node`); Linux without `/usr/bin/setpriv` (`clef-setpriv`, S7).
 
 ### The fetch
 
@@ -355,8 +355,18 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   ends the server, removes `run.json` and `run.key`, and exits. A server that
   exits on its own ends the supervisor, which records `run.fail`. The server
   is spawned non-detached, so on Windows libuv's kill-on-close job object
-  ends it when the supervisor dies; on Linux the supervisor ends it on
-  `SIGTERM`, `SIGINT` and exit.
+  ends it when the supervisor dies. On Linux the supervisor ends it on
+  `SIGTERM`, `SIGINT` and exit, and, since a `SIGKILL` runs no handler, the
+  server is started through `/usr/bin/setpriv --pdeathsig KILL --` (by that
+  absolute path, from node's main thread), so the kernel kills it when the
+  supervisor dies. Setup refuses a Linux machine without `/usr/bin/setpriv`
+  (`clef-setpriv`). As a second line, `ensure` and `clef stop` end an orphan:
+  a process whose `/proc/<pid>/exe` is the pinned server path and whose
+  recorded supervisor is gone.
+- **Off the list.** The supervisor checks, before each forwarded request and
+  once a minute, that `<Claude home>/pact/tools/clef.mjs` still exists. When
+  it is gone (`clef` came off the tools list), it ends the server, removes
+  `run.json` and `run.key`, and exits.
 - **Test seams.** The origins, the `https:` rule, the executable path, the
   environment list and the idle timeout are parameters of the tool's exported
   functions only. No flag and no environment variable reaches them (C17).
@@ -388,7 +398,10 @@ against that copy.
   `--wait 20`), the watch path and the prompt-pin path (both `--wait 0`).
   clef-pilot runs `<setup.json's node> <Claude home>/pact/tools/clef.mjs
   ensure` through `$.process.run`, and reads the URL and token from
-  `run.json`. Before each call it reads `run.json` again (a small file read)
+  `run.json`. Before each call it checks that `clef.mjs` is still installed;
+  when it isn't, Clef is off: clef-pilot drops its kept URL and token, makes
+  no call and runs no `ensure`, and the session's own model decides (S2
+  decision 3). Otherwise it reads `run.json` again (a small file read)
   and runs `ensure` when the file is missing or its `port` or `run` changed,
   and after any connection error, 401 or no-answer.
 - **Body.** `{state, questions}`; the Ollama-only `model` and `keep_alive`
@@ -407,8 +420,10 @@ against that copy.
 ## S9 Removal
 
 Taking `clef` off the tools list removes the script at the next apply, as for
-any pact tool, and leaves the clef folder. `docs/clef.md` says to run `clef
-stop` and `clef remove --yes` first to free the disk.
+any pact tool, and leaves the clef folder. A running supervisor sees its
+script gone and stops (S7), and clef-pilot stops calling (S8).
+`docs/clef.md` says to run `clef stop` and `clef remove --yes` first to free
+the disk.
 
 ## S10 Owner's doc
 
@@ -538,7 +553,12 @@ as a control change.
   `clef stop` (on `gate-windows` too).
 - **C12** After the idle timeout with no forwarded request, the supervisor ends
   the server and removes `run.json` and `run.key`. After `clef stop`, or after
-  the supervisor is killed, the server is gone (on `gate-windows` too).
+  the supervisor is killed, the server is gone (on `gate-windows` too). On
+  `gate`, a stub server's supervisor sent `SIGKILL` leaves no stub process
+  within 2 seconds; with `--pdeathsig` taken out in a test seam, the next
+  `ensure` ends the orphan. Setup on Linux without `/usr/bin/setpriv` refuses
+  `clef-setpriv`. Removing `clef.mjs` under a running supervisor stops it and
+  removes `run.json` within a minute.
 - **C13** No `clef` mode's stdout or stderr holds the token or the key.
   `serve.log` holds no body, token, key, header value or argument list,
   including after a failed start. `clef status` prints neither.
@@ -550,7 +570,8 @@ as a control change.
 - **C15** (T4) clef-pilot's `decide` answers through the runner; with the
   supervisor stopped, its first `decide` starts it. With the clef folder moved
   away, `decide` denies with a fixed word and the watch path logs "no answer"
-  without delay.
+  without delay. With `clef.mjs` removed and a stale `run.json` left, it
+  makes no call to the kept port and runs no `ensure`.
 - **C16** The supervisor returns only a body it built from checked values; a
   free-text choice, an out-of-range number or probability, an extra field, a
   server error or a non-JSON body becomes the fixed `no-answer`.
@@ -580,10 +601,12 @@ as a control change.
 
 - **A bad pin,** including the first pin failing C14 in T4: a revert PR that
   restores the previous table (for the first pin, one that sets the next
-  eligible build), then a dry run, the apply (a checkpoint), and `clef setup
-  --yes` on each machine.
+  eligible build), then a dry run, the apply (a checkpoint), and on each
+  machine `clef stop` then `clef setup --yes` (setup refuses `clef-running`
+  otherwise).
 - **A pin bump:** after its apply, `clef status` and `ensure` report
-  `pin-changed` until `clef setup --yes` runs; `docs/clef.md` says so.
+  `pin-changed` until `clef stop` then `clef setup --yes` run;
+  `docs/clef.md` says so.
 - **The pact past T1:** an older renderer refuses `clef` on the tools list.
   Take `clef` off the list and apply first, then roll back. T3 adds this
   check to `docs/install.md`'s "Roll back to an older version".
@@ -592,42 +615,30 @@ as a control change.
 
 ## S16 Tickets
 
-1. **T1: the tool on the list, the pin table, setup and verify.**
-   - **Covers:** S4, S5, S6 but its live-supervisor refusal; claims C1, C2,
-     C3, C4's first sentence, C5 to C8, C21.
-   - **Work:** `PACT_TOOLS`, `TOOL_WARNS.clef`, the Scriptorium row,
-     `node builder/default-config.mjs`, `docs/reference.md`; the tool's pin
-     table, shape check, fetch, readers, setup, verify;
-     `gate/tests/clef-files-list.mjs` and its run; gate tests with fixtures;
-     a dated log (a gate change). The pin record is dated 2026-12-06 or later
-     (the model's age). No server run in T1.
-2. **T2: the supervisor.**
-   - **Covers:** S7, S6's live-supervisor refusal; claims C4's second
-     sentence, C9 to C13, C16 to C19.
-   - **Depends on:** T1 (stacked).
-   - **Work:** `ensure`, `serve`, `stop`, `status`, `remove`; tests with a
-     stub server. From b12211's own source, T2's record cites the lines that
-     show `--api-key-file`, `--no-webui` and `--no-slots`, and that with no
-     `GGML_*` variable the backends load only from the executable's folder and
-     the working folder; if not, it stops and asks.
-3. **T3: the doc and the threat model.**
-   - **Covers:** S9, S10, S11, S15's install check.
-   - **Depends on:** T2 (stacked).
-   - **Work:** `docs/clef.md`, the `docs/install.md` check, the threat-model
-     edit with its list of cuts, and an ADR for the 14-day pin age (it
-     constrains every later pin PR).
-4. **T4: the owner's machine.**
-   - **Covers:** S8; claims C14, C15, C20.
-   - **Depends on:** T1 to T3 merged, then the owner's apply from `main`.
-   - **Work:** `clef setup --yes`, `docs/clef-cases.json` and the six-case
-     run, the clef-pilot edit (read by the security pair), a check that a lens
-     subagent can call `decide`, the end-to-end record, and dogfooding in the
-     next review. Its PR holds `docs/clef-cases.json` and the record.
-     Uninstalling Ollama is then the owner's own act.
+The work is cut into four tickets, each its own session, merged bottom first
+(T1, T2, T3, then T4), each stacked on the one before. Each ticket's plan
+lives on its sub-issue of the tracker item; this spec holds only what each
+must meet.
+
+1. **T1: the tool on the list, the pin table, setup and verify.** Covers S4,
+   S5, and S6 but its live-supervisor refusal; claims C1, C2, C3, C4's first
+   sentence, C5 to C8, C21. Its pin record is dated 2026-12-06 or later (the
+   model's age, S2 pick 4). It runs no server.
+2. **T2: the supervisor.** Covers S7 and S6's live-supervisor refusal;
+   claims C4's second sentence, C9 to C13, C16 to C19. Its record cites the
+   lines of b12211's own source that show `--api-key-file`, `--no-webui` and
+   `--no-slots`, and that with no `GGML_*` variable the backends load only
+   from the executable's folder and the working folder; if one doesn't hold,
+   it stops and asks.
+3. **T3: the doc and the threat model.** Covers S9, S10, S11 and S15's
+   install check. Its threat-model edit lists every cut, and an ADR records
+   the 14-day pin age, since it constrains every later pin PR.
+4. **T4: the owner's machine.** Covers S8; claims C14, C15, C20. It starts
+   after T1 to T3 merge and the owner applies from `main`. Its PR holds
+   `docs/clef-cases.json` and the end-to-end record.
 
 The work runs at the thorough tier on the sensitive route. The security pair
-reads this spec, each ticket's diff and T4's clef-pilot edit. Merge order is
-bottom first: T1, T2, T3, then T4.
+reads this spec, each ticket's diff and T4's clef-pilot edit.
 
 ### Needs the owner
 
