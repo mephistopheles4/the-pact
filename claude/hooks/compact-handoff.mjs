@@ -88,7 +88,7 @@ function main() {
     writeFileSync(turn, `${word}\n`);
   };
   const nudge = name => {
-    say(name, `Your context is nearing the auto-compact window. Update your hand-off file now, at ${shown}: the goal and any free hand, or its end, with where it came from, by its kind, the state, the open questions and the next step. Leave out secrets, tokens and personal details. Then carry on.`);
+    say(name, `Your context is nearing the auto-compact window. The hand-off file at ${shown} is how this session's place survives compaction, and it is due an update now: it holds the goal and any free hand, or its end, with where it came from, by its kind, the state, the open questions and the next step, and it leaves out secrets, tokens and personal details.`);
     setTurn('nudged');
   };
 

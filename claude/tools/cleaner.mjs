@@ -41,7 +41,8 @@
 // escaped. git's own output is never printed. The last line is a RESULT line:
 //   0  RESULT: shown <n> <tags>              or  removed <r> left 0 changed 0
 //   1  RESULT: removed <r> left <l> changed <c>
-//   2  RESULT: refused <count>     a usage fault; nothing run
+//   2  RESULT: refused <count>     a usage fault; nothing run, with a NEXT: line
+//                                  of fixed words for each rule refused
 //   4  RESULT: unavailable         git missing or too old (2.36, or 2.45 with
 //                                  --recoverable), a linked folder, the
 //                                  sessions check failed or a read failed
@@ -1089,7 +1090,26 @@ function removeOne(git, item, main, hooks, platform, lines, counts, again) {
   counts.removed += 1;
 }
 
-const refused = refusals => ({ code: 2, lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), `RESULT: refused ${refusals.length}`] });
+/**
+ * The one NEXT line each usage refusal earns (PACT-52): what to do instead, in
+ * fixed words. It names no argument, path or value, so a refusal's output
+ * still carries none.
+ */
+export const NEXT_FOR = Object.freeze({
+  'usage/command': 'NEXT: the first argument is `show` or `remove`. `show` names each worktree it would remove, with its tags; `remove` takes the tags of a show run just before.',
+  'usage/unknown-option': 'NEXT: the options are `--recoverable`, `--repo <dir>`, `--worktree <name>`, and, for `remove`, `--yes <tag>[,<tag>]...` and `--override <folder>=<tag>[,...]`. Drop the one the line names.',
+  'usage/value': 'NEXT: the option the line names takes a value straight after it. Add the value and run again.',
+  'usage/repeated': 'NEXT: give `--recoverable`, `--repo`, `--yes` and `--override` once each, with several tags or pairs after one flag, comma between; only `--worktree` may repeat. Drop the repeat.',
+  'usage/worktree-name': 'NEXT: `--worktree` takes a plain folder name under .claude/worktrees, as show prints it: letters, digits, dot, underscore and dash, starting with a letter, digit or underscore, with no slash.',
+  'usage/tag': 'NEXT: `--yes` takes show\'s 10-character tags, comma between; `--override` takes `<folder>=<tag>` pairs with 16-character override tags. Copy them from the show blocks as printed.',
+  'usage/override-name': 'NEXT: each `--override` pair is `<folder>=<tag>`, the folder a plain name as show prints it, with no slash.',
+  'usage/yes-missing': 'NEXT: `remove` needs `--yes <tags>`, `--override <folder>=<tag>`, or both, from a show run just before. Run show, then remove with its tags.',
+});
+
+const refused = refusals => ({
+  code: 2,
+  lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...new Set(refusals.map(r => NEXT_FOR[r.rule]).filter(Boolean)), `RESULT: refused ${refusals.length}`],
+});
 const unavailable = why => ({ code: 4, lines: [`the cleaner is unavailable: ${why}`, 'RESULT: unavailable'] });
 
 /**

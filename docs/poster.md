@@ -368,9 +368,10 @@ withheld with only the rule it trips named. The poster never retries.
 
 On exit 1 and exit 3 the poster prints one `NEXT:` line, straight above the
 `RESULT:` line, saying what the session does next, so a session that never
-sees this page still knows. An exit 2 for an edit rule, a content-scan rule or a
-missing or doubled `intent` prints one `NEXT:` line for each such rule it
-refused, above `RESULT:`, saying what to do instead. The exit 1 and exit 3 line's
+sees this page still knows. An exit 2 prints one `NEXT:` line for each rule it
+refused, above `RESULT:`, saying what to do instead: every rule below but the
+`owner/` and `as/` ones, whose `where` already names the login or the repo to
+fix. The exit 1 and exit 3 line's
 page and login are the ones the poster checked before it sent, never text from
 `gh` or the body.
 
@@ -421,7 +422,7 @@ nothing sent.
 | --- | --- |
 | `usage/surface` | The first argument is missing or no surface |
 | `usage/argument` | A word that is no option |
-| `usage/unknown-option` | Any option but `--post <file>` and `--dry-run`, or any option after `schema`; one fixed `NEXT:` line follows |
+| `usage/unknown-option` | Any option but `--post <file>` and `--dry-run`, or any option after `schema`; one fixed `NEXT:` line follows, and it stands for a missing `--post` too |
 | `usage/repeated` | `--post` or `--dry-run` given twice |
 | `usage/missing-value` | `--post` with no file after it |
 | `usage/missing-option` | `--post` is missing |

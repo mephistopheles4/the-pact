@@ -1053,7 +1053,7 @@ function main() {
     writeFileSync(turn, `${word}\n`);
   };
   const nudge = name => {
-    say(name, `Your context is nearing the auto-compact window. Update your hand-off file now, at ${shown}: the goal and any free hand, or its end, with where it came from, by its kind, the state, the open questions and the next step. Leave out secrets, tokens and personal details. Then carry on.`);
+    say(name, `Your context is nearing the auto-compact window. The hand-off file at ${shown} is how this session's place survives compaction, and it is due an update now: it holds the goal and any free hand, or its end, with where it came from, by its kind, the state, the open questions and the next step, and it leaves out secrets, tokens and personal details.`);
     setTurn('nudged');
   };
 
@@ -1603,7 +1603,7 @@ check_hash ffc248f8c6e59ae1f1c00d311483a0cc8ebd0454b4668feacb0a7c7139be75e2 'age
 check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'agents/reader-lens.md'
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
-check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
+check_hash 3ce8c1ecda9c1219cd98438dec609d16069eace6d7c4f6d52c4f415648f131ff 'pact/hooks/compact-handoff.mjs'
 check_hash 3ea41220667e901a9566d43dc68baea519abe86273d4e120ecc273f4d18a9e55 'pact/review-diagrams.md'
 check_hash e8f655b596ab7dcb30d6c3fbab105e3e4cada74768d228a2cdd0e6a9c50f62b4 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
@@ -1635,7 +1635,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 43fa46e6be56"
+  echo "pact cloud copy 380b241da4a8"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

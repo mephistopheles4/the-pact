@@ -185,8 +185,9 @@ function runBody(tree, t, extra = ['--dry-run']) {
 function refusedQuietly(r) {
   assert.equal(r.real.code, 2, r.out);
   assert.equal(r.calls.length, 0, 'a refusal calls no gh');
-  assert.equal(r.real.lines.length, 2, r.out);
+  assert.equal(r.real.lines.length, 3, r.out);
   assert.match(r.real.lines[0], /^REFUSED (?:text\/hard-wrap|link\/relative) body [1-9][0-9]*:[1-9][0-9]*$/, r.out);
+  assert.equal(r.real.lines[1], NEXT_FOR[r.real.lines[0].split(' ')[1]], r.out);
 }
 
 const wrap = (n) => new RegExp(`^REFUSED text/hard-wrap body ${n}:1$`, 'm');
@@ -231,7 +232,7 @@ test('a refusal sends nothing, counts both rules, and a dry run refuses the same
   for (const extra of [[], ['--dry-run']]) {
     const r = runBody({ 'body.md': text }, t, extra);
     assert.equal(r.calls.length, 0, 'a refusal calls no gh');
-    assert.deepEqual(r.real.lines, ['REFUSED text/hard-wrap body 2:1', 'REFUSED link/relative body 2:31', 'RESULT: refused 2']);
+    assert.deepEqual(r.real.lines, ['REFUSED text/hard-wrap body 2:1', 'REFUSED link/relative body 2:31', NEXT_FOR['text/hard-wrap'], NEXT_FOR['link/relative'], 'RESULT: refused 2']);
     assert.equal(r.real.code, 2);
   }
 });
@@ -242,11 +243,14 @@ test('the prose refusals come after the scan and the table check, before any not
   const head = ['### Lens dispositions', '', '| Finding | Lens | Disposition | Rerun |', '| --- | --- | --- | --- |'];
   const wrapped = ['', 'A paragraph that stops here', 'and carries on.', ''];
   const few = runBody({ 'body.md': [...head, '| new a | b | changed | c |', ...wrapped, hidden].join('\n') }, t);
-  assert.deepEqual(few.real.lines, ['REFUSED text/hidden body 10:1', 'REFUSED table/disposition body 5:15', 'REFUSED text/hard-wrap body 8:1', NEXT_FOR['text/hidden'], 'RESULT: refused 3']);
+  assert.deepEqual(few.real.lines, ['REFUSED text/hidden body 10:1', 'REFUSED table/disposition body 5:15', 'REFUSED text/hard-wrap body 8:1', NEXT_FOR['text/hidden'], NEXT_FOR['table/disposition'], NEXT_FOR['text/hard-wrap'], 'RESULT: refused 3']);
   const many = runBody({ 'body.md': [...head, ...Array(60).fill('|'), ...wrapped].join('\n') }, t);
-  assert.equal(many.real.lines.length, 53, many.out);
+  // Fifty table refusals, the prose refusal, the NEXT lines of the two rules, the note, the result.
+  assert.equal(many.real.lines.length, 55, many.out);
   assert.equal(many.real.lines[50], 'REFUSED text/hard-wrap body 67:1');
-  assert.equal(many.real.lines[51], 'NOTE: 10 more table refusals not listed');
+  assert.equal(many.real.lines[51], NEXT_FOR['table/cells']);
+  assert.equal(many.real.lines[52], NEXT_FOR['text/hard-wrap']);
+  assert.equal(many.real.lines[53], 'NOTE: 10 more table refusals not listed');
   assert.equal(many.real.lines.at(-1), 'RESULT: refused 61');
 });
 

@@ -65,11 +65,15 @@ function runBody(tree, t, env = {}) {
   };
 }
 
+/** A refused run's lines without its NEXT lines, which poster-next.test.mjs holds (PACT-52). */
+const refusedLines = r => r.real.lines.filter(l => !l.startsWith('NEXT: '));
+
 /** Every refusal row: exit 2, nothing sent, each refusal naming a rule, the body, a line and a column, and no cell text. */
 function refusedQuietly(r) {
   assert.equal(r.real.code, 2, r.out);
   assert.equal(r.calls.length, 0, 'a refusal calls no gh');
-  for (const l of r.real.lines.slice(0, -1)) assert.match(l, /^REFUSED (?:(?:table\/[a-z]+|fence\/unclosed) body [1-9][0-9]*:[1-9][0-9]*|text\/hidden-line body_file)$/, r.out);
+  assert.match(r.real.lines.at(-2), /^NEXT: /, r.out);
+  for (const l of refusedLines(r).slice(0, -1)) assert.match(l, /^REFUSED (?:(?:table\/[a-z]+|fence\/unclosed) body [1-9][0-9]*:[1-9][0-9]*|text\/hidden-line body_file)$/, r.out);
   assert.ok(!r.out.includes(MARK), `the output quotes a cell: ${r.out}`);
 }
 
@@ -165,7 +169,7 @@ test('a real post with a broken table is refused before any gh call', t => {
   const calls = [];
   const r = postOld(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5'], { gh: (...a) => (calls.push(a), { ok: true, stdout: '{"login":"tester"}', stderr: '' }), env: {}, ...MACHINE });
   assert.equal(r.code, 2, r.lines.join('\n'));
-  assert.deepEqual(r.lines, ['REFUSED table/disposition body 5:15', 'RESULT: refused 1']);
+  assert.deepEqual(r.lines, ['REFUSED table/disposition body 5:15', NEXT_FOR['table/disposition'], 'RESULT: refused 1']);
   assert.equal(calls.length, 0);
 });
 
@@ -173,15 +177,17 @@ test('a real post with a broken table is refused before any gh call', t => {
 test('with lone carriage returns, the scan and the table check name the same lines', t => {
   const hidden = String.fromCharCode(0x200b) + 'x';
   const r = runBody({ 'body.md': [LABEL, '', hidden, HEADER, SEP, '| new a | b | changed | c |', ''].join('\r') }, t);
-  assert.deepEqual(r.real.lines, ['REFUSED text/hidden body 3:1', 'REFUSED table/disposition body 6:15', NEXT_FOR['text/hidden'], 'RESULT: refused 2']);
+  assert.deepEqual(r.real.lines, ['REFUSED text/hidden body 3:1', 'REFUSED table/disposition body 6:15', NEXT_FOR['text/hidden'], NEXT_FOR['table/disposition'], 'RESULT: refused 2']);
 });
 
 // #280 C7, ADR 0076: a body full of broken rows names the first fifty and counts the rest, so the result line stays in view.
 test('table refusals past fifty are counted, not listed', t => {
   const r = runBody({ 'body.md': body(LABEL, '', HEADER, SEP, ...Array(5000).fill('|')) }, t);
   assert.equal(r.real.code, 2);
-  assert.equal(r.real.lines.length, 52, r.real.lines.slice(-3).join('\n'));
-  assert.equal(r.real.lines[50], 'NOTE: 4950 more table refusals not listed');
+  // Fifty REFUSED lines, the NEXT line of the one rule they break, the note, the result.
+  assert.equal(r.real.lines.length, 53, r.real.lines.slice(-3).join('\n'));
+  assert.equal(r.real.lines[50], NEXT_FOR['table/cells']);
+  assert.equal(r.real.lines[51], 'NOTE: 4950 more table refusals not listed');
   assert.equal(r.real.lines.at(-1), 'RESULT: refused 5000');
 });
 
@@ -207,7 +213,7 @@ test("a broken row in the review comment's Lens dispositions fold is refused at 
   const text = LAYOUT([ROWS[0], bad]);
   const r = runBody({ 'body.md': text }, t);
   refusedQuietly(r);
-  assert.deepEqual(r.real.lines, [`REFUSED table/disposition body ${lineOf(text, bad)}:31`, 'RESULT: refused 1']);
+  assert.deepEqual(refusedLines(r), [`REFUSED table/disposition body ${lineOf(text, bad)}:31`, 'RESULT: refused 1']);
 });
 
 // #401 C8: a diagram fence left open swallows the folds and the table, so the body is refused at the fence; closed, the same body passes (the C2 test above).
@@ -216,16 +222,17 @@ test('a fence left open is refused at the fence', t => {
   const r = runBody({ 'body.md': text }, t);
   assert.equal(r.real.code, 2, r.out);
   assert.equal(r.calls.length, 0, 'a refusal calls no gh');
-  assert.deepEqual(r.real.lines, [`REFUSED fence/unclosed body ${lineOf(text, `${FENCE3}mermaid`)}:1`, 'RESULT: refused 1']);
+  assert.deepEqual(refusedLines(r), [`REFUSED fence/unclosed body ${lineOf(text, `${FENCE3}mermaid`)}:1`, 'RESULT: refused 1']);
+  const lines = text => refusedLines(runBody({ 'body.md': text }, t));
   // Each line a diagram never holds refuses on its own, though a later closer would close the fence: another fence, a fold's opening tag, its closing tag.
   const refusedAtOne = ['REFUSED fence/unclosed body 1:1', 'RESULT: refused 1'];
-  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, 'flowchart TB', `${FENCE4}text`, 'x', FENCE4, FENCE3) }, t).real.lines, refusedAtOne);
+  assert.deepEqual(lines(body(`${FENCE3}mermaid`, 'flowchart TB', `${FENCE4}text`, 'x', FENCE4, FENCE3)), refusedAtOne);
   // The unclosed fold is also refused as hidden, for it would hide what follows (#524).
-  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '<details><summary>x</summary>', FENCE3) }, t).real.lines, ['REFUSED text/hidden-line body_file', ...refusedAtOne.slice(0, 1), 'RESULT: refused 2']);
-  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '</details>', FENCE3) }, t).real.lines, refusedAtOne);
+  assert.deepEqual(lines(body(`${FENCE3}mermaid`, '<details><summary>x</summary>', FENCE3)), ['REFUSED text/hidden-line body_file', ...refusedAtOne.slice(0, 1), 'RESULT: refused 2']);
+  assert.deepEqual(lines(body(`${FENCE3}mermaid`, '</details>', FENCE3)), refusedAtOne);
   // A tilde fence, and a fence indented three spaces, are fences too.
-  assert.deepEqual(runBody({ 'body.md': body('text', '', '~~~', 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:1', 'RESULT: refused 1']);
-  assert.deepEqual(runBody({ 'body.md': body('text', '', `   ${FENCE3}text`, 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:4', 'RESULT: refused 1']);
+  assert.deepEqual(lines(body('text', '', '~~~', 'a line')), ['REFUSED fence/unclosed body 3:1', 'RESULT: refused 1']);
+  assert.deepEqual(lines(body('text', '', `   ${FENCE3}text`, 'a line')), ['REFUSED fence/unclosed body 3:4', 'RESULT: refused 1']);
 });
 
 // #280 C7: the review procedure's fold, a four-backtick fence holding a three-backtick line, stays closed to the check.
@@ -257,7 +264,7 @@ test('a Finding cell without a state word is refused as table/state at its colum
   for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat', `new withheld, see chat ${MARK}`, 'new Withheld, see chat', 'updated **withheld**, see chat', 'new withheld', 'new _withheld_, see chat', 'new `withheld`, see chat', 'new "withheld", see chat', 'Withheld, see chat', '**withheld, see chat**', 'new \u201Cwithheld\u201D, see chat', 'new ~~withheld~~, see chat', 'withheld,  see chat', /* #478: the template's own shape, a severity mark, word and colon before the text */ 'new 🔴 high: withheld, see chat', 'updated 🟠 medium: withheld, see chat', 'unchanged 🟡 low withheld, see chat', 'absent 🔴 HIGH: Withheld, see chat', 'new high: withheld, see chat', 'new 🔴 high security?: withheld, see chat', 'updated 🟠 medium (security?): withheld, see chat', 'unchanged 🟡 low, security? withheld, see chat']) {
     const r = runBody({ 'body.md': row(finding) }, t);
     refusedQuietly(r);
-    assert.deepEqual(r.real.lines, ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);
+    assert.deepEqual(refusedLines(r), ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);
   }
   // An empty cell's column is its start, right after the pipe.
   assert.deepEqual(tableCheck(row('')), [{ rule: 'table/state', where: 'body 5:2' }], 'an empty Finding cell');
