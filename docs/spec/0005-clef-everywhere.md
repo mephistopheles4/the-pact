@@ -309,9 +309,9 @@ code changes:
 - **A platform table** (U1's), saying for each row what CI ran end to end and
   what was not run (Vulkan on every machine but the owner's; Metal; macOS on
   CPU; arm64 Vulkan, not offered yet).
-- **What your machine needs:** about 7.6 GB of disk; 16 GB of RAM (the
-  server peaked at 7.6 GB on a 16 GB runner; the doc gives each runner's
-  peak); a Node 24 that matches your CPU's arch; and per platform the system
+- **What your machine needs:** about 7.6 GB of disk; 16 GB of RAM (with
+  `-nr` the server peaked at 5 to 7 GB on 16 GB runners; the doc gives each
+  runner's peak); a Node 24 that matches your CPU's arch; and per platform the system
   libraries U5 found and the glibc floor, with how to check a library is
   there (`ldconfig -p | grep <name>` on Linux).
 - **Example machines:** the owner's (Windows x64, Vulkan) as it reads today,
@@ -341,13 +341,20 @@ started `llama-server` with 0002 S7's arguments on CPU, asked the six cases on
 and the peak memory. On `windows-2025` it also ran the tool itself (setup,
 ensure, the cases, stop, remove).
 
+Runs 45208391301, 45209572497 and 45211390912 on that branch. Times are
+from the server's start to ready, and per answer; memory is the server's
+peak resident set (GiB).
+
 | Runner | CPU, cores, RAM | 0002's arguments | With `-nr` |
 | --- | --- | --- | --- |
-| `windows-2025` | AMD EPYC 7763, 4, 16 GB | the tool passed: ready 5 s; answers 16–23 s; all six bands match; peak 7.6 GB | passed (numbers: T1's record) |
-| `ubuntu-24.04` | Intel Xeon 6975P-C (AMX), 4, 15 GB | aborts while loading | passed (numbers: T1's record) |
-| `ubuntu-24.04-arm` | Neoverse N2, 4, 16 GB | aborts while loading | passed (numbers: T1's record) |
-| `windows-11-arm` | Cobalt 100, 4, 16 GB | aborts while loading | (numbers: T1's record) |
-| `macos-15-intel` | Intel i7-8700B, 4, 14 GB | loads; ready 113 s; answers 34–70 s with verbose logging; all six bands match | not run |
+| `windows-2025` | AMD EPYC 7763, 4, 16 GB | the tool, end to end: ready 5 s; answers 16–23 s; six bands match; peak 7.6. The server alone: ready 5 s, answers 16–25 s (median 18), peak 7.6 | ready 3 s; answers 15–23 s (median 17); six match; peak 5.1 |
+| `ubuntu-24.04` | Intel Xeon 6975P-C (AMX), 4, 15 GB | aborts while loading | ready 2 s; answers 8–11 s (median 8); six match; peak 6.7 |
+| `ubuntu-24.04-arm` | Neoverse N2, 4, 16 GB | aborts while loading | ready 2 s; answers 13–21 s (median 19); six match; peak 6.7 |
+| `windows-11-arm` | Cobalt 100, 4, 16 GB | aborts while loading | ready 4 s; answers 12–18 s (median 16); six match; peak 5.1 |
+| `macos-15-intel` | Intel i7-8700B, 4, 14 GB | loads; ready 113 s; answers 34–70 s with verbose logging; six match | not run |
+
+`-nr` costs nothing measurable where both load (Windows x64: median 17 s
+against 18 s) and lowers the peak (5.1 against 7.6).
 
 The abort is the same on every failing runner, with `--fit off` and with
 `-ub`/`-b` 512 as well. The CPU backend loads; the assert is raised while the
