@@ -10,7 +10,7 @@ import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep 
 import { test } from 'node:test';
 // #442: the new exports are reached through the namespace, so this file still loads on the base.
 import * as cleaner from '../../claude/tools/cleaner.mjs';
-import { clean, esc, findGit, realOf, walkTree } from '../../claude/tools/cleaner.mjs';
+import { clean, esc, findClaude, findGit, realOf, walkTree } from '../../claude/tools/cleaner.mjs';
 import { tempDir } from './tree.mjs';
 
 const cp = String.fromCodePoint;
@@ -2148,4 +2148,348 @@ test('#523 C24: a failed new read withholds the override tag, and the run goes o
   const rm = g.run(['remove', '--yes', tagsOf(gs.out).join(',')], { spawn });
   assert.equal(rm.code, 0, rm.out);
   assert.ok(!existsSync(g.wt('clean')));
+});
+
+// PACT-80: the cleaner stops a finished background session. The stop is a stubbed process call; no claude runs.
+const JOB = 'a1b2c3d4';
+const sessionsOf = f => join(f.home, '.claude', 'sessions');
+/** A status file named <pid>.json, as Claude Code writes it. */
+function plantSession(f, cwd, over = {}) {
+  const pid = over.pid ?? 4242;
+  const doc = { pid, kind: 'bg', status: 'idle', jobId: JOB, sessionId: `${over.jobId ?? JOB}-0000-4000-8000-000000000000`, cwd, ...over };
+  mkdirSync(sessionsOf(f), { recursive: true });
+  writeFileSync(join(sessionsOf(f), `${over.file ?? pid}.json`), JSON.stringify(doc));
+  return doc;
+}
+/** A worktree with a finished session and the lock Claude Code holds for it. */
+function finished(f, name, over = {}) {
+  const dir = f.add(name);
+  sessionLock(f, name, `claude session ${name} (pid ${over.lockPid ?? over.pid ?? 4242})`);
+  plantSession(f, dir, over);
+  return dir;
+}
+/** PATH holding a fake claude (or none) and git's own folder, so no real claude on this host is found. */
+function stopEnv(t, f, { claude = true } = {}) {
+  const bin = tempDir(t, 'pact-cleaner-bin-');
+  const exe = join(bin, process.platform === 'win32' ? 'claude.exe' : 'claude');
+  if (claude) writeFileSync(exe, '');
+  const env = Object.fromEntries(Object.entries(f.env).filter(([k]) => k.toUpperCase() !== 'PATH'));
+  env.PATH = [bin, dirname(findGit(f.env))].join(delimiter);
+  return { env, exe };
+}
+/**
+ * The io of a run that can stop: the stand-in for `claude stop <id>` runs `during`, removes the session file whose
+ * jobId it is given and answers `answer` (exit 0 by default). Time is a fake clock moved by the sleeps.
+ */
+function stopIo(t, f, { afterStatus, claude = true, answer = { status: 0, stdout: '', stderr: '' }, during, alive = () => false } = {}) {
+  const { env, exe } = stopEnv(t, f, { claude });
+  const clock = { now: 0, sleeps: [] };
+  let statusSeen = false;
+  const rec = recording((file, args, opts) => {
+    // The first status read of a run is remove's own; what `afterStatus` does lands before the re-read of S3.2.
+    if (afterStatus && !statusSeen && args.includes('status')) {
+      statusSeen = true;
+      const r = spawnSync(file, args, opts);
+      afterStatus();
+      return r;
+    }
+    if (file !== exe) return null;
+    during?.(args[1]);
+    if (answer.status === 0 && !answer.error) {
+      for (const n of readdirSync(sessionsOf(f))) {
+        try {
+          if (JSON.parse(readFileSync(join(sessionsOf(f), n), 'utf8')).jobId === args[1]) rmSync(join(sessionsOf(f), n));
+        } catch {
+          // a planted bad file is left as it is
+        }
+      }
+    }
+    return answer;
+  });
+  const stops = () => rec.calls.filter(c => c.file === exe);
+  return { over: { env, spawn: rec.spawn, sleep: ms => { clock.now += ms; clock.sleeps.push(ms); }, now: () => clock.now, alive }, rec, exe, stops, clock };
+}
+const writeSettings = (f, text) => {
+  mkdirSync(join(f.home, '.claude'), { recursive: true });
+  writeFileSync(join(f.home, '.claude', 'settings.json'), typeof text === 'string' ? text : JSON.stringify(text));
+};
+const FINISHED_LINE = /^ {2}branch fin at [0-9a-f]{7}\n {2}in use by a finished background session; remove stops it first\n/;
+const yesOf = (f, s, name) => ['remove', '--yes', tagsOf(f.run(['show', '--worktree', name], s.over).out).join(',')];
+
+// PACT-80 C1
+test('PACT-80 C1: show names a worktree held only by a finished session with a tag; jobId, pid, status and the switch each change it', t => {
+  const f = makeRepo(t);
+  const dir = finished(f, 'fin');
+  const s = stopIo(t, f);
+  const r = f.run(['show'], s.over);
+  assert.match(block(r.out, 'fin'), FINISHED_LINE, r.out);
+  assert.equal(tagsOf(r.out).length, 1, r.out);
+  assert.equal(s.stops().length, 0, 'show stops nothing');
+  const base = tagsOf(r.out)[0];
+
+  rmSync(sessionsOf(f), { recursive: true });
+  plantSession(f, dir, { jobId: 'ffffffff' });
+  assert.notEqual(tagsOf(f.run(['show'], s.over).out)[0], base, 'jobId');
+  rmSync(sessionsOf(f), { recursive: true });
+  plantSession(f, dir);
+  assert.equal(tagsOf(f.run(['show'], s.over).out)[0], base, 'the same facts, the same tag');
+  rmSync(sessionsOf(f), { recursive: true });
+  f.git(f.root, 'worktree', 'unlock', dir);
+  sessionLock(f, 'fin', 'claude session fin (pid 4243)');
+  plantSession(f, dir, { pid: 4243 });
+  assert.notEqual(tagsOf(f.run(['show'], s.over).out)[0], base, 'pid');
+  rmSync(sessionsOf(f), { recursive: true });
+  f.git(f.root, 'worktree', 'unlock', dir);
+  sessionLock(f, 'fin', 'claude session fin (pid 4242)');
+  plantSession(f, dir);
+  rmSync(sessionsOf(f), { recursive: true });
+  plantSession(f, dir, { status: 'busy' });
+  assert.equal(block(f.run(['show'], s.over).out, 'fin'), '  kept: in use\n', 'status');
+  rmSync(sessionsOf(f), { recursive: true });
+  plantSession(f, dir);
+  writeSettings(f, { permissions: { deny: ['Bash(claude stop *)'] } });
+  const on = f.run(['show'], s.over);
+  assert.equal(block(on.out, 'fin'), '  kept: in use\n  a finished background session holds it; session-stop-deny is on, so the cleaner does not stop it\n', on.out);
+  assert.equal(tagsOf(on.out).length, 0, on.out);
+});
+
+// PACT-80 C2, C9
+test('PACT-80 C2, C9: remove with the tag stops the session once, waits for the folder, removes it and its branch; nothing printed names a job, a pid or a path', t => {
+  const f = makeRepo(t);
+  const dir = finished(f, 'fin', { pid: 7001 });
+  let left = 2;
+  const s = stopIo(t, f, { alive: pid => pid === 7001 && left-- > 0 });
+  const shown = f.run(['show'], s.over);
+  const rm = f.run(['remove', '--yes', tagsOf(shown.out).join(',')], s.over);
+  assert.equal(rm.code, 0, rm.out);
+  assert.match(rm.out, /^worktree fin: session stopped, removed$/m, rm.out);
+  assert.equal(rm.lines.at(-1), 'RESULT: removed 1 left 0 changed 0');
+  assert.deepEqual(s.stops().map(c => c.args), [['stop', JOB]]);
+  const { file, opts } = s.stops()[0];
+  assert.equal(opts.timeout, 30000);
+  assert.equal(opts.windowsHide, true);
+  assert.ok(!opts.shell, 'no shell');
+  assert.ok(isAbsolute(file) && isAbsolute(opts.cwd) && ![f.root, f.home].includes(opts.cwd));
+  assert.deepEqual(s.clock.sleeps, [250, 250]);
+  assert.ok(!existsSync(dir));
+  assert.deepEqual(branches(f), ['main']);
+  for (const out of [shown.out, rm.out]) {
+    noPath(f, out);
+    assert.doesNotMatch(out, new RegExp(`${JOB}|7001`), out);
+  }
+
+  // Bad case for the wait: a pid that never dies, or a sessions read that fails after the stop, leaves the worktree and its branch after 15 s.
+  for (const why of ['alive', 'read fails']) {
+    const g = makeRepo(t);
+    const d2 = finished(g, 'stuck');
+    const stuck = stopIo(t, g, why === 'alive' ? { alive: () => true } : { during: () => writeFileSync(join(sessionsOf(g), 'bad.json'), '{"cwd":') });
+    const gr = g.run(yesOf(g, stuck, 'stuck'), stuck.over);
+    assert.match(gr.out, /^worktree stuck: session stopped, left, the session stopped but still holds the folder; run show again$/m, `${why}: ${gr.out}`);
+    assert.equal(gr.lines.at(-1), 'RESULT: removed 0 left 1 changed 0');
+    assert.ok(existsSync(d2) && branches(g).includes('stuck'), why);
+    assert.ok(stuck.clock.now >= 15000 && stuck.clock.now < 15500, `${why}: ${stuck.clock.now}`);
+  }
+});
+
+// PACT-80 C3
+test('PACT-80 C3: a stop that fails or times out leaves the worktree, its branch and its lock', t => {
+  const f = makeRepo(t);
+  const dir = finished(f, 'fin');
+  for (const [why, answer] of [['exit 1', { status: 1, stdout: '', stderr: '' }], ['timeout', { status: null, error: Object.assign(new Error('x'), { code: 'ETIMEDOUT' }) }]]) {
+    const s = stopIo(t, f, { answer });
+    const r = f.run(yesOf(f, s, 'fin'), s.over);
+    assert.match(r.out, /^worktree fin: left, the session did not stop$/m, `${why}: ${r.out}`);
+    assert.doesNotMatch(r.out, /session stopped,/);
+    assert.equal(r.lines.at(-1), 'RESULT: removed 0 left 1 changed 0');
+    assert.equal(s.stops().length, 1, why);
+    assert.ok(existsSync(dir) && branches(f).includes('fin'), why);
+    assert.equal(lockOf(f, 'fin'), 'claude session fin (pid 4242)', why);
+  }
+});
+
+// PACT-80 C4
+test('PACT-80 C4: a session that is anything but kind bg, idle, an 8-hex jobId opening its sessionId and a positive pid naming its file keeps its worktree in use, and the cleaner\'s own cwd does too', t => {
+  const f = makeRepo(t);
+  const s = stopIo(t, f);
+  const cases = {
+    busy: { status: 'busy' },
+    shell: { status: 'shell' },
+    waiting: { status: 'waiting', waitingFor: 'a prompt' },
+    interactive: { kind: 'interactive' },
+    nostatus: { status: undefined },
+    nojob: { jobId: undefined },
+    upper: { jobId: 'A1B2C3D4', sessionId: 'A1B2C3D4-x' },
+    short: { jobId: 'a1b2c3', sessionId: 'a1b2c3-x' },
+    foreign: { sessionId: 'ffffffff-0000' },
+    nosession: { sessionId: undefined },
+    zero: { pid: 0 },
+    negative: { pid: -5 },
+    fraction: { pid: 4242.5 },
+    text: { pid: '4242' },
+    misnamed: { file: 'other' },
+  };
+  for (const [name, over] of Object.entries(cases)) {
+    rmSync(sessionsOf(f), { recursive: true, force: true });
+    const dir = f.add(name.replace(/^/, 'c-'));
+    sessionLock(f, `c-${name}`, `claude session c-${name} (pid ${typeof over.pid === 'number' && over.pid > 0 ? over.pid : 4242})`);
+    plantSession(f, dir, over);
+    const r = f.run(['show', '--worktree', `c-${name}`], s.over);
+    assert.equal(block(r.out, `c-${name}`), '  kept: in use\n', `${name}: ${r.out}`);
+    assert.equal(tagsOf(r.out).length, 0, name);
+  }
+  assert.equal(s.stops().length, 0);
+  // The cleaner's own cwd, with a finished session beside it.
+  rmSync(sessionsOf(f), { recursive: true, force: true });
+  const here = finished(f, 'here');
+  const own = f.run(['show', '--worktree', 'here'], { ...s.over, cwd: here });
+  assert.equal(block(own.out, 'here'), '  kept: in use\n', own.out);
+});
+
+// PACT-80 C12
+test('PACT-80 C12: a finished session is stopped only when the worktree\'s lock is its own: a pid differing from the lock, a second session or no lock keeps it in use', t => {
+  const f = makeRepo(t);
+  const s = stopIo(t, f);
+  // A status file naming the worktree, its pid different from the lock's.
+  const planted = finished(f, 'planted', { pid: 9999, lockPid: 4242 });
+  assert.ok(planted);
+  // A second finished session in the folder.
+  const two = finished(f, 'two', { pid: 4243 });
+  plantSession(f, join(two, 'sub'), { pid: 4244, jobId: 'bbbbbbbb' });
+  // No lock at all.
+  plantSession(f, f.add('nolock'), { pid: 4245, jobId: 'cccccccc' });
+  // A lock that is not a session lock.
+  const other = f.add('other');
+  sessionLock(f, 'other', 'held by hand');
+  plantSession(f, other, { pid: 4246, jobId: 'dddddddd' });
+  const r = f.run(['show'], s.over);
+  for (const name of ['planted', 'two', 'nolock', 'other']) assert.equal(block(r.out, name), '  kept: in use\n', `${name}: ${r.out}`);
+  assert.equal(tagsOf(r.out).length, 0, r.out);
+  assert.equal(s.stops().length, 0);
+  // Positive control: the same worktree with the lock of its pid reads on.
+  const good = finished(f, 'good', { pid: 4250, jobId: 'eeeeeeee' });
+  assert.ok(good);
+  assert.match(block(f.run(['show', '--worktree', 'good'], s.over).out, 'good'), /finished background session/);
+});
+
+// PACT-80 C5
+test('PACT-80 C5: a session that turns live, or a switch that turns on, after remove read and before it stops leaves the worktree with no stop', t => {
+  for (const [why, change] of [
+    ['live', f => writeFileSync(join(sessionsOf(f), '4242.json'), JSON.stringify({ pid: 4242, kind: 'bg', status: 'busy', jobId: JOB, sessionId: `${JOB}-0`, cwd: f.wt('fin') }))],
+    ['switch', f => writeSettings(f, { permissions: { deny: ['Bash(claude stop *)'] } })],
+  ]) {
+    const f = makeRepo(t);
+    const dir = finished(f, 'fin');
+    let fx;
+    const s = stopIo(t, f, { afterStatus: () => change(fx) });
+    fx = f;
+    const r = f.run(yesOf(f, { over: { ...s.over, spawn: undefined } }, 'fin'), s.over);
+    assert.match(r.out, /^worktree fin: left, it changed since the read$/m, `${why}: ${r.out}`);
+    assert.equal(r.lines.at(-1), 'RESULT: removed 0 left 1 changed 0');
+    assert.equal(s.stops().length, 0, why);
+    assert.ok(existsSync(dir), why);
+  }
+});
+
+// PACT-80 C6
+test('PACT-80 C6: on the yes path a worktree git would refuse is left and its session not stopped', t => {
+  const f = makeRepo(t);
+  const dir = finished(f, 'fin');
+  writeFileSync(join(dir, 'new.txt'), 'x');
+  const s = stopIo(t, f);
+  const shown = f.run(['show'], s.over);
+  assert.equal(tagsOf(shown.out).length, 1, shown.out);
+  const rm = f.run(['remove', '--yes', tagsOf(shown.out).join(',')], s.over);
+  assert.match(rm.out, /^worktree fin: left, git would refuse, so the session was not stopped$/m, rm.out);
+  assert.equal(s.stops().length, 0);
+  assert.ok(existsSync(dir));
+  assert.ok(existsSync(join(sessionsOf(f), '4242.json')));
+});
+
+// PACT-80 C7
+test('PACT-80 C7: with no claude on PATH the worktree stays in use and says so; findClaude finds claude.exe or claude by an absolute entry, never a shim or a relative one', t => {
+  const f = makeRepo(t);
+  finished(f, 'fin');
+  const s = stopIo(t, f, { claude: false });
+  const r = f.run(['show'], s.over);
+  assert.equal(block(r.out, 'fin'), '  kept: in use\n  a finished background session holds it; claude was not found, so the cleaner does not stop it\n', r.out);
+  assert.equal(tagsOf(r.out).length, 0, r.out);
+  assert.equal(s.stops().length, 0);
+
+  const bin = tempDir(t, 'pact-cleaner-bin-');
+  for (const shim of ['claude.cmd', 'claude.ps1']) writeFileSync(join(bin, shim), '');
+  mkdirSync(join(bin, process.platform === 'win32' ? 'claude.exe' : 'claude'));
+  const at = platform => findClaude({ PATH: bin }, platform);
+  assert.equal(at(process.platform), null, 'shims and a folder are not claude');
+  const real = tempDir(t, 'pact-cleaner-bin-');
+  writeFileSync(join(real, 'claude.exe'), '');
+  writeFileSync(join(real, 'claude'), '');
+  assert.equal(findClaude({ PATH: ['relative', real].join(delimiter) }, 'win32'), join(real, 'claude.exe'));
+  assert.equal(findClaude({ PATH: ['relative', real].join(delimiter) }, 'linux'), join(real, 'claude'));
+  assert.equal(findClaude({ PATH: 'relative' }, 'linux'), null);
+});
+
+// PACT-80 C10
+test('PACT-80 C10: a deny rule for claude stop, or a settings.json that is a link, not JSON or not a list of strings, means no stop; no file or other rules do not', t => {
+  const f = makeRepo(t);
+  finished(f, 'fin');
+  const s = stopIo(t, f);
+  const read = () => {
+    const r = f.run(['show'], s.over);
+    return { r, tags: tagsOf(r.out).length, on: block(r.out, 'fin') === '  kept: in use\n  a finished background session holds it; session-stop-deny is on, so the cleaner does not stop it\n' };
+  };
+  assert.equal(read().tags, 1, 'no settings.json: off');
+  for (const [name, text, on] of [
+    ['bash', { permissions: { deny: ['Bash(claude stop *)'] } }, true],
+    ['powershell', { permissions: { deny: ['Read(x)', 'PowerShell(claude stop *)'] } }, true],
+    ['not JSON', '{"permissions": ', true],
+    ['trailing comma', '{"permissions": {"deny": [],}}', true],
+    ['deny a string', { permissions: { deny: 'Bash(claude stop *)' } }, true],
+    ['deny holds a number', { permissions: { deny: [1] } }, true],
+    ['an array', [], true],
+    ['permissions a list', { permissions: [] }, true],
+    ['other rules', { permissions: { deny: ['Bash(rm *)'] } }, false],
+    ['no deny', { permissions: { allow: ['Bash(ls)'] } }, false],
+    ['no permissions', { model: 'x' }, false],
+  ]) {
+    writeSettings(f, text);
+    const got = read();
+    assert.equal(got.on, on, `${name}: ${got.r.out}`);
+    assert.equal(got.tags, on ? 0 : 1, name);
+  }
+  rmSync(join(f.home, '.claude', 'settings.json'));
+  mkdirSync(join(f.home, 'elsewhere'));
+  const target = join(f.home, 'elsewhere', 'real.json');
+  writeFileSync(target, '{}');
+  if (plantLink(target, join(f.home, '.claude', 'settings.json'), 'file')) assert.equal(read().on, true, 'a link');
+  assert.equal(s.stops().length, 0);
+});
+
+/** An override run's setup: a finished session in a worktree that holds an untracked file, so it has an override tag. */
+function overrideSetup(t, during) {
+  const f = makeRepo(t);
+  const dir = finished(f, 'fin');
+  writeFileSync(join(dir, 'new.txt'), 'x');
+  const s = stopIo(t, f, { during: during ? () => during(dir) : undefined });
+  const shown = f.run(['show'], s.over);
+  const o = /override tag ([0-9a-f]{16})/.exec(shown.out)?.[1];
+  assert.ok(o, shown.out);
+  return { f, dir, s, o };
+}
+
+// PACT-80 C11
+test('PACT-80 C11: on the override path the last read runs after the stop and the wait: unchanged, it reads session stopped, removed, overridden; a file changed by the stopping session leaves the worktree', t => {
+  const a = overrideSetup(t);
+  const ok = a.f.run(['remove', '--override', `fin=${a.o}`], a.s.over);
+  assert.match(ok.out, /^worktree fin: session stopped, removed, overridden: 1 untracked file deleted/m, ok.out);
+  assert.equal(a.s.stops().length, 1);
+  assert.ok(!existsSync(a.dir));
+  assert.deepEqual(branches(a.f), ['main']);
+
+  // Bad case: the stopping session writes a file; the stop has run, the worktree stays.
+  const b = overrideSetup(t, dir => writeFileSync(join(dir, 'late.txt'), 'y'));
+  const left = b.f.run(['remove', '--override', `fin=${b.o}`], b.s.over);
+  assert.match(left.out, /^worktree fin: session stopped, left, it changed since the read$/m, left.out);
+  assert.equal(b.s.stops().length, 1);
+  assert.ok(existsSync(b.dir));
+  assert.ok(branches(b.f).includes('fin'));
 });

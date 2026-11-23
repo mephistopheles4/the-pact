@@ -29,7 +29,7 @@ This file is never installed.
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
 | Keep the record | Points to review.md's Posting section, which no tool loads, and says where the record is: the work's record, else chat. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent; and the read-back, not a listed set of items, sets the work's edge and its acceptance, which no check reads. |
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
-| Remove worktrees only through the cleaner | It can't tell the owner's yes: each removal is a checkpoint (the Safety quality; `AGENTS.md`, Reviewing a change here). |
+| Remove worktrees only through the cleaner | It can't tell the owner's yes: each removal is a checkpoint (the Safety quality; `AGENTS.md`, Reviewing a change here). The line names the command: a lead may run a cleaner only when the user-level rules name its program, and the bare line named neither. |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |

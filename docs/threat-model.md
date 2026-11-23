@@ -69,15 +69,15 @@ someone hands a session to load, and a decision model's answer.
   mode as the default.
 - **Harness, installed by the pact.** Deny rules on raw `git worktree remove`,
   `git branch -d`, `-D` and `--delete`, and `claude rm`, and an ask rule on a
-  `cleaner.mjs remove --override` call, on only while the cleaner is on (off
-  by default). Eight deny rules on raw `claude stop`, `kill`, `daemon stop`
-  and `respawn`, on only while `session-stop-deny` is on (off by default). A
+  `cleaner.mjs remove --override` call, on only while the cleaner is on. Eight deny rules on raw `claude stop`, `kill`, `daemon stop`
+  and `respawn`, on only while `session-stop-deny` is on; the
+  cleaner's own stop is held back by it. A
   deny rule is a speed bump: another spelling gets past it. The ask rule is
   passed by `bypassPermissions`, a mod, or a spelling outside its pattern.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
   what git keeps. It can't tell whether the owner agreed to a removal; a
   rule makes each removal through it a checkpoint, the session's own logged pick. A removal that gets past the deny rules meets only the
-  classifier. A forced removal rests on the rule the cleaner prints, its override rule
+  classifier. A forced removal rests on the cleaner's printed override rule
   ([ADR 0151](adr/0151-the-cleaner-forces-only-on-an-override-tag.md)). The
   install's text scanner and the builder page's refusal of hidden characters
   check the files they take for hidden and control characters, not wording.
