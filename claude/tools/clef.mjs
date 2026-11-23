@@ -36,7 +36,7 @@ import { createServer as createHttpServer, request as httpRequest } from 'node:h
 import { request as httpsRequest, Agent } from 'node:https';
 import { createServer as createNetServer } from 'node:net';
 import { homedir, userInfo } from 'node:os';
-import { basename, dirname, join, posix, resolve, win32 } from 'node:path';
+import { dirname, join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync, gunzipSync } from 'node:zlib';
 
@@ -697,13 +697,6 @@ export function accountHome() {
   }
 }
 
-/** The clef folder a supervisor serves, from its working folder `<clef folder>/runtime/<tag>`, or null when it is not one. */
-export function serveFolder(cwd, tag = SERVER.tag) {
-  const runtime = dirname(cwd);
-  const clef = dirname(runtime);
-  return basename(cwd) === tag && basename(runtime) === 'runtime' && basename(clef) === 'pact-clef' ? clef : null;
-}
-
 /** The clef folder (S3). */
 export const clefDir = home => join(home, 'pact-clef');
 
@@ -1087,6 +1080,13 @@ export function serveEnv(env, platform, runtime) {
   const root = env.SYSTEMROOT ?? env.SystemRoot ?? 'C:\\Windows';
   out.PATH = platform === 'win32' ? `${root}\\System32;${root}` : '/usr/bin:/bin';
   if (platform === 'linux') out.LD_LIBRARY_PATH = runtime;
+  return out;
+}
+
+/** The supervisor's own environment: the named list, plus CLAUDE_CONFIG_DIR when the caller set it, so `serve` works out the same clef folder as `ensure`. The server never gets it (`serveEnv` does not carry it). */
+export function supervisorEnv(env, platform, runtime) {
+  const out = serveEnv(env, platform, runtime);
+  if (env.CLAUDE_CONFIG_DIR) out.CLAUDE_CONFIG_DIR = env.CLAUDE_CONFIG_DIR;
   return out;
 }
 
@@ -1596,7 +1596,7 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
   try {
     if (platform === 'linux') sweepOrphans({ dir, procRoot, kill });
     const cmd = supervisorCommand ? supervisorCommand() : { file: execPath, args: [scriptPath, 'serve'] };
-    const child = spawn(cmd.file, cmd.args, { cwd: setup.paths.runtime, env: serveEnv(env, platform, setup.paths.runtime), detached: true, stdio: 'ignore', windowsHide: true, shell: false });
+    const child = spawn(cmd.file, cmd.args, { cwd: setup.paths.runtime, env: supervisorEnv(env, platform, setup.paths.runtime), detached: true, stdio: 'ignore', windowsHide: true, shell: false });
     child.on('error', () => {});
     child.unref();
     // The supervisor holds the lock until it has written run.json.
@@ -1720,37 +1720,41 @@ export async function main(argv, { env = process.env, platform = process.platfor
   const flags = new Set(flagArgs);
   if (flagArgs.length !== flags.size || flagArgs.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${known.length ? known.join(' and ') : mode === 'ensure' ? '--wait <seconds>' : 'no flags'}`);
   let dir;
-  let fromEnv = false;
+  try {
+    dir = clefDir(claudeHome(env, account ?? homedir()));
+  } catch (e) {
+    return refuse(e.code ?? 'usage', quote(e.message));
+  }
+  // The default folder under the account's home is not outside input; a value from the environment is, and so is a home taken from HOME or USERPROFILE when the account record cannot be read. Those are checked against the starting folder, before anything is made.
+  const fromEnv = Boolean(env.CLAUDE_CONFIG_DIR) || account === null;
   if (mode === 'serve') {
-    // `ensure` starts the supervisor from runtime/<tag>/ of the clef folder it checked, and the environment it passes does not carry CLAUDE_CONFIG_DIR, so the folder comes from where it was started.
+    // `ensure` starts the supervisor from runtime/<tag>/ of the clef folder it checked, and passes it CLAUDE_CONFIG_DIR. `serve` works the folder out as every mode does and runs only from that one's runtime/<tag>/: a folder of the right shape that is not the account's is refused.
+    let same = false;
     try {
-      dir = serveFolder(realOf(cwd));
+      const norm = p => (platform === 'win32' ? realOf(p).toLowerCase() : realOf(p));
+      same = norm(join(dir, 'runtime', SERVER.tag)) === norm(cwd);
     } catch {
-      dir = null;
+      same = false;
     }
-    if (!dir) return refuse('clef-home', 'serve runs only from runtime/<tag>/ in the clef folder');
+    if (!same) {
+      if (existsSync(dir)) writeFail(dir, 'exit');
+      return refuse('clef-home', 'serve runs only from runtime/<tag>/ of the clef folder');
+    }
   } else {
-    try {
-      dir = clefDir(claudeHome(env, account ?? homedir()));
-    } catch (e) {
-      return refuse(e.code ?? 'usage', quote(e.message));
-    }
-    // The default folder under the account's home is not outside input; a value from the environment is, and so is a home taken from HOME or USERPROFILE when the account record cannot be read. Those are checked against the starting folder, before anything is made.
-    fromEnv = Boolean(env.CLAUDE_CONFIG_DIR) || account === null;
     try {
       if (fromEnv) assertOutsideStart(dir, cwd);
     } catch (e) {
       return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be checked');
     }
+    // Every other mode starts from the clef folder, and none starts a program by a bare name (S6).
+    try {
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+    } catch {
+      return refuse('usage', 'the clef folder cannot be made');
+    }
   }
-  // Every mode but serve starts from the clef folder (serve stays in runtime/<tag>/, S7), and none starts a program by a bare name (S6).
   try {
-    mkdirSync(dir, { recursive: true, mode: 0o700 });
-  } catch {
-    return refuse('usage', 'the clef folder cannot be made');
-  }
-  try {
-    assertRealFolders(dir, cwd, { checkStart: fromEnv });
+    assertRealFolders(dir, cwd, { checkStart: fromEnv && mode !== 'serve' });
     if (mode !== 'serve') chdir(mode === 'remove' ? dirname(dir) : dir);
   } catch (e) {
     return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be entered');

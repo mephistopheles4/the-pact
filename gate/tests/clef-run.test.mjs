@@ -351,7 +351,6 @@ test('serve: a failure after the server is spawned ends the server and clears ru
   const rec = await f.recorded();
   assert.ok(await gone(rec.pid), 'the server is not left running');
   assert.equal(existsSync(f.run.key), false);
-  assert.equal(existsSync(f.run.run), false);
   assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).reason, 'exit');
 });
 
@@ -378,6 +377,12 @@ test('takeLock: a stale lock is taken over under run.lock.take, and not while an
   assert.equal(Number.parseInt(readFileSync(f.run.lock, 'utf8'), 10), process.pid);
   assert.equal(existsSync(`${f.run.lock}.take`), false, 'the step is released');
   assert.equal(clef.takeLock(f.dir, process.pid + 1), false, 'a live holder keeps it');
+  clefRm(f.run.lock);
+  writeFileSync(f.run.lock, '');
+  assert.equal(clef.takeLock(f.dir), false, 'an empty lock that is being written is not stale');
+  const aged = new Date(Date.now() - 60_000);
+  utimesSync(f.run.lock, aged, aged);
+  assert.equal(clef.takeLock(f.dir), true, 'an old empty lock is');
   clefRm(f.run.lock);
   mkdirSync(`${f.run.lock}.take`);
   writeFileSync(f.run.lock, '2000000000\n');
@@ -561,7 +566,7 @@ test('ensure: a start that failed less than 10 minutes ago is state failed with 
   assert.ok((await clef.statusRun({ dir: f.dir })).lines.includes('last failure: exit'));
   writeFileSync(f.run.fail, `${JSON.stringify({ time: Date.now() - 9 * 60_000, reason: 'timeout' })}\n`);
   assert.deepEqual(await ensure(f, { wait: 1 }), { out: { state: 'failed', reason: 'timeout' }, code: 4 }, 'still held at 9 minutes');
-  assert.equal(f.forwarded(), 0);
+  assert.equal(existsSync(f.record), false, 'nothing was started');
   await clef.stopRun({ dir: f.dir });
   assert.equal(existsSync(f.run.fail), false);
   writeFileSync(f.run.fail, `${JSON.stringify({ time: Date.now() - 11 * 60_000, reason: 'exit' })}\n`);
@@ -722,15 +727,14 @@ if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE',
 const sameFolder = (a, b) => realpathSync.native(a).toLowerCase() === realpathSync.native(b).toLowerCase();
 const POISON = { NODE_OPTIONS: '--no-warnings', GGML_BACKEND_PATH: '/evil', LLAMA_ARG_HOST: '0.0.0.0', HF_TOKEN: 'secret', VK_ICD_FILENAMES: '/evil', SECRET_X: 's' };
 
-test('serveFolder: the clef folder is read from runtime/<tag>/ and from nothing else', () => {
-  const tag = clef.SERVER.tag;
-  assert.equal(clef.serveFolder(join('x', 'pact-clef', 'runtime', tag)), join('x', 'pact-clef'));
-  for (const bad of [join('x', 'pact-clef'), join('x', 'pact-clef', 'runtime'), join('x', 'pact-clef', 'runtime', 'b1'), join('x', 'pact-clef', 'models', tag), join('x', 'other', 'runtime', tag), join('x', 'runtime', tag), '']) {
-    assert.equal(clef.serveFolder(bad), null, bad);
-  }
+test('supervisorEnv: the named list plus CLAUDE_CONFIG_DIR when set; the server\'s list never carries it', () => {
+  const env = { HOME: '/h', CLAUDE_CONFIG_DIR: '/c', NODE_OPTIONS: '--x' };
+  assert.deepEqual(Object.keys(clef.supervisorEnv(env, 'linux', '/r')).sort(), ['CLAUDE_CONFIG_DIR', 'HOME', 'LD_LIBRARY_PATH', 'PATH']);
+  assert.equal(clef.supervisorEnv({ HOME: '/h' }, 'linux', '/r').CLAUDE_CONFIG_DIR, undefined);
+  assert.equal(clef.serveEnv(env, 'linux', '/r').CLAUDE_CONFIG_DIR, undefined);
 });
 
-test('ensure: the supervisor it starts is `node <script> serve` run from runtime/<tag>/, with a named environment and without CLAUDE_CONFIG_DIR', async t => {
+test('ensure: the supervisor it starts is `node <script> serve` run from runtime/<tag>/, with a named environment and CLAUDE_CONFIG_DIR', async t => {
   const f = fixture(t);
   const recorder = join(f.root, 'recorder.mjs');
   const seenFile = join(f.root, 'launched.json');
@@ -742,23 +746,30 @@ test('ensure: the supervisor it starts is `node <script> serve` run from runtime
   const seen = JSON.parse(readFileSync(seenFile, 'utf8'));
   assert.deepEqual(seen.argv, ['serve']);
   assert.ok(sameFolder(seen.cwd, f.p.runtime), 'started from runtime/<tag>/');
-  for (const k of Object.keys(seen.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()), `${k} is not on the list`);
-  assert.ok(!Object.keys(seen.env).some(k => k.toUpperCase() === 'CLAUDE_CONFIG_DIR'));
+  const named = new Set([...NAMED_ENV, 'CLAUDE_CONFIG_DIR']);
+  for (const k of Object.keys(seen.env)) assert.ok(named.has(k.toUpperCase()), `${k} is not on the list`);
+  assert.ok(Object.keys(seen.env).some(k => k.toUpperCase() === 'PATH'), 'the named environment is passed, not an empty one');
+  assert.equal(seen.env.CLAUDE_CONFIG_DIR, f.cfgHome, 'the supervisor gets the variable so it works out the same folder');
 });
 
-test('main: serve takes its clef folder from its working folder, never from CLAUDE_CONFIG_DIR, and refuses to run from anywhere else', async t => {
+test('main: serve runs only from runtime/<tag>/ of the clef folder the other modes work out, and refuses any other folder, even one of the right shape', async t => {
   const f = fixture(t);
-  const other = tempDir(t, 'clef-other-');
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: f.cfgHome };
   const out = [];
-  const code = await clef.main(['serve'], { env: { ...process.env, CLAUDE_CONFIG_DIR: other }, cwd: f.p.runtime, account: other, out: l => out.push(l), chdir: () => { throw new Error('serve does not change folder'); }, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
+  const code = await clef.main(['serve'], { env, cwd: f.p.runtime, account: f.cfgHome, out: l => out.push(l), chdir: () => { throw new Error('serve does not change folder'); }, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
   assert.equal(code, 0, out.join('\n'));
-  assert.equal(existsSync(join(other, 'pact-clef')), false, 'nothing is made where the variable points');
   assert.match(readFileSync(f.run.log, 'utf8'), /stopped idle/);
-  for (const cwd of [f.dir, f.p.models, tempDir(t, 'clef-start-')]) {
+  // a folder of the right shape that is not the account's (what a clone could carry), and folders of the wrong shape
+  const decoy = fixture(t);
+  for (const cwd of [decoy.p.runtime, f.dir, f.p.models, tempDir(t, 'clef-start-')]) {
     const lines = [];
-    assert.equal(await clef.main(['serve'], { env: { CLAUDE_CONFIG_DIR: other }, cwd, account: other, out: l => lines.push(l), chdir: () => {} }), 2, cwd);
+    assert.equal(await clef.main(['serve'], { env, cwd, account: f.cfgHome, out: l => lines.push(l), chdir: () => {}, serveOptions: { ...decoy.exe } }), 2, cwd);
     assert.equal(lines.at(-1), 'RESULT: refused clef-home');
   }
+  assert.equal(existsSync(decoy.record), false, 'the decoy folder\'s program was never started');
+  assert.equal(existsSync(decoy.run.run) || existsSync(decoy.run.key), false, 'nothing was written in the decoy');
+  const fail = JSON.parse(readFileSync(f.run.fail, 'utf8'));
+  assert.equal(fail.reason, 'exit', 'a refused start is recorded in the account\'s folder so ensure does not respawn without end');
 });
 
 test('ensure: the supervisor and the server get only the named environment, and the server\'s PATH is the fixed one', async t => {
@@ -767,7 +778,7 @@ test('ensure: the supervisor and the server get only the named environment, and 
   const env = { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome };
   assert.equal((await ensure(f, { wait: 20, env })).out.state, 'ready');
   const sup = JSON.parse(readFileSync(join(f.root, 'supervisor-env.json'), 'utf8'));
-  for (const k of Object.keys(sup.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()), `the supervisor got ${k}`);
+  for (const k of Object.keys(sup.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()) || k === 'CLAUDE_CONFIG_DIR', `the supervisor got ${k}`);
   assert.ok(sameFolder(sup.cwd, f.p.runtime));
   const rec = await f.recorded();
   const pathKey = Object.keys(rec.env).find(k => k.toUpperCase() === 'PATH');
