@@ -8,6 +8,10 @@ Linear is the owner's private record, as `claude/tracker.md` and `review.md`'s P
 
 The threat model says one thing, without naming Linear: text on the owner's private issue tracker, in the workspace `claude/tracker.md` pins and in a local session, is inside the root of trust and doesn't cross, and a cloud session reads it as data; GitHub issue text is outside text once the repo's lock ticket closes its issues. So whose-text-counts is named for pull request text, and for issue text until then; the private issue tracker's account joins the root of trust, and so do whoever and whatever the owner admits to that tracker, including an app or sync that writes into it; and the Posts are public class excepts that tracker.
 
+## Note (PACT-44, 2026-11-22)
+
+The private-note and "see chat" handling is gone from the pact, so "withheld items" is no longer a pact concept: every lens report posts in the record word for word, and an open security pick's line opens "Owner's call: security" and carries the why. The tracker guide's Linear line keeps "secrets and others' weaknesses stay out"; the rest of the decision stands.
+
 ## Why
 
 Before, an open security reason sat only in chat, in `~/.claude/pact/private/` or in a record only the owner could read; Linear counted as public. The owner decided that a private workspace they control, by manual invite, is private enough, and that the pact's controls are about how the pact works, not how the owner sets up the tracker.

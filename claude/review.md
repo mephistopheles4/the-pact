@@ -53,13 +53,7 @@ Ask each lens to report in this shape:
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,
   and a further read runs again the same way; every report it returned stays
-  in the record and its findings carry in, but a withheld one stays local, as
-  Posting says: its text appears in no post, yet its
-  findings still count, and a high
-  security finding among them reopens the stage; route them before that
-  read's comment is posted, and until they are routed, name them in chat,
-  never in the record, in every hand-off; a withheld read has reported once I
-  have answered it in chat. A report that Posting refused is never rerun. If the
+  in the record and its findings carry in. A report that Posting refused is never rerun. If the
   security pair, a repo's required lenses or a
   typed skill's lenses would read anything
   after the final round, that read still runs, outside the count,
@@ -87,8 +81,7 @@ Ask each lens to report in this shape:
   the table's rows. Write this opening last, from the final Lens dispositions
   table.
   For a pair, then put the places both lenses flagged, then each lens's own
-  findings, each with its severity mark (a report kept local, as Posting says,
-  has the line `security finding, see chat`), then the table, then each report verbatim in its own fold.
+  findings, each with its severity mark, then the table, then each report verbatim in its own fold.
 - **One status comment per record.** After each round's comment, post or edit
   one status comment on the same issue or pull request, so I see the latest
   round without reading them all. Its label is `status-<n>`, n the issue's or
@@ -97,8 +90,7 @@ Ask each lens to report in this shape:
   <n>[, reopened][, final]` or `after <stage> further read`, N as in the
   round's title line; the round's signal table, copied as
   posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
-  and word, its headline, a link to the round comment; for a report kept local,
-  `security finding, see chat` in their place), or "None"; **Rounds,
+  and word, its headline, a link to the round comment), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
   round, marks and head or revision, and a further read by its own title. Post
   it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
@@ -208,10 +200,7 @@ when no other row answers the sentence.
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
   diagram that draws it, so it can't read as done.
-- **A withheld lens** has no part in a diagram or the title line's counts: those
-  cover posted findings only, and the title line says so. Its signal row says
-  only `withheld, see chat`, nothing about what was held back, and it carries
-  no severity mark or colour.
+- **Every lens report posts** in the record word for word, like any other; nothing is withheld, but a report refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 - **A place that can't draw them** gets the title line, signal table and count line as plain text,
   with no diagram.
 
@@ -223,14 +212,7 @@ when no other row answers the sentence.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
-  renders as a mention, link or image. In a public record, a report holding a
-  security finding your pick leaves open (an Owner's-call row) stays local, as
-  a withheld lens's does: no fold; its line in the signal table, the round's
-  findings and the status comment reads `security finding, see chat`, and its
-  signal keeps its mark, as Lens dispositions says; it has no part in any
-  diagram and no entry in the places both lenses flagged, and the state and
-  open questions at a phase boundary name only the marker; it goes to me in
-  chat.
+  renders as a mention, link or image.
 - **Where to post.** In the work's record; with no record, in chat.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
@@ -246,18 +228,8 @@ when no other row answers the sentence.
   you ran under (its work and where it came from, by kind), each
   narrowing I gave there (by the kind of step it keeps), and a flag: the line
   opens `Checkpoint (flagged):`, except the forms below. A pick
-  that leaves a security path open is flagged big: in a public record its line
-  is exactly "Owner's call: security, see chat", with the why in chat; in a
-  private record, one only I can read (a record anyone but me can read counts
-  as public), the line opens "Owner's call: security"
-  and carries the why. The why also goes in a note under
-  `~/.claude/pact/private/`, either way. A pick that would put a
-  withheld lens report or its findings, a secret,
-  the cleaner's tags or blocks, or anything else these rules keep out of the
-  record, in the record has the line exactly "withheld,
-  see chat", with no opener or flag, which wins over the security line, and the
-  why goes to me in chat; such a pick that would leave a security path open is
-  a heads-up: tell me in chat and go on. With no record, log in chat and in the result.
+  that leaves a security path open is flagged big; its line in the record opens
+  "Owner's call: security" and carries the why. With no record, log in chat and in the result.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the
     ask lists are where the work starts, and a limit in my words, such as
@@ -286,8 +258,7 @@ when no other row answers the sentence.
     me confirms it; an item left pending after a relayed answer stays pending
     and holds up no work, and the relayed `decision` records only what was
     relayed.
-  - When my words trip the content scan, hold a personal detail or, in a
-    public record, the why of a security ask, leave that span out of the
+  - When my words trip the content scan or hold a personal detail, leave that span out of the
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
@@ -349,8 +320,7 @@ At every lens review, post a "Lens dispositions" table under a line naming
 The Finding cell starts with the finding's state word, one of `new`,
 `updated`, `unchanged` or `absent`, in lower case and with no markup, then a
 space and the finding. The finding starts with its severity mark and word and
-a colon, as `new 🔴 high: the finding`. A `skipped` row needs none, and a
-withheld row's Finding cell is exactly "withheld, see chat", with no mark.
+a colon, as `new 🔴 high: the finding`. A `skipped` row needs none.
 
 The Disposition cell starts with one of these words, in lower case and with no
 markup:
@@ -369,6 +339,4 @@ A security or `security?` finding you settle is never `auto`. When your pick
 leaves its path open, the Disposition reads `taken (session's pick, Owner's
 call: security)`; otherwise it takes its usual word. Such an Owner's-call row
 counts as an `open` one in the round's N, the status comment's Open for you and
-the lens's signal mark. In a public record its Finding cell reads its state
-word, then `security finding, see chat`, with no severity mark, in place of the
-finding.
+the lens's signal mark.
