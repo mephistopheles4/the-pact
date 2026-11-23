@@ -4,7 +4,7 @@ PACT-78. In this repo, each tracked Markdown reference doc of over 100 lines now
 
 The pact text changes in one place: `claude/review.md`, installed as `~/.claude/pact/review.md`, gains its table, and so do the cloud setup script and the Scriptorium page, which embed it, regenerated in the same change. The gate's checks change in two: `gate/tests/toc.test.mjs` fails while a table is missing or stale, and the doc budgets and the threat model's cap count each doc without its table.
 
-Why: the owner found long docs hard to navigate, and none had a table. The rules file is left out because every session loads it whole.
+Why: the owner found long docs hard to navigate, and none had a table. The rules file and `AGENTS.md` are left out because every session loads them whole, and `README.md` because it is written for people. Anthropic's guidance asks for a table only in reference files a model may read in part ([ADR 0168](../adr/0168-long-docs-carry-a-generated-table-of-contents.md)).
 
 **After merge:** paste `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again.
 
