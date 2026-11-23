@@ -59,6 +59,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   pact's default configuration.
 - After a change to a figure source in `docs/img/src/`, run
   `node docs/img/build.mjs`.
+- After a heading change in a doc over 100 lines, or a doc growing past
+  100, run `node docs/toc.mjs`, which rewrites its table of contents;
+  `gate/tests/toc.test.mjs` fails while one is missing or stale.
 
 ## Reviewing a change here
 
@@ -75,7 +78,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   them closely, as for `cloud-sessions/`. Settings you save from Claude Code
   for this repo go to local scope, `.claude/settings.local.json`, never to
   `.claude/settings.json`.
-- **Read closely:** `claude/tools/`,
+- **Read closely:** `claude/tools/`, `docs/toc.mjs`,
   the gate's code (`gate/` but its tests), `cloud-sessions/`,
   `.claude/settings.json`, `.claude/hooks/`, `docs/agents/issue-tracker.md`
   (whose text counts), `docs/agents/agent-apps.md`,
