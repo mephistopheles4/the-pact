@@ -1235,3 +1235,15 @@ test('stop on the keeper line: a stop under another holder\'s lock leaves run.ke
   await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 300 });
   assert.ok(existsSync(f.run.key));
 });
+
+test('main: setup on macOS refuses clef-orphan while a recorded server is still loading, before any fetch', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f, { propsNotReady: true });
+  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, platform: 'darwin', arch: 'arm64', exists: () => true };
+  for (const argv of [['setup', '--yes'], ['setup']]) {
+    const out = [];
+    assert.equal(await clef.main(argv, { ...base, out: l => out.push(l) }), 2, argv.join(' '));
+    assert.equal(out.at(-1), 'RESULT: refused clef-orphan');
+  }
+  assert.ok(existsSync(f.run.server) && alive(o.child.pid), 'the record and the server are left');
+});

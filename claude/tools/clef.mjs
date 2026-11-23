@@ -23,7 +23,7 @@
 //   2  RESULT: refused <word>  a refusal (clef-pin, clef-platform, clef-space,
 //                              clef-node, clef-setpriv, clef-redirect, clef-size,
 //                              clef-hash, clef-archive, clef-home, clef-running,
-//                              clef-fetch) or a usage fault
+//                              clef-orphan, clef-keep, clef-fetch) or a usage fault
 // `ensure` prints its JSON line and exits 0 (ready or starting), 3 (not set up)
 // or 4 (failed); docs/clef.md has its states.
 //
@@ -2162,6 +2162,12 @@ export async function main(argv, { env = process.env, platform = process.platfor
     const locked = yes ? takeLock(dir) : true;
     if (!locked) return refuse('clef-running', 'a supervisor is starting; run `clef stop` first');
     try {
+      // Spec 0003 M6 step 7: a server still loading under an old record keeps setup off its files. The plan only reads the record; --yes sweeps it.
+      if (lifetimeLine({ platform }) === 'keeper') {
+        const rec = readJsonFile(runPaths(dir).server);
+        const kept = yes ? (await sweepServer({ dir, boundMs: 0 })).result === 'kept' : isServerRecord(rec) && pidAlive(rec.pid);
+        if (kept) return refuse('clef-orphan', 'a server from an earlier run is still loading; run `clef stop` again once it is ready');
+      }
       if (yes && platform === 'linux') sweepOrphans({ dir });
       const r = await runSetup({ dir, yes, cpu: flags.has('--cpu'), platform, arch, execPath, cwd, transport, exists, free });
       for (const l of r.lines) out(l);
