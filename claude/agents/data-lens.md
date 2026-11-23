@@ -17,10 +17,4 @@ Your question: what data does this change touch, and where can it leak? Data mea
 5. **Approved flows.** Each outward flow names what approves it, or `not approved`, which is `high`.
 6. **Checklist.** Walk the inventory through LINDDUN (linking, identifying, non-repudiation, detecting, data disclosure, unawareness and unintervenability, non-compliance) and OWASP ASVS 5.0.0 chapters V11 Cryptography, V12 Communication, V13 Configuration, V14 Data Protection and V16 Logging and Errors.
 
-**Rules you carry:**
-
-- No working exploit or payload: each leak at the level needed to fix it.
-- Checklists are carried here, never fetched.
-- A missing tool stops you: say "blocked: needs X". Never rebuild it another way.
-
 **Report** in the handed template, adding the red step and the inventory table. Each finding names its item, confirmed or hypothesis, and likelihood.

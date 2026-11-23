@@ -742,8 +742,8 @@ const agentRun = t => {
 
 // ------------------------------------------------------------ seam A's copy set and overlay (S-2, S-3)
 
-const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['claude/agents/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
-const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} claude/agents/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
+const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['claude/agents/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')], ['claude/review-diagrams.md', H('e')]]);
+const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} claude/agents/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, `INSTALL ${H('e')} claude/review-diagrams.md pact/review-diagrams.md`, 'RESULT: pass'].join('\n') });
 // #261 C3
 {
   const base = copyBase;
@@ -758,6 +758,7 @@ const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `
     { id: 'gate-file', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/builder/gate/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'a gate file installs only as a builder kit entry (#203)' },
     // #261 C3: both readings map the review file to one fixed live path; a seam A that sends it anywhere else disagrees.
     { id: 'review-elsewhere', plant: rep('claude/review.md pact/review.md', 'claude/review.md review.md'), fails: ['copy-set-mismatch'], why: 'the review file at the top of the Claude folder, where the general rule would put it' },
+    { id: 'diagrams-elsewhere', plant: rep('claude/review-diagrams.md pact/review-diagrams.md', 'claude/review-diagrams.md review-diagrams.md'), fails: ['copy-set-mismatch'], why: 'the diagram format file at the top of the Claude folder, not beside review.md' },
     { id: 'gate-file-elsewhere', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'nor anywhere else' },
   ];
   test('copy set: base passes', async t => assertPasses(await run(base(), t)));
@@ -852,8 +853,8 @@ test('the commands on: the listed ones, and scriptorium whenever the commit hold
 
 // #261 C3
 test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes to its fixed path', () => {
-  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', null]]);
+  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/review-diagrams.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['claude/review-diagrams.md', 'pact/review-diagrams.md'], ['familiars/x.md', null]]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
@@ -992,6 +993,7 @@ test('skill clash: only listed names are checked, and only by the path the check
     { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
     // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
     { id: 'review-path', plant: t => ({ ...t, files: json([['pact/review.md', H('4')]]), live: json(['pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
+    { id: 'diagrams-path', plant: t => ({ ...t, files: json([['pact/review-diagrams.md', H('4')]]), live: json(['pact/review-diagrams.md']) }), fails: ['unlisted-live'], says: /pact\/review-diagrams\.md already exists .* Move it out of the way, then install again\./, why: 'the diagram format file is never laid over a live file the pact did not put there' },
     { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
     // unlisted-live, #280 C2: a tool is never laid over a live file the pact did not put there.
     { id: 'tool-path', plant: t => ({ ...t, files: json([['pact/tools/poster.mjs', H('5')]]), live: json(['pact/tools/poster.mjs']) }), fails: ['unlisted-live'], says: /pact\/tools\/poster\.mjs already exists .* Move it, or take its name out of the tools list\./, why: 'the remedy names the tools list' },

@@ -37,7 +37,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   is, never its value. Pin a merge to its reviewed head. Claude's own
   permission prompts and classifier blocks still stop you; these rules add no
   stop of their own.
-- **Keep the record** as the Posting section of `~/.claude/pact/review.md` says.
+- **Keep the record** in the work's record, as the Posting section of `~/.claude/pact/review.md` says; with no record, in chat.
 <!-- pact:begin tool-poster -->
 <!-- pact:end tool-poster -->
 <!-- pact:begin tool-cleaner -->
