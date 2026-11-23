@@ -184,7 +184,7 @@ export function covered(path, text, config = DEFAULTS) {
 export function parseConfig(text) {
   let raw;
   try {
-    raw = JSON.parse(text);
+    raw = JSON.parse(text.replace(/^﻿/, ''));
   } catch (e) {
     throw new ConfigError(`${CONFIG_FILE}: not valid JSON: ${e.message}`);
   }
@@ -216,16 +216,19 @@ export function problems(files, config = DEFAULTS) {
 
 /** The tracked Markdown files under `repo`, read: { path, text }. */
 export function trackedDocs(repo) {
-  return execFileSync('git', ['ls-files', '-z', '--', '*.md'], { cwd: repo, encoding: 'utf8' })
+  return execFileSync('git', ['ls-files', '-z', '--', '*.md'], { cwd: repo, encoding: 'utf8', env: gitEnv() })
     .split('\0')
     .filter(Boolean)
     .map(path => ({ path, text: readFileSync(join(repo, path), 'utf8') }));
 }
 
+/** The environment for a git call that finds its repo from the folder it runs in: the variables git exports to a hook, which name another repo or index, are left out. */
+const gitEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^GIT_(DIR|WORK_TREE|INDEX_FILE|COMMON_DIR|PREFIX)$/i.test(k)));
+
 /** The repo root git reports from `folder`, or null when git is missing or the folder is in no work tree. */
 function repoRoot(folder) {
   try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: folder, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: folder, encoding: 'utf8', env: gitEnv(), stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
   } catch {
     return null;
   }

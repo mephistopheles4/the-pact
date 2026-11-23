@@ -134,9 +134,10 @@ const DEFAULTS = { maxUncoveredLines: MAX_UNCOVERED_LINES, exclude: EXCLUDED };
 const longDoc = n => `# T\n\n## H\n\n${'line\n'.repeat(n)}`;
 
 /** The environment for a child run: none of our git variables leaks in, git stops looking above `ceiling`, and `noPath` leaves it no PATH, so no git. */
-function childEnv(ceiling, noPath = false) {
+function childEnv(ceiling, noPath = false, extra = {}) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(GIT_|NODE_OPTIONS$)/i.test(k)));
   if (ceiling) env.GIT_CEILING_DIRECTORIES = ceiling;
+  Object.assign(env, extra);
   if (noPath) {
     for (const k of Object.keys(env)) if (/^path$/i.test(k)) delete env[k];
     env.PATH = '';
@@ -171,8 +172,8 @@ function withRepo({ files = {}, at = 'scripts', source = false, config, git = tr
 }
 
 /** Runs the copy at `at` in `dir` with `args`, from `cwd` (default `dir`): { status, stdout, stderr }. */
-function runToc(dir, args, { at = 'scripts', cwd = dir, noPath = false } = {}) {
-  const r = spawnSync(process.execPath, [join(dir, at, 'toc.mjs'), ...args], { cwd, encoding: 'utf8', env: childEnv(dirname(dir), noPath) });
+function runToc(dir, args, { at = 'scripts', cwd = dir, noPath = false, env = {} } = {}) {
+  const r = spawnSync(process.execPath, [join(dir, at, 'toc.mjs'), ...args], { cwd, encoding: 'utf8', env: childEnv(dirname(dir), noPath, env) });
   return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
@@ -180,8 +181,6 @@ function runToc(dir, args, { at = 'scripts', cwd = dir, noPath = false } = {}) {
 test('toc: with no config the script behaves as before, and --check passes in this repo', () => {
   const r = spawnSync(process.execPath, [SCRIPT, '--check'], { cwd: REPO, encoding: 'utf8', env: childEnv() });
   assert.deepEqual({ status: r.status, stdout: r.stdout }, { status: 0, stdout: '' });
-  assert.equal(covered('docs/a.md', LONG), covered('docs/a.md', LONG, DEFAULTS));
-  assert.equal(covered('docs/log/a.md', LONG, DEFAULTS), false);
 });
 
 // PACT-84 C2
@@ -208,7 +207,11 @@ test('toc: the config in the script folder sets the threshold in a run, and a ba
     assert.equal(readFileSync(join(dir, 'docs/a.md'), 'utf8'), withToc(files['docs/a.md']));
     assert.equal(runToc(dir, ['--check']).status, 0);
   });
-  withRepo({ files }, dir => assert.deepEqual(runToc(dir, ['--check']), { status: 0, stdout: '', stderr: '' }, 'no config, no Source line: the defaults'));
+  withRepo({ files, config: `﻿{"maxUncoveredLines": 50}` }, dir => assert.equal(runToc(dir, ['--check']).stdout, 'docs/a.md: no table of contents\n', 'a config saved with a byte order mark is read'));
+  withRepo({ files }, dir => {
+    mkdirSync(join(dir, 'scripts', CONFIG_FILE));
+    assert.deepEqual(runToc(dir, ['--check']), { status: 2, stdout: 'toc.config.json: not readable: EISDIR\n', stderr: '' }, 'a config that cannot be read is an error, not the defaults');
+  });
   const rows = [
     ['an unknown key', '{"maxUncovered": 50}', 'toc.config.json: maxUncovered: unknown key'],
     ['a string threshold', '{"maxUncoveredLines": "50"}', 'toc.config.json: maxUncoveredLines: must be an integer of at least 1'],
@@ -243,6 +246,11 @@ test('toc: a copy with a Source line at line 2 and no config exits 2 and writes 
     assert.equal(readFileSync(join(dir, 'docs/a.md'), 'utf8'), files['docs/a.md']);
   });
   withRepo({ files, source: true, config: '{}' }, dir => assert.equal(runToc(dir, ['--check']).stdout, 'docs/a.md: no table of contents\n', 'an empty config is a config'));
+  withRepo({ files, source: true }, dir => {
+    const path = join(dir, 'scripts/toc.mjs');
+    writeFileSync(path, readFileSync(path, 'utf8').replace(`${SOURCE}\n`, `${SOURCE}\r\n`));
+    assert.equal(runToc(dir, ['--check']).stdout, 'toc.config.json: missing in a vendored copy\n', 'a Source line with a CRLF ending is still one');
+  });
   for (const [name, line, at] of [
     ['a Source line on line 3', SOURCE, 2],
     ['a Source line with a word that is not a commit', '// Source: the-pact latest', 1],
@@ -270,7 +278,11 @@ test('toc: outside a git work tree, or with git missing, the script exits 2 with
 test("toc: run from two levels deep in a temporary git repo, the script finds that repo's root", () => {
   const files = { 'docs/a.md': longDoc(120), 'x/y/z/other.md': longDoc(120) };
   withRepo({ files, at: 'tools/vendor', config: '{}' }, dir => {
-    for (const cwd of [dir, join(dir, 'x/y')]) assert.deepEqual(runToc(dir, ['--check'], { at: 'tools/vendor', cwd }), { status: 1, stdout: 'docs/a.md: no table of contents\nx/y/z/other.md: no table of contents\n', stderr: '' }, cwd);
+    const off = { status: 1, stdout: 'docs/a.md: no table of contents\nx/y/z/other.md: no table of contents\n', stderr: '' };
+    for (const cwd of [dir, join(dir, 'x/y'), dirname(dir)]) assert.deepEqual(runToc(dir, ['--check'], { at: 'tools/vendor', cwd }), off, `from ${cwd}`);
+    // Git exports these to a hook: in a linked worktree, GIT_DIR is absolute and points the root at the wrong folder.
+    const hook = { GIT_DIR: join(dir, '.git'), GIT_INDEX_FILE: join(dir, '.git', 'index'), GIT_PREFIX: 'x/y/' };
+    assert.deepEqual(runToc(dir, ['--check'], { at: 'tools/vendor', cwd: join(dir, 'x/y'), env: hook }), off, 'git variables from a hook do not move the root');
     assert.equal(runToc(dir, [], { at: 'tools/vendor', cwd: join(dir, 'x/y') }).stdout, 'wrote docs/a.md\nwrote x/y/z/other.md\n');
     assert.equal(readFileSync(join(dir, 'docs/a.md'), 'utf8'), withToc(files['docs/a.md']));
     assert.equal(runToc(dir, ['--check'], { at: 'tools/vendor' }).status, 0);

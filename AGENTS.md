@@ -63,8 +63,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   lines either way, run `node docs/toc.mjs`, which rewrites its table of
   contents; `gate/tests/toc.test.mjs` fails while one is missing, stale, or
   left in a doc no longer covered.
-- A PR that changes `docs/toc.mjs` names in its body each repo that
-  `docs/reference.md` lists as adopting it, as behind.
+- A PR that changes `docs/toc.mjs` names in its body each repo
+  `docs/reference.md` lists, as behind.
 
 ## Reviewing a change here
 
