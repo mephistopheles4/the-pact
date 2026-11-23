@@ -321,6 +321,9 @@ export const SERVER = Object.freeze({
       ['llama-b12211/llama-tokenize', 45168, '7c3f70571062369fc096448742930ac934a7693473826fc7131186368946806e'],
       ['llama-b12211/llama-tts', 49928, 'b8cecb8b65c8816bcd99b40c35296a9a5d489967507de8a21258533239b42b78'],
       ]) }),
+    'linux-arm64-cpu': Object.freeze({ asset: 'llama-b12211-bin-ubuntu-arm64.tar.gz', size: 18759007, sha256: '6eed2da01c098f814170e941e11a8d91eed200a9a2923eac805fe116b14aff30', kind: 'tgz' }),
+    'win32-arm64-cpu': Object.freeze({ asset: 'llama-b12211-bin-win-cpu-arm64.zip', size: 13236751, sha256: 'bf52f65602d713a4a13ed366a8ba8d924558bb43be04b7a37f4f5f506a6b6512', kind: 'zip' }),
+    'darwin-x64-cpu': Object.freeze({ asset: 'llama-b12211-bin-macos-x64.tar.gz', size: 12455590, sha256: '6055cc672cc5c744481bb88ac1a7739ff476966c8a190ddaa20676034693a358', kind: 'tgz' }),
     // Spec 0003 M3: one macOS arm64 archive serves both keys; Metal or CPU is picked by the server's arguments.
     'darwin-arm64-metal': MACOS_ARCHIVE,
     'darwin-arm64-cpu': MACOS_ARCHIVE,
@@ -345,7 +348,7 @@ export const SOURCES = Object.freeze({
 // The only two repos a pin may name. A test holds both names as its own constants.
 const SERVER_REPO = 'ggml-org/llama.cpp';
 const MODEL_REPO = 'ggml-org/Clef-Flash-GGUF';
-const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan', 'darwin-arm64-metal', 'darwin-arm64-cpu']);
+const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan', 'darwin-arm64-metal', 'darwin-arm64-cpu', 'linux-arm64-cpu', 'win32-arm64-cpu', 'darwin-x64-cpu']);
 
 const MAX_REDIRECTS = 4;
 const HEX64 = /^[0-9a-f]{64}$/;

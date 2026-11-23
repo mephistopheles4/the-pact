@@ -198,7 +198,7 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'copy-twice', plant: x => { first(x.server).files[0].push('a.so.0', 'b.so.0'); return x; }, fails: ['file-copy'], why: 'one copy at most' },
     { id: 'copy-collides', plant: x => { first(x.server).files[0][3] = 'ggml-cpu.dll'; return x; }, fails: ['file-dup'], why: 'a copy landing on another kept file' },
     { id: 'exe-missing', plant: x => { first(x.server).exe = 'bin/nothing.exe'; return x; }, fails: ['exe'], why: 'the executable is one of the kept files' },
-    { id: 'platform-key', plant: x => { x.server.archives['darwin-x64-cpu'] = x.server.archives['win32-x64-cpu']; return x; }, fails: ['platform-key'], why: 'only the six platform keys; Intel Macs have none' },
+    { id: 'platform-key', plant: x => { x.server.archives['freebsd-x64-cpu'] = x.server.archives['win32-x64-cpu']; return x; }, fails: ['platform-key'], why: 'only the nine platform keys; FreeBSD has none' },
   ];
   test('pin table shape: base passes', () => assert.deepEqual(run(base()).fails, []));
   for (const r of rows) {
