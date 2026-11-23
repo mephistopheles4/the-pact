@@ -22,7 +22,8 @@ const PAGE = readFileSync(join(REPO, 'builder', 'scriptorium.html'), 'utf8');
 const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
 const PIN = 'a'.repeat(40);
 const SKILLS = [{ repo: 'someone/skills', commit: PIN, paths: ['skills/one', 'skills/two'] }, { repo: 'other/more', commit: 'b'.repeat(40), paths: ['three'] }];
-const SIX = ['spec-driven-development', 'incremental-implementation', 'test-driven-development', 'code-review-and-quality', 'shipping-and-launch', 'documentation-and-adrs'];
+// PACT-96: the default names its skills on the stages only; no skill sources.
+const STAGE_SKILLS = ['grilling', 'grimoire:eagle-eye', 'impeccable:impeccable', 'diagnosing-bugs', 'pstack:arena', 'spec-driven-development', 'planning-and-task-breakdown', 'test-driven-development', 'incremental-implementation', 'browser-testing-with-devtools', 'pr', 'shipping-and-launch', 'documentation-and-adrs'];
 
 /** A throwaway clone-shaped root holding what the builder and the generator read, with `mutate` applied. */
 function root(t, mutate = () => {}) {
@@ -99,8 +100,31 @@ test('the page saves for the default preset exactly the files the generator writ
   assert.deepEqual(JSON.parse(defaultFiles(root(t, withPresetSkills(SKILLS)))[0].text).skills, SKILLS);
 });
 
-// #183 T4a C1: the default's workflow carries the six skills in its Skills column.
-test('with no configuration of the person\'s, the default renders, and its workflow names the six skills in the "Skills, and when" column', t => {
+// PACT-96 C1, C2, C3: the preset is accepted whole; it carries no skill sources, and the default edits four parts and lists no skills.
+test('the preset passes the builder check, holds no skills key, and the default edits tiers, sensitive, workflow and cost-limits and lists no skills', () => {
+  const preset = JSON.parse(readFileSync(join(REPO, DEFAULT_PRESET_REL), 'utf8'));
+  assert.equal(Object.hasOwn(preset, 'skills'), false, 'the preset names skill sources');
+  assert.deepEqual(checkBuilder(REPO, join(REPO, DEFAULT_PRESET_REL)).refusals, []);
+  const config = JSON.parse(readFileSync(join(REPO, DEFAULT_DIR_REL, 'config.json'), 'utf8'));
+  assert.deepEqual(config.edits.map(e => e.mark), ['tiers', 'sensitive', 'workflow', 'cost-limits']);
+  assert.equal(Object.hasOwn(config, 'skills'), false);
+});
+
+// PACT-96 S1, C1: the owner's tiers and sensitive list, input validation off the default config's list, and the commands in the workflow's words.
+test('the default config\'s text sets the tiers, takes input validation off the sensitive list and names impeccable\'s commands', () => {
+  const block = name => readFileSync(join(REPO, DEFAULT_DIR_REL, 'blocks', `${name}.md`), 'utf8');
+  assert.match(block('tiers'), /\| \*\*Standard\*\* \| Needs a short spec \| Opus, medium \| Sonnet, high \|/);
+  assert.match(block('tiers'), /\| \*\*Quick\*\* \| [^|]+ \| Opus, low \| Sonnet, medium \|/);
+  assert.match(block('sensitive').replace(/\s+/g, ' '), /sensitive work is auth, crypto and data migrations: thorough, planned on Opus at high and built on Sonnet at high/);
+  assert.doesNotMatch(block('sensitive'), /input validation/);
+  const workflow = block('workflow');
+  for (const c of ['shape', 'audit', 'critique', 'document']) assert.ok(workflow.includes(`\`impeccable:impeccable\`'s \`${c}\` command: `), c);
+  // The pact text's own default keeps input validation: only the default configuration drops it.
+  assert.match(readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\s+/g, ' '), /auth, crypto, input validation and data migrations/);
+});
+
+// #183 T4a C1, PACT-96: the default's workflow carries each stage skill in its Skills column.
+test('with no configuration of the person\'s, the default renders, and its workflow names each stage skill in the "Skills, and when" column', t => {
   const r = render(t, tempDir(t, 'pact-default-home-'), join(REPO, DEFAULT_CONFIG_DIR));
   assert.equal(r.failed, false, r.lines.join('\n'));
   assert.match(r.lines.join('\n'), /^CONFIG default [0-9a-f]{64}$/m);
@@ -109,7 +133,7 @@ test('with no configuration of the person\'s, the default renders, and its workf
   const col = header.split('|').map(c => c.trim()).indexOf('Skills, and when');
   assert.ok(col > 0, header);
   const cells = text.split('\n').filter(l => /^\| (Plan|Design|Build|Test|Deploy|Maintain) \|/.test(l)).map(l => l.split('|')[col]).join(' ');
-  for (const s of SIX) assert.ok(cells.includes(`\`${s}\``), `${s} is not in the Skills column`);
+  for (const s of STAGE_SKILLS) assert.ok(cells.includes(`\`${s}\``), `${s} is not in the Skills column`);
 });
 
 // #183 T4a C2: a person's configuration wins whole; the default is never merged in.
