@@ -1,6 +1,6 @@
 # Spec: a portable table-of-contents script that a repo adopts by choice (V1)
 
-Status: draft, revised from the research, after spec review round 1 of 2. It counts once it is on `main`. It is stacked on the PR that adds `docs/toc.mjs`.
+Status: draft, revised from the research, after spec review rounds 1 and 2 (final), with round 2's trade-offs and lows folded in by the lead's pick. It counts once it is on `main`. It is stacked on the PR that adds `docs/toc.mjs`.
 
 <!-- toc -->
 
@@ -67,7 +67,7 @@ PR 654 follows the same balance in this repo. Its `AGENTS.md` and `README.md` ar
 ## S4 Decisions
 
 - **Vendored, not fetched.** Each adopting repo commits its own copy of `toc.mjs`. The check runs offline in that repo's CI, and nothing fetches across repos.
-- **One file, a small config.** Every copy matches the pact's file except one header line, `// Source: the-pact <commit>`, added when the file is copied. What differs between repos lives in the config.
+- **One file, a small config.** Every copy matches the pact's file except one header line, added at line 2 (after the shebang) when the file is copied. It matches `^// Source: the-pact [0-9a-f]{7,40}$`, and the script detects a copy by it. What differs between repos lives in the config.
 - **Defaults are this repo's.** With no config, the script behaves exactly as it does in PR 654. A copy carries the Source line, so a copy with no config exits 2 with `toc.config.json: missing in a vendored copy`. A deleted config can't then fall back to this repo's exclusions and write tables into, say, a SKILL.md.
 - **Anchor links.** The generated tables' links are right by construction. Hand-written anchor links are checked by this repo's own test only. Adopting repos don't get that check, which is out of scope (S12).
 
@@ -80,15 +80,16 @@ The config lives in `toc.config.json`, in the folder that holds `toc.mjs`. Both 
 | `maxUncoveredLines` | integer ≥ 1 | 100 | A doc is covered once it has more lines than this, not counting its table |
 | `exclude` | array of strings | this repo's `EXCLUDED` | Paths left out, repo-relative. An entry ending in `/` is a folder prefix. An entry starting with `**/` matches a file of that name in any folder, the root included, such as `**/SKILL.md`. Any other entry is one file |
 
-- **Bad config.** An unknown key, a wrong type or a value out of range is an error. The script prints `toc.config.json: <key>: <problem>` and exits 2 before reading any doc. A file that isn't valid JSON prints `toc.config.json: not valid JSON: <the parser's message>` and also exits 2. A key that is set replaces its default whole; it never merges with it.
-- **The repo root.** It is what `git rev-parse --show-toplevel` prints, run from the script's folder, so the script works at any depth. PR 654's code takes the parent of the script's folder; this replaces that.
+- **Bad config.** An unknown key, a wrong type or a value out of range is an error. The script prints `toc.config.json: <key>: <problem>` and exits 2 before reading any doc. A file that isn't valid JSON prints `toc.config.json: not valid JSON: <the parser's message>`, and valid JSON whose top level isn't an object (`null`, `[]`) prints `toc.config.json: not an object`. Both also exit 2. A key that is set replaces its default whole; it never merges with it.
+- **The repo root.** It is what `git rev-parse --show-toplevel` prints, run from the script's folder, so the script works at any depth. PR 654's code takes the parent of the script's folder; this replaces that. If git is missing, or the folder isn't in a git work tree, the script prints `toc.mjs: not in a git work tree` and exits 2.
 - **Pure functions.** The core functions take the config as an argument, defaulting to this repo's values, so they stay pure and importable.
 - **Nothing else changes.** The anchors, the markers, where the table sits, the no-H2 rule, the unclosed-marker report and `--check`'s exit codes stay as they are in PR 654.
 - **New tests.** `gate/tests/toc.test.mjs` gains bad cases for:
   - a `maxUncoveredLines` of 50;
   - a folder entry in `exclude`, a file entry, and a `**/` entry matching both a nested file and a root file;
-  - a bad key and malformed JSON, each exiting 2;
-  - a copy with a Source line and no config, exiting 2;
+  - a bad key, malformed JSON and a top level that isn't an object, each exiting 2;
+  - a copy with a Source line on line 2 and no config, exiting 2;
+  - a folder outside any git work tree, exiting 2;
   - the script run from two levels deep in a temporary git repo.
 
 ## S6 Adopting it in a repo
@@ -99,7 +100,7 @@ Each adopting repo's ticket takes these steps:
 2. **Copy the script.** Copy `docs/toc.mjs` from the pact at a named commit into the repo's script folder, adding the Source line.
 3. **Write the config.** Write `toc.config.json` from S3's balance: exclude logs, ADRs, test fixtures, files loaded whole (`**/CLAUDE.md`, `**/AGENTS.md`, `**/SKILL.md`, agent and command files) and `**/README.md`, unless the repo's ticket records a reason otherwise.
 4. **Generate and review.** Run the script. The ticket lists each covered doc with its line count, as a checkpoint the owner reviews after.
-5. **Keep the repo's own gates green.** Add the script to each lint and format tool's ignore file, since the copy must stay unedited. Add the generated tables too, where a Markdown linter would rewrite them (stacks runs `prettier --check .`, `eslint .` and `lint:md`). The repo's full lint job passes with the copy in place.
+5. **Keep the repo's own gates green.** Add the script file, and only that file, to each lint and format tool's ignore file, since the copy must stay unedited (stacks runs `prettier --check .`, `eslint .` and `lint:md`). Docs are never ignored. If a Markdown linter or formatter would rewrite a generated table, stop and ask. The repo's full lint job passes with the copy in place.
 6. **Add the CI step.** Add `node <script folder>/toc.mjs --check` to CI, on every operating system the repo's CI runs.
 7. **Prove it can fail.** Show the CI step failing on a deliberately stale table (a heading renamed), and show it passing once the table is regenerated. Record both runs on the ticket.
 8. **Add the agent rule.** Add one line to the repo's agent instructions: after a heading change in a covered doc, run the script; changes to the vendored copy are read closely; to update the copy, copy the new file from the pact. If the repo has a word budget the line doesn't fit, stop and ask.
@@ -117,7 +118,7 @@ All three run CI on Ubuntu with Node 24. Each ticket confirms that and records i
 ## S8 Keeping the copies current
 
 - Each copy's Source line shows which pact commit it came from.
-- `docs/reference.md` lists the adopting repos, with each one's script path, and each repo ticket adds its row.
+- `docs/reference.md` lists the adopting repos, each with its script path and a state, `planned` or `adopted`. T1 writes all three rows as `planned`. After a repo's PR merges, a one-line PR in this repo marks that row `adopted`.
 - When this repo's `docs/toc.mjs` changes, the PR that changes it names each listed repo as behind, in its body. That rule is T1's line in AGENTS.md. A change to `docs/toc.mjs` alone owes no dated log, since it is neither the pact text nor the gate.
 - No cross-repo check runs (S4).
 
@@ -135,18 +136,20 @@ All three run CI on Ubuntu with Node 24. Each ticket confirms that and records i
 - C5: nothing in `claude/` changes, so the pact text gains no rule.
 - C6: in each adopting repo, CI fails on a stale table and passes once it is regenerated, on each operating system its CI runs (S6 step 7), and its full lint job passes with the copy in place (S6 step 5).
 - C7: in each adopting repo, no file S3 says to leave out holds a table, unless the ticket records why.
+- C8: after T1, `docs/reference.md` lists athanor, grimoire and stacks as `planned`, with their script paths. AGENTS.md holds S8's rule. Both docs stay within their word budgets.
 
 ## S11 Tickets
 
 The work is cut into tickets, each its own session. A repo ticket starts only after this spec is approved and T1 has merged.
 
-- **T1 (this repo):** S5 and its bad cases, the list of adopters in `docs/reference.md` (empty for now), and S8's rule as one line in AGENTS.md. AGENTS.md has a 1,750-word budget. If the line doesn't fit, T1 shortens other text there or stops and asks; raising the budget is a spec change. It stacks on PR 654.
-- **T2 athanor, T3 grimoire, T4 stacks:** the S6 steps, one repo each. They are independent and can run side by side.
+- **T1 (this repo):** S5 and its bad cases, the list of adopters in `docs/reference.md` (three rows, `planned`), and S8's rule as one line in AGENTS.md. AGENTS.md has a 1,750-word budget and `docs/reference.md` a 2,200-word one. If either addition doesn't fit, T1 may shorten only its own new text; otherwise it stops and asks. Raising a budget is a spec change. T1 stacks on PR 654.
+- **Filing.** Once this spec is approved, T1's session files T2 to T4 as PACT sub-issues of PACT-84, one per repo.
+- **T2 athanor, T3 grimoire, T4 stacks:** the S6 steps, one repo each. They are independent and can run side by side. When a repo's PR merges, a one-line PR here marks its row `adopted` (S8).
 
 ### Needs the owner
 
 - **Spec approval**, at the end of its review rounds, before T1 starts.
-- **The merge of each PR**, T1 and then each repo's. A repo PR is ready once its S6 step 7 evidence and covered-doc list are on its ticket.
+- **The merge of each PR:** T1, then each repo's own, then the one-line `adopted` PR here that follows it. A repo PR is ready once its S6 step 7 evidence and covered-doc list are on its ticket.
 - **Whether to file copy updates**, when a PR names repos as behind (S8).
 
 ### Stop and ask when
@@ -154,12 +157,12 @@ The work is cut into tickets, each its own session. A repo ticket starts only af
 - A repo's CI can't run Node 24.
 - A repo's own rules forbid a vendored script.
 - A repo already uses the table markers (S6 step 1).
-- A repo's rules forbid ignore entries for its lint or format tools (S6 step 5).
+- A repo's rules forbid ignore entries for its lint or format tools, or a Markdown tool would rewrite a generated table (S6 step 5).
 - A generated table would change an anchor that existing links use.
 
 ## S12 Rollback and out of scope
 
-**Rollback.** For T1, revert its PR. For a repo ticket, revert that repo's PR. The copies are independent, so one revert touches no other repo.
+**Rollback.** For T1, revert its PR. For a repo ticket, revert that repo's PR, then set its row here back to `planned` with a one-line PR. The copies are independent, so no other repo is touched.
 
 **Out of scope:**
 
