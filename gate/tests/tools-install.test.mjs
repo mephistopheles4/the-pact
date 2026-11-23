@@ -5,7 +5,8 @@
 // changed. Never touches ~/.claude.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, identityGitconfigText } from '../install-core.mjs';
@@ -119,6 +120,64 @@ test('bad case: the poster turned on in a commit that lacks it refuses at seam A
   const h = homeWith(t, ['poster']);
   const r = refusedUnchanged(repo, h, /^REFUSED: the check failed\./m);
   assert.match(r.stdout, /^seam-a\| FAIL tools-not-in-pact: --tools names poster, but the stage holds no claude\/tools\/poster\.mjs: it is not in this pact\r?$/m, r.out);
+});
+
+/**
+ * Every file in a home folder but the install record and the backups (each
+ * names the time it was made), as { 'rel/path': sha256 of its bytes }. The
+ * home folder's own path is blanked in settings.json, which names it.
+ */
+function filesOf(h) {
+  const out = {};
+  for (const rel of listTree(h)) {
+    const p = join(h, rel);
+    const name = rel.split(/[\\/]/).join('/');
+    if (!statSync(p).isFile() || name === '.pact-install.json' || name.startsWith('pact/backups/')) continue;
+    let bytes = readFileSync(p);
+    if (name === 'settings.json') bytes = Buffer.from(bytes.toString('utf8').split(h).join('<home>').split(h.replaceAll('\\', '/')).join('<home>').split(h.replaceAll('\\', '\\\\')).join('<home>'));
+    out[name] = createHash('sha256').update(bytes).digest('hex');
+  }
+  return out;
+}
+/** The paths where two such maps differ. */
+const differ = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => a[k] !== b[k]).sort();
+
+// PACT-61 C1: with clef off, the apply writes and records what a commit without the tool writes; the dry run's tools block says off.
+test('clef off: the apply writes and records the same files as a commit without the tool, and the dry run says clef: off', t => {
+  const without = makeRepo(t, root => rmSync(join(root, 'claude', 'tools', 'clef.mjs'), { force: true }));
+  const withClef = makeRepo(t);
+  const [h1, h2] = [homeWith(t, []), homeWith(t, [])];
+  const base = installed(without, h1);
+  const dry = installed(withClef, h2);
+  assert.match(base.stdout, /^ {2}clef: off \(not in this commit\)\r?$/m, base.out);
+  assert.match(dry.stdout, /^ {2}clef: off\r?$/m, dry.out);
+  assert.deepEqual(differ(filesOf(h2), filesOf(h1)), [], 'the same bytes in the same places');
+  const record = h => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).files.map(f => `${f.path} ${f.sha256 ?? f.hash ?? ''}`).sort();
+  assert.deepEqual(record(h2), record(h1), 'the same files recorded');
+  assert.ok(!existsSync(join(h2, 'pact', 'tools', 'clef.mjs')));
+});
+
+// PACT-61 C2: with clef on, the apply adds pact/tools/clef.mjs and nothing else; the dry run warns; the clef folder is left alone.
+test('clef on: the dry run warns, the apply adds pact/tools/clef.mjs and no other file, and an install and a turn-off leave the clef folder untouched', t => {
+  const repo = makeRepo(t);
+  const [off, on] = [homeWith(t, []), homeWith(t, ['clef'])];
+  installed(repo, off);
+  const folder = join(on, 'pact-clef');
+  mkdirSync(join(folder, 'runtime', 'b12211'), { recursive: true });
+  writeFileSync(join(folder, 'runtime', 'b12211', 'llama-server.exe'), 'a downloaded file');
+  writeFileSync(join(folder, 'setup.json'), '{"tag":"b12211"}\n');
+  const before = filesOf(folder);
+  const dry = installed(repo, on);
+  assert.match(dry.stdout, /^ {2}clef: on\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact tool clef; it installs to pact\/tools\/clef\.mjs and, when you run its setup, downloads a llama\.cpp server build \(about 25–39 MB\) and a Clef model \(about 6\.7 GB\) from GitHub and Hugging Face, then runs them on this machine, listening on 127\.0\.0\.1 only\.\r?$/m, dry.out);
+  const added = Object.keys(filesOf(on)).filter(f => !f.startsWith('pact-clef/') && !(f in filesOf(off)));
+  assert.deepEqual(added, ['pact/tools/clef.mjs']);
+  assert.deepEqual(readFileSync(join(on, 'pact', 'tools', 'clef.mjs')), readFileSync(join(repo, 'claude', 'tools', 'clef.mjs')));
+  assert.deepEqual(differ(filesOf(folder), before), [], 'an install leaves the clef folder as it was');
+  writeFileSync(join(on, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
+  installed(repo, on);
+  assert.ok(!existsSync(join(on, 'pact', 'tools', 'clef.mjs')), 'taking clef off removes the script');
+  assert.deepEqual(differ(filesOf(folder), before), [], 'a turn-off leaves the clef folder as it was');
 });
 
 // #438 C13: the cleaner's deny rules come and go with it, and only those it added.

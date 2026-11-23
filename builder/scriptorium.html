@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-zKcOXoGchngYR8d4H7tGFr16wy3sa9jPGbbHhskWAiI='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-O+pDp9eNaEUdxX401y2IODpN0KRfWfuZXWKouWVCQBo='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -6072,6 +6072,7 @@ const ALWAYS_COMMAND = { name: 'scriptorium', what: 'Always installed: the build
 const OPT_TOOLS = Object.freeze([
   { name: 'poster', what: "Posts free text to GitHub as your gh account, edits what a session posted, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which a dry run with --review-folder shows." },
   { name: 'cleaner', what: "Removes leftover worktrees under .claude/worktrees/ and their local branches, only those it named back and you said yes to; it forces only on an override pair you gave for that run. Turning it on adds a rule to the rules file, deny rules on raw removal commands and two ask rules on remove --override to settings.json." },
+  { name: 'clef', what: "Runs Clef, the local decision model, with no Ollama. When you run its setup, it downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only. It adds nothing to the rules file." },
 ]);
 // #262 addendum 3: a save writes agent files and never deletes one, and every file in agents/ installs.
 const AGENTS_NOTE = 'An agent file a save writes is yours: an install never writes over it, and a save deletes nothing.';
