@@ -252,6 +252,14 @@ when no other row answers the sentence.
   why goes to me in chat; such a pick that would leave a security path open is
   a heads-up: tell me in chat and go on. With no record, log in chat and in the result.
 - **The read-back.**
+  - The read-back, not a list, sets the work's edge: rows, files or items the
+    ask lists are where the work starts, and a limit in my words, such as
+    "only these rows", still lets in the edits they force. A change the
+    read-back needs is in scope, named in the record as following from it;
+    only a change for another purpose comes to me, or to the lead that
+    started your session. Check acceptance against the read-back, the
+    corrected one if I corrected it: a leftovers list it covers means the
+    work isn't done.
   - A pending read-back makes no work wait, at any seam, with or without a
     standing goal. Post it `pending`, log the intent you went ahead on, within
     the Checkpoint log's limits, and go on; I confirm or correct it later. A
