@@ -47,11 +47,12 @@ const FULL = 'env -u NODE_OPTIONS node gate/tests/run.mjs full';
 const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"';
 const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\n${DRY_RUN}\n`;
 // The Windows step also plants a real Claude folder with a plain subfolder in the runner's home, as the Linux container's image does, so the installer's real-folder guards run (q11).
+const REAL_DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`;
 const GATE_JOBS = [
   ['gate', 'ubuntu-24.04', FULL, DRY_STEP],
-  // Spec 0003 M7: the macOS arm64 job runs gate's own dry-run lines, with its skips checked against its own committed list.
-  ['gate-macos', 'macos-15', `${FULL} --skips gate/tests/macos-skips.txt`, DRY_STEP],
-  ['gate-windows', 'windows-2025', `${FULL} --skips gate/tests/windows-skips.txt`, `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`],
+  // Spec 0003 M7: the macOS arm64 job plants the real Claude folder as Windows does, with its skips checked against its own committed list.
+  ['gate-macos', 'macos-15', `${FULL} --skips gate/tests/macos-skips.txt`, REAL_DRY_STEP],
+  ['gate-windows', 'windows-2025', `${FULL} --skips gate/tests/windows-skips.txt`, REAL_DRY_STEP],
 ];
 // Pull requests share a group per ref, so a newer push cancels the older run; each push to main has a group of its own commit.
 const CANCELS = 'does not hold the concurrency group that cancels an older run only on a pull request';
@@ -450,6 +451,7 @@ for (const [label, plant, says] of [
   ['points macOS at the Windows skip list', inMacos(s => s.replace('gate/tests/macos-skips.txt', 'gate/tests/windows-skips.txt')), 'gate-macos does not run the full tier'],
   ['drops the macOS dry run', inMacos(s => s.replace(/ {10}env -u NODE_OPTIONS node gate\/install\.mjs.*\n/, '')), 'gate-macos does not run the install dry run'],
   ['runs a line before the macOS dry run', inMacos(s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home"\n')), "gate-macos's dry-run step runs other lines than the dry run"],
+  ['drops the real Claude folder on macOS', inMacos(s => s.replace('          mkdir -p "$HOME/.claude/agents"\n', '')), "gate-macos's dry-run step runs other lines than the dry run"],
   ['keeps the token in the macOS checkout', inMacos(s => s.replace('persist-credentials: false', 'persist-credentials: true')), 'leaves the token in the checkout'],
   ['runs an old Node on macOS', inMacos(s => s.replace("node-version: '24'", "node-version: '20'")), 'gate-macos runs another Node than the floor'],
   ['pins the macOS checkout apart from gate', inMacos(s => s.replace(/actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${'3'.repeat(40)}`)), "gate-macos's step 1 is not pinned to gate's commit"],

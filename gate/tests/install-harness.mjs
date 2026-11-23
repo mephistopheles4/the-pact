@@ -27,7 +27,8 @@ const NODE_DIR = dirname(process.execPath);
 
 /** The folders an install's PATH holds besides node's: git's and the system's. */
 export function basePath() {
-  base ??= Object.freeze([dirname(which('git')), ...(WIN ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')] : ['/usr/bin', '/bin'])]);
+  // On macOS, Homebrew's folder holds node beside git, so the system git's folder is used.
+  base ??= Object.freeze([process.platform === 'darwin' ? '/usr/bin' : dirname(which('git')), ...(WIN ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')] : ['/usr/bin', '/bin'])]);
   return base;
 }
 

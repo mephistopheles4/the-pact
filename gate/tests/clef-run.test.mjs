@@ -221,6 +221,8 @@ test('serve: an answer is built from checked values, with the fixed server argum
   const allowed = new Set([...'SYSTEMROOT WINDIR TEMP TMP HOME USERPROFILE LOCALAPPDATA XDG_RUNTIME_DIR PATH LD_LIBRARY_PATH'.split(' ')]);
   // Windows itself fills in these when it starts a process for the user; none comes from the caller.
   if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE', 'USERDOMAIN', 'USERNAME']) allowed.add(n);
+  // macOS's own runtime sets this one in each process it starts, when it is missing; it never comes from the caller.
+  if (process.platform === 'darwin') allowed.add(MAC_OWN);
   for (const k of Object.keys(rec.env)) assert.ok(allowed.has(k.toUpperCase()), `${k} is not on the list`);
   const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
   assert.deepEqual(Object.keys(run).sort(), ['pid', 'port', 'run', 'serverPid', 'started', 'token']);
@@ -722,6 +724,9 @@ test('main: ensure, status, stop and remove run from the clef folder (remove fro
 // ------------------------------------------------------------ the real start path, the lock and the kill (round 1)
 
 const NAMED_ENV = new Set('SYSTEMROOT WINDIR TEMP TMP HOME USERPROFILE LOCALAPPDATA XDG_RUNTIME_DIR PATH LD_LIBRARY_PATH'.split(' '));
+/** The one name macOS's runtime sets in every process it starts when it is missing (spec 0003 M7); the caller's copy never passes. */
+const MAC_OWN = '__CF_USER_TEXT_ENCODING';
+const macOwn = k => process.platform === 'darwin' && k === MAC_OWN;
 // Windows itself fills in these when it starts a process for the user; Node copies them from the caller's own environment.
 if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE', 'USERDOMAIN', 'USERNAME']) NAMED_ENV.add(n);
 const sameFolder = (a, b) => realpathSync.native(a).toLowerCase() === realpathSync.native(b).toLowerCase();
@@ -747,7 +752,7 @@ test('ensure: the supervisor it starts is `node <script> serve` run from runtime
   assert.deepEqual(seen.argv, ['serve']);
   assert.ok(sameFolder(seen.cwd, f.p.runtime), 'started from runtime/<tag>/');
   const named = new Set([...NAMED_ENV, 'CLAUDE_CONFIG_DIR']);
-  for (const k of Object.keys(seen.env)) assert.ok(named.has(k.toUpperCase()), `${k} is not on the list`);
+  for (const k of Object.keys(seen.env)) assert.ok(named.has(k.toUpperCase()) || macOwn(k), `${k} is not on the list`);
   assert.ok(Object.keys(seen.env).some(k => k.toUpperCase() === 'PATH'), 'the named environment is passed, not an empty one');
   assert.equal(seen.env.CLAUDE_CONFIG_DIR, f.cfgHome, 'the supervisor gets the variable so it works out the same folder');
 });
@@ -778,7 +783,7 @@ test('ensure: the supervisor and the server get only the named environment, and 
   const env = { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome };
   assert.equal((await ensure(f, { wait: 20, env })).out.state, 'ready');
   const sup = JSON.parse(readFileSync(join(f.root, 'supervisor-env.json'), 'utf8'));
-  for (const k of Object.keys(sup.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()) || k === 'CLAUDE_CONFIG_DIR', `the supervisor got ${k}`);
+  for (const k of Object.keys(sup.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()) || k === 'CLAUDE_CONFIG_DIR' || macOwn(k), `the supervisor got ${k}`);
   assert.ok(sameFolder(sup.cwd, f.p.runtime));
   const rec = await f.recorded();
   const pathKey = Object.keys(rec.env).find(k => k.toUpperCase() === 'PATH');

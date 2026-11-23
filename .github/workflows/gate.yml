@@ -13,7 +13,8 @@
 # Linux container's image does, so the installer's real-folder guards run. A
 # third job, gate-macos (spec 0003 M7), runs the same two steps on a pinned
 # macOS arm64 image and fails unless its skipped tests match
-# gate/tests/macos-skips.txt exactly. A
+# gate/tests/macos-skips.txt exactly; its dry-run step plants a real Claude
+# folder as gate-windows's does. A
 # newer push to a pull request cancels its older run of every job; each push
 # to main is grouped by its own commit, so no run of this workflow cancels
 # another on main. The group is repo-wide, so a run of another workflow naming
@@ -72,6 +73,7 @@ jobs:
       - name: Install dry run against an empty home folder
         run: |
           mkdir -p "$RUNNER_TEMP/pact-home"
+          mkdir -p "$HOME/.claude/agents"
           env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"
       - name: Gate suite, full tier
         run: env -u NODE_OPTIONS node gate/tests/run.mjs full --skips gate/tests/macos-skips.txt
