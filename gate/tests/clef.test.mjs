@@ -421,6 +421,18 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     assert.equal(readFileSync(join(runtime, 'llama-server.exe'), 'utf8'), 'MZ server');
     assert.equal(existsSync(join(a.dir, 'runtime', 'b1.partial')), false);
   });
+  // Spec 0003 M4: the macOS executable gets mode 0755, as the Linux one does.
+  test('unpack: on macOS the executable gets mode 0755', { skip: process.platform === 'win32' && 'Windows keeps no mode bits (not run)' }, t => {
+    const body = Buffer.from('server');
+    const tgzBuf = tgz([{ name: 'b/llama-server', data: body }]);
+    const row = { asset: 'llama-b1-bin-macos-arm64.tar.gz', size: tgzBuf.length, sha256: sha(tgzBuf), kind: 'tgz', exe: 'b/llama-server', files: [['b/llama-server', body.length, sha(body)]] };
+    const a = setupArgs(t, { server: { ...miniServer(), archives: { 'darwin-arm64-metal': row } } });
+    mkdirSync(join(a.dir, 'partial'), { recursive: true });
+    const archivePath = join(a.dir, 'partial', 'x.tar.gz');
+    writeFileSync(archivePath, tgzBuf);
+    clef.unpackServer({ dir: a.dir, key: 'darwin-arm64-metal', archivePath, platform: 'darwin', server: a.server });
+    assert.equal(statSync(join(a.dir, 'runtime', 'b1', 'llama-server')).mode & 0o777, 0o755);
+  });
   const unpackWith = (t, zipBuf, tweak = s => s) => {
     const a = setupArgs(t, { server: tweak(miniServer()) });
     mkdirSync(join(a.dir, 'partial'), { recursive: true });

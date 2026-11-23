@@ -149,6 +149,11 @@ test('serverArgs: the list is fixed, the key is a file, and Vulkan adds -ngl 99'
   const v = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', vulkan: true });
   assert.deepEqual(v.slice(10, 12), ['-ngl', '99']);
   assert.ok(!a.includes('--api-key'), 'no key on the command line');
+  // Spec 0003 M4: Metal offloads as Vulkan does; macOS's CPU key names no device, so Metal is never used.
+  assert.deepEqual(clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', metal: true }).slice(10, 12), ['-ngl', '99']);
+  const c = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', noDevice: true });
+  assert.deepEqual(c.slice(10, 12), ['--device', 'none']);
+  assert.ok(!c.includes('-ngl'));
 });
 
 test('launchCommand: Linux goes through /usr/bin/setpriv --pdeathsig KILL, and the seam drops it', () => {
@@ -167,6 +172,12 @@ test('serveEnv: only the named names pass, PATH is set, LD_LIBRARY_PATH only on 
   assert.deepEqual(Object.keys(l).sort(), ['HOME', 'LD_LIBRARY_PATH', 'PATH', 'SYSTEMROOT']);
   assert.equal(l.PATH, '/usr/bin:/bin');
   assert.equal(l.LD_LIBRARY_PATH, '/r');
+  assert.equal(clef.serveEnv({ ...env, TMPDIR: '/t' }, 'linux', '/r').TMPDIR, undefined, 'TMPDIR passes on macOS only');
+  // Spec 0003 M4: on macOS the caller's TMPDIR passes, and no DYLD_* or library path is set.
+  const m = clef.serveEnv({ ...env, TMPDIR: '/var/folders/x/T/', DYLD_INSERT_LIBRARIES: '/e.dylib', DYLD_LIBRARY_PATH: '/e' }, 'darwin', '/r');
+  assert.deepEqual(Object.keys(m).sort(), ['HOME', 'PATH', 'SYSTEMROOT', 'TMPDIR']);
+  assert.equal(m.PATH, '/usr/bin:/bin');
+  assert.equal(m.TMPDIR, '/var/folders/x/T/');
 });
 
 test('checkedAnswer: a body built from checked values, and every other shape is null', () => {
@@ -258,7 +269,7 @@ test('serve: an answer is built from checked values, with the fixed server argum
   // Windows itself fills in these when it starts a process for the user; none comes from the caller.
   if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE', 'USERDOMAIN', 'USERNAME']) allowed.add(n);
   // macOS's own runtime sets this one in each process it starts, when it is missing; it never comes from the caller.
-  if (process.platform === 'darwin') allowed.add(MAC_OWN);
+  if (process.platform === 'darwin') for (const n of [MAC_OWN, 'TMPDIR']) allowed.add(n);
   for (const k of Object.keys(rec.env)) assert.ok(allowed.has(k.toUpperCase()), `${k} is not on the list`);
   const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
   assert.deepEqual(Object.keys(run).sort(), ['pid', 'port', 'run', 'serverPid', 'started', 'token']);
@@ -762,7 +773,8 @@ test('main: ensure, status, stop and remove run from the clef folder (remove fro
 const NAMED_ENV = new Set('SYSTEMROOT WINDIR TEMP TMP HOME USERPROFILE LOCALAPPDATA XDG_RUNTIME_DIR PATH LD_LIBRARY_PATH'.split(' '));
 /** The one name macOS's runtime sets in every process it starts when it is missing (spec 0003 M7); the caller's copy never passes. */
 const MAC_OWN = '__CF_USER_TEXT_ENCODING';
-const macOwn = k => process.platform === 'darwin' && k === MAC_OWN;
+/** On macOS, that name, and TMPDIR, which clef passes there (spec 0003 M4). */
+const macOwn = k => process.platform === 'darwin' && (k === MAC_OWN || k === 'TMPDIR');
 // Windows itself fills in these when it starts a process for the user; Node copies them from the caller's own environment.
 if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE', 'USERDOMAIN', 'USERNAME']) NAMED_ENV.add(n);
 const sameFolder = (a, b) => realpathSync.native(a).toLowerCase() === realpathSync.native(b).toLowerCase();

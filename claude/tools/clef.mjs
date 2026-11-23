@@ -981,7 +981,7 @@ export function unpackServer({ dir, key, archivePath, platform, server = SERVER 
     written.add(row[0]);
   }
   for (const row of a.files) if (!written.has(row[0])) throw bad('a pinned file is not in the archive');
-  if (platform === 'linux') chmodSync(join(p.runtimePartial, destName(a.exe, a.exe)), 0o755);
+  if (platform === 'linux' || platform === 'darwin') chmodSync(join(p.runtimePartial, destName(a.exe, a.exe)), 0o755);
   const aside = `${p.runtime}.old`;
   rmSync(aside, { recursive: true, force: true });
   if (existsSync(p.runtime)) renameWithRetry(p.runtime, aside);
@@ -1166,6 +1166,8 @@ export function serveEnv(env, platform, runtime) {
   const root = env.SYSTEMROOT ?? env.SystemRoot ?? 'C:\\Windows';
   out.PATH = platform === 'win32' ? `${root}\\System32;${root}` : '/usr/bin:/bin';
   if (platform === 'linux') out.LD_LIBRARY_PATH = runtime;
+  // Spec 0003 M4: TMPDIR names the user's private temp folder on macOS; without it the process falls back to /tmp.
+  if (platform === 'darwin' && env.TMPDIR !== undefined) out.TMPDIR = env.TMPDIR;
   return out;
 }
 
@@ -1177,9 +1179,9 @@ export function supervisorEnv(env, platform, runtime) {
 }
 
 /** The server's argument list: fixed in the tool, no part from a caller. The key is in a file, never on the command line. */
-export function serverArgs({ port, keyFile, modelPath, vulkan }) {
+export function serverArgs({ port, keyFile, modelPath, vulkan, metal, noDevice }) {
   // --cors-origins names an origin no page has, so a web page cannot read even the server's keyless /health.
-  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan ? ['-ngl', '99'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath];
+  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan || metal ? ['-ngl', '99'] : []), ...(noDevice ? ['--device', 'none'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath];
 }
 
 /** The program and arguments that start the server: on Linux through setpriv, so the kernel ends it when the supervisor dies. */
@@ -1472,7 +1474,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const serverPort = await freePort();
   writeFileSync(rp.key, `${serverKey}\n`, { mode: 0o600 });
   const exePath = exe ?? join(p.runtime, destName(ready.archive.exe, ready.archive.exe));
-  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan' }), pdeathsig });
+  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan', metal: ready.setup.backend === 'metal', noDevice: ready.setup.platform === 'darwin-arm64-cpu' }), pdeathsig });
   let stopping = false;
   let isReady = false;
   let lastForward = now();
