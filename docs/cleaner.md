@@ -39,9 +39,8 @@ The ask rule on the override matches any text that holds `cleaner.mjs`,
   [With `--recoverable`](#with---recoverable)). Give it to both commands: a
   tag from a run without it never passes a run with it.
 
-The rules file tells a session to remove worktrees only through the cleaner:
-each removal is a checkpoint. `show`'s own
-last lines tell it the rest: show you the name-back as printed, in a fenced
+The rules file's cleaner line names `show` and `remove`; `show`'s own
+last lines tell the rest: show you the name-back as printed, in a fenced
 code block, in chat only, so no name's marks can restyle it, give a record only
 the result line's counts, never the tags or the name-back, and run `remove`
 with the tags of the blocks shown, `--recoverable` or not, as a checkpoint;
@@ -63,8 +62,7 @@ with an override tag, a third line, a checkpoint, says who may pass it.
   written and never resolved on disk; a device prefix before a drive letter
   counts as the plain drive path. A sessions folder, or a status file, that is
   a link or not a plain folder or file makes the run unavailable. A Windows
-  run doesn't see WSL sessions, or the other way. A finished session is the
-  exception: [A finished session](#a-finished-session).
+  run doesn't see WSL sessions, or the other way. Finished sessions: [below](#a-finished-session).
 - **Commits found nowhere else, on a detached HEAD:** a worktree whose
   detached HEAD has commits on no branch and no remote. After the folder
   goes, nothing would name them. On a branch the same commits are a soft risk
@@ -264,7 +262,7 @@ reason, or none, is an *other lock*. A session still running is kept as "in
 use" before any lock is read, since its status file names the worktree as its
 cwd, so a session lock here is a stopped session's, or a finished one's.
 
-`show` says `locked by a stopped session; remove unlocks it` for a session lock
+`show` says `locked by a stopped session; remove unlocks it` for a session lock (not a finished session's)
 and, for any other, `locked, its holder is not named: the override lifts the
 lock` when the block has an override tag (a soft risk, see
 [Overriding a keep](#overriding-a-keep)), else `locked, git will refuse`; a yes
@@ -282,26 +280,32 @@ says kind `bg`, status `idle`, an 8-hex `jobId` that opens its `sessionId`, and
 a positive whole `pid`. Anything else is live.
 
 A worktree is read on as free, its tag covering the jobId, pid and switch,
-when one finished session holds it and its lock carries that pid. It says `in use by a finished background session; remove stops it
-first`. Another finished session, a pid that differs from the lock, no
-`claude` (`claude.exe` on Windows, from an absolute `PATH` entry; no shim) or
-the **stop switch** keeps it in use, the last two with a line saying why. The
-switch is on when `~/.claude/settings.json`'s `permissions.deny` holds
-`Bash(claude stop *)` or `PowerShell(claude stop *)`, or the file is a link,
-not plain, not strict JSON, or has a `deny` that is no list of strings.
+when one finished session holds it, its lock carries that pid, and no other
+status file carries its jobId or sessionId. It says `in use by a finished
+background session; remove stops it first`. Otherwise, with no `claude`
+(from an absolute `PATH` entry; no shim) or the **stop
+switch** on, it stays in use, the last two with a line saying why. The switch is
+on when `~/.claude/settings.json`'s `permissions.deny` holds `Bash(claude stop
+*)` or `PowerShell(claude stop *)`, or the file is a link, not plain, not
+strict JSON, or has a `deny` that is no list of strings.
+
+A plant must also rewrite the victim's status file and the lock, which any
+owner process can; the tie stops only one that leaves them as Claude Code wrote them.
 
 `remove`, in order:
 
 1. On a yes, changed or untracked files: `left, git would refuse, so the
    session was not stopped`.
 2. It reads both again; a difference is `left, it changed since the read`.
-3. `claude stop <jobId>` by absolute path, no shell, 30 s. A failure is `left, the session did not stop`.
-4. It waits, up to 15 s, until no status file names the folder and the pid is
+3. `claude stop <jobId>`, no shell, 30 s; a failure is `left, the session did
+   not stop`.
+4. It waits up to 15 s until no status file names the folder and the pid is
    gone (a failed read counts as held), else `left, the session stopped but
    still holds the folder; run show again`.
-5. The removal; an override's last read runs here, after the wait.
+5. The removal; an override's last read runs after the wait.
 
 The report line starts `session stopped, `.
+
 ## What it never does
 
 It forces only on a fresh override pair, and passes `--force` at most once,
@@ -350,8 +354,7 @@ They make Claude Code ask before a `remove --override` runs. They are a speed bu
 splits `cleaner.mjs`, `remove` or `--override` apart, or runs the tool through a wrapper that hides
 them, gets past. If `settings.json` is not strict JSON the install leaves it alone and warns.
 
-The cleaner's own `claude stop` is a child process these rules don't see, so
-it holds that stop back while `session-stop-deny` is on.
+Its own stop is held back while `session-stop-deny` is on.
 
 They are a speed bump with the classifier behind them, not a gate: other
 spellings of the same commands get past them (a flag before the subcommand, a

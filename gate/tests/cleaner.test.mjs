@@ -11,6 +11,7 @@ import { test } from 'node:test';
 // #442: the new exports are reached through the namespace, so this file still loads on the base.
 import * as cleaner from '../../claude/tools/cleaner.mjs';
 import { clean, esc, findClaude, findGit, realOf, walkTree } from '../../claude/tools/cleaner.mjs';
+import { STOP_DENY as INSTALL_STOP_DENY } from '../install-core.mjs';
 import { tempDir } from './tree.mjs';
 
 const cp = String.fromCodePoint;
@@ -2223,6 +2224,7 @@ test('PACT-80 C1: show names a worktree held only by a finished session with a t
   const s = stopIo(t, f);
   const r = f.run(['show'], s.over);
   assert.match(block(r.out, 'fin'), FINISHED_LINE, r.out);
+  assert.doesNotMatch(block(r.out, 'fin'), /locked by a stopped session/, 'the session is not stopped yet');
   assert.equal(tagsOf(r.out).length, 1, r.out);
   assert.equal(s.stops().length, 0, 'show stops nothing');
   const base = tagsOf(r.out)[0];
@@ -2279,10 +2281,12 @@ test('PACT-80 C2, C9: remove with the tag stops the session once, waits for the 
   }
 
   // Bad case for the wait: a pid that never dies, or a sessions read that fails after the stop, leaves the worktree and its branch after 15 s.
-  for (const why of ['alive', 'read fails']) {
+  for (const why of ['alive', 'read fails', 'valid file']) {
     const g = makeRepo(t);
     const d2 = finished(g, 'stuck');
-    const stuck = stopIo(t, g, why === 'alive' ? { alive: () => true } : { during: () => writeFileSync(join(sessionsOf(g), 'bad.json'), '{"cwd":') });
+    // The third: the stopping session leaves a valid status file of another session naming the folder.
+    const during = why === 'read fails' ? () => writeFileSync(join(sessionsOf(g), 'bad.json'), '{"cwd":') : () => writeFileSync(join(sessionsOf(g), '9000.json'), JSON.stringify({ pid: 9000, kind: 'bg', status: 'busy', jobId: '12345678', sessionId: '12345678-0000', cwd: d2 }));
+    const stuck = stopIo(t, g, why === 'alive' ? { alive: () => true } : { during });
     const gr = g.run(yesOf(g, stuck, 'stuck'), stuck.over);
     assert.match(gr.out, /^worktree stuck: session stopped, left, the session stopped but still holds the folder; run show again$/m, `${why}: ${gr.out}`);
     assert.equal(gr.lines.at(-1), 'RESULT: removed 0 left 1 changed 0');
@@ -2331,7 +2335,7 @@ test('PACT-80 C4: a session that is anything but kind bg, idle, an 8-hex jobId o
   for (const [name, over] of Object.entries(cases)) {
     rmSync(sessionsOf(f), { recursive: true, force: true });
     const dir = f.add(name.replace(/^/, 'c-'));
-    sessionLock(f, `c-${name}`, `claude session c-${name} (pid ${typeof over.pid === 'number' && over.pid > 0 ? over.pid : 4242})`);
+    sessionLock(f, `c-${name}`, `claude session c-${name} (pid ${Number.isInteger(over.pid) && over.pid >= 0 ? over.pid : 4242})`);
     plantSession(f, dir, over);
     const r = f.run(['show', '--worktree', `c-${name}`], s.over);
     assert.equal(block(r.out, `c-${name}`), '  kept: in use\n', `${name}: ${r.out}`);
@@ -2361,8 +2365,13 @@ test('PACT-80 C12: a finished session is stopped only when the worktree\'s lock 
   const other = f.add('other');
   sessionLock(f, 'other', 'held by hand');
   plantSession(f, other, { pid: 4246, jobId: 'dddddddd' });
+  // A status file whose pid matches the lock but whose jobId, or sessionId, is another session's own (which has its file elsewhere).
+  plantSession(f, f.root, { pid: 8000, jobId: '99999999', status: 'busy' });
+  plantSession(f, f.root, { pid: 8001, jobId: undefined, sessionId: 'aaaaaaaa-1111', status: 'busy' });
+  finished(f, 'twin', { pid: 4260, jobId: '99999999' });
+  finished(f, 'twin2', { pid: 4261, jobId: 'aaaaaaaa', sessionId: 'aaaaaaaa-1111' });
   const r = f.run(['show'], s.over);
-  for (const name of ['planted', 'two', 'nolock', 'other']) assert.equal(block(r.out, name), '  kept: in use\n', `${name}: ${r.out}`);
+  for (const name of ['planted', 'two', 'nolock', 'other', 'twin', 'twin2']) assert.equal(block(r.out, name), '  kept: in use\n', `${name}: ${r.out}`);
   assert.equal(tagsOf(r.out).length, 0, r.out);
   assert.equal(s.stops().length, 0);
   // Positive control: the same worktree with the lock of its pid reads on.
@@ -2375,6 +2384,8 @@ test('PACT-80 C12: a finished session is stopped only when the worktree\'s lock 
 test('PACT-80 C5: a session that turns live, or a switch that turns on, after remove read and before it stops leaves the worktree with no stop', t => {
   for (const [why, change] of [
     ['live', f => writeFileSync(join(sessionsOf(f), '4242.json'), JSON.stringify({ pid: 4242, kind: 'bg', status: 'busy', jobId: JOB, sessionId: `${JOB}-0`, cwd: f.wt('fin') }))],
+    // A pair that changes and stays finished: a new jobId, its sessionId matching, still idle.
+    ['pair', f => writeFileSync(join(sessionsOf(f), '4242.json'), JSON.stringify({ pid: 4242, kind: 'bg', status: 'idle', jobId: '55555555', sessionId: '55555555-0', cwd: f.wt('fin') }))],
     ['switch', f => writeSettings(f, { permissions: { deny: ['Bash(claude stop *)'] } })],
   ]) {
     const f = makeRepo(t);
@@ -2392,17 +2403,19 @@ test('PACT-80 C5: a session that turns live, or a switch that turns on, after re
 
 // PACT-80 C6
 test('PACT-80 C6: on the yes path a worktree git would refuse is left and its session not stopped', t => {
-  const f = makeRepo(t);
-  const dir = finished(f, 'fin');
-  writeFileSync(join(dir, 'new.txt'), 'x');
-  const s = stopIo(t, f);
-  const shown = f.run(['show'], s.over);
-  assert.equal(tagsOf(shown.out).length, 1, shown.out);
-  const rm = f.run(['remove', '--yes', tagsOf(shown.out).join(',')], s.over);
-  assert.match(rm.out, /^worktree fin: left, git would refuse, so the session was not stopped$/m, rm.out);
-  assert.equal(s.stops().length, 0);
-  assert.ok(existsSync(dir));
-  assert.ok(existsSync(join(sessionsOf(f), '4242.json')));
+  for (const [why, edit] of [['untracked', dir => writeFileSync(join(dir, 'new.txt'), 'x')], ['changed', dir => writeFileSync(join(dir, 'a.txt'), 'edited\n')]]) {
+    const f = makeRepo(t);
+    const dir = finished(f, 'fin');
+    edit(dir);
+    const s = stopIo(t, f);
+    const shown = f.run(['show'], s.over);
+    assert.equal(tagsOf(shown.out).length, 1, shown.out);
+    const rm = f.run(['remove', '--yes', tagsOf(shown.out).join(',')], s.over);
+    assert.match(rm.out, /^worktree fin: left, git would refuse, so the session was not stopped$/m, `${why}: ${rm.out}`);
+    assert.equal(s.stops().length, 0, why);
+    assert.ok(existsSync(dir));
+    assert.ok(existsSync(join(sessionsOf(f), '4242.json')));
+  }
 });
 
 // PACT-80 C7
@@ -2426,6 +2439,9 @@ test('PACT-80 C7: with no claude on PATH the worktree stays in use and says so; 
   assert.equal(findClaude({ PATH: ['relative', real].join(delimiter) }, 'win32'), join(real, 'claude.exe'));
   assert.equal(findClaude({ PATH: ['relative', real].join(delimiter) }, 'linux'), join(real, 'claude'));
   assert.equal(findClaude({ PATH: 'relative' }, 'linux'), null);
+  // A relative entry that reaches a real claude from here is skipped all the same (on a drive apart, relative() is absolute).
+  const rel = relative(process.cwd(), real);
+  if (!isAbsolute(rel)) assert.equal(findClaude({ PATH: rel }, 'linux'), null);
 });
 
 // PACT-80 C10
@@ -2461,7 +2477,13 @@ test('PACT-80 C10: a deny rule for claude stop, or a settings.json that is a lin
   const target = join(f.home, 'elsewhere', 'real.json');
   writeFileSync(target, '{}');
   if (plantLink(target, join(f.home, '.claude', 'settings.json'), 'file')) assert.equal(read().on, true, 'a link');
+  // A folder named settings.json is not a plain file.
+  rmSync(join(f.home, '.claude', 'settings.json'), { recursive: true, force: true });
+  mkdirSync(join(f.home, '.claude', 'settings.json'));
+  assert.equal(read().on, true, 'a folder');
   assert.equal(s.stops().length, 0);
+  // What the cleaner reads as the switch is a subset of what the install adds for session-stop-deny.
+  for (const rule of cleaner.STOP_DENY) assert.ok(INSTALL_STOP_DENY.includes(rule), rule);
 });
 
 /** An override run's setup: a finished session in a worktree that holds an untracked file, so it has an override tag. */

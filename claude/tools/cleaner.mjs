@@ -88,7 +88,7 @@ const GIT_FLOOR = [2, 36];
 // GIT_NO_LAZY_FETCH came in git 2.45.
 const RECOVERABLE_FLOOR = [2, 45];
 const JOB_RE = /^[0-9a-f]{8}$/;
-const STOP_DENY = ['Bash(claude stop *)', 'PowerShell(claude stop *)'];
+export const STOP_DENY = ['Bash(claude stop *)', 'PowerShell(claude stop *)'];
 const STOP_MS = 30000;
 const WAIT_MS = 15000;
 const POLL_MS = 250;
@@ -818,7 +818,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
   const container = join(main, '.claude', 'worktrees');
   const sessions = sessionCwds(home, platform);
   const used = [...sessions.filter(r => !isFinished(r)).map(r => r.cwd), cwd].flatMap(forms);
-  const finished = sessions.filter(isFinished).map(r => ({ jobId: r.jobId, pid: r.pid, forms: forms(r.cwd) }));
+  const finished = sessions.filter(isFinished).map(r => ({ jobId: r.jobId, sessionId: r.sessionId, file: r.file, pid: r.pid, forms: forms(r.cwd) }));
   const switchOn = finished.length ? stopSwitch(home) : false;
   const origin = read(git, main, ['for-each-ref', '--format=%(symref)', 'refs/remotes/origin/HEAD']).trim();
   const defaults = origin.startsWith('refs/remotes/origin/') ? [origin.slice('refs/remotes/origin/'.length)] : ['main', 'master'];
@@ -852,9 +852,13 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
       const mine = finished.filter(s => s.forms.some(c => where.some(w => within(c, w, platform))));
       let stops = null;
       if (mine.length) {
-        // One finished session, and the lock git holds is its own: a status file cannot point a stop at another folder's session.
+        // One finished session, whose pid is the one in the worktree's own lock, and whose jobId and sessionId no other
+        // status file carries. A plant that points a stop at another session must rewrite that session's status file and
+        // the lock too; any process of the owner's can do both (git worktree lock --reason), so this stops only a plant
+        // that leaves them as Claude Code wrote them.
         const lockPid = 'locked' in rec && isSessionLock(rec.locked, name) ? rec.locked.slice(`claude session ${name} (pid `.length, -1) : null;
-        if (mine.length > 1 || lockPid !== String(mine[0].pid)) {
+        const twin = mine.length === 1 && sessions.some(r => r.file !== mine[0].file && (r.jobId === mine[0].jobId || r.sessionId === mine[0].sessionId || (typeof r.sessionId === 'string' && r.sessionId.startsWith(mine[0].jobId))));
+        if (mine.length > 1 || twin || lockPid !== String(mine[0].pid)) {
           item.keep = 'in use';
           continue;
         }
@@ -1050,7 +1054,8 @@ export function blockLines(item) {
   if (files) out.push(`  WARNING: the override deletes ${changed.length} changed and ${untracked.length} untracked file(s) git holds no copy of`);
   if (over && f.branchKept === COMMITS) out.push(`  WARNING: the override removes the folder; branch ${esc(f.branch)} keeps its ${f.unpushed} commits`);
   if (f.gone) out.push("  folder gone, only git's record goes");
-  if (f.lock !== null) out.push(isSessionLock(f.lock, f.folder) ? '  locked by a stopped session; remove unlocks it' : over ? '  locked, its holder is not named: the override lifts the lock' : '  locked, git will refuse');
+  // A finished session's lock is not a stopped session's yet: the stops line above covers it.
+  if (f.lock !== null && !f.stops) out.push(isSessionLock(f.lock, f.folder) ? '  locked by a stopped session; remove unlocks it' : over ? '  locked, its holder is not named: the override lifts the lock' : '  locked, git will refuse');
   if (over) {
     out.push(...listLines(`changed files, lost if overridden (${changed.length})`, changed, quoted, Infinity));
     out.push(...listLines(`untracked files, lost if overridden (${untracked.length})`, untracked, quoted, Infinity));

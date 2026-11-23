@@ -69,18 +69,18 @@ someone hands a session to load, and a decision model's answer.
   mode as the default.
 - **Harness, installed by the pact.** Deny rules on raw `git worktree remove`,
   `git branch -d`, `-D` and `--delete`, and `claude rm`, and an ask rule on a
-  `cleaner.mjs remove --override` call, on only while the cleaner is on. Eight deny rules on raw `claude stop`, `kill`, `daemon stop`
-  and `respawn`, on only while `session-stop-deny` is on; the
-  cleaner's own stop is held back by it. A
-  deny rule is a speed bump: another spelling gets past it. The ask rule is
-  passed by `bypassPermissions`, a mod, or a spelling outside its pattern.
+  `cleaner.mjs remove --override` call, on only while the cleaner is on (off by default). Eight deny rules on raw `claude stop`, `kill`, `daemon stop`
+  and `respawn`, on only while `session-stop-deny` is on (off by default); the
+  cleaner's stop yields to it. Deny
+  rules are speed bumps: another spelling gets past them. The ask rule is
+  passed by `bypassPermissions`, a mod, or another spelling.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
-  what git keeps. It can't tell whether the owner agreed to a removal; a
-  rule makes each removal through it a checkpoint, the session's own logged pick. A removal that gets past the deny rules meets only the
+  what git keeps. It can't tell whether the owner agreed; a
+  rule makes each removal a checkpoint, the session's own logged pick. A removal that gets past the deny rules meets only the
   classifier. A forced removal rests on the cleaner's printed override rule
   ([ADR 0151](adr/0151-the-cleaner-forces-only-on-an-override-tag.md)). The
   install's text scanner and the builder page's refusal of hidden characters
-  check the files they take for hidden and control characters, not wording.
+  check files for hidden and control characters, not wording.
   The tracker author checker (`gate/tracker-authors.mjs`) reads who wrote what
   where GraphQL is refused, and trusts a clone's `origin` by its path. With an
   app pinned it also checks the pin and counts that app's PR as insiders' code.
@@ -161,7 +161,7 @@ like any change to this repo.
 - **GitHub.** An active ruleset on `main`, with no bypass actor: a pull
   request is required, `gate` and `gate-windows` must pass, and deletion and
   force-push are blocked. It needs no approving review: a merge is a
-  checkpoint, which the owner reviews after.
+  checkpoint, reviewed after.
 - **The pact's tools.** The install gate (`gate/install.mjs`) runs a dry run
   first, applies only with the commit id the dry run printed, takes only plain
   files and safe paths, and checks install mechanics only: the owner vets the
@@ -202,8 +202,7 @@ anything else a session sends off the machine: a push, a fetch or search
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
   Its text fields and edit checks catch accidents only and are not a control.
-  With an app pinned it refuses a post as anything but the `claude` app, for
-  posts sent through it.
+  With an app pinned it refuses a post as anything but the `claude` app.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
   each token it mints to one repo and a permission set, and refuses a repo
   outside the pinned owner. It holds against accidents only: any process
@@ -251,10 +250,10 @@ the machine. What starts and ends on the machine is no finding: other local
 accounts, unencrypted copies (the install's backups, kept-local reports,
 hand-off notes), a program already running as the owner that nothing in scope
 started, supplied or steered, and loss of work with no attacker. In a cloud
-session these copies sit in Anthropic's sandbox: out of scope as Anthropic's,
+session these copies sit in Anthropic's sandbox: out of scope,
 though code that reached it from outside stays in scope. What the machine makes
-from outside input stays outside input. The machine's own antivirus, account
-isolation and disk encryption hold it. Also out: the owner's own edits and own
+from outside input stays outside input. The machine's antivirus, account
+isolation and disk encryption hold it. Also out: the owner's own edits and
 account's edit in the browser; Claude Code, Anthropic's models and servers, and
 GitHub; the provider of a synced or backed-up copy, though
 [`install.md`](install.md)'s rule to never sync, share or commit the backups
@@ -280,4 +279,4 @@ Each "Also accepted" line above details what the class it names covers; it is no
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided.
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Session status files and worktree locks are owner-writable, so the cleaner's stop tie stops only a plant that leaves them as written.
