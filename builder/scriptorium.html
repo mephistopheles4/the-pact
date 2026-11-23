@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-E+BNi4qMOTbWLEWrRcR8CVuS/9+HSnQQ4yZU6cv43kE='; style-src 'sha256-3lxArc6XX64+Io1IaknVLchsUaUdtBFmK3GEqPSdEzU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-32l8nNLufALoccyeHaJ/foBNB6bWAZHgyFDvmUsYFOU='; style-src 'sha256-3lxArc6XX64+Io1IaknVLchsUaUdtBFmK3GEqPSdEzU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -8731,7 +8731,7 @@ function boot() {
   const inEffect = p => Object.keys(p.parts).length > 0 && Object.entries(p.parts).every(([k, v]) => (k === 'workflowGraph' ? sameParts(withoutLayout(v), withoutLayout(state.parts[k])) : sameParts(v, state.parts[k])));
   const presetChip = p => {
     const on = inEffect(p);
-    return el('div', { class: 'chips' }, chip(on ? `${p.title} · in effect` : p.title, on, () => openPresets(p), 'av-tool-chip--ghost', true));
+    return el('div', { class: 'chips' }, chip(p.title, on, () => openPresets(p), on ? '' : 'av-tool-chip--ghost', true));
   };
   function openPresets(chosen = null, why = '') {
     const head = (blurb) => el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Presets' }), el('p', { class: 'av-tool-blurb', text: blurb })), closeX('presets'));

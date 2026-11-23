@@ -1123,12 +1123,15 @@ test('stub page: the Presets list marks Level 3 as in effect on a fresh open and
   const level3 = JSON.parse(readFileSync(join(REPO, 'builder', 'presets', 'level-3-full.json'), 'utf8'));
   const marked = P => {
     P.button(P.ids.actions, 'Presets').click();
-    return P.find(P.ids.presets, n => n.tag === 'button' && n.attrs['aria-pressed'] === 'true').map(n => n.text);
+    const on = P.find(P.ids.presets, n => n.tag === 'button' && n.attrs['aria-pressed'] === 'true');
+    // The ghost style sets a dark text colour that would sit on the pressed chip's dark fill.
+    for (const n of on) assert.ok(!cardClasses(n).includes('av-tool-chip--ghost'),'a pressed chip drops the ghost style');
+    return on.map(n => n.text);
   };
-  assert.deepEqual(marked(bootPage({})), ['Level 3 · Full · in effect'], 'a fresh open lands on Level 3');
+  assert.deepEqual(marked(bootPage({})), ['Level 3 · Full'], 'a fresh open lands on Level 3');
   const parts = { tiers: level3.tiers, sensitive: level3.sensitive, workflowGraph: { ...level3.workflowGraph, layout: { plan: { x: 300, y: 60 } } }, costLimits: level3.costLimits };
   const same = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, ...parts }, GOOD_BLOCKS)) });
-  assert.deepEqual(marked(same), ['Level 3 · Full · in effect'], 'a builder file holding Level 3, saved layout and all, is on Level 3');
+  assert.deepEqual(marked(same), ['Level 3 · Full'], 'a builder file holding Level 3, saved layout and all, is on Level 3');
   const costLimits = parts.costLimits.map((c, i) => (i ? c : { ...c, limit: '5' }));
   const changed = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, ...parts, costLimits }, GOOD_BLOCKS)) });
   assert.deepEqual(marked(changed), [], 'one part changed: no preset is in effect');
