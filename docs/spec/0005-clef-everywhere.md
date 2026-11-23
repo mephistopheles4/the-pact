@@ -53,8 +53,9 @@ The session took these picks, each logged as a checkpoint:
    all from tag b12211, all published 2026-11-08, so past the 14-day rule.
    **No arm64 Vulkan rows** until a machine can run C14 on them (the lead's
    decision 67): an unchecked backend's answers would reach users at once.
-5. **`--no-repack` on every key** (U4). It is what makes b12211 load on AMX
-   and arm64 CPUs.
+5. **`--no-repack` on every CPU key** (U4), 0003's `darwin-arm64-cpu`
+   included. It is what makes b12211 load on AMX and arm64 CPUs. GPU keys
+   don't get it: the evidence is all on CPU.
 6. **A longer forward timeout on CPU** (U8): 180 s on CPU keys, 60 s on GPU
    keys. A 4-core Intel Mac took up to 70 s per answer.
 7. **A server that ends while loading says so** (U18), with the platform and
@@ -139,12 +140,13 @@ The session took these picks, each logged as a checkpoint:
   a Windows arm64 machine picks the x64 build, which runs under emulation.
   The plan's `why` line says "x64 node: x64 build". The doc says to use an
   arm64 node.
-- **`--no-repack`.** `serverArgs` adds `-nr` for every key. b12211 aborts
+- **`--no-repack`.** `serverArgs` adds `-nr` when the backend is `cpu`, as
+  its last item, after 0003's `--device none`. b12211 aborts
   while loading Clef-Flash (`GGML_ASSERT(*cur_backend_id != -1)` in
   `ggml_backend_sched_split_graph`) when the CPU backend repacks weights
   (AMX on x64, REPACK on arm64). U10 measured the cost on a CPU where both
-  load. Whether `-nr` also covers 0003's keys is agreed with 0003's session
-  (U11).
+  load. Agreed with 0003's session (U11): CPU keys only, 0003's
+  `darwin-arm64-cpu` included; Vulkan and Metal keys stay as they are.
 
 ## U5 What the system must hold, at pin time
 
@@ -364,7 +366,8 @@ a comment on PACT-85:
 - `pickPlatform`'s `win32`/`linux` branch and the darwin `x64` branch
   (U4) are this delta's, with 0003's OK; so are the flips of 0003's tests
   that assert the Rosetta refusal, and `machoFlags`'s `arch` option.
-- `serverArgs`' `-nr` (U4): agreed with 0003's session before T1 writes it.
+- `serverArgs`' `-nr` (U4): agreed, keyed on `backend === 'cpu'`, written
+  by this delta after 0003's last item.
 - This work stays stacked on 0003's branch and rebases on each of its pushes.
 
 ## U12 Out of scope (deferred)
@@ -391,7 +394,7 @@ a comment on PACT-85:
 | --- | --- | --- |
 | A clear refusal without `setpriv` vs. running safely without it | Run safely, through the keeper | The issue asks for either; the keeper is already built and tested for macOS, and NixOS and slim Debian images have no `/usr/bin/setpriv` |
 | The keeper everywhere on Linux vs. only without `setpriv` | Only without it | `setpriv` survives both processes being killed; the keeper doesn't |
-| `-nr` on every key vs. only where repacking crashes | Every key | Which CPUs crash can't be known ahead; U10 prices the cost where both load |
+| `-nr` on every CPU key vs. only where repacking crashes | Every CPU key, no GPU key | Which CPUs crash can't be known ahead, and U10 prices the cost where both load; no evidence covers a GPU key |
 | One forward timeout vs. one per backend | 180 s on CPU, 60 s on GPU | A slow CPU answers in up to 70 s; on a GPU a long wait means a fault |
 | End to end in `gate.yml` vs. its own workflow | Its own workflow, path-filtered, not required | 6.7 GB and minutes per job on every PR would slow every change; GitHub leaves a path-skipped required check pending |
 | A real model in CI vs. a tiny test model | The real pinned model | "Answers" means Clef's answers; a tiny model would have missed U10's crash |
@@ -459,8 +462,9 @@ evidence on its own head.
   end to end" for Linux, or `clef-setpriv`. A newcomer can turn Clef on from
   the doc alone on Linux arm64 without `setpriv`; `reader-lens` checks this
   at Test.
-- **C-U11** `serverArgs` holds `-nr` for every key (or as U11's agreement
-  says), and the argument list test changes with it.
+- **C-U11** `serverArgs` holds `-nr` as its last item for every CPU key,
+  0003's `darwin-arm64-cpu` included, and for no Vulkan or Metal key; the
+  argument list tests change with it.
 - **C-U12** The forward timeout is 180 s on CPU keys and 60 s on GPU keys,
   through a seam a test sets; a stub that answers after 61 s gets an answer
   on a CPU key and `no-answer` on a GPU key.
