@@ -65,11 +65,15 @@ function runBody(tree, t, env = {}) {
   };
 }
 
+/** A refused run's lines without its NEXT lines, which poster-next.test.mjs holds (PACT-52). */
+const refusedLines = r => r.real.lines.filter(l => !l.startsWith('NEXT: '));
+
 /** Every refusal row: exit 2, nothing sent, each refusal naming a rule, the body, a line and a column, and no cell text. */
 function refusedQuietly(r) {
   assert.equal(r.real.code, 2, r.out);
   assert.equal(r.calls.length, 0, 'a refusal calls no gh');
-  for (const l of r.real.lines.slice(0, -1)) assert.match(l, /^REFUSED (?:(?:table\/[a-z]+|fence\/unclosed) body [1-9][0-9]*:[1-9][0-9]*|text\/hidden-line body_file)$/, r.out);
+  assert.match(r.real.lines.at(-2), /^NEXT: /, r.out);
+  for (const l of refusedLines(r).slice(0, -1)) assert.match(l, /^REFUSED (?:(?:table\/[a-z]+|fence\/unclosed) body [1-9][0-9]*:[1-9][0-9]*|text\/hidden-line body_file)$/, r.out);
   assert.ok(!r.out.includes(MARK), `the output quotes a cell: ${r.out}`);
 }
 
@@ -165,7 +169,7 @@ test('a real post with a broken table is refused before any gh call', t => {
   const calls = [];
   const r = postOld(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5'], { gh: (...a) => (calls.push(a), { ok: true, stdout: '{"login":"tester"}', stderr: '' }), env: {}, ...MACHINE });
   assert.equal(r.code, 2, r.lines.join('\n'));
-  assert.deepEqual(r.lines, ['REFUSED table/disposition body 5:15', 'RESULT: refused 1']);
+  assert.deepEqual(r.lines, ['REFUSED table/disposition body 5:15', NEXT_FOR['table/disposition'], 'RESULT: refused 1']);
   assert.equal(calls.length, 0);
 });
 
@@ -173,15 +177,17 @@ test('a real post with a broken table is refused before any gh call', t => {
 test('with lone carriage returns, the scan and the table check name the same lines', t => {
   const hidden = String.fromCharCode(0x200b) + 'x';
   const r = runBody({ 'body.md': [LABEL, '', hidden, HEADER, SEP, '| new a | b | changed | c |', ''].join('\r') }, t);
-  assert.deepEqual(r.real.lines, ['REFUSED text/hidden body 3:1', 'REFUSED table/disposition body 6:15', NEXT_FOR['text/hidden'], 'RESULT: refused 2']);
+  assert.deepEqual(r.real.lines, ['REFUSED text/hidden body 3:1', 'REFUSED table/disposition body 6:15', NEXT_FOR['text/hidden'], NEXT_FOR['table/disposition'], 'RESULT: refused 2']);
 });
 
 // #280 C7, ADR 0076: a body full of broken rows names the first fifty and counts the rest, so the result line stays in view.
 test('table refusals past fifty are counted, not listed', t => {
   const r = runBody({ 'body.md': body(LABEL, '', HEADER, SEP, ...Array(5000).fill('|')) }, t);
   assert.equal(r.real.code, 2);
-  assert.equal(r.real.lines.length, 52, r.real.lines.slice(-3).join('\n'));
+  // Fifty REFUSED lines, the note, the NEXT line of the one rule they break straight above the result.
+  assert.equal(r.real.lines.length, 53, r.real.lines.slice(-3).join('\n'));
   assert.equal(r.real.lines[50], 'NOTE: 4950 more table refusals not listed');
+  assert.equal(r.real.lines[51], NEXT_FOR['table/cells']);
   assert.equal(r.real.lines.at(-1), 'RESULT: refused 5000');
 });
 
@@ -207,7 +213,7 @@ test("a broken row in the review comment's Lens dispositions fold is refused at 
   const text = LAYOUT([ROWS[0], bad]);
   const r = runBody({ 'body.md': text }, t);
   refusedQuietly(r);
-  assert.deepEqual(r.real.lines, [`REFUSED table/disposition body ${lineOf(text, bad)}:31`, 'RESULT: refused 1']);
+  assert.deepEqual(refusedLines(r), [`REFUSED table/disposition body ${lineOf(text, bad)}:31`, 'RESULT: refused 1']);
 });
 
 // #401 C8: a diagram fence left open swallows the folds and the table, so the body is refused at the fence; closed, the same body passes (the C2 test above).
@@ -216,16 +222,17 @@ test('a fence left open is refused at the fence', t => {
   const r = runBody({ 'body.md': text }, t);
   assert.equal(r.real.code, 2, r.out);
   assert.equal(r.calls.length, 0, 'a refusal calls no gh');
-  assert.deepEqual(r.real.lines, [`REFUSED fence/unclosed body ${lineOf(text, `${FENCE3}mermaid`)}:1`, 'RESULT: refused 1']);
+  assert.deepEqual(refusedLines(r), [`REFUSED fence/unclosed body ${lineOf(text, `${FENCE3}mermaid`)}:1`, 'RESULT: refused 1']);
+  const lines = text => refusedLines(runBody({ 'body.md': text }, t));
   // Each line a diagram never holds refuses on its own, though a later closer would close the fence: another fence, a fold's opening tag, its closing tag.
   const refusedAtOne = ['REFUSED fence/unclosed body 1:1', 'RESULT: refused 1'];
-  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, 'flowchart TB', `${FENCE4}text`, 'x', FENCE4, FENCE3) }, t).real.lines, refusedAtOne);
+  assert.deepEqual(lines(body(`${FENCE3}mermaid`, 'flowchart TB', `${FENCE4}text`, 'x', FENCE4, FENCE3)), refusedAtOne);
   // The unclosed fold is also refused as hidden, for it would hide what follows (#524).
-  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '<details><summary>x</summary>', FENCE3) }, t).real.lines, ['REFUSED text/hidden-line body_file', ...refusedAtOne.slice(0, 1), 'RESULT: refused 2']);
-  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '</details>', FENCE3) }, t).real.lines, refusedAtOne);
+  assert.deepEqual(lines(body(`${FENCE3}mermaid`, '<details><summary>x</summary>', FENCE3)), ['REFUSED text/hidden-line body_file', ...refusedAtOne.slice(0, 1), 'RESULT: refused 2']);
+  assert.deepEqual(lines(body(`${FENCE3}mermaid`, '</details>', FENCE3)), refusedAtOne);
   // A tilde fence, and a fence indented three spaces, are fences too.
-  assert.deepEqual(runBody({ 'body.md': body('text', '', '~~~', 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:1', 'RESULT: refused 1']);
-  assert.deepEqual(runBody({ 'body.md': body('text', '', `   ${FENCE3}text`, 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:4', 'RESULT: refused 1']);
+  assert.deepEqual(lines(body('text', '', '~~~', 'a line')), ['REFUSED fence/unclosed body 3:1', 'RESULT: refused 1']);
+  assert.deepEqual(lines(body('text', '', `   ${FENCE3}text`, 'a line')), ['REFUSED fence/unclosed body 3:4', 'RESULT: refused 1']);
 });
 
 // #280 C7: the review procedure's fold, a four-backtick fence holding a three-backtick line, stays closed to the check.
@@ -251,13 +258,13 @@ test('each refusal names its line and column, and a rule broken twice is named t
   ]);
 });
 
-// #336 C4: a read row's Finding cell starts with a state word, or is exactly the withheld text, which takes no state word, whatever its case, spacing or markup; a refusal names the cell's place, never its text.
+// #336 C4: a read row's Finding cell starts with a state word, and the word "withheld", whatever its case, spacing or markup, never follows it; the bare text `withheld, see chat` is no exemption (PACT-67); a refusal names the cell's place, never its text.
 test('a Finding cell without a state word is refused as table/state at its column, and a skipped row\'s Finding cell is not read', t => {
   const row = finding => body(LABEL, '', HEADER, SEP, `| ${finding} | b | fixed | c |`);
-  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat', `new withheld, see chat ${MARK}`, 'new Withheld, see chat', 'updated **withheld**, see chat', 'new withheld', 'new _withheld_, see chat', 'new `withheld`, see chat', 'new "withheld", see chat', 'Withheld, see chat', '**withheld, see chat**', 'new \u201Cwithheld\u201D, see chat', 'new ~~withheld~~, see chat', 'withheld,  see chat', /* #478: the template's own shape, a severity mark, word and colon before the text */ 'new 🔴 high: withheld, see chat', 'updated 🟠 medium: withheld, see chat', 'unchanged 🟡 low withheld, see chat', 'absent 🔴 HIGH: Withheld, see chat', 'new high: withheld, see chat', 'new 🔴 high security?: withheld, see chat', 'updated 🟠 medium (security?): withheld, see chat', 'unchanged 🟡 low, security? withheld, see chat']) {
+  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, /* PACT-67: the bare text is a Finding cell with no state word */ 'withheld, see chat', 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat', `new withheld, see chat ${MARK}`, 'new Withheld, see chat', 'updated **withheld**, see chat', 'new withheld', 'new _withheld_, see chat', 'new `withheld`, see chat', 'new "withheld", see chat', 'Withheld, see chat', '**withheld, see chat**', 'new \u201Cwithheld\u201D, see chat', 'new ~~withheld~~, see chat', 'withheld,  see chat', /* #478: the template's own shape, a severity mark, word and colon before the text */ 'new 🔴 high: withheld, see chat', 'updated 🟠 medium: withheld, see chat', 'unchanged 🟡 low withheld, see chat', 'absent 🔴 HIGH: Withheld, see chat', 'new high: withheld, see chat', 'new 🔴 high security?: withheld, see chat', 'updated 🟠 medium (security?): withheld, see chat', 'unchanged 🟡 low, security? withheld, see chat']) {
     const r = runBody({ 'body.md': row(finding) }, t);
     refusedQuietly(r);
-    assert.deepEqual(r.real.lines, ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);
+    assert.deepEqual(refusedLines(r), ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);
   }
   // An empty cell's column is its start, right after the pipe.
   assert.deepEqual(tableCheck(row('')), [{ rule: 'table/state', where: 'body 5:2' }], 'an empty Finding cell');
@@ -266,16 +273,12 @@ test('a Finding cell without a state word is refused as table/state at its colum
   assert.deepEqual(tableCheck(row('new with\u00ADhe\u200Dld, see chat')), [{ rule: 'table/state', where: 'body 5:3' }], 'two different format characters inside the word');
   // #392: forms that render as the word but are written differently are read on the normalised view.
   for (const [form, finding] of [['a character reference', 'new &#119;ithheld, see chat'], ['an inline element', 'new with<b></b>held, see chat'], ['an HTML comment', 'new with<!-- x -->held, see chat'], ['fullwidth letters', 'new ｗｉｔｈｈｅｌｄ, see chat'], ['a combining grapheme joiner', 'new with\u034Fheld, see chat'], ['the word in a closed comment', 'new <!-- withheld -->, see chat'], ['the word in an unclosed comment', 'new <!-- withheld, see chat'], ['the word as a bare tag', 'new <withheld>, see chat'], ['emphasis inside the word', 'new with**held**, see chat'], ['a code span inside the word', 'new with`held`, see chat'], ['link brackets inside the word', 'new with[held](x), see chat'], ['a link address inside the word', 'new [with](x)held, see chat'], ['an empty link before the word', 'new [](x)withheld, see chat'], ['a reference label inside the word', 'new [with][r]held, see chat'], ['a link address with parentheses inside the word', 'new [with](a(b))held, see chat'], ['a link title with a parenthesis inside the word', 'new [with](x "a)")held, see chat'], ['a link address with a lone quote inside the word', "new [with](a'b)held, see chat"], /* #394 C10 */ ['a named reference outside the old list', 'new &wscr;ithheld, see chat'], /* #394 C11, read by the floor alone */ ['the word in a closed comment, split by an empty inline pair', 'new <!-- with<i></i>held -->, see chat']]) assert.deepEqual(tableCheck(row(finding)), [{ rule: 'table/state', where: 'body 5:3' }], form);
-  // A withheld row's Disposition cell is one bare word, never noted, so it tells nothing of the finding.
-  const held = word => body(LABEL, '', HEADER, SEP, `| withheld, see chat | b | ${word} | c |`);
-  for (const word of ['open (trade-off: Hardening)', 'open: security', 'noted', `fixed (auto: ${MARK})`, `skipped, because ${MARK}`]) assert.deepEqual(tableCheck(held(word)), [{ rule: 'table/disposition', where: 'body 5:28' }], `withheld row: ${word}`);
-  for (const word of ['open', 'fixed', 'taken', 'dismissed']) assert.deepEqual(rules(held(word)), [], `withheld row: ${word}`);
-  // A Disposition word that is no word at all is refused once, not again for the withheld row.
-  assert.deepEqual(tableCheck(held(`${MARK}`)), [{ rule: 'table/disposition', where: 'body 5:28' }], 'withheld row: not a word');
-  // The bare-word rule is the withheld row's alone: an ordinary row may still be noted.
+  // PACT-67: the bare cell is refused whatever its Disposition holds, and the Disposition itself is read as in any row.
+  for (const word of ['open', 'taken', 'dismissed', 'noted', 'open (trade-off: Hardening)', `fixed (auto: ${MARK})`]) assert.deepEqual(tableCheck(body(LABEL, '', HEADER, SEP, `| withheld, see chat | b | ${word} | c |`)), [{ rule: 'table/state', where: 'body 5:3' }], `bare cell: ${word}`);
+  // An ordinary row may be noted.
   assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| new ${MARK} | b | noted | c |`)), [], 'ordinary row: noted');
-  // A finding that quotes the withheld text after other words is a finding, not a withheld row.
-  for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat', `new ${MARK} quotes "withheld, see chat"`, `new withhelden ${MARK}`, `new 3 withheld reports ${MARK}`, /* #478 */ 'new 🟠 medium: it quotes "withheld, see chat" later', 'new 🟡 low: higher withheld text']) assert.deepEqual(rules(row(finding)), [], finding);
+  // A finding that quotes the withheld text after other words is a finding.
+  for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, `new ${MARK} quotes "withheld, see chat"`, `new withhelden ${MARK}`, `new 3 withheld reports ${MARK}`, /* #478 */ 'new 🟠 medium: it quotes "withheld, see chat" later', 'new 🟡 low: higher withheld text']) assert.deepEqual(rules(row(finding)), [], finding);
   for (const finding of ['', `${MARK} F1`, 'new withheld, see chat']) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| ${finding} | b | skipped, because ${MARK} | c |`)), [], `skipped: ${JSON.stringify(finding)}`);
 });
 

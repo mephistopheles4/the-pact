@@ -104,7 +104,7 @@ Ask each lens to report in this shape:
   quote. None: post it. One: edit it, from its body and the round comments
   read just before, writing a `body_file` with no signature line and no
   `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: update the newest and mention the duplicate there. Post the round comment first. If a status edit is refused
+  `after <stage> further read (<your label>)`. More than one: edit the newest and name the duplicate in it. Post the round comment first. If a status edit is refused
   `post/owned-line` because the `body_file` kept a signature or an `Edited:`
   line, rebuild it without them. If
   the status edit fails or is refused, the record stays whole: say in the
@@ -185,13 +185,12 @@ trust the result. It is the diagram's heading. The type follows the sentence:
 A flowchart is never the default: a comment holds at most one, and use it only
 when no other row answers the sentence.
 
-- Diagram format and pin colours: `review-diagrams.md`, beside this file.
+- **Format and pin colours:** read `review-diagrams.md`, beside this file.
 - **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
 - **A fix not yet decided** is labelled "proposed, not yet decided" in any
   diagram that draws it, so it can't read as done.
-- **Every lens report posts** in the record word for word, like any other; nothing is withheld, but a report refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 
 ## Posting
 
@@ -202,6 +201,7 @@ when no other row answers the sentence.
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image.
+- **Every lens report posts** in the record word for word, like any other. One refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each issue, ticket, spec, decision and pull
   request my ask in `quote`, exactly (the sentences that define the work or
@@ -211,7 +211,7 @@ when no other row answers the sentence.
   yourself, as plain text. With no record, quote it in each
   hand-off. At a phase boundary, put the state and the open questions in the
   record, and propose a fresh session.
-- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint at level 3.
+- **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint in Turbo mode.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the
     ask lists are where the work starts, and a limit in my words, such as
