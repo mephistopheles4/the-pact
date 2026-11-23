@@ -1,4 +1,4 @@
-# Spec delta: Clef everywhere — Linux end to end, no setpriv dependency, arm64, a doc for anyone — V1
+# Spec delta: Clef everywhere — Linux end to end, no setpriv dependency, arm64, Intel Macs, a doc for anyone — V1
 
 Status: draft. Amends [0002-clef-runner](0002-clef-runner.md) and builds on
 [0003-clef-macos](0003-clef-macos.md); everything they say holds unless a
@@ -21,7 +21,8 @@ run end to end in CI with the real pinned server and model on CPU:
 | Windows | arm64 | CPU, Vulkan | CPU |
 | Linux (glibc) | x64 | CPU, Vulkan | CPU, with and without `setpriv` |
 | Linux (glibc) | arm64 | CPU, Vulkan | CPU |
-| macOS | arm64 | Metal, CPU | 0003 carries it (U12) |
+| macOS | arm64 | Metal, CPU | 0003 carries it; a real-server run waits on the owner's call on a larger runner (U12) |
+| macOS (Intel) | x64 | CPU | CPU, on `macos-15-intel` if U10 shows it fits |
 
 Who uses it: anyone who turns `clef` on, on any of these machines.
 
@@ -32,15 +33,17 @@ The session took these picks, each logged as a checkpoint:
 1. **A delta spec.** 0002 has shipped and 0003 is in review. The PR that lands
    this also edits 0002 S2 pick 8, S12's Linux row, S13 and S17 to point here,
    and 0003 M12's "the keeper on Linux" line. It changes nothing else in them.
-2. **Platforms.** The four rows above, plus macOS arm64 through 0003. The
-   other builds b12211 ships stay out, each for its reason (U12).
+2. **Platforms.** The rows above: four here, macOS arm64 through 0003, and
+   Intel Macs on CPU here, since b12211 ships `llama-b12211-bin-macos-x64.tar.gz`.
+   The other builds b12211 ships stay out, each for its reason (U12).
 3. **No `setpriv`: the keeper.** On Linux, when `/usr/bin/setpriv` is
    absent, the supervisor starts the server through 0003 M5's keeper, as it
    does on macOS. `/usr/bin/setpriv` stays the first line where it exists,
    since the kernel ends the server even when the supervisor and the keeper
    are both killed. The `/proc` sweep stays the second line on every Linux
    machine. Setup no longer refuses `clef-setpriv`.
-4. **arm64 rows** for Linux and Windows, CPU and Vulkan, all from tag b12211.
+4. **arm64 rows** for Linux and Windows, CPU and Vulkan, and one
+   `darwin-x64-cpu` row, all from tag b12211.
    Their assets were published on 2026-11-08, so they meet the 14-day rule.
 5. **The end-to-end run is its own workflow,** `clef-e2e.yml`, not a job in
    `gate.yml`. It fetches 6.7 GB per job and takes minutes, so it runs only
@@ -63,7 +66,7 @@ The session took these picks, each logged as a checkpoint:
 ## U3 The pin table (amends 0002 S5)
 
 - `PLATFORM_KEYS` gains `linux-arm64-cpu`, `linux-arm64-vulkan`,
-  `win32-arm64-cpu` and `win32-arm64-vulkan`.
+  `win32-arm64-cpu`, `win32-arm64-vulkan` and `darwin-x64-cpu`.
 - `SERVER.archives` gains one row each:
 
   | Key | Archive | Size | sha256 starts | Created |
@@ -72,14 +75,20 @@ The session took these picks, each logged as a checkpoint:
   | `linux-arm64-vulkan` | `llama-b12211-bin-ubuntu-vulkan-arm64.tar.gz` | 29,209,302 | `60cd8d01` | 2026-11-08 |
   | `win32-arm64-cpu` | `llama-b12211-bin-win-cpu-arm64.zip` | 13,236,751 | `bf52f656` | 2026-11-08 |
   | `win32-arm64-vulkan` | `llama-b12211-bin-win-vulkan-arm64.zip` | 25,768,892 | `06c268aa` | 2026-11-08 |
+  | `darwin-x64-cpu` | `llama-b12211-bin-macos-x64.tar.gz` | 12,455,590 | `6055cc67` | 2026-11-08 |
 
   The full sha256 is the release API's `digest`. `kind`, `exe` and `files`
-  come from running `gate/tests/clef-files-list.mjs` for the four keys.
+  come from running `gate/tests/clef-files-list.mjs` for the five keys.
+- **One key for Intel Macs.** llama.cpp's macOS x64 build is expected to
+  carry no Metal backend; the files list confirms it. If it holds
+  `libggml-metal`, the row's server gets `--device none`, as 0003's
+  `darwin-arm64-cpu` does; else it gets neither `-ngl` nor `--device`.
 - **A stated exception to 0002 S5's pin-PR rule,** as 0003 M3 makes for macOS.
-  The four rows land in the code PR. In its Test round the security pair reads
+  The five rows land in the code PR. In its Test round the security pair reads
   them as it reads a pin PR, with its own fetch of each asset's `digest`,
   `created_at` and `updated_at`. For the two CPU rows, the end-to-end job's
-  six-case run (U7) stands for C14. The two Vulkan rows have no machine to run
+  six-case run (U7) stands for C14, and for `darwin-x64-cpu` when its job
+  runs. The two Vulkan rows have no machine to run
   on (GitHub's arm64 runners have no GPU): C14 for them waits for the first
   arm64 machine with a Vulkan driver where setup picks Vulkan, and runs before
   that machine uses Clef's answers.
@@ -88,8 +97,12 @@ The session took these picks, each logged as a checkpoint:
 
 - **The pick.** `pickPlatform` accepts `arch` `x64` or `arm64` on `win32` and
   `linux`, and builds the key from it. Any other arch on those systems
-  refuses `clef-platform`, naming the arch. 0003's darwin branch is
-  untouched.
+  refuses `clef-platform`, naming the arch. On `darwin`, `x64` picks
+  `darwin-x64-cpu` with no probe, and `--cpu` changes nothing; this replaces
+  0003 M4's Rosetta refusal. node can't tell Rosetta from an Intel Mac
+  without a helper process, so the plan's `why` line reads "x64 node: CPU
+  build; on Apple Silicon, use an arm64 node for Metal" instead of refusing.
+  The darwin lines are agreed with 0003's session (U11).
 - **The Vulkan probe.** On Linux it looks for `libvulkan.so.1` in `/usr/lib`,
   `/usr/lib64`, and the multiarch folders for the running arch only
   (`x86_64-linux-gnu` on x64, `aarch64-linux-gnu` on arm64, under both
@@ -117,6 +130,9 @@ files, printed in the pin record, beside 0003 M4's Mach-O check:
   `glibc` (for example `'2.35'`) and checked by U4. A kept ELF file whose
   machine field doesn't match the row's arch (`EM_X86_64` or `EM_AARCH64`)
   is flagged.
+- **Mach-O** (`darwin-x64-cpu`): 0003 M4's check holds, with the thin
+  arch taken from the row: `x86_64` (CPU type `0x01000007`) here, `arm64`
+  on 0003's rows. A fat file is flagged on both.
 - **PE** (Windows rows): each kept PE file's import names that no kept file
   provides, and its machine field, which must be `AMD64` or `ARM64` as the row
   says (flagged otherwise; an `ARM64EC` or `ARM64X` image is flagged too).
@@ -190,7 +206,7 @@ files, printed in the pin record, beside 0003 M4's Mach-O check:
     `gate/tests/clef-e2e.mjs` and the workflow file itself;
   - `permissions: contents: read`, actions pinned to the same SHAs as
     `gate.yml`, `persist-credentials: false`, no cache, no upload, no secret;
-  - five jobs, each `timeout-minutes: 45`, Node 24, running
+  - six jobs, each `timeout-minutes: 45`, Node 24, running
     `env -u NODE_OPTIONS node gate/tests/clef-e2e.mjs "$RUNNER_TEMP/clef-e2e" <key>`:
 
     | Job | Runner | Key | Before the run |
@@ -200,6 +216,10 @@ files, printed in the pin record, beside 0003 M4's Mach-O check:
     | `clef-e2e-linux-arm64` | `ubuntu-24.04-arm` | `linux-arm64-cpu` | — |
     | `clef-e2e-windows-x64` | `windows-2025` | `win32-x64-cpu` | — |
     | `clef-e2e-windows-arm64` | `windows-11-arm` | `win32-arm64-cpu` | — |
+    | `clef-e2e-macos-x64` | `macos-15-intel` | `darwin-x64-cpu` | — |
+
+    The macOS job is in only if U10 shows the model fits that runner; else
+    the doc states Intel Macs as not run end to end.
 
     The keeper job also checks, after `ensure`, that the server's parent is a
     node process (the keeper) and not `setpriv`.
@@ -252,7 +272,7 @@ these:
 
 Before any code, push a throwaway branch (never merged, no PR) holding a
 workflow that runs on a push to that branch only, with the lockdown above. On
-each of the five runners it fetches the pinned archive for the runner and the
+each of the six runners it fetches the pinned archive for the runner and the
 pinned model, checks both by size and sha256, starts `llama-server` with
 0002 S7's arguments on CPU, asks the six cases on `/v1/systemone`, and prints
 the time to ready, each answer's time and band, and the peak memory. On the
@@ -279,15 +299,14 @@ rebases on each of its pushes.
 
 ## U12 Out of scope (deferred)
 
-- **macOS end to end in CI:** 0003's. GitHub's standard macOS arm64 runner
-  has 7 GB of memory, which the model and its context likely don't fit; 0003
-  or a later delta decides.
+- **macOS arm64 end to end in CI:** pending the owner's call on a paid,
+  larger runner. GitHub's standard macOS arm64 runner has 7 GB of memory,
+  which the model and its context likely don't fit.
 - **CUDA, ROCm, SYCL, OpenVINO and OpenCL builds.** No CI runner has the
   GPU, and the archives run to hundreds of MB. Vulkan covers NVIDIA, AMD and
   Intel GPUs on Linux and Windows.
 - **Linux s390x, Android, and the Snapdragon builds.** No runner, and no one
   has asked.
-- **macOS x64:** 0003 M12.
 - **musl Linux:** b12211 ships no musl build. Setup refuses it clearly (U4).
 - **Vulkan end to end anywhere but the owner's machine.**
 
@@ -309,7 +328,7 @@ rebases on each of its pushes.
 Thorough: each ticket is its own session, stacked on the one before, all on
 0003's branch.
 
-1. **T1: arm64 pins and the pick.** U3, U4, U5. Claims C-U1 to C-U4. Runs U10's
+1. **T1: arm64 and Intel Mac pins, and the pick.** U3, U4, U5. Claims C-U1 to C-U4. Runs U10's
    experiment first.
 2. **T2: no setpriv.** U6. Claims C-U5, C-U6. Starts once 0003's keeper is on
    its branch.
@@ -322,9 +341,11 @@ Thorough: each ticket is its own session, stacked on the one before, all on
 
 - **C-U1** `pickPlatform` picks the arm64 keys on `win32` and `linux` with
   `arch: 'arm64'`, CPU with `--cpu`, Vulkan when the probe finds the loader;
+  picks `darwin-x64-cpu` on `darwin` `x64`, with and without `--cpu`, with
+  U4's `why` line;
   refuses `clef-platform` on `ia32`, `s390x` and `ppc64`. The Linux probe
   looks in the running arch's multiarch folders only, and runs no process.
-- **C-U2** The shape check passes the four new rows. `files` came from
+- **C-U2** The shape check passes the five new rows. `files` came from
   `clef-files-list.mjs`; the pin record shows each asset's `digest`,
   `created_at` and `updated_at`.
 - **C-U3** Setup refuses `clef-platform` on Linux with no
@@ -358,7 +379,7 @@ Thorough: each ticket is its own session, stacked on the one before, all on
 
 | What | Kind | When |
 | --- | --- | --- |
-| The arm64 rows as a stated pin exception, and the security pair's read of them | checkpoint | at T1's Test |
+| The arm64 and Intel Mac rows as a stated pin exception, and the security pair's read of them | checkpoint | at T1's Test |
 | The security pair on `clef-e2e.yml` and the keeper on Linux | checkpoint | at T2's and T3's Test |
 | U10's sort, if a runner or a band fails | checkpoint | after the experiment |
 | Merging each ticket (`claude/tools/`, `.github/`, read closely) | checkpoint, pinned to the reviewed head | after each Test |
