@@ -31,12 +31,12 @@
 
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
+import { appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, rmdirSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
 import { createServer as createHttpServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest, Agent } from 'node:https';
 import { createServer as createNetServer } from 'node:net';
 import { homedir, userInfo } from 'node:os';
-import { dirname, join, posix, resolve, win32 } from 'node:path';
+import { basename, dirname, join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync, gunzipSync } from 'node:zlib';
 
@@ -697,6 +697,13 @@ export function accountHome() {
   }
 }
 
+/** The clef folder a supervisor serves, from its working folder `<clef folder>/runtime/<tag>`, or null when it is not one. */
+export function serveFolder(cwd, tag = SERVER.tag) {
+  const runtime = dirname(cwd);
+  const clef = dirname(runtime);
+  return basename(cwd) === tag && basename(runtime) === 'runtime' && basename(clef) === 'pact-clef' ? clef : null;
+}
+
 /** The clef folder (S3). */
 export const clefDir = home => join(home, 'pact-clef');
 
@@ -1085,7 +1092,8 @@ export function serveEnv(env, platform, runtime) {
 
 /** The server's argument list: fixed in the tool, no part from a caller. The key is in a file, never on the command line. */
 export function serverArgs({ port, keyFile, modelPath, vulkan }) {
-  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', ...(vulkan ? ['-ngl', '99'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath];
+  // --cors-origins names an origin no page has, so a web page cannot read even the server's keyless /health.
+  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan ? ['-ngl', '99'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath];
 }
 
 /** The program and arguments that start the server: on Linux through setpriv, so the kernel ends it when the supervisor dies. */
@@ -1147,21 +1155,57 @@ export async function liveSupervisor(dir) {
   return h.run === run.run && h.pid === run.pid && h.serverPid === run.serverPid ? { run, health: h } : null;
 }
 
-/** run.lock: created exclusive; a lock whose pid is gone is stale and removed. */
-function takeLock(dir, pid = process.pid) {
+/**
+ * run.lock: created exclusive. A lock whose pid is gone is stale; it is taken
+ * over under a second exclusive step (the folder run.lock.take), which re-reads
+ * the lock first, so two callers that both saw it stale cannot both win.
+ */
+export function takeLock(dir, pid = process.pid) {
   const p = runPaths(dir).lock;
-  for (let i = 0; i < 2; i++) {
+  const create = () => {
     try {
       writeFileSync(p, `${pid}\n`, { flag: 'wx', mode: 0o600 });
       return true;
-    } catch (e) {
-      if (e.code !== 'EEXIST') return false;
-      const held = Number.parseInt(String(readFileSyncSafe(p)).trim(), 10);
-      if (pidAlive(held)) return false;
-      rmSync(p, { force: true });
+    } catch {
+      return false;
+    }
+  };
+  const holder = () => Number.parseInt(String(readFileSyncSafe(p)).trim(), 10);
+  if (create()) return true;
+  if (!existsSync(p)) return create();
+  const held = holder();
+  if (pidAlive(held)) return false;
+  if (Number.isNaN(held)) {
+    // A lock being written has no pid yet; only an old one with none is stale.
+    try {
+      if (Date.now() - statSync(p).mtimeMs < 2000) return false;
+    } catch {
+      return create();
     }
   }
-  return false;
+  const mutex = `${p}.take`;
+  try {
+    mkdirSync(mutex, { mode: 0o700 });
+  } catch {
+    // another caller is taking it over; one left by a dead caller is cleared for the next try
+    try {
+      if (Date.now() - statSync(mutex).mtimeMs > 10_000) rmdirSync(mutex);
+    } catch {
+      // gone
+    }
+    return false;
+  }
+  try {
+    if (pidAlive(holder())) return false;
+    rmSync(p, { force: true });
+    return create();
+  } finally {
+    try {
+      rmdirSync(mutex);
+    } catch {
+      // gone
+    }
+  }
 }
 
 function readFileSyncSafe(p) {
@@ -1315,7 +1359,7 @@ function freePort() {
 export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now }) {
   const ready = notSetUp(dir, platform, server, model);
   if (!ready.setup) {
-    writeFail(dir, 'setup', now);
+    writeFail(dir, 'exit', now);
     throw new Refused('clef-setup', `not set up (${ready.reason})`);
   }
   const rp = runPaths(dir);
@@ -1326,8 +1370,8 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const serverKey = randomBytes(32).toString('hex');
   const runId = randomBytes(16).toString('hex');
   rmSync(rp.run, { force: true });
-  writeFileSync(rp.key, `${serverKey}\n`, { mode: 0o600 });
   const serverPort = await freePort();
+  writeFileSync(rp.key, `${serverKey}\n`, { mode: 0o600 });
   const exePath = exe ?? join(p.runtime, destName(ready.archive.exe, ready.archive.exe));
   const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan' }), pdeathsig });
   let stopping = false;
@@ -1356,7 +1400,8 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const cleanFiles = () => {
     const cur = readJsonFile(rp.run);
     if (!cur || cur.run === runId) rmSync(rp.run, { force: true });
-    rmSync(rp.key, { force: true });
+    // run.key is this run's only when it still holds this run's key; a newer run's is left alone.
+    if (readFileSyncSafe(rp.key).trim() === serverKey) rmSync(rp.key, { force: true });
   };
   const stop = async reason => {
     if (stopping) return done;
@@ -1375,7 +1420,9 @@ export async function serve({ dir, platform = process.platform, env = process.en
     }
     if (child && child.exitCode === null && child.signalCode === null) {
       child.kill();
-      await Promise.race([childExited, sleep(5000)]);
+      let giveUp;
+      await Promise.race([childExited, new Promise(r => (giveUp = setTimeout(r, 5000)))]);
+      clearTimeout(giveUp);
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
     }
     cleanFiles();
@@ -1460,12 +1507,19 @@ export async function serve({ dir, platform = process.platform, env = process.en
     });
   });
   httpServer.on('clientError', (e, socket) => socket.destroy());
-  await new Promise((resolveP, reject) => {
-    httpServer.once('error', reject);
-    httpServer.listen(0, '127.0.0.1', resolveP);
-  });
-  const port = httpServer.address().port;
-  writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: child.pid, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
+  try {
+    await new Promise((resolveP, reject) => {
+      httpServer.once('error', reject);
+      httpServer.listen(0, '127.0.0.1', resolveP);
+    });
+    const port = httpServer.address().port;
+    writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: child.pid, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
+  } catch (e) {
+    // The server is already running: end it before the failure goes up, or nothing would.
+    writeFail(dir, 'exit', now);
+    await stop('exit');
+    throw e;
+  }
   releaseLock(dir);
   logLine(dir, `serving ready no`);
   const startedAt = now();
@@ -1520,14 +1574,11 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
   if (!setup.setup) return { out: { state: 'not-set-up', reason: setup.reason }, code: 3 };
   const failed = () => {
     const f = readJsonFile(rp.fail);
-    return f && typeof f.time === 'number' && now() - f.time < FAIL_BACKOFF_MS ? { state: 'failed', reason: ['exit', 'timeout', 'setup'].includes(f.reason) ? f.reason : 'exit' } : null;
+    return f && typeof f.time === 'number' && now() - f.time < FAIL_BACKOFF_MS ? { state: 'failed', reason: ['exit', 'timeout'].includes(f.reason) ? f.reason : 'exit' } : null;
   };
   const lastFail = failed();
   if (lastFail) return { out: lastFail, code: 4 };
   let live = await liveSupervisor(dir);
-  if (live) return { out: stateOf(live), code: 0 };
-  const wasLocked = !takeLock(dir);
-  if (!wasLocked) rmSync(rp.run, { force: true });
   const waitFor = async () => {
     for (;;) {
       live = await liveSupervisor(dir);
@@ -1538,6 +1589,9 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
       await sleep(100);
     }
   };
+  if (live) return live.health.ready || secs === 0 ? { out: stateOf(live), code: 0 } : waitFor();
+  const wasLocked = !takeLock(dir);
+  if (!wasLocked) rmSync(rp.run, { force: true });
   if (wasLocked) return waitFor();
   try {
     if (platform === 'linux') sweepOrphans({ dir, procRoot, kill });
@@ -1594,7 +1648,7 @@ export async function statusRun({ dir, platform = process.platform, server = SER
   const live = await liveSupervisor(dir);
   lines.push(`run: ${live ? (live.health.ready ? 'ready' : 'starting') : 'stopped'}`);
   const f = readJsonFile(runPaths(dir).fail);
-  lines.push(`last failure: ${f && ['exit', 'timeout', 'setup'].includes(f.reason) ? f.reason : 'none'}`);
+  lines.push(`last failure: ${f && ['exit', 'timeout'].includes(f.reason) ? f.reason : 'none'}`);
   return { lines, code: 0 };
 }
 
@@ -1643,7 +1697,7 @@ const quote = s => JSON.stringify(String(s)).slice(1, -1);
 const MODES = Object.freeze({ setup: ['--cpu', '--yes'], verify: [], ensure: [], serve: [], stop: [], status: [], remove: ['--yes'] });
 
 /** Runs one mode. `io` is { out(line), }; returns the exit code. */
-export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome() } = {}) {
+export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome(), serveOptions = {} } = {}) {
   const refuse = (word, why) => {
     out(`REFUSED ${word}: ${why}`);
     out(`RESULT: refused ${word}`);
@@ -1666,19 +1720,30 @@ export async function main(argv, { env = process.env, platform = process.platfor
   const flags = new Set(flagArgs);
   if (flagArgs.length !== flags.size || flagArgs.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${known.length ? known.join(' and ') : mode === 'ensure' ? '--wait <seconds>' : 'no flags'}`);
   let dir;
-  try {
-    dir = clefDir(claudeHome(env, account ?? homedir()));
-  } catch (e) {
-    return refuse(e.code ?? 'usage', quote(e.message));
+  let fromEnv = false;
+  if (mode === 'serve') {
+    // `ensure` starts the supervisor from runtime/<tag>/ of the clef folder it checked, and the environment it passes does not carry CLAUDE_CONFIG_DIR, so the folder comes from where it was started.
+    try {
+      dir = serveFolder(realOf(cwd));
+    } catch {
+      dir = null;
+    }
+    if (!dir) return refuse('clef-home', 'serve runs only from runtime/<tag>/ in the clef folder');
+  } else {
+    try {
+      dir = clefDir(claudeHome(env, account ?? homedir()));
+    } catch (e) {
+      return refuse(e.code ?? 'usage', quote(e.message));
+    }
+    // The default folder under the account's home is not outside input; a value from the environment is, and so is a home taken from HOME or USERPROFILE when the account record cannot be read. Those are checked against the starting folder, before anything is made.
+    fromEnv = Boolean(env.CLAUDE_CONFIG_DIR) || account === null;
+    try {
+      if (fromEnv) assertOutsideStart(dir, cwd);
+    } catch (e) {
+      return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be checked');
+    }
   }
-  // The default folder under the account's home is not outside input; a value from the environment is, and so is a home taken from HOME or USERPROFILE when the account record cannot be read. Those are checked against the starting folder, before anything is made.
-  const fromEnv = Boolean(env.CLAUDE_CONFIG_DIR) || account === null;
-  try {
-    if (fromEnv) assertOutsideStart(dir, cwd);
-  } catch (e) {
-    return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be checked');
-  }
-  // Every mode starts from the clef folder and starts no program by a bare name (S6).
+  // Every mode but serve starts from the clef folder (serve stays in runtime/<tag>/, S7), and none starts a program by a bare name (S6).
   try {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
   } catch {
@@ -1686,7 +1751,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
   }
   try {
     assertRealFolders(dir, cwd, { checkStart: fromEnv });
-    chdir(mode === 'remove' ? dirname(dir) : dir);
+    if (mode !== 'serve') chdir(mode === 'remove' ? dirname(dir) : dir);
   } catch (e) {
     return e instanceof Refused ? refuse(e.code, quote(e.message)) : refuse('usage', 'the clef folder cannot be entered');
   }
@@ -1703,7 +1768,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
       return r.code;
     }
     if (mode === 'serve') {
-      const h = await serve({ dir, platform, env });
+      const h = await serve({ dir, platform, env, ...serveOptions });
       const reason = await h.done;
       return ['exit', 'timeout'].includes(reason) ? 1 : 0;
     }

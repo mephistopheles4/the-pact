@@ -4,7 +4,8 @@
 // here downloads or runs the real server.
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync as clefRm, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync as clefRm, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -20,23 +21,25 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const STUB = `
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 const [cfgPath, ...args] = process.argv.slice(2);
 const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
 const arg = n => args[args.indexOf(n) + 1];
 const key = readFileSync(arg('--api-key-file'), 'utf8').trim();
 writeFileSync(cfg.record, JSON.stringify({ args, cwd: process.cwd(), env: process.env, pid: process.pid, key }));
+const t0 = Date.now();
 if (cfg.exitAfterMs) setTimeout(() => process.exit(1), cfg.exitAfterMs);
 createServer((req, res) => {
   if (req.headers.authorization !== 'Bearer ' + key) { res.writeHead(401); return res.end('no'); }
   if (req.url === '/health') {
-    if (cfg.notReady) { res.writeHead(503); return res.end('{}'); }
+    if (cfg.notReady || (cfg.readyAfterMs && Date.now() - t0 < cfg.readyAfterMs)) { res.writeHead(503); return res.end('{}'); }
     res.writeHead(200, { 'content-type': 'application/json' });
     return res.end('{"status":"ok"}');
   }
   let b = '';
   req.on('data', c => (b += c));
   req.on('end', () => {
+    appendFileSync(cfg.requests, 'x\\n');
     if (cfg.mode === 'status500') { res.writeHead(500); return res.end('SECRET-SERVER-TEXT'); }
     if (cfg.mode === 'text') { res.writeHead(200); return res.end('SECRET-SERVER-TEXT'); }
     const { questions } = JSON.parse(b);
@@ -80,15 +83,17 @@ function fixture(t, cfgExtra = {}) {
   const stub = join(root, 'stub.mjs');
   const cfg = join(root, 'stub.json');
   const record = join(root, 'record.json');
+  const requests = join(root, 'requests.txt');
   writeFileSync(stub, STUB);
-  writeFileSync(cfg, JSON.stringify({ record, ...cfgExtra }));
+  writeFileSync(cfg, JSON.stringify({ record, requests, ...cfgExtra }));
+  const forwarded = () => (existsSync(requests) ? readFileSync(requests, 'utf8').split('\n').filter(Boolean).length : 0);
   const exe = { exe: process.execPath, exePrefix: [stub, cfg], pdeathsig: false };
   const recorded = async () => {
     for (let i = 0; i < 100 && !existsSync(record); i++) await sleep(50);
     return JSON.parse(readFileSync(record, 'utf8'));
   };
-  const setCfg = extra => writeFileSync(cfg, JSON.stringify({ record, ...cfgExtra, ...extra }));
-  return { root, cfgHome, dir, p, stub, cfg, record, exe, recorded, setCfg, stoppers, run: clef.runPaths(dir) };
+  const setCfg = extra => writeFileSync(cfg, JSON.stringify({ record, requests, ...cfgExtra, ...extra }));
+  return { root, cfgHome, dir, p, stub, cfg, record, exe, recorded, setCfg, forwarded, stoppers, run: clef.runPaths(dir) };
 }
 
 async function startServe(t, f, opts = {}) {
@@ -106,14 +111,15 @@ async function ready(f) {
   throw new Error('the supervisor did not get ready');
 }
 
-function call({ port, token, path = '/v1/systemone', method = 'POST', headers = {}, body, host = `127.0.0.1:${port}`, raw }) {
+function call({ port, token, path = '/v1/systemone', method = 'POST', headers = {}, body, host = `127.0.0.1:${port}`, raw, chunked = false }) {
   return new Promise((resolveP, reject) => {
     const data = raw ?? (body === undefined ? null : Buffer.from(JSON.stringify(body)));
     const h = { host, ...headers };
     if (token) h.authorization = `Bearer ${token}`;
     if (data) {
       if (!('content-type' in h)) h['content-type'] = 'application/json';
-      h['content-length'] = String(data.length);
+      // without a content-length node sends the body chunked
+      if (!chunked) h['content-length'] = String(data.length);
     }
     const req = request({ host: '127.0.0.1', port, path, method, headers: h, agent: false }, res => {
       const chunks = [];
@@ -136,9 +142,9 @@ const QUESTIONS = {
 
 test('serverArgs: the list is fixed, the key is a file, and Vulkan adds -ngl 99', () => {
   const a = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', vulkan: false });
-  assert.deepEqual(a, ['--host', '127.0.0.1', '--port', '4242', '--api-key-file', '/k/run.key', '--no-webui', '--no-slots', '-c', '16384', '-ub', '4096', '-b', '4096', '-m', '/m/x.gguf']);
+  assert.deepEqual(a, ['--host', '127.0.0.1', '--port', '4242', '--api-key-file', '/k/run.key', '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', '-c', '16384', '-ub', '4096', '-b', '4096', '-m', '/m/x.gguf']);
   const v = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', vulkan: true });
-  assert.deepEqual(v.slice(8, 10), ['-ngl', '99']);
+  assert.deepEqual(v.slice(10, 12), ['-ngl', '99']);
   assert.ok(!a.includes('--api-key'), 'no key on the command line');
 });
 
@@ -255,6 +261,8 @@ test('serve: each request is checked, refused with a fixed reason, and never ech
   await refused('body', 400, { token, body: { state: {}, questions: {} } });
   await refused('body', 400, { token, body: { state: {}, questions: { a: { type: 'other' } } } });
   await refused('body', 400, { token, body: { state: {}, questions: { a: { type: 'choice' } } } });
+  await refused('too-large', 413, { token, raw: Buffer.alloc(300 * 1024, 0x20), chunked: true });
+  assert.equal(f.forwarded(), 0, 'no refused request reached the server');
   const ok = await call({ port, token, path: '/health', method: 'GET' });
   assert.equal(ok.status, 200);
   assert.deepEqual(Object.keys(JSON.parse(ok.text)).sort(), ['pid', 'ready', 'run', 'serverPid']);
@@ -321,6 +329,64 @@ test('serve: a server that exits ends the supervisor and records run.fail with a
   assert.equal(fail.reason, 'exit');
   assert.equal(existsSync(f.run.run), false);
   assert.equal(existsSync(f.run.key), false);
+  const rec = await f.recorded();
+  const log = readFileSync(f.run.log, 'utf8');
+  for (const bad of [rec.key, 'api-key-file', f.p.model, f.dir]) assert.ok(!log.includes(bad), `the log after a failed start holds no ${bad === rec.key ? 'key' : bad}`);
+  assert.match(log, /stopped exit lines \d+/);
+});
+
+test('serve: a failure after the server is spawned ends the server and clears run.key before it is rethrown', async t => {
+  const f = fixture(t);
+  let calls = 0;
+  const now = () => {
+    calls += 1;
+    if (calls === 2) {
+      // let the stub start and record itself before the failure, so the test can name its pid
+      for (const until = Date.now() + 8000; !existsSync(f.record) && Date.now() < until;) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+      throw new Error('boom');
+    }
+    return Date.now();
+  };
+  await assert.rejects(clef.serve({ dir: f.dir, ...f.exe, idleMs: 60_000, checkMs: 60_000, pollMs: 50, now }), /boom/);
+  const rec = await f.recorded();
+  assert.ok(await gone(rec.pid), 'the server is not left running');
+  assert.equal(existsSync(f.run.key), false);
+  assert.equal(existsSync(f.run.run), false);
+  assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).reason, 'exit');
+});
+
+test('serve: a stop leaves a newer run\'s key and run.json alone', async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f);
+  await ready(f);
+  writeFileSync(f.run.key, 'another-runs-key\n');
+  const newer = JSON.stringify({ port: 1, token: 'x', run: 'another-run', pid: 1, serverPid: 1, started: 'now' });
+  writeFileSync(f.run.run, newer);
+  await h.stop('test');
+  assert.equal(readFileSync(f.run.key, 'utf8'), 'another-runs-key\n');
+  assert.equal(readFileSync(f.run.run, 'utf8'), newer);
+});
+
+test('takeLock: a stale lock is taken over under run.lock.take, and not while another caller holds that step', t => {
+  const f = fixture(t);
+  writeFileSync(f.run.lock, '2000000000\n');
+  mkdirSync(`${f.run.lock}.take`);
+  assert.equal(clef.takeLock(f.dir), false, 'a caller is already taking it over');
+  assert.equal(readFileSync(f.run.lock, 'utf8'), '2000000000\n', 'the lock is untouched');
+  clefRm(`${f.run.lock}.take`, { recursive: true });
+  assert.equal(clef.takeLock(f.dir), true);
+  assert.equal(Number.parseInt(readFileSync(f.run.lock, 'utf8'), 10), process.pid);
+  assert.equal(existsSync(`${f.run.lock}.take`), false, 'the step is released');
+  assert.equal(clef.takeLock(f.dir, process.pid + 1), false, 'a live holder keeps it');
+  clefRm(f.run.lock);
+  mkdirSync(`${f.run.lock}.take`);
+  writeFileSync(f.run.lock, '2000000000\n');
+  const old = new Date(Date.now() - 60_000);
+  utimesSync(`${f.run.lock}.take`, old, old);
+  assert.equal(clef.takeLock(f.dir), false, 'this try is lost, but a step left by a dead caller is cleared');
+  assert.equal(existsSync(`${f.run.lock}.take`), false);
+  assert.equal(clef.takeLock(f.dir), true, 'the next try wins');
+  clefRm(f.run.lock);
 });
 
 test('serve: a server that never gets ready times out with run.fail timeout', async t => {
@@ -386,7 +452,7 @@ test('serve: a folder that is not set up fails with clef-setup and run.fail setu
   const f = fixture(t);
   writeFileSync(f.p.setup, JSON.stringify({ platform: 'x', tag: 'b1', model: 'y' }));
   await assert.rejects(clef.serve({ dir: f.dir, ...f.exe }), e => e instanceof clef.Refused && e.code === 'clef-setup');
-  assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).reason, 'setup');
+  assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).reason, 'exit');
   assert.equal(existsSync(f.record), false, 'the stub never started');
 });
 
@@ -395,6 +461,8 @@ test('serve: a folder that is not set up fails with clef-setup and run.fail setu
 function wrapperFor(f, extra = '') {
   const wrapper = join(f.root, 'supervise.mjs');
   writeFileSync(wrapper, `import { serve } from ${JSON.stringify(pathToFileURL(CLEF_PATH).href)};
+import { writeFileSync } from 'node:fs';
+writeFileSync(${JSON.stringify(join(f.root, 'supervisor-env.json'))}, JSON.stringify({ env: process.env, cwd: process.cwd() }));
 const h = await serve({ dir: ${JSON.stringify(f.dir)}, exe: ${JSON.stringify(process.execPath)}, exePrefix: ${JSON.stringify(f.exe.exePrefix)}, pdeathsig: false, idleMs: 60000, checkMs: 60000, pollMs: 50 ${extra} });
 await h.done;
 `);
@@ -403,17 +471,30 @@ await h.done;
 
 /** Waits for a supervisor that is still starting to write run.json, then stops it. */
 async function stopFixture(f) {
-  for (let i = 0; i < 100 && existsSync(f.run.lock) && !existsSync(f.run.run); i++) await sleep(100);
+  const lockPid = () => Number.parseInt(existsSync(f.run.lock) ? readFileSync(f.run.lock, 'utf8') : '', 10);
+  for (let i = 0; i < 100 && existsSync(f.run.lock) && !existsSync(f.run.run) && alive(lockPid()); i++) await sleep(100);
   await clef.stopRun({ dir: f.dir });
 }
 
-const ensure = (f, o = {}) => clef.ensure({ dir: f.dir, supervisorCommand: wrapperFor(f), ...o });
+const ensure = (f, o = {}) => clef.ensure({ dir: f.dir, ...o, supervisorCommand: o.supervisorCommand ?? wrapperFor(f) });
+
+/** A live process that is not a supervisor, ended when the fixture is. */
+function sleeperProcess(f) {
+  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 120000)'], { stdio: 'ignore' });
+  f.stoppers.push(() => child.kill());
+  return child;
+}
 const alive = pid => {
   try {
     process.kill(pid, 0);
-    return true;
   } catch {
     return false;
+  }
+  // A process that was killed and has no parent left to reap it stays as a zombie in a container without an init.
+  try {
+    return !/^\d+ \(.*\) Z /.test(readFileSync(`/proc/${pid}/stat`, 'utf8'));
+  } catch {
+    return true;
   }
 };
 async function gone(pid, ms = 8000) {
@@ -478,6 +559,9 @@ test('ensure: a start that failed less than 10 minutes ago is state failed with 
   assert.deepEqual(r, { out: { state: 'failed', reason: 'exit' }, code: 4 });
   assert.equal(existsSync(f.record), false);
   assert.ok((await clef.statusRun({ dir: f.dir })).lines.includes('last failure: exit'));
+  writeFileSync(f.run.fail, `${JSON.stringify({ time: Date.now() - 9 * 60_000, reason: 'timeout' })}\n`);
+  assert.deepEqual(await ensure(f, { wait: 1 }), { out: { state: 'failed', reason: 'timeout' }, code: 4 }, 'still held at 9 minutes');
+  assert.equal(f.forwarded(), 0);
   await clef.stopRun({ dir: f.dir });
   assert.equal(existsSync(f.run.fail), false);
   writeFileSync(f.run.fail, `${JSON.stringify({ time: Date.now() - 11 * 60_000, reason: 'exit' })}\n`);
@@ -505,7 +589,8 @@ test('liveSupervisor: an answering /health that disagrees with run.json on run, 
   const live = await ready(f);
   const good = JSON.parse(readFileSync(f.run.run, 'utf8'));
   assert.ok(await clef.liveSupervisor(f.dir));
-  for (const change of [{ run: 'other' }, { serverPid: good.serverPid + 1 }, { token: 'wrong' }, { port: live.run.port + 1 }]) {
+  const sleeper = sleeperProcess(f);
+  for (const change of [{ run: 'other' }, { serverPid: good.serverPid + 1 }, { pid: sleeper.pid }, { token: 'wrong' }, { port: live.run.port + 1 }]) {
     writeFileSync(f.run.run, JSON.stringify({ ...good, ...change }));
     assert.equal(await clef.liveSupervisor(f.dir), null, JSON.stringify(Object.keys(change)));
   }
@@ -521,8 +606,11 @@ test('ensure: a stale lock is removed, and a live lock makes a losing ensure wai
   await clef.stopRun({ dir: f.dir });
   clefRm(f.record);
   writeFileSync(f.run.lock, `${process.pid}\n`);
-  const r = await ensure(f, { wait: 1 });
+  let asked = 0;
+  const wrapper = wrapperFor(f);
+  const r = await ensure(f, { wait: 1, supervisorCommand: () => { asked += 1; return wrapper(); } });
   assert.deepEqual(r, { out: { state: 'starting' }, code: 0 });
+  assert.equal(asked, 0, 'the losing ensure never asked for a supervisor');
   assert.equal(existsSync(f.record), false, 'the losing ensure never spawned');
   clefRm(f.run.lock);
 });
@@ -532,6 +620,7 @@ test('remove: without --yes it deletes nothing; with --yes it stops a live super
   const outside = join(f.root, 'outside');
   mkdirSync(outside);
   writeFileSync(join(outside, 'keep.txt'), 'x');
+  writeFileSync(join(f.cfgHome, 'sibling.txt'), 'x');
   let linked = true;
   try {
     symlinkSync(outside, join(f.dir, 'trap'), 'junction');
@@ -549,6 +638,7 @@ test('remove: without --yes it deletes nothing; with --yes it stops a live super
   assert.equal(done.lines.at(-1), 'removed');
   assert.equal(existsSync(f.dir), false);
   assert.ok(await gone(run.pid) && (await gone(run.serverPid)));
+  assert.equal(readFileSync(join(f.cfgHome, 'sibling.txt'), 'utf8'), 'x', 'only the clef folder is deleted, not the folder it sits in');
   if (linked) assert.equal(readFileSync(join(outside, 'keep.txt'), 'utf8'), 'x', 'the link target is untouched');
 });
 
@@ -622,6 +712,157 @@ test('main: ensure, status, stop and remove run from the clef folder (remove fro
   assert.deepEqual(moved.slice(0, 3), [f.dir, f.dir, f.dir]);
   assert.equal(await clef.main(['remove', '--yes'], { ...base, out: l => out.push(l) }), 0);
   assert.equal(existsSync(f.dir), false);
+});
+
+// ------------------------------------------------------------ the real start path, the lock and the kill (round 1)
+
+const NAMED_ENV = new Set('SYSTEMROOT WINDIR TEMP TMP HOME USERPROFILE LOCALAPPDATA XDG_RUNTIME_DIR PATH LD_LIBRARY_PATH'.split(' '));
+// Windows itself fills in these when it starts a process for the user; Node copies them from the caller's own environment.
+if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE', 'USERDOMAIN', 'USERNAME']) NAMED_ENV.add(n);
+const sameFolder = (a, b) => realpathSync.native(a).toLowerCase() === realpathSync.native(b).toLowerCase();
+const POISON = { NODE_OPTIONS: '--no-warnings', GGML_BACKEND_PATH: '/evil', LLAMA_ARG_HOST: '0.0.0.0', HF_TOKEN: 'secret', VK_ICD_FILENAMES: '/evil', SECRET_X: 's' };
+
+test('serveFolder: the clef folder is read from runtime/<tag>/ and from nothing else', () => {
+  const tag = clef.SERVER.tag;
+  assert.equal(clef.serveFolder(join('x', 'pact-clef', 'runtime', tag)), join('x', 'pact-clef'));
+  for (const bad of [join('x', 'pact-clef'), join('x', 'pact-clef', 'runtime'), join('x', 'pact-clef', 'runtime', 'b1'), join('x', 'pact-clef', 'models', tag), join('x', 'other', 'runtime', tag), join('x', 'runtime', tag), '']) {
+    assert.equal(clef.serveFolder(bad), null, bad);
+  }
+});
+
+test('ensure: the supervisor it starts is `node <script> serve` run from runtime/<tag>/, with a named environment and without CLAUDE_CONFIG_DIR', async t => {
+  const f = fixture(t);
+  const recorder = join(f.root, 'recorder.mjs');
+  const seenFile = join(f.root, 'launched.json');
+  writeFileSync(recorder, `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(seenFile)}, JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd(), env: process.env }));\n`);
+  f.stoppers.push(() => stopFixture(f));
+  const r = await clef.ensure({ dir: f.dir, wait: 0, scriptPath: recorder, env: { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome } });
+  assert.deepEqual(r, { out: { state: 'starting' }, code: 0 });
+  for (let i = 0; i < 100 && !existsSync(seenFile); i++) await sleep(50);
+  const seen = JSON.parse(readFileSync(seenFile, 'utf8'));
+  assert.deepEqual(seen.argv, ['serve']);
+  assert.ok(sameFolder(seen.cwd, f.p.runtime), 'started from runtime/<tag>/');
+  for (const k of Object.keys(seen.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()), `${k} is not on the list`);
+  assert.ok(!Object.keys(seen.env).some(k => k.toUpperCase() === 'CLAUDE_CONFIG_DIR'));
+});
+
+test('main: serve takes its clef folder from its working folder, never from CLAUDE_CONFIG_DIR, and refuses to run from anywhere else', async t => {
+  const f = fixture(t);
+  const other = tempDir(t, 'clef-other-');
+  const out = [];
+  const code = await clef.main(['serve'], { env: { ...process.env, CLAUDE_CONFIG_DIR: other }, cwd: f.p.runtime, account: other, out: l => out.push(l), chdir: () => { throw new Error('serve does not change folder'); }, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
+  assert.equal(code, 0, out.join('\n'));
+  assert.equal(existsSync(join(other, 'pact-clef')), false, 'nothing is made where the variable points');
+  assert.match(readFileSync(f.run.log, 'utf8'), /stopped idle/);
+  for (const cwd of [f.dir, f.p.models, tempDir(t, 'clef-start-')]) {
+    const lines = [];
+    assert.equal(await clef.main(['serve'], { env: { CLAUDE_CONFIG_DIR: other }, cwd, account: other, out: l => lines.push(l), chdir: () => {} }), 2, cwd);
+    assert.equal(lines.at(-1), 'RESULT: refused clef-home');
+  }
+});
+
+test('ensure: the supervisor and the server get only the named environment, and the server\'s PATH is the fixed one', async t => {
+  const f = fixture(t);
+  f.stoppers.push(() => stopFixture(f));
+  const env = { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome };
+  assert.equal((await ensure(f, { wait: 20, env })).out.state, 'ready');
+  const sup = JSON.parse(readFileSync(join(f.root, 'supervisor-env.json'), 'utf8'));
+  for (const k of Object.keys(sup.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()), `the supervisor got ${k}`);
+  assert.ok(sameFolder(sup.cwd, f.p.runtime));
+  const rec = await f.recorded();
+  const pathKey = Object.keys(rec.env).find(k => k.toUpperCase() === 'PATH');
+  assert.equal(rec.env[pathKey].toLowerCase(), clef.serveEnv(env, process.platform, f.p.runtime).PATH.toLowerCase(), 'the server\'s PATH is the fixed one, not the caller\'s');
+  for (const k of Object.keys(rec.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()), `the server got ${k}`);
+});
+
+test('ensure: with --wait N and a supervisor that is already starting, it waits for ready', async t => {
+  const f = fixture(t, { readyAfterMs: 1200 });
+  await startServe(t, f);
+  let live = null;
+  for (let i = 0; i < 100 && !live; i++) {
+    live = await clef.liveSupervisor(f.dir);
+    if (!live) await sleep(50);
+  }
+  assert.equal(live.health.ready, false);
+  assert.equal((await ensure(f, { wait: 0 })).out.state, 'starting');
+  const r = await ensure(f, { wait: 15 });
+  assert.equal(r.out.state, 'ready');
+  assert.equal(r.code, 0);
+});
+
+test('ensure and stop leave alone a live process that run.json names but that is not a supervisor', async t => {
+  const f = fixture(t);
+  f.stoppers.push(() => stopFixture(f));
+  const sleeper = sleeperProcess(f);
+  const decoy = () => writeFileSync(f.run.run, JSON.stringify({ port: 1, token: 'x', run: 'y', pid: sleeper.pid, serverPid: 1, started: 'now' }));
+  decoy();
+  assert.equal((await ensure(f, { wait: 20 })).out.state, 'ready');
+  assert.ok(alive(sleeper.pid), 'ensure left it');
+  await clef.stopRun({ dir: f.dir });
+  assert.ok(alive(sleeper.pid), 'stop left it');
+  decoy();
+  assert.deepEqual((await clef.stopRun({ dir: f.dir })).lines, ['none running']);
+  assert.ok(alive(sleeper.pid), 'stop with none live left it');
+});
+
+test('a supervisor that is killed outright leaves no server behind within 2 seconds', async t => {
+  if (!WIN && !existsSync('/usr/bin/setpriv')) return t.skip('no /usr/bin/setpriv on this machine');
+  const f = fixture(t);
+  f.stoppers.push(() => stopFixture(f));
+  assert.equal((await ensure(f, { wait: 20, supervisorCommand: wrapperFor(f, ', pdeathsig: true') })).out.state, 'ready');
+  const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
+  assert.ok(alive(run.serverPid));
+  process.kill(run.pid, 'SIGKILL');
+  assert.ok(await gone(run.serverPid, 2000), 'the server went with its supervisor');
+});
+
+test('ensure: the orphan sweep runs only while it holds run.lock', async t => {
+  if (WIN) return t.skip('/proc is Linux only');
+  const f = fixture(t);
+  const proc = join(f.root, 'proc');
+  try {
+    mkdirSync(join(proc, '201'), { recursive: true });
+    writeFileSync(join(proc, '201', 'stat'), '201 (llama-server) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1 1 1 1\n');
+    symlinkSync(`${f.dir}/runtime/b1/llama-server`, join(proc, '201', 'exe'));
+  } catch {
+    return t.skip('this machine cannot make a link');
+  }
+  const killed = [];
+  writeFileSync(f.run.lock, `${process.pid}\n`);
+  await ensure(f, { wait: 0, platform: 'linux', procRoot: proc, kill: p => killed.push(p) });
+  assert.deepEqual(killed, [], 'someone else holds the lock: nothing is ended');
+  clefRm(f.run.lock);
+  f.stoppers.push(() => stopFixture(f));
+  await ensure(f, { wait: 20, platform: 'linux', procRoot: proc, kill: p => killed.push(p) });
+  assert.deepEqual(killed, [201], 'holding the lock: the orphan is ended');
+});
+
+test('ensure: callers at the same moment over a stale lock start exactly one supervisor', async t => {
+  const f = fixture(t);
+  f.stoppers.push(() => stopFixture(f));
+  const launches = join(f.root, 'launches.txt');
+  const runner = join(f.root, 'ensure-once.mjs');
+  const command = wrapperFor(f)();
+  writeFileSync(runner, `import { ensure } from ${JSON.stringify(pathToFileURL(CLEF_PATH).href)};
+import { appendFileSync } from 'node:fs';
+const r = await ensure({ dir: ${JSON.stringify(f.dir)}, wait: 0, supervisorCommand: () => { appendFileSync(${JSON.stringify(launches)}, 'x\\n'); return ${JSON.stringify(command)}; } });
+process.stdout.write(JSON.stringify(r.out));
+`);
+  for (let round = 0; round < 3; round++) {
+    await clef.stopRun({ dir: f.dir });
+    clefRm(launches, { force: true });
+    writeFileSync(f.run.lock, '2000000000\n');
+    const results = await Promise.all(Array.from({ length: 12 }, () => new Promise(resolveP => {
+      const c = spawn(process.execPath, [runner], { stdio: ['ignore', 'pipe', 'inherit'] });
+      let text = '';
+      c.stdout.on('data', d => (text += d));
+      c.on('exit', code => resolveP({ code, text }));
+    })));
+    for (const r of results) assert.equal(r.code, 0);
+    const n = existsSync(launches) ? readFileSync(launches, 'utf8').split('\n').filter(Boolean).length : 0;
+    assert.equal(n, 1, `round ${round}: one supervisor was started`);
+    await stopFixture(f);
+  }
 });
 
 // ------------------------------------------------------------ the shape of the source
