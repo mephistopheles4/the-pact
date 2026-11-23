@@ -860,6 +860,42 @@ test('a usage fault refuses with nothing run; no git, or one older than 2.36, is
   noPath(f, `${none.out}\n${old.out}\n${held.out}`);
 });
 
+// PACT-52 C2, C4: each usage refusal names its next step in one NEXT: line of fixed words, straight above the RESULT line, whatever was typed
+test('PACT-52: each usage refusal prints a NEXT line that says what to do, above the RESULT line, with no argument echoed', t => {
+  const f = makeRepo(t);
+  const cases = [
+    [['zzwipe'], 'usage/command', /`show` or `remove`/],
+    [['show', '--zzbogus'], 'usage/unknown-option', /`--recoverable`.*`--repo <dir>`.*`--worktree <name>`.*`--yes <tag>.*`--override <folder>=<tag>/],
+    [['show', '--repo'], 'usage/value', /takes a value straight after it/],
+    [['show', '--recoverable', '--recoverable'], 'usage/repeated', /once each/],
+    [['show', '--worktree', '../zzname'], 'usage/worktree-name', /plain folder name.*no slash/],
+    [['remove', '--yes', 'zzxyz'], 'usage/tag', /10-character tags.*16-character override tags/],
+    [['remove', '--override', 'zz/b=0123456789abcdef'], 'usage/override-name', /<folder>=<tag>.*no slash/],
+    [['remove'], 'usage/yes-missing', /Run show, then remove/],
+  ];
+  const seen = new Set();
+  for (const [argv, rule, says] of cases) {
+    const r = f.run(argv);
+    assert.equal(r.code, 2, `${argv}: ${r.out}`);
+    assert.ok(r.lines.some(l => l.startsWith(`REFUSED ${rule} `)), `${argv}: ${r.out}`);
+    assert.equal(r.lines.filter(l => l.startsWith('NEXT: ')).length, 1, `${argv}: ${r.out}`);
+    assert.match(r.lines.at(-2), /^NEXT: /, `${argv}: ${r.out}`);
+    assert.match(r.lines.at(-2), says, `${argv}: ${r.out}`);
+    assert.match(r.lines.at(-1), /^RESULT: refused [1-9]/);
+    assert.ok(!r.out.includes('zz'), `${argv}: ${r.out}`);
+    seen.add(rule);
+  }
+  // A rule refused twice prints its line once.
+  const twice = f.run(['show', '--zza', '--zzb']);
+  assert.equal(twice.lines.filter(l => l.startsWith('REFUSED usage/unknown-option ')).length, 2, twice.out);
+  assert.equal(twice.lines.filter(l => l.startsWith('NEXT: ')).length, 1, twice.out);
+  assert.equal(twice.lines.at(-1), 'RESULT: refused 2');
+  assert.ok(!twice.out.includes('zz'), twice.out);
+  // The cases cover every usage rule the parser can name.
+  const named = new Set([...readFileSync(new URL('../../claude/tools/cleaner.mjs', import.meta.url), 'utf8').matchAll(/rule: '(usage\/[a-z-]+)'/g)].map(m => m[1]));
+  assert.deepEqual([...seen].sort(), [...named].sort());
+});
+
 // ------------------------------------------------------------ --recoverable (#446, grimoire 484 S2.8)
 
 // --recoverable needs git 2.45. Where the real git is older, as in the Linux

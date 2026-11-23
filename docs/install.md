@@ -32,8 +32,8 @@ holds them:
   text counts there: it leaves that to judgment. Before you use the rules on
   a tracker where others can comment, keep that tracker private, or write
   your own rule into the repo's `AGENTS.md` or a doc it points to, as this repo does.
-- Review reports, security findings included, go to the project's issue
-  tracker word for word, so choose its visibility knowing that.
+- **Review reports, security findings included, go to the work's record** word
+  for word, so choose its visibility knowing that.
 
 [The threat model](threat-model.md) says what the pact accepts and what is
 still open. Read it before you decide.
@@ -596,9 +596,10 @@ installer's own floor) and `node` on the PATH.
   taken out. The dry run warns once per event that holds a hook the pact did
   not install, one that names the script but is not the pact's entry
   included, and lists each pact event it adds, updates or removes.
-- **What the hook does.** Past the window minus 80000 tokens, it asks the
-  session once per turn, until compaction, to update its hand-off file,
-  `~/.claude/pact/handoff/<session id>.md`. It asks the compaction summary to
+- **What the hook does.** Past the window minus 80000 tokens, it tells the
+  session once per turn, until compaction, as a plain statement, that its
+  hand-off file, `~/.claude/pact/handoff/<session id>.md`, is due an update.
+  It asks the compaction summary to
   name that file, and after compaction puts the file's first 8 KB back into
   context, marked as the session's own notes, data and not instructions. It
   acts only in a main session, never blocks, and on any error does nothing.

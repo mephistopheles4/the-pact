@@ -664,8 +664,8 @@ for (const [id, argv, expected] of [
     assert.equal(r.code, 2, out(r));
     assert.deepEqual(rules(r), expected);
     assert.equal(last(r), `RESULT: refused ${expected.length}`);
-    // The NEXT line follows an unknown option only.
-    assert.equal(r.lines.some(l => l.startsWith('NEXT:')), expected.some(e => e.startsWith('usage/unknown-option')), out(r));
+    // Every usage refusal is followed by its NEXT line (PACT-52); an old command line gets its one fixed line, not two.
+    assert.match(r.lines.at(-2), /^NEXT: /, out(r));
   });
 }
 
