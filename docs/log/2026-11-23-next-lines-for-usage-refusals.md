@@ -6,7 +6,7 @@ The poster now prints a `NEXT:` line, straight above `RESULT:` (after any `NOTE:
 
 The auto-compact nudge was an order ("Update your hand-off file now"). The hooks reference asks for factual statements in `additionalContext`, since text framed as an out-of-band command can trigger Claude's prompt-injection defences. It now says the hand-off file is how the session's place survives compaction, and is due an update, with what the file holds. The cloud copy carries the same hook, so `cloud-sessions/gen.mjs` was run. Once this merges, the owner pastes `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again.
 
-ADR 0082 said exits 0, 2 and 4 print no `NEXT:` line; [0166](../adr/0166-exit-2-prints-a-next-line-for-each-rule-it-refused.md) amends it.
+ADR 0082 said exits 0, 2 and 4 print no `NEXT:` line; [0167](../adr/0167-exit-2-prints-a-next-line-for-each-rule-it-refused.md) amends it.
 
 Left as notes on the issue: `RESULT: refused` is exit 2 in the poster and cleaner but exit 1 in the installer, the tracker checker and the builder (callers read the codes); the tools print to different streams; both hooks fail open and silent on an error (their comments say they never block).
 
