@@ -1,7 +1,11 @@
 # Spec delta: Clef everywhere — Linux end to end, no setpriv dependency, arm64, Intel Macs, a doc for anyone — V1
 
 Status: approved at 9987584 after spec round 2 (final), the lead's decision
-86, flagged for the owner's review. Amends
+86, flagged for the owner's review. **Amended at T1** by the lead's decision
+93, flagged for the owner's review (no spec round; the security pair reads it
+at T1's Test): U5's allowed list gains the OpenSSL 3 and Visual C++ runtime
+names its first report found, U4 gains a Visual C++ runtime check at setup, C-U3 a
+claim for it, and U9 names both as system needs with the glibc floors. Amends
 [0002-clef-runner](0002-clef-runner.md) and builds on
 [0003-clef-macos](0003-clef-macos.md); everything they say holds unless a
 section here replaces it. The spec counts once it is on `main`.
@@ -179,6 +183,17 @@ The session took these picks, each logged as a checkpoint:
   picks CPU even with a Vulkan loader, with the `why` line "x64 node on an
   arm64 machine: CPU", since arm64 Vulkan is not checked. If T1 finds
   `os.machine()` can't tell under emulation, the doc states the gap instead.
+  (T1 built the `why` line as "x64 node on an arm64 machine: CPU" whenever
+  `os.machine()` reports `arm64`, since that line says more than "x64 node: x64
+  build" and the two never both apply.)
+- **The Visual C++ runtime (amended at T1, decision 93).** On `win32`, before
+  any fetch, setup refuses `clef-platform` when `MSVCP140.dll` or
+  `VCRUNTIME140.dll`, or on an x64 row `VCRUNTIME140_1.dll`, is missing from
+  `%SystemRoot%\System32`. The reason names the Microsoft Visual C++
+  Redistributable and the files missing. The file test goes through
+  `planSetup`'s `exists` seam, and `systemRoot` is a parameter. Linux has no
+  matching setup check for OpenSSL 3: library search paths vary by
+  distribution (U13), so the doc names it instead (U9).
 - **`--no-repack`.** `serverArgs` adds `-nr` when the backend is `cpu`, as
   its last item, after 0003's `--device none`. b12211 aborts
   while loading Clef-Flash (`GGML_ASSERT(*cur_backend_id != -1)` in
@@ -218,10 +233,17 @@ code changes:
   0003 M4's prefixes. A name outside the list is a stop-and-ask, brought with
   the report before setup code is written; the list grows only by a spec
   change. (The Windows builds ship their own `libomp.dll`, a kept file.)
+  **Amended at T1 (decision 93):** the list also holds `libssl.so.3` and
+  `libcrypto.so.3` on Linux; `MSVCP140.dll`, `VCRUNTIME140.dll`,
+  `VCRUNTIME140_1.dll`, `CRYPT32.dll` and `PSAPI.DLL` on Windows; and
+  `bcryptprimitives.dll` and `iphlpapi.dll` on Windows for `llama-connect.exe`
+  alone. T1's first report found each: the Linux server needs OpenSSL 3, and
+  the Windows builds import the Visual C++ runtime, which no archive carries.
 - `docs/clef.md` names, per platform, the system libraries from this report a
   user must have (U9).
 - A gate test with fixtures shows each flag raised: an ELF needing
-  `libfoo.so.1`, an ELF of the wrong machine, a PE importing `MSVCP140.dll`,
+  `libfoo.so.1`, an ELF of the wrong machine, a PE importing `MSVCP150.dll`
+  (decision 93 moved this fixture off `MSVCP140.dll`, now allowed),
   a PE of the wrong machine, and an x86_64 Mach-O checked as arm64.
 
 ## U6 The server's lifetime without setpriv (amends 0002 S7)
@@ -375,7 +397,11 @@ code changes:
   runner's peak); a Node 24 that matches your CPU's arch; and per platform the system
   libraries U5 found and the glibc floor, with how to check a library is
   there (`ldconfig -p | grep <name>` on Linux), and the `GLIBCXX_`,
-  `CXXABI_`, `GCC_` and `GOMP_` floors U5 prints.
+  `CXXABI_`, `GCC_` and `GOMP_` floors U5 prints. **Amended at T1 (decision
+  93):** it names OpenSSL 3 (`libssl.so.3`, `libcrypto.so.3`) on Linux and the
+  Microsoft Visual C++ Redistributable on Windows as system needs, and the
+  glibc floors T1's report found: 2.34 for Linux x64 and 2.38 for Linux arm64
+  (Ubuntu 24.04 or newer, Debian 13 or newer; Ubuntu 22.04 arm64 is refused).
 - **Example machines:** the owner's (Windows x64, Vulkan) as it reads today,
   marked as one example; and each CI runner's CPU model and count, RAM, time
   to ready, median answer time and peak memory from the latest green U7
@@ -507,7 +533,11 @@ evidence on its own head.
   commits, and shows the shipped rows unchanged but for `glibc`.
 - **C-U3** Setup refuses `clef-platform` on Linux with no
   `glibcVersionRuntime` and with one below the row's `glibc`, before any
-  fetch, and passes at or above it; `2.4` is below `2.35`.
+  fetch, and passes at or above it; `2.4` is below `2.35`. On `win32`, setup
+  refuses `clef-platform` before any fetch when `MSVCP140.dll`,
+  `VCRUNTIME140.dll` or, on an x64 row, `VCRUNTIME140_1.dll` is missing from
+  `%SystemRoot%\System32`, naming the Microsoft Visual C++ Redistributable;
+  an arm64 row does not ask for `VCRUNTIME140_1.dll` (decision 93).
 - **C-U4** The files-list report flags each U5 fixture, and the shipped
   rows raise no flag.
 - **C-U5** `lifetimeLine` returns each value U6 lists. On `gate`, with
