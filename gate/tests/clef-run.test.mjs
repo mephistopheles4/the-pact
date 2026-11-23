@@ -31,6 +31,8 @@ writeFileSync(cfg.record, JSON.stringify({ args, cwd: process.cwd(), env: proces
 const t0 = Date.now();
 if (cfg.exitAfterMs) setTimeout(() => process.exit(1), cfg.exitAfterMs);
 if (cfg.ignoreTerm) process.on('SIGTERM', () => {});
+// A server busy on the keeper's pipes: a broken pipe is an error event, which this one ignores, so only a signal ends it.
+if (cfg.writeLoop) { process.stdout.on('error', () => {}); setInterval(() => process.stdout.write('loading\\n'), 5); }
 createServer((req, res) => {
   // /props as b12211 answers it: the ready check comes before the key check (spec 0003 M6).
   if (req.url === '/props') {
@@ -789,7 +791,7 @@ const macOwn = k => process.platform === 'darwin' && (k === MAC_OWN || k === 'TM
 // Windows itself fills in these when it starts a process for the user; Node copies them from the caller's own environment.
 if (WIN) for (const n of ['HOMEDRIVE', 'HOMEPATH', 'LOGONSERVER', 'SYSTEMDRIVE', 'USERDOMAIN', 'USERNAME']) NAMED_ENV.add(n);
 const sameFolder = (a, b) => realpathSync.native(a).toLowerCase() === realpathSync.native(b).toLowerCase();
-const POISON = { NODE_OPTIONS: '--no-warnings', GGML_BACKEND_PATH: '/evil', LLAMA_ARG_HOST: '0.0.0.0', HF_TOKEN: 'secret', VK_ICD_FILENAMES: '/evil', SECRET_X: 's' };
+const POISON = { NODE_OPTIONS: '--no-warnings', GGML_BACKEND_PATH: '/evil', LLAMA_ARG_HOST: '0.0.0.0', HF_TOKEN: 'secret', VK_ICD_FILENAMES: '/evil', SECRET_X: 's', DYLD_INSERT_LIBRARIES: '/evil.dylib', DYLD_LIBRARY_PATH: '/evil', [MAC_OWN]: 'POISON' };
 
 test('supervisorEnv: the named list plus CLAUDE_CONFIG_DIR when set; the server\'s list never carries it', () => {
   const env = { HOME: '/h', CLAUDE_CONFIG_DIR: '/c', NODE_OPTIONS: '--x' };
@@ -812,6 +814,7 @@ test('ensure: the supervisor it starts is `node <script> serve` run from runtime
   assert.ok(sameFolder(seen.cwd, f.p.runtime), 'started from runtime/<tag>/');
   const named = new Set([...NAMED_ENV, 'CLAUDE_CONFIG_DIR']);
   for (const k of Object.keys(seen.env)) assert.ok(named.has(k.toUpperCase()) || macOwn(k), `${k} is not on the list`);
+  assert.notEqual(seen.env[MAC_OWN], 'POISON', 'the caller\'s own copy of the macOS name is not passed');
   assert.ok(Object.keys(seen.env).some(k => k.toUpperCase() === 'PATH'), 'the named environment is passed, not an empty one');
   assert.equal(seen.env.CLAUDE_CONFIG_DIR, f.cfgHome, 'the supervisor gets the variable so it works out the same folder');
 });
@@ -848,6 +851,7 @@ test('ensure: the supervisor and the server get only the named environment, and 
   const pathKey = Object.keys(rec.env).find(k => k.toUpperCase() === 'PATH');
   assert.equal(rec.env[pathKey].toLowerCase(), clef.serveEnv(env, process.platform, f.p.runtime).PATH.toLowerCase(), 'the server\'s PATH is the fixed one, not the caller\'s');
   for (const k of Object.keys(rec.env)) assert.ok(NAMED_ENV.has(k.toUpperCase()) || macOwn(k), `the server got ${k}`);
+  for (const e of [sup.env, rec.env]) assert.notEqual(e[MAC_OWN], 'POISON', 'the caller\'s own copy of the macOS name is not passed');
 });
 
 test('ensure: with --wait N and a supervisor that is already starting, it waits for ready', async t => {
@@ -1041,18 +1045,30 @@ test('keep: SIGTERM sends the server SIGTERM, then SIGKILL after the wait', asyn
   assert.deepEqual(srv.signals, ['SIGTERM', 'SIGKILL']);
 });
 
-for (const [label, second] of [['a second message', MSG], ['a message of another shape', { ...MSG, extra: 1 }]]) {
-  test(`bad case: keep ends the server on ${label}`, () => {
-    const p = fakeProc();
-    const srv = fakeServer();
-    clef.keep({ proc: p, spawnFn: () => srv });
-    p.emit('message', MSG);
-    p.emit('message', second);
-    assert.deepEqual(srv.signals, ['SIGKILL']);
-  });
-}
+// Spec 0003 M5: the keeper waits 5 seconds after SIGTERM, which the supervisor's 7-second wait must outlast.
+test('keep: the default wait after SIGTERM is 5 seconds', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const p = fakeProc();
+  const srv = fakeServer();
+  clef.keep({ proc: p, spawnFn: () => srv });
+  p.emit('message', MSG);
+  p.emit('SIGTERM');
+  t.mock.timers.tick(4999);
+  assert.deepEqual(srv.signals, ['SIGTERM']);
+  t.mock.timers.tick(1);
+  assert.deepEqual(srv.signals, ['SIGTERM', 'SIGKILL']);
+});
 
-for (const [label, m] of [['a shell string for args', { ...MSG, args: 'rm -rf /' }], ['a number in the environment', { ...MSG, env: { X: 1 } }], ['a missing folder', { file: MSG.file, args: MSG.args, env: MSG.env }]]) {
+test('bad case: keep ends the server on a second message', () => {
+  const p = fakeProc();
+  const srv = fakeServer();
+  clef.keep({ proc: p, spawnFn: () => srv });
+  p.emit('message', MSG);
+  p.emit('message', MSG);
+  assert.deepEqual(srv.signals, ['SIGKILL']);
+});
+
+for (const [label, m] of [['a shell string for args', { ...MSG, args: 'rm -rf /' }], ['a number in the environment', { ...MSG, env: { X: 1 } }], ['a missing folder', { file: MSG.file, args: MSG.args, env: MSG.env }], ['an extra key', { ...MSG, extra: 1 }]]) {
   test(`bad case: keep spawns nothing and leaves on a first message with ${label}`, () => {
     const p = fakeProc();
     let spawned = false;
@@ -1077,6 +1093,11 @@ test('main: keep without an IPC channel refuses clef-keep and works out no folde
   const code = await clef.main(['keep'], { env: { CLAUDE_CONFIG_DIR: 'not absolute' }, out: l => out.push(l), chdir: () => assert.fail('no folder work') });
   assert.equal(code, 2);
   assert.equal(out.at(-1), 'RESULT: refused clef-keep');
+  // From a command line there is no message to act on, so no program is started.
+  const children = () => process._getActiveHandles().filter(h => h.constructor?.name === 'ChildProcess').length;
+  const before = children();
+  await clef.main(['keep'], { out: () => {}, chdir: () => assert.fail('no folder work') });
+  assert.equal(children(), before, 'no child process was started');
 });
 
 test('lifetimeLine: a job object on Windows, the keeper on macOS, setpriv on Linux', () => {
@@ -1100,6 +1121,36 @@ test('serve on the keeper line: the server answers, its pid is the keeper\'s chi
   assert.ok(await gone(sp, 9000), 'the server is ended');
 });
 
+// Spec 0003 C-M4: the keeper itself runs in the named environment, not the supervisor's.
+test('serve on the keeper line: the keeper is forked in serveEnv\'s environment and with no node flags', async t => {
+  const f = fixture(t);
+  const env = { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome };
+  let seen;
+  await startServe(t, f, { ...KEEPER, env, onKeeperOptions: o => (seen = o) });
+  await ready(f);
+  assert.deepEqual(Object.keys(seen.env).sort(), Object.keys(clef.serveEnv(env, process.platform, f.p.runtime)).sort());
+  for (const k of Object.keys(POISON)) assert.ok(!(k in seen.env) || seen.env[k] !== POISON[k], `the keeper got ${k}`);
+  assert.equal('CLAUDE_CONFIG_DIR' in seen.env, false);
+  assert.deepEqual(seen.execArgv, []);
+});
+
+// Spec 0003 C-M5: the darwin rows of setup.json reach the server's arguments through serve.
+for (const [row, backend, flags] of [['darwin-arm64-cpu', 'cpu', ['--device', 'none']], ['darwin-arm64-metal', 'metal', ['-ngl', '99']]]) {
+  test(`serve: a ${row} setup gives the server ${flags.join(' ')}`, async t => {
+    const f = fixture(t);
+    const a = clef.SERVER.archives[row];
+    writeFileSync(join(f.p.runtime, clef.destName(a.exe, a.exe)), 'x');
+    writeFileSync(f.p.setup, JSON.stringify({ ...JSON.parse(readFileSync(f.p.setup, 'utf8')), platform: row, backend }));
+    await startServe(t, f, { platform: 'darwin', line: 'job-object', env: { ...process.env } });
+    const rec = await f.recorded();
+    const at = rec.args.indexOf(flags[0]);
+    assert.ok(at >= 0, `${flags[0]} is among the arguments`);
+    assert.deepEqual(rec.args.slice(at, at + 2), flags);
+    assert.equal(rec.args.includes('--device') || rec.args.includes('-ngl'), true);
+    assert.equal(rec.args.includes(flags[0] === '-ngl' ? '--device' : '-ngl'), false, 'only the one that row names');
+  });
+}
+
 test('serve on the keeper line: with the keeper sent SIGKILL, the supervisor ends the server, records run.fail and stops', async t => {
   const f = fixture(t);
   const h = await startServe(t, f, KEEPER);
@@ -1111,7 +1162,8 @@ test('serve on the keeper line: with the keeper sent SIGKILL, the supervisor end
 });
 
 test('serve on the keeper line: a supervisor killed outright leaves no server behind within 2 seconds', async t => {
-  const f = fixture(t);
+  // The server is busy writing to the keeper's pipes, which break when the supervisor dies (spec 0003 C-M6).
+  const f = fixture(t, { writeLoop: true });
   f.stoppers.push(() => stopFixture(f));
   assert.equal((await ensure(f, { wait: 20, supervisorCommand: wrapperFor(f, ", line: 'keeper'") })).out.state, 'ready');
   const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
@@ -1170,7 +1222,7 @@ async function orphan(t, f, cfgExtra = {}, { started = new Date().toISOString(),
   for (let i = 0; i < 100 && (await clef.probeProps({ port, timeoutMs: 200 })) === 'refused'; i++) await sleep(50);
   clefRm(join(f.root, 'props.txt'), { force: true });
   writeFileSync(f.run.server, JSON.stringify({ run: 'old', pid: pid ?? child.pid, port, started }));
-  return { child, port, props: () => (existsSync(join(f.root, 'props.txt')) ? readFileSync(join(f.root, 'props.txt'), 'utf8').split('\n').filter(Boolean) : []) };
+  return { child, port, key, props: () => (existsSync(join(f.root, 'props.txt')) ? readFileSync(join(f.root, 'props.txt'), 'utf8').split('\n').filter(Boolean) : []) };
 }
 const randomHex = () => Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
 const noSpawn = () => assert.fail('nothing is spawned beside a loading orphan');
@@ -1243,8 +1295,13 @@ test('sweep: an orphan still loading keeps its record: ensure starts nothing, st
   const rm = await clef.removeRun({ dir: f.dir, yes: true, line: 'keeper', orphanWaitMs: 300 });
   assert.equal(rm.code, 1);
   assert.ok(existsSync(f.dir), 'remove deletes nothing');
-  assert.ok((await clef.statusRun({ dir: f.dir })).lines.includes(`orphan: pid ${o.child.pid}`));
+  const status = await clef.statusRun({ dir: f.dir });
+  assert.ok(status.lines.includes(`orphan: pid ${o.child.pid}`));
   assert.ok(alive(o.child.pid));
+  // Spec 0003 C-M8: the run's key is in none of what the commands print.
+  const shown = [JSON.stringify(e.out), ...st.lines, ...rm.lines, ...status.lines].join('\n');
+  assert.ok(!shown.includes(o.key), 'no output holds the run key');
+  assert.ok(!(await clef.statusRun({ dir: f.dir })).lines.join('\n').includes(o.key));
 });
 
 test('sweep: an orphan that finishes loading during the sweep is ended', async t => {
@@ -1266,13 +1323,25 @@ test('stop on the keeper line: a stop under another holder\'s lock leaves run.ke
 test('main: setup on macOS refuses clef-orphan while a recorded server is still loading, before any fetch', async t => {
   const f = fixture(t);
   const o = await orphan(t, f, { propsNotReady: true });
-  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, platform: 'darwin', arch: 'arm64', exists: () => true };
+  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, platform: 'darwin', arch: 'arm64', exists: () => true, orphanWaitMs: 300 };
   for (const argv of [['setup', '--yes'], ['setup']]) {
     const out = [];
     assert.equal(await clef.main(argv, { ...base, out: l => out.push(l) }), 2, argv.join(' '));
     assert.equal(out.at(-1), 'RESULT: refused clef-orphan');
+    assert.ok(!out.join('\n').includes(o.key), `${argv.join(' ')}: no output holds the run key`);
   }
   assert.ok(existsSync(f.run.server) && alive(o.child.pid), 'the record and the server are left');
+});
+
+// Spec 0003 M6 step 4: `setup --yes` sweeps with the 60-second bound, as stop does, and the tests that need less inject it.
+test('main: setup --yes on macOS sweeps an old server with a 60 second bound', async t => {
+  const f = fixture(t);
+  const seen = [];
+  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, platform: 'darwin', arch: 'arm64', exists: () => true, out: () => {} };
+  assert.equal(await clef.main(['setup', '--yes'], { ...base, sweep: async o => (seen.push(o.boundMs), { result: 'kept', pid: 1 }) }), 2);
+  assert.deepEqual(seen, [60_000]);
+  assert.equal(await clef.main(['setup', '--yes'], { ...base, orphanWaitMs: 300, sweep: async o => (seen.push(o.boundMs), { result: 'kept', pid: 1 }) }), 2);
+  assert.deepEqual(seen, [60_000, 300], 'a test can inject a shorter bound');
 });
 
 // Spec 0003 C-M7, C-M10: a stop under another holder's lock with a loading record leaves both files; remove --yes sweeps an orphan, then deletes the folder.
@@ -1316,6 +1385,18 @@ test('main: on macOS, serve from the runtime folder named in another case is acc
   assert.notEqual(cased, f.p.runtime);
   const out = [];
   const code = await clef.main(['serve'], { env, cwd: cased, account: f.cfgHome, out: l => out.push(l), chdir: () => {}, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
+  assert.equal(code, 0, out.join('\n'));
+  assert.match(readFileSync(f.run.log, 'utf8'), /stopped idle/);
+});
+
+// The same check on every job: `real` stands for a file system that keeps case, so only the fold in `norm` can make the two spellings equal.
+test('main: on macOS, serve from the runtime folder named in another case is accepted, on any file system', async t => {
+  const f = fixture(t);
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: f.cfgHome };
+  const cased = f.p.runtime.replace(/runtime(?=[\\/][^\\/]*$)/, 'RunTime');
+  assert.notEqual(cased, f.p.runtime);
+  const out = [];
+  const code = await clef.main(['serve'], { env, platform: 'darwin', cwd: cased, account: f.cfgHome, real: p => p, out: l => out.push(l), chdir: () => {}, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
   assert.equal(code, 0, out.join('\n'));
   assert.match(readFileSync(f.run.log, 'utf8'), /stopped idle/);
 });

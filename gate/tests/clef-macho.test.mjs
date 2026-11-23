@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { machoFlags } from './clef-macho.mjs';
 
-const LC = { load: 0xc, rpath: 0x8000001c, build: 0x32 };
+const LC = { load: 0xc, weak: 0x80000018, reexport: 0x8000001f, lazy: 0x20, rpath: 0x8000001c, build: 0x32 };
 /** A thin arm64 Mach-O holding the given load commands: [cmd, string] for a dylib or rpath, ['build', minos]. */
 function macho(cmds, { magic = 0xfeedfacf, cpu = 0x0100000c } = {}) {
   const parts = cmds.map(([cmd, v]) => {
@@ -43,6 +43,9 @@ test('Mach-O check: the kept set as the macOS pin holds it passes, and the serve
 
 for (const [label, plant, says] of [
   ['loads a dylib from /usr/local/lib', m => m.set('llama-server', macho([['load', '/usr/local/lib/x.dylib']])), /LC_LOAD_DYLIB outside the allowed paths: \/usr\/local\/lib\/x\.dylib/],
+  ['weakly loads a dylib from /usr/local/lib', m => m.set('llama-server', macho([['weak', '/usr/local/lib/x.dylib']])), /LC_LOAD_WEAK_DYLIB outside the allowed paths: \/usr\/local\/lib\/x\.dylib/],
+  ['re-exports a dylib from /usr/local/lib', m => m.set('llama-server', macho([['reexport', '/usr/local/lib/x.dylib']])), /LC_REEXPORT_DYLIB outside the allowed paths: \/usr\/local\/lib\/x\.dylib/],
+  ['lazily loads a dylib from /usr/local/lib', m => m.set('llama-server', macho([['lazy', '/usr/local/lib/x.dylib']])), /LC_LAZY_LOAD_DYLIB outside the allowed paths: \/usr\/local\/lib\/x\.dylib/],
   ['loads an @rpath name no kept file holds', m => m.delete('libggml.0.dylib'), /@rpath\/libggml\.0\.dylib does not resolve to a kept file/],
   ['holds an rpath outside the kept folder', m => m.set('libggml.0.dylib', macho([['rpath', '/opt/homebrew/lib']])), /an rpath that leaves the kept folder: \/opt\/homebrew\/lib/],
   ['holds an @loader_path rpath that climbs out', m => m.set('libggml.0.dylib', macho([['rpath', '@loader_path/../x']])), /an rpath that leaves the kept folder: @loader_path\/\.\.\/x/],

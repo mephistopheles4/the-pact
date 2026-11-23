@@ -1634,9 +1634,10 @@ function freePort() {
  * its own script changes or goes, on a signal, and when the server exits.
  * Resolves { done, stop } once it is serving; `done` resolves with the reason.
  * Test seams are parameters here only: exe and exePrefix (the server program),
- * pdeathsig, the timings, and scriptUrl.
+ * pdeathsig, the timings, scriptUrl, and onKeeperOptions (shown the options
+ * the keeper is forked with).
  */
-export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig) }) {
+export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig), onKeeperOptions = () => {} }) {
   const ready = notSetUp(dir, platform, server, model);
   if (!ready.setup) {
     writeFail(dir, 'exit', now);
@@ -1673,8 +1674,10 @@ export async function serve({ dir, platform = process.platform, env = process.en
   let gotGone = false;
   const childExited = new Promise(r => {
     try {
+      const keeperOptions = { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [], windowsHide: true };
+      onKeeperOptions(keeperOptions);
       child = useKeeper
-        ? fork(scriptPath, ['keep'], { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [], windowsHide: true })
+        ? fork(scriptPath, ['keep'], keeperOptions)
         : spawn(cmd.file, cmd.args, { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false });
     } catch {
       child = null;
@@ -2070,7 +2073,7 @@ const quote = s => JSON.stringify(String(s)).slice(1, -1);
 const MODES = Object.freeze({ setup: ['--cpu', '--yes'], verify: [], ensure: [], serve: [], stop: [], status: [], remove: ['--yes'] });
 
 /** Runs one mode. `io` is { out(line), }; returns the exit code. */
-export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome(), serveOptions = {} } = {}) {
+export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome(), serveOptions = {}, real = realOf, sweep = sweepServer, orphanWaitMs = 60_000 } = {}) {
   const refuse = (word, why) => {
     out(`REFUSED ${word}: ${why}`);
     out(`RESULT: refused ${word}`);
@@ -2114,7 +2117,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
     // `ensure` starts the supervisor from runtime/<tag>/ of the clef folder it checked, and passes it CLAUDE_CONFIG_DIR. `serve` works the folder out as every mode does and runs only from that one's runtime/<tag>/: a folder of the right shape that is not the account's is refused.
     let same = false;
     try {
-      const norm = p => (platform === 'win32' || platform === 'darwin' ? realOf(p).toLowerCase() : realOf(p));
+      const norm = p => (platform === 'win32' || platform === 'darwin' ? real(p).toLowerCase() : real(p));
       same = norm(join(dir, 'runtime', SERVER.tag)) === norm(cwd);
     } catch {
       same = false;
@@ -2174,7 +2177,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
       // Spec 0003 M6 step 7: a server still loading under an old record keeps setup off its files. The plan only reads the record; --yes sweeps it.
       if (lifetimeLine({ platform }) === 'keeper') {
         const rec = readJsonFile(runPaths(dir).server);
-        const kept = yes ? (await sweepServer({ dir, boundMs: 0 })).result === 'kept' : isServerRecord(rec) && pidAlive(rec.pid);
+        const kept = yes ? (await sweep({ dir, boundMs: orphanWaitMs })).result === 'kept' : isServerRecord(rec) && pidAlive(rec.pid);
         if (kept) return refuse('clef-orphan', 'a server from an earlier run is still loading; run `clef stop` again once it is ready');
       }
       if (yes && platform === 'linux') sweepOrphans({ dir });

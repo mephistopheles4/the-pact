@@ -134,9 +134,11 @@ The session took these picks, each logged as a checkpoint:
   passed, and no `LD_LIBRARY_PATH`. The server finds its dylibs through the
   `@loader_path` and `@rpath` entries that the Mach-O check covers.
 - **Case folding.** `insideOf` and the checks built on it (`clef-node`,
-  `clef-home`, the unpack containment), and `main`'s serve-folder check,
+  `clef-home`), and `main`'s serve-folder check,
   fold case on `darwin` as well as `win32`, as `gate/paths.mjs` already does, because APFS is case-insensitive
-  by default.
+  by default. The unpack containment check (`insideOf` in the unpack) does
+  not fold: its destination is always joined from `runtimePartial`, so a
+  difference in case can only make it refuse more, never less.
 - **The arguments.** `-ngl 99` on Metal, as on Vulkan. `darwin-arm64-cpu`
   gets `--device none` instead, because the Metal build would otherwise
   offload by default. b12211's `common/arg.cpp` reads `none` as no device.
@@ -266,13 +268,23 @@ The session took these picks, each logged as a checkpoint:
 - A third job, `gate-macos`, runs on `macos-15` (arm64), with
   `timeout-minutes: 45`. Its steps:
   - `gate`'s pinned actions, with `node-version: '24'`;
-  - `gate`'s dry-run lines (`mkdir -p "$RUNNER_TEMP/pact-home"` and the
-    install dry run);
-  - `env -u NODE_OPTIONS node gate/tests/run.mjs full --skips gate/tests/macos-skips.txt`.
+  - `gate-windows`'s dry-run lines (`mkdir -p "$RUNNER_TEMP/pact-home"`,
+    `mkdir -p "$HOME/.claude/agents"` and the install dry run). The job
+    plants the real `$HOME/.claude/agents` folder, as `gate-windows` does,
+    so the install runs against a real folder; that makes the dry run
+    stricter than `gate`'s;
+  - `env -u NODE_OPTIONS node gate/tests/run.mjs full --skips gate/tests/macos-skips.txt`;
+  - a last step, `env -u NODE_OPTIONS node gate/clef-smoke.mjs`, which
+    fetches the pinned `darwin-arm64-cpu` archive through `clef`'s own fetch
+    (so size and sha256 are checked against the pin), unpacks it through
+    `clef`'s own unpack, and fails unless `llama-server --device none
+    --version` exits 0. It starts no model and holds no secret.
 - `gate-macos` joins `GATE_JOBS` in `gate/tests/workflow.test.mjs`. For each
   bad case `gate-windows` has that applies to it, it gets a twin, each seen
-  to fail. The Windows-only cases (`shell: bash`, the `$HOME/.claude/agents`
-  line) get no twin, and the job-set message names all three jobs. The twins
+  to fail, the real-folder line included. The Windows-only case (`shell:
+  bash`) gets no twin, and the job-set message names all three jobs. A
+  missing, altered or shelled smoke step, and one added to another job,
+  each fail. The twins
   include a look-alike `gate-macos` job or check in another workflow, pins
   that differ from `gate`'s, a renamed check, `if:` or `continue-on-error` on
   the job, another Node version, a fast tier, no skip list and no dry run.

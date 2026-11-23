@@ -14,7 +14,8 @@
 # third job, gate-macos (spec 0003 M7), runs the same two steps on a pinned
 # macOS arm64 image and fails unless its skipped tests match
 # gate/tests/macos-skips.txt exactly; its dry-run step plants a real Claude
-# folder as gate-windows's does. A
+# folder as gate-windows's does, and a last step runs the pinned server once
+# (gate/clef-smoke.mjs: fetch, check, unpack, `--device none --version`). A
 # newer push to a pull request cancels its older run of every job; each push
 # to main is grouped by its own commit, so no run of this workflow cancels
 # another on main. The group is repo-wide, so a run of another workflow naming
@@ -77,6 +78,8 @@ jobs:
           env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"
       - name: Gate suite, full tier
         run: env -u NODE_OPTIONS node gate/tests/run.mjs full --skips gate/tests/macos-skips.txt
+      - name: Pinned macOS server smoke run
+        run: env -u NODE_OPTIONS node gate/clef-smoke.mjs
   gate-windows:
     name: gate-windows
     runs-on: windows-2025

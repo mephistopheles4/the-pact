@@ -178,6 +178,8 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     { id: 'asset-prefix', plant: x => { first(x.server).asset = 'other-b1-bin-x.zip'; return x; }, fails: ['asset'], why: 'an asset starts llama-<tag>-bin-' },
     // Spec 0003 M3: two keys may name one asset only when their rows are equal field for field.
     { id: 'asset-shared-unequal', plant: x => { x.server.archives['win32-x64-vulkan'].asset = first(x.server).asset; x.server.archives['win32-x64-vulkan'].size += 1; return x; }, fails: ['asset-shared'], why: 'one asset, two different rows' },
+    { id: 'asset-shared-unequal-files', plant: x => { const v = x.server.archives['win32-x64-vulkan']; v.asset = first(x.server).asset; v.size = first(x.server).size; v.sha256 = first(x.server).sha256; v.files = first(x.server).files.map(r => [...r]); v.files[0][1] += 1; return x; }, fails: ['asset-shared'], why: 'one asset, rows equal in size and sha256 but not in a kept file' },
+    { id: 'asset-shared-unequal-kind', plant: x => { const v = x.server.archives['win32-x64-vulkan']; const a = first(x.server); v.asset = a.asset; v.size = a.size; v.sha256 = a.sha256; v.files = a.files.map(r => [...r]); v.kind = a.kind === 'zip' ? 'tgz' : 'zip'; return x; }, fails: ['asset-shared'], why: 'one asset, rows equal in size, sha256 and files but not in kind' },
     { id: 'commit-short', plant: x => { x.model.commit = 'abc123'; return x; }, fails: ['commit'], why: 'a full commit, never a branch' },
     { id: 'commit-branch', plant: x => { x.model.commit = 'main'; return x; }, fails: ['commit'], why: 'a branch moves' },
     { id: 'commit-upper', plant: x => { x.model.commit = 'A'.repeat(40); return x; }, fails: ['commit'], why: 'lower-case hex' },
@@ -522,7 +524,16 @@ test('the probe picks Vulkan on the loader file and CPU without it, runs nothing
   assert.doesNotMatch(probe, /spawn|exec|child_process/, 'the probe starts nothing');
   // Spec 0003 M5: the one fork is the supervisor starting its keeper from this same file.
   assert.equal(SOURCE_TEXT.split(/\bfork\(/).length - 1, 1, 'one fork');
-  assert.match(SOURCE_TEXT, /\bfork\(scriptPath, \['keep'\],/);
+  assert.match(SOURCE_TEXT, /\bfork\(scriptPath, \['keep'\], keeperOptions\)/);
+  // The keeper is this file, run with no node flags and the node that runs the supervisor (no execPath).
+  assert.ok(SOURCE_TEXT.includes('const scriptPath = fileURLToPath(import.meta.url);'), 'the keeper is this file, not the watched script');
+  const options = SOURCE_TEXT.match(/const keeperOptions = \{[^\n]*\};/)?.[0] ?? '';
+  assert.match(options, /\bexecArgv: \[\]/);
+  assert.doesNotMatch(options, /execPath/);
+  assert.match(options, /env: serveEnv\(env, platform, p\.runtime\)/);
+  // The only way in to child processes is the one import line.
+  assert.ok(SOURCE_TEXT.includes("import { fork, spawn } from 'node:child_process';\n"), 'the one child_process import');
+  assert.equal(SOURCE_TEXT.split('child_process').length - 1, 1, 'nothing else names child_process');
   assert.doesNotMatch(SOURCE_TEXT, /execFile|execSync|spawnSync|shell: true/, 'no shell and no helper program');
   assert.equal(SOURCE_TEXT.split('spawn(').length - 1, 2, 'the supervisor and the server are the only programs started');
 });
@@ -896,10 +907,14 @@ test('setup on macOS: the darwin row is kept, verify re-hashes it, status names 
   assert.deepEqual(clef.verify({ dir: a.dir, server, model: a.model }).failed, ['sha256:libggml.0.dylib'], 'the copy is re-hashed too');
   const st = await clef.statusRun({ dir: a.dir });
   assert.ok(st.lines.includes('platform: darwin-arm64-metal') && st.lines.includes('backend: metal'), st.lines.join('|'));
+  // xattr exits non-zero for a missing file too, so each file is shown to exist first, on every job.
+  const fetched = [join(runtime, 'llama-server'), join(a.dir, 'models', `${sha(MODEL_BYTES)}.gguf`)];
+  for (const f of fetched) assert.ok(existsSync(f), `${f} was fetched`);
   if (process.platform === 'darwin') {
-    for (const f of [join(runtime, 'llama-server'), join(a.dir, 'models', `${sha(MODEL_BYTES)}.gguf`)]) {
+    for (const f of fetched) {
       const r = spawnSync('/usr/bin/xattr', ['-p', 'com.apple.quarantine', f], { encoding: 'utf8' });
       assert.notEqual(r.status, 0, `no quarantine on ${f}`);
+      assert.match(r.stderr, /No such xattr: com\.apple\.quarantine/, 'it failed because the attribute is absent');
     }
   }
 });
