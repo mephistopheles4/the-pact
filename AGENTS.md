@@ -6,21 +6,6 @@ and govern every project. `claude/` is a payload: once installed, an edit
 there changes every session in every repo. This file governs only changes to
 this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
-<!-- toc -->
-
-- [Installing](#installing)
-- [Running the gate's tests](#running-the-gates-tests)
-- [In the same change](#in-the-same-change)
-- [Reviewing a change here](#reviewing-a-change-here)
-- [The tracker](#the-tracker)
-- [Closing out](#closing-out)
-- [Agent skills](#agent-skills)
-  - [Issue tracker](#issue-tracker)
-  - [Triage labels](#triage-labels)
-  - [Domain docs](#domain-docs)
-
-<!-- /toc -->
-
 ## Installing
 
 - **Edit the repo copy, never the live file** in `~/.claude/`, and never copy

@@ -27,10 +27,12 @@ export const MAX_UNCOVERED_LINES = 100;
 /**
  * Paths left out, repo-relative with forward slashes: a prefix ends in '/'.
  * The logs and ADRs (the issue's own exclusions), test fixtures, which must
- * stay byte for byte, and what sessions load whole and the rule budget counts:
- * the rules file with its rendered cloud copy, the agents and the commands.
+ * stay byte for byte, and what sessions load whole: the rules file with its
+ * rendered cloud copy, AGENTS.md (CLAUDE.md imports it), the agents and the
+ * commands. And README.md, written for people. Anthropic's guidance asks for a
+ * table in reference files a model may read only in part (ADR 0168).
  */
-export const EXCLUDED = Object.freeze(['docs/log/', 'docs/adr/', 'gate/tests/fixtures/', 'claude/CLAUDE.md', 'cloud-sessions/CLAUDE.cloud.md', 'claude/agents/', 'claude/commands/']);
+export const EXCLUDED = Object.freeze(['docs/log/', 'docs/adr/', 'gate/tests/fixtures/', 'claude/CLAUDE.md', 'cloud-sessions/CLAUDE.cloud.md', 'claude/agents/', 'claude/commands/', 'AGENTS.md', 'README.md']);
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const HEADING = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
