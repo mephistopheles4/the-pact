@@ -143,6 +143,7 @@ All three run CI on Ubuntu with Node 24. Each ticket confirms that and records i
 The work is cut into tickets, each its own session. A repo ticket starts only after this spec is approved and T1 has merged.
 
 - **T1 (this repo):** S5 and its bad cases, the list of adopters in `docs/reference.md` (three rows, `planned`), and S8's rule as one line in AGENTS.md. AGENTS.md has a 1,750-word budget and `docs/reference.md` a 2,200-word one. If either addition doesn't fit, T1 may shorten only its own new text; otherwise it stops and asks. Raising a budget is a spec change. T1 stacks on PR 654.
+  - **Amended at T1 (the lead's pick, decision 63, accepted with no spec round at decision 77, flagged for the owner's review after).** `docs/reference.md` stood at 2,198 of its 2,200 words, so no three-row list fit and T1 stopped and asked. The budget in `gate/tests/doc-budget.test.mjs` is now 2,250, the smallest multiple of 50 above the doc's size with the list (the rule that file states). AGENTS.md fits its budget as it stands.
 - **Filing.** Once this spec is approved, T1's session files T2 to T4 as PACT sub-issues of this spec's issue, one per repo.
 - **T2 athanor, T3 grimoire, T4 stacks:** the S6 steps, one repo each. They are independent and can run side by side. When a repo's PR merges, a one-line PR here marks its row `adopted` (S8).
 
