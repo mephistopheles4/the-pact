@@ -292,6 +292,8 @@ parts:
     WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.
   ```
 
+  To turn Clef on, list `"clef"` in `tools`; after the apply, run `node ~/.claude/pact/tools/clef.mjs setup`, then the same with `--yes` ([clef.md](clef.md)).
+
   The cleaner on adds eighteen deny rules on raw worktree and branch
   removal commands and on `claude rm` to `settings.json`, each listed under
   `settings.json` as `+ permissions.deny`, and records the ones it added in

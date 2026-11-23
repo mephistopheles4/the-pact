@@ -45,18 +45,21 @@ createServer((req, res) => {
     const { questions } = JSON.parse(b);
     const out = {};
     for (const [id, q] of Object.entries(questions)) {
-      if (cfg.mode === 'range') out[id] = { noul: 5, score: 5 };
-      else if (q.type === 'noul') out[id] = { noul: 0.5 };
-      else if (q.type === 'score') out[id] = { score: 0.25 };
+      // The shapes below are b12211's own: each answer carries its question's type and a confidence.
+      if (cfg.mode === 'range') out[id] = q.type === 'choice' ? { type: 'choice', choice: Object.keys(q.criteria)[0], probabilities: Object.fromEntries(Object.keys(q.criteria).map(k => [k, 5])) } : { type: q.type, [q.type]: 5 };
+      else if (q.type === 'noul') out[id] = { type: 'noul', noul: 0.5, confidence: 0.5 };
+      else if (q.type === 'score') out[id] = { type: 'score', score: 0.25 };
       else {
         const ks = Object.keys(q.criteria);
-        out[id] = { choice: cfg.mode === 'badchoice' ? 'zzz' : ks[0], probabilities: Object.fromEntries(ks.map(k => [k, 1 / ks.length])) };
+        out[id] = { type: 'choice', choice: cfg.mode === 'badchoice' ? 'zzz' : ks[0], probabilities: Object.fromEntries(ks.map(k => [k, 1 / ks.length])), confidence: 0.5 };
         if (cfg.mode === 'extra') out[id].extra = 'SECRET-SERVER-TEXT';
       }
     }
-    if (cfg.mode === 'extraid') out.zzz = { noul: 0.5 };
+    if (cfg.mode === 'extraid') out.zzz = { type: 'noul', noul: 0.5 };
+    // 'bare' is the shape the first build assumed: the answers without b12211's wrapper.
+    const reply = cfg.mode === 'bare' ? out : { model: 'SECRET-SERVER-TEXT', answers: out, usage: { input_tokens: 1, output_tokens: 0 } };
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(out));
+    res.end(JSON.stringify(reply));
   });
 }).listen(Number(arg('--port')), '127.0.0.1');
 `;
@@ -197,6 +200,39 @@ test('checkedAnswer: a body built from checked values, and every other shape is 
   assert.equal(clef.checkedAnswer({ a: { type: 'weird' } }, { a: { noul: 0.5 } }), null);
 });
 
+test('serverAnswer: b12211\'s own reply shape gives the checked body, and the bare shape and any other wrapper are null', () => {
+  // The reply b12211 sent for a noul and a choice question on the owner's machine (T4), with the numbers shortened.
+  const real = {
+    model: 'a-path-that-never-reaches-a-caller.gguf',
+    answers: {
+      a: { type: 'noul', noul: 0.0085 },
+      c: { type: 'choice', choice: 'no', probabilities: { yes: 0.015, no: 0.97 }, confidence: 0.957 },
+    },
+    usage: { input_tokens: 251, output_tokens: 0 },
+  };
+  const qs = { a: QUESTIONS.a, c: QUESTIONS.c };
+  assert.deepEqual(clef.serverAnswer(qs, real), { a: { noul: 0.0085 }, c: { choice: 'no', probabilities: { yes: 0.015, no: 0.97 } } });
+  const bare = real.answers;
+  assert.equal(clef.serverAnswer(qs, bare), null, 'the answers without the wrapper');
+  const bad = [
+    { ...real, answers: undefined },
+    { ...real, answers: null },
+    { ...real, answers: [] },
+    { ...real, answers: 'text' },
+    { ...real, answers: { ...real.answers, a: { type: 'choice', noul: 0.5 } } },
+    { ...real, answers: { ...real.answers, a: { type: 'noul', noul: 0.5, confidence: 2 } } },
+    { ...real, answers: { ...real.answers, a: { type: 'noul', noul: 0.5, confidence: -0.1 } } },
+    { ...real, answers: { ...real.answers, a: { type: 'noul', noul: 0.5, legend: { 0: 'x' } } } },
+    { ...real, answers: { ...real.answers, a: { type: 'noul', noul: 0.5, extra: 'x' } } },
+    { ...real, answers: { ...real.answers, c: { type: 'noul', choice: 'no', probabilities: { yes: 0.1, no: 0.9 } } } },
+    { ...real, answers: { ...real.answers, zzz: { type: 'noul', noul: 0.5 } } },
+    [],
+    null,
+    'text',
+  ];
+  for (const b of bad) assert.equal(clef.serverAnswer(qs, b), null, JSON.stringify(b));
+});
+
 // ------------------------------------------------------------ the supervisor, in process
 
 test('serve: an answer is built from checked values, with the fixed server arguments and a named environment', async t => {
@@ -272,7 +308,7 @@ test('serve: each request is checked, refused with a fixed reason, and never ech
 });
 
 test('serve: a server body that is not an exact answer becomes 502 no-answer, and none of its text reaches the caller', async t => {
-  for (const mode of ['range', 'badchoice', 'extra', 'extraid', 'text', 'status500']) {
+  for (const mode of ['range', 'badchoice', 'extra', 'extraid', 'bare', 'text', 'status500']) {
     const f = fixture(t, { mode });
     const h = await startServe(t, f);
     const { port, token } = (await ready(f)).run;
@@ -294,7 +330,7 @@ test('serve: serve.log holds reason words and counts, never a token, key, body o
   const log = readFileSync(f.run.log, 'utf8');
   assert.ok(log.length < 100_000, 'a log past 1 MB starts again');
   const rec = await f.recorded();
-  for (const bad of [live.run.token, rec.key, 'BODY-TEXT', f.p.model, 'api-key-file']) assert.ok(!log.includes(bad), bad);
+  for (const bad of [live.run.token, rec.key, 'BODY-TEXT', 'SECRET-SERVER-TEXT', f.p.model, 'api-key-file']) assert.ok(!log.includes(bad), bad);
   assert.match(log, /forward answer ms \d+/);
 });
 

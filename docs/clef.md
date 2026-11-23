@@ -8,12 +8,12 @@ The design is [spec 0002](spec/0002-clef-runner.md); this page is for the owner 
 
 Only `clef setup --yes` fetches anything, and only these, each checked by size and sha256 before it is kept:
 
-- **A llama.cpp server build** (tag `b12211`, MIT license) from `github.com/ggml-org/llama.cpp`, 23 to 38 MB, one archive for your platform. The license files the pin table names are kept beside it: llama.cpp's `LICENSE` on Linux, and on Windows only `LICENSE-LLVM-OpenMP`, since the Windows archive holds no llama.cpp `LICENSE` (T4, the ticket that first runs setup, looks for where its license is).
+- **A llama.cpp server build** (tag `b12211`, MIT license) from `github.com/ggml-org/llama.cpp`, 23 to 38 MB, one archive for your platform. The license files the pin table names are kept beside it: llama.cpp's `LICENSE` on Linux, and on Windows only `LICENSE-LLVM-OpenMP`, since the Windows archive holds no llama.cpp `LICENSE`. That license is the repository's own file at the pinned tag, [`LICENSE` at b12211](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) (MIT; byte for byte the file the Linux archive carries, sha256 `94f29bbe…`).
 - **The Clef-Flash model** (`Clef-Flash-Q4_K_M.gguf`, Apache-2.0 per its model card) from `huggingface.co/ggml-org/Clef-Flash-GGUF`, 6.7 GB, at one pinned commit.
 
 Plan for about **7.6 GB** of free disk on the drive that holds your Claude home folder: setup refuses when the model, the archive, the unpacked files and a 10% margin do not fit. Downloads redirect only to a fixed list of hosts, over `https:` only. Everything lands in the clef folder, `<Claude home>/pact-clef/`, which no install writes or deletes.
 
-RAM and VRAM: not yet measured. The ticket that first runs it on the owner's machine records them.
+RAM and VRAM, measured on the owner's Windows machine (Vulkan, a discrete GPU with 32 GB, Q4_K_M, `-c 16384`): the server's peak working set was about **7.0 GB** of RAM, and the GPU's memory use rose by about **8.5 GB** while it was loaded. A cold start (nothing running to ready) took about 5 seconds with the model in the file cache; a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
 
 ## Commands
 

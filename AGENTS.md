@@ -137,8 +137,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   poster renders the ask above it and adds the signature, `pr-<n>`, n the
   issue it works on, from the post's `signer`. With no poster, end the body
   with `Signed: pr-<n>` yourself.
-- An ADR, indexed, only when a decision reverses or constrains something; a
-  dated log only for a change to the pact text or the gate. Each merges with
+- A dated log only for a change to the pact text or the gate. It merges with
   the PR. More: [work records](docs/agents/work-records.md).
 
 ## Agent skills
