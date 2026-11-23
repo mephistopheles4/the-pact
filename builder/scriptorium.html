@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-mBWk8ZAP7C8AwQ0UGMtH9Xv4oKqiM3KXXth4NtCM9qw='; style-src 'sha256-S2Yb8Hr4A0JsECL7XTC5R8gLnf0v9AmN5bXlYNuQwJM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-Y9j44TP0GRsn9SDxHNdM9RAMj8p4gY1YpkP2Gyxs47E='; style-src 'sha256-S2Yb8Hr4A0JsECL7XTC5R8gLnf0v9AmN5bXlYNuQwJM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -7160,7 +7160,7 @@ function workflowEditor(host, state, changed) {
       moves.push([id, x, y]);
       placed.add(id);
     };
-    // A card's drawn height, or 0 while it is not drawn (a page not shown yet, or a card not made): then the old fixed step stands in.
+    // A card's drawn height, or 0 while it is not drawn (a page not shown yet, or a card not made): then the fixed step stands in.
     const heightOf = id => {
       const box = nodeEl(id);
       return (box && box.offsetHeight) || 0;
@@ -7347,9 +7347,15 @@ function workflowEditor(host, state, changed) {
   const wordsBox = (value, set, extra = {}) => {
     const t = el('textarea', { rows: '3', 'aria-label': 'In your words', ...extra });
     t.value = value;
+    // The box is border-box: its height is the text's height plus the border, or a scrollbar stays.
     const grow = () => {
       t.style.height = 'auto';
-      if (t.scrollHeight) t.style.height = `${t.scrollHeight}px`;
+      if (t.scrollHeight) t.style.height = `${t.scrollHeight + (t.offsetHeight - t.clientHeight)}px`;
+    };
+    // Sized once the field is in the inspector and drawn; until then there is nothing to measure.
+    const growWhenDrawn = tries => {
+      if (t.isConnected && t.scrollHeight) grow();
+      else if (tries < 20) requestAnimationFrame(() => growWhenDrawn(tries + 1));
     };
     t.addEventListener('input', () => {
       if (/[\r\n]/.test(t.value)) t.value = t.value.replace(/\r\n|[\r\n]/g, ' ');
@@ -7358,7 +7364,7 @@ function workflowEditor(host, state, changed) {
       edited(false);
     });
     t.addEventListener('change', () => renderLibrary());
-    requestAnimationFrame(grow);
+    requestAnimationFrame(() => growWhenDrawn(0));
     return t;
   };
   /** A skill's optional command: empty drops it; one the check would refuse is marked invalid as it is typed. */
@@ -7478,7 +7484,7 @@ function workflowEditor(host, state, changed) {
         el('h2', { text: 'Skill' }),
         el('p', { class: 'av-annot', text: `At ${st ? st.name : "no stage yet: wire a stage's bottom port here"}.` }),
         ...skillPicker(k),
-        withTip(field('Command', commandBox(k)), 'A command of the skill that you want named with it: lowercase letters, digits and hyphens, starting with a letter, up to 40.'),
+        withTip(field('Command', commandBox(k)), 'A command of the skill that you want named with it: lowercase letters, digits and hyphens, starting with a letter, up to 40 characters.'),
         withTip(field('Offered or used', pickList([['offered', 'Offered: Claude offers it, I answer'], ['used', 'Used: Claude runs it']], k.mode, v => (k.mode = v), 'mode')), 'Offered: Claude names the skill and why, and waits for your yes. Used: Claude runs it at this stage.'),
         field('When', pickList(Object.entries(WF_WHEN_LABELS), k.when, v => setWhen(k, v), 'when')),
         ...(k.when === 'tiers' ? [tierChips(k)] : []),
@@ -7652,7 +7658,7 @@ function workflowEditor(host, state, changed) {
     renderPanel();
   }
 
-  // A graph with no saved layout is arranged before any card is drawn, so by the old step; once cards are drawn it is arranged again by their heights.
+  // A graph with no saved layout is arranged before any card is drawn, so by the fixed step; once cards are drawn it is arranged again by their heights.
   let blind = false;
   const autoArrange = () => {
     if (Object.keys(G().layout).length) return;

@@ -729,6 +729,7 @@ test('a skill with a command compiles to its name, then its command, then the mo
   assert.ok(plan.includes("`impeccable:impeccable`'s `shape` command: offered, when a change has a UI; `grilling`: offered, when a change has a UI"), plan);
 });
 
+// PACT-96 S4, C4: a command outside the shape is refused by the builder's check and by the page's own check.
 test('bad builder file: a skill whose command is not lowercase letters, digits and hyphens from a letter, 1 to 40 long, is a workflow error', t => {
   const skill = command => ({ id: 'k', stage: 'build', skill: 'impeccable:impeccable', mode: 'used', when: 'every-build', words: '', on: true, command });
   const refusals = command => checkBuilder(REPO, builderFile(t, graphWith(g => (g.skills = [skill(command)])), GOOD_BLOCKS)).refusals;
@@ -957,6 +958,17 @@ test('stub page: card words carry a three-line clamp and their full text, and "I
   assert.ok(words().some(w => w.textContent === 'when two things are linked'), 'the card shows what was typed');
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /when two things are linked/);
+  // An offer's inspector takes the same box once it is offered "in your words".
+  const offer = P.find(P.ids.wf, n => classes(n).includes('wf-cond'))[0];
+  offer.listeners.keydown.forEach(f => f({ key: 'Enter', target: offer }));
+  const when = P.find(P.ids.wf, n => n.tag === 'select' && n.attrs['aria-label'] === 'when')[0];
+  when.value = 'words';
+  when.listeners.change.forEach(f => f({}));
+  const offerBox = P.find(P.ids.wf, n => n.attrs['aria-label'] === 'In your words')[0];
+  assert.equal(offerBox.tag, 'textarea');
+  assert.equal(offerBox.attrs.rows, '3');
+  typeInto(offerBox, 'the change\ntouches billing');
+  assert.equal(offerBox.value, 'the change touches billing');
 });
 
 // #464 T8 C1 to C4: every rule the pact installs is readable on the page, and reading it changes nothing a save writes.
@@ -1619,7 +1631,7 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   assert.match(both.stdout + both.stderr, /both claude\/CLAUDE\.md and claude\/rules\.source\.md/);
 });
 
-// PACT-96 S5, C5: with no --out the page goes to pact/scriptorium.html in the Claude home and replaces the last one; only that path is let into the home, and only as a plain file.
+// PACT-96 S5, C5: with no --out the page goes to the fixed page path in the Claude home and replaces the last one; only that path is let into the home, and only as a plain file.
 test('with no --out the page lands at pact/scriptorium.html in the Claude home, a second run replaces it, and a link there or an --out into the home is refused', t => {
   const home = join(tempDir(t, 'pact-home-'), 'claude');
   mkdirSync(home);
@@ -1655,6 +1667,23 @@ test('with no --out the page lands at pact/scriptorium.html in the Claude home, 
   assert.match(linked.stdout, /REFUSE .*not a plain file/);
   assert.deepEqual(readdirSync(away), []);
   assert.deepEqual(readdirSync(join(home, 'pact')), ['scriptorium.html']);
+  // A link to a plain file is refused too, where the platform lets the test make one; the file it points at is left as it was.
+  rmSync(page, { recursive: true, force: true });
+  const target = join(away, 'target.html');
+  writeFileSync(target, 'mine');
+  let fileLink = true;
+  try {
+    symlinkSync(target, page, 'file');
+  } catch (e) {
+    if (!['EPERM', 'EACCES', 'ENOSYS'].includes(e.code)) throw e;
+    fileLink = false;
+  }
+  if (fileLink) {
+    const toFile = cli(['--builder', f]);
+    assert.equal(toFile.status, 1, toFile.stdout);
+    assert.match(toFile.stdout, /REFUSE .*not a plain file/);
+    assert.equal(readFileSync(target, 'utf8'), 'mine');
+  }
 });
 
 // The protected set, item 2: a shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken.

@@ -83,7 +83,7 @@ test('bad case: a stale copy of the default fails the generator\'s --check, and 
   assert.equal(gen([]).status, 0);
   assert.equal(gen(['--check']).status, 0, 'the rebuild leaves it up to date');
   // A stray file is stale too: the kit would install any block beside the default's.
-  writeFileSync(join(r, DEFAULT_DIR_REL, 'blocks', 'tiers.md'), 'stray\n');
+  writeFileSync(join(r, DEFAULT_DIR_REL, 'blocks', 'stray.md'), 'stray\n');
   assert.equal(gen(['--check']).status, 1, 'a stray block passes --check');
   assert.equal(gen([]).status, 0);
   assert.equal(gen(['--check']).status, 0, 'the rebuild removes the stray block');

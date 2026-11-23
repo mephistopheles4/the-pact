@@ -18,6 +18,5 @@ Amends [ADR 0070](0070-the-builder-is-part-of-the-pact.md)'s write rule (PACT-96
 
 Safety against interaction: "never write in the Claude home" now has one exception, a single file the builder owns. The home is the owner's own folder and outside any repo.
 
-The page holds what `pact/builder.json` already holds, in the same folder: the person's lists, every preset listed from `pact/presets/` and any agent files, in plain text. It fits the threat model's accepted residual that a builder file keeps what was typed into it, and adds no class. That residual is accepted as it stands: the page keeps what was typed into it, as the builder file does.
-
+The page holds what `pact/builder.json` already holds, in the same folder: the person's lists, every preset listed from `pact/presets/` and any agent files, in plain text. It fits the threat model's accepted residual that a builder file keeps what was typed into it, and adds no class.
 The install neither writes nor deletes `pact/scriptorium.html`. It is not in the install's copy set, which puts the page in the kit as `pact/builder/builder/scriptorium.html`, and no record or rollback manifest lists it.

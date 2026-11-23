@@ -436,9 +436,9 @@ It installs these files under `~/.claude`:
   overlay, for the page to show, and the rules as they stand before your
   configuration, as `claude/rules.source.md`. It holds no file named
   `CLAUDE.md`. The kit's builder writes a page by default to
-  `pact/scriptorium.html` in your Claude home, never a link or folder, which
-  the install leaves alone; given `--out`, only to a new file outside any
-  repo, the Claude home folder and any `.claude` folder;
+  `pact/scriptorium.html` in your Claude home, never a link or folder; the
+  install leaves that file alone. Given `--out`, it writes only to a new file
+  outside any repo, the Claude home folder and any `.claude` folder;
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against;
 - `pact/backups/`, a backup of what each apply replaced (step 3). No install
