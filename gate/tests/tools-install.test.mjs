@@ -61,7 +61,10 @@ test('the poster on: the dry run warns, it installs at pact/tools/poster.mjs byt
   const empty = tempDir(t, 'pact-poster-run-');
   const r = spawnSync(process.execPath, [join(h, ...LIVE)], { cwd: empty, encoding: 'utf8', env: { PATH: empty, SystemRoot: process.env.SystemRoot ?? '' } });
   assert.equal(r.status, 2, r.stdout + r.stderr);
-  assert.deepEqual(r.stdout.trim().split(/\r?\n/), ['REFUSED usage/surface argument 1', 'RESULT: refused 1']);
+  const lines = r.stdout.trim().split(/\r?\n/);
+  assert.deepEqual([lines[0], lines.at(-1)], ['REFUSED usage/surface argument 1', 'RESULT: refused 1']);
+  assert.match(lines[1], /^NEXT: give a surface first: /, 'the refusal names its next step');
+  assert.equal(lines.length, 3);
   assert.equal(r.stderr, '');
 });
 
