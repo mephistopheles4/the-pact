@@ -1044,7 +1044,12 @@ test('the tools block lists every pact tool, on or off, says which this commit l
   assert.deepEqual(core.toolsBlock([], ['claude/tools/poster.mjs']).slice(1), ['  poster: off', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]']);
   assert.deepEqual(core.toolsBlock([], []).slice(1), ['  poster: off (not in this commit)', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  No pact tool that can be turned on is in this commit.']);
   // PACT-61 S4: clef's WARN line, word for word.
-  assert.deepEqual(core.toolsBlock(['clef'], ['claude/tools/clef.mjs']).at(-1), '  WARN: the user configuration turns on the pact tool clef; it installs to pact/tools/clef.mjs and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.');
+  const clefOn = core.toolsBlock(['clef'], ['claude/tools/clef.mjs']);
+  assert.deepEqual(clefOn.at(-2), '  WARN: the user configuration turns on the pact tool clef; it installs to pact/tools/clef.mjs and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.');
+  // PACT-81 C1: the line after it names the setup command and the doc.
+  assert.deepEqual(clefOn.at(-1), '  clef next step: run `node <Claude home>/pact/tools/clef.mjs setup`, then the same with `--yes`; docs/clef.md says what it does.');
+  // With clef off, no next-step line.
+  assert.ok(!core.toolsBlock([], ['claude/tools/clef.mjs']).some(l => l.includes('next step')));
 });
 
 // ------------------------------------------------------------ settings JSON and the merge (S8, L4 to L9)

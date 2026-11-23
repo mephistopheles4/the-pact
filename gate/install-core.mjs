@@ -1040,6 +1040,8 @@ export function toolsBlock(on, stagedRels) {
   // #603: gh-app is not listable; its line shows only while the switch has it on.
   if (on.includes('gh-app')) out.push('  gh-app: on (the agent-identity switch)');
   for (const name of on) out.push(`  WARN: ${name === 'gh-app' ? 'the agent-identity switch' : 'the user configuration'} turns on the pact tool ${name}; it installs to ${TOOLS_DEST}${name}.mjs${TOOL_WARNS[name]}`);
+  // PACT-81: a new installer learns clef's next step from the install itself.
+  if (on.includes('clef')) out.push('  clef next step: run `node <Claude home>/pact/tools/clef.mjs setup`, then the same with `--yes`; docs/clef.md says what it does.');
   return out;
 }
 
