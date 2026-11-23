@@ -720,6 +720,30 @@ test('a skill on the graph compiles into a Skills column, offered or used and wh
   assert.match(lines.find(l => l.startsWith('| Plan |')), /\| none \| none \| \|$/);
 });
 
+// PACT-96 S4, C4: a skill's command compiles after its name; a bad command is a workflow error, in the builder's check.
+test('a skill with a command compiles to its name, then its command, then the mode; one without compiles as before', () => {
+  const p = copyParts(DEFAULT_PARTS);
+  const k = { id: 'plan-shape', stage: 'plan', skill: 'impeccable:impeccable', mode: 'offered', when: 'words', words: 'when a change has a UI', on: true };
+  p.workflowGraph.skills = [{ ...k, command: 'shape' }, { ...k, id: 'plan-plain', skill: 'grilling' }];
+  const plan = compileParts(p).workflow.split('\n').find(l => l.startsWith('| Plan |'));
+  assert.ok(plan.includes("`impeccable:impeccable`'s `shape` command: offered, when a change has a UI; `grilling`: offered, when a change has a UI"), plan);
+});
+
+test('bad builder file: a skill whose command is not lowercase letters, digits and hyphens from a letter, 1 to 40 long, is a workflow error', t => {
+  const skill = command => ({ id: 'k', stage: 'build', skill: 'impeccable:impeccable', mode: 'used', when: 'every-build', words: '', on: true, command });
+  const refusals = command => checkBuilder(REPO, builderFile(t, graphWith(g => (g.skills = [skill(command)])), GOOD_BLOCKS)).refusals;
+  assert.deepEqual(refusals('shape'), []);
+  assert.deepEqual(refusals('a'.repeat(40)), []);
+  for (const bad of ['Bad cmd', 'Shape', '1shape', '-shape', 'a b', 'a'.repeat(41), '', 'x\n', 7]) assert.ok(refusals(bad).some(m => /skill k: the command must be/.test(m)), JSON.stringify(bad));
+  // The page's own check says the same, and a save of a good command keeps it in builder.json.
+  const s = L.initialState();
+  s.parts.workflowGraph.skills = [skill('Bad cmd')];
+  assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'workflow' && /the command must be/.test(p.text)));
+  s.parts.workflowGraph.skills = [skill('shape')];
+  assert.deepEqual(L.problems(s), []);
+  assert.equal(JSON.parse(L.builderWith(null, s).text).workflowGraph.skills[0].command, 'shape');
+});
+
 // #262: the builder's skill check refuses a skill name that is no skill or command name.
 test('bad builder file: a skill whose name is no skill or command name is refused', t => {
   const r = checkBuilder(REPO, builderFile(t, graphWith(g => (g.skills = [{ id: 'k', stage: 'build', skill: 'run this; rm', mode: 'used', when: 'every-build', words: '', on: true }])), GOOD_BLOCKS));

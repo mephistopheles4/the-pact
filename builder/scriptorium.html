@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-yZ6DvWrLfSl4cCkWsur1Jiyv6rlfTLd8fdpRauGTA3Q='; style-src 'sha256-M5Avh9Okvn+tgoLvytEDDxupKumYJqd91I2pJ6iWpCg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-UxbJJg4QH2rqtlEgb90ou3dL5RwtMgPR7BX0dppTCdQ='; style-src 'sha256-R6QqQjP9P4LMRv3noSQeonLcEAO3jaEfPYEfHGly5TI='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1269,6 +1269,7 @@ label:has(> input[type="checkbox"]) { min-height: 24px; }
 .wf-skill { width: 188px; padding: var(--av-s1) var(--av-s1) var(--av-s1) var(--av-s2); border-style: dotted; border-width: var(--av-rule-bold); }
 .wf-skill .wf-q b { color: var(--av-caution); }
 .wf-skill-name { font-size: var(--av-t-annot); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.wf-skill-cmd { font-size: var(--av-t-micro); color: var(--av-ink-70); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wf-skill.wf-pass { border-color: var(--av-normal); border-style: solid; }
 .wf-skill.wf-off { opacity: .55; }
 .wf-skill.wf-fired { animation: wf-fire .7s ease-out; }
@@ -5406,9 +5407,9 @@ function offerText(p, o) {
   return `${o.agents.map(tick).join(', ')}: ${whenWords(p, o)}`;
 }
 
-/** A skill's words: its name, offered or used, and when. */
+/** A skill's words: its name, its command when it has one, offered or used, and when. */
 function skillText(p, k) {
-  return `${tick(k.skill)}: ${k.mode}, ${whenWords(p, k)}`;
+  return `${tick(k.skill)}${k.command ? `'s ${tick(k.command)} command` : ''}: ${k.mode}, ${whenWords(p, k)}`;
 }
 
 /** A link's words: back, on or ahead, by the order the work takes the stages. */
@@ -5467,6 +5468,8 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const AGENT_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 // A skill or a command, as the builder file's own lists name them: a command may lead with a /.
 const SKILL_RE = /^\/?[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
+// A skill's own command (PACT-96): lowercase letters, digits and '-', from a letter, 1 to 40 characters.
+const COMMAND_RE = /^[a-z][a-z0-9-]{0,39}$/;
 const isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysIn = (o, ks) => Object.keys(o).every(k => ks.includes(k));
 // One line of text that keeps a table cell whole: no line break and no bar.
@@ -5553,11 +5556,12 @@ function partsProblems(p) {
     const skills = g.skills || [];
     if (skills.length > C.skills) err('workflow', `at most ${C.skills} skills`);
     skills.forEach((k, i) => {
-      if (!isObj(k) || !keysIn(k, ['id', 'stage', 'skill', 'mode', 'when', 'words', 'on', 'tiers']) || typeof k.id !== 'string' || !ID_RE.test(k.id)) return err('workflow', `skill ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, skill, mode, when, words, on and tiers beside it`);
+      if (!isObj(k) || !keysIn(k, ['id', 'stage', 'skill', 'command', 'mode', 'when', 'words', 'on', 'tiers']) || typeof k.id !== 'string' || !ID_RE.test(k.id)) return err('workflow', `skill ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, skill, command, mode, when, words, on and tiers beside it`);
       if (kids.has(k.id) || oids.has(k.id) || ids.has(k.id)) err('workflow', `skill ${k.id}: the id is used twice`);
       kids.add(k.id);
       if (!ids.has(k.stage)) err('workflow', `skill ${k.id}: its stage is not in the graph`);
       if (typeof k.skill !== 'string' || !SKILL_RE.test(k.skill)) err('workflow', `skill ${k.id}: the skill's name must be letters, digits, '.', '_', '-' or ':', with an optional leading /`);
+      if (Object.hasOwn(k, 'command') && (typeof k.command !== 'string' || !COMMAND_RE.test(k.command))) err('workflow', `skill ${k.id}: the command must be 1 to 40 characters: lowercase letters, digits and '-', starting with a letter`);
       if (!SKILL_MODES.includes(k.mode)) err('workflow', `skill ${k.id}: mode must be offered or used`);
       if (!Object.hasOwn(OFFER_WHENS, k.when)) err('workflow', `skill ${k.id}: when must be one of ${Object.keys(OFFER_WHENS).join(', ')}`);
       if (k.when === 'words' ? !lineOk(k.words, C.line) || !String(k.words).trim() : Object.hasOwn(k, 'words') && k.words !== '') err('workflow', `skill ${k.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);
@@ -6629,7 +6633,7 @@ function workflowEditor(host, state, changed) {
           n.k.on = !n.k.on;
           edited(false);
         });
-        box = el('div', { class: 'wf-node wf-skill' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: `skill · ${n.k.mode}` }), whenText(n.k)), sw), el('div', { class: 'wf-skill-name', text: n.k.skill }), port('top'), dismiss(n, n.k.skill));
+        box = el('div', { class: 'wf-node wf-skill' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: `skill · ${n.k.mode}` }), whenText(n.k)), sw), el('div', { class: 'wf-skill-name', text: n.k.skill }), ...(n.k.command ? [el('div', { class: 'wf-skill-cmd', text: n.k.command })] : []), port('top'), dismiss(n, n.k.skill));
       } else box = el('div', { class: `wf-node wf-agent${n.loose ? ' wf-agent--loose' : ''}` }, n.name, port('in'), dismiss(n, n.name));
       box.dataset.id = n.id;
       box.tabIndex = 0;
@@ -7293,6 +7297,7 @@ function workflowEditor(host, state, changed) {
         el('h2', { text: 'Skill' }),
         el('p', { class: 'av-annot', text: `At ${st ? st.name : "no stage yet: wire a stage's bottom port here"}.` }),
         ...skillPicker(k),
+        withTip(field('Command', input(k.command || '', v => { if (v.trim()) k.command = v.trim(); else delete k.command; }, { placeholder: 'optional, e.g. shape', 'aria-label': 'Command', spellcheck: 'false' })), 'A command of the skill that you want named with it: lowercase letters, digits and hyphens.'),
         withTip(field('Offered or used', pickList([['offered', 'Offered: Claude offers it, I answer'], ['used', 'Used: Claude runs it']], k.mode, v => (k.mode = v), 'mode')), 'Offered: Claude names the skill and why, and waits for your yes. Used: Claude runs it at this stage.'),
         field('When', pickList(Object.entries(WF_WHEN_LABELS), k.when, v => setWhen(k, v), 'when')),
         ...(k.when === 'tiers' ? [tierChips(k)] : []),
