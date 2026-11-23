@@ -113,7 +113,7 @@ Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; an open
 security pick is logged, flagged big, in the work's record on the project's issue tracker,
-where a public tracker's reader can read it; outside text can steer the framing of a finding, and, in a caller's `state`, a decision model's numbers, its placement call unbounded until T4; what its
+where a public tracker's reader can read it; outside text can steer the framing of a finding, and, in a caller's `state`, a decision model's numbers, its placement call bounded by the session's own; what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
@@ -149,10 +149,10 @@ setup, run with the owner's rights.
   archive readers, writing only pinned names; a fixed working folder and
   environment; listener token, `Host` and `Origin` checks; an answer check
   passing only numbers and the caller's keys. Held by rule alone: 14-day-old
-  pins (by the Hub's date, which a git push sets) and the security pair's read
+  pins (the Hub's date, which a git push sets) and the security pair's read
   of each pin PR
   ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md)). Setup's
-  kept files belong to the machine.
+  kept files are the machine's.
 - **Harness.** Folder trust and permission prompts, as above.
 
 **Residual classes:** What you install and CI run; Pinned design-system code. A pact
