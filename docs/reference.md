@@ -11,6 +11,7 @@ effort, and what never goes in. For what the pact is and why, read the
 - [Pact tools](#pact-tools)
 - [The familiars, by effort](#the-familiars-by-effort)
 - [The moves and Anthropic's playbook](#the-moves-and-anthropics-playbook)
+- [Repos that vendor `docs/toc.mjs`](#repos-that-vendor-docstocmjs)
 - [What never goes in here](#what-never-goes-in-here)
 
 <!-- /toc -->
@@ -105,6 +106,16 @@ The rules file's Workflow table runs the same six stages, Plan to Maintain: what
   `examples/pact-config/config-matt-pocock-skills.json`.
 - **John Ousterhout's *A Philosophy of Software Design*,** the source of the
   deep-module idea those skills apply.
+
+## Repos that vendor `docs/toc.mjs`
+
+`planned`: no copy yet. A one-line PR here marks a row `adopted` after its PR merges.
+
+| Repo | Script | State |
+|---|---|---|
+| athanor | `scripts/toc.mjs` | `planned` |
+| grimoire | `scripts/toc.mjs` | `planned` |
+| stacks | `scripts/toc.mjs` | `planned` |
 
 ## What never goes in here
 

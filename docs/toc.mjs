@@ -1,17 +1,25 @@
 #!/usr/bin/env node
 // Writes each long doc's table of contents from its headings (PACT-78).
 //
-//   node docs/toc.mjs           write every covered doc whose table is missing or stale
-//   node docs/toc.mjs --check   write nothing; list each doc that is off, exit 1 if any
+//   node <this file>           write every covered doc whose table is missing or stale
+//   node <this file> --check   write nothing; list each doc that is off, exit 1 if any
 //
-// A doc is covered when it is a tracked Markdown file of over 100 lines, its
-// table not counted, outside the excluded paths below. Its table sits between
-// the TOC_OPEN and TOC_CLOSE lines, just before its first H2, and links each H2
-// and H3 by GitHub's anchor. gate/tests/toc.test.mjs fails while a table is
+// A doc is covered when it is a tracked Markdown file of over maxUncoveredLines
+// lines (100 by default), its table not counted, and outside the exclude list
+// (EXCLUDED by default, below). Its table sits between the TOC_OPEN and
+// TOC_CLOSE lines, just before its first H2, and links each H2 and H3 by
+// GitHub's anchor. In the pact, gate/tests/toc.test.mjs fails while a table is
 // missing or stale, and the word budgets count a doc without it (stripToc).
 //
+// The script is portable (PACT-84, spec 0004): another repo vendors this file
+// unchanged, and its own toc.config.json, beside the file, sets the threshold
+// and the exclusions. A copy carries a Source line at line 2, naming the pact
+// commit it came from, and then refuses to run without a config. The defaults
+// are the pact's own.
+//
 // Importing this module reads no file and starts no process. Run as a script,
-// it lists the tracked files with git from the repo root it sits in.
+// it finds the repo root with git, from the folder the script sits in, and
+// lists the tracked files from there.
 //
 // Node 24, ESM, node: built-ins only.
 import { execFileSync } from 'node:child_process';
@@ -33,6 +41,18 @@ export const MAX_UNCOVERED_LINES = 100;
  * table in reference files a model may read only in part (ADR 0168).
  */
 export const EXCLUDED = Object.freeze(['docs/log/', 'docs/adr/', 'gate/tests/fixtures/', 'claude/CLAUDE.md', 'cloud-sessions/CLAUDE.cloud.md', 'claude/agents/', 'claude/commands/', 'AGENTS.md', 'README.md']);
+
+/** What a config holds when a key is left out: this repo's own values. */
+export const DEFAULTS = Object.freeze({ maxUncoveredLines: MAX_UNCOVERED_LINES, exclude: EXCLUDED });
+
+/** The config file's name, kept in the folder that holds the script. */
+export const CONFIG_FILE = 'toc.config.json';
+
+/** The line a vendored copy carries at line 2: the pact commit it came from. */
+export const SOURCE_LINE = /^\/\/ Source: the-pact [0-9a-f]{7,40}$/;
+
+/** A config that can't be used: the message is the one line the script prints. */
+export class ConfigError extends Error {}
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const HEADING = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
@@ -152,45 +172,103 @@ const lineCount = text => {
   return /\r?\n$/.test(t) ? n - 1 : n;
 };
 
-/** Whether a tracked file gets a table: Markdown, over MAX_UNCOVERED_LINES lines without its table, outside EXCLUDED. */
-export function covered(path, text) {
+/** Whether an exclude entry names the path: a folder prefix ends in '/', an entry that starts with two stars and a slash names a file in any folder, the root included, and any other entry is one file. */
+const excludes = (entry, path) => (entry.endsWith('/') ? path.startsWith(entry) : entry.startsWith('**/') ? path === entry.slice(3) || path.endsWith(entry.slice(2)) : path === entry);
+
+/** Whether a tracked file gets a table: Markdown, over the config's maxUncoveredLines lines without its table, outside its exclude list. */
+export function covered(path, text, config = DEFAULTS) {
   if (!path.endsWith('.md')) return false;
-  if (EXCLUDED.some(e => (e.endsWith('/') ? path.startsWith(e) : path === e))) return false;
-  return lineCount(text) > MAX_UNCOVERED_LINES;
+  if (config.exclude.some(e => excludes(e, path))) return false;
+  return lineCount(text) > config.maxUncoveredLines;
+}
+
+/** The config from its file's text, its left-out keys at their defaults. Throws a ConfigError whose message is the line to print. */
+export function parseConfig(text) {
+  let raw;
+  try {
+    raw = JSON.parse(text.replace(/^﻿/, ''));
+  } catch (e) {
+    throw new ConfigError(`${CONFIG_FILE}: not valid JSON: ${e.message}`);
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) throw new ConfigError(`${CONFIG_FILE}: not an object`);
+  for (const key of Object.keys(raw)) if (!Object.hasOwn(DEFAULTS, key)) throw new ConfigError(`${CONFIG_FILE}: ${key}: unknown key`);
+  const { maxUncoveredLines = DEFAULTS.maxUncoveredLines, exclude = DEFAULTS.exclude } = raw;
+  if (!Number.isInteger(maxUncoveredLines) || maxUncoveredLines < 1) throw new ConfigError(`${CONFIG_FILE}: maxUncoveredLines: must be an integer of at least 1`);
+  if (!Array.isArray(exclude) || exclude.some(e => typeof e !== 'string')) throw new ConfigError(`${CONFIG_FILE}: exclude: must be an array of strings`);
+  return { maxUncoveredLines, exclude };
 }
 
 /** What is off in one file, or null: a covered file whose table is missing or stale, an uncovered one that holds a table, or an unclosed marker. */
-function problem(path, text) {
+function problem(path, text, config) {
   let has;
   try {
     has = tocSpan(linesOf(text)) !== null;
   } catch (e) {
     return `${path}: ${e.message}`;
   }
-  if (!covered(path, text)) return has ? `${path}: holds a table of contents but is not covered` : null;
+  if (!covered(path, text, config)) return has ? `${path}: holds a table of contents but is not covered` : null;
   if (withToc(text) === text) return null;
   return has ? `${path}: table of contents is stale` : `${path}: no table of contents`;
 }
 
 /** What is off across the files given, one line each. Each file is { path, text }. */
-export function problems(files) {
-  return files.map(({ path, text }) => problem(path, text)).filter(Boolean);
+export function problems(files, config = DEFAULTS) {
+  return files.map(({ path, text }) => problem(path, text, config)).filter(Boolean);
 }
 
 /** The tracked Markdown files under `repo`, read: { path, text }. */
 export function trackedDocs(repo) {
-  return execFileSync('git', ['ls-files', '-z', '--', '*.md'], { cwd: repo, encoding: 'utf8' })
+  return execFileSync('git', ['ls-files', '-z', '--', '*.md'], { cwd: repo, encoding: 'utf8', env: gitEnv() })
     .split('\0')
     .filter(Boolean)
     .map(path => ({ path, text: readFileSync(join(repo, path), 'utf8') }));
 }
 
+/** The environment for a git call that finds its repo from the folder it runs in: the variables git exports to a hook, which name another repo or index, are left out. */
+const gitEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^GIT_(DIR|WORK_TREE|INDEX_FILE|COMMON_DIR|PREFIX)$/i.test(k)));
+
+/** The repo root git reports from `folder`, or null when git is missing or the folder is in no work tree. */
+function repoRoot(folder) {
+  try {
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: folder, encoding: 'utf8', env: gitEnv(), stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** The config beside the script: its file's, or the defaults when there is none and this is no vendored copy. Throws a ConfigError. */
+function loadConfig(folder, script) {
+  let text;
+  try {
+    text = readFileSync(join(folder, CONFIG_FILE), 'utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw new ConfigError(`${CONFIG_FILE}: not readable: ${e.code ?? e.message}`);
+    if (SOURCE_LINE.test(linesOf(readFileSync(script, 'utf8'))[1] ?? '')) throw new ConfigError(`${CONFIG_FILE}: missing in a vendored copy`);
+    return DEFAULTS;
+  }
+  return parseConfig(text);
+}
+
 function main(argv) {
-  const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const script = fileURLToPath(import.meta.url);
+  const folder = dirname(script);
+  const repo = repoRoot(folder);
+  if (!repo) {
+    console.log('toc.mjs: not in a git work tree');
+    return 2;
+  }
+  let config;
+  try {
+    config = loadConfig(folder, script);
+  } catch (e) {
+    if (!(e instanceof ConfigError)) throw e;
+    console.log(e.message);
+    return 2;
+  }
   const check = argv.includes('--check');
   const files = trackedDocs(repo);
   if (check) {
-    const off = problems(files);
+    const off = problems(files, config);
     for (const l of off) console.log(l);
     return off.length ? 1 : 0;
   }
@@ -198,7 +276,7 @@ function main(argv) {
   for (const { path, text } of files) {
     let next;
     try {
-      next = covered(path, text) ? withToc(text) : stripToc(text);
+      next = covered(path, text, config) ? withToc(text) : stripToc(text);
     } catch (e) {
       console.log(`${path}: ${e.message}`);
       code = 1;
