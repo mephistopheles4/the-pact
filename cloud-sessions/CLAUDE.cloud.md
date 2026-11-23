@@ -63,6 +63,12 @@ or stop the work over it.
 Each stage: what each tier sets, the lenses to offer, where the work goes
 next.
 
+**A skill I can't invoke.** When the table names a skill you can't invoke
+(model invocation is off, or a plugin skill is missing from your list), find
+its SKILL.md, first in my skills folder, then in the installed plugins'
+`skills/`. Read it and follow it, with no wait, no checkpoint and no hand-over
+line. A skill you can't find, say so in one line and go on with the stage.
+
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
 | Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |

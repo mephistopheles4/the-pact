@@ -23,7 +23,7 @@ const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
 const PIN = 'a'.repeat(40);
 const SKILLS = [{ repo: 'someone/skills', commit: PIN, paths: ['skills/one', 'skills/two'] }, { repo: 'other/more', commit: 'b'.repeat(40), paths: ['three'] }];
 // PACT-96: the default names its skills on the stages only; no skill sources.
-const STAGE_SKILLS = ['grilling', 'grimoire:eagle-eye', 'impeccable:impeccable', 'diagnosing-bugs', 'pstack:arena', 'spec-driven-development', 'planning-and-task-breakdown', 'test-driven-development', 'incremental-implementation', 'browser-testing-with-devtools', 'pr', 'shipping-and-launch', 'documentation-and-adrs'];
+const STAGE_SKILLS = ['grill-with-docs', 'grimoire:eagle-eye', 'impeccable:impeccable', 'diagnosing-bugs', 'pstack:arena', 'spec-driven-development', 'planning-and-task-breakdown', 'test-driven-development', 'incremental-implementation', 'browser-testing-with-devtools', 'pr', 'shipping-and-launch', 'documentation-and-adrs'];
 
 /** A throwaway clone-shaped root holding what the builder and the generator read, with `mutate` applied. */
 function root(t, mutate = () => {}) {
@@ -134,6 +134,9 @@ test('with no configuration of the person\'s, the default renders, and its workf
   assert.ok(col > 0, header);
   const cells = text.split('\n').filter(l => /^\| (Plan|Design|Build|Test|Deploy|Maintain) \|/.test(l)).map(l => l.split('|')[col]).join(' ');
   for (const s of STAGE_SKILLS) assert.ok(cells.includes(`\`${s}\``), `${s} is not in the Skills column`);
+  // PACT-96 C15: the rendered rules file tells the agent to read and follow a skill it can't invoke, with no wait, and the preset keeps no per-skill workaround.
+  assert.match(text, /\*\*A skill I can't invoke\.\*\*[^]*?find\s+its SKILL\.md, first in my skills folder, then in the installed plugins'\s+`skills\/`\.[^]*?no wait, no checkpoint and no hand-over\s+line/);
+  assert.doesNotMatch(text, /read its SKILL\.md from the pstack plugin/);
 });
 
 // #183 T4a C2: a person's configuration wins whole; the default is never merged in.

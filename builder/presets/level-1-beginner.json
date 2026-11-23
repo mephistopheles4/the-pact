@@ -78,9 +78,9 @@
     ],
     "skills": [
       {
-        "id": "plan-interview-me",
+        "id": "plan-grilling",
         "stage": "plan",
-        "skill": "interview-me",
+        "skill": "grilling",
         "mode": "offered",
         "when": "tiers",
         "words": "",

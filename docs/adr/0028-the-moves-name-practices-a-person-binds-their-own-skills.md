@@ -1,5 +1,7 @@
 # The moves name practices; a person binds their own skills
 
+Superseded in part by [ADR 0172](0172-a-skill-the-model-cant-invoke-is-read-and-followed.md) (2026-11-23): the binding convention's command form, where the agent stops with a `▶ Your move` line, is gone; a skill the model can't invoke is read and followed.
+
 The default rules file (`claude/CLAUDE.md`) describes each move as a practice: what the owner does, what the agent does, and why. It names no skill outside the gated clauses. Agents keep their names, because the lenses, `scout` and the reviewers are part of the pact's own checks. A person brings their own skills through configuration blocks in a move's open part.
 
 ## The binding convention

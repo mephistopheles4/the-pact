@@ -1015,6 +1015,125 @@ test('stub page: an edit that changes a card\'s height moves the cards below it 
   undo.click();
   assert.deepEqual(boxes(), Object.fromEntries(Object.entries(before).map(([id, b]) => [id, { ...b, h: id === edited ? b.h + 50 : b.h }])));
   assert.equal(undo.disabled, true, 'the edit and its move were one step');
+  // Redo puts the words and the move back together.
+  P.button(P.ids.wf, '↷').click();
+  assert.deepEqual(boxes(), after);
+});
+
+// PACT-96 C10 (F1): a grown condition moves the cards below it and their lenses; the same height again moves nothing; a shrink moves them up.
+test('stub page: a grown condition moves the cards below it and their lenses, a second edit at that height moves nothing, and a shrink moves them back up', () => {
+  const grown = {};
+  const P = bootPage({ measure: n => (cardSize(n) ? (grown[n.dataset.id] ?? cardSize(n)[1][1]) : 0) });
+  const at = () => Object.fromEntries(P.find(P.ids.wf, n => cardClasses(n).includes('wf-node')).map(n => [n.dataset.id, [parseFloat(n.style.left), parseFloat(n.style.top)]]));
+  P.flush();
+  const start = at();
+  const edited = 'design-spec-pair';
+  const [ex, ey] = start[edited];
+  const below = Object.keys(start).filter(id => !id.startsWith(`${edited}/`) && id !== edited && (id.includes('/') ? start[id.split('/')[0]][0] === ex && start[id.split('/')[0]][1] > ey : start[id][0] === ex && start[id][1] > ey));
+  assert.ok(below.some(id => id.includes('/')), 'a condition with lenses stands below it');
+  assert.ok(below.some(id => !id.includes('/')), 'cards stand below it');
+  const shifted = by => Object.fromEntries(Object.entries(start).map(([id, [x, y]]) => [id, [x, y + (below.includes(id) ? by : 0)]]));
+  openCard(P, P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === edited)[0]);
+  grown[edited] = cardSize(P.find(P.ids.wf, n => n.dataset.id === edited)[0])[1][1] + 50;
+  const when = P.find(P.ids.wf, n => n.tag === 'select' && n.attrs['aria-label'] === 'when')[0];
+  when.value = 'words';
+  when.listeners.change.forEach(f => f({}));
+  assert.deepEqual(at(), shifted(50), 'the cards below and their lenses moved down by the growth, and nothing else');
+  const words = () => P.find(P.ids.wf, n => n.attrs['aria-label'] === 'In your words')[0];
+  typeInto(words(), 'a second edit at the same height');
+  assert.deepEqual(at(), shifted(50), 'the same height again moves nothing');
+  delete grown[edited];
+  typeInto(words(), 'short');
+  assert.deepEqual(at(), start, 'a shrink moves them back up');
+});
+
+// PACT-96 C14: one stacking pass, after the first draw and on Arrange: a saved layout that collides opens clear, and Arrange ignores what was saved.
+test('stub page: a saved layout that collides opens with no overlaps, positions that do not collide stay put, a card a little out of its column is stacked with it, and Arrange ignores saved positions', t => {
+  const stages = ['plan', 'design', 'build', 'test', 'deploy', 'maintain'];
+  const saved = {};
+  const graph = g => {
+    stages.forEach((s, i) => {
+      const x = 40 + i * 420;
+      saved[s] = [x, 60];
+      const inStage = [...g.offers.filter(o => o.stage === s), ...g.skills.filter(k => k.stage === s)];
+      inStage.forEach((n, j) => {
+        // Spread wide in the test column, packed on top of each other elsewhere; one card in the plan column a little to the right.
+        saved[n.id] = [s === 'plan' && n.id === 'plan-diagnose' ? x + 60 : x, s === 'test' ? 200 + j * 400 : 200 + j * 50];
+      });
+    });
+    for (const o of g.offers) o.agents.forEach((a, k) => { saved[`${o.id}/${a}`] = [saved[o.id][0] + 200, saved[o.id][1] + k * 40]; });
+    g.layout = Object.fromEntries(Object.entries(saved).map(([id, [x, y]]) => [id, { x, y }]));
+  };
+  const preset = JSON.parse(readFileSync(join(REPO, 'builder', 'presets', 'level-3-full.json'), 'utf8')).workflowGraph;
+  graph(preset);
+  const page = buildPage(REPO, PAGE, builderFile(t, { ...GOOD, workflowGraph: preset }, GOOD_BLOCKS));
+  const P = bootPage({ page, measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  const boxes = () => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node')).map(n => ({ id: n.dataset.id, x: parseFloat(n.style.left), y: parseFloat(n.style.top), w: cardSize(n)[1][0], h: cardSize(n)[1][1] }));
+  const overlapping = () => {
+    const b = boxes();
+    const hits = [];
+    for (let i = 0; i < b.length; i += 1) for (let j = i + 1; j < b.length; j += 1) if (b[i].x < b[j].x + b[j].w && b[j].x < b[i].x + b[i].w && b[i].y < b[j].y + b[j].h && b[j].y < b[i].y + b[i].h) hits.push(`${b[i].id} / ${b[j].id}`);
+    return hits;
+  };
+  const byId = () => Object.fromEntries(boxes().map(b => [b.id, b]));
+  assert.ok(Object.keys(saved).length > 40);
+  P.flush();
+  const opened = byId();
+  assert.deepEqual(overlapping(), [], 'a layout that collided opens with no overlaps');
+  for (const [id, [x, y]] of Object.entries(saved)) {
+    assert.equal(opened[id].x, x, `${id}: x is kept`);
+    assert.ok(opened[id].y >= y, `${id}: a card moves down, never up`);
+    if (id.startsWith('test-') || stages.includes(id)) assert.equal(opened[id].y, y, `${id}: nothing collides there, so it stays put`);
+  }
+  assert.equal(opened['plan-grill-with-docs'].y, saved['plan-grill-with-docs'][1], 'the first card of a column stays where it was saved');
+  assert.ok(opened['plan-eagle-eye'].y >= opened['plan-grill-with-docs'].y + opened['plan-grill-with-docs'].h, 'a card is pushed below the one above it');
+  assert.ok(opened['plan-arena'].y > saved['plan-arena'][1], 'a card in a pile is pushed down');
+  P.button(P.ids.wf, 'Arrange').click();
+  P.flush();
+  const arranged = byId();
+  assert.deepEqual(overlapping(), [], 'after Arrange');
+  assert.deepEqual([arranged['plan-diagnose'].x, arranged['plan-grill-with-docs'].x], [40, 40], 'Arrange puts a card back in its column');
+  assert.equal(arranged['plan-grill-with-docs'].y, 200);
+});
+
+// PACT-96 C12 (F2): a card that takes the focus off the view is brought into it, and the canvas's own scroll, which would hide the help, stays at 0.
+test('stub page: focusing a card that is off the view pans it into view and leaves the canvas unscrolled; a card already in view leaves the view alone', () => {
+  const P = bootPage({ measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  P.flush();
+  const canvas = P.find(P.ids.wf, n => cardClasses(n).includes('wf-canvas'))[0];
+  const world = P.find(P.ids.wf, n => cardClasses(n).includes('wf-world'))[0];
+  const card = id => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === id)[0];
+  const view = () => {
+    const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/.exec(world.style.transform);
+    return { x: Number(m[1]), y: Number(m[2]), k: Number(m[3]) };
+  };
+  const onScreen = c => {
+    const v = view();
+    const [w, h] = cardSize(c)[1];
+    const [x, y] = [parseFloat(c.style.left) * v.k + v.x, parseFloat(c.style.top) * v.k + v.y];
+    return x >= 0 && y >= 0 && x + w * v.k <= 1000 && y + h * v.k <= 700;
+  };
+  const focus = c => {
+    // The browser scrolls the canvas to reveal the card it focuses; the page must answer by moving the view instead.
+    canvas.scrollLeft = 900;
+    canvas.scrollTop = 300;
+    c.listeners.focus.forEach(f => f({ target: c }));
+  };
+  const near = card('plan-grill-with-docs');
+  focus(near);
+  assert.ok(onScreen(near));
+  const kept = view();
+  for (const id of ['maintain-impeccable-document', 'plan-arena', 'deploy-pr']) {
+    focus(card(id));
+    assert.ok(onScreen(card(id)), `${id} is in view`);
+    assert.deepEqual([canvas.scrollLeft, canvas.scrollTop], [0, 0], `${id}: the canvas is not left scrolled`);
+  }
+  focus(near);
+  assert.ok(onScreen(near), 'back to the first card');
+  assert.notDeepEqual(view(), kept, 'the view moved to follow the focus');
+  const here = view();
+  focus(near);
+  assert.deepEqual(view(), here, 'a card already in view leaves the view alone');
 });
 
 // PACT-96 C11: a command the check refuses shows its rule under the field and a mark on the card, and both clear once it is valid.
@@ -1026,6 +1145,13 @@ test('stub page: an invalid command shows its rule under the field, linked by ar
   const note = () => P.find(P.ids.wf, n => n.attrs.id === box().attrs['aria-describedby'])[0];
   assert.equal(box().value, 'shape');
   assert.ok(box().attrs['aria-describedby'] && note(), 'the field is linked to its message');
+  // The field's help must not cover its error: no help note sits on the box or on anything that holds the box or the message, and none holds the rule.
+  const helped = P.find(P.ids.wf, n => n.attrs['data-av-help'] !== undefined);
+  assert.ok(helped.some(n => /command of the skill/.test(n.attrs['data-av-help'])), 'the field still has its help');
+  for (const n of helped) {
+    assert.doesNotMatch(n.attrs['data-av-help'], /Lowercase letters/);
+    assert.deepEqual(P.find(n, x => x === box() || x === note()), [], `the help on "${n.attrs['data-av-help'].slice(0, 30)}" holds neither the box nor its message`);
+  }
   assert.equal(note().hidden, true, 'a valid command shows no message');
   typeInto(box(), 'Bad cmd');
   assert.equal(note().hidden, false);
@@ -1041,7 +1167,7 @@ test('stub page: an invalid command shows its rule under the field, linked by ar
   const clean = card('plan-impeccable-shape');
   assert.ok(!cardClasses(clean).includes('wf-bad'));
   assert.doesNotMatch(clean.text, /⚠/);
-  assert.equal(clean.attrs['aria-label'], undefined);
+  assert.doesNotMatch(clean.attrs['aria-label'], /invalid/);
 });
 
 // PACT-96 C12: the card, which takes the focus, carries its whole words and its skill name as its help.
@@ -1054,6 +1180,15 @@ test('stub page: a card carries its full words and its skill or command name as 
   assert.equal(card('plan-eagle-eye').attrs.tabIndex ?? card('plan-eagle-eye').tabIndex, 0, 'the card takes the focus');
   assert.match(card('plan-impeccable-shape').attrs['data-av-help'], /impeccable:impeccable · shape/);
   assert.match(card('test-qa-pair').attrs['data-av-help'], /behaviour-lens, integrity-lens/);
+  // Every card is a group with a name, so the help on the focused card is announced with it.
+  const everyCard = P.find(P.ids.wf, n => cardClasses(n).includes('wf-node'));
+  assert.ok(everyCard.length > 40);
+  for (const c of everyCard) {
+    assert.equal(c.attrs.role, 'group', c.dataset.id);
+    assert.ok(String(c.attrs['aria-label'] || '').length > 3, `${c.dataset.id} has a name`);
+  }
+  assert.match(card('plan-eagle-eye').attrs['aria-label'], /grimoire:eagle-eye/);
+  assert.match(card('test-qa-pair/behaviour-lens').attrs['aria-label'], /behaviour-lens/);
   const long = `plugin:${'a'.repeat(60)}`;
   openCard(P, card('plan-eagle-eye'));
   typeInto(P.find(P.ids.wf, n => n.attrs['aria-label'] === 'Skill or command')[0], long);
@@ -1061,7 +1196,7 @@ test('stub page: a card carries its full words and its skill or command name as 
 });
 
 // PACT-96 C13: the first fit, Fit and Arrange keep a readable zoom, and the first view starts at the first stage.
-test('stub page: fit never zooms below 0.6, and the first view starts at the first stage', () => {
+test('stub page: fit never zooms below 0.8, and the first view starts at the first stage', () => {
   const P = bootPage({ measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
   const world = P.find(P.ids.wf, n => cardClasses(n).includes('wf-world'))[0];
   const view = () => {
@@ -1069,7 +1204,7 @@ test('stub page: fit never zooms below 0.6, and the first view starts at the fir
     return { x: Number(m[1]), y: Number(m[2]), k: Number(m[3]) };
   };
   const atFirstStage = (v, why) => {
-    assert.ok(v.k >= 0.6, `${why}: k ${v.k}`);
+    assert.ok(v.k >= 0.8, `${why}: k ${v.k}`);
     assert.ok(v.x + 40 * v.k >= 0 && v.x + 40 * v.k < 1000 && v.y + 60 * v.k >= 0 && v.y + 60 * v.k < 700, `${why}: the first stage is on the canvas`);
   };
   P.flush();

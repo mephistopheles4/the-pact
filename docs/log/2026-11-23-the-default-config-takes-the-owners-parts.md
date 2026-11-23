@@ -10,7 +10,9 @@ PACT-96, standard tier. The Level 3 · Full preset, and so the default configura
 
 **The page.** The Scriptorium page arranges cards by their rendered height, clamps a card's words to three lines with the full text on hover, and takes "In your words" in a three-row text box. [ADR 0171](../adr/0171-the-scriptorium-page-has-a-fixed-path-in-the-claude-home.md) gives the page a fixed path, `pact/scriptorium.html` in the Claude home, written through a temporary file renamed over the last page.
 
-The rules file rendered from the new default stays within its 2450-word budget (2096 words).
+**A skill the model can't invoke.** The Workflow section of `claude/CLAUDE.md` gains one rule: a skill the table names that the model can't invoke is found as a `SKILL.md` in the skills folder, then in an installed plugin's `skills/`, read and followed, with no wait, checkpoint or hand-over line; one not found is said in one line. The owner decided it (decision 141, folded in from PACT-98); [ADR 0172](../adr/0172-a-skill-the-model-cant-invoke-is-read-and-followed.md) supersedes in part ADR 0009's hand-over and ADR 0028's binding convention. The preset drops `pstack:arena`'s per-entry workaround, and its Plan entry `grilling` becomes `grill-with-docs`, used on Standard and Thorough (decisions 140 and 144), a user-only skill the new rule covers. Level 1 · Beginner's Plan `interview-me` becomes `grilling` (decision 142). Skill ordering is PACT-99.
+
+The rules file rendered from the new default stays within its 2450-word budget (2162 words).
 
 **Rolling back:** revert the PR, run `node builder/default-config.mjs` and `node builder/build.mjs`, and reinstall through the dry run and the owner's apply. A configuration of your own is never affected.
 

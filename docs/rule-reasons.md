@@ -32,6 +32,7 @@ This file is never installed.
 | Remove worktrees only through the cleaner | It can't tell the owner's yes: each removal is a checkpoint (the Safety quality; `AGENTS.md`, Reviewing a change here). The line names the command: a lead may run a cleaner only when the user-level rules name its program, and the bare line named neither. |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
+| A skill I can't invoke | The harness blocks invoking a skill with model invocation off, and a plugin skill can be missing from the session's list; without the rule the stage stalls or the skill is skipped silently. Naming the skill in the workflow is the owner's consent to run it. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |
 | Lenses are offers | An offer is a checkpoint, answered by whoever steers the session: the owner, or the grimoire head chef's lead in Turbo mode. |
 | Before you run a lens or post to the record, read `~/.claude/pact/review.md` | Points to the procedure, which no tool loads. |

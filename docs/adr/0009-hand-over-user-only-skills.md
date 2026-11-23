@@ -1,5 +1,7 @@
 # Hand the owner the trigger for a user-only skill
 
+Superseded in part by [ADR 0172](0172-a-skill-the-model-cant-invoke-is-read-and-followed.md) (2026-11-23): a skill the workflow names that the model can't invoke is read and followed, with no hand-over line and no wait.
+
 When a move reaches a skill that carries `disable-model-invocation` (`triage`, `to-spec`, `to-tickets`, `wayfinder`, `implement`), the model stops and ends its turn with one line: `▶ Your move: type /<skill> <argument>`. It does not read the skill's `SKILL.md` and follow it instead. If the owner hands the step back, the model asks for the owner's own call once per session, says in one sentence what is handed over, and then does the step by hand, saying which skill's procedure it did not use. A main-session build is the normal route: a session opened on an approved spec or ticket starts building directly, and the owner may still type `/implement`.
 
 ## Why

@@ -210,9 +210,9 @@
     "layout": {},
     "skills": [
       {
-        "id": "plan-grilling",
+        "id": "plan-grill-with-docs",
         "stage": "plan",
-        "skill": "grilling",
+        "skill": "grill-with-docs",
         "mode": "used",
         "when": "tiers",
         "words": "",
@@ -256,7 +256,7 @@
         "skill": "pstack:arena",
         "mode": "offered",
         "when": "words",
-        "words": "when we need to compare solutions; read its SKILL.md from the pstack plugin and follow it",
+        "words": "when we need to compare solutions",
         "on": true
       },
       {
