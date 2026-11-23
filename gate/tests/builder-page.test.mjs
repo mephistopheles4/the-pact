@@ -1118,6 +1118,22 @@ test('stub page: a skill the saved layout does not hold yet opens in its column 
   assert.ok(b['plan-eagle-eye'].y >= b['plan-late'].y + b['plan-late'].h, 'the skill after it moves down to make room');
 });
 
+// PACT-96 (the owner, in chat): the Presets list marks the preset whose parts are the ones in effect, so a person on Level 3 sees it.
+test('stub page: the Presets list marks Level 3 as in effect on a fresh open and when the builder file holds its parts, and marks none once a part differs', t => {
+  const level3 = JSON.parse(readFileSync(join(REPO, 'builder', 'presets', 'level-3-full.json'), 'utf8'));
+  const marked = P => {
+    P.button(P.ids.actions, 'Presets').click();
+    return P.find(P.ids.presets, n => n.tag === 'button' && n.attrs['aria-pressed'] === 'true').map(n => n.text);
+  };
+  assert.deepEqual(marked(bootPage({})), ['Level 3 · Full · in effect'], 'a fresh open lands on Level 3');
+  const parts = { tiers: level3.tiers, sensitive: level3.sensitive, workflowGraph: { ...level3.workflowGraph, layout: { plan: { x: 300, y: 60 } } }, costLimits: level3.costLimits };
+  const same = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, ...parts }, GOOD_BLOCKS)) });
+  assert.deepEqual(marked(same), ['Level 3 · Full · in effect'], 'a builder file holding Level 3, saved layout and all, is on Level 3');
+  const costLimits = parts.costLimits.map((c, i) => (i ? c : { ...c, limit: '5' }));
+  const changed = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, ...parts, costLimits }, GOOD_BLOCKS)) });
+  assert.deepEqual(marked(changed), [], 'one part changed: no preset is in effect');
+});
+
 // PACT-96 C12 (F2): a card that takes the focus off the view is brought into it, and the canvas's own scroll, which would hide the help, stays at 0.
 test('stub page: focusing a card that is off the view pans it into view and leaves the canvas unscrolled; a card already in view leaves the view alone', () => {
   const P = bootPage({ measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });

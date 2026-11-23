@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-qIm8QyMPIXSJ4gnJUZJG9YyVVJchu/yZUh+Fp4l9RUs='; style-src 'sha256-3lxArc6XX64+Io1IaknVLchsUaUdtBFmK3GEqPSdEzU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-E+BNi4qMOTbWLEWrRcR8CVuS/9+HSnQQ4yZU6cv43kE='; style-src 'sha256-3lxArc6XX64+Io1IaknVLchsUaUdtBFmK3GEqPSdEzU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -3505,7 +3505,39 @@ const PACT = /* pact-data:begin */ {
       }
      ],
      "layout": {}
-    }
+    },
+    "costLimits": [
+     {
+      "cost": "Tests added",
+      "counted": "Tests that back no acceptance claim, and tests that duplicate one that already backs a claim",
+      "limit": "0",
+      "atLimit": "Each one becomes a trade-off for me: the test, what it adds beyond the claim's own test, and its upkeep"
+     },
+     {
+      "cost": "Hardening",
+      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
+      "limit": "0",
+      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+     },
+     {
+      "cost": "Follow-up issues",
+      "counted": "Issues filed from one review",
+      "limit": "2",
+      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+     },
+     {
+      "cost": "Lens pairs",
+      "counted": "Lens pairs run in one review round; a lens offered alone counts as a pair",
+      "limit": "2",
+      "atLimit": "The next pair becomes a trade-off for me: which pair it would replace, and what it would check"
+     },
+     {
+      "cost": "Review rounds",
+      "counted": "Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own",
+      "limit": "2, the second declared final",
+      "atLimit": "A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage"
+     }
+    ]
    }
   },
   {
@@ -3707,7 +3739,39 @@ const PACT = /* pact-data:begin */ {
       }
      ],
      "layout": {}
-    }
+    },
+    "costLimits": [
+     {
+      "cost": "Tests added",
+      "counted": "Tests that back no acceptance claim, and tests that duplicate one that already backs a claim",
+      "limit": "0",
+      "atLimit": "Each one becomes a trade-off for me: the test, what it adds beyond the claim's own test, and its upkeep"
+     },
+     {
+      "cost": "Hardening",
+      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
+      "limit": "0",
+      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+     },
+     {
+      "cost": "Follow-up issues",
+      "counted": "Issues filed from one review",
+      "limit": "2",
+      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+     },
+     {
+      "cost": "Lens pairs",
+      "counted": "Lens pairs run in one review round; a lens offered alone counts as a pair",
+      "limit": "2",
+      "atLimit": "The next pair becomes a trade-off for me: which pair it would replace, and what it would check"
+     },
+     {
+      "cost": "Review rounds",
+      "counted": "Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own",
+      "limit": "2, the second declared final",
+      "atLimit": "A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage"
+     }
+    ]
    }
   },
   {
@@ -4485,7 +4549,39 @@ const PACT = /* pact-data:begin */ {
        "on": true
       }
      ]
-    }
+    },
+    "costLimits": [
+     {
+      "cost": "Tests added",
+      "counted": "Tests that back no acceptance claim, and tests that duplicate one that already backs a claim",
+      "limit": "0",
+      "atLimit": "Each one becomes a trade-off for me: the test, what it adds beyond the claim's own test, and its upkeep"
+     },
+     {
+      "cost": "Hardening",
+      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
+      "limit": "0",
+      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+     },
+     {
+      "cost": "Follow-up issues",
+      "counted": "Issues filed from one review",
+      "limit": "2",
+      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+     },
+     {
+      "cost": "Lens pairs",
+      "counted": "Lens pairs run in one review round; a lens offered alone counts as a pair",
+      "limit": "2",
+      "atLimit": "The next pair becomes a trade-off for me: which pair it would replace, and what it would check"
+     },
+     {
+      "cost": "Review rounds",
+      "counted": "Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own",
+      "limit": "2, the second declared final",
+      "atLimit": "A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage"
+     }
+    ]
    }
   },
   {
@@ -4807,7 +4903,39 @@ const PACT = /* pact-data:begin */ {
        "on": true
       }
      ]
-    }
+    },
+    "costLimits": [
+     {
+      "cost": "Tests added",
+      "counted": "Tests that back no acceptance claim, and tests that duplicate one that already backs a claim",
+      "limit": "0",
+      "atLimit": "Each one becomes a trade-off for me: the test, what it adds beyond the claim's own test, and its upkeep"
+     },
+     {
+      "cost": "Hardening",
+      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
+      "limit": "0",
+      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+     },
+     {
+      "cost": "Follow-up issues",
+      "counted": "Issues filed from one review",
+      "limit": "2",
+      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+     },
+     {
+      "cost": "Lens pairs",
+      "counted": "Lens pairs run in one review round; a lens offered alone counts as a pair",
+      "limit": "2",
+      "atLimit": "The next pair becomes a trade-off for me: which pair it would replace, and what it would check"
+     },
+     {
+      "cost": "Review rounds",
+      "counted": "Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own",
+      "limit": "2, the second declared final",
+      "atLimit": "A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage"
+     }
+    ]
    }
   },
   {
@@ -5216,21 +5344,33 @@ const PACT = /* pact-data:begin */ {
     "costLimits": [
      {
       "cost": "Tests added",
-      "counted": "Tests beyond one per acceptance claim",
-      "limit": "2 per change",
-      "atLimit": "The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep"
+      "counted": "Tests that back no acceptance claim, and tests that duplicate one that already backs a claim",
+      "limit": "0",
+      "atLimit": "Each one becomes a trade-off for me: the test, what it adds beyond the claim's own test, and its upkeep"
      },
      {
       "cost": "Hardening",
-      "counted": "Guards for paths off the sensitive-work list that the project's threat model, if any, doesn't place in scope",
+      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
       "limit": "0",
-      "atLimit": "Reported as a note; never built unasked"
+      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
      },
      {
       "cost": "Follow-up issues",
-      "counted": "Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit",
+      "counted": "Issues filed from one review",
       "limit": "2",
       "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+     },
+     {
+      "cost": "Lens pairs",
+      "counted": "Lens pairs run in one review round; a lens offered alone counts as a pair",
+      "limit": "2",
+      "atLimit": "The next pair becomes a trade-off for me: which pair it would replace, and what it would check"
+     },
+     {
+      "cost": "Review rounds",
+      "counted": "Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own",
+      "limit": "2, the second declared final",
+      "atLimit": "A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage"
      }
     ]
    }
@@ -8585,6 +8725,14 @@ function boot() {
   // #262 addendum 4: start from a shipped preset or a shared file. Nothing is
   // taken until the person has seen, and ticked, what it carries.
   const fromPreset = new Set(); // agent files taken from a preset, marked in the Agents panel until a reset
+  /** A preset is in effect when every part it gives equals the page's own; the workflow's saved layout doesn't count. */
+  const sameParts = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const withoutLayout = g => (g && typeof g === 'object' ? { ...g, layout: undefined } : g);
+  const inEffect = p => Object.keys(p.parts).length > 0 && Object.entries(p.parts).every(([k, v]) => (k === 'workflowGraph' ? sameParts(withoutLayout(v), withoutLayout(state.parts[k])) : sameParts(v, state.parts[k])));
+  const presetChip = p => {
+    const on = inEffect(p);
+    return el('div', { class: 'chips' }, chip(on ? `${p.title} · in effect` : p.title, on, () => openPresets(p), 'av-tool-chip--ghost', true));
+  };
   function openPresets(chosen = null, why = '') {
     const head = (blurb) => el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Presets' }), el('p', { class: 'av-tool-blurb', text: blurb })), closeX('presets'));
     if (!chosen) {
@@ -8600,8 +8748,8 @@ function boot() {
         head('A preset or a shared result is a saved Scriptorium builder file. You see what it carries and tick what to take before anything changes; Undo, on the Reset button, takes it back.'),
         el('section', { class: 'av-tool-bar av-tool-bar--stack' },
           el('h3', { class: 'section-title', text: 'Presets' }),
-          ...(PACT.presets.length ? PACT.presets.map(p => el('div', { class: 'chips' }, chip(p.title, false, () => openPresets(p), 'av-tool-chip--ghost'))) : [el('p', { class: 'av-annot', text: 'No presets ship with this page yet.' })]),
-          ...(PACT.ownPresets.length ? [el('h3', { class: 'section-title', text: 'Your presets' }), ...PACT.ownPresets.map(p => el('div', { class: 'chips' }, chip(p.title, false, () => openPresets(p), 'av-tool-chip--ghost')))] : []),
+          ...(PACT.presets.length ? PACT.presets.map(presetChip) : [el('p', { class: 'av-annot', text: 'No presets ship with this page yet.' })]),
+          ...(PACT.ownPresets.length ? [el('h3', { class: 'section-title', text: 'Your presets' }), ...PACT.ownPresets.map(presetChip)] : []),
           el('h3', { class: 'section-title', text: 'A shared file' }),
           el('label', { class: 'av-field' }, el('span', { class: 'av-field-label', text: 'Open a builder file' }), file),
           ...(why ? [el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: why })] : []))));
