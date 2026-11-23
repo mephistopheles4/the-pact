@@ -11,3 +11,5 @@ CI has no `claude` and no sessions, so its tests stub the process call. One real
 ## Record
 
 - PACT-80 spec revision 2 and Design round 1 (Linear comments)
+- PACT-80 spec revision 3 and Design round 2, final (Linear comments)
+- PACT-80 Test round 1 and Test round 2, final (Linear comments); PR #657
