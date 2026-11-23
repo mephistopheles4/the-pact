@@ -618,6 +618,12 @@ or stop the work over it.
 Each stage: what each tier sets, the lenses to offer, where the work goes
 next.
 
+**A skill I can't invoke.** When the table names a skill you can't invoke
+(model invocation is off, or a plugin skill is missing from your list), find
+its SKILL.md, first in my skills folder, then in the installed plugins'
+`skills/`. Read it and follow it, with no wait, no checkpoint and no hand-over
+line. A skill you can't find, say so in one line and go on with the stage.
+
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
 | Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
@@ -1606,7 +1612,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 7f12012ef2ff3f31f1ff32995695b7e4ff382caba837546ee0dcce2a2db2c898 'CLAUDE.md'
+check_hash e5f357559863e11c03307687c1592b2f9e08de29277c2dd95c00670111e023df 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1648,7 +1654,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 80ba2d7e44b2"
+  echo "pact cloud copy f1bdbdb984fd"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

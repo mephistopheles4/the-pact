@@ -14,7 +14,7 @@
 //   workflowGraph: { stages: [{ id, name, text, model: 'plan' | 'build' | 'owner', skipAt: [tier ids] }],
 //                    offers: [{ id, stage, when, words, agents: [names], on, tiers? }],   tiers: [tier ids], only with when 'tiers'
 //                    links:  [{ from, to, when, on }],        an empty when is the stage's default way on
-//                    skills: [{ id, stage, skill, mode: 'offered' | 'used', when, words, on, tiers? }],   optional
+//                    skills: [{ id, stage, skill, command?, mode: 'offered' | 'used', when, words, on, tiers? }],   optional
 //                                                             a skill or command at a stage: offered to me, or used
 //                    layout: { <node id>: { x, y } } }        the canvas's positions; compiles to nothing
 //   lenses:        [{ agents: [names], label, asks }]       the roster, one row each
@@ -364,9 +364,9 @@ export function offerText(p, o) {
   return `${o.agents.map(tick).join(', ')}: ${whenWords(p, o)}`;
 }
 
-/** A skill's words: its name, offered or used, and when. */
+/** A skill's words: its name, its command when it has one, offered or used, and when. */
 export function skillText(p, k) {
-  return `${tick(k.skill)}: ${k.mode}, ${whenWords(p, k)}`;
+  return `${tick(k.skill)}${k.command ? `'s ${tick(k.command)} command` : ''}: ${k.mode}, ${whenWords(p, k)}`;
 }
 
 /** A link's words: back, on or ahead, by the order the work takes the stages. */
@@ -425,6 +425,8 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const AGENT_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 // A skill or a command, as the builder file's own lists name them: a command may lead with a /.
 const SKILL_RE = /^\/?[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
+// A skill's own command (PACT-96): lowercase letters, digits and '-', from a letter, 1 to 40 characters.
+export const COMMAND_RE = /^[a-z][a-z0-9-]{0,39}$/;
 const isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysIn = (o, ks) => Object.keys(o).every(k => ks.includes(k));
 // One line of text that keeps a table cell whole: no line break and no bar.
@@ -511,11 +513,12 @@ export function partsProblems(p) {
     const skills = g.skills || [];
     if (skills.length > C.skills) err('workflow', `at most ${C.skills} skills`);
     skills.forEach((k, i) => {
-      if (!isObj(k) || !keysIn(k, ['id', 'stage', 'skill', 'mode', 'when', 'words', 'on', 'tiers']) || typeof k.id !== 'string' || !ID_RE.test(k.id)) return err('workflow', `skill ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, skill, mode, when, words, on and tiers beside it`);
+      if (!isObj(k) || !keysIn(k, ['id', 'stage', 'skill', 'command', 'mode', 'when', 'words', 'on', 'tiers']) || typeof k.id !== 'string' || !ID_RE.test(k.id)) return err('workflow', `skill ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, skill, command, mode, when, words, on and tiers beside it`);
       if (kids.has(k.id) || oids.has(k.id) || ids.has(k.id)) err('workflow', `skill ${k.id}: the id is used twice`);
       kids.add(k.id);
       if (!ids.has(k.stage)) err('workflow', `skill ${k.id}: its stage is not in the graph`);
       if (typeof k.skill !== 'string' || !SKILL_RE.test(k.skill)) err('workflow', `skill ${k.id}: the skill's name must be letters, digits, '.', '_', '-' or ':', with an optional leading /`);
+      if (Object.hasOwn(k, 'command') && (typeof k.command !== 'string' || !COMMAND_RE.test(k.command))) err('workflow', `skill ${k.id}: the command must be 1 to 40 characters: lowercase letters, digits and '-', starting with a letter`);
       if (!SKILL_MODES.includes(k.mode)) err('workflow', `skill ${k.id}: mode must be offered or used`);
       if (!Object.hasOwn(OFFER_WHENS, k.when)) err('workflow', `skill ${k.id}: when must be one of ${Object.keys(OFFER_WHENS).join(', ')}`);
       if (k.when === 'words' ? !lineOk(k.words, C.line) || !String(k.words).trim() : Object.hasOwn(k, 'words') && k.words !== '') err('workflow', `skill ${k.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);

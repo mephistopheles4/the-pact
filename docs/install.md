@@ -229,14 +229,11 @@ parts:
   configuration notice added. If you do have one, it is used whole, never
   mixed with the default: the block lists each setting and edit, and a
   rendered hash the apply command carries. A project install never takes the
-  default. The default's workflow names six skills from `addyosmani/agent-skills` on
-  the stages (`spec-driven-development`, `incremental-implementation`,
-  `test-driven-development`, `code-review-and-quality`,
-  `shipping-and-launch` and `documentation-and-adrs`), and its `skills` list names their folders at a pinned commit, so the dry run shows a `skills:` block; the cloud setup fetches them. Two of them suggest registry audit commands (`npm audit` and the like), which send a project's dependency list to the package registry when a session runs one. At home they are
-  optional: the install never fetches them, and a session uses one only if
-  you installed it yourself, or if a repo you work in carries a skill of that
-  name, which is then the one used. Install them yourself, or write a
-  configuration of your own, to keep a repo's skill out of that slot.
+  default. The default's workflow names skills on the stages only, and its
+  sensitive list is auth, crypto and data migrations: the pact text's own
+  also holds input validation. It names no skill sources, so the dry run shows
+  no `skills:` block and nothing is fetched. A session uses a skill only if
+  you installed it, or if a repo you work in carries one of that name.
 - **`WARN: SECURITY DEFAULTS:`.** Shown before every other warning when your
   configuration, or the pact's default in its place, edits any of the six parts Scriptorium builds that set
   security defaults: `tiers`, `sensitive`, `workflow`, `lenses`, `qualities`
@@ -438,8 +435,10 @@ It installs these files under `~/.claude`:
   its generator), copies of `review.md`, the pact commands and the settings
   overlay, for the page to show, and the rules as they stand before your
   configuration, as `claude/rules.source.md`. It holds no file named
-  `CLAUDE.md`. The kit's builder writes a page only outside any repo, the
-  Claude home folder and any `.claude` folder;
+  `CLAUDE.md`. The kit's builder writes a page by default to
+  `pact/scriptorium.html` in your Claude home, never a link or folder; the
+  install leaves that file alone. Given `--out`, it writes only to a new file
+  outside any repo, the Claude home folder and any `.claude` folder;
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against;
 - `pact/backups/`, a backup of what each apply replaced (step 3). No install

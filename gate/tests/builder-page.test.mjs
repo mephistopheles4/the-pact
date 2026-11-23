@@ -720,6 +720,31 @@ test('a skill on the graph compiles into a Skills column, offered or used and wh
   assert.match(lines.find(l => l.startsWith('| Plan |')), /\| none \| none \| \|$/);
 });
 
+// PACT-96 S4, C4: a skill's command compiles after its name; a bad command is a workflow error, in the builder's check.
+test('a skill with a command compiles to its name, then its command, then the mode; one without compiles as before', () => {
+  const p = copyParts(DEFAULT_PARTS);
+  const k = { id: 'plan-shape', stage: 'plan', skill: 'impeccable:impeccable', mode: 'offered', when: 'words', words: 'when a change has a UI', on: true };
+  p.workflowGraph.skills = [{ ...k, command: 'shape' }, { ...k, id: 'plan-plain', skill: 'grilling' }];
+  const plan = compileParts(p).workflow.split('\n').find(l => l.startsWith('| Plan |'));
+  assert.ok(plan.includes("`impeccable:impeccable`'s `shape` command: offered, when a change has a UI; `grilling`: offered, when a change has a UI"), plan);
+});
+
+// PACT-96 S4, C4: a command outside the shape is refused by the builder's check and by the page's own check.
+test('bad builder file: a skill whose command is not lowercase letters, digits and hyphens from a letter, 1 to 40 long, is a workflow error', t => {
+  const skill = command => ({ id: 'k', stage: 'build', skill: 'impeccable:impeccable', mode: 'used', when: 'every-build', words: '', on: true, command });
+  const refusals = command => checkBuilder(REPO, builderFile(t, graphWith(g => (g.skills = [skill(command)])), GOOD_BLOCKS)).refusals;
+  assert.deepEqual(refusals('shape'), []);
+  assert.deepEqual(refusals('a'.repeat(40)), []);
+  for (const bad of ['Bad cmd', 'Shape', '1shape', '-shape', 'a b', 'a'.repeat(41), '', 'x\n', 7]) assert.ok(refusals(bad).some(m => /skill k: the command must be/.test(m)), JSON.stringify(bad));
+  // The page's own check says the same, and a save of a good command keeps it in builder.json.
+  const s = L.initialState();
+  s.parts.workflowGraph.skills = [skill('Bad cmd')];
+  assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'workflow' && /the command must be/.test(p.text)));
+  s.parts.workflowGraph.skills = [skill('shape')];
+  assert.deepEqual(L.problems(s), []);
+  assert.equal(JSON.parse(L.builderWith(null, s).text).workflowGraph.skills[0].command, 'shape');
+});
+
 // #262: the builder's skill check refuses a skill name that is no skill or command name.
 test('bad builder file: a skill whose name is no skill or command name is refused', t => {
   const r = checkBuilder(REPO, builderFile(t, graphWith(g => (g.skills = [{ id: 'k', stage: 'build', skill: 'run this; rm', mode: 'used', when: 'every-build', words: '', on: true }])), GOOD_BLOCKS));
@@ -832,9 +857,13 @@ test('a security-set lens off its default saves like a plain one, with no warnin
 // ------------------------------------------------------------ the page on a stub DOM
 
 /** Boot the page's script against a small stand-in for the DOM; returns the elements by id and helpers. */
-function bootPage({ picker = false, folder = null, page = PAGE } = {}) {
+function bootPage({ picker = false, folder = null, page = PAGE, measure = null } = {}) {
   const script = pageScript(page);
+  // With `measure`, a card's offsetHeight is what it says, and animation frames wait in a queue that `flush` runs once.
+  const queue = [];
   class N {
+    get offsetHeight() { return measure ? measure(this) : 0; }
+    getBoundingClientRect() { return { left: 0, top: 0, width: 1000, height: 700 }; }
     constructor(tag) { Object.assign(this, { tag, children: [], attrs: {}, hidden: false, textContent: '', listeners: {}, style: {}, dataset: {}, value: '' }); this.classList = { add() {}, remove() {}, toggle() {} }; }
     append(...c) { this.children.push(...c.map(x => (typeof x === 'string' ? Object.assign(new N('#text'), { textContent: x }) : x))); }
     replaceChildren(...c) { this.children = []; this.append(...c); }
@@ -850,10 +879,11 @@ function bootPage({ picker = false, folder = null, page = PAGE } = {}) {
   const ids = {};
   const document = { createElement: t => new N(t), createTextNode: t => Object.assign(new N('#text'), { textContent: t }), getElementById: id => (ids[id] ||= new N('div')), documentElement: new N('html'), body: new N('body'), addEventListener() {} };
   const window = { localStorage: { getItem: () => null, setItem() {} }, scrollTo() {}, addEventListener() {}, isSecureContext: picker, ...(picker ? { showDirectoryPicker: async () => { if (folder) return folder; throw Object.assign(new Error('x'), { name: 'AbortError' }); } } : {}) };
-  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout, clearTimeout, requestAnimationFrame: () => 0 }));
+  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout, clearTimeout, performance: { now: () => 0 }, requestAnimationFrame: measure ? f => queue.push(f) : () => 0 }));
   const find = (n, pred, out = []) => { if (pred(n)) out.push(n); n.children.forEach(c => find(c, pred, out)); return out; };
   const button = (root, label) => find(root, n => n.tag === 'button' && n.text.startsWith(label))[0];
-  return { ids, find, button };
+  const flush = () => queue.splice(0).forEach(f => f(1e6));
+  return { ids, find, button, flush };
 }
 
 /** Open Settings on a stub page and return the dialog's node. */
@@ -887,6 +917,344 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.match(P.ids.output.text, /"mark": "moves",\s*"op": "replace"/);
   assert.match(P.ids.output.text, /I sense the work my own way\./);
   assert.doesNotMatch(P.ids.output.text, /\r/);
+});
+
+// PACT-96 S6, C6: cards of different heights; after the first draw and after Arrange, no two cards' boxes overlap.
+test('stub page: the first layout after the first draw, and Arrange, stack cards by their rendered height so no two overlap', () => {
+  const SIZE = { 'wf-stage': [200, 70], 'wf-cond': [168, 130], 'wf-skill': [188, 140], 'wf-agent': [168, 28] };
+  const classes = n => String(n.className || '').split(' ');
+  const sizeOf = n => Object.entries(SIZE).find(([c]) => classes(n).includes(c));
+  const P = bootPage({ measure: n => (sizeOf(n) ? sizeOf(n)[1][1] : 0) });
+  const boxes = () => P.find(P.ids.wf, n => classes(n).includes('wf-node')).map(n => ({ id: n.dataset.id, x: parseFloat(n.style.left), y: parseFloat(n.style.top), w: sizeOf(n)[1][0], h: sizeOf(n)[1][1] }));
+  const overlapping = () => {
+    const b = boxes();
+    const hits = [];
+    for (let i = 0; i < b.length; i += 1) for (let j = i + 1; j < b.length; j += 1) if (b[i].x < b[j].x + b[j].w && b[j].x < b[i].x + b[i].w && b[i].y < b[j].y + b[j].h && b[j].y < b[i].y + b[i].h) hits.push(`${b[i].id} / ${b[j].id}`);
+    return hits;
+  };
+  P.flush();
+  assert.ok(boxes().length > 20, 'the graph is drawn');
+  assert.deepEqual(overlapping(), [], 'after the first draw');
+  P.button(P.ids.wf, 'Arrange').click();
+  P.flush();
+  assert.deepEqual(overlapping(), [], 'after Arrange');
+});
+
+// PACT-96 S7, S8, C7: a card's words are clamped to three lines with the whole text in the tooltip; "In your words" is a textarea, one line in effect.
+test('stub page: card words carry a three-line clamp and their full text, and "In your words" is a three-row text box that turns a newline into a space', () => {
+  const P = bootPage();
+  const classes = n => String(n.className || '').split(' ');
+  const words = () => P.find(P.ids.wf, n => classes(n).includes('wf-words'));
+  assert.ok(words().length > 10, 'the cards draw their words');
+  for (const w of words()) assert.equal(w.attrs['data-av-help'], undefined, 'the help is on the card, not the span (C12)');
+  assert.match(PAGE, /\.wf-words \{[^}]*display: -webkit-box;[^}]*-webkit-line-clamp: 3;[^}]*overflow: hidden/);
+  const card = P.find(P.ids.wf, n => classes(n).includes('wf-skill') && n.text.includes('during grilling'))[0];
+  card.listeners.keydown.forEach(f => f({ key: 'Enter', target: card }));
+  const box = P.find(P.ids.wf, n => n.attrs['aria-label'] === 'In your words')[0];
+  assert.equal(box.tag, 'textarea');
+  assert.equal(box.attrs.rows, '3');
+  typeInto(box, 'when two\nthings are linked');
+  assert.equal(box.value, 'when two things are linked');
+  assert.ok(words().some(w => w.textContent === 'when two things are linked'), 'the card shows what was typed');
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /when two things are linked/);
+  // An offer's inspector takes the same box once it is offered "in your words".
+  const offer = P.find(P.ids.wf, n => classes(n).includes('wf-cond'))[0];
+  offer.listeners.keydown.forEach(f => f({ key: 'Enter', target: offer }));
+  const when = P.find(P.ids.wf, n => n.tag === 'select' && n.attrs['aria-label'] === 'when')[0];
+  when.value = 'words';
+  when.listeners.change.forEach(f => f({}));
+  const offerBox = P.find(P.ids.wf, n => n.attrs['aria-label'] === 'In your words')[0];
+  assert.equal(offerBox.tag, 'textarea');
+  assert.equal(offerBox.attrs.rows, '3');
+  typeInto(offerBox, 'the change\ntouches billing');
+  assert.equal(offerBox.value, 'the change touches billing');
+});
+
+/** A card's stand-in sizes for the stub canvas, by class: [width, height]. */
+const CARD_SIZE = { 'wf-stage': [200, 70], 'wf-cond': [168, 130], 'wf-skill': [188, 140], 'wf-agent': [168, 28] };
+const cardClasses = n => String(n.className || '').split(' ');
+const cardSize = n => Object.entries(CARD_SIZE).find(([c]) => cardClasses(n).includes(c));
+/** Open a card's inspector on a stub page, as Enter on the focused card does. */
+const openCard = (P, card) => card.listeners.keydown.forEach(f => f({ key: 'Enter', target: card }));
+
+// PACT-96 C10: a card that grows or shrinks after an edit moves the cards below it in its column, and only those.
+test('stub page: an edit that changes a card\'s height moves the cards below it in the same column by the difference, recorded as one undo step', () => {
+  const grown = {};
+  const P = bootPage({ measure: n => (cardSize(n) ? (grown[n.dataset.id] ?? cardSize(n)[1][1]) : 0) });
+  const boxes = () => Object.fromEntries(P.find(P.ids.wf, n => cardClasses(n).includes('wf-node')).map(n => [n.dataset.id, { x: parseFloat(n.style.left), y: parseFloat(n.style.top), h: (grown[n.dataset.id] ?? cardSize(n)[1][1]), w: cardSize(n)[1][0] }]));
+  const overlapping = b => {
+    const v = Object.entries(b);
+    const hits = [];
+    for (let i = 0; i < v.length; i += 1) for (let j = i + 1; j < v.length; j += 1) {
+      const [, p] = v[i];
+      const [, q] = v[j];
+      if (p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h) hits.push(`${v[i][0]} / ${v[j][0]}`);
+    }
+    return hits;
+  };
+  P.flush();
+  const before = boxes();
+  assert.deepEqual(overlapping(before), []);
+  const edited = 'plan-eagle-eye';
+  const below = Object.keys(before).filter(id => before[id].x === before[edited].x && before[id].y > before[edited].y);
+  assert.ok(below.length >= 2, 'cards stand below it in its column');
+  const card = P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === edited)[0];
+  openCard(P, card);
+  grown[edited] = before[edited].h + 50;
+  typeInto(P.find(P.ids.wf, n => n.attrs['aria-label'] === 'In your words')[0], 'a much longer way of saying when two questions are linked');
+  const after = boxes();
+  for (const id of Object.keys(before)) {
+    const moved = below.includes(id) || below.some(b => id.startsWith(`${b}/`));
+    assert.deepEqual([after[id].x, after[id].y], [before[id].x, before[id].y + (moved ? 50 : 0)], id);
+  }
+  assert.deepEqual(overlapping(after), [], 'nothing overlaps after the edit');
+  // One undo step takes the words and the move back together.
+  const undo = P.button(P.ids.wf, '↶');
+  assert.equal(undo.disabled, false);
+  undo.click();
+  assert.deepEqual(boxes(), Object.fromEntries(Object.entries(before).map(([id, b]) => [id, { ...b, h: id === edited ? b.h + 50 : b.h }])));
+  assert.equal(undo.disabled, true, 'the edit and its move were one step');
+  // Redo puts the words and the move back together.
+  P.button(P.ids.wf, '↷').click();
+  assert.deepEqual(boxes(), after);
+});
+
+// PACT-96 C10 (F1): a grown condition moves the cards below it and their lenses; the same height again moves nothing; a shrink moves them up.
+test('stub page: a grown condition moves the cards below it and their lenses, a second edit at that height moves nothing, and a shrink moves them back up', () => {
+  const grown = {};
+  const P = bootPage({ measure: n => (cardSize(n) ? (grown[n.dataset.id] ?? cardSize(n)[1][1]) : 0) });
+  const at = () => Object.fromEntries(P.find(P.ids.wf, n => cardClasses(n).includes('wf-node')).map(n => [n.dataset.id, [parseFloat(n.style.left), parseFloat(n.style.top)]]));
+  P.flush();
+  const start = at();
+  const edited = 'design-spec-pair';
+  const [ex, ey] = start[edited];
+  const below = Object.keys(start).filter(id => !id.startsWith(`${edited}/`) && id !== edited && (id.includes('/') ? start[id.split('/')[0]][0] === ex && start[id.split('/')[0]][1] > ey : start[id][0] === ex && start[id][1] > ey));
+  assert.ok(below.some(id => id.includes('/')), 'a condition with lenses stands below it');
+  assert.ok(below.some(id => !id.includes('/')), 'cards stand below it');
+  const shifted = by => Object.fromEntries(Object.entries(start).map(([id, [x, y]]) => [id, [x, y + (below.includes(id) ? by : 0)]]));
+  openCard(P, P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === edited)[0]);
+  grown[edited] = cardSize(P.find(P.ids.wf, n => n.dataset.id === edited)[0])[1][1] + 50;
+  const when = P.find(P.ids.wf, n => n.tag === 'select' && n.attrs['aria-label'] === 'when')[0];
+  when.value = 'words';
+  when.listeners.change.forEach(f => f({}));
+  assert.deepEqual(at(), shifted(50), 'the cards below and their lenses moved down by the growth, and nothing else');
+  const words = () => P.find(P.ids.wf, n => n.attrs['aria-label'] === 'In your words')[0];
+  typeInto(words(), 'a second edit at the same height');
+  assert.deepEqual(at(), shifted(50), 'the same height again moves nothing');
+  delete grown[edited];
+  typeInto(words(), 'short');
+  assert.deepEqual(at(), start, 'a shrink moves them back up');
+});
+
+// PACT-96 C14: one stacking pass, after the first draw and on Arrange: a saved layout that collides opens clear, and Arrange ignores what was saved.
+test('stub page: a saved layout that collides opens with no overlaps, positions that do not collide stay put, a card a little out of its column is stacked with it, and Arrange ignores saved positions', t => {
+  const stages = ['plan', 'design', 'build', 'test', 'deploy', 'maintain'];
+  const saved = {};
+  const graph = g => {
+    stages.forEach((s, i) => {
+      const x = 40 + i * 420;
+      saved[s] = [x, 60];
+      const inStage = [...g.offers.filter(o => o.stage === s), ...g.skills.filter(k => k.stage === s)];
+      inStage.forEach((n, j) => {
+        // Spread wide in the test column, packed on top of each other elsewhere; one card in the plan column a little to the right.
+        saved[n.id] = [s === 'plan' && n.id === 'plan-diagnose' ? x + 60 : x, s === 'test' ? 200 + j * 400 : 200 + j * 50];
+      });
+    });
+    for (const o of g.offers) o.agents.forEach((a, k) => { saved[`${o.id}/${a}`] = [saved[o.id][0] + 200, saved[o.id][1] + k * 40]; });
+    g.layout = Object.fromEntries(Object.entries(saved).map(([id, [x, y]]) => [id, { x, y }]));
+  };
+  const preset = JSON.parse(readFileSync(join(REPO, 'builder', 'presets', 'level-3-full.json'), 'utf8')).workflowGraph;
+  graph(preset);
+  const page = buildPage(REPO, PAGE, builderFile(t, { ...GOOD, workflowGraph: preset }, GOOD_BLOCKS));
+  const P = bootPage({ page, measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  const boxes = () => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node')).map(n => ({ id: n.dataset.id, x: parseFloat(n.style.left), y: parseFloat(n.style.top), w: cardSize(n)[1][0], h: cardSize(n)[1][1] }));
+  const overlapping = () => {
+    const b = boxes();
+    const hits = [];
+    for (let i = 0; i < b.length; i += 1) for (let j = i + 1; j < b.length; j += 1) if (b[i].x < b[j].x + b[j].w && b[j].x < b[i].x + b[i].w && b[i].y < b[j].y + b[j].h && b[j].y < b[i].y + b[i].h) hits.push(`${b[i].id} / ${b[j].id}`);
+    return hits;
+  };
+  const byId = () => Object.fromEntries(boxes().map(b => [b.id, b]));
+  assert.ok(Object.keys(saved).length > 40);
+  P.flush();
+  const opened = byId();
+  assert.deepEqual(overlapping(), [], 'a layout that collided opens with no overlaps');
+  for (const [id, [x, y]] of Object.entries(saved)) {
+    assert.equal(opened[id].x, x, `${id}: x is kept`);
+    assert.ok(opened[id].y >= y, `${id}: a card moves down, never up`);
+    if (id.startsWith('test-') || stages.includes(id)) assert.equal(opened[id].y, y, `${id}: nothing collides there, so it stays put`);
+  }
+  assert.equal(opened['plan-grill-with-docs'].y, saved['plan-grill-with-docs'][1], 'the first card of a column stays where it was saved');
+  assert.ok(opened['plan-eagle-eye'].y >= opened['plan-grill-with-docs'].y + opened['plan-grill-with-docs'].h, 'a card is pushed below the one above it');
+  assert.ok(opened['plan-arena'].y > saved['plan-arena'][1], 'a card in a pile is pushed down');
+  P.button(P.ids.wf, 'Arrange').click();
+  P.flush();
+  const arranged = byId();
+  assert.deepEqual(overlapping(), [], 'after Arrange');
+  assert.deepEqual([arranged['plan-diagnose'].x, arranged['plan-grill-with-docs'].x], [40, 40], 'Arrange puts a card back in its column');
+  assert.equal(arranged['plan-grill-with-docs'].y, 200);
+});
+
+// PACT-96 C14: a card added to the builder file after its layout was saved opens in its stage's column, after the card before it, never above the stages.
+test('stub page: a skill the saved layout does not hold yet opens in its column after the skill before it, with no overlaps', t => {
+  const preset = JSON.parse(readFileSync(join(REPO, 'builder', 'presets', 'level-3-full.json'), 'utf8')).workflowGraph;
+  const P0 = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, workflowGraph: structuredClone(preset) }, GOOD_BLOCKS)), measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  P0.flush();
+  P0.button(P0.ids.wf, 'Arrange').click();
+  P0.flush();
+  const layout = {};
+  for (const n of P0.find(P0.ids.wf, n => cardClasses(n).includes('wf-node'))) layout[n.dataset.id] = { x: parseFloat(n.style.left), y: parseFloat(n.style.top) };
+  const g = structuredClone(preset);
+  const at = g.skills.findIndex(k => k.id === 'plan-grill-with-docs');
+  g.skills.splice(at + 1, 0, { id: 'plan-late', stage: 'plan', skill: 'domain-modeling', mode: 'used', when: 'tiers', words: '', tiers: ['standard', 'thorough'], on: true });
+  g.layout = layout;
+  const P = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, workflowGraph: g }, GOOD_BLOCKS)), measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  P.flush();
+  const b = Object.fromEntries(P.find(P.ids.wf, n => cardClasses(n).includes('wf-node')).map(n => [n.dataset.id, { x: parseFloat(n.style.left), y: parseFloat(n.style.top), h: cardSize(n)[1][1] }]));
+  assert.equal(b['plan-late'].x, b['plan-grill-with-docs'].x, 'the new card is in its stage column');
+  assert.ok(b['plan-late'].y >= b['plan-grill-with-docs'].y + b['plan-grill-with-docs'].h, 'it opens below the skill before it');
+  assert.ok(b['plan-late'].y > b.plan.y, 'never above its stage');
+  assert.ok(b['plan-eagle-eye'].y >= b['plan-late'].y + b['plan-late'].h, 'the skill after it moves down to make room');
+});
+
+// PACT-96 (the owner, in chat): the Presets list marks the preset whose parts are the ones in effect, so a person on Level 3 sees it.
+test('stub page: the Presets list marks Level 3 as in effect on a fresh open and when the builder file holds its parts, and marks none once a part differs', t => {
+  const level3 = JSON.parse(readFileSync(join(REPO, 'builder', 'presets', 'level-3-full.json'), 'utf8'));
+  const marked = P => {
+    P.button(P.ids.actions, 'Presets').click();
+    const on = P.find(P.ids.presets, n => n.tag === 'button' && n.attrs['aria-pressed'] === 'true');
+    // The ghost style sets a dark text colour that would sit on the pressed chip's dark fill.
+    for (const n of on) assert.ok(!cardClasses(n).includes('av-tool-chip--ghost'),'a pressed chip drops the ghost style');
+    return on.map(n => n.text);
+  };
+  assert.deepEqual(marked(bootPage({})), ['Level 3 · Full'], 'a fresh open lands on Level 3');
+  const parts = { tiers: level3.tiers, sensitive: level3.sensitive, workflowGraph: { ...level3.workflowGraph, layout: { plan: { x: 300, y: 60 } } }, costLimits: level3.costLimits };
+  const same = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, ...parts }, GOOD_BLOCKS)) });
+  assert.deepEqual(marked(same), ['Level 3 · Full'], 'a builder file holding Level 3, saved layout and all, is on Level 3');
+  const costLimits = parts.costLimits.map((c, i) => (i ? c : { ...c, limit: '5' }));
+  const changed = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, ...parts, costLimits }, GOOD_BLOCKS)) });
+  assert.deepEqual(marked(changed), [], 'one part changed: no preset is in effect');
+});
+
+// PACT-96 C12 (F2): a card that takes the focus off the view is brought into it, and the canvas's own scroll, which would hide the help, stays at 0.
+test('stub page: focusing a card that is off the view pans it into view and leaves the canvas unscrolled; a card already in view leaves the view alone', () => {
+  const P = bootPage({ measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  P.flush();
+  const canvas = P.find(P.ids.wf, n => cardClasses(n).includes('wf-canvas'))[0];
+  const world = P.find(P.ids.wf, n => cardClasses(n).includes('wf-world'))[0];
+  const card = id => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === id)[0];
+  const view = () => {
+    const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/.exec(world.style.transform);
+    return { x: Number(m[1]), y: Number(m[2]), k: Number(m[3]) };
+  };
+  const onScreen = c => {
+    const v = view();
+    const [w, h] = cardSize(c)[1];
+    const [x, y] = [parseFloat(c.style.left) * v.k + v.x, parseFloat(c.style.top) * v.k + v.y];
+    return x >= 0 && y >= 0 && x + w * v.k <= 1000 && y + h * v.k <= 700;
+  };
+  const focus = c => {
+    // The browser scrolls the canvas to reveal the card it focuses; the page must answer by moving the view instead.
+    canvas.scrollLeft = 900;
+    canvas.scrollTop = 300;
+    c.listeners.focus.forEach(f => f({ target: c }));
+  };
+  const near = card('plan-grill-with-docs');
+  focus(near);
+  assert.ok(onScreen(near));
+  const kept = view();
+  for (const id of ['maintain-impeccable-document', 'plan-arena', 'deploy-pr']) {
+    focus(card(id));
+    assert.ok(onScreen(card(id)), `${id} is in view`);
+    assert.deepEqual([canvas.scrollLeft, canvas.scrollTop], [0, 0], `${id}: the canvas is not left scrolled`);
+  }
+  focus(near);
+  assert.ok(onScreen(near), 'back to the first card');
+  assert.notDeepEqual(view(), kept, 'the view moved to follow the focus');
+  const here = view();
+  focus(near);
+  assert.deepEqual(view(), here, 'a card already in view leaves the view alone');
+});
+
+// PACT-96 C11: a command the check refuses shows its rule under the field and a mark on the card, and both clear once it is valid.
+test('stub page: an invalid command shows its rule under the field, linked by aria-describedby, and marks the skill card; a valid one clears both', () => {
+  const P = bootPage();
+  const card = id => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === id)[0];
+  openCard(P, card('plan-impeccable-shape'));
+  const box = () => P.find(P.ids.wf, n => n.attrs['aria-label'] === 'Command')[0];
+  const note = () => P.find(P.ids.wf, n => n.attrs.id === box().attrs['aria-describedby'])[0];
+  assert.equal(box().value, 'shape');
+  assert.ok(box().attrs['aria-describedby'] && note(), 'the field is linked to its message');
+  // The field's help must not cover its error: no help note sits on the box or on anything that holds the box or the message, and none holds the rule.
+  const helped = P.find(P.ids.wf, n => n.attrs['data-av-help'] !== undefined);
+  assert.ok(helped.some(n => /command of the skill/.test(n.attrs['data-av-help'])), 'the field still has its help');
+  for (const n of helped) {
+    assert.doesNotMatch(n.attrs['data-av-help'], /Lowercase letters/);
+    assert.deepEqual(P.find(n, x => x === box() || x === note()), [], `the help on "${n.attrs['data-av-help'].slice(0, 30)}" holds neither the box nor its message`);
+  }
+  assert.equal(note().hidden, true, 'a valid command shows no message');
+  typeInto(box(), 'Bad cmd');
+  assert.equal(note().hidden, false);
+  assert.equal(note().textContent, 'Lowercase letters, digits and hyphens, starting with a letter; up to 40 characters.');
+  assert.equal(box().attrs['aria-invalid'], 'true');
+  const marked = card('plan-impeccable-shape');
+  assert.ok(cardClasses(marked).includes('wf-bad'));
+  assert.match(marked.text, /⚠/);
+  assert.match(marked.attrs['aria-label'], /command Bad cmd is invalid/);
+  typeInto(box(), 'shape');
+  assert.equal(note().hidden, true);
+  assert.equal(box().attrs['aria-invalid'], 'false');
+  const clean = card('plan-impeccable-shape');
+  assert.ok(!cardClasses(clean).includes('wf-bad'));
+  assert.doesNotMatch(clean.text, /⚠/);
+  assert.doesNotMatch(clean.attrs['aria-label'], /invalid/);
+});
+
+// PACT-96 C12: the card, which takes the focus, carries its whole words and its skill name as its help.
+test('stub page: a card carries its full words and its skill or command name as its help, a long name included', () => {
+  const P = bootPage();
+  const card = id => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === id)[0];
+  const help = card('plan-eagle-eye').attrs['data-av-help'];
+  assert.match(help, /grimoire:eagle-eye/);
+  assert.match(help, /during grilling, when questions are linked/);
+  assert.equal(card('plan-eagle-eye').attrs.tabIndex ?? card('plan-eagle-eye').tabIndex, 0, 'the card takes the focus');
+  assert.match(card('plan-impeccable-shape').attrs['data-av-help'], /impeccable:impeccable · shape/);
+  assert.match(card('test-qa-pair').attrs['data-av-help'], /behaviour-lens, integrity-lens/);
+  // Every card is a group with a name, so the help on the focused card is announced with it.
+  const everyCard = P.find(P.ids.wf, n => cardClasses(n).includes('wf-node'));
+  assert.ok(everyCard.length > 40);
+  for (const c of everyCard) {
+    assert.equal(c.attrs.role, 'group', c.dataset.id);
+    assert.ok(String(c.attrs['aria-label'] || '').length > 3, `${c.dataset.id} has a name`);
+  }
+  assert.match(card('plan-eagle-eye').attrs['aria-label'], /grimoire:eagle-eye/);
+  assert.match(card('test-qa-pair/behaviour-lens').attrs['aria-label'], /behaviour-lens/);
+  const long = `plugin:${'a'.repeat(60)}`;
+  openCard(P, card('plan-eagle-eye'));
+  typeInto(P.find(P.ids.wf, n => n.attrs['aria-label'] === 'Skill or command')[0], long);
+  assert.ok(card('plan-eagle-eye').attrs['data-av-help'].includes(long), 'a cut name is whole in the help');
+});
+
+// PACT-96 C13: the first fit, Fit and Arrange keep a readable zoom, and the first view starts at the first stage.
+test('stub page: fit never zooms below 0.8, and the first view starts at the first stage', () => {
+  const P = bootPage({ measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  const world = P.find(P.ids.wf, n => cardClasses(n).includes('wf-world'))[0];
+  const view = () => {
+    const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/.exec(world.style.transform);
+    return { x: Number(m[1]), y: Number(m[2]), k: Number(m[3]) };
+  };
+  const atFirstStage = (v, why) => {
+    assert.ok(v.k >= 0.8, `${why}: k ${v.k}`);
+    assert.ok(v.x + 40 * v.k >= 0 && v.x + 40 * v.k < 1000 && v.y + 60 * v.k >= 0 && v.y + 60 * v.k < 700, `${why}: the first stage is on the canvas`);
+  };
+  P.flush();
+  atFirstStage(view(), 'first open');
+  P.button(P.ids.wf, 'Fit').click();
+  atFirstStage(view(), 'Fit');
+  P.button(P.ids.wf, 'Arrange').click();
+  P.flush();
+  atFirstStage(view(), 'Arrange');
 });
 
 // #464 T8 C1 to C4: every rule the pact installs is readable on the page, and reading it changes nothing a save writes.
@@ -1504,7 +1872,7 @@ test('a shipped preset is carried with only the parts, models and agent files it
   assert.throws(() => shippedPresets(REPO, pactData(REPO), dir), /the preset z-bad\.json is refused: .*1 to 6 tiers/);
 });
 
-// #203 S6, C5: the builder runs as the installed kit, from the rules source, and writes its page only somewhere new, outside any repo or Claude folder.
+// #203 S6, C5, PACT-96 S5: the builder runs as the installed kit, from the rules source, and writes its page by default to the Claude home's fixed path; --out goes only somewhere new, outside any repo or Claude folder.
 test('the builder kit builds a page from a builder file, refuses to rebuild itself, and refuses an output in the kit, the Claude home, a .claude folder, a git work tree or over a file', t => {
   const home = join(tempDir(t, 'pact-kit-'), 'claude-home');
   const kit = join(home, 'pact', 'builder');
@@ -1513,14 +1881,16 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  delete env.CLAUDE_CONFIG_DIR;
+  env.CLAUDE_CONFIG_DIR = home;
   const cli = args => spawnSync(process.execPath, [join(kit, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env, cwd: dirname(home) });
   const f = builderFile(t, GOOD, GOOD_BLOCKS);
   const ok = cli(['--builder', f]);
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   const wrote = /^WROTE (.+)$/m.exec(ok.stdout)[1];
-  t.after(() => rmSync(dirname(wrote), { recursive: true, force: true }));
-  assert.deepEqual(pageProblems(readFileSync(wrote, 'utf8')), [], 'the page is written, by default in a new temporary folder');
+  assert.equal(wrote, join(home, 'pact', 'scriptorium.html'), 'the page is written, by default, at the fixed path in the Claude home');
+  assert.deepEqual(pageProblems(readFileSync(wrote, 'utf8')), []);
+  const existing = join(tempDir(t, 'pact-kit-there-'), 'there.html');
+  writeFileSync(existing, 'mine');
   const self = cli([]);
   assert.equal(self.status, 1);
   assert.match(self.stdout, /never rebuilds its own page/);
@@ -1534,7 +1904,8 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
     [join(home, 'mine.html'), /outside the Claude home folder/],
     [join(dotClaude, 'mine.html'), /any \.claude folder/],
     [join(repo, 'deep', 'mine.html'), /outside any git work tree/],
-    [wrote, /must be a new file/],
+    [wrote, /outside the Claude home folder/],
+    [existing, /must be a new file/],
   ]) {
     const r = cli(['--builder', f, '--out', out]);
     assert.equal(r.status, 1, `${out}: ${r.stdout}`);
@@ -1544,6 +1915,61 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   const both = cli(['--builder', f, '--check']);
   assert.notEqual(both.status, 0);
   assert.match(both.stdout + both.stderr, /both claude\/CLAUDE\.md and claude\/rules\.source\.md/);
+});
+
+// PACT-96 S5, C5: with no --out the page goes to the fixed page path in the Claude home and replaces the last one; only that path is let into the home, and only as a plain file.
+test('with no --out the page lands at pact/scriptorium.html in the Claude home, a second run replaces it, and a link there or an --out into the home is refused', t => {
+  const home = join(tempDir(t, 'pact-home-'), 'claude');
+  mkdirSync(home);
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: home };
+  delete env.NODE_OPTIONS;
+  const cli = args => spawnSync(process.execPath, [join(REPO, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env });
+  const page = join(home, 'pact', 'scriptorium.html');
+  const first = cli(['--builder', builderFile(t, { ...GOOD, title: 'First title' }, GOOD_BLOCKS)]);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.equal(/^WROTE (.+)$/m.exec(first.stdout)[1], page);
+  assert.match(readFileSync(page, 'utf8'), /First title/);
+  assert.match(first.stdout, /^NOTE the page sits in your Claude folder, beside your builder file, .*you may delete the file when you are done with it$/m);
+  assert.doesNotMatch(first.stdout, /delete its folder/);
+  // A second run replaces the page, through a temporary file that is gone after.
+  const second = cli(['--builder', builderFile(t, { ...GOOD, title: 'Second title' }, GOOD_BLOCKS)]);
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+  assert.doesNotMatch(readFileSync(page, 'utf8'), /First title/);
+  assert.match(readFileSync(page, 'utf8'), /Second title/);
+  assert.deepEqual(readdirSync(join(home, 'pact')), ['scriptorium.html']);
+  // Only the default path is let through: --out into the home is refused, the fixed path itself included.
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  for (const out of [page, join(home, 'pact', 'other.html'), join(home, 'other.html')]) {
+    const r = cli(['--builder', f, '--out', out]);
+    assert.equal(r.status, 1, `${out}: ${r.stdout}`);
+    assert.match(r.stdout, /outside the Claude home folder/);
+  }
+  // A link at the path is refused, and what it points at is left as it was.
+  const away = tempDir(t, 'pact-away-');
+  rmSync(page);
+  symlinkSync(away, page, WIN ? 'junction' : 'dir');
+  const linked = cli(['--builder', f]);
+  assert.equal(linked.status, 1, linked.stdout);
+  assert.match(linked.stdout, /REFUSE .*not a plain file/);
+  assert.deepEqual(readdirSync(away), []);
+  assert.deepEqual(readdirSync(join(home, 'pact')), ['scriptorium.html']);
+  // A link to a plain file is refused too, where the platform lets the test make one; the file it points at is left as it was.
+  rmSync(page, { recursive: true, force: true });
+  const target = join(away, 'target.html');
+  writeFileSync(target, 'mine');
+  let fileLink = true;
+  try {
+    symlinkSync(target, page, 'file');
+  } catch (e) {
+    if (!['EPERM', 'EACCES', 'ENOSYS'].includes(e.code)) throw e;
+    fileLink = false;
+  }
+  if (fileLink) {
+    const toFile = cli(['--builder', f]);
+    assert.equal(toFile.status, 1, toFile.stdout);
+    assert.match(toFile.stdout, /REFUSE .*not a plain file/);
+    assert.equal(readFileSync(target, 'utf8'), 'mine');
+  }
 });
 
 // The protected set, item 2: a shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken.

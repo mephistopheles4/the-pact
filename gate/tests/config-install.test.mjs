@@ -217,10 +217,10 @@ test('with no configuration file the dry run names the pact\'s default and its d
   const c = lines.indexOf('Configuration:');
   assert.match(lines[c + 1], /^ {2}configuration: the pact's default, Level 3 · Full \([0-9a-f]{12}\): you have no pact\/config\.json$/, dry.out);
   assert.equal(lines[c + 2], `  rendered rules file: sha256 ${hash}`);
-  assert.ok(lines.includes('  WARN: the pact\'s default configuration edits workflow (replace).'), dry.out);
-  assert.match(dry.stdout, /^WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration \(Level 3 · Full\) renders; it edits workflow, .* No install is recorded to compare with\.\r?$/m, dry.out);
+  for (const mark of ['tiers', 'sensitive', 'workflow', 'cost-limits']) assert.ok(lines.includes(`  WARN: the pact's default configuration edits ${mark} (replace).`), dry.out);
+  assert.match(dry.stdout, /^WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration \(Level 3 · Full\) renders; it edits tiers, sensitive, workflow, cost-limits, .* No install is recorded to compare with\.\r?$/m, dry.out);
   assert.match(dry.stdout, new RegExp(`^ {2}.* --apply --commit [0-9a-f]{40} --rendered-hash ${hash}\\r?$`, 'm'), dry.out);
-  // C6 at home: the default's skill sources are listed, never fetched.
+  // C6 at home: the default's skill sources, if any, are listed, never fetched.
   const paths = (JSON.parse(readFileSync(join(repo, 'builder', 'default-config', 'config.json'), 'utf8')).skills || []).flatMap(e => e.paths);
   if (paths.length) assert.match(dry.stdout, new RegExp(`^skills: ${paths.length} paths? from \\d+ repos?, fetched only by the cloud setup\\r?$`, 'm'), dry.out);
   else assert.doesNotMatch(dry.stdout, /^skills: /m, dry.out);

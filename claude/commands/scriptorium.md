@@ -30,8 +30,10 @@ and renders the page. The shapes are in the headers of the kit's
 5. **Save and render.** Show me the `yours` lists, then save: a checkpoint,
    keeping the previous file beside it as `builder.json.bak`. Then run
    `env -u NODE_OPTIONS node ~/.claude/pact/builder/builder/build.mjs --builder ~/.claude/pact/builder.json`
-   and give me the path on its `WROTE` line.
-6. **Hand over** what changed since the last file, and tell me the page holds
-   my lists in plain text: delete its folder when I'm done. The page's checks
+   and give me the path on its `WROTE` line: the page goes to
+   `~/.claude/pact/scriptorium.html`, replacing the last one.
+6. **Hand over** what changed since the last file, and tell me the page sits
+   in my Claude folder beside my builder file and holds my lists in plain
+   text: I may delete the file when I'm done. The page's checks
    are for usability; the install's dry run is the authority on what the page
    saves.

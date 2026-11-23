@@ -6,24 +6,34 @@
       "id": "quick",
       "name": "Quick",
       "fits": "Small, one session, no plan needed",
-      "plan": "none",
-      "build": "Opus, low"
+      "plan": "Opus, low",
+      "build": "Sonnet, medium"
     },
     {
       "id": "standard",
       "name": "Standard",
       "fits": "Needs a short spec",
       "plan": "Opus, medium",
-      "build": "Sonnet, medium"
+      "build": "Sonnet, high"
     },
     {
       "id": "thorough",
       "name": "Thorough",
       "fits": "Too big for one session, or risky; cut into tickets, each its own session",
       "plan": "Opus, high",
-      "build": "Sonnet, medium"
+      "build": "Sonnet, high"
     }
   ],
+  "sensitive": {
+    "items": [
+      "auth",
+      "crypto",
+      "data migrations"
+    ],
+    "tier": "thorough",
+    "plan": "Opus, high",
+    "build": "Sonnet, high"
+  },
   "workflowGraph": {
     "stages": [
       {
@@ -200,16 +210,57 @@
     "layout": {},
     "skills": [
       {
-        "id": "plan-prototype",
+        "id": "plan-grill-with-docs",
         "stage": "plan",
-        "skill": "prototype",
-        "mode": "offered",
-        "when": "words",
-        "words": "when my intent is still forming",
+        "skill": "grill-with-docs",
+        "mode": "used",
+        "when": "tiers",
+        "words": "",
+        "tiers": [
+          "standard",
+          "thorough"
+        ],
         "on": true
       },
       {
-        "id": "design-spec",
+        "id": "plan-eagle-eye",
+        "stage": "plan",
+        "skill": "grimoire:eagle-eye",
+        "mode": "offered",
+        "when": "words",
+        "words": "during grilling, when questions are linked",
+        "on": true
+      },
+      {
+        "id": "plan-impeccable-shape",
+        "stage": "plan",
+        "skill": "impeccable:impeccable",
+        "command": "shape",
+        "mode": "offered",
+        "when": "words",
+        "words": "when a change has a UI: a hand of directions to choose from",
+        "on": true
+      },
+      {
+        "id": "plan-diagnose",
+        "stage": "plan",
+        "skill": "diagnosing-bugs",
+        "mode": "offered",
+        "when": "words",
+        "words": "when a bug comes in",
+        "on": true
+      },
+      {
+        "id": "plan-arena",
+        "stage": "plan",
+        "skill": "pstack:arena",
+        "mode": "offered",
+        "when": "words",
+        "words": "when we need to compare solutions",
+        "on": true
+      },
+      {
+        "id": "design-spec-driven-development",
         "stage": "design",
         "skill": "spec-driven-development",
         "mode": "used",
@@ -222,21 +273,19 @@
         "on": true
       },
       {
-        "id": "build-incremental",
-        "stage": "build",
-        "skill": "incremental-implementation",
+        "id": "design-planning-and-task-breakdown",
+        "stage": "design",
+        "skill": "planning-and-task-breakdown",
         "mode": "used",
         "when": "tiers",
         "words": "",
         "tiers": [
-          "quick",
-          "standard",
           "thorough"
         ],
         "on": true
       },
       {
-        "id": "build-tdd",
+        "id": "build-test-driven-development",
         "stage": "build",
         "skill": "test-driven-development",
         "mode": "used",
@@ -250,13 +299,75 @@
         "on": true
       },
       {
-        "id": "test-review",
-        "stage": "test",
-        "skill": "code-review-and-quality",
-        "mode": "offered",
+        "id": "build-incremental",
+        "stage": "build",
+        "skill": "incremental-implementation",
+        "mode": "used",
         "when": "tiers",
         "words": "",
         "tiers": [
+          "standard",
+          "thorough"
+        ],
+        "on": true
+      },
+      {
+        "id": "build-impeccable",
+        "stage": "build",
+        "skill": "impeccable:impeccable",
+        "mode": "used",
+        "when": "words",
+        "words": "when a change has a UI: builds the planned UI from its brief",
+        "on": true
+      },
+      {
+        "id": "build-impeccable-audit",
+        "stage": "build",
+        "skill": "impeccable:impeccable",
+        "command": "audit",
+        "mode": "used",
+        "when": "words",
+        "words": "when a change has a UI",
+        "on": true
+      },
+      {
+        "id": "test-browser",
+        "stage": "test",
+        "skill": "browser-testing-with-devtools",
+        "mode": "offered",
+        "when": "words",
+        "words": "when a change runs in a browser",
+        "on": true
+      },
+      {
+        "id": "test-impeccable-critique",
+        "stage": "test",
+        "skill": "impeccable:impeccable",
+        "command": "critique",
+        "mode": "offered",
+        "when": "words",
+        "words": "when a change has a UI, run by a subagent",
+        "on": true
+      },
+      {
+        "id": "test-impeccable-audit",
+        "stage": "test",
+        "skill": "impeccable:impeccable",
+        "command": "audit",
+        "mode": "used",
+        "when": "words",
+        "words": "when a change has a UI",
+        "on": true
+      },
+      {
+        "id": "deploy-pr",
+        "stage": "deploy",
+        "skill": "pr",
+        "mode": "used",
+        "when": "tiers",
+        "words": "",
+        "tiers": [
+          "quick",
           "standard",
           "thorough"
         ],
@@ -267,13 +378,18 @@
         "stage": "deploy",
         "skill": "shipping-and-launch",
         "mode": "offered",
-        "when": "tiers",
-        "words": "",
-        "tiers": [
-          "quick",
-          "standard",
-          "thorough"
-        ],
+        "when": "words",
+        "words": "when a release reaches users",
+        "on": true
+      },
+      {
+        "id": "maintain-impeccable-document",
+        "stage": "maintain",
+        "skill": "impeccable:impeccable",
+        "command": "document",
+        "mode": "offered",
+        "when": "words",
+        "words": "after a UI change ships, so its DESIGN.md records the approved look",
         "on": true
       },
       {
@@ -291,18 +407,36 @@
       }
     ]
   },
-  "skills": [
+  "costLimits": [
     {
-      "repo": "addyosmani/agent-skills",
-      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
-      "paths": [
-        "skills/spec-driven-development",
-        "skills/incremental-implementation",
-        "skills/test-driven-development",
-        "skills/code-review-and-quality",
-        "skills/shipping-and-launch",
-        "skills/documentation-and-adrs"
-      ]
+      "cost": "Tests added",
+      "counted": "Tests that back no acceptance claim, and tests that duplicate one that already backs a claim",
+      "limit": "0",
+      "atLimit": "Each one becomes a trade-off for me: the test, what it adds beyond the claim's own test, and its upkeep"
+    },
+    {
+      "cost": "Hardening",
+      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
+      "limit": "0",
+      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+    },
+    {
+      "cost": "Follow-up issues",
+      "counted": "Issues filed from one review",
+      "limit": "2",
+      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+    },
+    {
+      "cost": "Lens pairs",
+      "counted": "Lens pairs run in one review round; a lens offered alone counts as a pair",
+      "limit": "2",
+      "atLimit": "The next pair becomes a trade-off for me: which pair it would replace, and what it would check"
+    },
+    {
+      "cost": "Review rounds",
+      "counted": "Review rounds at one stage, a spec or Test, follow-ups and closing reads included; a ticket cut from an approved spec gets no spec round of its own",
+      "limit": "2, the second declared final",
+      "atLimit": "A new low is noted in the review's record or filed; a new medium becomes a trade-off for me; a high security finding reopens the stage"
     }
   ]
 }
