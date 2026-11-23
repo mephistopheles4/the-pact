@@ -1,6 +1,6 @@
 # A pinned download is at least 14 days old
 
-PACT-65 (T3 of spec 0002, [`docs/spec/0002-clef-runner.md`](../spec/0002-clef-runner.md), decision 4). It constrains every later pin PR for `clef`.
+PACT-65 (T3 of spec 0002, [`docs/spec/0002-clef-runner.md`](../spec/0002-clef-runner.md), S2 pick 4). It constrains every later pin PR for `clef`.
 
 ## Decision
 
@@ -13,6 +13,6 @@ The tool downloads a program and a model and runs them with the owner's rights, 
 ## Consequences
 
 - A pin bump waits 14 days after the upstream release, a security fix upstream included.
-- After a bump is applied, `clef status` and `ensure` report `pin-changed` until `clef stop` then `clef setup --yes` run ([clef.md](../clef.md)).
+- After a bump is applied, `ensure` reports `not-set-up` with `pin-changed` (`status` shows the old tag) until `clef stop` then `clef setup --yes` run ([clef.md](../clef.md)).
 - The threat model's class "What you install and CI run" names the pinned llama.cpp build and Clef model; the age rule and the review of each pin PR are among its controls.
 - **Rollback:** revert the pin PR, then a dry run, the apply, and on each machine `clef stop` then `clef setup --yes`.

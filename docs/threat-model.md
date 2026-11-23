@@ -11,7 +11,7 @@ included; no class covers a change that weakens a rule or control, adds a
 route for outside text into a session or more reach to one that reads it,
 adds text to files sessions load, or writes a secret into text sessions
 read. The full guide is the review procedure's Threat model section
-(`~/.claude/pact/review.md`).
+([`~/.claude/pact/review.md`](../claude/review.md)).
 
 [`SECURITY.md`](../SECURITY.md) says how to report a hole.
 
@@ -53,13 +53,12 @@ flowchart LR
 
 ### Text into a session
 
-**Crosses:** tracker text (GitHub issues; the owner's private tracker text in a
+**Crosses:** tracker text (GitHub issues; the owner's pinned private tracker text in a
 local session is inside the root of trust and doesn't cross, as
 `docs/agents/issue-tracker.md` says, and a cloud session reads it as data),
 outside pull requests read as text, a cloned repo's files, fetched pages, other
 sessions' messages and hand-offs, a trigger's prompt, a mic transcript, a file
-someone hands a session to load, and a Clef answer, held to numbers and the
-option keys the caller sent.
+someone hands a session to load, and a Clef answer.
 
 **Controls:**
 
@@ -101,7 +100,7 @@ Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; an open
 security pick is logged in the work's record on the project's issue tracker,
-flagged big, so a reader of a public tracker can read it; outside text can steer the framing of a finding; what its
+flagged big, so a reader of a public tracker can read it; outside text can steer the framing of a finding, and, in a caller's `state`, Clef's numbers, its placement call unbounded until T4 (spec 0002 S12); what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
@@ -115,7 +114,7 @@ free hand's design pick can cover what a change stores, logs or sends.
 publisher, CI actions and dependencies, mise configs, a program a clone or
 version pin supplies that runs by bare name, the pinned design system inlined
 into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched by
-`clef setup --yes` and run with the owner's rights, the build parsing the model.
+`clef setup --yes`, run with the owner's rights, the build parsing the model.
 
 **Controls:**
 
@@ -132,13 +131,15 @@ into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched by
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
-- **Clef, when on.** A pin table: fixed repos, size and sha256 per archive,
-  kept file and model, checked before anything is kept or run; pins 14 days old
-  ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md)), each pin
-  PR read by the security pair; fixed redirect hosts, `https:` only; the tool's
-  own archive readers, which write only pinned names; a fixed working folder and
-  a named environment; the supervisor's answer check. Its files at rest belong
-  to the machine.
+- **Clef, when on.** A pin table: fixed repos, size and sha256 per file,
+  checked before anything is kept; fixed redirect
+  hosts, `https:` only; the tool's own archive readers, which write only pinned
+  names; a fixed working folder and named environment; the listener's token,
+  `Host` and `Origin` checks; the supervisor's answer check, which passes only
+  numbers and the caller's option keys. Held by rule alone: pins 14 days old and
+  each pin PR read by the security pair
+  ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md)). Setup's
+  kept files belong to the machine.
 - **Harness.** Folder trust and permission prompts, as above.
 
 **Residual:** What you install and CI run; Pinned design-system code. No pact
@@ -147,9 +148,8 @@ session's own logged pick. Also accepted. What you install and CI run: the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad Clef build or model that passes the age rule
-and review runs with the owner's rights when Clef starts, and a crafted model
-could exploit a parser bug; outside text in a caller's `state` can move Clef's
-numbers, which stay advice. Pinned design-system code: each re-pin is reviewed
+and review runs with the owner's rights, and a crafted model could exploit a
+parser bug. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs
@@ -183,8 +183,8 @@ itself.
 **Crosses:** posts, pull requests and comments on the tracker, messages to
 cloud or Remote Control sessions, an account whose token a session holds, an
 agent app's installation token, and
-anything else a session sends off the machine: a push, a fetch or search, a
-connector call.
+anything else a session sends off the machine: a push, a fetch or search
+(`clef setup --yes`'s, to fixed hosts), a connector call.
 
 **Controls:**
 
