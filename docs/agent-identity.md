@@ -10,6 +10,19 @@ choose: the examples use "Mephisto's Homunculus" for Claude Code, "Mephisto's
 Wagner" for Codex and "Mephisto's Euphorion" for Antigravity, and nothing in the
 pact names them.
 
+<!-- toc -->
+
+- [Setting it up](#setting-it-up)
+- [What it does](#what-it-does)
+- [What it doesn't stop](#what-it-doesnt-stop)
+- [What the install checks](#what-the-install-checks)
+- [Turning it off](#turning-it-off)
+- [Rolling back](#rolling-back)
+- [Retiring an app](#retiring-an-app)
+- [A leaked key](#a-leaked-key)
+
+<!-- /toc -->
+
 ## Setting it up
 
 The switch needs the app pinned in `~/.claude/pact/github.json` and its

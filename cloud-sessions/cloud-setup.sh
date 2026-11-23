@@ -1113,6 +1113,18 @@ write_config 'pact/review.md' <<'__CLAUDE_CONFIG_EOF__'
 How to run a lens and handle its report. The rules file's Workflow says which
 lenses to offer, and when.
 
+<!-- toc -->
+
+- [Running a lens](#running-a-lens)
+- [The report template](#the-report-template)
+- [Handling the reports](#handling-the-reports)
+- [The threat model](#the-threat-model)
+- [Diagrams](#diagrams)
+- [Posting](#posting)
+- [Lens dispositions](#lens-dispositions)
+
+<!-- /toc -->
+
 ## Running a lens
 
 - **Inputs.** Give each lens, as local files: what it reviews (a spec with its
@@ -1604,7 +1616,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e 'pact/review-diagrams.md'
-check_hash 6556a4a6fb697b8f89de98d11e5c46ddb4551cc31ddc4e805ba3c5b0f43824c4 'pact/review.md'
+check_hash 23d38fce208ca163ced4563667cca3bf7fb14192388fc43ec5aaa122798dfcae 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1634,7 +1646,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 3b66abfb2f16"
+  echo "pact cloud copy 80ba2d7e44b2"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
