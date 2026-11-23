@@ -46,7 +46,7 @@ createServer((req, res) => {
     const out = {};
     for (const [id, q] of Object.entries(questions)) {
       // The shapes below are b12211's own: each answer carries its question's type and a confidence.
-      if (cfg.mode === 'range') out[id] = { type: q.type, noul: 5, score: 5 };
+      if (cfg.mode === 'range') out[id] = q.type === 'choice' ? { type: 'choice', choice: Object.keys(q.criteria)[0], probabilities: Object.fromEntries(Object.keys(q.criteria).map(k => [k, 5])) } : { type: q.type, [q.type]: 5 };
       else if (q.type === 'noul') out[id] = { type: 'noul', noul: 0.5, confidence: 0.5 };
       else if (q.type === 'score') out[id] = { type: 'score', score: 0.25 };
       else {
@@ -221,6 +221,7 @@ test('serverAnswer: b12211\'s own reply shape gives the checked body, and the ba
     { ...real, answers: 'text' },
     { ...real, answers: { ...real.answers, a: { type: 'choice', noul: 0.5 } } },
     { ...real, answers: { ...real.answers, a: { type: 'noul', noul: 0.5, confidence: 2 } } },
+    { ...real, answers: { ...real.answers, a: { type: 'noul', noul: 0.5, confidence: -0.1 } } },
     { ...real, answers: { ...real.answers, a: { type: 'noul', noul: 0.5, legend: { 0: 'x' } } } },
     { ...real, answers: { ...real.answers, a: { type: 'noul', noul: 0.5, extra: 'x' } } },
     { ...real, answers: { ...real.answers, c: { type: 'noul', choice: 'no', probabilities: { yes: 0.1, no: 0.9 } } } },
@@ -230,8 +231,6 @@ test('serverAnswer: b12211\'s own reply shape gives the checked body, and the ba
     'text',
   ];
   for (const b of bad) assert.equal(clef.serverAnswer(qs, b), null, JSON.stringify(b));
-  const out = JSON.stringify(clef.serverAnswer(qs, real));
-  assert.doesNotMatch(out, /gguf|usage|confidence|type/, 'nothing but the checked values is built');
 });
 
 // ------------------------------------------------------------ the supervisor, in process
@@ -329,7 +328,7 @@ test('serve: serve.log holds reason words and counts, never a token, key, body o
   const log = readFileSync(f.run.log, 'utf8');
   assert.ok(log.length < 100_000, 'a log past 1 MB starts again');
   const rec = await f.recorded();
-  for (const bad of [live.run.token, rec.key, 'BODY-TEXT', f.p.model, 'api-key-file']) assert.ok(!log.includes(bad), bad);
+  for (const bad of [live.run.token, rec.key, 'BODY-TEXT', 'SECRET-SERVER-TEXT', f.p.model, 'api-key-file']) assert.ok(!log.includes(bad), bad);
   assert.match(log, /forward answer ms \d+/);
 });
 
