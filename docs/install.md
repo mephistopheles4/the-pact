@@ -308,7 +308,7 @@ parts:
 
   ```text
     WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.
-    WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.
+    WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.
   ```
 
   To turn Clef on, list `"clef"` in `tools`; after the apply, run `node ~/.claude/pact/tools/clef.mjs setup`, then the same with `--yes` ([clef.md](clef.md)).
@@ -574,7 +574,7 @@ notice line names it, as `session-stop-deny on` or `off`.
 - **Why a switch.** The pact can't tell whether Brigade is installed, and the
   rules block a raw stop, kill, supervisor stop or respawn. It is off unless you
   turn it on. The cleaner's `claude rm` rules are separate: they come with the
-  cleaner.
+  cleaner. While it is on, the cleaner stops no session itself: its own stop is a child process the rules don't see, so it holds it back.
 - **A speed bump, not a gate.** Each rule is a suffix only: the command, then
   anything. A flag before the subcommand, a path-qualified or
   wrapped call, and any other spelling get past them, with the classifier
