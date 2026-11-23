@@ -245,12 +245,12 @@ test('the prose refusals come after the scan and the table check, before any not
   const few = runBody({ 'body.md': [...head, '| new a | b | changed | c |', ...wrapped, hidden].join('\n') }, t);
   assert.deepEqual(few.real.lines, ['REFUSED text/hidden body 10:1', 'REFUSED table/disposition body 5:15', 'REFUSED text/hard-wrap body 8:1', NEXT_FOR['text/hidden'], NEXT_FOR['table/disposition'], NEXT_FOR['text/hard-wrap'], 'RESULT: refused 3']);
   const many = runBody({ 'body.md': [...head, ...Array(60).fill('|'), ...wrapped].join('\n') }, t);
-  // Fifty table refusals, the prose refusal, the NEXT lines of the two rules, the note, the result.
+  // Fifty table refusals, the prose refusal, the note, the NEXT lines of the two rules, the result.
   assert.equal(many.real.lines.length, 55, many.out);
   assert.equal(many.real.lines[50], 'REFUSED text/hard-wrap body 67:1');
-  assert.equal(many.real.lines[51], NEXT_FOR['table/cells']);
-  assert.equal(many.real.lines[52], NEXT_FOR['text/hard-wrap']);
-  assert.equal(many.real.lines[53], 'NOTE: 10 more table refusals not listed');
+  assert.equal(many.real.lines[51], 'NOTE: 10 more table refusals not listed');
+  assert.equal(many.real.lines[52], NEXT_FOR['table/cells']);
+  assert.equal(many.real.lines[53], NEXT_FOR['text/hard-wrap']);
   assert.equal(many.real.lines.at(-1), 'RESULT: refused 61');
 });
 

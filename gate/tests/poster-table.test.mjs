@@ -184,10 +184,10 @@ test('with lone carriage returns, the scan and the table check name the same lin
 test('table refusals past fifty are counted, not listed', t => {
   const r = runBody({ 'body.md': body(LABEL, '', HEADER, SEP, ...Array(5000).fill('|')) }, t);
   assert.equal(r.real.code, 2);
-  // Fifty REFUSED lines, the NEXT line of the one rule they break, the note, the result.
+  // Fifty REFUSED lines, the note, the NEXT line of the one rule they break straight above the result.
   assert.equal(r.real.lines.length, 53, r.real.lines.slice(-3).join('\n'));
-  assert.equal(r.real.lines[50], NEXT_FOR['table/cells']);
-  assert.equal(r.real.lines[51], 'NOTE: 4950 more table refusals not listed');
+  assert.equal(r.real.lines[50], 'NOTE: 4950 more table refusals not listed');
+  assert.equal(r.real.lines[51], NEXT_FOR['table/cells']);
   assert.equal(r.real.lines.at(-1), 'RESULT: refused 5000');
 });
 

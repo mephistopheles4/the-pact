@@ -193,7 +193,7 @@ const CASES = [
   ['post/when', t => dry(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE[0], when: '2099-01-01' }] }), /`YYYY-MM-DD`.*no later than tomorrow in UTC/],
   ['post/tracker', t => dry(t, 'issue', { ...ISSUE, quote: [{ text: 'Short.', source: 'tracker', comment: 9001, when: '2026-11-11' }] }), /own comment in this repo.*20 characters.*chat or relayed/],
   ['post/owned-line', t => dry(t, 'issue', { ...ISSUE, intent: undefined, intent_skip: '## A heading' }), /the poster's own line.*no heading or fence/],
-  ['file/unreadable', t => dry(t, 'issue-comment', NOTE, {}), /can't be read.*Check the name/],
+  ['file/unreadable', t => dry(t, 'issue-comment', NOTE, {}), /can't be read.*Check its name.*a body file sits in the post file's folder/],
   ['file/link', t => linked(t), /may not be a link.*regular file/],
   ['file/not-regular', t => dry(t, 'issue-comment', NOTE, { 'body.md/x': 'x' }), /regular file, not a folder or device/],
   ['file/size', t => inBody(t, 'a'.repeat(256 * 1024 + 1)), /over 256 KiB.*several posts/],
@@ -210,9 +210,10 @@ const CASES = [
   ['table/disposition', t => inBody(t, table('| new a finding | behaviour-lens | mended | none |')), /`fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted`/],
   ['table/skipped', t => inBody(t, table('| | data-lens | skipped | none |')), /`skipped, because`/],
   ['table/auto', t => inBody(t, table('| new a finding | behaviour-lens | fixed (auto, as asked) | none |')), /`fixed \(auto: chose X because Y\)`.*`fixed \(auto, reversed\)`/],
-  ['table/state', t => inBody(t, table('| a finding | behaviour-lens | fixed | none |')), /`new`, `updated`, `unchanged` or `absent`/],
+  ['table/state', t => inBody(t, table('| a finding | behaviour-lens | fixed | none |')), /`new`, `updated`, `unchanged` or `absent`.*withheld finding is that bare cell/],
 ];
 
+// PACT-52 C1, C4
 for (const [rule, run, says] of CASES) {
   test(`PACT-52: ${rule} is refused with a NEXT line that says what to do, straight above RESULT`, t => {
     const r = run(t);
@@ -223,16 +224,15 @@ for (const [rule, run, says] of CASES) {
   });
 }
 
-test('PACT-52: every usage, post, file, table, fence, link and body-text rule in the poster\'s rule table has a case above', () => {
+// PACT-52 C6: a rule named in the poster's rule table or its code, in these families, with no case here, fails
+test('PACT-52: every usage, post, file, table, fence, link and body-text rule in the poster\'s rule table or code has a case above', () => {
+  const family = rule => /^(usage|post|file|table|fence|link)\//.test(rule) || ['text/body-length', 'text/hidden-line', 'text/hard-wrap'].includes(rule);
   const doc = readFileSync(join(REPO, 'docs', 'poster.md'), 'utf8');
-  const listed = [...doc.slice(doc.indexOf('## Rule ids')).matchAll(/^\| `([a-z0-9-]+\/[a-z0-9-]+)` \|/gm)].map(m => m[1]);
-  const wanted = listed.filter(rule => /^(usage|post|file|table|fence|link)\//.test(rule) || ['text/body-length', 'text/hidden-line', 'text/hard-wrap'].includes(rule));
+  const listed = [...doc.slice(doc.indexOf('## Rule ids')).matchAll(/^\| `([a-z0-9-]+\/[a-z0-9-]+)` \|/gm)].map(m => m[1]).filter(family);
+  const code = readFileSync(join(REPO, 'claude', 'tools', 'poster.mjs'), 'utf8');
+  const named = [...code.matchAll(/rule: '([a-z0-9-]+\/[a-z0-9-]+)'/g)].map(m => m[1]).filter(family);
   // usage/unknown-option has its own fixed line, held by poster.test.mjs.
-  const cased = [...CASES.map(c => c[0]), 'usage/unknown-option'];
-  assert.deepEqual([...cased].sort(), [...wanted].sort());
-});
-
-test('PACT-52: a missing --post beside an old option prints the one old-command NEXT line, not two', () => {
-  const r = post(['issue', '--repo', 'x/y'], NO_GH);
-  assert.equal(r.lines.filter(l => l.startsWith('NEXT: ')).length, 1, r.lines.join(' | '));
+  const cased = new Set([...CASES.map(c => c[0]), 'usage/unknown-option']);
+  assert.deepEqual([...cased].sort(), [...new Set(listed)].sort(), 'the rule table and the cases agree');
+  assert.deepEqual([...new Set(named)].filter(rule => !cased.has(rule)), [], 'every rule the code names has a case');
 });

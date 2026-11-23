@@ -1097,8 +1097,8 @@ function removeOne(git, item, main, hooks, platform, lines, counts, again) {
  */
 export const NEXT_FOR = Object.freeze({
   'usage/command': 'NEXT: the first argument is `show` or `remove`. `show` names each worktree it would remove, with its tags; `remove` takes the tags of a show run just before.',
-  'usage/unknown-option': 'NEXT: the options are `--recoverable`, `--repo <dir>`, `--worktree <name>`, and, for `remove`, `--yes <tag>[,<tag>]...` and `--override <folder>=<tag>[,...]`. Drop the one the line names.',
-  'usage/value': 'NEXT: the option the line names takes a value straight after it. Add the value and run again.',
+  'usage/unknown-option': 'NEXT: the options are `--recoverable`, `--repo <dir>`, `--worktree <name>`, and, for `remove`, `--yes <tag>[,<tag>]...` and `--override <folder>=<tag>[,...]`. Drop the argument at the position the REFUSED line gives.',
+  'usage/value': 'NEXT: the option at the position the REFUSED line gives takes a value straight after it. Add the value and run again.',
   'usage/repeated': 'NEXT: give `--recoverable`, `--repo`, `--yes` and `--override` once each, with several tags or pairs after one flag, comma between; only `--worktree` may repeat. Drop the repeat.',
   'usage/worktree-name': 'NEXT: `--worktree` takes a plain folder name under .claude/worktrees, as show prints it: letters, digits, dot, underscore and dash, starting with a letter, digit or underscore, with no slash.',
   'usage/tag': 'NEXT: `--yes` takes show\'s 10-character tags, comma between; `--override` takes `<folder>=<tag>` pairs with 16-character override tags. Copy them from the show blocks as printed.',

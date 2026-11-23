@@ -371,7 +371,7 @@ On exit 1 and exit 3 the poster prints one `NEXT:` line, straight above the
 sees this page still knows. An exit 2 prints one `NEXT:` line for each rule it
 refused, above `RESULT:`, saying what to do instead: every rule below but the
 `owner/` and `as/` ones, whose `where` already names the login or the repo to
-fix. The exit 1 and exit 3 line's
+fix; a `NOTE:` line on refusals left unlisted comes before them. The exit 1 and exit 3 line's
 page and login are the ones the poster checked before it sent, never text from
 `gh` or the body.
 

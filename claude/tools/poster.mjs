@@ -69,7 +69,8 @@
 //   0  RESULT: dry-run <surface>
 // Exits 1 and 3 also print one NEXT: line, straight above the RESULT line,
 // that says what the session does next (#294). An old option is refused with
-// one fixed NEXT: line that names the new form (#524).
+// one fixed NEXT: line that names the new form (#524). Exit 2 prints one NEXT:
+// line for each rule it refuses but the owner/ and as/ rules (PACT-48, PACT-52).
 // Output names rules, fields, positions and sizes, never the text itself; the
 // NEXT: line holds fixed words, a page and a login. It never retries.
 //
@@ -2678,7 +2679,7 @@ export const NEXT_FOR = Object.freeze({
   'post/field intent_skip': 'NEXT: give `intent` or `intent_skip`, never both, and no `intent_skip` on a decision or on a post with no quote. Keep the one that fits and post again.',
   'secret/env': "NEXT: remove the value from the named field and post again; the line names the variable, never the value. A lens report stays as it is: tell the owner where it is, in chat, and don't post it.",
   'text/hidden': 'NEXT: remove the hidden character from the named field and post again. A lens report stays as it is: tell the owner where it is, in chat, and don\'t post it.',
-  // PACT-52: the usage, field, file, text and table rules (usage/unknown-option has OLD_OPTION_NEXT).
+  // PACT-52: the usage, field, file, text, fence, link and table rules (usage/unknown-option has OLD_OPTION_NEXT).
   'usage/surface': 'NEXT: give a surface first: issue, pull-request, issue-comment, pull-request-review, review-thread-reply, issue-edit, pull-request-edit, issue-comment-edit or review-thread-reply-edit, then `--post <file>`. `schema` prints the fields.',
   'usage/argument': 'NEXT: the only arguments are `<surface> --post <file>` and `--dry-run`. Remove the stray word and run again.',
   'usage/repeated': 'NEXT: give `--post <file>` and `--dry-run` once each. Remove the repeat and run again.',
@@ -2697,7 +2698,7 @@ export const NEXT_FOR = Object.freeze({
   'post/when': "NEXT: a passage's `when` is a real date as `YYYY-MM-DD`, with no time of day, and no later than tomorrow in UTC.",
   'post/tracker': "NEXT: a `tracker` passage quotes this login's own comment in this repo, word for word, with at least 20 characters outside its `[left out]` spans, no touching spans and at most three. Fix the passage, or give its source as chat or relayed.",
   'post/owned-line': "NEXT: take the poster's own line (a signature, an `Edited:` line, a decision mark or a heading of the ask) out of the named field; the poster writes them. The read-back fields take no heading or fence either.",
-  'file/unreadable': "NEXT: the named file can't be read. Check the name, that it sits in the post file's folder and that you may read it, then run again.",
+  'file/unreadable': "NEXT: the named file can't be read. Check its name and that you may read it; a body file sits in the post file's folder. Then run again.",
   'file/link': 'NEXT: a post file or body file may not be a link. Copy its text into a regular file and name that.',
   'file/not-regular': 'NEXT: the named file must be a regular file, not a folder or device, and must not change while it is read. Name a plain file.',
   'file/size': 'NEXT: the named file is over 256 KiB. Cut it down, or split the text into several posts.',
@@ -2714,16 +2715,17 @@ export const NEXT_FOR = Object.freeze({
   'table/disposition': 'NEXT: start each Disposition cell with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted`; a row whose Finding cell is exactly `withheld, see chat` takes one bare `open`, `fixed`, `taken` or `dismissed`.',
   'table/skipped': 'NEXT: write `skipped, because` and then the reason.',
   'table/auto': 'NEXT: follow ` (auto` with `:`, `)` or `, reversed`, as in `fixed (auto: chose X because Y)`, `fixed (auto)` or `fixed (auto, reversed)`.',
-  'table/state': 'NEXT: start each Finding cell with `new`, `updated`, `unchanged` or `absent`, then the severity mark and the finding; a `skipped` row, or one that is exactly `withheld, see chat`, takes none.',
+  'table/state': 'NEXT: start each Finding cell with `new`, `updated`, `unchanged` or `absent`, then the severity mark and the finding; a `skipped` row, or a row whose Finding cell is exactly `withheld, see chat`, takes none. A withheld finding is that bare cell, with no state word or severity before it.',
 });
 
-const refused = refusals => {
+/** A refused run: exit 2, a REFUSED line for each refusal, `notes` (a line on what was left unlisted), one NEXT line for each rule, straight above RESULT. */
+const refused = (refusals, notes = [], count = refusals.length) => {
   // An old command line is told its one fixed line, which already covers the missing --post.
   const old = refusals.some(r => r.rule === 'usage/unknown-option');
   const next = [...new Set(refusals.filter(r => !(old && r.rule === 'usage/missing-option')).map(r => NEXT_FOR[`${r.rule} ${r.where}`] ?? NEXT_FOR[r.rule]).filter(Boolean))];
   return {
     code: 2,
-    lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...next, ...(refusals.some(r => r.rule === 'usage/unknown-option') ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${refusals.length}`],
+    lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...notes, ...next, ...(old ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${count}`],
   };
 };
 
@@ -2767,8 +2769,7 @@ function prepare(argv, io, app) {
     const tables = tableCheck(plan.body);
     const prose = [...fenceCheck(plan.body), ...proseCheck(renderBody(plan, true))];
     if (tables.length > TABLE_LISTED) {
-      const r = refused([...hits, ...tables.slice(0, TABLE_LISTED), ...prose]);
-      return { result: { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length + prose.length}`] } };
+      return { result: refused([...hits, ...tables.slice(0, TABLE_LISTED), ...prose], [`NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`], hits.length + tables.length + prose.length) };
     }
     if (hits.length || tables.length || prose.length) return { result: refused([...hits, ...tables, ...prose]) };
     const edit = isEdit(plan.surface);
