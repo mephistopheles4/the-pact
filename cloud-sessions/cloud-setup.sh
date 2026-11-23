@@ -1091,9 +1091,13 @@ write_config 'pact/review-diagrams.md' <<'__CLAUDE_CONFIG_EOF__'
 
 How a review diagram is written and coloured; read it beside review.md's Diagrams section.
 
-- **The block.** Each diagram sits under its sentence, written exactly as
-  `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
-  `</div>`.
+- **The block.** Each diagram sits under its sentence. On GitHub, write it
+  exactly as `<div align="center">`, a blank line, the `mermaid` fence, a blank
+  line and `</div>`. On Linear, write the `mermaid` fence alone, with no HTML
+  around it: Linear draws the fence, and shows HTML tags as text. A post
+  handed to another session takes the form of the place it will land. Where a
+  type doesn't draw there, use another type that answers the sentence; fix a
+  diagram that failed to draw in a new comment.
 - **Pins,** on flowcharts only, carry one colour meaning: an `open` finding takes
   its severity's colour, `high` `#cf222e33`, `medium` `#bc4c0033`, `low`
   `#d4a72c33`; a fixed one `#2da44e33`; every other row gets no pin. The border
@@ -1597,7 +1601,7 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
-check_hash 1b6583d0ce5ef545df1898fbb70539cabe34efd071ed0acc8769fe3efb034ec5 'pact/review-diagrams.md'
+check_hash b49c2ab6916544c1d68c92da71b6c32d993385da6461ef22654c043026f7d1a0 'pact/review-diagrams.md'
 check_hash b499008c027abcf056f8ac664a12f229e697512a12a782db3f88a348882e31fe 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
@@ -1628,7 +1632,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 07f7e591a7c0"
+  echo "pact cloud copy b3bab365297c"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
