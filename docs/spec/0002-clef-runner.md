@@ -357,7 +357,11 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   refusal is a fixed 4xx body naming a reason word, never echoing the
   request.
 - **What it returns.** The supervisor builds a new body from checked values
-  only; the server's body is never passed on. For each asked question id
+  only; the server's body is never passed on. b12211 replies
+  `{model, answers, usage}`: only `answers` is read, and `model` (a path) and
+  `usage` are never looked at. Each entry of `answers` may carry its question's
+  own `type` and a `confidence` in [0,1], which are checked and dropped (T4's
+  change, from the first run on b12211). For each asked question id
   (tested with `Object.hasOwn`), it takes a finite number in [0,1] (`noul`,
   `score`), or a `choice` that is one of the `criteria` keys sent with
   `probabilities` holding a finite number in [0,1] for each sent key and no
@@ -603,8 +607,10 @@ as a control change.
   without delay. With `clef.mjs` removed and a stale `run.json` left, it
   makes no call to the kept port and runs no `ensure`.
 - **C16** The supervisor returns only a body it built from checked values; a
-  free-text choice, an out-of-range number or probability, an extra field, a
-  server error or a non-JSON body becomes the fixed `no-answer`.
+  free-text choice, an out-of-range number or probability, an extra field
+  (other than an answer's own `type` and a `confidence` in [0,1], which are
+  dropped), a reply with no `answers` object, a server error or a non-JSON body
+  becomes the fixed `no-answer`.
 - **C17** Every `clef` mode, started from a folder holding a planted `ggml-*`
   library, `node` and helper programs, with `GGML_BACKEND_PATH`,
   `LLAMA_ARG_*`, `NODE_OPTIONS` and a `PATH` naming that folder, runs nothing
