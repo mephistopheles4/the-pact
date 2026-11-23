@@ -28,6 +28,6 @@ Reading a PR:
 
 ## Posting and assigning
 
-- **Writes.** A session writes to GitHub only through the poster or `gh-app.mjs gh`. Assigning is the exception: apps can't be assignees, so it stays on the owner's login through plain `gh`, and it only shows who is on an issue.
+- **Writes.** A session writes to GitHub only through the poster or `gh-app.mjs gh`. Assigning is the exception: apps can't be assignees, so the owner's login assigns itself through plain `gh` to each issue a session takes and each PR the app opens (`gh pr edit <n> -R <owner>/<repo> --add-assignee @me`). It marks the owner's work, never a claim.
 - **Merges** go through `gh-app.mjs gh` with `--match-head-commit <the reviewed head>`.
 - **The status comment** is the one the posting identity wrote. An older one by the owner's account stays as it is.
