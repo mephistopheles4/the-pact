@@ -464,7 +464,7 @@ test('the project render lines: a project whose only content is the retired sett
 
 // #564 C4a, S4.2a, S7.2b2: every home dry run prints the one fixed NOTE, and no other NOTE of the old switch.
 test('the configuration block: no configuration, the default and a user configuration each print the fixed NOTE once', () => {
-  const NOTE = "  NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you (ADR 0157).";
+  const NOTE = "  NOTE: checkpoints never wait; each is the session's own logged pick (ADR 0157).";
   const parse = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
   const notes = b => b.filter(l => l.startsWith('  NOTE:'));
   const asDefault = text => text.replace(`CONFIG user ${U}`, `CONFIG default ${U}`).replace(`DIGEST ${D}`, `DIGEST ${digestOf(`default ${U}\nblock a.md ${H('e')}\n`)}`);
@@ -1314,7 +1314,7 @@ test('the configurable agents and the banned settings are the renderer\'s and se
 test('the configuration block: a removed configuration, changed and new files, and warnings, a security-set lens\'s as plain as any (#262)', () => {
   const record = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: H('0') }, { kind: 'block', path: 'gone.md', sha256: H('9') }] }));
   const none = core.parseRenderLines(noneBase().in.split('\n'), { project: false, hash: sha256 });
-  assert.deepEqual(core.configBlock(none, H('a'), record), ['  no configuration', "  NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you (ADR 0157).", '  the last install had a configuration; this install removes it from the rules file']);
+  assert.deepEqual(core.configBlock(none, H('a'), record), ['  no configuration', "  NOTE: checkpoints never wait; each is the session's own logged pick (ADR 0157).", '  the last install had a configuration; this install removes it from the rules file']);
   const p = core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 });
   const b = core.configBlock(p, H('a'), record);
   assert.equal(b[0], `  user file pact/config.json: sha256 ${U}, CHANGED since the last install`);

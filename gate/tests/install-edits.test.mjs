@@ -95,7 +95,7 @@ test('a configuration that adds a move installs: the edit is a warning in the dr
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
     // Every home dry run prints the fixed checkpoints NOTE (#564).
-    "  NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you (ADR 0157).",
+    "  NOTE: checkpoints never wait; each is the session's own logged pick (ADR 0157).",
     '  WARN: the user configuration edits moves (add-after).',
     '  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.',
   ]);

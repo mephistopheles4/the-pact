@@ -484,8 +484,8 @@ const AUTO_COMPACT_STEP = 10000;
 export const compactWindowOk = n => n === 0 || (Number.isInteger(n) && n >= AUTO_COMPACT_MIN && n <= AUTO_COMPACT_MAX && (n - AUTO_COMPACT_MIN) % AUTO_COMPACT_STEP === 0);
 /** The window the install uses: the reported value, else the default. 0 is off. */
 export const compactWindow = parsed => (parsed.values.has('auto-compact-window') ? Number(parsed.values.get('auto-compact-window')) : AUTO_COMPACT_DEFAULT);
-// The one NOTE every home dry run prints (#564): whoever loses the wait is told at the install's hard stop.
-const CHECKPOINTS_NOTE = "NOTE: checkpoints never wait; each is the session's own logged pick, and only hard stops wait for you (ADR 0157).";
+// The one NOTE every home dry run prints (#564): whoever loses the wait is told at the install's dry run.
+const CHECKPOINTS_NOTE = "NOTE: checkpoints never wait; each is the session's own logged pick (ADR 0157).";
 /** The WARN a retired setting draws in a dry run: `where` is "the user configuration", "the pact's default configuration" or "the project configuration"; fixed words only, since the value is `true` or `false`. */
 function retiredSettingWarn(name, value, where, project) {
   const tail = value === 'true' ? `: checkpoints no longer wait${project ? ' in this project' : ''}` : '; false changes nothing';

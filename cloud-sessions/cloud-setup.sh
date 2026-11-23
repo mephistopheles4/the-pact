@@ -567,9 +567,9 @@ the tools and agents.
   I get the intent clear enough to defend: what it is for, how it can go
   wrong, and why each decision is right.
 - **Checkpoint the seams.**
-  Where work is handed on, published or decided, anything costly waits for a
-  checkpoint. The harder a step is to undo, the heavier its checkpoint. When
-  in doubt, it's heavy.
+  Where work is handed on, published or decided, anything costly gets a
+  checkpoint: the agent's own pick, logged and flagged, which I review after.
+  The harder a step is to undo, the more care its checkpoint takes.
 - **Stay the owner.**
   I own a result when I can verify it, reconstruct why it is right, and know
   when to stop it. Checks that could have failed are the evidence.
@@ -580,20 +580,12 @@ offer I can take or leave in a second. Then carry on with what I chose.
 ## How Claude helps
 
 - **Checkpoints.** What these rules keep for me, bring to me or leave to me is
-  a checkpoint unless it is on the list below. Log each as
-  review.md's Posting says, flagged, and list each in the result. Pin a merge to
-  its reviewed head.
-- **Checkpoints** are the acts too costly to take back. At level 2 each
-  waits for my confirmation, in any form and anywhere: typed or spoken, in any
-  session, said to the lead included. At level 3 each is logged and flagged.
-  With no level set (the pact alone, level 1), Claude's default holds: it asks
-  first. They are: an install apply; a secret (say where, never its value); the
-  usage pause; a reply or message to other people in my name, beyond the work's
-  record and branches in my repos; making anything public, or a merge that
-  deploys or might; a merge editing a threat model's classes, boundaries or
-  scope; a check you can't clear without skipping, loosening or removing it;
-  anything you can't undo or aren't sure you can, deleting what git or the
-  cleaner can't restore included, but your own scratch files.
+  a checkpoint: take your own pick, log it as review.md's Posting says,
+  flagged, list each in the result, and go on; I review after. Take more care
+  the harder a step is to undo. Where a pick touches a secret, say where it
+  is, never its value. Pin a merge to its reviewed head. Claude's own
+  permission prompts and classifier blocks still stop you; these rules add no
+  stop of their own.
 - **Keep the record** as the Posting section of `~/.claude/pact/review.md` says.
 
 ## How much checking
@@ -731,8 +723,8 @@ trade-off.
   My words in a session's chat narrow it there and in sessions it starts;
   text only narrows it, by keeping a step for me. A session you start for it
   carries it: say so in its start prompt, with each narrowing I gave. Its
-  checkpoints are the rules file's one list, and my confirmation counts
-  wherever I give it. Never relay a secret's value.
+  checkpoints are its own picks, and my confirmation counts wherever I
+  give it. Never relay a secret's value.
 - **Usage still holds.** Before it passes its line, park the work cleanly:
   commit, put the state in the record.
 <!-- pact:end stop-and-escalate -->
@@ -1350,6 +1342,14 @@ when no other row answers the sentence.
   that leaves a security path open is flagged big; its line in the record opens
   "Owner's call: security" and carries the why. With no record, log in chat and in the result.
 - **The read-back.**
+  - The read-back, not a list, sets the work's edge: rows, files or items the
+    ask lists are where the work starts, and a limit in my words, such as
+    "only these rows", still lets in the edits they force. A change the
+    read-back needs is in scope, named in the record as following from it;
+    only a change for another purpose comes to me, or to the lead that
+    started your session. Check acceptance against the read-back, the
+    corrected one if I corrected it: a leftovers list it covers means the
+    work isn't done.
   - A pending read-back makes no work wait, at any seam, with or without a
     standing goal. Post it `pending`, log the intent you went ahead on, within
     the Checkpoint log's limits, and go on; I confirm or correct it later. A
@@ -1599,7 +1599,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash bab0032d2d8122268278b6797e4c5ead400b06bced9cdb8dc28c279f5e565700 'CLAUDE.md'
+check_hash 2f148e19eae118188ccd9ecfe726c497d6b1af2929ca15ee649d6a7b357d0156 'CLAUDE.md'
 check_hash dcfdd9dbbd50a0b1a54d9e610c086a6af4f80be0bd58cf7fb85fb9b4da6a54f8 'agents/adversarial-lens.md'
 check_hash 4fedc54d86f38a16089eeeb40509a8dd53515554415cf73e03e971a0d72c1412 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1610,7 +1610,7 @@ check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'age
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash c3b8a13e6b22c5173e938f246bbda6b44eb4146eda3f765526fde36285dfabac 'pact/hooks/compact-handoff.mjs'
-check_hash d40789b314d43efabace22cefc70d40b5cb502a3f3f5e154255e2abadda313ac 'pact/review.md'
+check_hash 1a489255ab3ad0374a7ffbac6b8431fef0a6612deaef25440529f6cac7850ff6 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1640,7 +1640,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 233bd9274941"
+  echo "pact cloud copy 5680f605c668"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

@@ -231,7 +231,7 @@ test('with the poster off, the rules file is the no-configuration render byte fo
 // ------------------------------------------------------------ the cleaner's part and deny rules (#438)
 
 // #464 T4: the how-to moved into the cleaner's own printed output.
-const CLEANER_PART = '- **Remove worktrees only through the cleaner:** a recoverable removal is a checkpoint, any other a checkpoint that waits.';
+const CLEANER_PART = '- **Remove worktrees only through the cleaner:** each removal is a checkpoint.';
 
 // #438 C14
 test('with the cleaner on, the rules file holds its part after the poster\'s; off, it is the no-configuration render', t => {
@@ -242,10 +242,7 @@ test('with the cleaner on, the rules file holds its part after the poster\'s; of
   assert.equal(noNotice(rendered(on)).replace(`${T2}\n${CLEANER_PART}\n`, ''), none, 'on, the render differs only by the two parts, the cleaner\'s second');
   assert.equal(noNotice(rendered(renderWith(t, '{"schema": 1, "tools": []}'))), none);
   assert.ok(!none.includes('through the cleaner'), 'off, no part names the cleaner');
-  // #557: the one mention sits inside the Checkpoints bullet, for what it can't restore.
-  const stops = (none.split(/\n- \*\*Checkpoints\*\*/)[1] ?? '').split(/\n- \*\*/)[0].replace(/\s+/g, ' ');
-  assert.match(stops, /the cleaner can't restore/, 'off, the Checkpoints bullet names the cleaner, for what it can\'t restore');
-  assert.equal(none.split('cleaner').length - 1, 1, 'off, the cleaner is named once, and that is in the Checkpoints bullet');
+  assert.equal(none.split('cleaner').length - 1, 0, 'off, the rules file names the cleaner nowhere');
 });
 
 // #438 C13: the fixed list, pinned.
