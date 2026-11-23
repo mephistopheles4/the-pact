@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-NZhf4+VnlnLlPbJ7dgTCHf7Ely9WY9SHNeewQsRnqBY='; style-src 'sha256-3lxArc6XX64+Io1IaknVLchsUaUdtBFmK3GEqPSdEzU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-qIm8QyMPIXSJ4gnJUZJG9YyVVJchu/yZUh+Fp4l9RUs='; style-src 'sha256-3lxArc6XX64+Io1IaknVLchsUaUdtBFmK3GEqPSdEzU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -3614,6 +3614,19 @@ const PACT = /* pact-data:begin */ {
      ],
      "skills": [
       {
+       "id": "plan-grilling",
+       "stage": "plan",
+       "skill": "grilling",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "light",
+        "full"
+       ],
+       "on": true
+      },
+      {
        "id": "plan-spec",
        "stage": "plan",
        "skill": "spec-driven-development",
@@ -4344,14 +4357,13 @@ const PACT = /* pact-data:begin */ {
      "layout": {},
      "skills": [
       {
-       "id": "plan-grill",
+       "id": "plan-grill-with-docs",
        "stage": "plan",
-       "skill": "grill-me",
-       "mode": "offered",
+       "skill": "grill-with-docs",
+       "mode": "used",
        "when": "tiers",
        "words": "",
        "tiers": [
-        "quick",
         "standard",
         "thorough"
        ],
@@ -4678,6 +4690,19 @@ const PACT = /* pact-data:begin */ {
      ],
      "layout": {},
      "skills": [
+      {
+       "id": "plan-grill-with-docs",
+       "stage": "plan",
+       "skill": "grill-with-docs",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
       {
        "id": "design-brainstorm",
        "stage": "design",
@@ -5019,6 +5044,19 @@ const PACT = /* pact-data:begin */ {
      ],
      "layout": {},
      "skills": [
+      {
+       "id": "plan-grill-with-docs",
+       "stage": "plan",
+       "skill": "grill-with-docs",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
       {
        "id": "design-spec",
        "stage": "design",
@@ -7795,7 +7833,26 @@ function workflowEditor(host, state, changed) {
     settled = false;
     fromScratch = !Object.keys(G().layout).length;
     if (fromScratch) arrange(false);
+    else placeNew();
   };
+  /**
+   * A card the saved layout doesn't hold yet (added to the builder file after the layout was saved) goes into its
+   * stage's column right after the card before it in the stage's order, so the stacking pass slots it in there.
+   */
+  function placeNew() {
+    const g = G();
+    for (const st of stagesInOrder(g)) {
+      const order = [st.id, ...g.offers.filter(o => o.stage === st.id).map(o => o.id), ...(g.skills || []).filter(k => k.stage === st.id).map(k => k.id)];
+      order.forEach((id, i) => {
+        if (i === 0 || g.layout[id]) return;
+        const prev = order.slice(0, i).reverse().find(p => g.layout[p]);
+        if (!prev) return;
+        g.layout[id] = { x: g.layout[prev].x, y: g.layout[prev].y + 1 };
+        const o = g.offers.find(x => x.id === id);
+        if (o) o.agents.forEach(a => { if (!g.layout[`${id}/${a}`]) g.layout[`${id}/${a}`] = { x: g.layout[id].x + 200, y: g.layout[id].y }; });
+      });
+    }
+  }
   const drawn = () => nodes().some(n => (nodeEl(n.id) || {}).offsetHeight);
   function settleLayout() {
     if (settled || !drawn()) return;

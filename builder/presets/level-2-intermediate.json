@@ -103,6 +103,19 @@
     ],
     "skills": [
       {
+        "id": "plan-grilling",
+        "stage": "plan",
+        "skill": "grilling",
+        "mode": "offered",
+        "when": "tiers",
+        "words": "",
+        "tiers": [
+          "light",
+          "full"
+        ],
+        "on": true
+      },
+      {
         "id": "plan-spec",
         "stage": "plan",
         "skill": "spec-driven-development",

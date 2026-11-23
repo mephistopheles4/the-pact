@@ -200,14 +200,13 @@
     "layout": {},
     "skills": [
       {
-        "id": "plan-grill",
+        "id": "plan-grill-with-docs",
         "stage": "plan",
-        "skill": "grill-me",
-        "mode": "offered",
+        "skill": "grill-with-docs",
+        "mode": "used",
         "when": "tiers",
         "words": "",
         "tiers": [
-          "quick",
           "standard",
           "thorough"
         ],

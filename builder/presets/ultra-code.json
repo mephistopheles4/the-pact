@@ -232,6 +232,19 @@
     "layout": {},
     "skills": [
       {
+        "id": "plan-grill-with-docs",
+        "stage": "plan",
+        "skill": "grill-with-docs",
+        "mode": "used",
+        "when": "tiers",
+        "words": "",
+        "tiers": [
+          "standard",
+          "thorough"
+        ],
+        "on": true
+      },
+      {
         "id": "design-spec",
         "stage": "design",
         "skill": "spec-driven-development",

@@ -1096,6 +1096,28 @@ test('stub page: a saved layout that collides opens with no overlaps, positions 
   assert.equal(arranged['plan-grill-with-docs'].y, 200);
 });
 
+// PACT-96 C14: a card added to the builder file after its layout was saved opens in its stage's column, after the card before it, never above the stages.
+test('stub page: a skill the saved layout does not hold yet opens in its column after the skill before it, with no overlaps', t => {
+  const preset = JSON.parse(readFileSync(join(REPO, 'builder', 'presets', 'level-3-full.json'), 'utf8')).workflowGraph;
+  const P0 = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, workflowGraph: structuredClone(preset) }, GOOD_BLOCKS)), measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  P0.flush();
+  P0.button(P0.ids.wf, 'Arrange').click();
+  P0.flush();
+  const layout = {};
+  for (const n of P0.find(P0.ids.wf, n => cardClasses(n).includes('wf-node'))) layout[n.dataset.id] = { x: parseFloat(n.style.left), y: parseFloat(n.style.top) };
+  const g = structuredClone(preset);
+  const at = g.skills.findIndex(k => k.id === 'plan-grill-with-docs');
+  g.skills.splice(at + 1, 0, { id: 'plan-late', stage: 'plan', skill: 'domain-modeling', mode: 'used', when: 'tiers', words: '', tiers: ['standard', 'thorough'], on: true });
+  g.layout = layout;
+  const P = bootPage({ page: buildPage(REPO, PAGE, builderFile(t, { ...GOOD, workflowGraph: g }, GOOD_BLOCKS)), measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });
+  P.flush();
+  const b = Object.fromEntries(P.find(P.ids.wf, n => cardClasses(n).includes('wf-node')).map(n => [n.dataset.id, { x: parseFloat(n.style.left), y: parseFloat(n.style.top), h: cardSize(n)[1][1] }]));
+  assert.equal(b['plan-late'].x, b['plan-grill-with-docs'].x, 'the new card is in its stage column');
+  assert.ok(b['plan-late'].y >= b['plan-grill-with-docs'].y + b['plan-grill-with-docs'].h, 'it opens below the skill before it');
+  assert.ok(b['plan-late'].y > b.plan.y, 'never above its stage');
+  assert.ok(b['plan-eagle-eye'].y >= b['plan-late'].y + b['plan-late'].h, 'the skill after it moves down to make room');
+});
+
 // PACT-96 C12 (F2): a card that takes the focus off the view is brought into it, and the canvas's own scroll, which would hide the help, stays at 0.
 test('stub page: focusing a card that is off the view pans it into view and leaves the canvas unscrolled; a card already in view leaves the view alone', () => {
   const P = bootPage({ measure: n => (cardSize(n) ? cardSize(n)[1][1] : 0) });

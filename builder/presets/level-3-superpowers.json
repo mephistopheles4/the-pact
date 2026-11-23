@@ -200,6 +200,19 @@
     "layout": {},
     "skills": [
       {
+        "id": "plan-grill-with-docs",
+        "stage": "plan",
+        "skill": "grill-with-docs",
+        "mode": "used",
+        "when": "tiers",
+        "words": "",
+        "tiers": [
+          "standard",
+          "thorough"
+        ],
+        "on": true
+      },
+      {
         "id": "design-brainstorm",
         "stage": "design",
         "skill": "superpowers:brainstorming",
