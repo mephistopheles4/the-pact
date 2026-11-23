@@ -13,7 +13,8 @@ are no arm64 builds for Linux or Windows. Every live check ran on the owner's
 machine, and `docs/clef.md` reads as written for it.
 
 This delta makes Clef set up, serve and answer on every platform below, each
-run end to end in CI with the real pinned server and model on CPU:
+run end to end in CI with the real pinned server and model on CPU, macOS
+apart:
 
 | OS | Arch | Backends | End to end in CI |
 | --- | --- | --- | --- |
@@ -21,8 +22,8 @@ run end to end in CI with the real pinned server and model on CPU:
 | Windows | arm64 | CPU, Vulkan | CPU |
 | Linux (glibc) | x64 | CPU, Vulkan | CPU, with and without `setpriv` |
 | Linux (glibc) | arm64 | CPU, Vulkan | CPU |
-| macOS | arm64 | Metal, CPU | 0003 carries it; a real-server run waits on the owner's call on a larger runner (U12) |
-| macOS (Intel) | x64 | CPU | CPU, on `macos-15-intel` if U10 shows it fits |
+| macOS | arm64 | Metal, CPU | out of scope, by the owner's call (U12); `gate-macos` runs 0003's suite |
+| macOS (Intel) | x64 | CPU | out of scope, by the owner's call (U12) |
 
 Who uses it: anyone who turns `clef` on, on any of these machines.
 
@@ -87,8 +88,9 @@ The session took these picks, each logged as a checkpoint:
   The five rows land in the code PR. In its Test round the security pair reads
   them as it reads a pin PR, with its own fetch of each asset's `digest`,
   `created_at` and `updated_at`. For the two CPU rows, the end-to-end job's
-  six-case run (U7) stands for C14, and for `darwin-x64-cpu` when its job
-  runs. The two Vulkan rows have no machine to run
+  six-case run (U7) stands for C14. `darwin-x64-cpu` has no end-to-end run
+  (U12), so its C14 waits for the first Intel Mac where setup runs, as the
+  Vulkan rows' does. The two Vulkan rows have no machine to run
   on (GitHub's arm64 runners have no GPU): C14 for them waits for the first
   arm64 machine with a Vulkan driver where setup picks Vulkan, and runs before
   that machine uses Clef's answers.
@@ -206,7 +208,7 @@ files, printed in the pin record, beside 0003 M4's Mach-O check:
     `gate/tests/clef-e2e.mjs` and the workflow file itself;
   - `permissions: contents: read`, actions pinned to the same SHAs as
     `gate.yml`, `persist-credentials: false`, no cache, no upload, no secret;
-  - six jobs, each `timeout-minutes: 45`, Node 24, running
+  - five jobs, each `timeout-minutes: 45`, Node 24, running
     `env -u NODE_OPTIONS node gate/tests/clef-e2e.mjs "$RUNNER_TEMP/clef-e2e" <key>`:
 
     | Job | Runner | Key | Before the run |
@@ -216,10 +218,7 @@ files, printed in the pin record, beside 0003 M4's Mach-O check:
     | `clef-e2e-linux-arm64` | `ubuntu-24.04-arm` | `linux-arm64-cpu` | — |
     | `clef-e2e-windows-x64` | `windows-2025` | `win32-x64-cpu` | — |
     | `clef-e2e-windows-arm64` | `windows-11-arm` | `win32-arm64-cpu` | — |
-    | `clef-e2e-macos-x64` | `macos-15-intel` | `darwin-x64-cpu` | — |
 
-    The macOS job is in only if U10 shows the model fits that runner; else
-    the doc states Intel Macs as not run end to end.
 
     The keeper job also checks, after `ensure`, that the server's parent is a
     node process (the keeper) and not `setpriv`.
@@ -272,7 +271,7 @@ these:
 
 Before any code, push a throwaway branch (never merged, no PR) holding a
 workflow that runs on a push to that branch only, with the lockdown above. On
-each of the six runners it fetches the pinned archive for the runner and the
+each of the five runners it fetches the pinned archive for the runner and the
 pinned model, checks both by size and sha256, starts `llama-server` with
 0002 S7's arguments on CPU, asks the six cases on `/v1/systemone`, and prints
 the time to ready, each answer's time and band, and the peak memory. On the
@@ -299,9 +298,12 @@ rebases on each of its pushes.
 
 ## U12 Out of scope (deferred)
 
-- **macOS arm64 end to end in CI:** pending the owner's call on a paid,
-  larger runner. GitHub's standard macOS arm64 runner has 7 GB of memory,
-  which the model and its context likely don't fit.
+- **macOS end to end in CI,** arm64 and Intel: the owner's call ("No, skip
+  macOS e2e", relayed by the lead, decision 65). GitHub's standard macOS
+  arm64 runner has 7 GB of memory, which the model likely doesn't fit, and a
+  larger runner is paid. macOS stays covered by `gate-macos`'s full suite
+  with a stub server (0003 M7), and the doc says macOS is not run end to
+  end.
 - **CUDA, ROCm, SYCL, OpenVINO and OpenCL builds.** No CI runner has the
   GPU, and the archives run to hundreds of MB. Vulkan covers NVIDIA, AMD and
   Intel GPUs on Linux and Windows.
