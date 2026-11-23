@@ -274,7 +274,7 @@ The session took these picks, each logged as a checkpoint:
     so the install runs against a real folder; that makes the dry run
     stricter than `gate`'s;
   - `env -u NODE_OPTIONS node gate/tests/run.mjs full --skips gate/tests/macos-skips.txt`;
-  - a last step, `env -u NODE_OPTIONS node gate/tests/clef-smoke.mjs`, which
+  - a last step, `env -u NODE_OPTIONS node .github/scripts/clef-smoke.mjs`, which
     fetches the pinned `darwin-arm64-cpu` archive through `clef`'s own fetch
     (so size and sha256 are checked against the pin), unpacks it through
     `clef`'s own unpack, and fails unless `llama-server --device none

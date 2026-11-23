@@ -6,7 +6,7 @@
 // in the server's fixed folder and environment. The run passes only when that
 // exits 0. It starts no model and opens no port, and reads no secret.
 //
-// usage: node gate/tests/clef-smoke.mjs
+// usage: node .github/scripts/clef-smoke.mjs
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
