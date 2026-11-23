@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { request } from 'node:http';
 import { join } from 'node:path';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import * as clef from '../../claude/tools/clef.mjs';
 import { REPO } from './text.mjs';
@@ -1318,4 +1318,27 @@ test('main: on macOS, serve from the runtime folder named in another case is acc
   const code = await clef.main(['serve'], { env, cwd: cased, account: f.cfgHome, out: l => out.push(l), chdir: () => {}, serveOptions: { ...f.exe, idleMs: 500, checkMs: 100, pollMs: 50 } });
   assert.equal(code, 0, out.join('\n'));
   assert.match(readFileSync(f.run.log, 'utf8'), /stopped idle/);
+});
+
+// gate-macos on 020f852 (run 45221886335): every test here passed, then the file never exited, and the job ran to its
+// 45-minute cap. Something a test started outlived it. This names whatever child process or pipe is still open once
+// every test has ended, ends it, and fails the file, so a leak fails fast with its name instead of holding the job.
+after(async () => {
+  const own = new Set([process.stdin, process.stdout, process.stderr]);
+  const open = () => process._getActiveHandles().filter(h => !own.has(h) && (h.constructor?.name === 'ChildProcess' || (h.constructor?.name === 'Socket' && !h.destroyed)));
+  // A process a test has just ended can take a moment to be reaped.
+  for (let i = 0; i < 30 && open().length; i++) await sleep(100);
+  const left = open();
+  const names = left.map(h => (h.constructor.name === 'ChildProcess' ? `child ${h.pid} ${(h.spawnargs ?? []).slice(-2).join(' ')}` : `pipe ${h._handle?.fd ?? '?'}`));
+  for (const h of left) {
+    try {
+      if (h.constructor.name === 'ChildProcess') {
+        h.disconnect?.();
+        h.kill('SIGKILL');
+      } else h.destroy();
+    } catch {
+      // gone already
+    }
+  }
+  assert.deepEqual(names, [], 'nothing a test started is left open');
 });
