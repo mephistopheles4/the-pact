@@ -1,6 +1,7 @@
 # Spec delta: Clef everywhere — Linux end to end, no setpriv dependency, arm64, Intel Macs, a doc for anyone — V1
 
-Status: draft, revised after spec round 1. Amends
+Status: approved at 9987584 after spec round 2 (final), the lead's decision
+86, flagged for the owner's review. Amends
 [0002-clef-runner](0002-clef-runner.md) and builds on
 [0003-clef-macos](0003-clef-macos.md); everything they say holds unless a
 section here replaces it. The spec counts once it is on `main`.
@@ -528,7 +529,7 @@ evidence on its own head.
 | What | Kind | When |
 | --- | --- | --- |
 | The new rows and the `glibc` field as a stated pin exception, and the security pair's read of them | checkpoint | at T1's Test |
-| The security pair on this spec | spec round 2 | now |
+| The security pair on this spec | spec round 2 | done: no high, no security block |
 | The security pair on `clef-e2e.yml` and the keeper on Linux | checkpoint | at T2's and T3's Test |
 | U10's branch push (done, the lead's OK, decision 64) and its deletion | checkpoint | delete once the spec is approved |
 | Where field reports go (U18): a public GitHub issue form, the lead's decision 78 | flagged for the owner's review | after |
