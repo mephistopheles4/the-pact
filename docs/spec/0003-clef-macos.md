@@ -67,9 +67,10 @@ The session took these picks, each logged as a checkpoint:
    only. Its ruleset line names `gate-macos` (M7). Its decision-model
    control gains "on macOS the caller's `TMPDIR` passes". Its control on
    what runs names the pin-time Mach-O check beside the archive readers.
-   As built, these last two clauses don't fit the threat model's word cap.
-   They are carried in `docs/clef.md` until the threat model has room
-   (the lead's decision 94, for the owner to review).
+   The two clauses didn't fit the threat model's 3,000-word cap, so the
+   owner raised it to 3,050, and no other text was cut
+   (`gate/tests/threat-model-cap.test.mjs`). PACT-39 drops the word
+   budgets.
 
 ## M3 The pin table (amends 0002 S5)
 
