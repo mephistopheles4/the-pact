@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 // Clef (PACT-61, spec 0002). An opt-in pact tool that runs Clef, the local
 // decision model, with a pinned llama.cpp server and a pinned model file: no
-// Ollama. This part (T1) fetches and checks them; the supervisor is T2's.
+// Ollama. Setup fetches and checks them; a supervisor on 127.0.0.1 serves them.
 //
 //   node clef.mjs setup  [--cpu] [--yes]   print the plan; with --yes, fetch and keep the files
 //   node clef.mjs verify                    re-hash every kept file against the pin table
+//   node clef.mjs ensure [--wait n]         start the supervisor if none runs; print one JSON line
+//   node clef.mjs status | stop             show the run state; end the supervisor and its server
+//   node clef.mjs remove [--yes]            name, or with --yes delete, the clef folder
 //
 // Everything the tool may fetch is in the pin table below: one server build
 // and one model, each with its size and sha256, from two fixed repos. A file
@@ -19,7 +22,10 @@
 //   1  RESULT: fail <words>    a file failed verify
 //   2  RESULT: refused <word>  a refusal (clef-pin, clef-platform, clef-space,
 //                              clef-node, clef-setpriv, clef-redirect, clef-size,
-//                              clef-hash, clef-archive, clef-home) or a usage fault
+//                              clef-hash, clef-archive, clef-home, clef-running,
+//                              clef-fetch) or a usage fault
+// `ensure` prints its JSON line and exits 0 (ready or starting), 3 (not set up)
+// or 4 (failed); docs/clef.md has its states.
 //
 // Node 24 or later, ESM, node: built-ins only. Every rule is an exported
 // function that takes what it needs as parameters (the transport, the origins,
