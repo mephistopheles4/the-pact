@@ -6,6 +6,7 @@
 // id, with a base that passes before and after.
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { Readable } from 'node:stream';
@@ -723,6 +724,50 @@ test('claudeHome: CLAUDE_CONFIG_DIR is used as an absolute path, a relative one 
       assert.equal(out.at(-1), 'RESULT: refused clef-home');
     }
     assert.deepEqual(readdirSync(start), [], 'nothing was made inside the starting folder');
+  });
+  // PACT-61 adversarial F1, second further read: HOME and USERPROFILE can be set by a cloned repo's settings, so the default folder is taken from the account record.
+  test('accountHome: the account record answers, not HOME or USERPROFILE', t => {
+    const fake = tempDir(t, 'clef-fakehome-');
+    const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+    process.env.HOME = fake;
+    process.env.USERPROFILE = fake;
+    try {
+      const got = clef.accountHome();
+      assert.notEqual(got, fake);
+      assert.equal(got, userInfo().homedir);
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+  test('main: with no readable account record the default folder is checked against the starting folder, and nothing is made inside it', async t => {
+    const start = tempDir(t, 'clef-start-');
+    const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+    process.env.HOME = join(start, 'h');
+    process.env.USERPROFILE = join(start, 'h');
+    try {
+      const out = [];
+      const code = await clef.main(['verify'], { env: {}, cwd: start, account: null, out: l => out.push(l), chdir: () => { throw new Error('chdir'); } });
+      assert.equal(code, 2);
+      assert.match(out.at(-2), /^REFUSED clef-home: /);
+      assert.equal(out.at(-1), 'RESULT: refused clef-home');
+      assert.deepEqual(readdirSync(start), []);
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+  test('main: an account home inside the starting folder is accepted (a session started in the home folder)', async t => {
+    const home = tempDir(t, 'clef-acct-');
+    const out = [];
+    const code = await clef.main(['verify'], { env: {}, cwd: home, account: home, out: l => out.push(l), chdir: () => {} });
+    assert.notEqual(out.at(-1), 'RESULT: refused clef-home');
+    assert.equal(existsSync(join(home, '.claude', 'pact-clef')), true);
+    assert.ok([0, 1].includes(code));
   });
   test('main: a linked runtime folder prints REFUSED clef-home before any chdir', async t => {
     const root = tempDir(t, 'clef-real-');

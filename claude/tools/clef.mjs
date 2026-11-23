@@ -32,7 +32,7 @@
 import { createHash } from 'node:crypto';
 import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
 import { request as httpsRequest, Agent } from 'node:https';
-import { homedir } from 'node:os';
+import { homedir, userInfo } from 'node:os';
 import { dirname, join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync, gunzipSync } from 'node:zlib';
@@ -680,6 +680,20 @@ export const claudeHome = (env = process.env, home = homedir(), win = process.pl
   return resolve(v);
 };
 
+/**
+ * The user's home folder from the account record (the passwd entry, or the
+ * profile folder Windows keeps for the account), never from HOME or USERPROFILE,
+ * which a cloned repo's settings can set. Null when the record cannot be read.
+ */
+export function accountHome() {
+  try {
+    const h = userInfo().homedir;
+    return typeof h === 'string' && h !== '' ? h : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The clef folder (S3). */
 export const clefDir = home => join(home, 'pact-clef');
 
@@ -994,7 +1008,7 @@ export function verify({ dir, server = SERVER, model = MODEL }) {
 const quote = s => JSON.stringify(String(s)).slice(1, -1);
 
 /** Runs one mode. `io` is { out(line), }; returns the exit code. */
-export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process) } = {}) {
+export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome() } = {}) {
   const refuse = (word, why) => {
     out(`REFUSED ${word}: ${why}`);
     out(`RESULT: refused ${word}`);
@@ -1007,12 +1021,12 @@ export async function main(argv, { env = process.env, platform = process.platfor
   if (rest.length !== flags.size || rest.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${known.length ? known.join(' and ') : 'no flags'}`);
   let dir;
   try {
-    dir = clefDir(claudeHome(env));
+    dir = clefDir(claudeHome(env, account ?? homedir()));
   } catch (e) {
     return refuse(e.code ?? 'usage', quote(e.message));
   }
-  // The default folder is not outside input; a value from the environment is, so it is checked against the starting folder, before anything is made.
-  const fromEnv = Boolean(env.CLAUDE_CONFIG_DIR);
+  // The default folder under the account's home is not outside input; a value from the environment is, and so is a home taken from HOME or USERPROFILE when the account record cannot be read. Those are checked against the starting folder, before anything is made.
+  const fromEnv = Boolean(env.CLAUDE_CONFIG_DIR) || account === null;
   try {
     if (fromEnv) assertOutsideStart(dir, cwd);
   } catch (e) {
