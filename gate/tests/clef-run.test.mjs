@@ -912,6 +912,32 @@ process.stdout.write(JSON.stringify(r.out));
   }
 });
 
+test('ensure: a caller that saw no supervisor, then finds the lock free, starts no second one and keeps run.json', async t => {
+  const f = fixture(t);
+  f.stoppers.push(() => stopFixture(f));
+  assert.equal((await ensure(f, { wait: 20 })).out.state, 'ready');
+  for (let i = 0; i < 100 && existsSync(f.run.lock); i++) await sleep(50);
+  assert.equal(existsSync(f.run.lock), false, 'the supervisor let go of run.lock');
+  const before = readFileSync(f.run.run, 'utf8');
+  // This caller's first check ran just before the supervisor wrote run.json; the check is held back to that moment.
+  let checks = 0;
+  const launches = [];
+  const r = await clef.ensure({
+    dir: f.dir,
+    wait: 0,
+    liveCheck: dir => (checks++ === 0 ? null : clef.liveSupervisor(dir)),
+    supervisorCommand: () => {
+      launches.push('launched');
+      return { file: process.execPath, args: ['-e', ''] };
+    },
+  });
+  assert.equal(checks, 2, 'ensure checked twice, both through liveCheck: once before the lock and once after');
+  assert.deepEqual(launches, [], 'no second supervisor was started');
+  assert.equal(r.out.state, 'ready');
+  assert.equal(readFileSync(f.run.run, 'utf8'), before, 'the live run.json was not removed');
+  assert.equal(existsSync(f.run.lock), false, 'the caller let go of the lock it took');
+});
+
 // ------------------------------------------------------------ the shape of the source
 
 test('the supervisor source: only the named routes, no shell, no wildcard bind, no token on a command line or in a log call', () => {
