@@ -1,6 +1,6 @@
 # Spec: a pinned llama-server runner for Clef, as an opt-in pact tool — V1
 
-Status: draft, reviewed (round 1), on the sensitive route. The spec counts
+Status: draft, reviewed (two rounds), on the sensitive route. One call waits for the owner: the dogfooding bounds (S12). The spec counts
 once it is on `main`.
 
 ## S1 Objective
@@ -47,7 +47,14 @@ From the owner, through the lead:
      and a difference goes to the owner. A finding is never dropped on
      Clef's answer alone.
    - **The record names** each call's question, its answer band, and who
-     decided: never its `state`, and never a clef-pilot log line.
+     decided: never its `state`, and never a clef-pilot log line. A question
+     about an open security finding is recorded by the record's marker; one
+     that names a secret, a personal detail or a revealing path is summarised,
+     not quoted. An `unsure` band names the owner as who decided.
+   - **Which review dogfoods:** the first review after T4, whichever lenses
+     run it, since the runner exists only from T4. The security pair reads
+     T1 to T3 before then and so can't use Clef in this work. T4 checks that a
+     lens subagent can call `decide`.
 
 The session took these picks, each logged as a checkpoint:
 
@@ -64,8 +71,10 @@ The session took these picks, each logged as a checkpoint:
 4. **Pins at least 14 days old,** for the server build and the model alike,
    counted per pinned file (S5). The spike's b12635 was published under an
    hour before this spec, so the first server pin is b12211 (2026-11-08). The
-   model's commit is dated 2026-11-12, so the first pin record is dated
-   2026-11-26 or later.
+   model's age counts from the later of its commit date and the day this
+   repo first recorded its sha256 (2026-11-22), so the first pin record is
+   dated 2026-12-06 or later. That delays T4, and so the owner's own use, to
+   then.
 5. **The model:** ggml-org `Clef-Flash-GGUF`, `Clef-Flash-Q4_K_M.gguf`, at a
    full commit id, by sha256.
 6. **A supervisor in front of the server.** The tool's own node process. It
@@ -94,22 +103,27 @@ The session took these picks, each logged as a checkpoint:
 - **The server:** the `llama-server` child the supervisor starts.
 - **Ready:** the server answers `GET /health` with 200 through the
   supervisor.
-- **The six cases:** the spike's six cases (4 yes/no, 3 pick-one, one joint
-  request), with its Ollama baseline. T4 copies them, as plain data, into
-  `docs/clef-cases.json`; they hold no personal or secret text.
+- **The six cases:** the spike's six cases, with its Ollama baseline, from
+  the spike's round-2 findings on the tracker: two yes/no, three pick-one, and
+  one joint request of two yes/no questions. T4 writes them, as plain data,
+  into `docs/clef-cases.json`, and its record says each was read for
+  personal, secret and path text before the push.
 
 ## S4 The tool on the tools list
 
+- Everything in S4 lands in T1, since the tools list, the WARN text, the
+  Scriptorium list and the default configuration are held equal by tests.
 - `PACT_TOOLS` gains `clef` in `gate/shared.mjs` and in the install's copy
-  in `gate/install-core.mjs`, in T1, so seam A and the copy set accept the
-  file from T1 on. The tests that list the tools (`tools.test.mjs`, the
-  builder page's test) gain it there too. The renderer keeps it off by
-  default.
-- The dry run's WARN line, after where it installs, reads: " and, when you
+  in `gate/install-core.mjs`, so seam A and the copy set accept the file. The
+  tests that list the tools (`tools.test.mjs`, the builder page's test) gain
+  it too. The renderer keeps it off by default.
+- The dry run's WARN line (`TOOL_WARNS.clef`), after where it installs,
+  reads: " and, when you
   run its setup, downloads a llama.cpp server build (about 25–39 MB) and a
   Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on
   this machine, listening on 127.0.0.1 only."
-- Scriptorium's "Pact tools" box for `clef` carries the same sentence.
+- Scriptorium's "Pact tools" box for `clef` (its `OPT_TOOLS` row) carries
+  the same sentence.
 - The cloud copy never installs `clef`: `CLOUD_TOOLS` in
   `cloud-sessions/gen.mjs` stays empty and frozen.
 - `docs/reference.md` gains `clef.mjs` in its `claude/tools/` row and its
@@ -130,6 +144,9 @@ export const MODEL = Object.freeze({ repo: 'ggml-org/Clef-Flash-GGUF', commit: '
   `https://github.com/<SERVER.repo>/releases/download/<SERVER.tag>/<asset>`;
   the model's is
   `https://huggingface.co/<MODEL.repo>/resolve/<MODEL.commit>/<MODEL.file>`.
+  After building, the tool checks that the URL's `pathname` starts with
+  `/<repo>/releases/download/<tag>/` or `/<repo>/resolve/<commit>/` and that
+  it has no query or fragment; otherwise it refuses (`clef-pin`).
 - **Redirect hosts,** fixed in the tool: `release-assets.githubusercontent.com`
   and `objects.githubusercontent.com` for GitHub; `us.aws.cdn.hf.co` for
   Hugging Face. Today the GitHub download answers 302 to the first, and the
@@ -157,20 +174,31 @@ export const MODEL = Object.freeze({ repo: 'ggml-org/Clef-Flash-GGUF', commit: '
   starting `eef2968c`.
 - **The `files` lists** are written once per pin by
   `gate/tests/clef-files-list.mjs`, a script the runner never runs (its name
-  doesn't end `.test.mjs`) and the install never stages. It reads the
-  verified archives and prints the rows.
+  doesn't end `.test.mjs`) and the install never stages. It fetches all four
+  archives through the tool's exported fetch (the same redirect rule and
+  whole-file hash check) into a scratch folder outside the repo, and prints
+  the rows. It also prints which entry forms each archive uses (S6). Running
+  it is the only real download before T4.
 - **A pin set or bumped is a PR that changes only the table and the files
-  list,** read closely by the security pair. Its record cites:
+  list,** read closely by the security pair. The first pin, in T1, is the
+  one exception: it lands with the tool. Before a later pin PR merges, C14
+  runs on the new pin from the branch's own `claude/tools/clef.mjs`, run
+  directly on the owner's machine as a checkpoint. Its record cites:
   - the release page, and for each pinned asset its `digest`, `created_at`
     and `updated_at` from the release API, each 14 days old or more, and
     whether the release is marked immutable;
-  - the HF commit id and its date (14 days or more), the file's sha256, and
-    that the repo sits under the `ggml-org` account;
+  - the HF commit id, the file's sha256, and that the repo sits under the
+    `ggml-org` account. The model's age counts from the later of the commit
+    date (which its pusher sets) and the first date a record of this repo saw
+    that sha256; for the first pin that is the round-1 spec commit,
+    2026-11-22, so the first pin record is dated 2026-12-06 or later;
   - C14's run on the new pin, which T4 makes for the first pin.
 - **The shape check,** in the tool and in a gate test, refuses: a `repo`
   other than `ggml-org/llama.cpp` or `ggml-org/Clef-Flash-GGUF` (the gate
   test holds both names as its own constants, so moving a source changes a
-  test too); a tag not matching `^b[0-9]+$`; a commit not 40 lower-case hex;
+  test too); a tag not matching `^b[0-9]+$`; an `asset` or `MODEL.file` that
+  isn't one plain segment of letters, digits, `.`, `_` and `-` (never `.` or
+  `..`), or an `asset` not starting `llama-<tag>-bin-`; a commit not 40 lower-case hex;
   a sha256 not 64 lower-case hex; a size that isn't a positive integer; two
   rows for one platform key; and a file path that is empty, absolute, holds
   `..`, a backslash, any `:`, a NUL or a control character, ends in a dot or a
@@ -180,6 +208,11 @@ export const MODEL = Object.freeze({ repo: 'ggml-org/Clef-Flash-GGUF', commit: '
 ## S6 Setup: the plan, the fetch, the checks
 
 `node pact/tools/clef.mjs setup [--cpu] [--yes]`
+
+Every `clef` mode (`setup`, `verify`, `ensure`, `serve`, `stop`, `status`,
+`remove`) first sets its working folder to the clef folder, and starts no
+program by a bare name: `serve` is started by `process.execPath`, the server
+by its absolute path under `runtime/<tag>/`, and nothing else is started.
 
 ### The plan
 
@@ -194,11 +227,13 @@ itself. It prints:
 - the free space on the clef folder's drive, and what it needs (the model plus
   the archive plus 10%);
 - each file already present and checked, which it skips;
+- the node path it will record in `setup.json` (S8 runs it);
 - the line `run again with --yes to fetch`.
 
 Setup refuses, with no fetch: a platform with no row (`clef-platform`); too
 little space (`clef-space`); a live supervisor (`clef-running`: "run `clef
-stop` first").
+stop` first"); a node path inside the folder the command was started from
+(`clef-node`).
 
 ### The fetch
 
@@ -226,7 +261,8 @@ stop` first").
   tool's own readers: zip (stored and deflate entries, through node's
   `zlib`) and tar.gz (ustar). No `tar`, `unzip` or shell runs. A zip64, pax
   or GNU long-name entry refuses (`clef-archive`) unless a pinned archive
-  needs it, in which case T1 supports exactly that form and tests it.
+  needs it: T1's files-list run reports the forms the four b12211 archives
+  use, and T1 supports and tests exactly those.
 - Only entries named in `files` are written. An entry name failing S5's path
   check refuses (`clef-archive`). A link entry is never written.
 - Each written file is checked again against its own size and sha256, into
@@ -260,12 +296,13 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
 | `ready` | the server answers `/health` with 200 | 0 |
 | `starting` | a supervisor runs, the server isn't ready yet | 0 |
 | `not-set-up` | no `setup.json`, a missing file, or `setup.json` names another tag or model than the table (`reason`: `pin-changed`); it never fetches | 3 |
-| `failed` | the last start failed less than 10 minutes ago; `reason` is a fixed word (`exit`, `timeout`, `verify`) | 4 |
+| `failed` | the last start failed less than 10 minutes ago; `reason` is a fixed word (`exit`, `timeout`) | 4 |
 
-- **Live check.** A supervisor is live only when `run.json`'s `pid` is alive
-  and is a node process whose command line names `clef.mjs serve`, and its
-  `/health` returns the `run` id stored in `run.json` (16 random bytes, not
-  the token). Any mismatch removes `run.json` and starts fresh.
+- **Live check.** No other process's command line is read, and no helper
+  runs. A supervisor is live only when `run.json`'s `pid` is alive and its
+  `/health`, asked with the token, returns `{run, pid, serverPid}` equal to
+  `run.json`'s (`run` is 16 random bytes, not the token). Any mismatch, or no
+  answer, removes `run.json` and starts fresh.
 - **Starting.** `ensure` takes `run.lock` (created exclusive; a lock whose
   pid is gone is stale and removed), starts `clef serve` detached with no
   shell, then waits up to `--wait` seconds (default 0, at most 60) for
@@ -279,13 +316,14 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
 
 - **Where and with what.** The supervisor and the server run with their
   working folder set to `runtime/<tag>/`, and with a named environment only:
-  `PATH`, `SYSTEMROOT`, `WINDIR`, `TEMP`, `TMP`, `HOME`, `USERPROFILE`,
-  `LOCALAPPDATA`, plus `XDG_RUNTIME_DIR` and `LD_LIBRARY_PATH` set to the
-  runtime folder on Linux. No `GGML_*`, `LLAMA_*`, `HF_*` or `NODE_*` name
-  passes, so the backend loader finds only the pinned libraries and no
-  environment setting adds an argument.
+  `SYSTEMROOT`, `WINDIR`, `TEMP`, `TMP`, `HOME`, `USERPROFILE`,
+  `LOCALAPPDATA` and `XDG_RUNTIME_DIR` from the caller; `PATH` set, not
+  passed: `%SystemRoot%\System32;%SystemRoot%` on Windows, `/usr/bin:/bin` on
+  Linux; and on Linux `LD_LIBRARY_PATH` set to the runtime folder. No
+  `GGML_*`, `LLAMA_*`, `HF_*`, `VK_*` or `NODE_*` name passes, so no
+  environment setting adds an argument or a library folder.
 - **Tokens.** Two values from `crypto.randomBytes(32)`: the caller token and
-  the server key. Compared with `crypto.timingSafeEqual`.
+  the server key.
 - **Ports.** The supervisor binds `127.0.0.1` on a port the OS picks. The
   server starts on another OS-picked loopback port with `--host 127.0.0.1`,
   `--api-key-file <clef folder>/run.key` (mode 0600 on Linux, removed at
@@ -303,28 +341,31 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   or a POST whose `content-type` isn't `application/json` is refused. Each
   refusal is a fixed 4xx body naming a reason word, never echoing the
   request.
-- **What it returns.** A 200 from the server is returned with its body only
-  when the body parses as JSON whose `answers` maps each asked question id to
-  either a finite number in [0,1] (`noul`, `score`) or a `choice` that is one
-  of the `criteria` keys sent, with `probabilities` over those keys. Anything
-  else, and every non-200, becomes a fixed `502 {"error":"no-answer"}`. No
-  server text reaches a caller.
+- **What it returns.** The supervisor builds a new body from checked values
+  only; the server's body is never passed on. For each asked question id
+  (tested with `Object.hasOwn`), it takes a finite number in [0,1] (`noul`,
+  `score`), or a `choice` that is one of the `criteria` keys sent with
+  `probabilities` holding a finite number in [0,1] for each sent key and no
+  other key. Anything else, and every non-200, becomes a fixed
+  `502 {"error":"no-answer"}`. No server text reaches a caller.
 - **`serve.log`** holds counts, timings and reason words; no request or
   response body, token, key, header value or argument list, on every path
   including a failed start. It is capped at 1 MB.
 - **Stopping.** After 30 minutes with no forwarded request, the supervisor
   ends the server, removes `run.json` and `run.key`, and exits. A server that
-  exits on its own ends the supervisor, which records `run.fail`. On Windows
-  the server is started in a job object that closes with the supervisor, so
-  a supervisor that dies takes the server with it.
+  exits on its own ends the supervisor, which records `run.fail`. The server
+  is spawned non-detached, so on Windows libuv's kill-on-close job object
+  ends it when the supervisor dies; on Linux the supervisor ends it on
+  `SIGTERM`, `SIGINT` and exit.
 - **Test seams.** The origins, the `https:` rule, the executable path, the
   environment list and the idle timeout are parameters of the tool's exported
   functions only. No flag and no environment variable reaches them (C17).
 
 ### Stop, status, remove
 
-- `clef stop` ends the supervisor and the server by the pids in `run.json`,
-  each only after the same identity check as the live check, and removes
+- `clef stop` runs the live check, then ends only the supervisor pid its
+  `/health` just reported; the supervisor's own handlers and the job object
+  end the server. With no live supervisor it ends nothing, and removes
   `run.json`, `run.key` and `run.fail`.
 - `clef status` prints setup's platform, tag, backend and model prefix, the
   run state, and the last failure word. It never prints a token, key or path
@@ -338,14 +379,18 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
 
 clef-pilot is the owner's dev-mod in `~/.claude/dev-mods/`, outside this
 repo, and it runs in every session, so T4's edit to it is a checkpoint (S16).
-T4 keeps a copy of `register.ts` before the edit in its record folder.
+T4 keeps a copy of `register.ts` before the edit in the session's own job
+folder under `~/.claude/`, never committed or posted; the record cites only
+that it exists. The security pair reads T4's clef-pilot edit as a diff
+against that copy.
 
 - **Calls.** All three of today's call sites move: `decide` (with
   `--wait 20`), the watch path and the prompt-pin path (both `--wait 0`).
   clef-pilot runs `<setup.json's node> <Claude home>/pact/tools/clef.mjs
-  ensure` through `$.process.run`, reads the token from `run.json`, and keeps
-  both for later calls. It runs `ensure` again only on a connection error,
-  a 401, or a `state` other than `ready`.
+  ensure` through `$.process.run`, and reads the URL and token from
+  `run.json`. Before each call it reads `run.json` again (a small file read)
+  and runs `ensure` when the file is missing or its `port` or `run` changed,
+  and after any connection error, 401 or no-answer.
 - **Body.** `{state, questions}`; the Ollama-only `model` and `keep_alive`
   fields go.
 - **Answers.** It checks the answer as the supervisor does (S7, What it
@@ -373,7 +418,9 @@ stop` and `clef remove --yes` first to free the disk.
 - the RAM and VRAM T4 measures (C14);
 - setup, verify, status, stop and remove; the CPU speed note;
 - **how a caller uses it:** `ensure`'s JSON line and exit codes, the token in
-  `run.json`, the two routes, the body shape and the answer check;
+  `run.json`, the two routes, the body shape and the answer check. This
+  interface is V1's and changes only through a spec change, which adds a
+  `v` field to `run.json`;
 - Linux: built and unit-tested, not run end to end;
 - the licenses: llama.cpp MIT, its LICENSE kept from the archive; Clef-Flash
   Apache-2.0, per its model card.
@@ -428,7 +475,8 @@ as a control change.
 
 | Pull | Side taken | Driver |
 | --- | --- | --- |
-| Newest build (the spike's b12635) vs. a 14-day-old one | 14 days old, per file, re-tested | A fresh upload has had no time to be caught if bad |
+| Newest build (the spike's b12635) vs. a 14-day-old one | 14 days old, per file, re-tested; this delays T4, and the owner's own use, to 2026-12-06 or later | A fresh upload has had no time to be caught if bad |
+| Clef settles security sorts and severity vs. Clef advises and the session settles | The session settles; Clef's placement is a second opinion (S2 decision 5). For the owner to confirm, since it narrows the dogfooding ask | Outside text in `state` can push Clef to a confident wrong answer |
 | Fetch at install vs. at setup | At setup, behind `--yes` | No install pulls 6.7 GB unasked |
 | Re-hash at each start vs. at setup and verify | Setup and verify | Files at rest are the machine's; a 6.7 GB hash per start costs seconds to minutes |
 | Supervisor in front vs. clients call llama-server | Supervisor | One place for the idle timer, token, routes and answer check |
@@ -485,10 +533,12 @@ as a control change.
   `application/json`, gets a fixed 4xx and is never forwarded.
 - **C11** Two `ensure` calls at once start one supervisor; the loser never
   spawns. A stale `run.json` whose pid is gone, or whose port answers without
-  the run id, is replaced.
+  the matching run id and pids, is replaced. `run.json` naming a live process
+  that isn't the supervisor leaves that process alive after `ensure` and
+  `clef stop` (on `gate-windows` too).
 - **C12** After the idle timeout with no forwarded request, the supervisor ends
-  the server and removes `run.json` and `run.key`. After `clef stop`, neither
-  pid in `run.json` is alive (on `gate-windows` too).
+  the server and removes `run.json` and `run.key`. After `clef stop`, or after
+  the supervisor is killed, the server is gone (on `gate-windows` too).
 - **C13** No `clef` mode's stdout or stderr holds the token or the key.
   `serve.log` holds no body, token, key, header value or argument list,
   including after a failed start. `clef status` prints neither.
@@ -501,14 +551,17 @@ as a control change.
   supervisor stopped, its first `decide` starts it. With the clef folder moved
   away, `decide` denies with a fixed word and the watch path logs "no answer"
   without delay.
-- **C16** The supervisor returns a server answer only when it passes S7's
-  check; a free-text choice, an out-of-range number, a server error or a
-  non-JSON body becomes the fixed `no-answer`.
-- **C17** Started from a folder holding a planted `ggml-*` library, with
-  `GGML_BACKEND_PATH`, `LLAMA_ARG_*` and `NODE_OPTIONS` set, the stub server
-  sees the runtime folder as its working folder and none of those names. No
-  CLI flag or environment variable changes the origins, the `https:` rule,
-  the executable path or the idle timeout.
+- **C16** The supervisor returns only a body it built from checked values; a
+  free-text choice, an out-of-range number or probability, an extra field, a
+  server error or a non-JSON body becomes the fixed `no-answer`.
+- **C17** Every `clef` mode, started from a folder holding a planted `ggml-*`
+  library, `node` and helper programs, with `GGML_BACKEND_PATH`,
+  `LLAMA_ARG_*`, `NODE_OPTIONS` and a `PATH` naming that folder, runs nothing
+  from that folder; the stub server sees the runtime folder as its working
+  folder, the fixed `PATH`, and none of those names. No CLI flag or
+  environment variable changes the origins, the `https:` rule, the executable
+  path or the idle timeout. Setup refuses a node path inside the starting
+  folder.
 - **C18** `ensure` after a failed start prints `failed` and starts nothing for
   10 minutes; `setup.json` naming another pin gives `not-set-up` with
   `pin-changed`.
@@ -516,14 +569,21 @@ as a control change.
   a live supervisor and deletes only the clef folder, following no link out of
   it.
 - **C20** (T4) The first review record after T4 lists each Clef call made
-  during it: the question, the band and who decided, with no `state`, or says
-  none came up.
+  during it: the question (under S2 decision 5's rules), the band and who
+  decided, with no `state`, each `unsure` naming the owner; or says none came
+  up.
+- **C21** The shape check refuses an `asset` or model file name with a `/`,
+  `..`, `%`, `?` or `#`, and a built URL whose path leaves its repo, tag or
+  commit.
 
 ## S15 Rollback
 
-- **A bad pin:** a revert PR that restores the previous table, then a dry
-  run, the apply (a checkpoint), and `clef setup
+- **A bad pin,** including the first pin failing C14 in T4: a revert PR that
+  restores the previous table (for the first pin, one that sets the next
+  eligible build), then a dry run, the apply (a checkpoint), and `clef setup
   --yes` on each machine.
+- **A pin bump:** after its apply, `clef status` and `ensure` report
+  `pin-changed` until `clef setup --yes` runs; `docs/clef.md` says so.
 - **The pact past T1:** an older renderer refuses `clef` on the tools list.
   Take `clef` off the list and apply first, then roll back. T3 adds this
   check to `docs/install.md`'s "Roll back to an older version".
@@ -532,44 +592,52 @@ as a control change.
 
 ## S16 Tickets
 
-1. **T1: the pin table, setup and verify.**
-   - **Covers:** S4's `PACT_TOOLS` entry, S5, S6; claims C3 to C8, C2's
-     clef-folder part.
-   - **Work:** the tool's pin table, shape check, fetch, readers, setup,
-     verify; `gate/tests/clef-files-list.mjs`; gate tests with fixtures. The
-     pin record may be dated no earlier than 2026-11-26 (the model's age).
-     No real download or server run in T1.
+1. **T1: the tool on the list, the pin table, setup and verify.**
+   - **Covers:** S4, S5, S6 but its live-supervisor refusal; claims C1, C2,
+     C3, C4's first sentence, C5 to C8, C21.
+   - **Work:** `PACT_TOOLS`, `TOOL_WARNS.clef`, the Scriptorium row,
+     `node builder/default-config.mjs`, `docs/reference.md`; the tool's pin
+     table, shape check, fetch, readers, setup, verify;
+     `gate/tests/clef-files-list.mjs` and its run; gate tests with fixtures;
+     a dated log (a gate change). The pin record is dated 2026-12-06 or later
+     (the model's age). No server run in T1.
 2. **T2: the supervisor.**
-   - **Covers:** S7; claims C9 to C13, C16 to C19.
+   - **Covers:** S7, S6's live-supervisor refusal; claims C4's second
+     sentence, C9 to C13, C16 to C19.
    - **Depends on:** T1 (stacked).
    - **Work:** `ensure`, `serve`, `stop`, `status`, `remove`; tests with a
-     stub server. T2 confirms from b12211's own source that it has
-     `--api-key-file`, `--no-webui` and `--no-slots`, and the same backend
-     search as upstream; if not, it stops and asks.
-3. **T3: the WARN line, the doc and the threat model.**
-   - **Covers:** S4's rest, S9, S10, S11, S15's install check; claims C1, C2.
+     stub server. From b12211's own source, T2's record cites the lines that
+     show `--api-key-file`, `--no-webui` and `--no-slots`, and that with no
+     `GGML_*` variable the backends load only from the executable's folder and
+     the working folder; if not, it stops and asks.
+3. **T3: the doc and the threat model.**
+   - **Covers:** S9, S10, S11, S15's install check.
    - **Depends on:** T2 (stacked).
-   - **Work:** the WARN line, Scriptorium, `node builder/default-config.mjs`,
-     `docs/reference.md`, `docs/clef.md`, the `docs/install.md` check, the
-     threat-model edit with its list of cuts, a dated log, and an ADR for the
-     14-day pin age (it constrains every later pin PR).
+   - **Work:** `docs/clef.md`, the `docs/install.md` check, the threat-model
+     edit with its list of cuts, and an ADR for the 14-day pin age (it
+     constrains every later pin PR).
 4. **T4: the owner's machine.**
    - **Covers:** S8; claims C14, C15, C20.
    - **Depends on:** T1 to T3 merged, then the owner's apply from `main`.
    - **Work:** `clef setup --yes`, `docs/clef-cases.json` and the six-case
-     run, the clef-pilot edit, the end-to-end record, and dogfooding in the
-     next review. Uninstalling Ollama is then the owner's own act.
+     run, the clef-pilot edit (read by the security pair), a check that a lens
+     subagent can call `decide`, the end-to-end record, and dogfooding in the
+     next review. Its PR holds `docs/clef-cases.json` and the record.
+     Uninstalling Ollama is then the owner's own act.
 
 The work runs at the thorough tier on the sensitive route. The security pair
-reads this spec and each ticket's diff. Merge order is bottom first: T1, T2,
-T3.
+reads this spec, each ticket's diff and T4's clef-pilot edit. Merge order is
+bottom first: T1, T2, T3, then T4.
 
 ### Needs the owner
 
 | What | Kind | When |
 | --- | --- | --- |
 | Merging T1 and T2 (`claude/tools/`, read closely) | checkpoint, pinned to the reviewed head | after each Test |
-| Merging T3 (gate code, a threat-model class widened) | checkpoint; the class widening waits for the owner's confirmation | after T3's Test |
+| Merging T3 (a threat-model class widened) | checkpoint; the class widening waits for the owner's confirmation | after T3's Test |
+| Merging T4 (`docs/clef-cases.json`, public) | checkpoint, pinned to the reviewed head | after T4's Test |
+| A later pin PR's C14 run from the branch | checkpoint | before that PR merges |
+| The dogfooding bounds in S2 decision 5 | the owner's call (S12) | before T4 |
 | The first pin and its record | checkpoint | in T1's PR |
 | Turning `clef` on in Scriptorium | the owner's own config | before T4's apply |
 | The install apply | checkpoint | in T4 |
@@ -590,7 +658,9 @@ T3.
 
 ## S17 Out of scope (deferred)
 
-- macOS, Windows on ARM, CUDA or ROCm builds; a Linux end-to-end run.
+- macOS, Windows on ARM, CUDA or ROCm builds.
+- A Linux end-to-end run, until someone turns `clef` on on Linux or CI gains
+  a Linux machine that can run the model.
 - Clef 27B, other quants, and the mmproj (image) file.
 - A pact hook that calls Clef on every tool call.
 - Auto-update of pins.
