@@ -45,7 +45,7 @@ nothing else. Use no decision ids, session ids, tab names or tool names.
   pick, never the private note's why.
 - Where a written rule asks for more than a yes (an install apply after its
   dry run is shown, a stop on drift), that rule holds on top.
-- Read each item's facts again just before you act. If they changed (a new
+- Read again what each item rests on (its head commit, CI) just before you act. If they changed (a new
   commit, CI turned red), don't act on that number at all: say what changed and
   ask that number again. My other numbers go ahead. Merge pinned to the head
   commit the item described, so the merge fails if the head moved.
