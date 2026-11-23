@@ -329,7 +329,9 @@ const settingRule = (name, spec) => (spec.kind === 'switch' ? `${name} must be t
 
 // Each pact tool's part of the rules file (#280): the open mark it fills, and
 // its fixed text, one line since #464 T4: the poster's how-to is in review.md,
-// and the cleaner's comes with its own output.
+// and the cleaner's how-to comes with its own output. The cleaner's line also
+// names its command (PACT-80): a lead may run a cleaner only when the
+// user-level rules name its program.
 // The pact tools that name nothing in the rules file, so a tool being on adds no part for them.
 export const TOOLS_WITHOUT_PART = Object.freeze(['gh-app', 'clef']);
 const TOOL_PARTS = new Map([
@@ -339,7 +341,7 @@ const TOOL_PARTS = new Map([
   })],
   ['cleaner', Object.freeze({
     mark: 'tool-cleaner',
-    template: Object.freeze(['- **Remove worktrees only through the cleaner:** each removal is a checkpoint.']),
+    template: Object.freeze(['- **Remove worktrees only through the cleaner,** `node ~/.claude/pact/tools/cleaner.mjs show` (PowerShell: `node "$HOME/.claude/pact/tools/cleaner.mjs" show`), then `remove` with its tags; it stops a finished session first. Each removal is a checkpoint.']),
   })],
 ]);
 
