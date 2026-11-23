@@ -194,9 +194,19 @@ export const MODEL = Object.freeze({ repo: 'ggml-org/Clef-Flash-GGUF', commit: '
     Hub's tree API returns for the pinned file at the pinned commit
     (`/api/models/<repo>/tree/<commit>?expand=true`), 14 days or more before
     the record's date. For a `huggingface_hub` upload that is a server time;
-    a commit pushed with git carries a date its pusher chose, so the record
-    also says which route the commit came by when the Hub's page shows it;
+    a commit pushed with git carries a date its pusher chose. The Hub shows no
+    field for the route, so the record says how the commit was uploaded when
+    the commit page's title or message shows it, and otherwise says the route
+    is not shown. A git route, or no route shown, goes to the owner as a
+    checkpoint, with the date named as the pusher's;
+  - that the pinned commit is on the repo's `main` branch (listed by
+    `/api/models/<repo>/commits/main`) and its author is a `ggml-org` member:
+    the Hub stores a community pull request's commits in the same repo;
   - C14's run on the new pin, which T4 makes for the first pin.
+
+  The security pair does not take the record's dates and commit facts as
+  written: it fetches the tree API at the pinned commit and the `main`
+  commits list itself and compares them with the record.
 - **The shape check,** in the tool and in a gate test, refuses: a `repo`
   other than `ggml-org/llama.cpp` or `ggml-org/Clef-Flash-GGUF` (the gate
   test holds both names as its own constants, so moving a source changes a
@@ -469,8 +479,8 @@ It is not an agent-facing doc, so it is not on the doc budget list.
 
 - the pin table: fixed repos, size and sha256 per archive, per kept file and
   for the model, checked before anything is kept or run;
-- 14 days' age per pinned file and model commit, and the security pair's read
-  of each pin PR;
+- 14 days' age per pinned file (the model's by the Hub's `lastCommit` date),
+  and the security pair's read of each pin PR;
 - fixed redirect hosts, `https:` only;
 - the tool's own archive readers, which write only pinned names;
 - a fixed working folder and a named environment for the supervisor and the
@@ -492,10 +502,14 @@ running as the owner is out of scope.
 
 **The class.** "What you install and CI run" widens to name the pinned
 llama.cpp build and decision model. The pact text, `review.md` and the threat
-model name the role, "a decision model", never the product; Clef is named
-only in the tools list, `claude/tools/clef.mjs`, `docs/clef.md` and the pin
-facts, so another System 1 model can replace it by a setting and a runner.
-Widening a class merges only on the owner's own confirmation (a checkpoint). The threat model is near its word budget;
+model name the role, "a decision model", never the product. The product,
+Clef, is named only where the tool is: the tools list and its install warning,
+`claude/tools/clef.mjs`, `docs/clef.md`, the reference and docs-index rows,
+this spec and the pin facts. Another System 1 model can then replace it with
+its own pin table and runner, and no change to those rules; a new runner,
+model source or runtime still changes this class and its controls, and the
+security pair reads it. Widening a class merges only on the owner's own
+confirmation (a checkpoint). The threat model is near its word budget;
 T3's PR lists each cut it makes to fit, and the security pair reads each cut
 as a control change.
 

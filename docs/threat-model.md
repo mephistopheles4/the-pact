@@ -113,8 +113,8 @@ free hand's design pick can cover what a change stores, logs or sends.
 **Crosses:** plugins and skills, the cloud setup's upstream pins, this repo's
 publisher, CI actions and dependencies, mise configs, a program a clone or
 version pin supplies that runs by bare name, the pinned design system inlined
-into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched by
-`clef setup --yes`, run with the owner's rights.
+into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
+setup, run with the owner's rights.
 
 **Controls:**
 
@@ -131,13 +131,13 @@ into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched by
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
-- **The decision model, when on.** A pin table (fixed repos; size and sha256
-  per file, checked before keeping); fixed redirect hosts, `https:` only; its
+- **The decision model, when on.** A pin table (fixed repos; per-file size and
+  sha256, checked before keeping); fixed redirect hosts, `https:` only; its
   archive readers, writing only pinned names; a fixed working folder and
-  environment; the listener's token, `Host` and `Origin` checks; an answer
-  check passing only numbers and the caller's option keys. Held by rule alone:
-  14-day-old pins (by the Hub's record) and the security pair's read of each
-  pin PR
+  environment; listener token, `Host` and `Origin` checks; an answer check
+  passing only numbers and the caller's keys. Held by rule alone: 14-day-old
+  pins (by the Hub's date, which a git push sets) and the security pair's read
+  of each pin PR
   ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md)). Setup's
   kept files belong to the machine.
 - **Harness.** Folder trust and permission prompts, as above.

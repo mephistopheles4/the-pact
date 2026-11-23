@@ -1,17 +1,17 @@
-# Clef, the local decision runner
+# `clef`, the local decision model's runner
 
 `clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. Off by default: put `clef` on the `tools` list and apply the install, and `~/.claude/pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
 
-The design is [spec 0002](spec/0002-clef-runner.md); this page is for the owner and for anyone who turns it on. Every command is `node <Claude home>/pact/tools/clef.mjs <mode>`.
+The design is [spec 0002](spec/0002-clef-runner.md); this page is for the owner and for anyone who turns it on. Every command is `node <Claude home>/pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
 
 ## What it fetches, and how much room it needs
 
 Only `clef setup --yes` fetches anything, and only these, each checked by size and sha256 before it is kept:
 
-- **A llama.cpp server build** (tag `b12211`, MIT license) from `github.com/ggml-org/llama.cpp`, 23 to 38 MB, one archive for your platform. The license files the pin table names are kept beside it: llama.cpp's `LICENSE` on Linux, and on Windows only `LICENSE-LLVM-OpenMP` (the Windows archive's own llama.cpp license is not yet pinned; the ticket that first runs setup checks it).
+- **A llama.cpp server build** (tag `b12211`, MIT license) from `github.com/ggml-org/llama.cpp`, 23 to 38 MB, one archive for your platform. The license files the pin table names are kept beside it: llama.cpp's `LICENSE` on Linux, and on Windows only `LICENSE-LLVM-OpenMP`, since the Windows archive holds no llama.cpp `LICENSE` (T4, the ticket that first runs setup, looks for where its license is).
 - **The Clef-Flash model** (`Clef-Flash-Q4_K_M.gguf`, Apache-2.0 per its model card) from `huggingface.co/ggml-org/Clef-Flash-GGUF`, 6.7 GB, at one pinned commit.
 
-Plan for about **7.6 GB** of free disk on the drive that holds your Claude home folder: setup refuses when the model, the archive, the unpacked files and a 10% margin do not fit. Downloads redirect only to a fixed list of hosts, over `https:` only. Everything lands in `<Claude home>/pact-clef/`, which no install writes or deletes.
+Plan for about **7.6 GB** of free disk on the drive that holds your Claude home folder: setup refuses when the model, the archive, the unpacked files and a 10% margin do not fit. Downloads redirect only to a fixed list of hosts, over `https:` only. Everything lands in the clef folder, `<Claude home>/pact-clef/`, which no install writes or deletes.
 
 RAM and VRAM: not yet measured. The ticket that first runs it on the owner's machine records them.
 
@@ -61,9 +61,9 @@ The supervisor stops itself after 30 minutes with no forwarded request, when the
 
 ## Things to know
 
-- **Pin age.** A pin is made only when each pinned file is at least 14 days old. A release asset's age counts from its `created_at` and `updated_at`; the model's counts from the Hugging Face Hub's own record of that file's last change (the tree API's `lastCommit` date at the pinned commit). Review holds the rule; the tool does not check it when it runs.
+- **Pin age.** A pin is made only when each pinned file is at least 14 days old. A release asset's age counts from the later of its `created_at` and `updated_at`; the model's counts from the Hugging Face Hub's own record of that file's last change (the tree API's `lastCommit` date at the pinned commit), which a commit pushed with git can set to any date ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md) says what a pin PR checks). Review holds the rule; the tool does not check it when it runs.
 - **A pin bump.** After an install that changes the pin table, `ensure` reports `not-set-up` with `pin-changed` (and `status` shows the old tag) until you run `clef stop` and then `clef setup --yes`. Setup refuses `clef-running` while a supervisor lives.
-- **`CLAUDE_CONFIG_DIR`.** A value you set is accepted only as an absolute path, and the tool refuses it (`clef-home`) when a session starts from a folder that contains it, because a cloned project's settings can set that variable. Start the session from beside it, or from a subfolder of it other than `pact-clef/`, instead.
+- **`CLAUDE_CONFIG_DIR`.** A value you set is accepted only as an absolute path, and the tool refuses it (`clef-home`) when the command starts from a folder that contains that Claude home folder, because a cloned project's settings can set that variable. Start from beside your Claude home folder, or from a subfolder of it other than `pact-clef/`, instead.
 - **Linux.** Setup refuses a machine without `/usr/bin/setpriv` (`clef-setpriv`); it keeps the server from outliving the supervisor.
 - **Logs.** `serve.log` in the clef folder holds counts, timings and reason words only, capped at 1 MB.
 
