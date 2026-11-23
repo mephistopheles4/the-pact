@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-syBLTrcUvNq8Lj+PfLY8TkSvH40Po3kvt7zxXlT4cD4='; style-src 'sha256-R6QqQjP9P4LMRv3noSQeonLcEAO3jaEfPYEfHGly5TI='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-sc0Adxbtnqwe3u/H9jQeM9NHyKJtk6jme4X0Hyl0gxg='; style-src 'sha256-S2Yb8Hr4A0JsECL7XTC5R8gLnf0v9AmN5bXlYNuQwJM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1254,6 +1254,7 @@ label:has(> input[type="checkbox"]) { min-height: 24px; }
 .wf-row1 { display: flex; align-items: center; gap: var(--av-s1); }
 .wf-q { flex: 1; font-size: var(--av-t-micro); line-height: 1.3; }
 .wf-q b { display: block; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); font-weight: 500; }
+.wf-words { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
 .wf-cond.wf-pass { border-color: var(--av-normal); border-style: solid; }
 .wf-cond.wf-off { opacity: .55; }
 .wf-pair { font-size: 10px; color: var(--av-ink-70); margin-top: 2px; }
@@ -6605,6 +6606,11 @@ function workflowEditor(host, state, changed) {
   }
   const whenText = o => (o.when === 'words' ? o.words || '(your words)' : o.when === 'tiers' ? cap(tiersWords(state.parts, o.tiers)) : WF_WHEN_LABELS[o.when] || o.when);
   const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+  /** A card's words: three lines at most on the card, the whole text in its tooltip and in the inspector. */
+  const wordsOf = o => {
+    const text = whenText(o);
+    return el('span', { class: 'wf-words', title: text, text });
+  };
   const tierIds = () => state.parts.tiers.map(t => t.id);
   // An offer's or a skill's condition: picking "at these tiers" starts from every tier but the lightest.
   const setWhen = (o, v) => {
@@ -6758,7 +6764,7 @@ function workflowEditor(host, state, changed) {
           toast(n.o.on ? 'Condition on.' : 'Condition off: its lenses are never offered.');
         });
         const pair = rosterPairs(state.parts).find(p => p.agents.length === n.o.agents.length && p.agents.every(a => n.o.agents.includes(a)));
-        box = el('div', { class: 'wf-node wf-cond' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: 'offered' }), whenText(n.o)), sw), el('div', { class: 'wf-pair', text: pair ? pair.label : n.o.agents.length > 1 ? `offered together (${n.o.agents.length})` : '' }), port('top'), port('out'), dismiss(n, 'this condition'));
+        box = el('div', { class: 'wf-node wf-cond' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: 'offered' }), wordsOf(n.o)), sw), el('div', { class: 'wf-pair', text: pair ? pair.label : n.o.agents.length > 1 ? `offered together (${n.o.agents.length})` : '' }), port('top'), port('out'), dismiss(n, 'this condition'));
       } else if (n.kind === 'skill') {
         const sw = el('button', { type: 'button', class: 'wf-sw', role: 'switch', 'aria-checked': String(n.k.on), 'aria-label': 'skill on or off' });
         sw.addEventListener('pointerdown', e => e.stopPropagation());
@@ -6767,7 +6773,7 @@ function workflowEditor(host, state, changed) {
           n.k.on = !n.k.on;
           edited(false);
         });
-        box = el('div', { class: 'wf-node wf-skill' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: `skill · ${n.k.mode}` }), whenText(n.k)), sw), el('div', { class: 'wf-skill-name', text: n.k.skill }), ...(n.k.command ? [el('div', { class: 'wf-skill-cmd', text: n.k.command })] : []), port('top'), dismiss(n, n.k.skill));
+        box = el('div', { class: 'wf-node wf-skill' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: `skill · ${n.k.mode}` }), wordsOf(n.k)), sw), el('div', { class: 'wf-skill-name', text: n.k.skill }), ...(n.k.command ? [el('div', { class: 'wf-skill-cmd', text: n.k.command })] : []), port('top'), dismiss(n, n.k.skill));
       } else box = el('div', { class: `wf-node wf-agent${n.loose ? ' wf-agent--loose' : ''}` }, n.name, port('in'), dismiss(n, n.name));
       box.dataset.id = n.id;
       box.tabIndex = 0;
@@ -7154,6 +7160,12 @@ function workflowEditor(host, state, changed) {
       moves.push([id, x, y]);
       placed.add(id);
     };
+    // A card's drawn height, or 0 while it is not drawn (a page not shown yet, or a card not made): then the old fixed step stands in.
+    const heightOf = id => {
+      const box = nodeEl(id);
+      return (box && box.offsetHeight) || 0;
+    };
+    const GAP = 30;
     let x = 40;
     for (const st of stagesInOrder(g)) {
       put(st.id, x, 60);
@@ -7162,11 +7174,14 @@ function workflowEditor(host, state, changed) {
       for (const o of offers) {
         put(o.id, x, y);
         o.agents.forEach((a, k) => put(`${o.id}/${a}`, x + 200, y + k * 40 - (o.agents.length > 1 ? 4 : -8)));
-        y += Math.max(1, o.agents.length) * 40 + 30;
+        const lenses = Math.max(1, o.agents.length) * 40;
+        const own = heightOf(o.id);
+        y += own ? Math.max(own, lenses) + GAP : lenses + 30;
       }
       for (const k of (g.skills || []).filter(k => k.stage === st.id)) {
         put(k.id, x, y);
-        y += 90;
+        const own = heightOf(k.id);
+        y += own ? own + GAP : 90;
       }
       x += offers.length ? 420 : 260;
     }
@@ -7325,6 +7340,27 @@ function workflowEditor(host, state, changed) {
     i.addEventListener('change', () => renderLibrary());
     return i;
   };
+  /**
+   * "In your words": a text box of three rows that grows to its text. The value is still one line, so a
+   * newline typed or pasted becomes a space, in the box and in what is saved.
+   */
+  const wordsBox = (value, set, extra = {}) => {
+    const t = el('textarea', { rows: '3', 'aria-label': 'In your words', ...extra });
+    t.value = value;
+    const grow = () => {
+      t.style.height = 'auto';
+      if (t.scrollHeight) t.style.height = `${t.scrollHeight}px`;
+    };
+    t.addEventListener('input', () => {
+      if (/[\r\n]/.test(t.value)) t.value = t.value.replace(/\r\n|[\r\n]/g, ' ');
+      set(t.value);
+      grow();
+      edited(false);
+    });
+    t.addEventListener('change', () => renderLibrary());
+    requestAnimationFrame(grow);
+    return t;
+  };
   const pickList = (options, value, set, label) => {
     const s = el('select', { 'aria-label': label }, ...options.map(([v, t]) => el('option', { value: v, text: t })));
     s.value = value;
@@ -7418,7 +7454,7 @@ function workflowEditor(host, state, changed) {
         el('p', { class: 'av-annot', text: `At ${st ? st.name : 'no stage yet: wire a stage\'s bottom port here'}. Offers ${o.agents.length ? o.agents.join(' and ') : 'nothing yet'}${o.agents.length > 1 ? ', together' : ''}.` }),
         withTip(field('When they are offered', pickList(Object.entries(WF_WHEN_LABELS), o.when, v => setWhen(o, v), 'when')), 'The work these lenses are offered for. On the sensitive route: only once you take the route.'),
         ...(o.when === 'tiers' ? [tierChips(o)] : []),
-        ...(o.when === 'words' ? [field('In your words', input(o.words, v => (o.words = v), { placeholder: 'e.g. the change touches billing' })), el('p', { class: 'av-annot', text: 'Your own words are judgment: the run never lights them.' })] : []),
+        ...(o.when === 'words' ? [field('In your words', wordsBox(o.words, v => (o.words = v), { placeholder: 'e.g. the change touches billing' })), el('p', { class: 'av-annot', text: 'Your own words are judgment: the run never lights them.' })] : []),
         toggle(o.on, v => (o.on = v), 'condition on or off'),
         el('p', { class: 'av-annot', text: `For this work: ${passes(o) ? 'offered' : 'idle'}.` }),
         chip('Delete condition', false, delSel, 'av-tool-chip--ghost'),
@@ -7435,7 +7471,7 @@ function workflowEditor(host, state, changed) {
         withTip(field('Offered or used', pickList([['offered', 'Offered: Claude offers it, I answer'], ['used', 'Used: Claude runs it']], k.mode, v => (k.mode = v), 'mode')), 'Offered: Claude names the skill and why, and waits for your yes. Used: Claude runs it at this stage.'),
         field('When', pickList(Object.entries(WF_WHEN_LABELS), k.when, v => setWhen(k, v), 'when')),
         ...(k.when === 'tiers' ? [tierChips(k)] : []),
-        ...(k.when === 'words' ? [field('In your words', input(k.words, v => (k.words = v), { placeholder: 'e.g. the change touches billing' }))] : []),
+        ...(k.when === 'words' ? [field('In your words', wordsBox(k.words, v => (k.words = v), { placeholder: 'e.g. the change touches billing' }))] : []),
         toggle(k.on, v => (k.on = v), 'skill on or off'),
         el('p', { class: 'av-annot', text: `For this work: ${passes(k) ? k.mode : 'idle'}.` }),
         chip('Delete skill', false, delSel, 'av-tool-chip--ghost'),
@@ -7605,7 +7641,22 @@ function workflowEditor(host, state, changed) {
     renderPanel();
   }
 
-  if (!Object.keys(G().layout).length) arrange(false);
+  // A graph with no saved layout is arranged before any card is drawn, so by the old step; once cards are drawn it is arranged again by their heights.
+  let blind = false;
+  const autoArrange = () => {
+    if (Object.keys(G().layout).length) return;
+    arrange(false);
+    blind = true;
+  };
+  const drawn = () => nodes().some(n => (nodeEl(n.id) || {}).offsetHeight);
+  function settleLayout() {
+    if (!blind || !drawn()) return;
+    blind = false;
+    arrange(false);
+    renderNodes();
+    history.now = snapshot();
+  }
+  autoArrange();
   all();
   record();
   renderHistory();
@@ -7613,6 +7664,7 @@ function workflowEditor(host, state, changed) {
     show() {
       all();
       requestAnimationFrame(() => {
+        settleLayout();
         if (!ui.fitted) {
           ui.fitted = true;
           fit();
@@ -7633,8 +7685,9 @@ function workflowEditor(host, state, changed) {
     reset() {
       ui.sel = null;
       ui.loose = [];
-      if (!Object.keys(G().layout).length) arrange(false);
+      autoArrange();
       all();
+      settleLayout();
       record();
     },
   };

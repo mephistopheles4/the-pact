@@ -856,9 +856,13 @@ test('a security-set lens off its default saves like a plain one, with no warnin
 // ------------------------------------------------------------ the page on a stub DOM
 
 /** Boot the page's script against a small stand-in for the DOM; returns the elements by id and helpers. */
-function bootPage({ picker = false, folder = null, page = PAGE } = {}) {
+function bootPage({ picker = false, folder = null, page = PAGE, measure = null } = {}) {
   const script = pageScript(page);
+  // With `measure`, a card's offsetHeight is what it says, and animation frames wait in a queue that `flush` runs once.
+  const queue = [];
   class N {
+    get offsetHeight() { return measure ? measure(this) : 0; }
+    getBoundingClientRect() { return { left: 0, top: 0, width: 1000, height: 700 }; }
     constructor(tag) { Object.assign(this, { tag, children: [], attrs: {}, hidden: false, textContent: '', listeners: {}, style: {}, dataset: {}, value: '' }); this.classList = { add() {}, remove() {}, toggle() {} }; }
     append(...c) { this.children.push(...c.map(x => (typeof x === 'string' ? Object.assign(new N('#text'), { textContent: x }) : x))); }
     replaceChildren(...c) { this.children = []; this.append(...c); }
@@ -874,10 +878,11 @@ function bootPage({ picker = false, folder = null, page = PAGE } = {}) {
   const ids = {};
   const document = { createElement: t => new N(t), createTextNode: t => Object.assign(new N('#text'), { textContent: t }), getElementById: id => (ids[id] ||= new N('div')), documentElement: new N('html'), body: new N('body'), addEventListener() {} };
   const window = { localStorage: { getItem: () => null, setItem() {} }, scrollTo() {}, addEventListener() {}, isSecureContext: picker, ...(picker ? { showDirectoryPicker: async () => { if (folder) return folder; throw Object.assign(new Error('x'), { name: 'AbortError' }); } } : {}) };
-  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout, clearTimeout, requestAnimationFrame: () => 0 }));
+  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout, clearTimeout, performance: { now: () => 0 }, requestAnimationFrame: measure ? f => queue.push(f) : () => 0 }));
   const find = (n, pred, out = []) => { if (pred(n)) out.push(n); n.children.forEach(c => find(c, pred, out)); return out; };
   const button = (root, label) => find(root, n => n.tag === 'button' && n.text.startsWith(label))[0];
-  return { ids, find, button };
+  const flush = () => queue.splice(0).forEach(f => f(1e6));
+  return { ids, find, button, flush };
 }
 
 /** Open Settings on a stub page and return the dialog's node. */
@@ -911,6 +916,47 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.match(P.ids.output.text, /"mark": "moves",\s*"op": "replace"/);
   assert.match(P.ids.output.text, /I sense the work my own way\./);
   assert.doesNotMatch(P.ids.output.text, /\r/);
+});
+
+// PACT-96 S6, C6: cards of different heights; after the first draw and after Arrange, no two cards' boxes overlap.
+test('stub page: the first layout after the first draw, and Arrange, stack cards by their rendered height so no two overlap', () => {
+  const SIZE = { 'wf-stage': [200, 70], 'wf-cond': [168, 130], 'wf-skill': [188, 140], 'wf-agent': [168, 28] };
+  const classes = n => String(n.className || '').split(' ');
+  const sizeOf = n => Object.entries(SIZE).find(([c]) => classes(n).includes(c));
+  const P = bootPage({ measure: n => (sizeOf(n) ? sizeOf(n)[1][1] : 0) });
+  const boxes = () => P.find(P.ids.wf, n => classes(n).includes('wf-node')).map(n => ({ id: n.dataset.id, x: parseFloat(n.style.left), y: parseFloat(n.style.top), w: sizeOf(n)[1][0], h: sizeOf(n)[1][1] }));
+  const overlapping = () => {
+    const b = boxes();
+    const hits = [];
+    for (let i = 0; i < b.length; i += 1) for (let j = i + 1; j < b.length; j += 1) if (b[i].x < b[j].x + b[j].w && b[j].x < b[i].x + b[i].w && b[i].y < b[j].y + b[j].h && b[j].y < b[i].y + b[i].h) hits.push(`${b[i].id} / ${b[j].id}`);
+    return hits;
+  };
+  P.flush();
+  assert.ok(boxes().length > 20, 'the graph is drawn');
+  assert.deepEqual(overlapping(), [], 'after the first draw');
+  P.button(P.ids.wf, 'Arrange').click();
+  P.flush();
+  assert.deepEqual(overlapping(), [], 'after Arrange');
+});
+
+// PACT-96 S7, S8, C7: a card's words are clamped to three lines with the whole text in the tooltip; "In your words" is a textarea, one line in effect.
+test('stub page: card words carry a three-line clamp and their full text, and "In your words" is a three-row text box that turns a newline into a space', () => {
+  const P = bootPage();
+  const classes = n => String(n.className || '').split(' ');
+  const words = () => P.find(P.ids.wf, n => classes(n).includes('wf-words'));
+  assert.ok(words().length > 10, 'the cards draw their words');
+  for (const w of words()) assert.equal(w.attrs['data-av-help'], w.textContent, 'the tooltip holds the whole text');
+  assert.match(PAGE, /\.wf-words \{[^}]*display: -webkit-box;[^}]*-webkit-line-clamp: 3;[^}]*overflow: hidden/);
+  const card = P.find(P.ids.wf, n => classes(n).includes('wf-skill') && n.text.includes('during grilling'))[0];
+  card.listeners.keydown.forEach(f => f({ key: 'Enter', target: card }));
+  const box = P.find(P.ids.wf, n => n.attrs['aria-label'] === 'In your words')[0];
+  assert.equal(box.tag, 'textarea');
+  assert.equal(box.attrs.rows, '3');
+  typeInto(box, 'when two\nthings are linked');
+  assert.equal(box.value, 'when two things are linked');
+  assert.ok(words().some(w => w.textContent === 'when two things are linked'), 'the card shows what was typed');
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /when two things are linked/);
 });
 
 // #464 T8 C1 to C4: every rule the pact installs is readable on the page, and reading it changes nothing a save writes.
