@@ -41,7 +41,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync,
 import { createServer as createHttpServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest, Agent } from 'node:https';
 import { createServer as createNetServer } from 'node:net';
-import { homedir, userInfo } from 'node:os';
+import { homedir, uptime as osUptime, userInfo } from 'node:os';
 import { dirname, join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync, gunzipSync } from 'node:zlib';
@@ -1111,7 +1111,7 @@ const LOG_CAP = 1 << 20;
 const ENV_PASS = Object.freeze(['SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LOCALAPPDATA', 'XDG_RUNTIME_DIR']);
 
 /** The files the supervisor keeps in the clef folder. */
-export const runPaths = dir => ({ run: join(dir, 'run.json'), lock: join(dir, 'run.lock'), key: join(dir, 'run.key'), fail: join(dir, 'run.fail'), log: join(dir, 'serve.log') });
+export const runPaths = dir => ({ run: join(dir, 'run.json'), lock: join(dir, 'run.lock'), key: join(dir, 'run.key'), fail: join(dir, 'run.fail'), log: join(dir, 'serve.log'), server: join(dir, 'run.server') });
 
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const unit = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
@@ -1395,6 +1395,105 @@ function releaseLock(dir, pid = process.pid) {
  * not the live supervisor. Called only while holding run.lock. Returns the pids
  * it ended.
  */
+/**
+ * One GET /props to the recorded loopback port (spec 0003 M6): the status code,
+ * 'timeout', 'refused' when nothing listens, or 'error'. The key, when given,
+ * goes only to 127.0.0.1.
+ */
+export function probeProps({ port, key = null, timeoutMs = 5000 }) {
+  return new Promise(resolveP => {
+    let done = false;
+    const end = v => {
+      if (!done) {
+        done = true;
+        resolveP(v);
+      }
+    };
+    const req = httpRequest({ host: '127.0.0.1', port, path: '/props', method: 'GET', headers: { host: `127.0.0.1:${port}`, ...(key ? { authorization: `Bearer ${key}` } : {}) }, agent: false }, res => {
+      res.resume();
+      end(res.statusCode);
+    });
+    req.setTimeout(timeoutMs, () => {
+      end('timeout');
+      req.destroy();
+    });
+    req.on('error', e => end(e.code === 'ECONNREFUSED' ? 'refused' : 'error'));
+    req.end();
+  });
+}
+
+const isServerRecord = r => isObj(r) && typeof r.run === 'string' && Number.isInteger(r.pid) && r.pid >= 2 && Number.isInteger(r.port) && r.port > 0 && r.port < 65536 && typeof r.started === 'string' && Number.isFinite(Date.parse(r.started));
+
+/**
+ * The keeper line's second line (spec 0003 M6): ends a server a run.server
+ * record names only once it refuses no key and a wrong key and takes the run's
+ * key. Returns { result: 'none' | 'ended' | 'dropped' | 'kept', pid }. The
+ * caller holds run.lock and has checked that no live supervisor owns the run.
+ */
+export async function sweepServer({ dir, boundMs, now = Date.now, uptime = osUptime, alive = pidAlive, kill = pid => process.kill(pid, 'SIGKILL'), probe = probeProps, pause = sleep }) {
+  const rp = runPaths(dir);
+  if (!existsSync(rp.server)) return { result: 'none', pid: null };
+  const rec = readJsonFile(rp.server);
+  const drop = () => {
+    rmSync(rp.server, { force: true });
+    rmSync(rp.key, { force: true });
+  };
+  if (!isServerRecord(rec)) {
+    drop();
+    return { result: 'dropped', pid: null };
+  }
+  // Step 1: a record from before this boot, or a dead pid, names nothing to end.
+  if (Date.parse(rec.started) < now() - uptime() * 1000 || !alive(rec.pid)) {
+    drop();
+    return { result: 'dropped', pid: rec.pid };
+  }
+  const key = readFileSyncSafe(rp.key).trim();
+  if (!HEX64.test(key)) {
+    drop();
+    return { result: 'dropped', pid: rec.pid };
+  }
+  const deadline = now() + boundMs;
+  let noConnSince = null;
+  for (;;) {
+    // Step 2: no key, then a fresh wrong one.
+    const a = await probe({ port: rec.port });
+    const b = await probe({ port: rec.port, key: randomBytes(32).toString('hex') });
+    if (a === 401 && b === 401) {
+      // Step 3: only now does the run's key go out.
+      const c = await probe({ port: rec.port, key });
+      if (c === 200) {
+        try {
+          kill(rec.pid);
+        } catch {
+          // gone already
+        }
+        drop();
+        return { result: 'ended', pid: rec.pid };
+      }
+      drop();
+      return { result: 'dropped', pid: rec.pid };
+    }
+    if (a === 503 || b === 503 || a === 'timeout' || b === 'timeout') {
+      // Step 4: it may still be loading.
+      noConnSince = null;
+      if (now() >= deadline) return { result: 'kept', pid: rec.pid };
+      await pause(1000);
+      continue;
+    }
+    if (a === 'refused' || b === 'refused') {
+      // Step 5: the server listens before it loads, so a refusal gets 2 s.
+      noConnSince ??= now();
+      if (now() - noConnSince < 2000) {
+        await pause(200);
+        continue;
+      }
+    }
+    // Step 6: not the run's server.
+    drop();
+    return { result: 'dropped', pid: rec.pid };
+  }
+}
+
 export function sweepOrphans({ dir, procRoot = '/proc', kill = pid => process.kill(pid, 'SIGKILL'), liveSupervisorPid = null }) {
   const ended = [];
   const base = `${posix.resolve(dir.split('\\').join('/'))}/runtime/`;
@@ -1612,6 +1711,8 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const cleanFiles = () => {
     const cur = readJsonFile(rp.run);
     if (!cur || cur.run === runId) rmSync(rp.run, { force: true });
+    // Spec 0003 M6: this run's server record goes with its key, on the supervisor's own stop.
+    if (readJsonFile(rp.server)?.run === runId) rmSync(rp.server, { force: true });
     // run.key is this run's only when it still holds this run's key; a newer run's is left alone.
     if (readFileSyncSafe(rp.key).trim() === serverKey) rmSync(rp.key, { force: true });
   };
@@ -1684,6 +1785,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
     throw new Refused('clef-setup', 'the server could not be started');
   }
   const serverPidOf = () => (useKeeper ? serverPid : child.pid);
+  if (useKeeper) writeFileSync(rp.server, `${JSON.stringify({ run: runId, pid: serverPid, port: serverPort, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
   childExited.then(() => {
     if (!stopping) {
       writeFail(dir, 'exit', now);
@@ -1814,7 +1916,7 @@ function stateOf(live) {
  * prints a token: the caller reads the token from run.json. States: ready,
  * starting, not-set-up (exit 3), failed (exit 4).
  */
-export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill }) {
+export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill, line = lifetimeLine({ platform }), sweep = sweepServer }) {
   const rp = runPaths(dir);
   const secs = Math.min(60, Math.max(0, Number.isFinite(wait) ? wait : 0));
   const deadline = Date.now() + secs * 1000;
@@ -1843,6 +1945,11 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
   if (wasLocked) return waitFor();
   try {
     if (platform === 'linux') sweepOrphans({ dir, procRoot, kill });
+    // Spec 0003 M6: a server still loading under an old record is left to load; nothing new is spawned beside it.
+    if (line === 'keeper' && (await sweep({ dir, boundMs: secs * 1000 })).result === 'kept') {
+      releaseLock(dir);
+      return { out: { state: 'starting' }, code: 0 };
+    }
     const cmd = supervisorCommand ? supervisorCommand() : { file: execPath, args: [scriptPath, 'serve'] };
     const child = spawn(cmd.file, cmd.args, { cwd: setup.paths.runtime, env: supervisorEnv(env, platform, setup.paths.runtime), detached: true, stdio: 'ignore', windowsHide: true, shell: false });
     child.on('error', () => {});
@@ -1863,7 +1970,7 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
  * clears run.json, run.key and run.fail. With none live it ends nothing.
  * Returns { lines, code }.
  */
-export async function stopRun({ dir, platform = process.platform, procRoot, kill, waitMs = 10_000 }) {
+export async function stopRun({ dir, platform = process.platform, procRoot, kill, waitMs = 10_000, line = lifetimeLine({ platform }), orphanWaitMs = 60_000, sweep = sweepServer }) {
   const rp = runPaths(dir);
   const live = await liveSupervisor(dir);
   const locked = takeLock(dir);
@@ -1878,11 +1985,16 @@ export async function stopRun({ dir, platform = process.platform, procRoot, kill
       while (pidAlive(live.run.pid) && Date.now() < until) await sleep(50);
     }
     if (locked && platform === 'linux') sweepOrphans({ dir, procRoot, kill, liveSupervisorPid: null });
+    if (locked && line === 'keeper') {
+      const r = await sweep({ dir, boundMs: orphanWaitMs });
+      if (r.result === 'kept') return { lines: [`orphan still loading (pid ${r.pid}); run stop again`], code: 1 };
+    }
   } finally {
     if (locked) releaseLock(dir);
   }
   rmSync(rp.run, { force: true });
-  rmSync(rp.key, { force: true });
+  // Spec 0003 M6: on the keeper line the key goes only when this stop held the lock, so a record kept by another holder keeps its key.
+  if (line !== 'keeper' || locked) rmSync(rp.key, { force: true });
   rmSync(rp.fail, { force: true });
   return { lines: [live ? 'stopped' : 'none running'], code: 0 };
 }
@@ -1895,6 +2007,9 @@ export async function statusRun({ dir, platform = process.platform, server = SER
   else lines.push(`platform: ${quote(setup.platform)}`, `tag: ${quote(setup.tag)}`, `backend: ${quote(setup.backend)}`, `model: ${quote(String(setup.model).slice(0, 8))}`);
   const live = await liveSupervisor(dir);
   lines.push(`run: ${live ? (live.health.ready ? 'ready' : 'starting') : 'stopped'}`);
+  // Spec 0003 M6: a server record no live supervisor owns names an orphan.
+  const orphan = live ? null : readJsonFile(runPaths(dir).server);
+  if (isServerRecord(orphan)) lines.push(`orphan: pid ${orphan.pid}`);
   const f = readJsonFile(runPaths(dir).fail);
   lines.push(`last failure: ${f && ['exit', 'timeout'].includes(f.reason) ? f.reason : 'none'}`);
   return { lines, code: 0 };
@@ -1928,10 +2043,11 @@ function folderBytes(path) {
  * `clef remove` (S7): prints the clef folder and its size. With `yes` it stops a
  * live supervisor, then deletes the clef folder, following no link out of it.
  */
-export async function removeRun({ dir, yes = false, platform = process.platform, procRoot, kill }) {
+export async function removeRun({ dir, yes = false, platform = process.platform, procRoot, kill, line = lifetimeLine({ platform }), orphanWaitMs, sweep }) {
   const lines = [`clef folder: ${quote(dir)}`, `size: ${mb(folderBytes(dir))}`];
   if (!yes) return { lines: [...lines, 'run again with --yes to delete it'], code: 0 };
-  await stopRun({ dir, platform, procRoot, kill });
+  const stopped = await stopRun({ dir, platform, procRoot, kill, line, ...(orphanWaitMs === undefined ? {} : { orphanWaitMs }), ...(sweep ? { sweep } : {}) });
+  if (stopped.code !== 0) return { lines: [...lines, ...stopped.lines], code: stopped.code };
   // A server that has just been ended can hold its folder for a moment on Windows.
   rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   lines.push('removed');

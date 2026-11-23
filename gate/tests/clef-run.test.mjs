@@ -32,6 +32,15 @@ const t0 = Date.now();
 if (cfg.exitAfterMs) setTimeout(() => process.exit(1), cfg.exitAfterMs);
 if (cfg.ignoreTerm) process.on('SIGTERM', () => {});
 createServer((req, res) => {
+  // /props as b12211 answers it: the ready check comes before the key check (spec 0003 M6).
+  if (req.url === '/props') {
+    const how = req.headers.authorization === undefined ? 'none' : req.headers.authorization === 'Bearer ' + key ? 'right' : 'wrong';
+    if (cfg.propsLog) appendFileSync(cfg.propsLog, how + '\\n');
+    if (cfg.anyBearer) { res.writeHead(200); return res.end('{}'); }
+    if (cfg.propsNotReady || (cfg.readyAfterMs && Date.now() - t0 < cfg.readyAfterMs)) { res.writeHead(503); return res.end('{}'); }
+    res.writeHead(how === 'right' ? 200 : 401);
+    return res.end('{}');
+  }
   if (req.headers.authorization !== 'Bearer ' + key) { res.writeHead(401); return res.end('no'); }
   if (req.url === '/health') {
     if (cfg.notReady || (cfg.readyAfterMs && Date.now() - t0 < cfg.readyAfterMs)) { res.writeHead(503); return res.end('{}'); }
@@ -1120,4 +1129,109 @@ test('serve on the keeper line: a missing server executable leaves run.fail (exi
   await assert.rejects(clef.serve({ dir: f.dir, exe: join(f.root, 'no-such-server'), pdeathsig: false, idleMs: 60_000, checkMs: 60_000, pollMs: 50, ...KEEPER, keeperPidMs: 5000 }), e => e.code === 'clef-setup');
   assert.ok(existsSync(f.run.fail));
   assert.equal(existsSync(f.run.key), false);
+});
+
+// ------------------------------------------------------------ the server record and keyed probe (spec 0003 M6)
+
+/** A stub server left running as an orphan, with run.server and run.key written as its supervisor would have. */
+async function orphan(t, f, cfgExtra = {}, { started = new Date().toISOString(), pid } = {}) {
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const key = randomHex();
+  writeFileSync(f.run.key, `${key}\n`);
+  f.setCfg({ propsLog: join(f.root, 'props.txt'), ...cfgExtra });
+  const child = spawn(process.execPath, [f.stub, f.cfg, '--port', String(port), '--api-key-file', f.run.key], { stdio: 'ignore' });
+  t.after(() => child.kill('SIGKILL'));
+  for (let i = 0; i < 100 && (await clef.probeProps({ port, timeoutMs: 200 })) === 'refused'; i++) await sleep(50);
+  clefRm(join(f.root, 'props.txt'), { force: true });
+  writeFileSync(f.run.server, JSON.stringify({ run: 'old', pid: pid ?? child.pid, port, started }));
+  return { child, port, props: () => (existsSync(join(f.root, 'props.txt')) ? readFileSync(join(f.root, 'props.txt'), 'utf8').split('\n').filter(Boolean) : []) };
+}
+const randomHex = () => Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+const noSpawn = () => assert.fail('nothing is spawned beside a loading orphan');
+
+test('serve on the keeper line: run.server names the server, is mode 0600, and goes with run.key on a stop', async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f, { line: 'keeper' });
+  const live = await ready(f);
+  const rec = JSON.parse(readFileSync(f.run.server, 'utf8'));
+  assert.deepEqual(Object.keys(rec).sort(), ['pid', 'port', 'run', 'started']);
+  assert.equal(rec.pid, live.run.serverPid);
+  assert.equal(rec.run, live.run.run);
+  if (!WIN) assert.equal(statSync(f.run.server).mode & 0o777, 0o600);
+  await h.stop('test');
+  assert.equal(existsSync(f.run.server), false);
+  assert.equal(existsSync(f.run.key), false);
+});
+
+test('sweep: an orphan is ended only after it refuses no key and a wrong key and takes the run\'s key', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f);
+  const r = await clef.sweepServer({ dir: f.dir, boundMs: 5000 });
+  assert.equal(r.result, 'ended');
+  assert.deepEqual(o.props(), ['none', 'wrong', 'right']);
+  assert.ok(await gone(o.child.pid, 3000));
+  assert.equal(existsSync(f.run.server), false);
+  assert.equal(existsSync(f.run.key), false);
+});
+
+for (const [label, cfgExtra, rec, why] of [
+  ['answers 200 to any bearer', { anyBearer: true }, {}, 'never sent the key'],
+  ['is a record dated before boot', {}, { started: new Date(0).toISOString() }, 'step 1'],
+]) {
+  test(`sweep: a record whose listener ${label} ends nothing and is removed`, async t => {
+    const f = fixture(t);
+    const o = await orphan(t, f, cfgExtra, rec);
+    const killed = [];
+    const r = await clef.sweepServer({ dir: f.dir, boundMs: 5000, kill: p => killed.push(p) });
+    assert.equal(r.result, 'dropped', why);
+    assert.deepEqual(killed, []);
+    assert.ok(!o.props().includes('right'), 'the run\'s key never went out');
+    assert.equal(existsSync(f.run.server), false);
+  });
+}
+
+test('sweep: a live pid whose port stays closed for 2 s ends nothing and is removed', async t => {
+  const f = fixture(t);
+  const other = sleeperProcess(f);
+  writeFileSync(f.run.key, `${randomHex()}\n`);
+  writeFileSync(f.run.server, JSON.stringify({ run: 'old', pid: other.pid, port: 1, started: new Date().toISOString() }));
+  const killed = [];
+  const t1 = Date.now();
+  assert.equal((await clef.sweepServer({ dir: f.dir, boundMs: 5000, kill: p => killed.push(p) })).result, 'dropped');
+  assert.ok(Date.now() - t1 >= 1900, 'it waited the 2 s');
+  assert.deepEqual(killed, []);
+  assert.ok(alive(other.pid));
+});
+
+test('sweep: an orphan still loading keeps its record: ensure starts nothing, stop and remove exit 1, status names it', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f, { propsNotReady: true });
+  const t1 = Date.now();
+  const e = await clef.ensure({ dir: f.dir, wait: 0, line: 'keeper', supervisorCommand: noSpawn });
+  assert.deepEqual(e.out, { state: 'starting' });
+  assert.ok(Date.now() - t1 < 1000, 'within 1 s');
+  const st = await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 300 });
+  assert.equal(st.code, 1);
+  assert.deepEqual(st.lines, [`orphan still loading (pid ${o.child.pid}); run stop again`]);
+  assert.ok(existsSync(f.run.server) && existsSync(f.run.key), 'removing nothing');
+  const rm = await clef.removeRun({ dir: f.dir, yes: true, line: 'keeper', orphanWaitMs: 300 });
+  assert.equal(rm.code, 1);
+  assert.ok(existsSync(f.dir), 'remove deletes nothing');
+  assert.ok((await clef.statusRun({ dir: f.dir })).lines.includes(`orphan: pid ${o.child.pid}`));
+  assert.ok(alive(o.child.pid));
+});
+
+test('sweep: an orphan that finishes loading during the sweep is ended', async t => {
+  const f = fixture(t);
+  const o = await orphan(t, f, { readyAfterMs: 1500 });
+  assert.equal((await clef.sweepServer({ dir: f.dir, boundMs: 10_000 })).result, 'ended');
+  assert.ok(await gone(o.child.pid, 3000));
+});
+
+test('stop on the keeper line: a stop under another holder\'s lock leaves run.key', async t => {
+  const f = fixture(t);
+  writeFileSync(f.run.key, `${randomHex()}\n`);
+  writeFileSync(f.run.lock, `${process.pid}\n`);
+  await clef.stopRun({ dir: f.dir, line: 'keeper', orphanWaitMs: 300 });
+  assert.ok(existsSync(f.run.key));
 });
