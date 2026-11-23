@@ -34,3 +34,6 @@ render-edits.test.mjs bad case: a block file swapped for a link between its lsta
 run.test.mjs shell: a control character in a test-file name is printed replaced
 run.test.mjs shell: an untracked file with a control character in its name prints with it replaced
 seam-a.test.mjs bad case: two agents whose names differ only in case
+clef-run.test.mjs main: on macOS, serve from the runtime folder named in another case is accepted
+clef-run.test.mjs serve on the keeper line: a stop sends the server no signal from the supervisor, and a server that ignores SIGTERM is still ended
+clef.test.mjs unpack: on macOS the executable gets mode 0755
