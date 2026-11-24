@@ -342,10 +342,11 @@ const ANSWER_GUARD =
     "(github.event_name == 'issues' && (" + MENTION('issue') + " || contains(github.event.issue.title, '@claude')) && " + IN_LIST('issue') + ')',
   ].join(' ||\n') + '\n';
 const REVIEW_GUARD = 'github.event.pull_request.head.repo.full_name == github.repository && ' + IN_LIST('pull_request');
+// The federation IDs are identifiers, not credentials, and are held exactly: another well-formed ID would point a run at another rule.
 const FEDERATION = {
-  anthropic_federation_rule_id: [/^fdrl_[0-9A-Za-z]+$/, 'fdrl_ and letters or digits'],
-  anthropic_organization_id: [/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, 'of a UUID'],
-  anthropic_service_account_id: [/^svac_[0-9A-Za-z]+$/, 'svac_ and letters or digits'],
+  anthropic_federation_rule_id: 'fdrl_01V8jy6dtvy7Ebf916SRieME',
+  anthropic_organization_id: '6161ef7b-3383-44f6-bd62-34226aa8c2fc',
+  anthropic_service_account_id: 'svac_01QUZe8emXQcqnE1opH93J5e',
 };
 const CLAUDE = {
   'claude.yml': {
@@ -354,7 +355,7 @@ const CLAUDE = {
     on: { issue_comment: ['created'], pull_request_review_comment: ['created'], issues: ['opened', 'assigned'], pull_request_review: ['submitted'] },
     permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', actions: 'read', 'id-token': 'write' },
     guard: ANSWER_GUARD,
-    inputs: { allowed_bots: APPS.join(','), additional_permissions: 'actions: read\n' },
+    inputs: { ...FEDERATION, allowed_bots: APPS.join(','), additional_permissions: 'actions: read\n' },
   },
   'claude-code-review.yml': {
     name: 'claude-code-review',
@@ -363,6 +364,7 @@ const CLAUDE = {
     permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', 'id-token': 'write' },
     guard: REVIEW_GUARD,
     inputs: {
+      ...FEDERATION,
       allowed_bots: APPS.join(','),
       plugin_marketplaces: 'https://github.com/anthropics/claude-code.git',
       plugins: 'code-review@claude-code-plugins',
@@ -379,9 +381,8 @@ const sameSet = (a, b) => same(sorted(a), sorted(b));
  * Where one of the two Claude workflows breaks its allow-list, as plain
  * sentences; empty when it keeps it. 'which' is the file's name, and its
  * values are CLAUDE's. Every level holds exactly the keys W3 names; the guard
- * and the action's inputs are the file's own, and the federation IDs only have
- * the shape of their kind. 'gateSrc' is gate.yml's text, whose checkout pin
- * this file's must match.
+ * and the action's inputs, the federation IDs included, are the file's own.
+ * 'gateSrc' is gate.yml's text, whose checkout pin this file's must match.
  */
 function claudeProblems(src, gateSrc, which) {
   const spec = CLAUDE[which];
@@ -436,17 +437,18 @@ function claudeProblems(src, gateSrc, which) {
   const gatePin = new RegExp('uses: actions/checkout@(' + SHA + ')').exec(codeOf(gateSrc))?.[1];
   if (pins[0] && pins[0] !== gatePin) out.push('pins checkout to another commit than gate.yml');
 
+  // A step whose with is not a map is refused, not skipped: a bare with: or a scalar would hide the inputs below from the checks.
+  steps.forEach((s, i) => {
+    if (isMap(s) && Object.hasOwn(s, 'with') && !isMap(s.with)) out.push('step ' + (i + 1) + "'s with is not a map");
+  });
   const [checkout, action] = steps.map(s => (isMap(s?.with) ? s.with : undefined));
+  if (isMap(steps[0]) && checkout?.['persist-credentials'] !== 'false') out.push('leaves the token in the checkout');
   if (checkout) {
     extras("step 1's with", checkout, ['fetch-depth', 'persist-credentials']);
     if (Object.hasOwn(checkout, 'fetch-depth') && !/^\d+$/.test(checkout['fetch-depth'])) out.push("step 1's fetch-depth is not a number");
-    if (checkout['persist-credentials'] !== 'false') out.push('leaves the token in the checkout');
   }
   if (action) {
-    extras("the action's with", action, [...Object.keys(FEDERATION), ...Object.keys(spec.inputs)]);
-    for (const [key, [shape, name]] of Object.entries(FEDERATION)) {
-      if (Object.hasOwn(action, key) && !shape.test(action[key])) out.push(key + ' does not have the shape ' + name);
-    }
+    extras("the action's with", action, Object.keys(spec.inputs));
     for (const [key, value] of Object.entries(spec.inputs)) {
       if (Object.hasOwn(action, key) && action[key] !== value) out.push('holds another ' + key + ' than its own');
     }
@@ -922,6 +924,10 @@ for (const [label, plant, says, only] of [
   ['leaves persist-credentials out', s => s.replace('          persist-credentials: false\n', ''), [CL.checkout, "step 1's with lacks persist-credentials"]],
   ['writes persist-credentials as a word', s => s.replace('persist-credentials: false', "persist-credentials: 'no'"), CL.checkout],
   ...['ref', 'token', 'repository', 'path', 'submodules', 'ssh-key', 'sparse-checkout'].map(key => ['gives checkout a ' + key + ' input', afterCheckoutInputs('          ' + key + ': x\n'), extraKey("step 1's with", key)]),
+  ['writes the checkout step\'s with as nothing', s => s.replace(/ {8}with:\n {10}fetch-depth: 1\n {10}persist-credentials: false\n/, '        with:\n'), ["step 1's with is not a map", CL.checkout]],
+  ['writes the checkout step\'s with as a word', s => s.replace(/ {8}with:\n {10}fetch-depth: 1\n {10}persist-credentials: false\n/, '        with: x\n'), ["step 1's with is not a map", CL.checkout]],
+  ['writes the action step\'s with as nothing', s => s.replace(/ {8}with:\n {10}anthropic_federation_rule_id[\s\S]*$/, '        with:\n'), "step 2's with is not a map"],
+  ['writes the action step\'s with as a word', s => s.replace(/ {8}with:\n {10}anthropic_federation_rule_id[\s\S]*$/, '        with: x\n'), "step 2's with is not a map"],
   ['takes the fetch depth from an expression', s => s.replace('fetch-depth: 1', 'fetch-depth: ${{ github.event.number }}'), "step 1's fetch-depth is not a number"],
   ['drops the fetch depth', s => s.replace('          fetch-depth: 1\n', ''), "step 1's with lacks fetch-depth"],
   // The action's inputs.
@@ -942,6 +948,8 @@ for (const [label, plant, says, only] of [
   ['reads the OAuth token from a secret', afterIds('          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}\n'), [CL.secret, CL.cred, extraKey(WITH, 'claude_code_oauth_token')]],
   ['reads a secret by index', afterIds("          settings: ${{ secrets['X'] }}\n"), CL.secret],
   ['passes the job token', afterIds('          github_token: ${{ github.token }}\n'), [CL.secret, extraKey(WITH, 'github_token')]],
+  ['passes the job token by an index', afterIds("          github_token: ${{ github['token'] }}\n"), [CL.secret, extraKey(WITH, 'github_token')]],
+  ['passes the job token by a double-quoted index', afterIds('          github_token: ${{ github["token"] }}\n'), [CL.secret, extraKey(WITH, 'github_token')]],
   ['passes the job token by its other name', afterIds('          github_token: ${{ env.GITHUB_TOKEN }}\n'), CL.secret],
   ['reads a secret in the checkout', afterCheckoutInputs('          token: ${{ secrets.X }}\n'), [CL.secret, extraKey("step 1's with", 'token')]],
   ['reads a secret in its name', s => s.replace(/^name: .*\n/, 'name: ${{ secrets.X }}\n'), CL.secret],
@@ -950,11 +958,16 @@ for (const [label, plant, says, only] of [
     s => s.replace(new RegExp(' {10}' + key + ': .*\\n'), ''),
     WITH + ' lacks ' + key,
   ]),
-  ['gives the rule ID the wrong prefix', s => s.replace('fdrl_', 'xdrl_'), 'anthropic_federation_rule_id does not have the shape fdrl_ and letters or digits'],
-  ['gives the service account ID the wrong prefix', s => s.replace('svac_', 'svc_'), 'anthropic_service_account_id does not have the shape svac_ and letters or digits'],
-  ['gives the organization ID no UUID shape', s => s.replace(/(anthropic_organization_id: ).*/, '$1not-a-uuid'), 'anthropic_organization_id does not have the shape of a UUID'],
-  ['takes the rule ID from an expression', s => s.replace(/(anthropic_federation_rule_id: ).*/, '$1${{ vars.RULE }}'), 'anthropic_federation_rule_id does not have the shape fdrl_ and letters or digits'],
-  ['takes the organization ID from a secret', s => s.replace(/(anthropic_organization_id: ).*/, '$1${{ secrets.ORG }}'), [CL.secret, 'anthropic_organization_id does not have the shape of a UUID']],
+  ['gives the rule ID the wrong prefix', s => s.replace('fdrl_', 'xdrl_'), 'holds another anthropic_federation_rule_id than its own'],
+  ['gives the service account ID the wrong prefix', s => s.replace('svac_', 'svc_'), 'holds another anthropic_service_account_id than its own'],
+  ['gives the organization ID no UUID shape', s => s.replace(/(anthropic_organization_id: ).*/, '$1not-a-uuid'), 'holds another anthropic_organization_id than its own'],
+  ['takes the rule ID from an expression', s => s.replace(/(anthropic_federation_rule_id: ).*/, '$1${{ vars.RULE }}'), 'holds another anthropic_federation_rule_id than its own'],
+  ['takes the organization ID from a secret', s => s.replace(/(anthropic_organization_id: ).*/, '$1${{ secrets.ORG }}'), [CL.secret, 'holds another anthropic_organization_id than its own']],
+  ...[
+    ['anthropic_federation_rule_id', 'fdrl_01V8jy6dtvy7Ebf916SRieMF'],
+    ['anthropic_organization_id', '6161ef7b-3383-44f6-bd62-34226aa8c2fd'],
+    ['anthropic_service_account_id', 'svac_01QUZe8emXQcqnE1opH93J5f'],
+  ].map(([key, other]) => ['swaps ' + key + ' for another well-formed ID', s => s.replace(new RegExp('(' + key + ': ).*'), '$1' + other), 'holds another ' + key + ' than its own']),
   ['asks for more permissions', s => s.replace('additional_permissions: |\n            actions: read\n', 'additional_permissions: |\n            actions: write\n'), 'holds another additional_permissions than its own', ['claude.yml']],
   ['adds a permission to additional_permissions', s => s.replace('            actions: read\n', '            actions: read\n            contents: write\n'), 'holds another additional_permissions than its own', ['claude.yml']],
   ['drops additional_permissions', s => s.replace(/ {10}additional_permissions: \|\n {12}actions: read\n/, ''), WITH + ' lacks additional_permissions', ['claude.yml']],
@@ -1003,12 +1016,14 @@ for (const file of CLAUDE_FILES) {
     files.set(file, files.get(file).replace(/\n {2}(claude|claude-review):\n/, '\n  gate:\n'));
     assert.ok(folderProblems(files).includes(file + ' defines a job or check named gate'), folderProblems(files).join('\n'));
   });
-  test('bad case: the folder check refuses a job named gate-windows through the name key in ' + file, () => {
-    const files = realFolder();
-    files.set(file, files.get(file).replace('    runs-on:', '    name: gate-windows\n    runs-on:'));
-    assert.ok(folderProblems(files).includes(file + ' defines a job or check named gate-windows'), folderProblems(files).join('\n'));
-  });
-  // Spec 0006 W3: a copy under another name gets the common lockdown, which refuses the id-token grant.
+  for (const gateJob of ['gate-windows', 'gate-macos']) {
+    test('bad case: the folder check refuses a job named ' + gateJob + ' through the name key in ' + file, () => {
+      const files = realFolder();
+      files.set(file, files.get(file).replace('    runs-on:', '    name: ' + gateJob + '\n    runs-on:'));
+      assert.ok(folderProblems(files).includes(file + ' defines a job or check named ' + gateJob), folderProblems(files).join('\n'));
+    });
+  }
+  // Spec 0006 W3: a copy under another name gets the common lockdown, which refuses it for asking for more than read access: it holds two permissions blocks.
   for (const copy of ['claude-copy.yml', 'Claude.yml', 'claude.yaml']) {
     test('bad case: the folder check catches a third workflow file, ' + copy + ', that copies ' + file, () => {
       const files = realFolder();
