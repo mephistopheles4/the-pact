@@ -369,7 +369,7 @@ const CLAUDE = {
       plugin_marketplaces: 'https://github.com/anthropics/claude-code.git',
       plugins: 'code-review@claude-code-plugins',
       prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}',
-      claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"',
+      claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"',
     },
   },
 };
@@ -975,7 +975,8 @@ for (const [label, plant, says, only] of [
   ['takes the prompt from the pull request', s => s.replace(/(prompt: ).*/, "$1'${{ github.event.pull_request.body }}'"), 'holds another prompt than its own', ['claude-code-review.yml']],
   ['widens the allowed tools', s => s.replace('mcp__github_inline_comment__create_inline_comment', 'Bash'), 'holds another claude_args than its own', ['claude-code-review.yml']],
   ['drops the tool the review posts through', s => s.replace(',Bash(gh pr comment:*)', ''), 'holds another claude_args than its own', ['claude-code-review.yml']],
-  ['lets the review merge', s => s.replace('Bash(gh pr list:*)', 'Bash(gh pr list:*),Bash(gh pr merge:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
+  ['lets the review read issues', s => s.replace('Bash(gh pr view:*)', 'Bash(gh pr view:*),Bash(gh issue view:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
+  ['lets the review merge', s => s.replace('Bash(gh pr comment:*)', 'Bash(gh pr comment:*),Bash(gh pr merge:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
   ['lets the review run any gh command', s => s.replace('Bash(gh pr view:*)', 'Bash(gh:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
   ['adds an argument', s => s.replace('--allowedTools', '--dangerously-skip-permissions --allowedTools'), 'holds another claude_args than its own', ['claude-code-review.yml']],
   ['drops claude_args', s => s.replace(/ {10}claude_args: .*\n/, ''), WITH + ' lacks claude_args', ['claude-code-review.yml']],
