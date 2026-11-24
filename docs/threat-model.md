@@ -2,8 +2,7 @@
 
 Read the boundaries first. Place each finding on one: where something
 comes in from outside, or where an act goes out. What starts and ends on
-the machine (your own computer, or a sandbox run on it) is the machine's,
-and no finding; what came in from outside stays outside input. Name the
+the machine is the machine's, and no finding; what came in from outside stays outside input. Name the
 control that holds the boundary against the path, with when it doesn't
 hold; if one does, add nothing. Check the residual against the classes.
 Bring the owner what the guide's step 5 lists, every `security?` row
@@ -32,9 +31,9 @@ read. The full guide is the review procedure's Threat model section
 
 ```mermaid
 flowchart LR
-  outside["Strangers, outside PRs, clones, fetched pages, heard speech"]
-  upstream["Plugins, upstream pins, CI dependencies, a design-system pin"]
-  owner["Changes headed for main or ~/.claude"]
+  outside["Outside text"]
+  upstream["Upstream code"]
+  owner["Changes"]
   session["A steered session"]
   readers["Readers of the tracker and other sessions"]
 
@@ -127,20 +126,22 @@ free hand's design pick can cover what a change stores, logs or sends.
 publisher, CI actions and dependencies, mise configs, a program a clone or
 version pin supplies that runs by bare name, the pinned design system inlined
 into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
-setup, run with the owner's rights.
+setup.
 
 **Controls:**
 
-- **GitHub.** Actions pinned to a full commit SHA in `gate.yml` and
-  `codeql.yml`; Dependabot's weekly action updates with a 14-day cooldown;
+- **GitHub.** Actions pinned to a full commit SHA in all four
+  workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot
   security updates. They hold for what the pins and queries cover; an update
   is a pull request, read like any change.
-- **The pact's tools.** `gate/tests/workflow.test.mjs` holds both workflows to
-  an exact allow-list: a read-only token, no secrets, no `pull_request_target`,
-  and `security-events: write` in one job only, skipped for Dependabot. It
-  holds only while the test itself is unchanged; a change to it is read like
-  any change. The Scriptorium page's policy (`builder/build.mjs`) sets
+- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all four
+  workflows to a read-only token, no secrets and no `pull_request_target`, and
+  `codeql.yml` and the two Claude files to an exact allow-list each:
+  `security-events: write` in one CodeQL job, skipped for Dependabot;
+  `id-token: write` in each Claude job, with no key in the repo. The
+  Console's federation rule bounds who. It holds only while the test itself is unchanged; a change to it is read
+  like any change. The Scriptorium page's policy (`builder/build.mjs`) sets
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
@@ -163,7 +164,12 @@ Also accepted. What you install and CI run: the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
-with the owner's rights, and a crafted model could exploit a parser bug. Pinned design-system code: each re-pin is reviewed
+with the owner's rights, and a crafted model could exploit a parser bug; a
+Claude run that an allowed actor, or a session with an app key, starts
+reads anyone's text and spends Anthropic tokens; it can steer what Claude
+writes through the app's token, short of `main`; the review plugin is fetched
+unpinned; an allowed actor's branch can change the Claude files and mint an
+Anthropic token. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs
@@ -261,13 +267,12 @@ stays in scope though it runs as the owner.
 it, with every program, process, account, file and memory made there. A local
 tool's data on a user's own computer is that user's machine. A cloud session's
 sandbox, a service a project deploys, and that service's users' devices are not
-the machine. What starts and ends on the machine is no finding: other local
+the machine. No finding: other local
 accounts, unencrypted copies (the install's backups, kept-local reports,
 hand-off notes), a program already running as the owner that nothing in scope
 started, supplied or steered, and loss of work with no attacker. In a cloud
 session these copies sit in Anthropic's sandbox: out of scope,
-though code that reached it from outside stays in scope. What the machine makes
-from outside input stays outside input. The machine's antivirus, account
+though code that reached it from outside stays in scope. The machine's antivirus, account
 isolation and disk encryption hold it. Also out: the owner's own edits and
 account's edit in the browser; Claude Code, Anthropic's models and servers, and
 GitHub; the provider of a synced or backed-up copy, though
