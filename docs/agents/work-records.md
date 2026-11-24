@@ -51,6 +51,6 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   `node docs/img/build.mjs`. `gate/tests/readme-figures.test.mjs` fails while an
   SVG is stale and when a line overflows its box; no test checks the figures'
   words.
-- **Probe line:** a throwaway line for PACT-101's post-merge review test; this PR is closed, never merged (second push).
+- **Probe line:** a throwaway line for PACT-101's post-merge review test; this PR is closed, never merged (third push, after the rule fix).
 - **Vocabulary:** [`CONTEXT.md`](../../CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](domain.md).
