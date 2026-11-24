@@ -517,13 +517,28 @@ for (const provider of ['codex', 'antigravity']) {
     const w = fresh(t);
     w.state.app.slug = `example-owner-${provider}`;
     w.state.bot.login = `example-owner-${provider}[bot]`;
+    writeFileSync(gitconfigFile(w), 'claude gitconfig\n');
     assert.equal(await main(setupArgs(w, provider), w.io), 0, printed(w).err);
     assert.ok(w.store.has(`the-pact/gh-app/${provider}/key`));
     const entry = readPinFile(w).apps[provider];
     assert.equal(entry.bot_login, `example-owner-${provider}[bot]`);
     assert.equal(readFileSync(join(w.home, '.claude', 'pact', `gh-app-${provider}.gitconfig`), 'utf8'), gitconfigText({ home: w.home, nodePath: NODE, provider, app: entry, xdg: false }));
-    assert.equal(existsSync(gitconfigFile(w)), false, "claude's gitconfig is left alone");
+    assert.equal(readFileSync(gitconfigFile(w), 'utf8'), 'claude gitconfig\n', "claude's gitconfig is left alone");
   });
+
+  // PACT-104 C1 and C3: a helper line that reads back wrong refuses, and puts back this provider's own gitconfig.
+  for (const prior of [null, 'old gitconfig\n']) {
+    test(`setup for ${provider} whose helper line reads back wrong refuses and ${prior ? 'puts back its old gitconfig' : 'leaves no gitconfig'}`, async t => {
+      const w = fresh(t);
+      const file = join(w.home, '.claude', 'pact', `gh-app-${provider}.gitconfig`);
+      if (prior) writeFileSync(file, prior);
+      w.state.git = () => ({ status: 0, stdout: '\n!evil\n', stderr: '' });
+      assert.equal(await main(setupArgs(w, provider), w.io), 1);
+      assert.equal(existsSync(file) ? readFileSync(file, 'utf8') : null, prior);
+      assert.equal(w.store.size, 0, 'no key kept');
+      assert.equal(existsSync(join(w.home, '.claude', 'pact', 'github.json')), false, 'no pin kept');
+    });
+  }
 }
 
 // #602 C1: every refusal writes nothing, deletes nothing it didn't write, and keeps the download.
