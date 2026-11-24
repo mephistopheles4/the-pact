@@ -108,6 +108,8 @@ has a bad case it is seen to catch, in the style of the CodeQL allow-list's.
 | Guard | per event: `@claude` in the text, and the author's association in the list or the author's login one of the three apps | head repo is this repo, and the pull request author's association in the list or the author's login one of the three apps |
 | Action inputs | the three federation IDs, `allowed_bots`, `additional_permissions` (`actions: read`) | the three federation IDs, `allowed_bots`, `plugin_marketplaces`, `plugins`, `prompt`, `claude_args` |
 
+The review's `claude_args` allows exactly the tools the code-review plugin's command declares for itself: the inline-comment tool and `gh issue view`, `gh search`, `gh issue list`, `gh pr comment`, `gh pr diff`, `gh pr view` and `gh pr list`. With fewer, the review runs and posts nothing.
+
 The guard text is held exactly, as the files on this branch write it. `actions: read` stays in `claude.yml` so Claude can read CI results on pull requests.
 
 ## W5 Threat model
