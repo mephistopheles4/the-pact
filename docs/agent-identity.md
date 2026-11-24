@@ -62,7 +62,7 @@ rest:
   gitconfig, so `gh auth setup-git` swaps the helper out. The next dry run refuses
   until you run `refresh`.
 - The helper script, the gitconfig, `NODE_OPTIONS` and the Node program stay
-  writable by your account, and `setup` writes any Node, so only the next dry run
+  writable by your account, and `setup` and `refresh` write any Node, so only the next dry run
   refuses a changed gitconfig.
 
 ## What the install checks

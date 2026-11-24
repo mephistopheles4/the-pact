@@ -750,21 +750,22 @@ async function refresh(io, provider) {
   let before = null;
   try {
     before = io.fs.readFileSync(path, 'utf8');
-  } catch {
-    // no gitconfig yet: a failed write removes the new one
+  } catch (err) {
+    // No gitconfig yet: a failed write removes the new one. One that is there but can't be read is never taken as absent.
+    if (err?.code !== 'ENOENT') refuse('gitconfig');
   }
   try {
     writeGitconfig(io, provider, text);
   } catch (e) {
     try {
-      if (before === null) io.fs.unlinkSync(path);
-      else writeText(io, path, before);
+      if (before !== null) writeText(io, path, before);
+      else if (io.fs.existsSync(path)) io.fs.unlinkSync(path);
     } catch {
       say(io, 'refresh: the old gitconfig could not be put back; run status, then refresh again', 'err');
     }
     throw e instanceof Refusal ? e : new Refusal('gitconfig');
   }
-  say(io, `refresh: ${provider} gitconfig written for ${slash(io.execPath)}`);
+  say(io, `refresh: ${provider} gitconfig written for the Node this runs under`);
 }
 
 // ---------------------------------------------------------------- git-credential

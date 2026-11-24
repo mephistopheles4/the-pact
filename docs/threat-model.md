@@ -198,9 +198,9 @@ anything else a session sends off the machine: a push, a fetch or search
   each token it mints to one repo and a permission set, and refuses a repo
   outside the pinned owner. It holds against accidents only: any process
   running as the owner can read the key or ask git's helper for a token. Setup,
-  the poster and the checker check the pin against GitHub's records (the app,
+  refresh, the poster and the checker check the pin against GitHub's records (the app,
   the bot, the owner). That doesn't hold against a process that edits both the
-  pin and the code that reads it. A session gets the check only through `status`.
+  pin and the code that reads it. A session gets the check only through `status` or `refresh`.
 
 **Residual classes:** Posts are public; Who counts as you; Text steers a session, for
 what a steered session sends. Rule they rest on, a

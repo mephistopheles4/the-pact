@@ -1059,6 +1059,18 @@ for (const prior of [STALE, null]) test(`refresh ${prior ? 'rewrites a stale' : 
   assert.deepEqual(w.store.get('the-pact/gh-app/claude/key'), keyBefore, 'the key is unchanged');
   assert.equal(w.store.size, 1, 'nothing else stored');
   assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), pinBefore, 'the pin is unchanged');
+  assert.ok(!printed(w).out.includes(NODE.replaceAll('\\', '/')) &&!printed(w).out.includes(NODE), 'the Node path is not printed');
+});
+
+// PACT-104 R2: an existing gitconfig that can't be read is refused before anything is written, never taken as absent.
+test('refresh refuses, writing nothing, when the existing gitconfig cannot be read', async t => {
+  const w = refreshed(t);
+  const fs = w.io.fs;
+  w.io.fs = { ...fs, readFileSync: (p, ...a) => { if (p === gitconfigFile(w)) throw Object.assign(new Error('busy'), { code: 'EBUSY' }); return fs.readFileSync(p, ...a); } };
+  assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 1);
+  assert.ok(printed(w).err.includes(REASONS.gitconfig), printed(w).err);
+  assert.equal(readFileSync(gitconfigFile(w), 'utf8'), STALE);
+  assert.ok(!w.spy.spawns.some(s => s.file === 'git'), 'nothing was written or read back');
 });
 
 // PACT-104 R2: refresh refuses, writing nothing, without a pinned entry, a key or a passing pin check.
