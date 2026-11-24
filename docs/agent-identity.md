@@ -26,11 +26,11 @@ pact names them.
 ## Setting it up
 
 The switch needs the app pinned in `~/.claude/pact/github.json` and its
-gitconfig, `~/.claude/pact/gh-app-claude.gitconfig`, which `gh-app.mjs setup`
-writes. The helper isn't installed until the switch is on, so run setup from the
-clone (`node claude/tools/gh-app.mjs setup`), under the Node the install will run
-under (an absolute path to a program called `node`, not a shim). Without both files the
-install refuses, saying to run setup.
+gitconfig, `~/.claude/pact/gh-app-<provider>.gitconfig`, which `gh-app.mjs setup`
+writes per provider; the install wires only Claude's. The helper isn't
+installed until the switch is on, so run setup from the clone (`node claude/tools/gh-app.mjs setup`), under the Node the install will run
+under (an absolute path to a program called `node`, not a shim). Without both the
+install refuses: run setup.
 
 ## What it does
 

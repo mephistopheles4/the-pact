@@ -672,7 +672,7 @@ async function setup(io, { provider, appId, keyPath }) {
     return refuse('shape');
   }
   const entry = { app_id: appId, slug, bot_login: `${slug}[bot]`, bot_id: bot.id };
-  const gitconfig = provider === 'claude' ? gitconfigText({ home: io.home, nodePath: io.execPath, app: entry, provider, xdg: io.fs.existsSync(join(io.home, '.config', 'git', 'config')) }) : null;
+  const gitconfig = gitconfigText({ home: io.home, nodePath: io.execPath, app: entry, provider, xdg: io.fs.existsSync(join(io.home, '.config', 'git', 'config')) });
 
   // The checks above wrote nothing. From here each write is put back on a failure.
   const before = { key: io.credStore.read(keyTarget(provider)), pin: (() => { try { return io.fs.readFileSync(pinPath(io.home), 'utf8'); } catch { return null; } })(), gitconfig: (() => { try { return io.fs.readFileSync(gitconfigPath(io.home, provider), 'utf8'); } catch { return null; } })() };
@@ -681,15 +681,13 @@ async function setup(io, { provider, appId, keyPath }) {
     const next = pinNow ?? { owner: me, apps: {} };
     next.apps[provider] = entry;
     writeText(io, pinPath(io.home), `${JSON.stringify(next, null, 2)}\n`);
-    if (gitconfig) {
-      const path = gitconfigPath(io.home, provider);
-      writeText(io, path, gitconfig);
-      const back = makeRun(io)('git', ['config', '--file', path, '--get-all', 'credential.https://github.com.helper']);
-      const want = gitconfig.split('\n').filter(l => l.startsWith('  helper =')).map(l => l.slice('  helper ='.length).trim());
-      const got = back.stdout.split(/\r?\n/).slice(0, -1);
-      const wantHelper = want[1].replace(/^"|"$/g, '').replaceAll('\\"', '"').replaceAll('\\\\', '\\');
-      if (!back.ok || got.length !== 2 || got[0] !== '' || got[1] !== wantHelper) refuse('gitconfig');
-    }
+    const path = gitconfigPath(io.home, provider);
+    writeText(io, path, gitconfig);
+    const back = makeRun(io)('git', ['config', '--file', path, '--get-all', 'credential.https://github.com.helper']);
+    const want = gitconfig.split('\n').filter(l => l.startsWith('  helper =')).map(l => l.slice('  helper ='.length).trim());
+    const got = back.stdout.split(/\r?\n/).slice(0, -1);
+    const wantHelper = want[1].replace(/^"|"$/g, '').replaceAll('\\"', '"').replaceAll('\\\\', '\\');
+    if (!back.ok || got.length !== 2 || got[0] !== '' || got[1] !== wantHelper) refuse('gitconfig');
   } catch (e) {
     // Each put-back is tried on its own, so one that fails never leaves the others replaced.
     let incomplete = false;
