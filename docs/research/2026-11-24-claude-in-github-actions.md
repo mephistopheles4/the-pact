@@ -3,6 +3,32 @@
 Research for PACT-103. It compares this repo's two Claude workflows (PACT-101: `.github/workflows/claude.yml` and `claude-code-review.yml`, spec 0006) with the setup the Claude GitHub app writes, with what Anthropic's docs and source say, and with what others do and what has gone wrong. Read at claude-code-action v1.0.289 (commit `eb56b666`, the commit we pin), which installs Claude Code 2.1.331. Each claim is marked verified (read in the source), reported (a secondary source says so) or unverified. A note, not a spec: nothing here changes the rules.
 
 <!-- toc -->
+
+- [Summary](#summary)
+- [Recommendations](#recommendations)
+- [1. Our setup against the default](#1-our-setup-against-the-default)
+  - [What the comparison teaches (verified in the docs at that commit)](#what-the-comparison-teaches-verified-in-the-docs-at-that-commit)
+- [2. What Anthropic says and what the action does](#2-what-anthropic-says-and-what-the-action-does)
+  - [1. Inputs that control power or cost](#1-inputs-that-control-power-or-cost)
+  - [2. Security behaviour in the source](#2-security-behaviour-in-the-source)
+  - [3. The GitHub App token flow](#3-the-github-app-token-flow)
+  - [4. Workload Identity Federation](#4-workload-identity-federation)
+  - [5. Anthropic's security docs and Claude Code's permission system](#5-anthropics-security-docs-and-claude-codes-permission-system)
+  - [6. What `/install-github-app` writes](#6-what-install-github-app-writes)
+  - [7. Published advisories relevant to CI](#7-published-advisories-relevant-to-ci)
+  - [Open questions](#open-questions)
+  - [Sources](#sources)
+- [3. What others say and what has gone wrong](#3-what-others-say-and-what-has-gone-wrong)
+  - [0. Findings that bear on our setup first](#0-findings-that-bear-on-our-setup-first)
+  - [1. GitHub's own guidance](#1-githubs-own-guidance)
+  - [2. Other vendors' agent actions](#2-other-vendors-agent-actions)
+  - [3. Incidents and research: prompt injection and AI agents in CI](#3-incidents-and-research-prompt-injection-and-ai-agents-in-ci)
+  - [4. Supply chain](#4-supply-chain)
+  - [5. Practitioner reports](#5-practitioner-reports)
+  - [6. Agent-security models applied to CI](#6-agent-security-models-applied-to-ci)
+  - [Open questions](#open-questions-1)
+  - [Sources](#sources-1)
+
 <!-- /toc -->
 
 ## Summary
