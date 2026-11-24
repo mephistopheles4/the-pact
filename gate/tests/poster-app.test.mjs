@@ -36,7 +36,7 @@ const DRY_APP = 'dry-run: the pin check and the token mint did not run';
  * with a GH_TOKEN is the app's, any other the owner's own, and every call is
  * recorded with which it was. `items` is what the repo holds, by API path.
  */
-function github({ ownerId = IDS.owner, items = {}, failWrite = null } = {}) {
+function github({ ownerId = IDS.owner, items = {}, failWrite = null, bot = BOT } = {}) {
   const calls = [];
   const store = structuredClone(items);
   const runner = env => (args, input) => {
@@ -45,7 +45,7 @@ function github({ ownerId = IDS.owner, items = {}, failWrite = null } = {}) {
     const path = args[at + 2];
     const as = env.GH_TOKEN ? 'app' : 'owner';
     calls.push({ as, env, method, path, input });
-    const user = { login: as === 'app' ? BOT : OWNER };
+    const user = { login: as === 'app' ? bot : OWNER };
     const ok = v => ({ ok: true, stdout: JSON.stringify(v), stderr: '' });
     if (method !== 'GET' && failWrite) return { ok: false, stdout: '', stderr: failWrite };
     if (method === 'GET' && path === 'user') return ok(user);
@@ -239,6 +239,86 @@ test('C6: with no io.app, no pin file or helper, or a pin with no claude entry, 
   const direct = post(['schema'], { gh: github().runner({}), env: {} });
   assert.equal(typeof direct.then, 'undefined');
   assert.equal(direct.code, 0);
+});
+
+// ---------------------------------------------------------------- PACT-104: the app the post names
+
+/**
+ * A world where the fake GitHub's app is `provider`'s, with its own slug, bot and key, and
+ * `claude`, when `withClaude`, is pinned to another app the fake doesn't know: picking it
+ * fails the pin check, so a wrong pick can't pass.
+ */
+const OTHER_CLAUDE = { app_id: 2000099, slug: 'example-owner-other', bot_login: 'example-owner-other[bot]', bot_id: 3000099 };
+function pinnedAs(t, provider, { withClaude = true, items = {} } = {}) {
+  const slug = `example-owner-${provider}`;
+  const bot = `${slug}[bot]`;
+  const hw = helperWorld(t);
+  hw.state.app.slug = slug;
+  hw.state.bot.login = bot;
+  hw.store.set(`the-pact/gh-app/${provider}/key`, hw.store.get('the-pact/gh-app/claude/key'));
+  hw.store.delete('the-pact/gh-app/claude/key');
+  writePin(hw, { ...(withClaude ? { claude: OTHER_CLAUDE } : {}), [provider]: { app_id: IDS.app, slug, bot_login: bot, bot_id: IDS.bot } });
+  return { s: setup(t, { hw, gh: github({ bot, items }) }), slug, bot };
+}
+const pinRead = (s, slug) => s.hw.spy.spawns.some(x => x.file === 'gh' && x.args.at(-1) === `apps/${slug}`);
+
+// PACT-104 C1, C2: a post whose as is a pinned app's bot is checked, minted and posted as that app, with or without claude pinned
+for (const provider of ['codex', 'antigravity']) {
+  for (const withClaude of [true, false]) {
+    test(`PACT-104: a post as the pinned ${provider} bot${withClaude ? ', with claude also pinned,' : ''} is pin-checked, minted and posted as that bot`, async t => {
+      const { s, slug, bot } = pinnedAs(t, provider, { withClaude });
+      const r = await run(t, s, 'issue-comment', note, { as: bot });
+      assert.equal(r.code, 0, text(r));
+      assert.equal(last(r), `RESULT: verified issue-comment https://github.com/${TARGET}/issues/5#issuecomment-9001 as ${bot}`);
+      assert.ok(pinRead(s, slug), 'the pin read is the picked app\'s');
+      assert.ok(!pinRead(s, OTHER_CLAUDE.slug), 'claude\'s app is not checked');
+      assert.equal(s.gh.writes().length, 1);
+      assert.ok(minted(s).includes(s.gh.writes()[0].env.GH_TOKEN), 'the write carries the token minted for that app');
+      noOwnerWrite(s);
+      ownerReads(s);
+    });
+  }
+}
+
+// PACT-104 C3: with claude pinned, an as that matches no pinned app is still refused as/not-app
+test('PACT-104: with claude and codex pinned, a post with no as, as the owner or as an unpinned bot is refused as/not-app', async t => {
+  for (const as of [null, OWNER, 'another-app[bot]', 'Example-owner-codex[bot]']) {
+    const { s } = pinnedAs(t, 'codex');
+    const r = await run(t, s, 'issue-comment', note, { as });
+    assert.ok(refusedBy(r, 'as/not-app', 'as'), `${as}: ${text(r)}`);
+    assert.equal(s.gh.calls.length + s.hw.spy.fetches.length, 0, `${as}: nothing read, minted or sent`);
+  }
+});
+
+// PACT-104 C4: with no claude entry and no match, the run is the owner's, as before
+test('PACT-104: with only codex pinned, a post with no as is the owner\'s, and the helper is not called', async t => {
+  const { s } = pinnedAs(t, 'codex', { withClaude: false });
+  const r = await run(t, s, 'issue-comment', note, { as: null });
+  assert.equal(r.code, 0, text(r));
+  assert.equal(last(r), `RESULT: verified issue-comment https://github.com/${TARGET}/issues/5#issuecomment-9001 as ${OWNER}`);
+  assert.equal(s.hw.spy.fetches.length + s.hw.spy.spawns.length, 0);
+});
+
+// PACT-104 C5: a failed pin check or mint for the picked app stops the run, with no fall back to claude or the owner
+test('PACT-104: a failed pin check or mint for the picked app sends nothing, and falls back to neither claude nor the owner', async t => {
+  for (const [what, change, rule] of [['the bot is a user', w => { w.state.bot.type = 'User'; }, 'pin/check'], ['the mint is refused', w => { w.state.mintStatus = 500; }, 'app/token']]) {
+    const { s } = pinnedAs(t, 'codex');
+    change(s.hw);
+    const r = await run(t, s, 'issue-comment', note, { as: 'example-owner-codex[bot]' });
+    assert.equal(r.code, 2, `${what}: ${text(r)}`);
+    assert.equal(r.lines[0], `REFUSED ${rule} ${rule === 'pin/check' ? 'pin' : 'token'}`, what);
+    assert.equal(s.gh.writes().length, 0, what);
+    assert.ok(!pinRead(s, OTHER_CLAUDE.slug), `${what}: claude's app is not tried`);
+  }
+});
+
+// PACT-104 C6: an item one app wrote can't be edited as another
+test('PACT-104: an edit as the codex bot of a comment the claude bot wrote is refused edit/author, and nothing is sent', async t => {
+  const item = `A part.\n\nSigned: ${LABEL}\n`;
+  const { s, bot } = pinnedAs(t, 'codex', { items: { [`repos/${TARGET}/issues/comments/9001`]: { id: 9001, body: item, user: { login: OTHER_CLAUDE.bot_login }, issue_url: `${API}/issues/5` } } });
+  const r = await run(t, s, 'issue-comment-edit', { issue: 5, comment: 9001, reason: REASON }, { as: bot });
+  assert.ok(refusedBy(r, 'edit/author', 'item'), text(r));
+  assert.equal(s.gh.writes().length, 0);
 });
 
 // #604 C6: the poster's pin path is the helper's
