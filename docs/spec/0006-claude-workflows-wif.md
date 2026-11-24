@@ -4,6 +4,19 @@ Status: draft on the PACT-101 branch, flagged for the owner's review. The
 security pair reads it with the diff at Test (the session's pick, logged on
 the issue). The spec counts once it is on `main`.
 
+<!-- toc -->
+
+- [W1 Objective](#w1-objective)
+- [W2 Decisions](#w2-decisions)
+- [W3 The allow-list (the gate's tests)](#w3-the-allow-list-the-gates-tests)
+- [W4 The two files](#w4-the-two-files)
+- [W5 Threat model](#w5-threat-model)
+- [W6 Out of scope](#w6-out-of-scope)
+- [W7 Trade-offs](#w7-trade-offs)
+- [W8 Acceptance claims](#w8-acceptance-claims)
+
+<!-- /toc -->
+
 ## W1 Objective
 
 The Claude GitHub app's setup adds two workflows: `claude.yml`, which answers
@@ -29,8 +42,13 @@ has one.
    the audience and an allow-list of actor account IDs. Nothing in the repo
    names who is on that list.
 3. **The job guard is defence in depth.** Each job runs only when the
-   triggering author's association is `OWNER`, `MEMBER` or `COLLABORATOR`
-   (and, for `claude.yml`, the text holds `@claude`). The review job also
+   triggering author's association is `OWNER`, `MEMBER` or `COLLABORATOR`,
+   or the author's login is one of the owner's three agent apps
+   (`mephistos-homunculus[bot]`, `mephistos-euphorion[bot]`,
+   `mephistos-wagner[bot]`; an owner's decision) (and, for `claude.yml`, the
+   text holds `@claude`). The action refuses a bot actor unless `allowed_bots`
+   names it, so each file sets `allowed_bots` to exactly those three names,
+   without the suffix, which the action strips from both sides, and never `*`. The review job also
    runs only for a pull request whose head is a branch of this repo. A pusher
    can edit the guard on a branch; the rule still holds.
 4. **The GitHub token stays read-only.** Each job's `permissions` grant reads
@@ -63,6 +81,8 @@ their own allow-list instead of the common lockdown. For each file it refuses:
   `persist-credentials` other than `false`;
 - an action input outside the file's list in W4, the federation IDs missing,
   or an ID that does not have its prefix's shape (`fdrl_`, `svac_`, a UUID);
+  an `allowed_bots` that is not exactly the three apps (never `*`); a guard
+  that admits another login;
 - any `secrets.`, `github.token` or `GITHUB_TOKEN`; a `run:` step; an
   `env:` at any level; a YAML anchor, alias, merge key or flow mapping;
   uploading or caching the workspace; a job or check named `gate`,
@@ -79,8 +99,8 @@ has a bad case it is seen to catch, in the style of the CodeQL allow-list's.
 | Triggers | `issue_comment` [created], `pull_request_review_comment` [created], `issues` [opened, assigned], `pull_request_review` [submitted] | `pull_request` [opened, synchronize, ready_for_review, reopened] |
 | Job | `claude` | `claude-review` |
 | Job permissions | `contents`, `pull-requests`, `issues`, `actions`: read; `id-token: write` | `contents`, `pull-requests`, `issues`: read; `id-token: write` |
-| Guard | per event: `@claude` in the text, and the author's association in the list | head repo is this repo, and the pull request author's association in the list |
-| Action inputs | the three federation IDs, `additional_permissions` (`actions: read`) | the three federation IDs, `plugin_marketplaces`, `plugins`, `prompt`, `claude_args` |
+| Guard | per event: `@claude` in the text, and the author's association in the list or the author's login one of the three apps | head repo is this repo, and the pull request author's association in the list or the author's login one of the three apps |
+| Action inputs | the three federation IDs, `allowed_bots`, `additional_permissions` (`actions: read`) | the three federation IDs, `allowed_bots`, `plugin_marketplaces`, `plugins`, `prompt`, `claude_args` |
 
 The guard text is held exactly, as the files on this branch write it.
 
@@ -92,6 +112,8 @@ allow-list beside `codeql.yml`'s. A residual line says what is accepted:
 - a run that an allowed actor triggers reads issue, comment and pull request
   text from anyone, and that text can steer what Claude writes through the
   app's token, short of `main`;
+- a session holding an agent app's key can start a run that spends Anthropic
+  tokens and writes through the Claude app's token, short of `main`;
 - the review plugin is fetched from its marketplace at run time, unpinned;
 - a branch pushed by an allowed actor can change the files and mint an
   Anthropic token in its run; the rule bounds who, not what the run does.

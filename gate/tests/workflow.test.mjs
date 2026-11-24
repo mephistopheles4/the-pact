@@ -328,7 +328,10 @@ function codeqlProblems(src, gateSrc) {
 
 // Spec 0006 W3, W4: the two Claude workflows, each held to an exact allow-list of its own. Neither reads a secret:
 // each run trades GitHub's OIDC token for an Anthropic token through Workload Identity Federation.
-const IN_LIST = f => "contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event." + f + '.author_association)';
+// The owner's three agent apps may start a run too (an owner's decision, spec 0006 W2.3); allowed_bots names the same three, never '*'.
+const APPS = ['mephistos-homunculus', 'mephistos-euphorion', 'mephistos-wagner'];
+const IN_LIST = f =>
+  "(contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event." + f + ".author_association) || contains(fromJSON('[" + APPS.map(a => '\"' + a + '[bot]\"').join(',') + "]'), github.event." + f + '.user.login))';
 const MENTION = f => 'contains(github.event.' + f + ".body, '@claude')";
 // The guards are held exactly as the files write them: a pusher can edit a guard on a branch, the Console's rule still holds (W2).
 const ANSWER_GUARD =
@@ -351,7 +354,7 @@ const CLAUDE = {
     on: { issue_comment: ['created'], pull_request_review_comment: ['created'], issues: ['opened', 'assigned'], pull_request_review: ['submitted'] },
     permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', actions: 'read', 'id-token': 'write' },
     guard: ANSWER_GUARD,
-    inputs: { additional_permissions: 'actions: read\n' },
+    inputs: { allowed_bots: APPS.join(','), additional_permissions: 'actions: read\n' },
   },
   'claude-code-review.yml': {
     name: 'claude-code-review',
@@ -360,6 +363,7 @@ const CLAUDE = {
     permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', 'id-token': 'write' },
     guard: REVIEW_GUARD,
     inputs: {
+      allowed_bots: APPS.join(','),
       plugin_marketplaces: 'https://github.com/anthropics/claude-code.git',
       plugins: 'code-review@claude-code-plugins',
       prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}',
@@ -812,7 +816,8 @@ const afterTimeout = text => s => s.replace('    timeout-minutes: 30\n', '    ti
 const afterIds = text => s => s.replace(/(anthropic_service_account_id: .*\n)/, m => m + text);
 const inActionStep = text => s => s.replace('        with:\n          anthropic_federation_rule_id', text + '        with:\n          anthropic_federation_rule_id');
 const afterCheckoutInputs = text => s => s.replace('          persist-credentials: false\n', '          persist-credentials: false\n' + text);
-const dropAssociation = s => s.replace(/ && contains\(fromJSON\('\["OWNER","MEMBER","COLLABORATOR"\]'\), github\.event\.[a-z_.]+\.author_association\)/, '');
+const dropAssociation = s => s.replace(/contains\(fromJSON\('\["OWNER","MEMBER","COLLABORATOR"\]'\), github\.event\.[a-z_.]+\.author_association\) \|\| /, '');
+const BOT_LIST = '"mephistos-homunculus[bot]","mephistos-euphorion[bot]","mephistos-wagner[bot]"';
 
 test('the two Claude workflows keep their allow-lists', () => {
   const gate = readFileSync(WORKFLOW, 'utf8');
@@ -884,7 +889,14 @@ for (const [label, plant, says, only] of [
   ['writes its guard on one line', s => s.replace('    if: |\n      (github', '    if: (github').replace(/\n {6}\(github/g, ' (github'), CL.guard, ['claude.yml']],
   ['drops the check that the head is this repo', s => s.replace('github.event.pull_request.head.repo.full_name == github.repository && ', ''), CL.guard, ['claude-code-review.yml']],
   ['checks the base repo instead of the head', s => s.replace('pull_request.head.repo.full_name', 'pull_request.base.repo.full_name'), CL.guard, ['claude-code-review.yml']],
-  ['joins its guard with or', s => s.replace(' && contains(fromJSON', ' || contains(fromJSON'), CL.guard, ['claude-code-review.yml']],
+  ['joins its guard with or', s => s.replace(' && (contains(fromJSON', ' || (contains(fromJSON'), CL.guard, ['claude-code-review.yml']],
+  ['drops the app logins from the guard', s => s.replace(/ \|\| contains\(fromJSON\('\["mephistos.*?\]'\), github\.event\.[a-z_]+\.user\.login\)/, ''), CL.guard],
+  ['lets in an extra login', s => s.replace('"mephistos-wagner[bot]"', '"mephistos-wagner[bot]","other[bot]"'), CL.guard],
+  ['lets in an extra login by its bare name', s => s.replace('"mephistos-wagner[bot]"', '"mephistos-wagner[bot]","other"'), CL.guard],
+  ['lets in any bot', s => s.replace('"mephistos-wagner[bot]"', '"*[bot]"'), CL.guard],
+  ['drops an app from the guard', s => s.replace(',"mephistos-wagner[bot]"', ''), CL.guard],
+  ['checks the sender instead of the author', s => s.replace('.user.login', '.sender.login'), CL.guard],
+  ['admits a login on its own', s => s.replace(BOT_LIST + ']\'), github.event.', BOT_LIST + ']\'), github.actor, github.event.'), CL.guard],
   ['reads the association of the wrong author', s => s.replace('github.event.pull_request.author_association', 'github.event.sender.author_association'), CL.guard, ['claude-code-review.yml']],
   ['ends its guard in true', s => s.replace(/(if: .*)\n/, '$1 || true\n'), CL.guard, ['claude-code-review.yml']],
   // Steps and pins.
@@ -913,12 +925,19 @@ for (const [label, plant, says, only] of [
   ['takes the fetch depth from an expression', s => s.replace('fetch-depth: 1', 'fetch-depth: ${{ github.event.number }}'), "step 1's fetch-depth is not a number"],
   ['drops the fetch depth', s => s.replace('          fetch-depth: 1\n', ''), "step 1's with lacks fetch-depth"],
   // The action's inputs.
-  ...['allowed_bots', 'allow_fork_prs', 'allowed_non_write_users', 'github_token', 'trigger_phrase', 'settings', 'bot_name', 'use_bedrock'].map(key => [
+  ...['allow_fork_prs', 'allowed_non_write_users', 'github_token', 'trigger_phrase', 'settings', 'bot_name', 'use_bedrock'].map(key => [
     'gives the action a ' + key + ' input',
     afterIds('          ' + key + ': x\n'),
     extraKey(WITH, key),
   ]),
   ...['anthropic_api_key', 'claude_code_oauth_token'].map(key => ['gives the action a ' + key + ' input', afterIds('          ' + key + ': x\n'), [extraKey(WITH, key), CL.cred]]),
+  ['allows every bot', s => s.replace(/(allowed_bots: ).*/, "$1'*'"), 'holds another allowed_bots than its own'],
+  ['allows an extra bot', s => s.replace(/(allowed_bots: .*)/, '$1,renovate'), 'holds another allowed_bots than its own'],
+  ['allows an extra bot with its suffix', s => s.replace(/(allowed_bots: .*)/, '$1,dependabot[bot]'), 'holds another allowed_bots than its own'],
+  ['drops an app from allowed_bots', s => s.replace(',mephistos-wagner', ''), 'holds another allowed_bots than its own'],
+  ['writes the apps with their suffix', s => s.replace(/(allowed_bots: ).*/, "$1'" + APPS.map(a => a + '[bot]').join(',') + "'"), 'holds another allowed_bots than its own'],
+  ['allows no bot', s => s.replace(/(allowed_bots: ).*/, "$1''"), 'holds another allowed_bots than its own'],
+  ['drops allowed_bots', s => s.replace(/ {10}allowed_bots: .*\n/, ''), WITH + ' lacks allowed_bots'],
   ['reads the API key from a secret', afterIds('          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}\n'), [CL.secret, CL.cred, extraKey(WITH, 'anthropic_api_key')]],
   ['reads the OAuth token from a secret', afterIds('          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}\n'), [CL.secret, CL.cred, extraKey(WITH, 'claude_code_oauth_token')]],
   ['reads a secret by index', afterIds("          settings: ${{ secrets['X'] }}\n"), CL.secret],

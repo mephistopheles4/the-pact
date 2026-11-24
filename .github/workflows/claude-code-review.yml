@@ -1,9 +1,10 @@
 name: claude-code-review
 
 # Reviews each pull request opened from a branch of this repo by an owner,
-# member or collaborator. Authentication as in claude.yml: Workload Identity
-# Federation, no API key. gate/tests/workflow.test.mjs holds this file to an
-# exact allow-list (spec 0006).
+# member, collaborator or one of the owner's three agent apps. Authentication
+# as in claude.yml: Workload Identity Federation, no API key.
+# gate/tests/workflow.test.mjs holds this file to an exact allow-list (spec
+# 0006).
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
@@ -13,7 +14,7 @@ permissions:
 
 jobs:
   claude-review:
-    if: github.event.pull_request.head.repo.full_name == github.repository && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    if: github.event.pull_request.head.repo.full_name == github.repository && (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) || contains(fromJSON('["mephistos-homunculus[bot]","mephistos-euphorion[bot]","mephistos-wagner[bot]"]'), github.event.pull_request.user.login))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -31,6 +32,7 @@ jobs:
           anthropic_federation_rule_id: fdrl_01V8jy6dtvy7Ebf916SRieME
           anthropic_organization_id: 6161ef7b-3383-44f6-bd62-34226aa8c2fc
           anthropic_service_account_id: svac_01QUZe8emXQcqnE1opH93J5e
+          allowed_bots: mephistos-homunculus,mephistos-euphorion,mephistos-wagner
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
