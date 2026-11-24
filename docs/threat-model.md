@@ -2,8 +2,7 @@
 
 Read the boundaries first. Place each finding on one: where something
 comes in from outside, or where an act goes out. What starts and ends on
-the machine (your own computer, or a sandbox run on it) is the machine's,
-and no finding; what came in from outside stays outside input. Name the
+the machine (your own computer, or a sandbox run on it) is the machine's, and no finding; what came in from outside stays outside input. Name the
 control that holds the boundary against the path, with when it doesn't
 hold; if one does, add nothing. Check the residual against the classes.
 Bring the owner what the guide's step 5 lists, every `security?` row
@@ -29,40 +28,6 @@ read. The full guide is the review procedure's Threat model section
 <!-- /toc -->
 
 ## Boundaries
-
-```mermaid
-flowchart LR
-  outside["Strangers, outside PRs, clones, fetched pages, heard speech"]
-  upstream["Plugins, upstream pins, CI dependencies, a design-system pin"]
-  owner["Changes headed for main or ~/.claude"]
-  session["A steered session"]
-  readers["Readers of the tracker and other sessions"]
-
-  subgraph B1["Text into a session"]
-    T1["Text steers a session"]
-    T2["A session takes checkpoints alone"]
-  end
-  subgraph B2["Code that runs"]
-    T3["What you install and CI run"]
-    T4["Pinned design-system code"]
-  end
-  subgraph B3["Merges and installs"]
-    T5["The pact gets loosened"]
-    T6["Review rests on rules"]
-  end
-  subgraph B4["What leaves the machine"]
-    T7["Posts are public"]
-    T8["Who counts as you"]
-  end
-
-  outside --> B1
-  upstream --> B2
-  session --> B3
-  owner --> B3
-  session --> B4
-  B4 --> readers
-
-```
 
 ### Text into a session
 
@@ -131,16 +96,20 @@ setup, run with the owner's rights.
 
 **Controls:**
 
-- **GitHub.** Actions pinned to a full commit SHA in `gate.yml` and
-  `codeql.yml`; Dependabot's weekly action updates with a 14-day cooldown;
+- **GitHub.** Actions pinned to a full commit SHA in all four
+  workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot
   security updates. They hold for what the pins and queries cover; an update
   is a pull request, read like any change.
-- **The pact's tools.** `gate/tests/workflow.test.mjs` holds both workflows to
-  an exact allow-list: a read-only token, no secrets, no `pull_request_target`,
-  and `security-events: write` in one job only, skipped for Dependabot. It
-  holds only while the test itself is unchanged; a change to it is read like
-  any change. The Scriptorium page's policy (`builder/build.mjs`) sets
+- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all four
+  workflows to a read-only token, no secrets and no `pull_request_target`, and
+  `codeql.yml` and the two Claude files to an exact allow-list each:
+  `security-events: write` in one CodeQL job, skipped for Dependabot;
+  `id-token: write` in each Claude job, with no key in the repo. The
+  Console's federation rule bounds who gets an Anthropic token; each job's guard,
+  the action's actor check and Anthropic's workflow validation, who gets the write
+  token. It holds only while the test itself is unchanged; a change to it is read
+  like any change. The Scriptorium page's policy (`builder/build.mjs`) sets
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
@@ -163,7 +132,14 @@ Also accepted. What you install and CI run: the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
-with the owner's rights, and a crafted model could exploit a parser bug. Pinned design-system code: each re-pin is reviewed
+with the owner's rights, and a crafted model could exploit a parser bug; a
+Claude run that an allowed actor, or a session with an app key, starts
+reads anyone's text and spends Anthropic tokens; it can steer what Claude
+writes through the app's token, short of `main`; an allowed bot's comment that
+merely contains `@claude` starts one; the rule pins no ref or workflow, so any
+workflow on any branch of the owner's repos that an allowed actor starts can
+mint an Anthropic token (the service account's scope is the owner's to
+confirm); the review plugin is fetched unpinned. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs
@@ -266,8 +242,7 @@ accounts, unencrypted copies (the install's backups, kept-local reports,
 hand-off notes), a program already running as the owner that nothing in scope
 started, supplied or steered, and loss of work with no attacker. In a cloud
 session these copies sit in Anthropic's sandbox: out of scope,
-though code that reached it from outside stays in scope. What the machine makes
-from outside input stays outside input. The machine's antivirus, account
+though code that reached it from outside stays in scope. What the machine makes from outside input stays outside input. The machine's antivirus, account
 isolation and disk encryption hold it. Also out: the owner's own edits and
 account's edit in the browser; Claude Code, Anthropic's models and servers, and
 GitHub; the provider of a synced or backed-up copy, though
