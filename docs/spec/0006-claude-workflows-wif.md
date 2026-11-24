@@ -136,8 +136,9 @@ rule, or the two files, stops every run.
 - C1. `workflow.test.mjs` passes on the two files as this branch writes them,
   and the common lockdown still passes on every other file.
 - C2. Each refusal in W3 has a bad case, and each bad case fails on its plant.
-- C3. Neither file reads a secret, and the repo holds no `ANTHROPIC_API_KEY`
-  reference.
+- C3. Neither workflow reads a secret or sets a credential input
+  (`anthropic_api_key`, `claude_code_oauth_token`, `github_token`); the
+  names appear only in this spec and the gate's bad cases.
 - C4. CI's three jobs pass on the reviewed head.
 - C5. After merge, an `@claude` comment by an allowed actor gets an answer,
   and the Console's authentication history shows the exchange matched the
