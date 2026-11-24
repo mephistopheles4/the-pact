@@ -974,6 +974,7 @@ for (const [label, plant, says, only] of [
   ['changes the prompt', s => s.replace('--comment ', '--comment --dangerous '), 'holds another prompt than its own', ['claude-code-review.yml']],
   ['takes the prompt from the pull request', s => s.replace(/(prompt: ).*/, "$1'${{ github.event.pull_request.body }}'"), 'holds another prompt than its own', ['claude-code-review.yml']],
   ['widens the allowed tools', s => s.replace('mcp__github_inline_comment__create_inline_comment', 'Bash'), 'holds another claude_args than its own', ['claude-code-review.yml']],
+  ['drops the tool the review posts through', s => s.replace(',Bash(gh pr comment:*)', ''), 'holds another claude_args than its own', ['claude-code-review.yml']],
   ['lets the review merge', s => s.replace('Bash(gh pr list:*)', 'Bash(gh pr list:*),Bash(gh pr merge:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
   ['lets the review run any gh command', s => s.replace('Bash(gh pr view:*)', 'Bash(gh:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
   ['adds an argument', s => s.replace('--allowedTools', '--dangerously-skip-permissions --allowedTools'), 'holds another claude_args than its own', ['claude-code-review.yml']],
