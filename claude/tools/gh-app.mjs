@@ -8,11 +8,13 @@
 //   node gh-app.mjs gh --provider <p> -R <owner>/<name> -- <gh args>
 //   node gh-app.mjs status --provider <p> [--repo <folder>]
 //   node gh-app.mjs forget --provider <p>
+//   node gh-app.mjs refresh --provider <p>
 //
 // setup writes the absolute path of the Node it runs under into the gitconfig's
-// helper line; after a Node upgrade or move, run setup again to refresh it. Setup
-// deletes the downloaded key when it succeeds, so generate a new private key on the
-// app's GitHub page and pass that file as --key.
+// helper line; after a Node upgrade or move, run refresh under the new Node: it
+// checks the pin and rewrites that gitconfig from the pin and the stored key, and
+// makes no new key. Setup deletes the downloaded key when it succeeds, so running
+// setup again needs a new private key from the app's GitHub page.
 //
 // <p> is claude, codex or antigravity. No mode prints a token: mintToken is a
 // module export only, and git-credential get answers git on git's own pipe.
@@ -681,13 +683,7 @@ async function setup(io, { provider, appId, keyPath }) {
     const next = pinNow ?? { owner: me, apps: {} };
     next.apps[provider] = entry;
     writeText(io, pinPath(io.home), `${JSON.stringify(next, null, 2)}\n`);
-    const path = gitconfigPath(io.home, provider);
-    writeText(io, path, gitconfig);
-    const back = makeRun(io)('git', ['config', '--file', path, '--get-all', 'credential.https://github.com.helper']);
-    const want = gitconfig.split('\n').filter(l => l.startsWith('  helper =')).map(l => l.slice('  helper ='.length).trim());
-    const got = back.stdout.split(/\r?\n/).slice(0, -1);
-    const wantHelper = want[1].replace(/^"|"$/g, '').replaceAll('\\"', '"').replaceAll('\\\\', '\\');
-    if (!back.ok || got.length !== 2 || got[0] !== '' || got[1] !== wantHelper) refuse('gitconfig');
+    writeGitconfig(io, provider, gitconfig);
   } catch (e) {
     // Each put-back is tried on its own, so one that fails never leaves the others replaced.
     let incomplete = false;
@@ -725,6 +721,50 @@ async function setup(io, { provider, appId, keyPath }) {
   say(io, `setup: ${provider} pinned as ${entry.bot_login}`);
   say(io, `setup: key fingerprint ${fp}; match it on the app's key list`);
   cacheLines(io, 'setup', { ...dropped, unconfirmed: dropped.unconfirmed + (revoked === 'revoked' ? 0 : 1) });
+}
+
+/** Write a provider's gitconfig and read its helper lines back through git; a mismatch refuses, and the caller puts the old file back. */
+function writeGitconfig(io, provider, text) {
+  const path = gitconfigPath(io.home, provider);
+  writeText(io, path, text);
+  const back = makeRun(io)('git', ['config', '--file', path, '--get-all', 'credential.https://github.com.helper']);
+  const want = text.split('\n').filter(l => l.startsWith('  helper =')).map(l => l.slice('  helper ='.length).trim());
+  const got = back.stdout.split(/\r?\n/).slice(0, -1);
+  const wantHelper = want[1].replace(/^"|"$/g, '').replaceAll('\\"', '"').replaceAll('\\\\', '\\');
+  if (!back.ok || got.length !== 2 || got[0] !== '' || got[1] !== wantHelper) refuse('gitconfig');
+}
+
+/**
+ * refresh: rewrite a pinned provider's gitconfig for the Node this runs under,
+ * after the pin check, from the pin and the stored key. It makes no key, mints no
+ * token and writes nothing else; a failed write puts the old file back.
+ */
+async function refresh(io, provider) {
+  const pin = readPin(io);
+  const entry = pin.apps[provider];
+  if (!entry) refuse('pin/unpinned');
+  if (!io.credStore.read(keyTarget(provider))) refuse('key/missing');
+  checkPin(io, pin, provider);
+  const text = gitconfigText({ home: io.home, nodePath: io.execPath, app: entry, provider, xdg: io.fs.existsSync(join(io.home, '.config', 'git', 'config')) });
+  const path = gitconfigPath(io.home, provider);
+  let before = null;
+  try {
+    before = io.fs.readFileSync(path, 'utf8');
+  } catch {
+    // no gitconfig yet: a failed write removes the new one
+  }
+  try {
+    writeGitconfig(io, provider, text);
+  } catch (e) {
+    try {
+      if (before === null) io.fs.unlinkSync(path);
+      else writeText(io, path, before);
+    } catch {
+      say(io, 'refresh: the old gitconfig could not be put back; run status, then refresh again', 'err');
+    }
+    throw e instanceof Refusal ? e : new Refusal('gitconfig');
+  }
+  say(io, `refresh: ${provider} gitconfig written for ${slash(io.execPath)}`);
 }
 
 // ---------------------------------------------------------------- git-credential
@@ -1002,6 +1042,7 @@ const FLAGS = Object.freeze({
   gh: ['--provider', '-R'],
   status: ['--provider', '--repo'],
   forget: ['--provider'],
+  refresh: ['--provider'],
 });
 
 /** The arguments as { mode, flags, rest, after }, or a usage refusal. Each flag once; a flag's value never starts with a dash. */
@@ -1049,6 +1090,10 @@ export async function main(argv, io = realIo()) {
     if (mode === 'gh') return await ghMode(io, provider, flags['-R'] ?? '', after);
     if (mode === 'forget') {
       await forget(io, provider);
+      return 0;
+    }
+    if (mode === 'refresh') {
+      await refresh(io, provider);
       return 0;
     }
     return await status(io, provider, flags['--repo']);

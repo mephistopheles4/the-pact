@@ -1034,3 +1034,56 @@ test('an error with a message never reaches the output: a thrown Error prints th
   await main(['status', '--provider', 'claude'], v.io);
   assert.ok(!leakSurface(v).includes('kkkkkkkk'));
 });
+
+// ---------------------------------------------------------------- PACT-104: refresh
+
+const STALE = '[credential "https://github.com"]\n  helper =\n  helper = "!\\"C:/old/node.exe\\" x git-credential --provider claude"\n';
+const refreshed = t => {
+  const w = world(t);
+  readBack(w);
+  writeFileSync(gitconfigFile(w), STALE);
+  return w;
+};
+
+// PACT-104 R1: refresh rewrites the gitconfig for the Node it runs under, from the pin and the stored key, and makes or mints nothing.
+test('refresh rewrites the gitconfig for the Node it runs under, after the pin check, and mints no token and makes no key', async t => {
+  const w = refreshed(t);
+  const keyBefore = Buffer.from(w.store.get('the-pact/gh-app/claude/key'));
+  const pinBefore = readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8');
+  assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 0, printed(w).err);
+  assert.equal(readFileSync(gitconfigFile(w), 'utf8'), gitconfigText({ home: w.home, nodePath: NODE, provider: 'claude', app: readPinFile(w).apps.claude, xdg: false }));
+  assert.ok(w.spy.spawns.some(s => s.file === 'gh' && s.args.includes(`apps/${SLUG}`)), 'the pin was checked');
+  assert.ok(w.spy.spawns.some(s => s.file === 'git' && s.args[0] === 'config'), 'the helper line was read back');
+  assert.equal(w.spy.fetches.length, 0, 'no token minted');
+  assert.deepEqual(w.store.get('the-pact/gh-app/claude/key'), keyBefore, 'the key is unchanged');
+  assert.equal(w.store.size, 1, 'nothing else stored');
+  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), pinBefore, 'the pin is unchanged');
+});
+
+// PACT-104 R2: refresh refuses, writing nothing, without a pinned entry, a key or a passing pin check.
+{
+  const rows = [
+    { id: 'unpinned', reason: 'pin/unpinned', provider: 'codex' },
+    { id: 'no-key', reason: 'key/missing', setup: w => { w.store.delete('the-pact/gh-app/claude/key'); } },
+    { id: 'pin-check-cannot-run', reason: 'pin/unavailable', setup: w => { w.state.ghReadFails.add('user'); } },
+    { id: 'pin-check-fails', reason: 'pin/check', setup: w => { w.state.bot.type = 'User'; } },
+  ];
+  for (const r of rows) {
+    test(`refresh refuses: ${r.id}: the gitconfig is left as it was`, async t => {
+      const w = refreshed(t);
+      r.setup?.(w);
+      assert.equal(await main(['refresh', '--provider', r.provider ?? 'claude'], w.io), 1);
+      assert.ok(printed(w).err.includes(REASONS[r.reason]), printed(w).err);
+      assert.equal(readFileSync(gitconfigFile(w), 'utf8'), STALE);
+    });
+  }
+}
+
+// PACT-104 R3: a helper line that reads back wrong refuses and puts the old gitconfig back.
+test('refresh whose helper line reads back wrong refuses and puts the old gitconfig back', async t => {
+  const w = refreshed(t);
+  w.state.git = () => ({ status: 0, stdout: '\n!evil\n', stderr: '' });
+  assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 1);
+  assert.ok(printed(w).err.includes(REASONS.gitconfig));
+  assert.equal(readFileSync(gitconfigFile(w), 'utf8'), STALE);
+});
