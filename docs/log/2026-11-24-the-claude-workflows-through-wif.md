@@ -18,6 +18,8 @@
 
 **Rolling back:** revert the merge and delete the federation rule in the Console; either stops every run. The allow-list can stay: it asks for neither file to be present.
 
+**Follow-up, the same day.** The first review after the merge authenticated and ran, then posted nothing: `claude_args` allowed only the inline-comment tool, and the code-review plugin also needs `gh` to read the pull request and post. The review now allows the inline-comment tool and the three `gh pr` commands the plugin's steps use, held by the gate; the plugin's other declared tools (issue reads, search) stay out on the security pair's reading. The first exchange also failed on the rule's subject prefix, which GitHub writes with the account and repository IDs; that was fixed in the Console.
+
 ## Record
 
 - The ticket: PACT-101 on Linear.
