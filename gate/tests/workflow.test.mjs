@@ -333,7 +333,7 @@ const APPS = ['mephistos-homunculus', 'mephistos-euphorion', 'mephistos-wagner']
 const IN_LIST = f =>
   "(contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event." + f + ".author_association) || contains(fromJSON('[" + APPS.map(a => '\"' + a + '[bot]\"').join(',') + "]'), github.event." + f + '.user.login))';
 const MENTION = f => 'contains(github.event.' + f + ".body, '@claude')";
-// The guards are held exactly as the files write them: a pusher can edit a guard on a branch, the Console's rule still holds (W2).
+// The guards are held exactly as the files write them: each guard is a control: it bounds who gets the Claude app's write token, which the Console's rule does not (W2).
 const ANSWER_GUARD =
   [
     "(github.event_name == 'issue_comment' && " + MENTION('comment') + ' && ' + IN_LIST('comment') + ')',

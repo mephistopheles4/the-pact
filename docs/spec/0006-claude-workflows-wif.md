@@ -44,7 +44,8 @@ has one.
    the GitHub write token: the action gets that through a separate OIDC
    exchange (audience `claude-code-github-action`) that never references the
    rule. Who gets it rests on the job guard, the action's own actor check
-   (write access, or `allowed_bots`) and Anthropic's workflow validation.
+   (write access, or `allowed_bots`) and Anthropic's workflow validation
+   (vendor behaviour, unverified here).
 3. **The job guard is a control.** Each job runs only when the
    triggering author's association is `OWNER`, `MEMBER` or `COLLABORATOR`,
    or the author's login is one of the owner's three agent apps
@@ -148,7 +149,7 @@ run.
 - C2. Each refusal in W3 has a bad case, and each bad case fails on its plant.
 - C3. Neither workflow reads a secret or sets a credential input
   (`anthropic_api_key`, `claude_code_oauth_token`, `github_token`); the
-  names appear only in this spec, the log and the gate's bad cases.
+  two workflow files hold none of those names.
 - C4. CI's three jobs pass on the reviewed head.
 - C5. After merge, an `@claude` comment by an allowed actor gets an answer,
   and the Console's authentication history shows the exchange matched the
