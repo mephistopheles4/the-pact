@@ -5,9 +5,9 @@ With the agent-identity switch on, an app pinned in
 `~/.claude/pact/tools/` beside the poster (the pin's definition,
 [agent-identity](agent-identity.md)), the poster is in **app mode**: every post
 and edit goes out as the bot of the pinned app whose bot login is the post's
-`as`, else `claude`'s, on a `post`-set installation token the helper mints for
-that provider and the one repo. With any of those absent, or no app named and no
-`claude` entry, the poster is as [poster.md](poster.md) says,
+`as`, on a `post`-set installation token the helper mints for that provider and
+the one repo; a post that names no pinned bot is refused. With any of those
+absent, or no app in the pin, the poster is as [poster.md](poster.md) says,
 posting as your `gh` login, and none of this applies: a checkout's copy, with the
 switch off, stays yours. A `github.json` that isn't the pinned shape stops the
 run (`pin/check`) and never reads as owner mode. The home folder is the

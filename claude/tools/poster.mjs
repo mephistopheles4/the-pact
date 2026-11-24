@@ -2960,23 +2960,24 @@ function postedAs(argv) {
 /**
  * The provider a post goes out as (PACT-104): the first, in the helper's provider
  * order, whose pinned bot login is `as` exactly; else `claude` when it is pinned,
- * whose `as/not-app` check then refuses a mismatch; else null, the owner's mode.
- * The pick binds nothing: `prepare` checks `as` against the picked bot again.
+ * else the first pinned provider, whose `as/not-app` check then refuses the
+ * mismatch; null, the owner's mode, only when no app is pinned. The pick binds
+ * nothing: `prepare` checks `as` against the picked bot again.
  */
 export function pickProvider(pin, providers, as) {
   const named = as === undefined ? undefined : providers.find(p => pin.apps[p]?.bot_login === as);
   if (named !== undefined) return named;
-  return pin.apps.claude === undefined ? null : 'claude';
+  if (pin.apps.claude !== undefined) return 'claude';
+  return providers.find(p => pin.apps[p] !== undefined) ?? null;
 }
 
 /**
- * One run of the poster that posts as the pinned app the post's `as` names, else as `claude` when it is pinned (S8, PACT-104).
+ * One run of the poster that posts as the pinned app the post's `as` names, and refuses any other post while an app is pinned (S8, PACT-104).
  * `io` is `post`'s, with `io.app`: has() says whether `github.json`, the helper
  * the install put under the home folder and the helper beside the poster all
  * exist, load() imports the helper, helperIo(mod)
  * is the helper's own io, and makeGh(env) is a gh runner for that environment.
- * With no `io.app`, or any file absent, or no `claude` entry in the pin, it
- * is `post`. Otherwise the pin is checked against GitHub's own records and a
+ * With no `io.app`, or any file absent, or no app in the pin, it is `post`. Otherwise the pin is checked against GitHub's own records and a
  * `post`-set token minted, both before anything is sent; a pin that fails, or a
  * check that cannot run, stops the run, and the run never falls back to the
  * owner. Every await and the import sit inside the one catch, which tells only

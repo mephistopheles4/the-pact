@@ -224,7 +224,7 @@ test('C6: with no io.app, no pin file or helper, or a pin with no claude entry, 
   const cases = [
     ['no io.app, with a pin file present', { app: false }],
     ['no pin file or no helper beside the poster', { has: () => false }],
-    ['a pin with no claude entry', { prepare: w => writePin(w, { codex: { app_id: 7, slug: 'x-codex', bot_login: 'x-codex[bot]', bot_id: 8 } }) }],
+    ['a pin with no app in it', { prepare: w => writePin(w, {}) }],
   ];
   for (const [what, o] of cases) {
     const s = setup(t, { app: o.app, has: o.has });
@@ -286,17 +286,18 @@ test('PACT-104: with claude and codex pinned, a post with no as, as the owner or
     const { s } = pinnedAs(t, 'codex');
     const r = await run(t, s, 'issue-comment', note, { as });
     assert.ok(refusedBy(r, 'as/not-app', 'as'), `${as}: ${text(r)}`);
-    assert.equal(s.gh.calls.length + s.hw.spy.fetches.length, 0, `${as}: nothing read, minted or sent`);
+    assert.equal(s.gh.calls.length + s.hw.spy.fetches.length + s.hw.spy.spawns.length, 0, `${as}: nothing read, minted or sent`);
   }
 });
 
-// PACT-104 C4: with no claude entry and no match, the run is the owner's, as before
-test('PACT-104: with only codex pinned, a post with no as is the owner\'s, and the helper is not called', async t => {
-  const { s } = pinnedAs(t, 'codex', { withClaude: false });
-  const r = await run(t, s, 'issue-comment', note, { as: null });
-  assert.equal(r.code, 0, text(r));
-  assert.equal(last(r), `RESULT: verified issue-comment https://github.com/${TARGET}/issues/5#issuecomment-9001 as ${OWNER}`);
-  assert.equal(s.hw.spy.fetches.length + s.hw.spy.spawns.length, 0);
+// PACT-104 C4: with only another app pinned, a post that names none is refused, never the owner's
+test('PACT-104: with only codex pinned, a post with no as, as the owner or as an unpinned bot is refused as/not-app', async t => {
+  for (const as of [null, OWNER, 'another-app[bot]']) {
+    const { s } = pinnedAs(t, 'codex', { withClaude: false });
+    const r = await run(t, s, 'issue-comment', note, { as });
+    assert.ok(refusedBy(r, 'as/not-app', 'as'), `${as}: ${text(r)}`);
+    assert.equal(s.gh.calls.length + s.hw.spy.fetches.length + s.hw.spy.spawns.length, 0, `${as}: nothing read, minted or sent`);
+  }
 });
 
 // PACT-104 C5: a failed pin check or mint for the picked app stops the run, with no fall back to claude or the owner
@@ -513,8 +514,11 @@ test('the poster file run as a child decides its mode from the pin file under it
   assert.equal(asBot.status, 0, asBot.stdout + asBot.stderr);
   assert.ok(asBot.stdout.split('\n').includes(DRY_APP), asBot.stdout);
   const other = child(t, { pin: PIN({ codex: { app_id: 7, slug: 'x-codex', bot_login: 'x-codex[bot]', bot_id: 8 } }) });
-  assert.equal(other.status, 0, other.stdout + other.stderr);
-  assert.ok(!other.stdout.includes(DRY_APP));
+  assert.equal(other.status, 2, other.stdout + other.stderr);
+  assert.ok(other.stdout.split('\n').includes('REFUSED as/not-app as'), other.stdout);
+  const empty = child(t, { pin: PIN({}) });
+  assert.equal(empty.status, 0, empty.stdout + empty.stderr);
+  assert.ok(!empty.stdout.includes(DRY_APP));
   const bad = child(t, { pin: 'not json' });
   assert.equal(bad.status, 2, bad.stdout + bad.stderr);
   assert.ok(bad.stdout.split('\n').includes('REFUSED pin/check pin'), bad.stdout);
