@@ -192,8 +192,8 @@ anything else a session sends off the machine: a push, a fetch or search
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
   Its text fields and edit checks catch accidents only and are not a control.
-  With an app pinned it refuses a post as anything but the `claude` app, for
-  posts sent through it.
+  With an app pinned it refuses a post as anything but the pinned bot the
+  post's `as` names, for posts sent through it.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
   each token it mints to one repo and a permission set, and refuses a repo
   outside the pinned owner. It holds against accidents only: any process

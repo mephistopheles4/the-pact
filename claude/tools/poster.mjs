@@ -51,8 +51,9 @@
 // tracker comment a quote cites (post/tracker). The scans are a backstop for
 // accidents, not a guard against a session that sets out to get past them.
 //
-// App mode (#599, T3): with the `claude` app pinned in ~/.claude/pact/github.json
-// and gh-app.mjs beside this file, `postAsApp` posts as the app's bot on a token
+// App mode (#599, T3, PACT-104): with an app pinned in ~/.claude/pact/github.json
+// and gh-app.mjs beside this file, `postAsApp` posts as the pinned app whose bot
+// login is the post's `as` (else as `claude`, when it is pinned) on a token
 // the helper mints, checks the pin against GitHub's records first, and reads as
 // the owner's own gh. `post` is the owner's run, unchanged and synchronous. See
 // docs/poster.md, Posting as an agent app.
@@ -2942,14 +2943,41 @@ const stoppedApp = (rule, e) => ({
   lines: [`REFUSED ${rule} ${rule === 'pin/check' ? 'pin' : 'token'}`, `NOTE: gh-app said ${idOf(e)}; nothing was sent, and nothing was posted as the owner`, 'RESULT: refused 1'],
 });
 
+/** The post file's `as`, or undefined when it can't be read or isn't a string; `prepare` refuses such a file on its own read (PACT-104). */
+function postedAs(argv) {
+  try {
+    const parsed = parseArgs(argv);
+    const file = parsed.options.get('post');
+    if (parsed.refusals.length || typeof file !== 'string') return undefined;
+    const r = readText(file);
+    const as = r.rule ? undefined : JSON.parse(r.text)?.as;
+    return typeof as === 'string' ? as : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
- * One run of the poster that posts as the `claude` app when it is pinned (S8).
+ * The provider a post goes out as (PACT-104): the first, in the helper's provider
+ * order, whose pinned bot login is `as` exactly; else `claude` when it is pinned,
+ * else the first pinned provider, whose `as/not-app` check then refuses the
+ * mismatch; null, the owner's mode, only when no app is pinned. The pick binds
+ * nothing: `prepare` checks `as` against the picked bot again.
+ */
+export function pickProvider(pin, providers, as) {
+  const named = as === undefined ? undefined : providers.find(p => pin.apps[p]?.bot_login === as);
+  if (named !== undefined) return named;
+  if (pin.apps.claude !== undefined) return 'claude';
+  return providers.find(p => pin.apps[p] !== undefined) ?? null;
+}
+
+/**
+ * One run of the poster that posts as the pinned app the post's `as` names, and refuses any other post while an app is pinned (S8, PACT-104).
  * `io` is `post`'s, with `io.app`: has() says whether `github.json`, the helper
  * the install put under the home folder and the helper beside the poster all
  * exist, load() imports the helper, helperIo(mod)
  * is the helper's own io, and makeGh(env) is a gh runner for that environment.
- * With no `io.app`, or any file absent, or no `claude` entry in the pin, it
- * is `post`. Otherwise the pin is checked against GitHub's own records and a
+ * With no `io.app`, or any file absent, or no app in the pin, it is `post`. Otherwise the pin is checked against GitHub's own records and a
  * `post`-set token minted, both before anything is sent; a pin that fails, or a
  * check that cannot run, stops the run, and the run never falls back to the
  * owner. Every await and the import sit inside the one catch, which tells only
@@ -2963,14 +2991,15 @@ export async function postAsApp(argv, io) {
     mod = await io.app.load();
     const hio = io.app.helperIo(mod);
     const pin = mod.readPin(hio);
-    const entry = pin.apps.claude;
-    if (entry === undefined) return post(argv, io);
+    const provider = pickProvider(pin, mod.PROVIDERS, postedAs(argv));
+    if (provider === null) return post(argv, io);
+    const entry = pin.apps[provider];
     const app = { bot: entry.bot_login, owner: pin.owner };
     const s = prepare(argv, io, app);
     if (s.result) return s.result;
-    mod.checkPin(hio, pin, 'claude');
+    mod.checkPin(hio, pin, provider);
     rule = 'app/token';
-    const token = await mod.mintToken({ provider: 'claude', repo: s.plan.repo, set: 'post' }, hio);
+    const token = await mod.mintToken({ provider, repo: s.plan.repo, set: 'post' }, hio);
     if (typeof token !== 'string' || token === '') throw new TypeError('no token');
     const clean = mod.cleanEnv(io.env);
     const write = io.app.makeGh({ ...clean, GH_TOKEN: token });
