@@ -594,8 +594,8 @@ function iniValue(v, force = false) {
 
 /**
  * The gitconfig setup writes for a provider, as text: the text the install compares against.
- * `nodePath` is the Node setup runs under (process.execPath), so a Node upgrade is
- * followed by running setup again, which writes the new path.
+ * `nodePath` is the Node setup or refresh runs under (process.execPath), so a Node
+ * upgrade is followed by running refresh, which writes the new path.
  */
 export function gitconfigText({ home, nodePath, app, provider, xdg = false }) {
   const h = slash(home);

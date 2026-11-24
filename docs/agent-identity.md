@@ -73,9 +73,8 @@ With the switch on, before any write:
 - The gitconfig equals the text setup writes, which the install computes with its
   own copy of `gitconfigText` from `gh-app.mjs` (a test holds them equal), under
   its own Node, which must be an absolute path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
-  with the part that differs (node path, include list or other lines) and "re-run
-  setup", and refuses on a `no`. It never prints a line of the file. After a new
-  XDG git config, or a change of Node path, run `gh-app.mjs refresh`.
+  with the part that differs (node path, include list or other lines) and "run
+  gh-app.mjs refresh", and refuses on a `no`. It never prints a line of the file.
 - Your own `env` doesn't already set either key. The install never overwrites it.
 
 A `settings.json` that isn't strict JSON is never changed: the dry run warns that

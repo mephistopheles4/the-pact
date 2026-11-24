@@ -520,9 +520,9 @@ for (const row of [
   { id: 'pin-without-claude', opts: { pin: `${JSON.stringify({ owner: { login: 'o', id: 1 }, apps: {} })}\n` }, says: /holds no claude app/ },
   { id: 'pin-not-json', opts: { pin: '{' }, says: /holds no claude app/ },
   { id: 'no-gitconfig', opts: { gitconfig: null }, says: /gitconfig is missing; run gh-app\.mjs setup first/ },
-  { id: 'other-node', opts: { gitconfig: h => gitconfigFor(h).replace(process.execPath.replaceAll('\\', '/'), '/usr/bin/other') }, says: /gitconfig as expected: no: node path differs, re-run setup/ },
-  { id: 'extra-include', opts: { gitconfig: h => gitconfigFor(h).replace('[user]', '  path = /elsewhere/config\n[user]') }, says: /gitconfig as expected: no: include list differs, re-run setup/ },
-  { id: 'other-line', opts: { gitconfig: h => `${gitconfigFor(h)}[core]\n  hooksPath = /x\n` }, says: /gitconfig as expected: no: other lines differ, re-run setup/ },
+  { id: 'other-node', opts: { gitconfig: h => gitconfigFor(h).replace(process.execPath.replaceAll('\\', '/'), '/usr/bin/other') }, says: /gitconfig as expected: no: node path differs, run gh-app.mjs refresh/ },
+  { id: 'extra-include', opts: { gitconfig: h => gitconfigFor(h).replace('[user]', '  path = /elsewhere/config\n[user]') }, says: /gitconfig as expected: no: include list differs, run gh-app.mjs refresh/ },
+  { id: 'other-line', opts: { gitconfig: h => `${gitconfigFor(h)}[core]\n  hooksPath = /x\n` }, says: /gitconfig as expected: no: other lines differ, run gh-app.mjs refresh/ },
   { id: 'owner-config-global', opts: { env: { GIT_CONFIG_GLOBAL: 'D:/mine' } }, says: /settings\.json already sets env GIT_CONFIG_GLOBAL/ },
   { id: 'owner-terminal-prompt', opts: { env: { GIT_TERMINAL_PROMPT: '1' } }, says: /settings\.json already sets env GIT_TERMINAL_PROMPT/ },
 ]) {
@@ -545,7 +545,7 @@ test('agent-identity on: an XDG git config added after setup is refused, and one
   mkdirSync(dirname(xdg), { recursive: true });
   writeFileSync(xdg, '[core]\n  autocrlf = false\n');
   const dry = install(repo, h);
-  refused(dry, /gitconfig as expected: no: include list differs, re-run setup/);
+  refused(dry, /gitconfig as expected: no: include list differs, run gh-app.mjs refresh/);
   writeFileSync(join(h, 'pact', 'gh-app-claude.gitconfig'), gitconfigFor(h));
   assert.match(gitconfigFor(h), /\.config\/git\/config/, 'the rewritten gitconfig includes the XDG file');
   passed(install(repo, h));
@@ -556,7 +556,7 @@ test('the gitconfig refusal prints only the fixed line, never a line of the file
   const repo = makeRepo(t);
   const h = identityHome(t, true, { gitconfig: hh => `${gitconfigFor(hh)}[core]\n  hooksPath = CANARY-LINE\n` });
   const r = install(repo, h);
-  refused(r, /gitconfig as expected: no: other lines differ, re-run setup/);
+  refused(r, /gitconfig as expected: no: other lines differ, run gh-app.mjs refresh/);
   assert.ok(!r.out.includes('CANARY-LINE'));
 });
 

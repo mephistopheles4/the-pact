@@ -1503,7 +1503,7 @@ export function identityGitconfigVerdict(actual, expected) {
 }
 
 /** The fixed line the dry run prints for the gitconfig check, with the verdict's parts named when it fails. */
-export const identityGitconfigLine = v => `gitconfig as expected: ${v.ok ? 'yes' : `no: ${v.parts.join(', ')}, re-run setup`}`;
+export const identityGitconfigLine = v => `gitconfig as expected: ${v.ok ? 'yes' : `no: ${v.parts.join(', ')}, run gh-app.mjs refresh`}`;
 
 /** Two deny plans as the one `deny` that mergeSettings and settingsChanges take: adds and drops joined; each record is kept apart by the caller. */
 export const joinDeny = (a, b) => ({ add: [...a.add, ...b.add], drop: [...a.drop, ...b.drop], record: [] });
