@@ -7,10 +7,12 @@
 // reads the files' text; it can't see what GitHub does with them, which the
 // S15 CI probe records.
 //
-// The CodeQL workflow (#239, #244) is the one file that may ask for more: it
-// uploads code-scanning results, so its one job holds security-events: write.
-// It is held to an exact allow-list instead of the common lockdown. Its
-// configuration leaves the gate's test files out of the scan, which is safe
+// The CodeQL workflow (#239, #244) may ask for more: it uploads code-scanning
+// results, so its one job holds security-events: write. The two Claude
+// workflows (spec 0006) may too: each job holds id-token: write, to trade
+// GitHub's OIDC token for an Anthropic token, and holds no secret. Each of the
+// three is held to an exact allow-list instead of the common lockdown. The
+// CodeQL configuration leaves the gate's test files out of the scan, which is safe
 // only while nothing outside gate/tests/ loads a file inside it; the premise
 // test below checks that.
 import assert from 'node:assert/strict';
@@ -324,6 +326,131 @@ function codeqlProblems(src, gateSrc) {
   return [...new Set(out)];
 }
 
+// Spec 0006 W3, W4: the two Claude workflows, each held to an exact allow-list of its own. Neither reads a secret:
+// each run trades GitHub's OIDC token for an Anthropic token through Workload Identity Federation.
+const IN_LIST = f => "contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event." + f + '.author_association)';
+const MENTION = f => 'contains(github.event.' + f + ".body, '@claude')";
+// The guards are held exactly as the files write them: a pusher can edit a guard on a branch, the Console's rule still holds (W2).
+const ANSWER_GUARD =
+  [
+    "(github.event_name == 'issue_comment' && " + MENTION('comment') + ' && ' + IN_LIST('comment') + ')',
+    "(github.event_name == 'pull_request_review_comment' && " + MENTION('comment') + ' && ' + IN_LIST('comment') + ')',
+    "(github.event_name == 'pull_request_review' && " + MENTION('review') + ' && ' + IN_LIST('review') + ')',
+    "(github.event_name == 'issues' && (" + MENTION('issue') + " || contains(github.event.issue.title, '@claude')) && " + IN_LIST('issue') + ')',
+  ].join(' ||\n') + '\n';
+const REVIEW_GUARD = 'github.event.pull_request.head.repo.full_name == github.repository && ' + IN_LIST('pull_request');
+const FEDERATION = {
+  anthropic_federation_rule_id: [/^fdrl_[0-9A-Za-z]+$/, 'fdrl_ and letters or digits'],
+  anthropic_organization_id: [/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, 'of a UUID'],
+  anthropic_service_account_id: [/^svac_[0-9A-Za-z]+$/, 'svac_ and letters or digits'],
+};
+const CLAUDE = {
+  'claude.yml': {
+    name: 'claude',
+    job: 'claude',
+    on: { issue_comment: ['created'], pull_request_review_comment: ['created'], issues: ['opened', 'assigned'], pull_request_review: ['submitted'] },
+    permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', actions: 'read', 'id-token': 'write' },
+    guard: ANSWER_GUARD,
+    inputs: { additional_permissions: 'actions: read\n' },
+  },
+  'claude-code-review.yml': {
+    name: 'claude-code-review',
+    job: 'claude-review',
+    on: { pull_request: ['opened', 'synchronize', 'ready_for_review', 'reopened'] },
+    permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', 'id-token': 'write' },
+    guard: REVIEW_GUARD,
+    inputs: {
+      plugin_marketplaces: 'https://github.com/anthropics/claude-code.git',
+      plugins: 'code-review@claude-code-plugins',
+      prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}',
+      claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"',
+    },
+  },
+};
+/** A value with every map's keys in order, so two maps compare by what they hold. */
+const sorted = v => (isMap(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, sorted(x)])) : v);
+const sameSet = (a, b) => same(sorted(a), sorted(b));
+
+/**
+ * Where one of the two Claude workflows breaks its allow-list, as plain
+ * sentences; empty when it keeps it. 'which' is the file's name, and its
+ * values are CLAUDE's. Every level holds exactly the keys W3 names; the guard
+ * and the action's inputs are the file's own, and the federation IDs only have
+ * the shape of their kind. 'gateSrc' is gate.yml's text, whose checkout pin
+ * this file's must match.
+ */
+function claudeProblems(src, gateSrc, which) {
+  const spec = CLAUDE[which];
+  if (!spec) throw new Error('no Claude allow-list for ' + which);
+  const code = codeOf(src);
+  const out = [];
+  const extras = (where, obj, keys) => {
+    if (!isMap(obj)) return out.push(where + ' is not a map');
+    for (const k of Object.keys(obj)) if (!keys.includes(k)) out.push(extraKey(where, k));
+    for (const k of keys) if (!Object.hasOwn(obj, k)) out.push(where + ' lacks ' + k);
+  };
+  if (/pull_request_target|workflow_run/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
+  if (/^\s*(?:-\s+)?run:/m.test(code)) out.push('runs a shell command');
+  if (/^\s*(?:-\s+)?env:/m.test(code)) out.push('sets environment variables');
+  if (/\bsecrets\b|\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/.test(code)) out.push('reads a secret or the token');
+  if (/upload-artifact|\bcache\b/.test(code)) out.push('uploads or caches the workspace');
+  if (yamlFormUsed(code)) out.push('uses a YAML anchor, alias, merge key or flow mapping');
+  let w;
+  try {
+    w = readYaml(code);
+  } catch (e) {
+    return [...out, 'is not in the YAML the check reads: ' + e.message];
+  }
+
+  extras('the file', w, ['name', 'on', 'permissions', 'jobs']);
+  if (w.name !== spec.name) out.push('is not named ' + spec.name);
+  const on = Object.fromEntries(Object.entries(spec.on).map(([event, types]) => [event, { types }]));
+  if (!sameSet(w.on, on)) out.push('runs on other triggers or event types than its own');
+  if (!same(w.permissions, { contents: 'read' })) out.push('asks for more than read access to the contents at the top level');
+
+  if (!isMap(w.jobs) || !same(Object.keys(w.jobs), [spec.job])) out.push('holds a job other than its own');
+  const job = isMap(w.jobs?.[spec.job]) ? w.jobs[spec.job] : {};
+  extras('the job', job, ['if', 'runs-on', 'timeout-minutes', 'permissions', 'steps']);
+  if (!sameSet(job.permissions, spec.permissions)) out.push('gives the job other permissions than its own');
+  if (job.if !== spec.guard) out.push('runs its job under another guard than its own');
+  if (job['runs-on'] !== 'ubuntu-24.04' || !/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push('does not run on ubuntu-24.04 with a time limit');
+
+  const steps = Array.isArray(job.steps) ? job.steps : [];
+  const actions = ['actions/checkout', 'anthropics/claude-code-action'];
+  if (steps.length !== actions.length || !steps.every((s, i) => isMap(s) && String(s.uses ?? '').startsWith(actions[i] + '@'))) {
+    out.push('holds other steps than checkout and claude-code-action, in that order');
+  }
+  const pins = [];
+  actions.forEach((action, i) => {
+    const step = steps[i];
+    if (!isMap(step)) return;
+    const pin = new RegExp('^' + action + '@(' + SHA + ')$').exec(step.uses ?? '');
+    if (!pin) out.push('step ' + (i + 1) + ' is not ' + action + ' pinned to a full commit SHA');
+    pins.push(pin?.[1]);
+    extras('step ' + (i + 1), step, ['uses', 'with']);
+  });
+  const gatePin = new RegExp('uses: actions/checkout@(' + SHA + ')').exec(codeOf(gateSrc))?.[1];
+  if (pins[0] && pins[0] !== gatePin) out.push('pins checkout to another commit than gate.yml');
+
+  const [checkout, action] = steps.map(s => (isMap(s?.with) ? s.with : undefined));
+  if (checkout) {
+    extras("step 1's with", checkout, ['fetch-depth', 'persist-credentials']);
+    if (Object.hasOwn(checkout, 'fetch-depth') && !/^\d+$/.test(checkout['fetch-depth'])) out.push("step 1's fetch-depth is not a number");
+    if (checkout['persist-credentials'] !== 'false') out.push('leaves the token in the checkout');
+  }
+  if (action) {
+    extras("the action's with", action, [...Object.keys(FEDERATION), ...Object.keys(spec.inputs)]);
+    for (const [key, [shape, name]] of Object.entries(FEDERATION)) {
+      if (Object.hasOwn(action, key) && !shape.test(action[key])) out.push(key + ' does not have the shape ' + name);
+    }
+    for (const [key, value] of Object.entries(spec.inputs)) {
+      if (Object.hasOwn(action, key) && action[key] !== value) out.push('holds another ' + key + ' than its own');
+    }
+    if (['anthropic_api_key', 'claude_code_oauth_token'].some(k => Object.hasOwn(action, k))) out.push('sets a credential that takes precedence over federation');
+  }
+  return [...new Set(out)];
+}
+
 // A file allowed a load the check can't read, with why it can't load a test file.
 const UNREAD_LOADS = new Map([['gate/install-run.mjs', "loads a gate module's core from the staged copy, by names the runner holds; the install stages no test file"]]);
 
@@ -363,12 +490,12 @@ function premiseProblems(files) {
 
 // #356: a control character but a tab or a line feed (C0, DEL and C1, the QA pair's read), a lone carriage return and next line among them, or a Unicode line break.
 const BREAKS = /[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]/;
-/** Where the workflow folder breaks the lockdown: the gate workflow's own, the CodeQL workflow's allow-list, every other file's common lockdown, and no other job named gate or gate-windows. */
+/** Where the workflow folder breaks the lockdown: the gate workflow's own, the allow-lists of the CodeQL workflow and the two Claude workflows, every other file's common lockdown, and no other job named gate or gate-windows. */
 function folderProblems(files) {
   const out = [];
   if (!files.has('gate.yml')) out.push('has no gate.yml');
   for (const [name, src] of files) {
-    const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : commonProblems(src);
+    const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : commonProblems(src);
     out.push(...problems.map(p => `${name} ${p}`));
     // #356: the reader splits lines on a line feed alone, so any other break, or a control character but a tab, could hide a key from it.
     if (BREAKS.test(src.replace(/\r\n/g, '\n'))) out.push(`${name} holds a line break or control character other than a line feed`);
@@ -655,6 +782,222 @@ for (const [label, plant, says] of [
     const problems = codeqlProblems(planted, readFileSync(WORKFLOW, 'utf8'));
     assert.ok(problems.some(p => (says instanceof RegExp ? says.test(p) : p === says)), problems.join('\n'));
   });
+}
+
+// Spec 0006 W3, W4: each Claude workflow is held to its own allow-list. Each plant is run against both files unless the row names one.
+const CLAUDE_FILES = ['claude.yml', 'claude-code-review.yml'];
+const claudeSrc = file => readFileSync(join(WORKFLOWS, file), 'utf8');
+const CL = {
+  triggers: 'runs on other triggers or event types than its own',
+  hot: 'runs on a trigger that holds secrets or a write token',
+  top: 'asks for more than read access to the contents at the top level',
+  jobs: 'holds a job other than its own',
+  perms: 'gives the job other permissions than its own',
+  guard: 'runs its job under another guard than its own',
+  runner: 'does not run on ubuntu-24.04 with a time limit',
+  steps: 'holds other steps than checkout and claude-code-action, in that order',
+  secret: 'reads a secret or the token',
+  cred: 'sets a credential that takes precedence over federation',
+  checkout: 'leaves the token in the checkout',
+  upload: 'uploads or caches the workspace',
+  run: 'runs a shell command',
+  env: 'sets environment variables',
+  gatePin: 'pins checkout to another commit than gate.yml',
+  named: file => 'is not named ' + CLAUDE[file].name,
+};
+const WITH = "the action's with";
+const sha = c => c.repeat(40);
+const hasProblem = (problems, says) => [].concat(says).every(s => problems.some(p => (s instanceof RegExp ? s.test(p) : p === s)));
+const afterTimeout = text => s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n' + text);
+const afterIds = text => s => s.replace(/(anthropic_service_account_id: .*\n)/, m => m + text);
+const inActionStep = text => s => s.replace('        with:\n          anthropic_federation_rule_id', text + '        with:\n          anthropic_federation_rule_id');
+const afterCheckoutInputs = text => s => s.replace('          persist-credentials: false\n', '          persist-credentials: false\n' + text);
+const dropAssociation = s => s.replace(/ && contains\(fromJSON\('\["OWNER","MEMBER","COLLABORATOR"\]'\), github\.event\.[a-z_.]+\.author_association\)/, '');
+
+test('the two Claude workflows keep their allow-lists', () => {
+  const gate = readFileSync(WORKFLOW, 'utf8');
+  for (const file of CLAUDE_FILES) assert.deepEqual(claudeProblems(claudeSrc(file), gate, file), [], file);
+});
+
+for (const [label, plant, says, only] of [
+  // Triggers: the file's own events and types, and none that holds a secret or a write token.
+  ['adds a trigger', s => s.replace('\non:\n', '\non:\n  push:\n'), CL.triggers],
+  ['adds a manual run', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n'), CL.triggers],
+  ['adds pull_request_target', s => s.replace('\non:\n', '\non:\n  pull_request_target:\n'), [CL.hot, CL.triggers]],
+  ['adds workflow_run', s => s.replace('\non:\n', '\non:\n  workflow_run:\n    workflows: [gate]\n    types: [completed]\n'), [CL.hot, CL.triggers]],
+  ['runs on pull_request_target instead of pull_request', s => s.replace('  pull_request:\n', '  pull_request_target:\n'), [CL.hot, CL.triggers], ['claude-code-review.yml']],
+  ['names pull_request_target as a flow list', s => s.replace(/\non:\n {2}pull_request:\n {4}types: .*\n/, '\non: [pull_request_target]\n'), [CL.hot, CL.triggers], ['claude-code-review.yml']],
+  ['adds an event type', s => s.replace(/types: \[([^\]]*)\]/, 'types: [$1, edited]'), CL.triggers],
+  ['drops the assigned type', s => s.replace('[opened, assigned]', '[opened]'), CL.triggers, ['claude.yml']],
+  ['drops the synchronize type', s => s.replace('opened, synchronize, ', 'opened, '), CL.triggers, ['claude-code-review.yml']],
+  ['drops a trigger', s => s.replace('  pull_request_review:\n    types: [submitted]\n', ''), CL.triggers, ['claude.yml']],
+  ['drops the types of its only trigger', s => s.replace(/ {2}pull_request:\n {4}types: .*\n/, '  pull_request:\n'), CL.triggers, ['claude-code-review.yml']],
+  // Top level.
+  ['adds a top-level key', s => s.replace('\njobs:\n', '\nconcurrency: x\njobs:\n'), extraKey('the file', 'concurrency')],
+  ['sets a top-level env', s => s.replace('\njobs:\n', '\nenv:\n  X: y\njobs:\n'), [CL.env, extraKey('the file', 'env')]],
+  ['sets top-level defaults', s => s.replace('\njobs:\n', '\ndefaults:\n  run:\n    shell: sh\njobs:\n'), extraKey('the file', 'defaults')],
+  ['drops its name', s => s.replace(/^name: .*\n/, ''), file => CL.named(file)],
+  ['is renamed', s => s.replace(/^name: .*\n/, 'name: scan\n'), file => CL.named(file)],
+  ['is named for the other file', s => s.replace(/^name: .*\n/, s.startsWith('name: claude-code-review') ? 'name: claude\n' : 'name: claude-code-review\n'), file => CL.named(file)],
+  ['writes a key twice', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions:\n  contents: read\n  contents: read\n'), /^is not in the YAML the check reads: the key contents repeats/],
+  // Permissions: reads, and id-token: write for the job only.
+  ['asks for write access at the top level', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions:\n  contents: write\n'), CL.top],
+  ['adds a write permission at the top level', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions:\n  contents: read\n  pull-requests: write\n'), CL.top],
+  ['asks for id-token at the top level', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions:\n  contents: read\n  id-token: write\n'), CL.top],
+  ['drops the top-level permissions', s => s.replace('\npermissions:\n  contents: read\n', '\n'), [CL.top, 'the file lacks permissions']],
+  ['gives the job contents: write', s => s.replace('      contents: read\n', '      contents: write\n'), CL.perms],
+  ['gives the job pull-requests: write', s => s.replace('      pull-requests: read\n', '      pull-requests: write\n'), CL.perms],
+  ['gives the job issues: write', s => s.replace('      issues: read\n', '      issues: write\n'), CL.perms],
+  ['adds a permission to the job', s => s.replace('      id-token: write\n', '      id-token: write\n      packages: read\n'), CL.perms],
+  ['adds a write permission to the job', s => s.replace('      id-token: write\n', '      id-token: write\n      statuses: write\n'), CL.perms],
+  ['drops id-token from the job', s => s.replace('      id-token: write\n', ''), CL.perms],
+  ['asks only for id-token: read', s => s.replace('id-token: write', 'id-token: read'), CL.perms],
+  ['drops the job permissions', s => s.replace(/ {4}permissions:\n(?: {6}.+\n)+/, ''), [CL.perms, 'the job lacks permissions']],
+  ['gives the job actions: write', s => s.replace('      actions: read\n', '      actions: write\n'), CL.perms, ['claude.yml']],
+  ['drops actions from the job', s => s.replace('      actions: read\n', ''), CL.perms, ['claude.yml']],
+  ['adds actions: read to the job', s => s.replace('      id-token: write\n', '      id-token: write\n      actions: read\n'), CL.perms, ['claude-code-review.yml']],
+  // Jobs.
+  ['adds a second job', s => s + '  extra:\n    runs-on: ubuntu-24.04\n', CL.jobs],
+  ['renames its job', s => s.replace(/\n {2}(claude|claude-review):\n/, '\n  other:\n'), CL.jobs],
+  ['names its job gate', s => s.replace(/\n {2}(claude|claude-review):\n/, '\n  gate:\n'), CL.jobs],
+  ['gives its job the name gate', s => s.replace('    runs-on:', '    name: gate\n    runs-on:'), extraKey('the job', 'name')],
+  ...['needs', 'strategy', 'container', 'services', 'defaults', 'environment', 'concurrency', 'outputs', 'continue-on-error', 'secrets'].map(key => [
+    'gives the job a ' + key + ' key',
+    afterTimeout('    ' + key + ': x\n'),
+    extraKey('the job', key),
+  ]),
+  ['sets a job-level env', afterTimeout('    env:\n      X: y\n'), [CL.env, extraKey('the job', 'env')]],
+  ['drops the job guard', s => s.replace(/ {4}if: [\s\S]*?\n(?= {4}runs-on)/, ''), [CL.guard, 'the job lacks if']],
+  ['runs on a self-hosted runner', s => s.replace('runs-on: ubuntu-24.04', 'runs-on: self-hosted'), CL.runner],
+  ['runs on ubuntu-latest', s => s.replace('runs-on: ubuntu-24.04', 'runs-on: ubuntu-latest'), CL.runner],
+  ['runs on a runner from a variable', s => s.replace('runs-on: ubuntu-24.04', 'runs-on: ${{ vars.RUNNER }}'), CL.runner],
+  ['drops the time limit', s => s.replace('    timeout-minutes: 30\n', ''), [CL.runner, 'the job lacks timeout-minutes']],
+  ['sets a time limit that is not a number', s => s.replace('timeout-minutes: 30', 'timeout-minutes: soon'), CL.runner],
+  // The guard, held exactly as the file writes it.
+  ['drops an association check', dropAssociation, CL.guard],
+  ['lets in another association', s => s.replace('"COLLABORATOR"', '"COLLABORATOR","CONTRIBUTOR"'), CL.guard],
+  ['lets in everyone', s => s.replace('["OWNER","MEMBER","COLLABORATOR"]', '["OWNER","MEMBER","COLLABORATOR","NONE"]'), CL.guard],
+  ['drops the @claude check on comments', s => s.replace("contains(github.event.comment.body, '@claude') && ", ''), CL.guard, ['claude.yml']],
+  ['drops the @claude check on reviews', s => s.replace("contains(github.event.review.body, '@claude') && ", ''), CL.guard, ['claude.yml']],
+  ['drops the @claude check on issues', s => s.replace("(contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))", 'true'), CL.guard, ['claude.yml']],
+  ['drops an event from the guard', s => s.replace(/ \|\|\n {6}\(github\.event_name == 'issues'.*\n/, '\n'), CL.guard, ['claude.yml']],
+  ['writes its guard on one line', s => s.replace('    if: |\n      (github', '    if: (github').replace(/\n {6}\(github/g, ' (github'), CL.guard, ['claude.yml']],
+  ['drops the check that the head is this repo', s => s.replace('github.event.pull_request.head.repo.full_name == github.repository && ', ''), CL.guard, ['claude-code-review.yml']],
+  ['checks the base repo instead of the head', s => s.replace('pull_request.head.repo.full_name', 'pull_request.base.repo.full_name'), CL.guard, ['claude-code-review.yml']],
+  ['joins its guard with or', s => s.replace(' && contains(fromJSON', ' || contains(fromJSON'), CL.guard, ['claude-code-review.yml']],
+  ['reads the association of the wrong author', s => s.replace('github.event.pull_request.author_association', 'github.event.sender.author_association'), CL.guard, ['claude-code-review.yml']],
+  ['ends its guard in true', s => s.replace(/(if: .*)\n/, '$1 || true\n'), CL.guard, ['claude-code-review.yml']],
+  // Steps and pins.
+  ['pins checkout to a tag', s => s.replace(/actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@v7'), 'step 1 is not actions/checkout pinned to a full commit SHA'],
+  ['pins the action to a tag', s => s.replace(/claude-code-action@[0-9a-f]{40}/, 'claude-code-action@v1'), 'step 2 is not anthropics/claude-code-action pinned to a full commit SHA'],
+  ['pins the action to a branch', s => s.replace(/claude-code-action@[0-9a-f]{40}/, 'claude-code-action@main'), 'step 2 is not anthropics/claude-code-action pinned to a full commit SHA'],
+  ['pins the action to a short SHA', s => s.replace(/claude-code-action@[0-9a-f]{40}/, 'claude-code-action@eb56b66'), 'step 2 is not anthropics/claude-code-action pinned to a full commit SHA'],
+  ['uses another action in its place', s => s.replace('anthropics/claude-code-action@', 'someone/claude-code-action@'), 'step 2 is not anthropics/claude-code-action pinned to a full commit SHA'],
+  ['uses a local action', s => s.replace(/anthropics\/claude-code-action@[0-9a-f]{40}/, './.github/actions/mine'), 'step 2 is not anthropics/claude-code-action pinned to a full commit SHA'],
+  ["pins checkout apart from gate.yml's", s => s.replace(/actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@' + sha('2')), CL.gatePin],
+  ['runs the action before checkout', s => s.replace(/( {6}- uses: actions\/checkout@.*\n(?: {8,}.+\n)+)( {6}- uses: anthropics.*\n[\s\S]*)$/, '$2$1'), CL.steps],
+  ['drops the checkout', s => s.replace(/ {6}- uses: actions\/checkout@.*\n(?: {8,}.+\n)+/, ''), CL.steps],
+  ['adds a pinned action', s => s + '      - uses: actions/setup-node@' + sha('1') + '\n', CL.steps],
+  ['runs a shell step', s => s + '      - run: echo hi\n', [CL.run, CL.steps]],
+  ['uploads the workspace', s => s + '      - uses: actions/upload-artifact@' + sha('0') + '\n', [CL.upload, CL.steps]],
+  ['caches the workspace', s => s + '      - uses: actions/cache@' + sha('0') + '\n', [CL.upload, CL.steps]],
+  ...['name', 'id', 'if', 'shell', 'continue-on-error', 'timeout-minutes'].map(key => ['gives the action step a ' + key + ' key', inActionStep('        ' + key + ': x\n'), extraKey('step 2', key)]),
+  ['gives the action step a run key', inActionStep('        run: x\n'), [CL.run, extraKey('step 2', 'run')]],
+  ['gives the checkout step a name', s => s.replace('      - uses: actions/checkout', '      - name: x\n        uses: actions/checkout'), extraKey('step 1', 'name')],
+  ['sets a step-level env', inActionStep('        env:\n          X: y\n'), [CL.env, extraKey('step 2', 'env')]],
+  // Checkout.
+  ['keeps the token in the checkout', s => s.replace('persist-credentials: false', 'persist-credentials: true'), CL.checkout],
+  ['leaves persist-credentials out', s => s.replace('          persist-credentials: false\n', ''), [CL.checkout, "step 1's with lacks persist-credentials"]],
+  ['writes persist-credentials as a word', s => s.replace('persist-credentials: false', "persist-credentials: 'no'"), CL.checkout],
+  ...['ref', 'token', 'repository', 'path', 'submodules', 'ssh-key', 'sparse-checkout'].map(key => ['gives checkout a ' + key + ' input', afterCheckoutInputs('          ' + key + ': x\n'), extraKey("step 1's with", key)]),
+  ['takes the fetch depth from an expression', s => s.replace('fetch-depth: 1', 'fetch-depth: ${{ github.event.number }}'), "step 1's fetch-depth is not a number"],
+  ['drops the fetch depth', s => s.replace('          fetch-depth: 1\n', ''), "step 1's with lacks fetch-depth"],
+  // The action's inputs.
+  ...['allowed_bots', 'allow_fork_prs', 'allowed_non_write_users', 'github_token', 'trigger_phrase', 'settings', 'bot_name', 'use_bedrock'].map(key => [
+    'gives the action a ' + key + ' input',
+    afterIds('          ' + key + ': x\n'),
+    extraKey(WITH, key),
+  ]),
+  ...['anthropic_api_key', 'claude_code_oauth_token'].map(key => ['gives the action a ' + key + ' input', afterIds('          ' + key + ': x\n'), [extraKey(WITH, key), CL.cred]]),
+  ['reads the API key from a secret', afterIds('          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}\n'), [CL.secret, CL.cred, extraKey(WITH, 'anthropic_api_key')]],
+  ['reads the OAuth token from a secret', afterIds('          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}\n'), [CL.secret, CL.cred, extraKey(WITH, 'claude_code_oauth_token')]],
+  ['reads a secret by index', afterIds("          settings: ${{ secrets['X'] }}\n"), CL.secret],
+  ['passes the job token', afterIds('          github_token: ${{ github.token }}\n'), [CL.secret, extraKey(WITH, 'github_token')]],
+  ['passes the job token by its other name', afterIds('          github_token: ${{ env.GITHUB_TOKEN }}\n'), CL.secret],
+  ['reads a secret in the checkout', afterCheckoutInputs('          token: ${{ secrets.X }}\n'), [CL.secret, extraKey("step 1's with", 'token')]],
+  ['reads a secret in its name', s => s.replace(/^name: .*\n/, 'name: ${{ secrets.X }}\n'), CL.secret],
+  ...['anthropic_federation_rule_id', 'anthropic_organization_id', 'anthropic_service_account_id'].map(key => [
+    'drops ' + key,
+    s => s.replace(new RegExp(' {10}' + key + ': .*\\n'), ''),
+    WITH + ' lacks ' + key,
+  ]),
+  ['gives the rule ID the wrong prefix', s => s.replace('fdrl_', 'xdrl_'), 'anthropic_federation_rule_id does not have the shape fdrl_ and letters or digits'],
+  ['gives the service account ID the wrong prefix', s => s.replace('svac_', 'svc_'), 'anthropic_service_account_id does not have the shape svac_ and letters or digits'],
+  ['gives the organization ID no UUID shape', s => s.replace(/(anthropic_organization_id: ).*/, '$1not-a-uuid'), 'anthropic_organization_id does not have the shape of a UUID'],
+  ['takes the rule ID from an expression', s => s.replace(/(anthropic_federation_rule_id: ).*/, '$1${{ vars.RULE }}'), 'anthropic_federation_rule_id does not have the shape fdrl_ and letters or digits'],
+  ['takes the organization ID from a secret', s => s.replace(/(anthropic_organization_id: ).*/, '$1${{ secrets.ORG }}'), [CL.secret, 'anthropic_organization_id does not have the shape of a UUID']],
+  ['asks for more permissions', s => s.replace('additional_permissions: |\n            actions: read\n', 'additional_permissions: |\n            actions: write\n'), 'holds another additional_permissions than its own', ['claude.yml']],
+  ['adds a permission to additional_permissions', s => s.replace('            actions: read\n', '            actions: read\n            contents: write\n'), 'holds another additional_permissions than its own', ['claude.yml']],
+  ['drops additional_permissions', s => s.replace(/ {10}additional_permissions: \|\n {12}actions: read\n/, ''), WITH + ' lacks additional_permissions', ['claude.yml']],
+  ['changes the prompt', s => s.replace('--comment ', '--comment --dangerous '), 'holds another prompt than its own', ['claude-code-review.yml']],
+  ['takes the prompt from the pull request', s => s.replace(/(prompt: ).*/, "$1'${{ github.event.pull_request.body }}'"), 'holds another prompt than its own', ['claude-code-review.yml']],
+  ['widens the allowed tools', s => s.replace('mcp__github_inline_comment__create_inline_comment', 'Bash'), 'holds another claude_args than its own', ['claude-code-review.yml']],
+  ['adds an argument', s => s.replace('--allowedTools', '--dangerously-skip-permissions --allowedTools'), 'holds another claude_args than its own', ['claude-code-review.yml']],
+  ['drops claude_args', s => s.replace(/ {10}claude_args: .*\n/, ''), WITH + ' lacks claude_args', ['claude-code-review.yml']],
+  ['fetches the plugin from another marketplace', s => s.replace('github.com/anthropics/claude-code.git', 'github.com/someone/claude-code.git'), 'holds another plugin_marketplaces than its own', ['claude-code-review.yml']],
+  ['loads another plugin', s => s.replace('code-review@claude-code-plugins', 'other@claude-code-plugins'), 'holds another plugins than its own', ['claude-code-review.yml']],
+  // YAML forms the reader cannot see through.
+  ['uses a YAML anchor and alias', s => s.replace('    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n', '    runs-on: &runner ubuntu-24.04\n    timeout-minutes: *runner\n'), YAML_FORM],
+  ['uses a merge key', afterTimeout('    <<: x\n'), YAML_FORM],
+  ['uses a flow mapping', s => s.replace('        with:\n          fetch-depth: 1\n          persist-credentials: false\n', '        with: { fetch-depth: 1, persist-credentials: false }\n'), YAML_FORM],
+  ['uses a flow mapping for its permissions', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions: { contents: read }\n'), YAML_FORM],
+]) {
+  for (const file of CLAUDE_FILES.filter(f => !only || only.includes(f))) {
+    // Spec 0006 C2: each rule of the Claude workflows' allow-list catches its plant.
+    test('bad case: the Claude allow-list catches ' + file + ' when it ' + label, () => {
+      const src = claudeSrc(file);
+      const planted = plant(src);
+      assert.notEqual(planted, src, 'the plant changed nothing');
+      const wanted = typeof says === 'function' ? says(file) : says;
+      const problems = claudeProblems(planted, readFileSync(WORKFLOW, 'utf8'), file);
+      assert.ok(hasProblem(problems, wanted), problems.join('\n'));
+    });
+  }
+}
+
+// Spec 0006 W3: each file is held to its own values, not the other's.
+test("bad case: the Claude allow-list catches each file read against the other file's values", () => {
+  const gate = readFileSync(WORKFLOW, 'utf8');
+  assert.notDeepEqual(claudeProblems(claudeSrc('claude.yml'), gate, 'claude-code-review.yml'), []);
+  assert.notDeepEqual(claudeProblems(claudeSrc('claude-code-review.yml'), gate, 'claude.yml'), []);
+});
+
+// Spec 0006 W3: the folder check hands the two files to the allow-list, and every other file stays under the common lockdown.
+for (const file of CLAUDE_FILES) {
+  test('bad case: the folder check holds ' + file + ' to the Claude allow-list', () => {
+    const files = realFolder();
+    files.set(file, files.get(file).replace('      id-token: write\n', '      id-token: write\n      packages: read\n'));
+    assert.ok(folderProblems(files).includes(file + ' ' + CL.perms), folderProblems(files).join('\n'));
+  });
+  test('bad case: the folder check refuses a job named gate in ' + file, () => {
+    const files = realFolder();
+    files.set(file, files.get(file).replace(/\n {2}(claude|claude-review):\n/, '\n  gate:\n'));
+    assert.ok(folderProblems(files).includes(file + ' defines a job or check named gate'), folderProblems(files).join('\n'));
+  });
+  test('bad case: the folder check refuses a job named gate-windows through the name key in ' + file, () => {
+    const files = realFolder();
+    files.set(file, files.get(file).replace('    runs-on:', '    name: gate-windows\n    runs-on:'));
+    assert.ok(folderProblems(files).includes(file + ' defines a job or check named gate-windows'), folderProblems(files).join('\n'));
+  });
+  // Spec 0006 W3: a copy under another name gets the common lockdown, which refuses the id-token grant.
+  for (const copy of ['claude-copy.yml', 'Claude.yml', 'claude.yaml']) {
+    test('bad case: the folder check catches a third workflow file, ' + copy + ', that copies ' + file, () => {
+      const files = realFolder();
+      assert.deepEqual(folderProblems(files), [], 'control: the real folder passes');
+      files.set(copy, files.get(file));
+      assert.ok(folderProblems(files).includes(copy + ' asks for more than read access to the contents'), folderProblems(files).join('\n'));
+    });
+  }
 }
 
 // #244 C2: only the CodeQL workflow is read by the allow-list; any other workflow asking to write security events still fails.
