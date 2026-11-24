@@ -2,7 +2,7 @@
 
 Read the boundaries first. Place each finding on one: where something
 comes in from outside, or where an act goes out. What starts and ends on
-the machine is the machine's, and no finding; what came in from outside stays outside input. Name the
+the machine (your own computer, or a sandbox run on it) is the machine's, and no finding; what came in from outside stays outside input. Name the
 control that holds the boundary against the path, with when it doesn't
 hold; if one does, add nothing. Check the residual against the classes.
 Bring the owner what the guide's step 5 lists, every `security?` row
@@ -28,40 +28,6 @@ read. The full guide is the review procedure's Threat model section
 <!-- /toc -->
 
 ## Boundaries
-
-```mermaid
-flowchart LR
-  outside["Outside text"]
-  upstream["Upstream code"]
-  owner["Changes"]
-  session["A steered session"]
-  readers["Readers of the tracker and other sessions"]
-
-  subgraph B1["Text into a session"]
-    T1["Text steers a session"]
-    T2["A session takes checkpoints alone"]
-  end
-  subgraph B2["Code that runs"]
-    T3["What you install and CI run"]
-    T4["Pinned design-system code"]
-  end
-  subgraph B3["Merges and installs"]
-    T5["The pact gets loosened"]
-    T6["Review rests on rules"]
-  end
-  subgraph B4["What leaves the machine"]
-    T7["Posts are public"]
-    T8["Who counts as you"]
-  end
-
-  outside --> B1
-  upstream --> B2
-  session --> B3
-  owner --> B3
-  session --> B4
-  B4 --> readers
-
-```
 
 ### Text into a session
 
@@ -126,7 +92,7 @@ free hand's design pick can cover what a change stores, logs or sends.
 publisher, CI actions and dependencies, mise configs, a program a clone or
 version pin supplies that runs by bare name, the pinned design system inlined
 into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
-setup.
+setup, run with the owner's rights.
 
 **Controls:**
 
@@ -140,7 +106,9 @@ setup.
   `codeql.yml` and the two Claude files to an exact allow-list each:
   `security-events: write` in one CodeQL job, skipped for Dependabot;
   `id-token: write` in each Claude job, with no key in the repo. The
-  Console's federation rule bounds who. It holds only while the test itself is unchanged; a change to it is read
+  Console's federation rule bounds who gets an Anthropic token; each job's guard,
+  the action's actor check and Anthropic's workflow validation, who gets the write
+  token. It holds only while the test itself is unchanged; a change to it is read
   like any change. The Scriptorium page's policy (`builder/build.mjs`) sets
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
@@ -167,9 +135,11 @@ dismiss alerts on `main`; a bad build or model that passes the age rule and revi
 with the owner's rights, and a crafted model could exploit a parser bug; a
 Claude run that an allowed actor, or a session with an app key, starts
 reads anyone's text and spends Anthropic tokens; it can steer what Claude
-writes through the app's token, short of `main`; the review plugin is fetched
-unpinned; an allowed actor's branch can change the Claude files and mint an
-Anthropic token. Pinned design-system code: each re-pin is reviewed
+writes through the app's token, short of `main`; an allowed bot's comment that
+merely contains `@claude` starts one; the rule pins no ref or workflow, so any
+workflow on any branch of the owner's repos that an allowed actor starts can
+mint an Anthropic token (the service account's scope is the owner's to
+confirm); the review plugin is fetched unpinned. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs
@@ -267,12 +237,12 @@ stays in scope though it runs as the owner.
 it, with every program, process, account, file and memory made there. A local
 tool's data on a user's own computer is that user's machine. A cloud session's
 sandbox, a service a project deploys, and that service's users' devices are not
-the machine. No finding: other local
+the machine. What starts and ends on the machine is no finding: other local
 accounts, unencrypted copies (the install's backups, kept-local reports,
 hand-off notes), a program already running as the owner that nothing in scope
 started, supplied or steered, and loss of work with no attacker. In a cloud
 session these copies sit in Anthropic's sandbox: out of scope,
-though code that reached it from outside stays in scope. The machine's antivirus, account
+though code that reached it from outside stays in scope. What the machine makes from outside input stays outside input. The machine's antivirus, account
 isolation and disk encryption hold it. Also out: the owner's own edits and
 account's edit in the browser; Claude Code, Anthropic's models and servers, and
 GitHub; the provider of a synced or backed-up copy, though

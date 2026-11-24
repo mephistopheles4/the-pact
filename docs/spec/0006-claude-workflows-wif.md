@@ -37,11 +37,15 @@ has one.
    in the file so a reader sees which rule a run uses. Neither file sets
    `anthropic_api_key` or `claude_code_oauth_token`; either would take
    precedence over federation.
-2. **The rule is the control, and it lives in the Claude Console.** It matches
-   by a CEL condition on the repository owner's account ID, the subject prefix,
-   the audience and an allow-list of actor account IDs. Nothing in the repo
-   names who is on that list.
-3. **The job guard is defence in depth.** Each job runs only when the
+2. **The rule bounds who gets an Anthropic token, and it lives in the Claude
+   Console.** It matches by a CEL condition on the repository owner's account
+   ID, the subject prefix, the audience and an allow-list of actor account
+   IDs. Nothing in the repo names who is on that list. The rule does not bound
+   the GitHub write token: the action gets that through a separate OIDC
+   exchange (audience `claude-code-github-action`) that never references the
+   rule. Who gets it rests on the job guard, the action's own actor check
+   (write access, or `allowed_bots`) and Anthropic's workflow validation.
+3. **The job guard is a control.** Each job runs only when the
    triggering author's association is `OWNER`, `MEMBER` or `COLLABORATOR`,
    or the author's login is one of the owner's three agent apps
    (`mephistos-homunculus[bot]`, `mephistos-euphorion[bot]`,
@@ -50,7 +54,8 @@ has one.
    names it, so each file sets `allowed_bots` to exactly those three names,
    without the suffix, which the action strips from both sides, and never `*`. The review job also
    runs only for a pull request whose head is a branch of this repo. A pusher
-   can edit the guard on a branch; the rule still holds.
+   can edit the guard on a branch, and the rule still holds for the Anthropic
+   token; the write token's other checks are the action's and Anthropic's.
 4. **The GitHub token stays read-only.** Each job's `permissions` grant reads
    and `id-token: write`, nothing else. The action's writes (comments,
    branches, reviews) go through the Claude GitHub app's installation token,
@@ -78,12 +83,12 @@ their own allow-list instead of the common lockdown. For each file it refuses:
 - steps other than `actions/checkout` then `anthropics/claude-code-action`,
   each pinned to a full commit SHA, checkout's pin equal to `gate.yml`'s;
 - a checkout input other than `fetch-depth` and `persist-credentials`, or
-  `persist-credentials` other than `false`;
+  `persist-credentials` other than `false`; a step's `with` that is not a map;
 - an action input outside the file's list in W4, the federation IDs missing,
-  or an ID that does not have its prefix's shape (`fdrl_`, `svac_`, a UUID);
+  or an ID that is not the file's own exact value (`fdrl_`, a UUID, `svac_`);
   an `allowed_bots` that is not exactly the three apps (never `*`); a guard
   that admits another login;
-- any `secrets.`, `github.token` or `GITHUB_TOKEN`; a `run:` step; an
+- any `secrets.`, `github.token`, `github['token']` or `GITHUB_TOKEN`; a `run:` step; an
   `env:` at any level; a YAML anchor, alias, merge key or flow mapping;
   uploading or caching the workspace; a job or check named `gate`,
   `gate-macos` or `gate-windows`.
@@ -102,7 +107,7 @@ has a bad case it is seen to catch, in the style of the CodeQL allow-list's.
 | Guard | per event: `@claude` in the text, and the author's association in the list or the author's login one of the three apps | head repo is this repo, and the pull request author's association in the list or the author's login one of the three apps |
 | Action inputs | the three federation IDs, `allowed_bots`, `additional_permissions` (`actions: read`) | the three federation IDs, `allowed_bots`, `plugin_marketplaces`, `plugins`, `prompt`, `claude_args` |
 
-The guard text is held exactly, as the files on this branch write it.
+The guard text is held exactly, as the files on this branch write it. `actions: read` stays in `claude.yml` so Claude can read CI results on pull requests.
 
 ## W5 Threat model
 
@@ -115,8 +120,11 @@ allow-list beside `codeql.yml`'s. A residual line says what is accepted:
 - a session holding an agent app's key can start a run that spends Anthropic
   tokens and writes through the Claude app's token, short of `main`;
 - the review plugin is fetched from its marketplace at run time, unpinned;
-- a branch pushed by an allowed actor can change the files and mint an
-  Anthropic token in its run; the rule bounds who, not what the run does.
+- a comment by an allowed bot that merely contains `@claude` starts a run;
+- the rule pins no ref or workflow, so any workflow on any branch of any of
+  the owner's repos that an allowed actor starts can mint an Anthropic token;
+  the rule bounds who, not what the run does. The service account's scope
+  (workspace, role) is the owner's to confirm.
 
 ## W6 Out of scope
 
@@ -127,9 +135,11 @@ other repos; the rule already covers them, and each repo brings its own files.
 ## W7 Trade-offs
 
 Reach against convenience: the action keeps the app's write token, which
-`@claude` needs to act; the GitHub token stays read-only and the rule's actor
-list bounds who can start a run. The driver: cheaper to reverse. Deleting the
-rule, or the two files, stops every run.
+`@claude` needs to act; the GitHub token stays read-only; the rule's actor
+list bounds who gets an Anthropic token, and the job guard, the action's actor
+check and Anthropic's workflow validation bound who gets the write token. The
+driver: cheaper to reverse. Deleting the rule, or the two files, stops every
+run.
 
 ## W8 Acceptance claims
 
@@ -138,7 +148,7 @@ rule, or the two files, stops every run.
 - C2. Each refusal in W3 has a bad case, and each bad case fails on its plant.
 - C3. Neither workflow reads a secret or sets a credential input
   (`anthropic_api_key`, `claude_code_oauth_token`, `github_token`); the
-  names appear only in this spec and the gate's bad cases.
+  names appear only in this spec, the log and the gate's bad cases.
 - C4. CI's three jobs pass on the reviewed head.
 - C5. After merge, an `@claude` comment by an allowed actor gets an answer,
   and the Console's authentication history shows the exchange matched the
