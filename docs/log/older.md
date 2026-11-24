@@ -3636,3 +3636,59 @@ The QA pair read `09b5868`.
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/364): the tier, the declined sensitive route and the claims.
 - [The Test review](https://github.com/mephistopheles4/the-pact/issues/364#issuecomment-6335653511): the QA pair on `09b5868`, crossed, with the Lens dispositions table; behaviour-lens's report follows it once the merged pact is installed.
+
+## Local gate runs go through athanor by default
+
+**2026-10-23.** A session ran `changed` on the host while building, as `AGENTS.md` said, and skipped athanor. The owner wants athanor used by default. Tier: quick.
+
+### What was built (#369)
+
+- **`AGENTS.md`:** local runs go through athanor, `fast` while building and `full` after a rebase or merge and after a final change set; the host keeps `full` before an install, a quick `changed`, and any run athanor can't do.
+- **`docs/agents/gate-tests.md`:** the same, in its build and Athanor sections.
+
+### Decisions
+
+- [ADR 0099](../adr/0099-local-gate-runs-go-through-athanor-by-default.md): local gate runs go through athanor by default. Amends ADR 0096.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/369): the tier and the claims.
+
+## The poster refuses no session id
+
+**2026-10-23.** With the path rules gone, `id/session` was the poster's last refusal on ordinary text: every scratchpad path (#366) and every GitHub image-attachment link (#360) holds a UUID. The owner chose to remove the rule entirely. Tier: quick; not on the sensitive-work list.
+
+### What was built (#366)
+
+- **The poster** (`claude/tools/poster.mjs`) loses `id/session`, its patterns, and the pull-request trailer exception.
+- **Its tests** (`gate/tests/poster.test.mjs`) lose the rule's four scan rows and the trailer's eight; one test shows a UUID, a `session_` id, a session link, a scratchpad path, an attachment link and the harness trailer post, in a body or a title, on an issue or a pull request, and it goes red against the old poster.
+- **The rules file's poster bullet** (`gate/render-core.mjs`, held by `gate/tests/tools.test.mjs`) no longer names a session id among the refusals that keep a lens report local.
+- **`docs/poster.md`**, **`docs/reference.md`** and **the threat model's R3** say the scan covers no session id.
+- **Regenerated:** `cloud-sessions/`, already in step.
+
+### Decisions
+
+- [ADR 0100](../adr/0100-the-poster-refuses-no-session-id.md): the poster refuses no session id.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/366), and [#360](https://github.com/mephistopheles4/the-pact/issues/360), which this closes too.
+
+## The read before posting looks for no path
+
+**2026-10-23.** A session kept a lens report local because it held a home or temp folder path, though #364 had taken the path rule out of the poster: the review procedure's read before posting still listed such a path as a personal detail. The owner chose to drop paths from the read entirely and keep the user name, host name, email and secrets. Tier: quick; not on the sensitive-work list, and a path holding a user or host name is still caught.
+
+### What was built (#368)
+
+- **`claude/review.md`:** the read's personal-detail list loses "a home or temp folder path"; a path counts only for a user or host name it holds.
+- **`docs/poster.md`** says what the read looks for.
+- **The threat model's R34** widens again, on the owner's word in chat.
+- **Regenerated:** `cloud-sessions/`.
+
+### Decisions
+
+- [ADR 0098](../adr/0098-the-read-before-posting-looks-for-no-path.md): the read before posting looks for no path. Amends ADR 0097.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/368): the tier and the claims.
