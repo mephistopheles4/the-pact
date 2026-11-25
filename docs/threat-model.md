@@ -10,7 +10,7 @@ included; no class covers a change that weakens a rule or control, adds a
 route for outside text into a session or more reach to one that reads it,
 adds text to files sessions load, or writes a secret into text sessions
 read. The full guide is the review procedure's Threat model section
-([`~/.claude/pact/review.md`](../claude/review.md)).
+([`~/.pact/review.md`](../claude/review.md)).
 
 [`SECURITY.md`](../SECURITY.md) says how to report a hole.
 

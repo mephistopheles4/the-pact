@@ -273,7 +273,7 @@ test('agent app checker: a pinned run drops the token variables, and an unpinned
 // #599 C7 (S4): the command line's own run drops the token variables when an app is pinned, and keeps them when none is.
 test('agent app checker: the command line\'s run strips the token variables only with an app pinned', () => {
   const home = join('/h', 'user');
-  const dir = join(home, '.claude', 'pact');
+  const dir = join(home, '.pact');
   const fsOf = files => ({ existsSync: p => files.has(p), readFileSync: p => files.get(p) });
   const pinned = new Map([[join(dir, 'github.json'), JSON.stringify(pinOf())], [join(dir, 'tools', 'gh-app.mjs'), '//']]);
   const unpinned = new Map([[join(dir, 'github.json'), JSON.stringify(pinOf())]]);
@@ -289,7 +289,7 @@ test('agent app checker: the command line\'s run strips the token variables only
 // #599 C7: the pin input is two reads, behind a seam.
 test('agent app checker: the pin input is the file\'s text and whether the helper is installed', () => {
   const home = join('/h', 'user');
-  const files = new Map([[join(home, '.claude', 'pact', 'github.json'), '{"x":1}'], [join(home, '.claude', 'pact', 'tools', 'gh-app.mjs'), '//']]);
+  const files = new Map([[join(home, '.pact', 'github.json'), '{"x":1}'], [join(home, '.pact', 'tools', 'gh-app.mjs'), '//']]);
   const fs = {
     existsSync: p => files.has(p),
     readFileSync: p => {
@@ -298,9 +298,9 @@ test('agent app checker: the pin input is the file\'s text and whether the helpe
     },
   };
   assert.deepEqual(pinInputFrom({ home, fs }), { text: '{"x":1}', helper: true });
-  files.delete(join(home, '.claude', 'pact', 'tools', 'gh-app.mjs'));
+  files.delete(join(home, '.pact', 'tools', 'gh-app.mjs'));
   assert.deepEqual(pinInputFrom({ home, fs }), { text: '{"x":1}', helper: false });
-  files.delete(join(home, '.claude', 'pact', 'github.json'));
+  files.delete(join(home, '.pact', 'github.json'));
   assert.deepEqual(pinInputFrom({ home, fs }), { text: null, helper: false });
   const broken = { existsSync: () => true, readFileSync: () => { throw Object.assign(new Error('CANARY'), { code: 'EACCES' }); } };
   assert.deepEqual(pinInputFrom({ home, fs: broken }), { text: '', helper: true }, 'a file that cannot be read is not an absent one');
@@ -327,13 +327,13 @@ function cli(t, files, args = ['pr', '7']) {
 
 // #599 C7
 test('agent app checker, as a command: the home\'s pin file and installed helper are what it reads', t => {
-  const helper = { '.claude/pact/tools/gh-app.mjs': '//' };
+  const helper = { '.pact/tools/gh-app.mjs': '//' };
   // A malformed pin with the helper installed stops before any call, so the missing gh is never reached.
-  assert.match(cli(t, { ...helper, '.claude/pact/github.json': '{ not json' }).stdout, /^FAIL stop\/pin$/m);
+  assert.match(cli(t, { ...helper, '.pact/github.json': '{ not json' }).stdout, /^FAIL stop\/pin$/m);
   // The same file with no helper is not a pin: the first call runs, and the missing gh stops it as today.
-  assert.match(cli(t, { '.claude/pact/github.json': '{ not json' }).stdout, /^FAIL stop\/gh$/m);
+  assert.match(cli(t, { '.pact/github.json': '{ not json' }).stdout, /^FAIL stop\/gh$/m);
   // No file at all: as today.
   assert.match(cli(t, helper).stdout, /^FAIL stop\/gh$/m);
   // A good pin and the helper reach the first call.
-  assert.match(cli(t, { ...helper, '.claude/pact/github.json': JSON.stringify(pinOf()) }).stdout, /^FAIL stop\/gh$/m);
+  assert.match(cli(t, { ...helper, '.pact/github.json': JSON.stringify(pinOf()) }).stdout, /^FAIL stop\/gh$/m);
 });

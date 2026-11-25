@@ -13,7 +13,7 @@
 //   realpath-elsewhere realpathSync.native reports another path for the file
 //   lstat-eacces       lstat of the pact folder fails with EACCES
 //   lstat-config-eacces lstat of the configuration file fails with EACCES
-//   realpath-home-eacces realpath of the Claude home folder fails with EACCES
+//   realpath-home-eacces realpath of the home folder fails with EACCES
 //   count              no fault: log each open and read of the configuration file
 //   lstat-blocks-eacces lstat of the blocks folder fails with EACCES
 //   review-plant       (gate/review.mjs) just before rendered-rules.txt is
@@ -28,17 +28,17 @@
 //                      opened
 //
 // PACT_FAULT_FILE=block points the file faults (swap, hard link, link,
-// realpath, count) at block files under pact/blocks/ instead of the
+// realpath, count) at block files under .pact/blocks/ instead of the
 // configuration file (#94).
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 
 const fault = process.env.PACT_FAULT ?? '';
 const log = process.env.PACT_FAULT_LOG;
-const target = process.env.PACT_FAULT_FILE === 'block' ? /[\\/]pact[\\/]blocks[\\/].+\.md$/ : /[\\/]pact[\\/]config\.json$/;
+const target = process.env.PACT_FAULT_FILE === 'block' ? /[\\/]\.pact[\\/]blocks[\\/].+\.md$/ : /[\\/]\.pact[\\/]config\.json$/;
 const isConfig = p => typeof p === 'string' && target.test(p);
-const isBlocks = p => typeof p === 'string' && /[\\/]pact[\\/]blocks$/.test(p);
-const isPact = p => typeof p === 'string' && /[\\/]pact$/.test(p);
+const isBlocks = p => typeof p === 'string' && /[\\/]\.pact[\\/]blocks$/.test(p);
+const isPact = p => typeof p === 'string' && /[\\/]\.pact$/.test(p);
 const note = line => log && fs.appendFileSync(log, `${line}\n`);
 
 const { readdirSync } = fs;

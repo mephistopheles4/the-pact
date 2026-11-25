@@ -8,13 +8,13 @@ export const EVENTS = ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 
 
 /** Writes pact/config.json in the Claude home folder `h`: schema 1 and `doc`. */
 export function config(h, doc) {
-  mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, ...doc })}\n`);
+  mkdirSync(join(h, '.pact'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, ...doc })}\n`);
 }
 export const windowCfg = n => ({ settings: { 'auto-compact-window': n } });
-export const live = h => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
-export const writeLive = (h, doc) => writeFileSync(join(h, 'settings.json'), JSON.stringify(doc, null, 2), { mode: 0o600 });
-export const script = h => join(h, 'pact', 'hooks', 'compact-handoff.mjs');
+export const live = h => JSON.parse(readFileSync(join(h, '.claude', 'settings.json'), 'utf8'));
+export const writeLive = (h, doc) => writeFileSync(join(h, '.claude', 'settings.json'), JSON.stringify(doc, null, 2), { mode: 0o600 });
+export const script = h => join(h, '.pact', 'hooks', 'compact-handoff.mjs');
 
 /** The group the install writes for `event` with window `w`. */
 export function pactGroup(h, w, event) {
@@ -27,7 +27,7 @@ export function files(dir) {
   return readdirSync(dir, { recursive: true })
     .map(String)
     .map(p => p.replace(/\\/g, '/'))
-    .filter(p => statSync(join(dir, p)).isFile() && p !== '.pact-install.json' && !p.startsWith('pact/backups/') && !p.startsWith('pact/builder/'))
+    .filter(p => statSync(join(dir, p)).isFile() && p !== '.pact/install.json' && !p.startsWith('.pact/backups/') && !p.startsWith('.pact/builder/'))
     .sort();
 }
 

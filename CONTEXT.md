@@ -29,11 +29,27 @@ rules file is [`claude/CLAUDE.md`](claude/CLAUDE.md).
 - **Security-defaults line:** the dry run's first warning, naming each part an edit reaches that sets security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`, `cost-limits`), or a project's own qualities list and Cost limits.
 - **Default configuration:** the pact's own configuration, Level 3 · Full, generated into `builder/default-config/` from its preset; a home install with no configuration of the person's renders it, and the dry run names it.
 - **Skill source:** an entry in a configuration's `skills` list: a repo, a pinned commit and the skill folders in it, for the cloud setup to fetch.
-- **Preset:** a Scriptorium builder file shipped in `builder/presets/`, or shared, that the page loads after the person ticks what to take from it. A person's own presets live in `~/.claude/pact/presets/` and are listed apart, under "Your presets".
-- **Builder kit:** what `/scriptorium` runs from, installed under `~/.claude/pact/builder/`: the builder, the page, the presets, the pact's agents, copies of `review.md`, the commands and the settings overlay for the page to show, the renderer, and the rules before any configuration as `claude/rules.source.md`.
+- **Preset:** a Scriptorium builder file shipped in `builder/presets/`, or shared, that the page loads after the person ticks what to take from it. A person's own presets live in `~/.pact/presets/` and are listed apart, under "Your presets".
+- **Builder kit:** what `/scriptorium` runs from, installed under `~/.pact/builder/`: the builder, the page, the presets, the pact's agents, copies of `review.md`, the commands and the settings overlay for the page to show, the renderer, and the rules before any configuration as `claude/rules.source.md`.
 - **Yours (agent):** an agent file in `~/.claude/agents/` the pact didn't write, or changed since it wrote it. The install never overwrites, deletes or records it; the dry run lists it under "Yours, left as is".
-- **Install backup:** the dated folder under `~/.claude/pact/backups/` that an apply writes before its first write, holding a copy of each file it replaces and a manifest that also lists each path it adds.
+- **Install backup:** the dated folder under `~/.pact/backups/` that an apply writes before its first write, holding a copy of each file it replaces and a manifest that also lists each path it adds.
 - **Copy-back:** undoing an apply from its install backup by hand: each copied file put back, each added path deleted, after checking the manifest.
+
+## Harnesses and the neutral home
+
+Spec 0007 (`docs/spec/0007-harness-agnostic-pact.md`) says what is built when.
+
+- **Harness:** a program that runs an AI coding session and loads rules, agents, skills or commands, and hooks from its own folders: Claude Code, Codex, Antigravity.
+- **Known harness:** a harness the pact ships a description for, in `harnesses/known.json`, tested with each release.
+- **Own harness:** a harness a person describes in their configuration, from the formats the pact knows.
+- **Harness description:** where a harness keeps each part, in which format, its rules cap, and its default models.
+- **The neutral home:** `~/.pact`, the one folder that holds the pact's configuration, tools, guard, hand-offs, record and backups.
+- **Planning model:** the model a harness runs Plan, Design and Maintain on, and the lenses.
+- **Executor model:** the model a harness runs Build and Test on.
+- **Light model:** the model a harness runs scout on; empty means the executor model.
+- **The rule table:** `~/.pact/guard/rules.json`, the pact's deny and ask rules as data, from which every harness's guards are made.
+- **The guard:** `~/.pact/guard/guard.mjs`, the one script that answers a shell call against the rule table, and its thin wrapper per harness.
+- **Release tag:** a tag named exactly `v1.<n>.0`, which the release job puts on `main`'s tip once `gate.yml` passed on the push. The highest `<n>` is the current release.
 
 ## The review lenses
 

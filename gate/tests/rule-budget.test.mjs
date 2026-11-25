@@ -45,7 +45,7 @@ const overBudget = files => files.filter(f => words(f.text) > BUDGETS[f.name]).m
 function renderDefault(t, source = SOURCE) {
   const home = tempDir(t, 'pact-budget-home-');
   const out = tempDir(t, 'pact-budget-out-');
-  const pact = join(home, 'pact');
+  const pact = join(home, '.pact');
   mkdirSync(pact);
   cpSync(join(REPO, 'builder', 'default-config', 'blocks'), join(pact, 'blocks'), { recursive: true });
   const config = JSON.parse(readFileSync(join(REPO, 'builder', 'default-config', 'config.json'), 'utf8'));

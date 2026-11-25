@@ -177,7 +177,7 @@ test('C6: a pin that fails S4\'s check, or a check that cannot run, ends refused
 test('C6: a github.json that is not the pinned shape stops the poster, and does not read as owner mode', async t => {
   for (const body of ['not json', '{}', '{"owner":{"login":"x","id":1},"apps":{"claude":{"app_id":1}}}']) {
     const s = setup(t);
-    writeFileSync(join(s.hw.home, '.claude', 'pact', 'github.json'), body);
+    writeFileSync(join(s.hw.home, '.pact', 'github.json'), body);
     const r = await run(t, s, 'issue-comment', note);
     assert.deepEqual(r.lines, ['REFUSED pin/check pin', 'NOTE: gh-app said pin/missing; nothing was sent, and nothing was posted as the owner', 'RESULT: refused 1'], body);
     assert.equal(s.gh.calls.length, 0);
@@ -487,9 +487,9 @@ function child(t, { pin, copyOnly = false, as = null, installed = true } = {}) {
   const empty = join(dir, 'empty');
   const doc = { repo: TARGET, kind: 'note', issue: 5, signer: LABEL, body_file: 'body.md', ...(as ? { as } : {}) };
   writeTree(dir, { 'body.md': 'A plain body.\n', 'post.json': JSON.stringify(doc), 'empty/.keep': '', 'home/.keep': '' });
-  if (pin !== undefined) writeTree(home, { '.claude/pact/github.json': pin });
+  if (pin !== undefined) writeTree(home, { '.pact/github.json': pin });
   // The install puts the helper under the home folder; a home without it is one whose agent-identity switch is off.
-  if (pin !== undefined && installed) writeTree(home, { '.claude/pact/tools/.keep': '' }), copyFileSync(join(REPO, 'claude', 'tools', 'gh-app.mjs'), join(home, '.claude', 'pact', 'tools', 'gh-app.mjs'));
+  if (pin !== undefined && installed) writeTree(home, { '.pact/tools/.keep': '' }), copyFileSync(join(REPO, 'claude', 'tools', 'gh-app.mjs'), join(home, '.pact', 'tools', 'gh-app.mjs'));
   let script = POSTER;
   if (copyOnly) {
     writeTree(dir, { 'alone/.keep': '' });

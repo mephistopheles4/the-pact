@@ -14,8 +14,8 @@ import { BOT, IDS, NODE, OWNER, SLUG, derOf, keys, leakSurface, printed, world, 
 const REPO = `${OWNER}/sandbox`;
 const mint = (w, set = 'git', repo = REPO, provider = 'claude') => mintToken({ provider, repo, set }, w.io);
 const refusesWith = (p, id) => assert.rejects(p, e => e instanceof Refusal && e.id === id, `refuses with ${id}`);
-const readPinFile = w => JSON.parse(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'));
-const gitconfigFile = w => join(w.home, '.claude', 'pact', 'gh-app-claude.gitconfig');
+const readPinFile = w => JSON.parse(readFileSync(join(w.home, '.pact', 'github.json'), 'utf8'));
+const gitconfigFile = w => join(w.home, '.pact', 'gh-app-claude.gitconfig');
 
 // ---------------------------------------------------------------- C2: mintToken
 
@@ -169,12 +169,12 @@ test('the pin file is read strictly: exactly these fields', async t => {
   ];
   for (const [i, body] of bad.entries()) {
     const w = world(t, { pin: false });
-    writeFileSync(join(w.home, '.claude', 'pact', 'github.json'), JSON.stringify(body));
+    writeFileSync(join(w.home, '.pact', 'github.json'), JSON.stringify(body));
     await refusesWith(mint(w), 'pin/missing');
     assert.equal(w.spy.fetches.length, 0, `case ${i}: refused before any call`);
   }
   const w = world(t, { pin: false });
-  writeFileSync(join(w.home, '.claude', 'pact', 'github.json'), '{not json');
+  writeFileSync(join(w.home, '.pact', 'github.json'), '{not json');
   await refusesWith(mint(w), 'pin/missing');
 });
 
@@ -429,7 +429,7 @@ test('gitconfigText is the spec\'s file: forward slashes, the include, the empty
     '  email = 3000001+example-owner-claude[bot]@users.noreply.github.com',
     '[credential "https://github.com"]',
     '  helper =',
-    '  helper = "!\\"C:/Program Files/nodejs/node.exe\\" \\"C:/Users/alice/.claude/pact/tools/gh-app.mjs\\" git-credential --provider claude"',
+    '  helper = "!\\"C:/Program Files/nodejs/node.exe\\" \\"C:/Users/alice/.pact/tools/gh-app.mjs\\" git-credential --provider claude"',
     '  useHttpPath = true',
     '',
   ].join('\n'));
@@ -473,7 +473,7 @@ const fresh = (t, o = {}) => {
 };
 const untouched = w => {
   assert.equal(w.store.size, 0, 'no credential written');
-  assert.equal(existsSync(join(w.home, '.claude', 'pact', 'github.json')), false, 'no pin file');
+  assert.equal(existsSync(join(w.home, '.pact', 'github.json')), false, 'no pin file');
   assert.equal(existsSync(gitconfigFile(w)), false, 'no gitconfig');
 };
 
@@ -522,7 +522,7 @@ for (const provider of ['codex', 'antigravity']) {
     assert.ok(w.store.has(`the-pact/gh-app/${provider}/key`));
     const entry = readPinFile(w).apps[provider];
     assert.equal(entry.bot_login, `example-owner-${provider}[bot]`);
-    assert.equal(readFileSync(join(w.home, '.claude', 'pact', `gh-app-${provider}.gitconfig`), 'utf8'), gitconfigText({ home: w.home, nodePath: NODE, provider, app: entry, xdg: false }));
+    assert.equal(readFileSync(join(w.home, '.pact', `gh-app-${provider}.gitconfig`), 'utf8'), gitconfigText({ home: w.home, nodePath: NODE, provider, app: entry, xdg: false }));
     assert.equal(readFileSync(gitconfigFile(w), 'utf8'), 'claude gitconfig\n', "claude's gitconfig is left alone");
   });
 
@@ -530,13 +530,13 @@ for (const provider of ['codex', 'antigravity']) {
   for (const prior of [null, 'old gitconfig\n']) {
     test(`setup for ${provider} whose helper line reads back wrong refuses and ${prior ? 'puts back its old gitconfig' : 'leaves no gitconfig'}`, async t => {
       const w = fresh(t);
-      const file = join(w.home, '.claude', 'pact', `gh-app-${provider}.gitconfig`);
+      const file = join(w.home, '.pact', `gh-app-${provider}.gitconfig`);
       if (prior) writeFileSync(file, prior);
       w.state.git = () => ({ status: 0, stdout: '\n!evil\n', stderr: '' });
       assert.equal(await main(setupArgs(w, provider), w.io), 1);
       assert.equal(existsSync(file) ? readFileSync(file, 'utf8') : null, prior);
       assert.equal(w.store.size, 0, 'no key kept');
-      assert.equal(existsSync(join(w.home, '.claude', 'pact', 'github.json')), false, 'no pin kept');
+      assert.equal(existsSync(join(w.home, '.pact', 'github.json')), false, 'no pin kept');
     });
   }
 }
@@ -584,17 +584,17 @@ for (const provider of ['codex', 'antigravity']) {
 test('setup refuses a pin whose owner differs from this gh login, writing nothing new', async t => {
   const w = fresh(t);
   writePin(w);
-  const pinBefore = readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8');
+  const pinBefore = readFileSync(join(w.home, '.pact', 'github.json'), 'utf8');
   w.state.me = { login: 'someone-else', id: 77 };
   assert.equal(await main(setupArgs(w), w.io), 1);
-  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), pinBefore);
+  assert.equal(readFileSync(join(w.home, '.pact', 'github.json'), 'utf8'), pinBefore);
   assert.equal(w.store.size, 0);
 });
 
 // #602 C1: setup refuses and writes nothing over a pin file that is not the pinned shape.
 test('setup refuses a pin file that exists but is not the pinned shape, and writes nothing over it', async t => {
   const w = fresh(t);
-  const file = join(w.home, '.claude', 'pact', 'github.json');
+  const file = join(w.home, '.pact', 'github.json');
   const body = `${JSON.stringify({ owner: { login: OWNER, id: IDS.owner }, apps: { codex: { app_id: 9, slug: 's', bot_login: 's[bot]', bot_id: 8 } }, extra: true })}\n`;
   writeFileSync(file, body);
   const key = writePem(w, 'download.pem');
@@ -653,7 +653,7 @@ const rerun = async t => {
   const oldDer = Buffer.from(derOf(keys().b.privateKey));
   w.store.set(KEY, oldDer);
   writePin(w, { claude: OLD_ENTRY });
-  const oldPin = readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8');
+  const oldPin = readFileSync(join(w.home, '.pact', 'github.json'), 'utf8');
   const tokens = [cachedToken(w, 'git'), cachedToken(w, 'post'), cachedToken(w, 'gh', 'other')];
   const key = writePem(w, 'download.pem', keys().a.privateKey);
   return { w, oldDer, oldPin, tokens, key, code: () => main(setupArgs(w, 'claude', { key }), w.io) };
@@ -666,7 +666,7 @@ test('a re-run whose new key fails its test mint keeps the old key, pin and cach
   w.state.mintStatus = 403; // the new key signs, GitHub answers the key's own test mint with a refusal
   assert.equal(await code(), 1);
   assert.deepEqual(w.store.get(KEY), oldDer, 'a refused test mint leaves the old key');
-  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), oldPin, 'and the old pin');
+  assert.equal(readFileSync(join(w.home, '.pact', 'github.json'), 'utf8'), oldPin, 'and the old pin');
   assert.equal(w.store.size, 4, 'and the cache');
   assert.equal(w.state.revoked.length, 0, 'none of the cached tokens is revoked');
   assert.ok(existsSync(key));
@@ -726,7 +726,7 @@ test('a re-run that fails after the key swap puts back the prior key and entry',
   w.state.git = () => ({ status: 0, stdout: '\n!wrong\n', stderr: '' });
   assert.equal(await code(), 1);
   assert.deepEqual(w.store.get(KEY), oldDer, 'the prior key, not the new one');
-  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), oldPin, 'the prior entry');
+  assert.equal(readFileSync(join(w.home, '.pact', 'github.json'), 'utf8'), oldPin, 'the prior entry');
   assert.equal(readFileSync(gitconfigFile(w), 'utf8'), 'old gitconfig\n');
   assert.ok(existsSync(key));
 });
@@ -743,7 +743,7 @@ test('a rollback that cannot put the old key back still puts back the pin and th
     return write(tgt, b);
   };
   assert.equal(await code(), 1);
-  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), oldPin);
+  assert.equal(readFileSync(join(w.home, '.pact', 'github.json'), 'utf8'), oldPin);
   assert.equal(readFileSync(gitconfigFile(w), 'utf8'), 'old gitconfig\n');
   assert.match(printed(w).err, /the rollback was incomplete/);
   assert.ok(existsSync(key));
@@ -1050,7 +1050,7 @@ const gitconfigNow = w => (existsSync(gitconfigFile(w)) ? readFileSync(gitconfig
 for (const prior of [STALE, null]) test(`refresh ${prior ? 'rewrites a stale' : 'writes a missing'} gitconfig for the Node it runs under, after the pin check, and mints no token and makes no key`, async t => {
   const w = refreshed(t, prior);
   const keyBefore = Buffer.from(w.store.get('the-pact/gh-app/claude/key'));
-  const pinBefore = readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8');
+  const pinBefore = readFileSync(join(w.home, '.pact', 'github.json'), 'utf8');
   assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 0, printed(w).err);
   assert.equal(readFileSync(gitconfigFile(w), 'utf8'), gitconfigText({ home: w.home, nodePath: NODE, provider: 'claude', app: readPinFile(w).apps.claude, xdg: false }));
   assert.ok(w.spy.spawns.some(s => s.file === 'gh' && s.args.includes(`apps/${SLUG}`)), 'the pin was checked');
@@ -1058,7 +1058,7 @@ for (const prior of [STALE, null]) test(`refresh ${prior ? 'rewrites a stale' : 
   assert.equal(w.spy.fetches.length, 0, 'no token minted');
   assert.deepEqual(w.store.get('the-pact/gh-app/claude/key'), keyBefore, 'the key is unchanged');
   assert.equal(w.store.size, 1, 'nothing else stored');
-  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), pinBefore, 'the pin is unchanged');
+  assert.equal(readFileSync(join(w.home, '.pact', 'github.json'), 'utf8'), pinBefore, 'the pin is unchanged');
   assert.ok(!printed(w).out.includes(NODE.replaceAll('\\', '/')) &&!printed(w).out.includes(NODE), 'the Node path is not printed');
 });
 
@@ -1076,7 +1076,7 @@ test('refresh refuses, writing nothing, when the existing gitconfig cannot be re
 // PACT-104 R2: refresh refuses, writing nothing, without a pinned entry, a key or a passing pin check.
 {
   const rows = [
-    { id: 'unpinned', reason: 'pin/unpinned', provider: 'codex', also: w => assert.equal(existsSync(join(w.home, '.claude', 'pact', 'gh-app-codex.gitconfig')), false) },
+    { id: 'unpinned', reason: 'pin/unpinned', provider: 'codex', also: w => assert.equal(existsSync(join(w.home, '.pact', 'gh-app-codex.gitconfig')), false) },
     { id: 'no-key', reason: 'key/missing', setup: w => { w.store.delete('the-pact/gh-app/claude/key'); } },
     { id: 'pin-check-cannot-run', reason: 'pin/unavailable', setup: w => { w.state.ghReadFails.add('user'); } },
     { id: 'pin-check-fails', reason: 'pin/check', setup: w => { w.state.bot.type = 'User'; } },

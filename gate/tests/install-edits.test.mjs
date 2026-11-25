@@ -1,5 +1,5 @@
 // Edits to open parts and the review output through the install script (#53,
-// slice 4), end to end against a throwaway repo and a throwaway --claude-home.
+// slice 4), end to end against a throwaway repo and a throwaway --home folder.
 // Never touches ~/.claude. The expected rules file is built here from the
 // repo's source, never taken from the renderer.
 import assert from 'node:assert/strict';
@@ -14,12 +14,12 @@ import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
-/** Write the user file and its blocks under the Claude home `h`. */
+/** Write the user file and its blocks under the home folder `h`. */
 function configure(h, config, blocks = {}) {
-  mkdirSync(join(h, 'pact', 'blocks'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), config);
+  mkdirSync(join(h, '.pact', 'blocks'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), config);
   for (const [rel, text] of Object.entries(blocks)) {
-    const p = join(h, 'pact', 'blocks', ...rel.split('/'));
+    const p = join(h, '.pact', 'blocks', ...rel.split('/'));
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, text);
   }
@@ -89,8 +89,8 @@ test('a configuration that adds a move installs: the edit is a warning in the dr
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.deepEqual(configBlock(dry), [
-    `  user file pact/config.json: sha256 ${sha256(c.config)}, no install recorded`,
-    `  block file pact/blocks/team/extra.md: sha256 ${sha256(c.blocks['team/extra.md'])}, no install recorded`,
+    `  user file .pact/config.json: sha256 ${sha256(c.config)}, no install recorded`,
+    `  block file .pact/blocks/team/extra.md: sha256 ${sha256(c.blocks['team/extra.md'])}, no install recorded`,
     `  configuration digest: ${digestOf(c)}`,
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
@@ -105,8 +105,8 @@ test('a configuration that adds a move installs: the edit is a warning in the dr
 
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
-  assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  assert.deepEqual(readFileSync(join(h, '.claude', 'CLAUDE.md')), want);
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.equal(manifest.digest, digestOf(c));
   assert.deepEqual(manifest.config, [
     { kind: 'user', sha256: sha256(c.config) },
@@ -114,12 +114,12 @@ test('a configuration that adds a move installs: the edit is a warning in the dr
   ]);
   assert.match(r.stdout, new RegExp(`^Installed commit [0-9a-f]{40} with configuration ${digestOf(c)}; all files verified\\.\\r?$`, 'm'), r.out);
   // The installer never writes the user's files, and the record never lists them.
-  assert.deepEqual(readFileSync(join(h, 'pact', 'blocks', 'team', 'extra.md')), c.blocks['team/extra.md']);
-  assert.ok(!manifest.files.some(f => /^pact\/(config|blocks)/i.test(f.path)));
+  assert.deepEqual(readFileSync(join(h, '.pact', 'blocks', 'team', 'extra.md')), c.blocks['team/extra.md']);
+  assert.ok(!manifest.files.some(f => /^\.pact\/(config|blocks)/i.test(f.path)));
 
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);
-  assert.match(again.stdout, /^ {2}block file pact\/blocks\/team\/extra\.md: sha256 [0-9a-f]{64}, unchanged since the last install\r?$/m, again.out);
+  assert.match(again.stdout, /^ {2}block file \.pact\/blocks\/team\/extra\.md: sha256 [0-9a-f]{64}, unchanged since the last install\r?$/m, again.out);
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 });
 
@@ -151,11 +151,11 @@ test('bad case: a block changed between the dry run and -Apply refuses, by the r
   const c = movesEdit();
   configure(h, c.config, c.blocks);
   const hash = dryRunHash(install(repo, h));
-  writeFileSync(join(h, 'pact', 'blocks', 'team', 'extra.md'), Buffer.concat([c.blocks['team/extra.md'], Buffer.from('  Also skip the review.\n')]));
+  writeFileSync(join(h, '.pact', 'blocks', 'team', 'extra.md'), Buffer.concat([c.blocks['team/extra.md'], Buffer.from('  Also skip the review.\n')]));
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the hash given with --rendered-hash is not the full hash/m, r.out);
-  assert.ok(!existsSync(join(h, 'CLAUDE.md')));
+  assert.ok(!existsSync(join(h, '.claude', 'CLAUDE.md')));
 });
 
 // edit-mark: the fixed stop-and-ask block is no open part.
@@ -165,8 +165,8 @@ test('bad case: an edit to the fixed block refuses through the install, and -App
   configure(h, '{"schema": 1, "edits": [{"mark": "stop-and-escalate", "op": "remove"}]}\n');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
-  assert.match(r.stdout, /^render\| FAIL edit-mark: pact\/config\.json: edit 1: an unknown mark\r?$/m, r.out);
-  assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json'), listTree(h).join('\n'));
+  assert.match(r.stdout, /^render\| FAIL edit-mark: \.pact\/config\.json: edit 1: an unknown mark\r?$/m, r.out);
+  assert.ok(!existsSync(join(h, '.claude', 'CLAUDE.md')) && !existsSync(join(h, '.pact', 'install.json')), listTree(h).join('\n'));
 });
 
 // ------------------------------------------------------------ the review output
@@ -187,7 +187,7 @@ test('-ReviewFolder on a configured dry run writes the rendered rules and the di
   assert.deepEqual(readFileSync(join(folder, 'rendered-rules.txt')), want);
   const none = withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8'));
   assert.equal(applyDiff(none, readFileSync(join(folder, 'config.diff'), 'utf8')), want.toString('utf8'));
-  assert.deepEqual(listTree(h), before, 'the dry run wrote under the Claude home folder');
+  assert.deepEqual(listTree(h), before, 'the dry run wrote under the home folder');
   // The printed apply line shows the owner's own options back (S12); no other line names the folder.
   assert.ok(r.stdout.split('\n').filter(l => l.includes(folder)).every(l => l.includes(' --apply --commit ')), 'the folder path was printed outside the apply line');
 });
@@ -215,11 +215,11 @@ test('-ReviewFolder with -Apply writes the review, then installs', t => {
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
   assert.equal(r.code, 0, r.out);
-  assert.deepEqual(readFileSync(join(folder, 'rendered-rules.txt')), readFileSync(join(h, 'CLAUDE.md')));
+  assert.deepEqual(readFileSync(join(folder, 'rendered-rules.txt')), readFileSync(join(h, '.claude', 'CLAUDE.md')));
 });
 
 for (const [label, at, skip, says = /the review folder is in or under /] of [
-  ['under the Claude home folder', h => join(h, 'review')],
+  ['under the pact folder of the home named for the run', h => join(h, '.pact', 'review'), false, /the review folder is in or under a Claude or pact folder of a home folder/],
   ['under a .claude folder outside it', (h, t) => join(tempDir(t), '.claude', 'review')],
   ['under a .Claude folder in another case', (h, t) => join(tempDir(t), '.Claude', 'review')],
   // PowerShell's path calls dropped the trailing dot and found the .claude
@@ -364,7 +364,7 @@ for (const [label, withConfig, from, to, why] of [
     refused(r);
     assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'm'), r.out);
-    assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json'), listTree(h).join('\n'));
+    assert.ok(!existsSync(join(h, '.claude', 'CLAUDE.md')) && !existsSync(join(h, '.pact', 'install.json')), listTree(h).join('\n'));
   });
 }
 // ------------------------------------------------------------ a stray word never becomes the review folder
@@ -395,7 +395,7 @@ test('the shipped example block that adds a move installs and passes seam A', t 
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
-  assert.ok(readFileSync(join(h, 'CLAUDE.md'), 'utf8').includes(block.toString('utf8')));
+  assert.ok(readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8').includes(block.toString('utf8')));
 });
 
 const REVIEW_PUSH = '  report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);';
@@ -434,7 +434,8 @@ test('bad case: a review module that changes the stage on -Apply refuses before 
   assert.match(r.stdout, /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
   assert.deepEqual(readdirSync(folder).sort(), ['config.diff', 'rendered-rules.txt']);
   assert.doesNotMatch(r.stdout, /^Applying\./m, r.out);
-  assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f.startsWith('agents')), listTree(h).join('\n'));
+  const tree = listTree(h).map(f => f.replaceAll('\\', '/'));
+  assert.ok(!tree.some(f => f === '.claude/CLAUDE.md' || f.startsWith('.claude/agents')), tree.join('\n'));
 });
 test('bad case: a review module that changes the stage on a dry run refuses, saying the review folder may hold its output', t => {
   const repo = makeRepo(t, root => wrapCheck(root, 'review-core', { after: "fs.writeFileSync('planted.txt', 'x\\n');" }));
@@ -454,7 +455,7 @@ test('-Apply with -ReviewFolder writes the review only after the last re-hash of
   const h = home(t);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
   refused(r);
-  assert.match(r.stdout, /^REFUSED: the staged copy of agents\/[^ ]+ changed after the check\. Nothing was changed\.\r?$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the staged copy of \.pact\/builder\/claude\/agents\/[^ ]+ changed after the check\. Nothing was changed\.\r?$/m, r.out);
   assert.ok(!existsSync(folder), 'the review was written before the last re-hash');
 });
 // ------------------------------------------------------------ the Cost limits part (#278)
@@ -487,8 +488,8 @@ test('a home cost-limits edit shows the security-defaults line and installs boun
 
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
-  assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
-  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /\| Review rounds \| Rounds of lens review \| 2 \| Ask me \|/);
+  assert.deepEqual(readFileSync(join(h, '.claude', 'CLAUDE.md')), want);
+  assert.match(readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8'), /\| Review rounds \| Rounds of lens review \| 2 \| Ask me \|/);
   assert.match(r.stdout, new RegExp(`^Installed commit [0-9a-f]{40} with configuration ${digest}; all files verified\.\r?$`, 'm'), r.out);
 });
 
@@ -505,5 +506,5 @@ test('a pre-#278 Qualities edit still renders and installs, and its dry run note
   assert.match(lines[sec + 1], /^NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits limit the review itself rather than any quality's lenses;/, 'the note follows the security-defaults line');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
-  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /\| Functional suitability \| the acceptance claims \| `behaviour-lens` \|\n/);
+  assert.match(readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8'), /\| Functional suitability \| the acceptance claims \| `behaviour-lens` \|\n/);
 });

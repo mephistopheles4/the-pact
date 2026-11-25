@@ -22,16 +22,20 @@ const INSTALL_PICKS = Object.freeze([
   'agents-yours-install.test.mjs', // edits scout in place, and names the repo's copy
   'builder-install.test.mjs', // saves an edited scout prompt and names its agent path
   'builder-kit-install.test.mjs', // lists the kit's agents against the repo's
+  'config-install.test.mjs', // checks that nothing reached .claude/agents, whose path the text rule reads as claude/agents
   'install-backup.test.mjs', // edits scout in the repo copy, and compares the backup's copy of it (#272)
   'install-edits.test.mjs', // lists the copy's agents
+  'install-node.test.mjs', // counts the record's installed agents against the copy's
   'install-project.test.mjs', // names the live folder's agents in its own text
   'install-smoke.test.mjs', // the smoke set; compares every installed agent
   'install.test.mjs', // plants and routes agents, and lists the copy's
+  'neutral-home.test.mjs', // edits scout in the repo copy, and reads each harness's installed one
+  'retired-agent-install.test.mjs', // names the retired agent's live path under .claude/agents
   'settings-install.test.mjs', // settings-rules.mjs reads the overlay through payload.mjs
 ]);
 
 /** The install-tier files that reach the agents only through makeRepo's copy, which the smoke set covers (S5 rule 4). */
-const INSTALL_NOT_PICKED = Object.freeze(['commands-install.test.mjs', 'compact-install.test.mjs', 'compact-off.test.mjs', 'config-install.test.mjs', 'guard-install.test.mjs', 'install-node-project.test.mjs','install-node.test.mjs', 'retired-agent-install.test.mjs', 'tools-install.test.mjs']);
+const INSTALL_NOT_PICKED = Object.freeze(['commands-install.test.mjs', 'compact-install.test.mjs', 'compact-off.test.mjs', 'guard-install.test.mjs', 'install-node-project.test.mjs', 'tools-install.test.mjs']);
 
 /** The fast-tier files that read no agent file (#151's audit). */
 const FAST_NOT_PICKED = Object.freeze([

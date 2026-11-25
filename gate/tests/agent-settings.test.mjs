@@ -42,8 +42,8 @@ function render(t, config, { agent = AGENT, name = 'integrity-lens', renderer = 
   }
   const h = tempDir(t, 'pact-agents-home-');
   if (!noConfig) {
-    mkdirSync(join(h, 'pact'), { recursive: true });
-    writeFileSync(join(h, 'pact', 'config.json'), typeof config === 'string' ? config : `${JSON.stringify(config)}\n`);
+    mkdirSync(join(h, '.pact'), { recursive: true });
+    writeFileSync(join(h, '.pact', 'config.json'), typeof config === 'string' ? config : `${JSON.stringify(config)}\n`);
   }
   const out = tempDir(t, 'pact-agents-out-');
   const env = { ...process.env };
