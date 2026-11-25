@@ -15,6 +15,8 @@ const h = (id, over = {}) => ({
   commands: null,
   models: { planning: `${id}-plan`, executor: `${id}-exec`, light: `${id}-light` },
   capabilities: ['subagents'],
+  own: false,
+  overrides: [],
   ...over,
 });
 const CLAUDE = h('claude', { name: 'Claude Code', commands: { dir: '.claude/commands' }, models: { planning: 'opus', executor: 'sonnet', light: 'haiku' }, capabilities: ['subagents', 'cleaner', 'archive'] });
@@ -67,10 +69,23 @@ test('C29: a harness with no models gets no models line and no agent model, with
   assert.match(r.warnings.join('\n'), /^plain: it names no models/m);
 });
 
-test('a conditional block that does not close, or names no capability the pact knows, refuses', () => {
+test('C29: a models line that comes from the configuration warns that sessions may quote it, naming no model', () => {
+  const w = render([{ ...CLAUDE, overrides: ['models'] }, CODEX, h('mine', { own: true }), h('bare', { own: true, models: null })]).warnings.filter(l => l.includes('may quote'));
+  assert.deepEqual(w, [
+    'claude: its rules hold your configuration’s model names as written; sessions read that file and may quote it.',
+    'mine: its rules hold your configuration’s model names as written; sessions read that file and may quote it.',
+  ]);
+});
+
+test('a conditional block that does not close, holds another, or names no capability the pact knows, refuses', () => {
   refuses(() => render([CLAUDE], { rules: '<!-- pact:if cleaner -->\nx\n' }), 'render-block');
   refuses(() => render([CLAUDE], { rules: '<!-- pact:end -->\n' }), 'render-block');
   refuses(() => render([CLAUDE], { rules: '<!-- pact:if cleener -->\nx\n<!-- pact:end -->\n' }), 'render-block');
+  refuses(() => render([CLAUDE], { rules: '<!-- pact:if cleaner -->\n<!-- pact:if cleaner -->\nx\n<!-- pact:end -->\n' }), 'render-block');
+});
+
+test('an agent with no frontmatter refuses', () => {
+  refuses(() => render([CLAUDE], { agents: new Map([['scout', '# scout\n']]) }), 'render-frontmatter');
 });
 
 test('C6: rules over a harness cap refuse; above half a shared cap the dry run warns', () => {
@@ -94,7 +109,7 @@ test('C5: a claude-md agent keeps its bytes but for the model its role names', (
   assert.match(file(own, 'rendered/claude/agents/scout.md'), /^model: sonnet$/m);
 });
 
-test('C5: a codex-toml agent maps role and effort, drops tools, and a lens turns off what it may not use', () => {
+test('C5: a codex-toml agent maps role and effort, drops tools, and every agent turns off what it may not use', () => {
   const r = render([CODEX]);
   assert.equal(
     file(r, 'rendered/codex/agents/data-lens.toml'),
@@ -102,7 +117,8 @@ test('C5: a codex-toml agent maps role and effort, drops tools, and a lens turns
   );
   const scout = file(r, 'rendered/codex/agents/scout.toml');
   assert.match(scout, /^model = "astra"$/m);
-  assert.doesNotMatch(scout, /\[features\]|tools/);
+  assert.match(scout, /\n\[features\]\napps = false\nplugins = false\nmemories = false\nrequest_permissions_tool = false\n$/);
+  assert.doesNotMatch(scout, /^tools/m);
   refuses(() => render([CODEX], { agents: new Map([['scout', SCOUT.replace('# scout', "a ''' b")]]) }), 'agent-toml');
 });
 
@@ -139,21 +155,24 @@ test('C9: every command becomes a skill where there is a skills folder, kept fro
   assert.deepEqual([...r.files.keys()].filter(k => k.includes('/commands/')), []);
 });
 
-test('C7: the one shared skill folder holds a capability block only when every harness that reads it has the capability', () => {
+test('C7, C9: the one shared skill folder counts a capability only when every harness that reads it has it', () => {
   const some = h('other', { skills: { dir: '.other/skills' }, capabilities: ['archive'] });
   assert.match(file(render([some]), 'rendered/skills/finis/SKILL.md'), /Archive it\./);
   const mixed = file(render([some, CODEX]), 'rendered/skills/finis/SKILL.md');
-  assert.doesNotMatch(mixed, /Archive it\.|Nothing is outstanding/);
+  assert.doesNotMatch(mixed, /Archive it\./);
+  assert.match(mixed, /\nNothing is outstanding; close this session\.\n$/);
 });
 
 test('C8: a model named outright warns in each harness but Claude Code, unless it is that harness’s own', () => {
-  const named = { rules: `${RULES}Plan on Opus, build on Sonnet.\n`, agents: new Map([['scout', SCOUT.replace('model: light', 'model: my-model')]]) };
+  const named = { rules: `${RULES}Plan on Opus, build on Sonnet, search on claude-haiku-5-5.\n`, agents: new Map([['scout', SCOUT.replace('model: light', 'model: my-model')]]) };
   const w = render([CLAUDE, CODEX, h('own', { models: { planning: 'opus', executor: 'my-model', light: null } })], named).warnings.filter(l => l.includes('names model'));
   assert.deepEqual(w.sort(), [
     '`.codex/RULES.md` names model `Opus`, which codex may not have',
     '`.codex/RULES.md` names model `Sonnet`, which codex may not have',
+    '`.codex/RULES.md` names model `claude-haiku-5-5`, which codex may not have',
     '`.codex/agents/scout.toml` names model `my-model`, which codex may not have',
     '`.own/RULES.md` names model `Sonnet`, which own may not have',
+    '`.own/RULES.md` names model `claude-haiku-5-5`, which own may not have',
   ].map(l => l.replace('.codex/RULES.md', CODEX.rules.path)).sort());
   assert.match(file(render([CODEX], named), 'rendered/codex/agents/scout.toml'), /^model = "my-model"$/m);
 });

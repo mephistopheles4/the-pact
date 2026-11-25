@@ -13,6 +13,8 @@ Other changes to the pact text: "How Claude helps" is now "How the agent helps";
 - The hash an apply is bound to covers every harness's rendered rules, so a change to any one refuses an old apply.
 - Seam A reads the rendered files, and refuses one it can't classify.
 
+Test round 1 found five gaps, all fixed: the shared `finis` skill lost both endings when only some of its readers could archive; the tree check trusted its copies, which a lens could edit, and could delete through a link a lens made; Codex's scout kept the features its lenses turn off; and a model name from the configuration reached the rules with no warning.
+
 **Rolling back:** as [Roll back to an older version](../install.md#roll-back-to-an-older-version) says.
 
 ## Record

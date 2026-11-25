@@ -1052,7 +1052,7 @@ test('the commands block lists every pact command, on or off, says which this co
     '  /scriptorium: off (not in this commit)',
     '  /scry: off (not in this commit)',
     '  To turn one on, list its name in .pact/config.json, for example: "commands": ["finis"]',
-    '  WARN: the user configuration turns on the pact command /finis; it installs to each harness\'s commands folder as finis.md.',
+    '  WARN: the user configuration turns on the pact command /finis; it installs as finis.md in each harness\'s commands folder, or as a skill in ~/.pact/skills.',
   ]);
   assert.equal(core.commandsBlock([], []).filter(l => l.startsWith('  WARN')).length, 0);
   assert.equal(core.commandsBlock([], ['claude/CLAUDE.md']).at(-1), '  No pact command that can be turned on is in this commit.', 'never an example the commit lacks');

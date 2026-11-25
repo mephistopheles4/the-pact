@@ -196,6 +196,8 @@ test('with no configuration file the install renders the pact\'s default: the no
   const rendered = Buffer.from(forClaude(readFileSync(join(out, 'CLAUDE.md'), 'utf8')));
   assert.deepEqual(readFileSync(join(h, '.claude', 'CLAUDE.md')), rendered);
   assert.match(rendered.toString('utf8'), /^\*\*Configuration in effect\.\*\* This file was rendered with the pact's default configuration `[0-9a-f]{12}`\.$/m);
+  // C29: the default configuration replaces the tiers part, and the models line survives it.
+  assert.match(rendered.toString('utf8'), /^Here the planning model is `opus`, the executor model `sonnet` and the light model `haiku`\.$/m);
   const digest = /^DIGEST ([0-9a-f]{12})$/m.exec(want.lines.join('\n'))[1];
   const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.equal(manifest.digest, digest);

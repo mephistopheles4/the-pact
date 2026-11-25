@@ -85,8 +85,6 @@ test('C3: the rules, agents, commands and settings written for Claude Code match
   passed(applyBound(repo, h));
   const rules = lf(read(h, '.claude/CLAUDE.md'));
   assert.equal(rules, neutral(moved(fixture('rules.md'))));
-  // S6: today's Quick Build reads as a role.
-  assert.match(rules, /^\| \*\*Quick\*\* \|.*\| none \| planning model, low \|$/m);
   for (const dir of ['agents', 'commands']) {
     const want = readdirSync(join(FIXTURE, dir)).sort();
     assert.deepEqual(readdirSync(at(h, `.claude/${dir}`)).sort(), want);
@@ -170,7 +168,11 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   assert.match(read(h, '.gemini/AGENTS.md'), /the planning model is `pro`, the executor model `flash`/);
   assert.match(read(h, '.codex/agents/data-lens.toml'), /^model = "gpt-6\.2-sol"$/m);
   assert.ok(!existsSync(at(h, '.gemini/config/agents')));
-  assert.match(read(h, '.pact/skills/finis/SKILL.md'), /^---\nname: finis\n[\s\S]*Nothing is outstanding;\s+close this session\./);
+  // C9: the skill opens with S7's line, ends with the no-archive line, and its steps archive nothing.
+  const finis = lf(read(h, '.pact/skills/finis/SKILL.md'));
+  assert.match(finis, /^---\nname: finis\n[\s\S]*?\n# \/finis\n\nAct only if the person's latest message names this command; otherwise say so and stop\.\n/);
+  assert.match(finis, /Nothing is outstanding;\s+close this session\."\n$/);
+  assert.doesNotMatch(finis.slice(finis.indexOf('\n# /finis\n')), /archive/i);
   assert.equal(read(h, '.pact/skills/finis/agents/openai.yaml'), 'policy:\n  allow_implicit_invocation: false\n');
   // A command the configuration leaves off is no skill either.
   assert.ok(!existsSync(at(h, '.pact/skills/scry')));

@@ -36,19 +36,23 @@ lenses to offer, and when.
   - find git's real folders through git (`rev-parse --git-common-dir`, and
     `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since in
     a linked worktree `.git` is a file;
-  - copy those outside the work tree, readable only by the owner;
+  - copy those outside the work tree, readable only by the owner, and keep a
+    hash of each copy, and the records below, in your own output, never in a
+    file a lens can write;
   - record `HEAD`, a hash of every ref and of the stash list, and
     `status --porcelain --ignored=matching --untracked-files=all`, with a hash
     of each listed path's content. Run git with fsmonitor and every filter off:
     `-c core.fsmonitor=false`, and each filter's `clean` and `process` empty
     and `required` false.
 
-  After it, first compare git's folders with the copies and put them back, then
-  take the same records again. Any change marks the lens inconclusive. Put
-  back only what changed during the lens: a moved ref goes back to its earlier
-  value first; then a path clean before is restored from the earlier `HEAD`, or
-  deleted if it is new. A path already changed before the lens stays as it is,
-  and you name it, so my own work is never thrown away. Delete the copies. The
+  After it, first check each copy against its hash; if one differs, put nothing
+  back from the copies and bring it to me. Else compare git's folders with the
+  copies and put them back, then take the same records again. Any change marks
+  the lens inconclusive. Put back only what changed during the lens: a moved ref
+  goes back to its earlier value first; then a path clean before is restored
+  from the earlier `HEAD`, or deleted if it is new, as itself and never through
+  a link or junction. A path already changed before the lens stays as it is, and
+  you name it, so my own work is never thrown away. Delete the copies. The
   change and the restore are a checkpoint, flagged.
 
 ## The report template

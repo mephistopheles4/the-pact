@@ -19,8 +19,8 @@ const OPEN_RE = /^ *<!-- pact:(if|unless) ([a-z][a-z0-9-]*) -->\r?$/;
 const END_RE = /^ *<!-- pact:end -->\r?$/;
 const MODELS_RE = /^<!-- pact:models -->\r?$/;
 const FRONT_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
-// A Codex lens keeps its shell (S12); these switches are what its file can turn off.
-const CODEX_LENS_OFF = Object.freeze(['apps', 'plugins', 'memories', 'request_permissions_tool']);
+// A Codex agent keeps its shell (S12); these switches are what its file can turn off.
+const CODEX_AGENT_OFF = Object.freeze(['apps', 'plugins', 'memories', 'request_permissions_tool']);
 const READ_TOOLS = Object.freeze(['Read', 'Glob', 'Grep']);
 const SKILL_POLICY = 'policy:\n  allow_implicit_invocation: false\n';
 
@@ -90,7 +90,7 @@ function codexAgent(name, text, model) {
   if (model !== null) out.push(`model = ${JSON.stringify(model)}`);
   if (values.has('effort')) out.push(`model_reasoning_effort = ${JSON.stringify(values.get('effort'))}`);
   out.push(`developer_instructions = '''\n${body}'''`);
-  if (name.endsWith('-lens')) out.push('', '[features]', ...CODEX_LENS_OFF.map(k => `${k} = false`));
+  out.push('', '[features]', ...CODEX_AGENT_OFF.map(k => `${k} = false`));
   return `${out.join('\n')}\n`;
 }
 
@@ -116,9 +116,9 @@ function agentFor(name, text, h, tables, warn) {
   return [`${name}.md`, claudeAgent(text, model), model];
 }
 
-/** Every command as a skill, once: a block renders only when every harness that reads the folder agrees on it. */
+/** Every command as a skill, once: the folder has a capability only when every harness that reads it has it. */
 function skills(commands, readers, files) {
-  const keep = (kind, c) => readers.every(h => h.capabilities.includes(c) === (kind === 'if'));
+  const keep = (kind, c) => readers.every(h => h.capabilities.includes(c)) === (kind === 'if');
   const explicit = readers.some(h => h.capabilities.includes('explicit-skills'));
   for (const [name, text] of commands) {
     const { values, rest } = frontmatter(blocks(text.replaceAll('\r\n', '\n'), keep, `the command ${name}`), `the command ${name}`);
@@ -147,6 +147,8 @@ export function renderHarnesses({ rules, agents, commands, harnesses, tables = T
       for (const m of new Set(found)) if (!own.includes(m.toLowerCase())) warnings.push(`\`${path}\` names model \`${m}\`, which ${h.name} may not have`);
     };
     if (!h.models) warn('it names no models, so its rules hold no models line and its agents no model');
+    // A configured name can hold a provider account or project, so it is never printed here.
+    else if (h.own || h.overrides.includes('models')) warn('its rules hold your configuration’s model names as written; sessions read that file and may quote it.');
 
     const text = rulesFor(rules, h);
     const size = Buffer.byteLength(text);

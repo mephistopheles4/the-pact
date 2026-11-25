@@ -137,7 +137,9 @@ test('a rendered agent beside its source passes: the two share a name by design'
 });
 
 test('bad case: a rendered file of no known kind, a rendered command or skill that is not the pact\'s, and a rendered agent whose frontmatter fails', t => {
-  for (const rel of ['rendered/claude/notes.md', 'rendered/claude/agents/sub/probe.md', 'rendered/skills/rm/SKILL.md', 'rendered/skills/finis/run.sh']) expectFail(t, { [rel]: 'x\n' }, 'unclassified');
+  // rendered/skills/ is the skills render, never a harness; a harness id is lower case.
+  for (const rel of ['rendered/claude/notes.md', 'rendered/claude/agents/sub/probe.md', 'rendered/skills/rm/SKILL.md', 'rendered/skills/finis/run.sh', 'rendered/skills/rules.md', 'rendered/Mine/rules.md']) expectFail(t, { [rel]: 'x\n' }, 'unclassified');
+  expectFail(t, { 'rendered/claude/agents/a b.md': 'x\n' }, 'path');
   expectFail(t, { 'rendered/claude/commands/rm.md': 'x\n' }, 'command-file-name');
   expectFail(t, { 'rendered/claude/agents/probe.md': plainAgent('other') }, 'name-stem');
 });

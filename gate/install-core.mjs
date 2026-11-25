@@ -109,7 +109,7 @@ export const KIT_EXTRA = Object.freeze(['docs/brand/scriptorium/scriptorium-mark
 export const KIT_COMMAND = 'scriptorium';
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 export const RULES_REL = 'claude/CLAUDE.md';
-// Where the install writes each harness's render in the stage (spec 0007 S7); no commit may hold a file there.
+// Where the install writes each harness's render in the stage (spec 0007 S7); isStaged takes no commit's file there.
 export const RENDERED_REL = 'rendered/';
 // Each agent format's names for the pact's tools (spec 0007 S7). Antigravity's is empty until a probe fills it, so no agent installs there.
 export const TOOL_TABLES = Object.freeze({ 'antigravity-md': Object.freeze({}) });
@@ -1175,7 +1175,7 @@ export function commandsBlock(on, stagedRels, listed = []) {
   }
   const example = PACT_COMMANDS.find(name => name !== KIT_COMMAND && staged.has(`claude/commands/${name}.md`));
   out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command that can be turned on is in this commit.');
-  for (const name of on) if (!(name === KIT_COMMAND && staged.has(`claude/commands/${name}.md`))) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to each harness's commands folder as ${name}.md.`);
+  for (const name of on) if (!(name === KIT_COMMAND && staged.has(`claude/commands/${name}.md`))) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs as ${name}.md in each harness's commands folder, or as a skill in ~/.pact/skills.`);
   if (listed.includes(KIT_COMMAND) && staged.has(`claude/commands/${KIT_COMMAND}.md`)) out.push(`  NOTE: ${CONFIG_REL} lists ${KIT_COMMAND}, which now always installs; take it out of the list, since an older pact refuses it.`);
   return out;
 }

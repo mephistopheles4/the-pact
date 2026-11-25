@@ -328,7 +328,9 @@ The known descriptions:
 - **The models line.** Each rendered rules file gets one line after the
   tiers part, whatever block fills that part: "Here the planning model is
   `<planning>`, the executor model `<executor>` and the light model `<light>`." A
-  configuration that replaces the tiers block can't drop it (C29).
+  configuration that replaces the tiers block can't drop it (C29). Where the
+  names come from the configuration, the dry run warns, without naming them,
+  that the rules hold them as written and sessions may quote them.
 - **Agent files name roles.** Each source agent's `model:` is `planning`,
   `executor` or `light`: every lens `planning`, scout `light`. The renderer
   writes the harness's model in its place. `light` with no light model
@@ -385,7 +387,7 @@ differ per harness only because a tool can't do otherwise:
 - `claude-md`: as today, with the model role mapped.
 - `codex-toml`: the body goes to `developer_instructions` as a TOML literal
   string; a body holding `'''` refuses (`agent-toml`). `tools` has no field
-  and is dropped. Every lens file sets `features.apps`, `features.plugins`,
+  and is dropped. Every agent file sets `features.apps`, `features.plugins`,
   `features.memories` and `features.request_permissions_tool` to `false`;
   S12 says what is left.
 - `antigravity-md`: `tools` is mapped through a fixed table per harness from
@@ -423,6 +425,9 @@ S2 item 30).
   session." It archives nothing.
 - `scriptorium` lists the skills, commands and agents folders of each harness
   `install.json` lists, never one harness's fixed folders.
+- The skills folder in `~/.pact` is one for every harness that reads it, so it
+  has a capability only when each of them has it: an `if` block renders then,
+  and an `unless` block otherwise.
 
 **Links.** A skill folder is linked from the harness's skills folder to
 `~/.pact/skills/<n>`: a symlink, or on Windows a directory junction, which
@@ -641,17 +646,22 @@ only `main` may deploy to, against "no secrets".
   - finds git's real folders through git (`rev-parse --git-common-dir` and
     `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since
     in a linked worktree `.git` is a file;
-  - copies those outside the work tree, readable only by the owner;
+  - copies those outside the work tree, readable only by the owner, keeping a
+    hash of each copy, and the records below, in the session's own output,
+    never in a file a lens can write;
   - records `HEAD`, a hash of every ref and of the stash list, and
     `status --porcelain --ignored=matching --untracked-files=all` run with
     fsmonitor and every filter off, with a hash of each listed path's
     content.
 
-  After the lens it first compares the git folders with the copies and puts
-  them back, then runs the same records again. Any change marks the lens
+  After the lens it first checks each copy against its hash, and where one
+  differs it puts nothing back from the copies and brings it to the owner. Else
+  it compares the git folders with the copies and puts them back, then runs the
+  same records again. Any change marks the lens
   inconclusive. The session puts back only what changed during the lens: a
   moved ref goes back to its earlier value first; then a path clean before
-  is restored from that `HEAD`, or deleted if it is new. A path already
+  is restored from that `HEAD`, or deleted if it is new, as itself and never
+  through a link or junction. A path already
   changed before the lens is left as it is and named, so the owner's own
   work is never thrown away. The copies are deleted afterwards. The change
   and the restore are a flagged checkpoint.
@@ -849,7 +859,7 @@ model must stay within its word budget.
 
 - **C5** Each known harness's agents render in its format, with its models in
   place of the roles; a `light` role with no light model gets the executor
-  model. Each Codex lens file turns off apps, plugins, memories and the
+  model. Each Codex agent file turns off apps, plugins, memories and the
   permission-request tool. An Antigravity lens whose mapped tools come out
   empty or lose a read tool refuses (`agent-tools`).
 - **C6** A rules file over a harness's cap refuses (`rules-cap`); above half
