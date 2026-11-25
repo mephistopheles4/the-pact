@@ -33,7 +33,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   is, never its value. Pin a merge to its reviewed head. Claude's own
   permission prompts and classifier blocks still stop you; these rules add no
   stop of their own.
-- **Keep the record** in the work's record, as the Posting section of `~/.claude/pact/review.md` says; with no record, in chat.
+- **Keep the record** in the work's record, as the Posting section of `~/.pact/review.md` says; with no record, in chat.
 
 ## How much checking
 
@@ -97,7 +97,7 @@ lenses unasked; that never lifts the sensitive flag, the Guards, my decisions
 or the read before posting.
 
 **Before you run a lens or post to the record, read
-`~/.claude/pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
+`~/.pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
 
 ## Qualities
 

@@ -591,7 +591,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   is, never its value. Pin a merge to its reviewed head. Claude's own
   permission prompts and classifier blocks still stop you; these rules add no
   stop of their own.
-- **Keep the record** in the work's record, as the Posting section of `~/.claude/pact/review.md` says; with no record, in chat.
+- **Keep the record** in the work's record, as the Posting section of `~/.pact/review.md` says; with no record, in chat.
 
 ## How much checking
 
@@ -655,7 +655,7 @@ lenses unasked; that never lifts the sensitive flag, the Guards, my decisions
 or the read before posting.
 
 **Before you run a lens or post to the record, read
-`~/.claude/pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
+`~/.pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
 
 ## Qualities
 
@@ -1389,8 +1389,8 @@ when no other row answers the sentence.
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
-  `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
-  shell, or `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file>`
+  `node ~/.pact/tools/poster.mjs <surface> --post <file>` in a POSIX
+  shell, or `node "$HOME/.pact/tools/poster.mjs" <surface> --post <file>`
   in PowerShell; `schema` in place of the surface prints the fields and the
   kinds. Write each post as one JSON file, with its body in a `body_file`
   beside it, both in a scratch folder outside the repo, and run the poster
@@ -1429,7 +1429,7 @@ when no other row answers the sentence.
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
   can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
-  in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
+  in `~/.pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
   (`<slug>[bot]`). Assigning is the
@@ -1615,7 +1615,7 @@ check_hash() {
     echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash e5f357559863e11c03307687c1592b2f9e08de29277c2dd95c00670111e023df 'CLAUDE.md'
+check_hash bf12834fa61f1b1dc51aaf242ad8a34b799781355e7ef7c7981e52ced08896d7 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1627,7 +1627,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash 23d38fce208ca163ced4563667cca3bf7fb14192388fc43ec5aaa122798dfcae '.pact/review.md'
+check_hash f5dbcc54ead5b09a905f493f6e7a370e06d6aa3b835843a18a6c45ed270ef7b7 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1657,7 +1657,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 0ef5454ba04b"
+  echo "pact cloud copy 539eb8a5e547"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

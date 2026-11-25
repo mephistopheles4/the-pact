@@ -46,10 +46,10 @@ function commonProblems(src) {
 
 // #351 (#348 S4.1): the gate workflow's two jobs, the runner each is pinned to, and its full-tier line; the Windows run checks its skips against a committed list (q2).
 const FULL = 'env -u NODE_OPTIONS node gate/tests/run.mjs full';
-const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"';
-const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\n${DRY_RUN}\n`;
+const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --home "$RUNNER_TEMP/pact-home"';
+const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home/.claude"\n${DRY_RUN}\n`;
 // The Windows step also plants a real Claude folder with a plain subfolder in the runner's home, as the Linux container's image does, so the installer's real-folder guards run (q11).
-const REAL_DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`;
+const REAL_DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home/.claude"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`;
 // Spec 0003 M7: the macOS job also runs the pinned server once (--device none --version) through .github/scripts/clef-smoke.mjs, so a Mac run shows the real server starting.
 const SMOKE = 'env -u NODE_OPTIONS node .github/scripts/clef-smoke.mjs';
 const GATE_JOBS = [
@@ -586,7 +586,7 @@ for (const [label, plant, says] of [
   ['drops the skip list on macOS', inMacos(s => s.replace(' --skips gate/tests/macos-skips.txt', '')), 'gate-macos does not run the full tier'],
   ['points macOS at the Windows skip list', inMacos(s => s.replace('gate/tests/macos-skips.txt', 'gate/tests/windows-skips.txt')), 'gate-macos does not run the full tier'],
   ['drops the macOS dry run', inMacos(s => s.replace(/ {10}env -u NODE_OPTIONS node gate\/install\.mjs.*\n/, '')), 'gate-macos does not run the install dry run'],
-  ['runs a line before the macOS dry run', inMacos(s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home"\n')), "gate-macos's dry-run step runs other lines than the dry run"],
+  ['runs a line before the macOS dry run', inMacos(s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home/.claude"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home/.claude"\n')), "gate-macos's dry-run step runs other lines than the dry run"],
   ['drops the real Claude folder on macOS', inMacos(s => s.replace('          mkdir -p "$HOME/.claude/agents"\n', '')), "gate-macos's dry-run step runs other lines than the dry run"],
   ['keeps the token in the macOS checkout', inMacos(s => s.replace('persist-credentials: false', 'persist-credentials: true')), 'leaves the token in the checkout'],
   ['runs an old Node on macOS', inMacos(s => s.replace("node-version: '24'", "node-version: '20'")), 'gate-macos runs another Node than the floor'],
@@ -629,7 +629,7 @@ for (const [label, plant, says] of [
   // #351 (q11): the Windows dry-run step plants a real Claude folder, so the installer's real-folder guards run there.
   ['drops the real Claude folder on Windows', inWindows(s => s.replace('          mkdir -p "$HOME/.claude/agents"\n', '')), "gate-windows's dry-run step runs other lines than the dry run"],
   ['renames the Windows check', inWindows(s => s.replace('    name: gate-windows\n', '    name: windows\n')), "gate-windows's check is not named gate-windows"],
-  ['runs a line before the dry run', s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home"\n'), "gate's dry-run step runs other lines than the dry run"],
+  ['runs a line before the dry run', s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home/.claude"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home/.claude"\n'), "gate's dry-run step runs other lines than the dry run"],
   ['drops the concurrency group', s => s.replace(/^concurrency:\n(?: {2}.+\n)+/m, ''), CANCELS],
   ['keys the concurrency group on the ref alone', s => s.replace(/^( {2}group: ).*$/m, '$1gate-${{ github.ref }}'), CANCELS],
   // #351 (q14): the group cancels the older run, not only groups it.

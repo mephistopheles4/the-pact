@@ -51,7 +51,7 @@
 // tracker comment a quote cites (post/tracker). The scans are a backstop for
 // accidents, not a guard against a session that sets out to get past them.
 //
-// App mode (#599, T3, PACT-104): with an app pinned in ~/.claude/pact/github.json
+// App mode (#599, T3, PACT-104): with an app pinned in ~/.pact/github.json
 // and gh-app.mjs beside this file, `postAsApp` posts as the pinned app whose bot
 // login is the post's `as` (else as `claude`, when it is pinned) on a token
 // the helper mints, checks the pin against GitHub's records first, and reads as
@@ -358,7 +358,7 @@ export const EXAMPLES = Object.freeze({
 const OPTION_RE = /^--[a-z][a-z-]{0,30}$/;
 
 /** The fixed line after an old option (S5.5): no argument the session gave reaches it. */
-export const OLD_OPTION_NEXT = 'NEXT: the poster takes a JSON post now: <surface> --post <file>. See node poster.mjs schema and the Posting section of ~/.claude/pact/review.md; never post with plain gh.';
+export const OLD_OPTION_NEXT = 'NEXT: the poster takes a JSON post now: <surface> --post <file>. See node poster.mjs schema and the Posting section of ~/.pact/review.md; never post with plain gh.';
 
 /**
  * The surface and options from an argument list, with every usage fault as a
@@ -2933,7 +2933,7 @@ export function post(argv, io) {
 // ---------------------------------------------------------------- app mode (#599, S8)
 
 /** Where the pin file sits under `home`: the helper's `pinPath`, held equal by a test, so the check that an app is pinned never reads another file than the helper does. */
-export const pinFile = home => join(home, '.claude', 'pact', 'github.json');
+export const pinFile = home => join(home, '.pact', 'github.json');
 
 /** The fixed words a helper refusal is told in: its id when it has the helper's shape, never its message. */
 const idOf = e => (typeof e?.id === 'string' && /^[a-z]{1,12}(?:\/[a-z]{1,12})?$/.test(e.id) ? e.id : 'unknown');
@@ -3016,7 +3016,7 @@ export async function postAsApp(argv, io) {
 function realApp(env, tmp) {
   const home = homedir();
   return {
-    has: () => existsSync(pinFile(home)) && existsSync(join(home, '.claude', 'pact', 'tools', 'gh-app.mjs')) && existsSync(join(dirname(fileURLToPath(import.meta.url)), 'gh-app.mjs')),
+    has: () => existsSync(pinFile(home)) && existsSync(join(home, '.pact', 'tools', 'gh-app.mjs')) && existsSync(join(dirname(fileURLToPath(import.meta.url)), 'gh-app.mjs')),
     load: () => import('./gh-app.mjs'),
     helperIo: mod => mod.realIo({ env }),
     makeGh: e => makeGh({ env: e, tmp }),

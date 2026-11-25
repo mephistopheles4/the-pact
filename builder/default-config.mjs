@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The pact's default configuration (#183 T4a): generated from one preset, the
 // one editable source, into builder/default-config/, which the install renders
-// on a home install with no pact/config.json of the person's own.
+// on a home install with no .pact/config.json of the person's own.
 //
 //   node builder/default-config.mjs           write builder/default-config/ from the preset
 //   node builder/default-config.mjs --check   exit 1 when the committed copy is not what the preset gives

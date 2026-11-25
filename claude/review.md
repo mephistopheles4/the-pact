@@ -268,8 +268,8 @@ when no other row answers the sentence.
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
-  `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
-  shell, or `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file>`
+  `node ~/.pact/tools/poster.mjs <surface> --post <file>` in a POSIX
+  shell, or `node "$HOME/.pact/tools/poster.mjs" <surface> --post <file>`
   in PowerShell; `schema` in place of the surface prints the fields and the
   kinds. Write each post as one JSON file, with its body in a `body_file`
   beside it, both in a scratch folder outside the repo, and run the poster
@@ -308,7 +308,7 @@ when no other row answers the sentence.
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
   can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
-  in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
+  in `~/.pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
   (`<slug>[bot]`). Assigning is the

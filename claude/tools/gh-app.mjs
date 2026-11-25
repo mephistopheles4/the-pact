@@ -79,7 +79,7 @@ export const REASONS = Object.freeze({
   app: 'the app does not match: id, owner, permissions or events differ from the pinned set',
   gitconfig: 'the gitconfig could not be written or did not read back as expected',
   git: 'git failed',
-  left: 'the key and tokens are gone, but the pin entry in ~/.claude/pact/github.json or the file ~/.claude/pact/gh-app-<provider>.gitconfig could not be removed; remove it yourself, then run forget again',
+  left: 'the key and tokens are gone, but the pin entry in ~/.pact/github.json or the file ~/.pact/gh-app-<provider>.gitconfig could not be removed; remove it yourself, then run forget again',
   settings: "the settings env points at this provider's gitconfig, or the settings file cannot be read as settings; remove that setting or fix the file, and apply first",
   mode: 'unknown mode',
   gh: 'that gh command is not allowed here',
@@ -315,10 +315,10 @@ const samePermissions = (got, want) => isObject(got) && Object.keys(got).length 
 // ---------------------------------------------------------------- the pin file
 
 /** Where the pin file and a provider's gitconfig live under `home`. */
-export const pinPath = home => join(home, '.claude', 'pact', 'github.json');
-export const gitconfigPath = (home, p) => join(home, '.claude', 'pact', `gh-app-${p}.gitconfig`);
+export const pinPath = home => join(home, '.pact', 'github.json');
+export const gitconfigPath = (home, p) => join(home, '.pact', `gh-app-${p}.gitconfig`);
 export const settingsPath = home => join(home, '.claude', 'settings.json');
-export const helperPath = home => `${home.replaceAll('\\', '/')}/.claude/pact/tools/gh-app.mjs`;
+export const helperPath = home => `${home.replaceAll('\\', '/')}/.pact/tools/gh-app.mjs`;
 
 /** The pin file's parsed, checked shape, or a refusal. Exactly these fields; nothing is looked up. */
 export function readPin(io) {
