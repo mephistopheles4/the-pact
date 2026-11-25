@@ -2,7 +2,7 @@
 name: adversarial-lens
 description: Reviews a spec or a diff for how someone could break the change, and reports each attack path no control stops. Read-only, with web evidence. Not for data leaks, buildability, claims or style.
 tools: [Read, Glob, Grep, WebFetch, WebSearch]
-model: opus
+model: planning
 effort: high
 ---
 

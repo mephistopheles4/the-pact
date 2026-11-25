@@ -582,28 +582,30 @@ the tools and agents.
 **Nudge once.** When a move seems to drop, mention it once, lightly, as an
 offer I can take or leave in a second. Then carry on with what I chose.
 
-## How Claude helps
+## How the agent helps
 
 - **Checkpoints.** What these rules keep for me, bring to me or leave to me is
   a checkpoint: take your own pick, log it as review.md's Posting says,
   flagged, list each in the result, and go on; I review after. Take more care
   the harder a step is to undo. Where a pick touches a secret, say where it
-  is, never its value. Pin a merge to its reviewed head. Claude's own
-  permission prompts and classifier blocks still stop you; these rules add no
-  stop of their own.
+  is, never its value. Pin a merge to its reviewed head. Your harness's own
+  permission prompts and blocks still stop you; these rules add no stop of
+  their own.
 - **Keep the record** in the work's record, as the Posting section of `~/.pact/review.md` says; with no record, in chat.
 
 ## How much checking
 
 | Tier | Fits | Plan | Build |
 | --- | --- | --- | --- |
-| **Quick** | Small, one session, no plan needed | none | Opus, low |
-| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |
-| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
+| **Quick** | Small, one session, no plan needed | none | planning model, low |
+| **Standard** | Needs a short spec | planning model, medium | executor model, medium |
+| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | planning model, high | executor model, medium |
+
+Here the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.
 
 Sensitive work gets more checking when I choose it. By default, sensitive
 work is auth, crypto, input validation and data migrations: thorough, planned
-and built on Opus at high, with the security pair, `adversarial-lens` and
+and built on the planning model at high, with the security pair, `adversarial-lens` and
 `data-lens`, on the spec and the diff. That is the sensitive route. When the
 work matches that list, or you think it sensitive otherwise, say why in one
 line in your tier proposal and recommend the route; I take it or not. If I
@@ -629,12 +631,12 @@ line. A skill you can't find, say so in one line and go on with the stage.
 
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
-| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
-| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
-| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |
-| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
+| Plan | in the session, no plan | planning model, medium | planning model, high | planning model, high | none | |
+| Design | skipped | planning model, medium | planning model, high | planning model, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
+| Build | planning model, low | executor model, medium | executor model, medium | planning model, high | none | |
+| Test | planning model, low | executor model, medium | executor model, medium | planning model, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
 | Deploy | I decide | I decide | I decide | I decide | none | |
-| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
+| Maintain | in the session, no plan | planning model, medium | planning model, high | planning model, high | none | back to Plan when a new change starts |
 
 ## Lenses
 
@@ -1615,7 +1617,7 @@ check_hash() {
     echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash bf12834fa61f1b1dc51aaf242ad8a34b799781355e7ef7c7981e52ced08896d7 'CLAUDE.md'
+check_hash c7f6f500451a4119d480f6ea3bcc80b5ca8f836160f2f849024bff3716b0ad72 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1657,7 +1659,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 539eb8a5e547"
+  echo "pact cloud copy fcaa67407599"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

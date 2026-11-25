@@ -14,6 +14,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from './install-core.mjs';
 import * as harness from './harnesses.mjs';
+import { renderHarnesses } from './harness-render.mjs';
 import * as io from './install-io.mjs';
 import { FOLD_CASE } from './paths.mjs';
 
@@ -70,13 +71,39 @@ function harnessLines({ rows, warnings }) {
     if (h?.own && h.hooks) out.push(`guards unverified for ${h.id}: the pact has not seen this harness run its hook`);
     if (!r.in) continue;
     const parts = core.builtParts(h);
-    if (!parts.rules) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s format yet; nothing is installed into it.`);
-    else {
-      if (h.skills) out.push(`WARN: ${h.id}: the pact installs no skills yet.`);
-      if (h.hooks && !parts.settings) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
-    }
+    if (h.agents && !parts.agents) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s agent format yet; no agent is installed into it.`);
+    if (parts.skills) out.push(`WARN: ${h.id}: its skills are written to ~/.pact/skills; the pact does not link them into ${h.name} yet.`);
+    if (h.hooks && !parts.settings) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
   }
   return out;
+}
+
+/** The staged payload files directly in `dir` with `ext`, as name -> text. */
+function stagedTexts(stage, staged, dir, ext) {
+  const names = [...staged.keys()].flatMap(rel => (rel.startsWith(dir) && rel.endsWith(ext) && !rel.slice(dir.length).includes('/') ? [rel.slice(dir.length, -ext.length)] : [])).sort();
+  return new Map(names.map(n => [n, readFileSync(live(stage, `${dir}${n}${ext}`), 'utf8')]));
+}
+
+/**
+ * Each taken harness's render (spec 0007 S7), written into the stage under
+ * rendered/ and hashed as staged, from the configured rules and agents and the
+ * commit's commands. Returns its warnings and each harness's rules hash.
+ */
+function writeRenders({ stage, staged, taken }) {
+  if (!taken.length) return { warnings: [], rules: [] };
+  const { files, warnings } = renderHarnesses({
+    rules: readFileSync(live(stage, core.RULES_REL), 'utf8'),
+    agents: stagedTexts(stage, staged, 'claude/agents/', '.md'),
+    commands: stagedTexts(stage, staged, 'claude/commands/', '.md'),
+    harnesses: taken,
+  });
+  for (const [rel, text] of files) {
+    const bytes = Buffer.from(text, 'utf8');
+    mkdirSync(dirname(live(stage, rel)), { recursive: true });
+    writeFileSync(live(stage, rel), bytes, { flag: 'wx' });
+    staged.set(rel, io.sha256(bytes));
+  }
+  return { warnings, rules: taken.map(h => ({ id: h.id, sha256: staged.get(`${core.RENDERED_REL}${h.id}/rules.md`) })) };
 }
 
 /** Runs a core in-process: its cleaned lines shown (ROOT lines never), its verdict needing both parts. */
@@ -223,6 +250,12 @@ async function main() {
   // The harnesses: a project install takes none.
   const choice = project ? { rows: [], warnings: [] } : chooseHarnesses({ stage, staged, home, parsed, record });
   const taken = choice.rows.filter(r => r.in).map(r => r.harness);
+  const renders = writeRenders({ stage, staged, taken });
+  // One hash over every harness's rules binds the apply (spec 0007 S9); the review folder gets Claude Code's, or the first harness's.
+  const boundHash = core.boundHash(renders.rules, rulesHash, io.sha256);
+  const reviewed = renders.rules.find(r => r.id === 'claude') ?? renders.rules[0] ?? null;
+  const reviewFile = reviewed ? live(stage, `${core.RENDERED_REL}${reviewed.id}/rules.md`) : rulesStaged;
+  const reviewHash = reviewed ? reviewed.sha256 : rulesHash;
   // The settings merge and the hook are Claude Code's: only with it in.
   const claude = taken.find(h => core.builtParts(h).settings) ?? null;
   // The commands that install: the renderer's COMMANDS line, and /scriptorium whenever it is in the commit (#262).
@@ -422,6 +455,7 @@ async function main() {
 
   // One block per harness, the pact's own files first (spec 0007 S9).
   for (const l of harnessLines(choice)) say(l);
+  for (const w of renders.warnings) say(`WARN: ${core.formatPlain(w)}`);
   const changed = new Set([...p.overwrite, ...p.add]);
   const ids = [...new Set([...(repoFiles.size || record ? ['pact'] : []), ...taken.map(h => h.id), ...recorded.map(h => h.id)])];
   for (const id of ids) {
@@ -457,7 +491,7 @@ async function main() {
     if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
   }
   say('Configuration:');
-  for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
+  for (const l of core.configBlock(parsed, boundHash, record)) say(l);
   for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
   for (const l of core.toolsBlock(toolsOn, staged.keys())) say(l);
   for (const l of core.skillsBlock(parsed)) say(l);
@@ -468,30 +502,30 @@ async function main() {
   // The gate block comes last, after the checks' own output, so nothing they print can stand in for it.
   for (const l of gateLines) say(l);
 
-  core.checkBinding(opts, rulesHash, commit);
+  core.checkBinding(opts, boundHash, commit);
   const configApplies = parsed.config.kind !== 'none';
 
   // The review output, once every check for this run has passed (V1, X3).
   const writeReview = async () => {
     if (opts.reviewFolder === null) return;
     const review = await loadCore('review-core.mjs');
-    if (io.fileSha256(rulesStaged) !== rulesHash) core.stops.reviewRulesChanged();
+    if (io.fileSha256(reviewFile) !== reviewHash) core.stops.reviewRulesChanged();
     const was = stateOf(stage);
-    const report = review([resolve(opts.reviewFolder), home, rulesStaged, diffFile]);
+    const report = review([resolve(opts.reviewFolder), home, reviewFile, diffFile]);
     for (const l of core.showLines(core.outputLines(report.lines), 'review')) say(l);
     let now = null;
     try {
       now = io.treeState(stage);
     } catch {}
     if (now !== was) core.stops.reviewChangedStage();
-    core.checkReviewLines(report, rulesHash, parsed.diffHash);
+    core.checkReviewLines(report, reviewHash, parsed.diffHash);
     say('Review output: rendered-rules.txt and config.diff written to the review folder.');
   };
 
   if (!opts.apply) {
     await writeReview();
     say("Dry run only. After the owner's go-ahead, run:");
-    say(`  ${core.applyLine(opts.paths, commit, configApplies ? rulesHash : null, process.platform)}`);
+    say(`  ${core.applyLine(opts.paths, commit, configApplies ? boundHash : null, process.platform)}`);
     say('RESULT: pass');
     return;
   }

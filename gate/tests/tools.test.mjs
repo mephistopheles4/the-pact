@@ -280,10 +280,11 @@ test('with the cleaner on, the rules file holds its part after the poster\'s; of
   const noNotice = s => s.replace(/\n\*\*Configuration in effect\.\*\*[^\n]*\n[^\n]*\n/, '');
   const on = renderWith(t, '{"schema": 1, "tools": ["poster", "cleaner"]}');
   assert.equal(on.code, 0, on.out);
-  assert.equal(noNotice(rendered(on)).replace(`${T2}\n${CLEANER_PART}\n`, ''), none, 'on, the render differs only by the two parts, the cleaner\'s second');
+  assert.ok(rendered(on).includes(`${T2}\n<!-- pact:if cleaner -->\n${CLEANER_PART}\n`), 'the cleaner\'s part comes second, in its capability block');
+  assert.equal(noNotice(rendered(on)).replace(`${T2}\n`, '').replace(`${CLEANER_PART}\n`, ''), none, 'on, the render differs only by the two parts');
   assert.equal(noNotice(rendered(renderWith(t, '{"schema": 1, "tools": []}'))), none);
   assert.ok(!none.includes('through the cleaner'), 'off, no part names the cleaner');
-  assert.equal(none.split('cleaner').length - 1, 0, 'off, the rules file names the cleaner nowhere');
+  assert.equal(none.replace('<!-- pact:if cleaner -->\n', '').split('cleaner').length - 1, 0, 'off, the rules file names the cleaner nowhere but its capability mark');
 });
 
 // #438 C13: the fixed list, pinned.

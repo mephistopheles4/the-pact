@@ -46,6 +46,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { check as renderCheck } from '../gate/render-core.mjs';
 import { check as seamCheck } from '../gate/seam-a-core.mjs';
+import { renderHarnesses } from '../gate/harness-render.mjs';
+import { parseKnown, resolveHarnesses } from '../gate/harnesses.mjs';
 import { Report, readStrictJson, scanText } from '../gate/shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -272,6 +274,26 @@ export function renderNoConfig(source, { home } = {}) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+// The generator's own harness descriptions, beside the gate code it imports.
+const KNOWN = join(HERE, '..', 'harnesses', 'known.json');
+
+/**
+ * The payload's rules and agents as Claude Code receives them (spec 0007 S7,
+ * S13), written over their own paths in `files`.
+ */
+function renderForClaude(files) {
+  const text = rel => files.get(rel).toString('utf8');
+  const known = parseKnown(guarded('reading the harness descriptions', () => readFileSync(KNOWN, 'utf8'))).filter(h => h.id === 'claude');
+  const claude = resolveHarnesses({ known, home: '/cloud', platform: 'linux', inWorkTree: null });
+  const agents = new Map([...files.keys()].flatMap(rel => {
+    const m = /^claude\/agents\/([^/]+)\.md$/.exec(rel);
+    return m ? [[m[1], text(rel)]] : [];
+  }));
+  const made = guarded('rendering for Claude Code', () => renderHarnesses({ rules: text(RULES_SOURCE), agents, commands: new Map(), harnesses: claude })).files;
+  files.set(RULES_SOURCE, Buffer.from(made.get('rendered/claude/rules.md'), 'utf8'));
+  for (const name of agents.keys()) files.set(`claude/agents/${name}.md`, Buffer.from(made.get(`rendered/claude/agents/${name}.md`), 'utf8'));
 }
 
 // ---------------------------------------------------------------- step 3: seam A
@@ -548,6 +570,8 @@ export function generate(root, options = {}) {
     }
 
     files.set(RULES_SOURCE, rendered);
+    renderForClaude(files);
+    rendered = files.get(RULES_SOURCE);
     const checked = seamA(files);
 
     const { setup, wrapper, marker } = assemble({

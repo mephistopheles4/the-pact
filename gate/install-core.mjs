@@ -87,6 +87,8 @@ export const REVIEW_DEST = '.pact/review.md';
 // The diagram format file review.md points to: staged and installed beside it.
 export const REVIEW_DIAGRAMS_REL = 'claude/review-diagrams.md';
 export const REVIEW_DIAGRAMS_DEST = '.pact/review-diagrams.md';
+/** The folder every harness's skills are linked from (spec 0007 S7). */
+export const SKILLS_DEST = '.pact/skills/';
 // Every path the install works with is relative to the home folder (spec 0007 S4).
 export const NEUTRAL_REL = '.pact';
 /** The harness id the neutral home's own files carry in the record and the backups; no harness may take it. */
@@ -935,20 +937,40 @@ export function harnessArg(harnesses) {
  * A destination is a path under the neutral home, or `@<harness>/<part>` for a
  * harness's own file. A pact command installs only when `commands` names it, a
  * pact tool only when `tools` names it, and a gate file only as a BUILDER_KIT
- * entry under .pact/builder/. With no harness in, nothing installs. A staged
- * file of no known kind pairs with null, which no INSTALL line can match.
+ * entry under .pact/builder/. A harness with a render in the stage takes its
+ * parts from there alone; any other takes them from claude/. A rendered skill
+ * installs into the neutral home with its command. With no harness in, nothing
+ * installs. A staged file of no known kind pairs with null, which no INSTALL
+ * line can match.
  */
 export function expectedCopySet(stagedRels, commands = [], tools = [], compact = false, harnesses = []) {
   const out = [];
   const kitOn = commands.includes(KIT_COMMAND);
+  const rels = [...stagedRels];
+  const rendered = new Set(rels.flatMap(rel => (rel.startsWith(RENDERED_REL) ? [rel.split('/')[1]] : [])));
   const parts = harnesses.map(h => ({ id: h.id, ...builtParts(h) }));
   const pact = (rel, dest) => {
     if (harnesses.length) out.push([rel, dest]);
   };
   const each = (rel, part, tail) => {
-    for (const p of parts) if (p[part]) out.push([rel, `@${p.id}/${tail}`]);
+    for (const p of parts) if (p[part] && !rendered.has(p.id)) out.push([rel, `@${p.id}/${tail}`]);
   };
-  for (const rel of stagedRels) {
+  for (const rel of rels) {
+    if (rel.startsWith(RENDERED_REL)) {
+      const skill = /^rendered\/skills\/([^/]+)\/(SKILL\.md|agents\/openai\.yaml)$/.exec(rel);
+      const own = /^rendered\/([^/]+)\/(?:(rules)\.md|(agents)\/([^/]+\.(?:md|toml))|(commands)\/([^/]+)\.md)$/.exec(rel);
+      if (skill && PACT_COMMANDS.includes(skill[1])) {
+        if (commands.includes(skill[1])) pact(rel, `${SKILLS_DEST}${skill[1]}/${skill[2]}`);
+      } else if (own && own[1] !== 'skills') {
+        const [, id, rules, agents, agent, , command] = own;
+        const part = rules ? 'rules' : agents ? 'agents' : 'commands';
+        if (command !== undefined && !PACT_COMMANDS.includes(command)) out.push([rel, null]);
+        else if (command === undefined || commands.includes(command)) {
+          if (parts.some(p => p.id === id && p[part])) out.push([rel, `@${id}/${rules ? 'rules' : agents ? `agents/${agent}` : `commands/${command}.md`}`]);
+        }
+      } else out.push([rel, null]);
+      continue;
+    }
     if (kitOn && inKit(rel)) pact(rel, `${KIT_DEST}${rel}`);
     if (rel.startsWith('gate/') || rel.startsWith('harnesses/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep' || rel === KIT_RULES_REL) continue;
     if (/^familiars\/[^/]+\.(contract|practice-test)\.md$/.test(rel)) continue;
@@ -999,6 +1021,16 @@ export function resolveDestinations(checked, harnesses) {
     if (!base) refuse('dest-skip', `no harness takes an install destination: ${formatPlain(dest)}.`);
     return [rel, { dest: m[2] ? base : `${base}/${m[4]}`, sha256, harness: h.id }];
   });
+}
+
+/**
+ * The one hash --apply binds, over every harness's rendered rules (spec 0007
+ * S9): with one harness, its rules file's own hash; with more, the hash of one
+ * "<id> <hash>" line each, in id order; with none, the configured render's.
+ */
+export function boundHash(rules, configured, hash) {
+  if (rules.length < 2) return rules.length ? rules[0].sha256 : configured;
+  return hash(Buffer.from([...rules].sort((a, b) => (a.id < b.id ? -1 : 1)).map(r => `${r.id} ${r.sha256}\n`).join(''), 'utf8'));
 }
 
 /**
@@ -1074,7 +1106,7 @@ export function checkNewPaths(repoFiles, record, live, commandDirs = []) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
     const command = commandDirs.find(d => rel.startsWith(`${d}/`));
-    const always = rel === REVIEW_DEST || rel === REVIEW_DIAGRAMS_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel === `${command}/${KIT_COMMAND}.md`;
+    const always = rel === REVIEW_DEST || rel === REVIEW_DIAGRAMS_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel.startsWith(SKILLS_DEST) || rel === `${command}/${KIT_COMMAND}.md`;
     if (!(command || always || rel.startsWith(TOOLS_DEST)) || listed.has(rel)) continue;
     const next = always ? 'Move it out of the way, then install again.' : `Move it, or take its name out of the ${rel.startsWith(TOOLS_DEST) ? 'tools' : 'commands'} list.`;
     if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists, and the install record does not list it, so the pact did not put it there. ${next}`);
@@ -2058,6 +2090,7 @@ export function skillsBlock(parsed) {
 
 /** A hash or commit given is always compared, dry run or --apply (S6, H1). */
 export function checkBinding(opts, rulesHash, commit) {
+  // `rulesHash` is the home install's bound hash (boundHash), or a project's rules file hash.
   if (opts.renderedHash !== null && opts.renderedHash !== rulesHash) {
     refuse('hash-mismatch', 'the hash given with --rendered-hash is not the full hash of the rules file this run rendered: the configuration or the commit changed since the dry run, or the hash was cut short or mistyped.');
   }

@@ -124,6 +124,7 @@ test('cloud copy: --check names only the stale output, and untracked or ignored 
   });
   cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: src => !src.includes(`${join('gate', 'tests')}`) });
   cpSync(join(REPO, 'cloud-sessions'), join(root, 'cloud-sessions'), { recursive: true });
+  cpSync(join(REPO, 'harnesses'), join(root, 'harnesses'), { recursive: true });
   // Only the planted files stay out of the index.
   git(root, ['rm', '-q', '--cached', 'familiars/planted-lens.md']);
   git(root, ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'base']);

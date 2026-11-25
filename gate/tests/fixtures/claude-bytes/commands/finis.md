@@ -5,8 +5,11 @@ disable-model-invocation: true
 
 # /finis
 
+Act only if the person's latest message names this command; otherwise say so and stop.
+
 We're done: archive this session.
 
 First check whether anything in it is outstanding, such as work not yet
-committed or pushed, or a step left unfinished. If there is, say what it is
-and don't archive. If there isn't, archive the session.
+committed or pushed, or a step left unfinished.
+If there is, say what it is and don't archive. If there isn't, archive the
+session.

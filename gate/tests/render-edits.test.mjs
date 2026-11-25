@@ -176,7 +176,7 @@ test('a replace takes the place of every move, and the digest changes when only 
   const b = render(t, homeWith(t, config, { 'm3.md': 'Second text.\n' }));
   assert.equal(a.code, 0, a.out);
   assert.equal(b.code, 0, b.out);
-  assert.match(a.bytes.toString('utf8'), /^First text\.\n\n## How Claude helps$/m);
+  assert.match(a.bytes.toString('utf8'), /^First text\.\n\n## How the agent helps$/m);
   assert.doesNotMatch(a.bytes.toString('utf8'), /Sense the work/);
   const dA = /^DIGEST (\S+)$/m.exec(a.stdout)[1];
   const dB = /^DIGEST (\S+)$/m.exec(b.stdout)[1];
