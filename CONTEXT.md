@@ -47,9 +47,9 @@ Spec 0007 (`docs/spec/0007-harness-agnostic-pact.md`) says what is built when.
 - **Planning model:** the model a harness runs Plan, Design and Maintain on, and the lenses.
 - **Executor model:** the model a harness runs Build and Test on.
 - **Light model:** the model a harness runs scout on; empty means the executor model.
-- **The rule table:** `~/.pact/guard/rules.json`, the pact's deny and ask rules as data, from which every harness's guards are made.
-- **The guard:** `~/.pact/guard/guard.mjs`, the one script that answers a shell call against the rule table, and its thin wrapper per harness.
-- **Release tag:** a tag named exactly `v1.<n>.0`, which the release job puts on `main`'s tip once `gate.yml` passed on the push. The highest `<n>` is the current release.
+- **The rule table** (a later ticket builds it): `~/.pact/guard/rules.json`, the pact's deny and ask rules as data, from which every harness's guards are made.
+- **The guard** (a later ticket): `~/.pact/guard/guard.mjs`, the one script that answers a shell call against the rule table, and its thin wrapper per harness.
+- **Release tag** (a later ticket): a tag named exactly `v1.<n>.0`, which the release job puts on `main`'s tip once `gate.yml` passed on the push. The highest `<n>` is the current release.
 
 ## The review lenses
 

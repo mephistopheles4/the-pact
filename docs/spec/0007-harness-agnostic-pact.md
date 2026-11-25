@@ -190,7 +190,7 @@ round's comment on the issue lists each finding.
     role, app, team, user or deploy key, never a workflow, so a bypass for
     `github.token` is one every workflow shares, and a workflow file on any
     branch of the repo sets its own permissions and runs before review (S10).
-50. Trade-off: the word budgets of `docs/install.md` (8,700 to 8,900) and
+50. Trade-off: the word budgets of `docs/install.md` (8,700 to 9,100) and
     `docs/reference.md` (2,300 to 2,400) rise for the release text, and
     nothing is cut to make room, on the owner's rule; PACT-110 cleans up.
 

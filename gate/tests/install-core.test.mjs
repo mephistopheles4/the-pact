@@ -174,6 +174,15 @@ const recordBase = () => ({ in: json({ commit: ID('a'), digest: null, config: []
     { id: 'no-files', plant: t => ({ in: json({ ...JSON.parse(t.in), files: undefined }) }), fails: ['record-not-pact'], why: 'a record must list its files' },
     { id: 'files-not-a-list', plant: t => ({ in: json({ ...JSON.parse(t.in), files: {} }) }), fails: ['record-not-pact'], why: 'files must be a list, which may be empty' },
     { id: 'keys-differ-in-case', plant: rep('"digest"', '"Commit":"x","digest"'), fails: ['record-unreadable'], why: 'PowerShell refused keys that differ only in case' },
+    { id: 'harnesses-not-a-list', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: {} }) }), fails: ['record-not-pact'], why: "harnesses must be a list" },
+    { id: 'harness-named-pact', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'pact' }] }) }), fails: ['record-not-pact'], why: "the pact's own files are no harness" },
+    { id: 'harness-unknown-key', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', hooks: 'x' }] }) }), fails: ['record-not-pact'], why: "only the four targets" },
+    { id: 'target-not-text', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', rules: 5 }] }) }), fails: ['record-not-pact'], why: "a target is a path" },
+    { id: 'target-in-neutral-home', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', agents: '.pact/tools' }] }) }), fails: ['record-not-pact'], why: "a harness never holds the neutral home" },
+    { id: 'target-secret-store', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', agents: '.ssh' }] }) }), fails: ['record-not-pact'], why: "another program's keys" },
+    { id: 'target-not-canonical', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', agents: '.claude/../x' }] }) }), fails: ['record-not-pact'], why: "a plain path only" },
+    { id: 'rules-not-md', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', rules: '.config/shell/profile' }] }) }), fails: ['record-not-pact'], why: "a rules file is Markdown" },
+    { id: 'settings-not-json', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', settings: '.zshenv' }] }) }), fails: ['record-not-pact'], why: "a settings file is JSON" },
   ];
   test('install record: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`install record: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -906,7 +915,11 @@ const noLink = () => false;
 // dest-skip: the reasons behind the rule id the table above checks.
 test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
   for (const p of ['', '../x', 'a/../b', '/x', '\\x', 'C:x', null, 5]) assert.equal(core.skipReason(p, noLink), 'unsafe path', String(p));
-  for (const p of ['.claude/settings.json', '.claude/SETTINGS.JSON', '.pact/install.json', '.pact/config.json', '.pact/config.json:stream', 'x/.credentials.json', '.claude/projects/a', '.claude/memory', '.claude/skills/x/y', '.claude/handover/z', '.pact/blocks/b.md', '.pact/presets', '.pact/presets/personal.json', '.Pact/Presets/p.json. ', '.pact/builder.json', '.Pact/Builder.json. ']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+  for (const p of ['.claude/settings.json', '.claude/SETTINGS.JSON', '.pact/install.json', '.pact/config.json', '.pact/config.json:stream', 'x/.credentials.json', '.claude/projects/a', '.claude/memory', '.claude/skills/x/y', '.claude/handover/z', '.pact/blocks/b.md', '.pact/presets', '.pact/presets/personal.json', '.Pact/Presets/p.json. ', '.pact/builder.json', '.Pact/Builder.json. ', '.claude.json', '.codex/hooks.json', '.gemini/config/hooks.json', '.pact/github.json', '.pact/linear.json', '.pact/gh-app-claude.gitconfig', '.pact/handoffs/a.md', '.pact/source/x/y.mjs', '.ssh/id', '.SSH/authorized_keys', '.aws/credentials', '.gnupg/x', '.config/gh/hosts.yml', '.codex/auth.json', '.gemini/oauth_creds.json', '.gemini/google_accounts.json', '.git-credentials', '.gitconfig', '.netrc']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+  // An own harness's hooks file is merged into, never copied over.
+  assert.equal(core.skipReason('.mine/hooks.json', noLink, ['.mine/hooks.json']), 'protected path');
+  // A name may start with a dot at any depth, as a harness's folders do.
+  assert.equal(core.skipReason('.claude/agents/.x', noLink), null);
   for (const p of ['.claude/agents/a b.md', '.claude/agents/..x', '.claude/agents/a.', 'a\\b']) assert.equal(core.skipReason(p, noLink), 'non-canonical path', p);
   assert.equal(core.skipReason('.claude/agents/a.md', () => true), 'path through a link');
   assert.equal(core.skipReason('.claude/agents/a.md', noLink), null);
@@ -926,6 +939,15 @@ test('#272 C8: no install record can make the install write or delete a path und
 /** Where the record's harness may write, and a record entry under the harness its path belongs to. */
 const TARGETS = [core.targetsOf(CLAUDE)];
 const kept = (path, sha256) => ({ harness: path.startsWith('.pact/') ? 'pact' : 'claude', path, sha256 });
+
+// Spec 0007 S9: a record entry reaches only the folders of its own harness.
+test('bad case: a record entry outside its harness\'s folders is warned and never deleted', () => {
+  const outside = [['claude', '.bashrc'], ['pact', '.claude/CLAUDE.md'], ['claude', '.claude/agents/sub/x.md'], ['claude', '.claude/notes/x.md'], ['mine', '.claude/agents/x.md']];
+  const record = core.parseRecord(json({ commit: 'x', files: outside.map(([harness, path]) => ({ harness, path, sha256: H('1') })) }));
+  const p = core.plan(record, new Map(), () => ({ exists: true, file: true, sha256: H('1') }), noLink, TARGETS);
+  assert.deepEqual(p.delete, []);
+  assert.deepEqual(p.warnings, outside.map(([, path]) => `path outside its harness's folders in the install record, skipped: ${path}`));
+});
 
 // #262: an agent file changed since the install, or one the record never listed, is the person's: in yours, never drift, overwrite or delete.
 test('the plan: drift, overwrite, add, delete, yours and unchanged; a record hash in capitals is not drift; a first install deletes only the retired agents', () => {
@@ -1142,7 +1164,7 @@ test('the ask plan: on, it adds the two rules and records them, a second run add
 });
 
 // #523 C20: the record's reader takes the cleaner's ask rules from its settings entries, and refuses entries in any other form.
-test('the install record\'s cleanerAsk is a list of rule strings, or the record is refused', () => {
+test('the cleaner\'s ask rules are read from the record\'s entries, a non-string is ignored, and a malformed entries list refuses', () => {
   const rec = extra => json({ commit: 'c', files: [{ path: 'x', sha256: H('a') }], ...extra });
   const entry = value => ({ harness: 'claude', path: '.claude/settings.json', key: 'permissions.ask', value, sha256: H('a') });
   assert.deepEqual(core.parseRecord(rec({ entries: core.CLEANER_ASK.map(entry) })).cleanerAsk, [...core.CLEANER_ASK]);
@@ -1454,7 +1476,7 @@ test('the identity env merge keeps the owner\'s env keys, and removes an env the
 });
 
 // #603 C5: the record holds the two keys while the switch is on, and nothing else it holds is read as one of them.
-test('the record carries identityEnv only while there is one, and refuses a malformed one', () => {
+test('the identity keys are read from the record\'s entries, others are ignored, and a malformed entries list refuses', () => {
   const base = { commit: ID('a'), digest: null, harnesses: [], userHash: null, blockHashes: new Map(), files: new Map(), entries: [], gateNow: new Map() };
   assert.deepEqual(core.parseRecord(core.recordText(base)).identityEnv, {});
   const entry = (key, value) => ({ harness: 'claude', path: '.claude/settings.json', key, value, sha256: H('3') });

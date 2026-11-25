@@ -126,7 +126,7 @@ test('bad case: a changed live poster is drift, and --apply refuses', t => {
   assert.equal(total(dry, 'Drift'), 1, dry.out);
   assert.equal(total(dry, 'Yours, left as is'), 0, dry.out);
   const before = listTree(h);
-  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /^REFUSED: live files changed since the last install\./m);
+  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /^REFUSED: installed files or settings entries changed since the last install\./m);
   assert.deepEqual(listTree(h), before, 'a refused install changes nothing');
   assert.equal(readFileSync(join(h, ...LIVE), 'utf8'), 'rewritten\n');
 });
@@ -512,7 +512,7 @@ test('agent-identity off: the tool and the two recorded env keys go, the owner\'
 
 // #603 C5: a key the owner changed after the install is theirs, so turning the switch off leaves it.
 // A changed recorded entry is drift (spec 0007 S9), so the apply refuses and writes nothing.
-test('agent-identity off leaves an env key the owner changed since the install', t => {
+test('agent-identity off refuses as drift while the owner\'s change to a recorded env key stands', t => {
   const repo = makeRepo(t);
   const h = identityHome(t, true);
   installed(repo, h);
@@ -525,7 +525,7 @@ test('agent-identity off leaves an env key the owner changed since the install',
   passed(dry);
   assert.match(dry.stdout, /^Drift: 1\r?\n {2}\.claude\/settings\.json env\.GIT_CONFIG_GLOBAL \(the pact's entry changed since the install\)\r?$/m, dry.out);
   assert.equal(total(dry, 'Drift'), 1, dry.out);
-  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /^REFUSED: live files changed since the last install\./m);
+  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /^REFUSED: installed files or settings entries changed since the last install\./m);
   assert.deepEqual(readFileSync(join(h, '.claude', 'settings.json')), before);
   assert.deepEqual(liveEnv(h), { GIT_CONFIG_GLOBAL: 'D:/mine', GIT_TERMINAL_PROMPT: '0' });
 });

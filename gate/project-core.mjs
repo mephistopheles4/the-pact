@@ -28,10 +28,10 @@
 //   2. The home-folder relations, on canonical real paths, case-folded on
 //      Windows and macOS, matched on whole segments (gate/paths.mjs). It
 //      refuses a project folder that equals or holds the real home folder, or
-//      that equals, holds or sits inside the real Claude folder (.claude in
-//      the home folder), whatever --claude-home says; and likewise for the
-//      Claude home folder named for the run, when it differs. The real home
-//      folder is the account's, as the operating system reports it
+//      that equals, holds or sits inside the real Claude or pact folder
+//      (.claude and .pact in the home folder), whatever --home says; and
+//      likewise for the home folder named for the run, when it differs. The
+//      real home folder is the account's, as the operating system reports it
 //      (os.userInfo), and also the one HOME or USERPROFILE names when that
 //      differs, so a changed environment cannot move it away.
 //      Known limit: the relations compare path text after realpath. A

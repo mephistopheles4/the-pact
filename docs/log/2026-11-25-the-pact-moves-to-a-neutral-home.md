@@ -8,6 +8,16 @@ Nothing reads the old paths. An install from before the move needs the one-time 
 
 The claim tests found two faults before review, both fixed here: on Linux and macOS a harness's existing file read as inside a git work tree, and no settings entry was ever recorded.
 
+**What the gate bounds differently**, since the install now writes anywhere under the home folder:
+
+- A name may start with a dot at any depth, as harness folders do. Before, only the first could: a loosening.
+- The record keeps one list of added deny rules, which the cleaner's plan and the stop switch's each filter by their own rules.
+- Other programs' keys and sign-ins (`.ssh/`, `.codex/auth.json` and the rest of `SECRET_STORES`) are protected: no description may name one, and the install never writes or deletes one.
+- A rules file ends `.md` and a hooks or settings file `.json`, in a description and in the record. Spec 0007 S5 checks less.
+- The install records `permissions.defaultMode` and `skipAutoPermissionPrompt` when it set them, and taking Claude Code out removes them. Neither is drift: each apply sets them again, with a warning.
+
+Test round 1 also found that taking Claude Code out with the cleaner on refused as drift, and that a rules path through a link, to a file not yet there, passed the work-tree check. Both are fixed.
+
 **Rolling back:** [Roll back to an older version](../install.md#roll-back-to-an-older-version): empty the install list and apply first, move the configuration back, then run the older commit's installer.
 
 ## Record

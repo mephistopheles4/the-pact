@@ -196,7 +196,7 @@ async function main() {
   const before = stateOf(stage);
   const renderOut = mkdtempSync(join(work, 'render-'));
   // A project install gives the stage its no-file render, against a new empty
-  // folder in place of the Claude home folder; the user file is read later.
+  // folder in place of the home folder; the user file is read later.
   const renderHome = project ? mkdtempSync(join(work, 'nohome-')) : home;
   // A home install with no user file renders the pact's default from the stage (#183 T4a); a project install never does.
   const { lines: renderLines } = runCheck(render, [rulesStaged, renderOut, renderHome, ...(project ? [] : [live(stage, core.DEFAULT_CONFIG_DIR)])], 'render', 'the renderer');
@@ -345,8 +345,9 @@ async function main() {
   const liveBytes = settingsFile === null ? null : io.readOptional(settingsFile);
   const liveSettings = liveBytes === null ? new Map() : core.readSettings(liveBytes.toString('utf8'));
   let merged = null;
+  let plain = { record: [], drop: [] };
   // #438: the cleaner's deny rules come and go with it; settings left untouched keep the record's list.
-  // #439: the stop switch's rules likewise, in a record key of their own; a project install never turns the switch on.
+  // #439: the stop switch's rules likewise; a project install never turns the switch on.
   const stopOn = claude ? core.stopSwitchOn(parsed) : false;
   // #603: the identity switch. On, the claude app must be pinned and its gitconfig must be exactly what setup writes, or the install refuses before any write; off, the check is skipped, so a changed or missing gitconfig never blocks turning it off.
   const identityOn = claude ? core.identitySwitchOn(parsed) : false;
@@ -368,7 +369,7 @@ async function main() {
   let identityBlock = [];
   let deny = { add: [], drop: [], record: record ? record.cleanerDeny : [] };
   let stopRecord = record ? record.stopDeny : [];
-  // #523: the cleaner's ask rules, in a record key of their own (cleanerAsk), with the cleaner's switch.
+  // #523: the cleaner's ask rules, with the cleaner's switch.
   let askPlan = { add: [], drop: [], record: record ? record.cleanerAsk : [] };
   let settings;
   let changes = [];
@@ -388,29 +389,32 @@ async function main() {
   } else {
     const cleanerPlan = core.cleanerDenyPlan(liveSettings, mergeTools, record ? record.cleanerDeny : []);
     const stopPlan = core.stopDenyPlan(liveSettings, stopOn, record ? record.stopDeny : []);
-    // deny.record is the cleaner's record only; the stop switch's is kept in stopRecord.
+    // The record lists every added deny rule once, so cleanerDeny and stopDeny hold the same list and each plan filters it by its own rules.
+    // Here deny.record is the cleaner's own; the stop switch's is kept in stopRecord.
     deny = { ...core.joinDeny(cleanerPlan, stopPlan), record: cleanerPlan.record };
     stopRecord = stopPlan.record;
     askPlan = core.cleanerAskPlan(liveSettings, mergeTools, record ? record.cleanerAsk : []);
     identity = core.identityEnvPlan(liveSettings, identityOn, record ? record.identityEnv : {}, core.identityEnvWanted(home));
     if (identity.conflicts.length) throw refusal('identity-env', `the agent-identity switch is on, but settings.json already sets env ${identity.conflicts.join(' and ')}; take it out first, since the install never overwrites your own env.`);
     const applied = claude ? overlay : new Map();
-    merged = core.mergeSettings(liveSettings, applied, deny, compact, askPlan, identity);
+    plain = core.overlayKeysPlan(liveSettings, applied, record ? record.entries.filter(e => e.path === settingsRel) : []);
+    merged = core.mergeSettings(liveSettings, applied, deny, compact, askPlan, identity, plain.drop);
     if (liveBytes === null) settings = claude ? 'would be created from the overlay' : 'unchanged';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
       if (claude) notes = core.liveSettingsLines(liveSettings, overlay, compact);
     }
-    changes = core.settingsChanges(liveSettings, applied, deny, askPlan, identity);
+    changes = [...core.settingsChanges(liveSettings, applied, deny, askPlan, identity), ...plain.drop.map(k => `  - ${k}`)];
     compactBlock = core.compactLines(liveSettings, applied, compact);
   }
   const settingsWill = settings !== null && settings.startsWith('would');
+  // The overlay's two plain keys are never drift: each apply sets them again, with a warning, and the record holds them for take-out.
   // The entries the record keeps next: those the merged settings hold, or, for a file left untouched, the last ones.
   const lastEntries = record ? record.entries.filter(e => e.path === settingsRel) : [];
   const entries = settingsRel === null || liveSettings === null
     ? (record ? record.entries : [])
-    : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: [...deny.record, ...stopRecord], ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256 }) : [];
-  const drift = [...p.drift, ...(liveSettings === null ? [] : core.entryDrift(lastEntries, liveSettings))];
+    : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: [...deny.record, ...stopRecord], ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record }) : [];
+  const drift = [...p.drift, ...(liveSettings === null ? [] : core.entryDrift(lastEntries.filter(e => !core.OVERLAY_KEYS.includes(e.key)), liveSettings))];
   const lastConfig = record ? record.config : new Map();
   const targetsText = list => JSON.stringify(list);
   const stale = (record && (record.commit.toLowerCase() !== commit || record.release !== opts.release)) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig) || targetsText(taken.map(core.targetsOf)) !== targetsText(recorded);
@@ -433,7 +437,7 @@ async function main() {
     }
     if (h && core.builtParts(h).agents) for (const l of core.retiredAgentLines(rel => liveAt(rel).exists, p.delete, h.agents.dir)) say(l);
     say(`Unchanged: ${[...repoFiles.keys()].filter(rel => mine(rel) && !changed.has(rel)).length}`);
-    for (const rel of unrecorded.filter(mine)) say(`WARN: ${core.formatPlain(rel)} already exists and the install record does not list it; --apply refuses until the one-time removal in docs/install.md is done.`);
+    for (const rel of unrecorded.filter(mine)) say(`WARN: ${core.formatPlain(rel)} already exists and the install record does not list it; --apply refuses until you move it out of the way; after an install from before ~/.pact, follow the one-time removal in docs/install.md.`);
     if (id === 'claude' && settings !== null) {
       say(`settings.json: ${settings}`);
       if (settingsWill) for (const l of changes) say(l);

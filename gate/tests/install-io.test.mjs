@@ -372,3 +372,17 @@ test('#272 C6: on Linux and macOS a backup file or folder found open to others r
     assert.equal(stateOf(h), before);
   }
 });
+
+test('bad case: a rules file not yet made, below a link into a git work tree, is inside it', t => {
+  const repo = tempDir(t, 'pact-tree-');
+  mkdirSync(join(repo, '.git'));
+  mkdirSync(join(repo, 'sub'));
+  const link = join(tempDir(t, 'pact-home-'), '.h');
+  try {
+    symlinkSync(join(repo, 'sub'), link, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (e) {
+    if (e.code === 'EPERM') return t.skip('this account may not make a link here');
+    throw e;
+  }
+  assert.equal(io.insideWorkTree(join(link, 'RULES.md')), true);
+});
