@@ -621,7 +621,7 @@ session.
 ## Install from a release
 
 Releases need the owner's switch, and the command is safe only once rulesets
-cover every tag. Run it from your home folder or an empty one, never inside a clone, whose npm settings run first. It replaces the clone and dry run:
+cover every tag. Run it from your home folder, or an empty folder outside every project: npm first reads the settings of a project around it. It replaces the clone and dry run:
 
 ```
 npx github:mephistopheles4/the-pact#semver:^1

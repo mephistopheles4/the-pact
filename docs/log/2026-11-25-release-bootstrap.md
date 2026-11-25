@@ -26,7 +26,7 @@ that compares release numbers.
 - **The lenses also found** a step name the allow-list never read, an untested
   head check on a fresh clone, and `NODE_OPTIONS` reaching the install.
 - **A line starting with `#` hid an expression** from the workflow checks, even
-  inside a script block; both checks now refuse one.
+  inside a script block; every workflow check now refuses one.
 - Nothing is tagged: `PACT_RELEASES` is unset, and the app, environment and
   rulesets are the owner's to make.
 

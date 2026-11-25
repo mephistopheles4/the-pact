@@ -1046,7 +1046,7 @@ reads this spec and each ticket's diff.
 | Two tag rulesets on every tag (S10): creating, the release app its one bypass once it exists; updating and deleting, no bypass | the owner's own act | before T6 merges |
 | The release app as that bypass, and its key's reach (S2 item 49, S15) | the owner's call | before T9 |
 | The raised budgets of two docs (S2 item 50) | a flagged pick, for review | any time |
-| The release app (contents write, this repo only); the `release` environment, set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as its secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags, branches and merges it made | the owner's own acts | before T9 |
+| The release app (contents write, this repo only); the `release` environment, set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as its secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags, branches, merges and releases it made | the owner's own acts | before T9 |
 | Required reviewers on the `release` environment (S15) | an offer, unanswered; built without | before T9 |
 | `PACT_RELEASES` set to `on` | the owner's own act | in T9 |
 | S14's one-time removal; its step 4 moves the hand ports out of use | the owner's own machine | straight before T9's apply |

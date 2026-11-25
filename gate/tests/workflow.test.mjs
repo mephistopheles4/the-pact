@@ -268,6 +268,7 @@ function codeqlProblems(src, gateSrc) {
   if (/^\s*(?:-\s+)?run:/m.test(code)) out.push('runs a shell command');
   if (/^\s*(?:-\s+)?env:/m.test(code)) out.push('sets environment variables');
   if (/\bsecrets\b|\$\{\{\s*github\.token|GITHUB_TOKEN/i.test(code)) out.push('reads a secret or the token');
+  if (HIDDEN.test(src)) out.push(HIDES);
   if (/upload-artifact|\bcache\b/.test(code)) out.push('uploads or caches the workspace');
   if (yamlFormUsed(code)) out.push('uses a YAML anchor, alias, merge key or flow mapping');
   let w;
@@ -404,6 +405,7 @@ function claudeProblems(src, gateSrc, which) {
     for (const k of keys) if (!Object.hasOwn(obj, k)) out.push(where + ' lacks ' + k);
   };
   if (/pull_request_target|workflow_run/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
+  if (HIDDEN.test(src)) out.push(HIDES);
   if (/^\s*(?:-\s+)?run:/m.test(code)) out.push('runs a shell command');
   if (/^\s*(?:-\s+)?env:/m.test(code)) out.push('sets environment variables');
   if (/\bsecrets\b|\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/.test(code)) out.push('reads a secret or the token');
@@ -732,6 +734,7 @@ for (const [label, other, says] of [
   ['dumps every secret', OTHER.replace('echo ok', 'echo ${{ toJSON(secrets) }}'), 'other.yml reads a secret or the token'],
   ['names an environment in capitals', OTHER.replace('    steps:', '    Environment: release\n    steps:'), 'other.yml names a deployment environment'],
   ['hides a secret read on a script line that starts with #', OTHER.replace('run: echo ok', 'run: |\n          # ${{ secrets.X }}\n          echo ok'), `other.yml ${HIDES}`],
+  ['hides any expression on a script line that starts with #', OTHER.replace('run: echo ok', 'run: |\n          # ${{ github.event.pull_request.title }}\n          echo ok'), `other.yml ${HIDES}`],
   ['asks for write access', OTHER.replace('contents: read', 'contents: write'), 'other.yml asks for more than read access to the contents'],
   ['runs on pull_request_target', OTHER.replace('  pull_request:', '  pull_request_target:'), 'other.yml runs on a trigger that holds secrets or a write token'],
   ['defines a job named gate', OTHER.replace('  lint:', '  gate:'), 'other.yml defines a job or check named gate'],
@@ -857,6 +860,8 @@ for (const [label, plant, says] of [
   ['reads a secret in bracket form', s => s.replace('          category:', "          token: ${{ secrets['X'] }}\n          category:"), 'reads a secret or the token'],
   ['dumps every secret', s => s.replace('          category:', '          token: ${{ toJSON(secrets) }}\n          category:'), 'reads a secret or the token'],
   ['names the release environment', s => s.replace('    runs-on:', '    environment: release\n    runs-on:'), "the job holds environment, which the allow-list doesn't name"],
+  ['reads a secret in capitals', s => s.replace('          category:', '          token: ${{ SECRETS.X }}\n          category:'), 'reads a secret or the token'],
+  ['hides a secret read in its config on a line that starts with #', s => s.replace('            paths-ignore:', '            # ${{ secrets.X }}\n            paths-ignore:'), HIDES],
   ['builds the code', s => s.replace('build-mode: none', 'build-mode: autobuild'), 'does not run init on the matrix language with build-mode none'],
   ['adds a top-level key', s => s.replace('\njobs:\n', '\nconcurrency: codeql\njobs:\n'), extraKey('the file', 'concurrency')],
   ['runs on pushes to another branch', s => s.replace('    branches: [main]\n', '    branches: [develop]\n'), TRIGGERS],
@@ -1043,6 +1048,7 @@ for (const [label, plant, says, only] of [
   ['passes the job token by its other name', afterIds('          github_token: ${{ env.GITHUB_TOKEN }}\n'), CL.secret],
   ['reads a secret in the checkout', afterCheckoutInputs('          token: ${{ secrets.X }}\n'), [CL.secret, extraKey("step 1's with", 'token')]],
   ['reads a secret in its name', s => s.replace(/^name: .*\n/, 'name: ${{ secrets.X }}\n'), CL.secret],
+  ['hides a secret read on a line that starts with #', afterCheckoutInputs('          # ${{ secrets.X }}\n'), HIDES],
   ...['anthropic_federation_rule_id', 'anthropic_organization_id', 'anthropic_service_account_id'].map(key => [
     'drops ' + key,
     s => s.replace(new RegExp(' {10}' + key + ': .*\\n'), ''),
