@@ -13,13 +13,14 @@ PACT-105 T8 ([spec 0007](../spec/0007-harness-agnostic-pact.md), S15, C27). The 
 
 ## What waits for the owner
 
-This record is no answer from the owner. Under [ADR 0132](0132-the-threat-model-holds-accepted-threat-classes.md), only a merge the owner confirms in chat widens a class, and a scope change and a weakened control come to the owner. The threat model's "Open gaps" says these are open; the change that carries the owner's answers drops that sentence. Open:
+This record was written with no answer from the owner. Under [ADR 0132](0132-the-threat-model-holds-accepted-threat-classes.md), only a merge the owner confirms in chat widens a class, and a scope change and a weakened control come to the owner. The threat model's "Open gaps" says these are open; the change that carries the owner's answers drops that sentence. Open:
 
 - **The three class widenings.** With the Codex one comes spec 0007's option to run Codex lenses only with the parent's network off and no MCP server in its profile; the threat model doesn't take it. On a no, each Codex lens runs in a separate session. On a no to the Antigravity one, Antigravity leaves the default install list. The spec doesn't say whether a command an Antigravity session starts itself can pass for the word an install apply or mise trust waits for; that is part of the same call.
-- **The scope change,** due before this ticket merges (spec 0007 S20). It covers the crossing to OpenAI and Google, which no class and no control covers; the spec gives no fallback for a no. What each provider keeps of that context is set by the owner's account there.
 - **The poster's narrower coverage** under Codex.
 - **Two placements.** Spec 0007 names no class for a project install that tightens Claude Code alone, or for a hand-made or old copy that loads beside the pact. The lead session placed both under "The pact gets loosened".
 - **The release app and its key.** A ruleset bypass can name no actor narrower than every workflow while the release job tags with the workflow's own token, so the packaging ticket tags with a GitHub App used for releases alone, the tag ruleset's one bypass, its key a secret of an environment only `main` deploys to (the lead session's flagged pick, taken against spec 0007's "no secrets"). A stolen key does all `contents: write` does: it can create, move or delete any tag, since a bypass covers every rule in its ruleset, push a branch no ruleset covers and merge what `main`'s ruleset lets through. A second tag ruleset with no bypass, for moves and deletions, would take moving and deleting away, not creating; it isn't built.
+
+Answered since: **the scope change.** The owner wrote "I accept the change to the threat model" in the lead session's chat, which relayed it (its decision 88). It covers the crossing to OpenAI and Google, which no class and no control covers. What each provider keeps of that context is set by the owner's account there.
 
 Whatever is answered, the threat model's text and charts follow. The cap, the count that leaves charts out and the two moved places are the lead and build sessions' flagged picks, for the owner to review.
 
