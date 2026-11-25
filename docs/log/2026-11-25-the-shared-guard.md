@@ -12,6 +12,6 @@
 
 ## Left open
 
-- **T4 and T5 probe the harnesses.** Nothing here has run inside Codex or Antigravity. Antigravity's docs name neither the shell its hooks run under on Windows nor what empty output means. The Windows command works under `cmd`; under PowerShell it fails for a home path with a space, so a harness that uses PowerShell would let the call through.
+- **T4 and T5 probe the harnesses.** Nothing here has run inside Codex or Antigravity. Antigravity's docs name neither the shell its hooks run under on Windows nor what empty output means. The Windows command works under `cmd`. Under PowerShell (7 and 5.1) it doesn't: for a plain home path it prints the process environment to the hook's output ahead of the answer, which is then not valid JSON, and for a path with a space it fails to start. A harness that runs hooks under PowerShell would let the call through and receive the environment, so T5 settles the shell before any apply.
 - **Speed bumps.** A command inside a nested shell string (`bash -c`, `pwsh -Command`) is not read, and neither are spellings the table's words don't cover.
 - **Word budgets.** `docs/install.md` and `docs/reference.md` took the guard's text past their budgets, which were raised, with a follow-up issue to clean them up.
