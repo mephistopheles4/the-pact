@@ -165,7 +165,8 @@ export function resolveHarnesses({ known, own = [], home, platform, inWorkTree }
   for (const entry of own) {
     if (!isObject(entry)) refuse('harness-shape', 'an own harness is not an object.');
     const id = entry.id;
-    if (typeof id !== 'string' || !ID_RE.test(id) || id === PACT_ID) refuse('harness-id', `an own harness's id is not a lower-case letter and at most 31 more letters, digits or dashes, or is ${PACT_ID}.`);
+    // `skills` is taken too: rendered/skills/ in the stage is the shared skills render.
+    if (typeof id !== 'string' || !ID_RE.test(id) || id === PACT_ID || id === 'skills') refuse('harness-id', `an own harness's id is not a lower-case letter and at most 31 more letters, digits or dashes, or is ${PACT_ID} or skills.`);
     if (seen.has(id)) refuse('harness-id', `two own harnesses have the id ${id}.`);
     seen.add(id);
     mine.set(id, entry);
