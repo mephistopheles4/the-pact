@@ -38,8 +38,8 @@ install refuses: run setup.
   still refuses it), so the install copies `~/.pact/tools/gh-app.mjs`,
   with its own WARN in the dry run.
 - **Two `env` keys** in `settings.json`: `GIT_CONFIG_GLOBAL`, pointing at the
-  gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them under
-  `identityEnv` in `install.json`. The gitconfig includes your own global
+  gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them in
+  the `entries` of `install.json`. The gitconfig includes your own global
   git config, sets the bot as `user.name` and `user.email` (your own `author.*`
   settings still win; see below), and drops Git Credential Manager, so a failed
   mint fails an HTTPS push.

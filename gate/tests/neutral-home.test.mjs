@@ -2,7 +2,7 @@
 // C2-C4, C17, C18, C30 and C31, with an own harness of the claude-md format in
 // a throwaway home. harnesses.test.mjs holds the pure checks on descriptions.
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { applyBound, commitAll, git, home, install, makeRepo, passed, refused } from './install-harness.mjs';
@@ -22,10 +22,18 @@ const at = (h, rel) => join(h, ...rel.split('/'));
 const read = (h, rel) => readFileSync(at(h, rel), 'utf8');
 const record = h => JSON.parse(read(h, '.pact/install.json'));
 
-/** Writes the home's configuration: an install list, and the own harness. */
-function configure(h, list) {
+/** Writes the home's configuration: an install list, the own harness, and any tools. */
+function configure(h, list, tools = []) {
   mkdirSync(at(h, '.pact'), { recursive: true });
-  writeFileSync(at(h, '.pact/config.json'), `${JSON.stringify({ schema: 1, harnesses: { install: list, own: [MINE] } })}\n`);
+  writeFileSync(at(h, '.pact/config.json'), `${JSON.stringify({ schema: 1, ...(tools.length ? { tools } : {}), harnesses: { install: list, own: [MINE] } })}\n`);
+}
+
+/** Replaces one text in a file of the throwaway repo. */
+function edit(root, rel, from, to) {
+  const p = join(root, ...rel.split('/'));
+  const s = readFileSync(p, 'utf8');
+  assert.equal(s.split(from).length, 2, `${rel} holds the plant\'s target once`);
+  writeFileSync(p, s.replace(from, () => to));
 }
 
 /** The dry run's block for one harness: its heading's lines up to the next heading. */
@@ -150,19 +158,63 @@ test('C18: an unrecorded rules file refuses, an unrecorded agent stays yours, an
 test('C31: after an apply with an empty install list the record lists nothing and every recorded target is gone', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  configure(h, ['claude', 'mine']);
+  // The cleaner on: its deny and ask rules leave with Claude Code, and none of them reads as drift.
+  configure(h, ['claude', 'mine'], ['cleaner']);
   passed(applyBound(repo, h));
   const was = record(h);
   assert.ok(was.files.length > 10);
-  assert.deepEqual([...new Set(was.entries.map(e => e.key))].sort(), ['autoCompactWindow', 'hooks.PostToolUse', 'hooks.PreCompact', 'hooks.SessionStart', 'hooks.Stop', 'hooks.UserPromptSubmit']);
+  assert.deepEqual([...new Set(was.entries.map(e => e.key))].sort(), ['autoCompactWindow', 'hooks.PostToolUse', 'hooks.PreCompact', 'hooks.SessionStart', 'hooks.Stop', 'hooks.UserPromptSubmit', 'permissions.ask', 'permissions.defaultMode', 'permissions.deny', 'skipAutoPermissionPrompt']);
 
-  configure(h, []);
+  // Auto mode turned off by hand is not drift: the apply sets it again.
+  writeFileSync(at(h, '.claude/settings.json'), read(h, '.claude/settings.json').replace('"auto"', '"plan"'));
+  passed(applyBound(repo, h));
+  assert.equal(JSON.parse(read(h, '.claude/settings.json')).permissions.defaultMode, 'auto');
+
+  configure(h, [], ['cleaner']);
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(block(dry, 'claude'), /^Drift: 0$/m);
+  assert.match(block(dry, 'claude'), /^ {2}- permissions\.defaultMode$/m);
   passed(applyBound(repo, h));
   const now = record(h);
   assert.deepEqual([now.files, now.entries, now.harnesses], [[], [], []]);
   for (const f of was.files) assert.ok(!existsSync(at(h, f.path)), f.path);
-  assert.doesNotMatch(read(h, '.claude/settings.json'), /compact-handoff|autoCompactWindow/);
+  assert.doesNotMatch(read(h, '.claude/settings.json'), /compact-handoff|autoCompactWindow|defaultMode|skipAutoPermissionPrompt|cleaner|worktree/);
   assert.ok(existsSync(at(h, '.pact/config.json')), 'the configuration stays');
+});
+
+// Auto mode the owner had set before the install is theirs, and stays when Claude Code is taken out.
+test('C31: an overlay key the settings already held is not recorded, and stays', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  writeFileSync(at(h, '.claude/settings.json'), '{"permissions": {"defaultMode": "auto"}}\n');
+  passed(applyBound(repo, h));
+  assert.ok(!record(h).entries.some(e => e.key === 'permissions.defaultMode'));
+  configure(h, []);
+  passed(applyBound(repo, h));
+  assert.deepEqual(JSON.parse(read(h, '.claude/settings.json')), { permissions: { defaultMode: 'auto' } });
+});
+
+test('bad case: a configuration that changes while the install runs refuses', t => {
+  const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  let text = null;\n", "  writeFileSync(live(home, core.CONFIG_REL), '{\"schema\": 1}\\n');\n  let text = null;\n"));
+  const h = home(t);
+  configure(h, ['claude']);
+  refused(install(repo, h), /^REFUSED: the user configuration changed while the install ran/m);
+});
+
+test('bad case: an install record that is a link refuses', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  mkdirSync(at(h, '.pact'));
+  const elsewhere = join(tempDir(t, 'pact-else-'), 'record.json');
+  writeFileSync(elsewhere, '{}\n');
+  try {
+    symlinkSync(elsewhere, at(h, '.pact/install.json'), 'file');
+  } catch (e) {
+    if (e.code === 'EPERM') return t.skip('this account may not make a link here');
+    throw e;
+  }
+  refused(install(repo, h), /^REFUSED: the user configuration file, or the \.pact folder that holds it, is a link/m);
 });
 
 // ------------------------------------------------------------ the known harnesses come from the commit
@@ -180,6 +232,6 @@ test('C30: --home inside a git work tree refuses, and writes nothing', t => {
   git(tree, 'init', '-q');
   const h = join(tree, 'home');
   mkdirSync(join(h, '.claude'), { recursive: true });
-  refused(install(repo, h), /^REFUSED: --home is inside a git work tree/m);
+  refused(install(repo, h, { apply: true }), /^REFUSED: --home is inside a git work tree/m);
   assert.deepEqual(readdirSync(h, { recursive: true }).map(String), ['.claude']);
 });

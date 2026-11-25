@@ -17,7 +17,7 @@ how every session in every repo behaves. So:
 - **Install with [`gate/install.mjs`](../../gate/install.mjs)**, never by
   copying files by hand. The script installs from the clone, not through a
   symlink, so a checked-out branch is never live until you install it. A
-  direct edit to `~/.claude/` drifts from the repo.
+  direct edit to `~/.claude/` or `~/.pact/` drifts from the repo.
 - **The dry run** runs from the repo root, on Node 24 or later, with
   `NODE_OPTIONS` cleared: `$env:NODE_OPTIONS = $null; node gate/install.mjs`
   in PowerShell, or `env -u NODE_OPTIONS node gate/install.mjs` in a POSIX
@@ -183,7 +183,8 @@ how every session in every repo behaves. So:
   add `--review-folder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
   no-configuration render) there. The folder must be new or empty, and outside
-  the `.claude` and `.pact` folders of your home. Without the option, a dry
+  the `.claude` and `.pact` folders of your home and any folder named
+  `.claude`. Without the option, a dry
   run changes nothing on disk.
 - **Project install.** To make the pact stricter in one repo, add
   `--project-folder <full path>`. It reads the project's
@@ -234,6 +235,9 @@ An older pact installs with that commit's own installer.
   stop to ask the owner. Check first, because an older commit's own
   `AGENTS.md` presents a PowerShell installer as the route, and nothing but
   these checks stands before one (the threat model's class The pact gets loosened).
+- **To a commit that installs into `~/.claude`,** the owner first does that
+  section's numbered steps: an empty install list applied, the record checked
+  empty, then the configuration and hand copies moved back.
 - **Then, at the current commit, take out what the older pact doesn't know,** as that section lists:
   keys it refuses, and the four settings (the cleaner, `session-stop-deny`,
   `agent-identity`, the auto-compact window) to turn off and apply before the rollback. Stop and
@@ -244,4 +248,5 @@ An older pact installs with that commit's own installer.
 - **Then check out** exactly that id and run only `gate/install.mjs`, dry run
   first.
 - **Backups:** the same section says what a rollback does to
-  `.pact/backups`.
+  `.pact/backups`. In an older commit that installs into `~/.claude`,
+  these paths are under `~/.claude/pact/`.

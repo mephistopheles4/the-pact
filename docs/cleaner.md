@@ -361,8 +361,6 @@ worktree with whatever is left in it, uncommitted and untracked files
 included, which git's own keeps don't bound.
 It records the ones it added in `install.json`'s `entries`, and
 turning the cleaner off removes only those; a rule you wrote yourself stays.
-A record from before `claude rm` joined holds only the git rules, and the
-next install with the cleaner on adds the two.
 
 The install also adds two ask rules, `Bash(*cleaner.mjs*remove*--override*)` and its
 `PowerShell(...)` twin, to `permissions.ask`, recorded there too and removed the same way.

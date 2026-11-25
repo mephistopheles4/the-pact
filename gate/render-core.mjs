@@ -21,7 +21,7 @@
 // once, closes after it opens, sits alone on its line, and never opens inside
 // another.
 //
-// The files it reads. The user file is CONFIG_REL under the Claude home
+// The files it reads. The user file is CONFIG_REL under the home
 // folder; each block file an edit names is under BLOCKS_REL beside it. Both
 // are read under these rules:
 //   - For the user file, only "does not exist" means no file. A link, a

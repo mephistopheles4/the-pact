@@ -8,7 +8,7 @@
 - **The guard** (`claude/guard/guard.mjs`) reads a command's text and runs nothing. It tokenizes as `.claude/hooks/athanor-guard.mjs` does, once as Bash and once as PowerShell, and a match in either counts, since a harness doesn't say which shell it uses. A deny beats an ask.
 - **The wrappers** (`codex.mjs`, `antigravity.mjs`) answer in the harness's shape and fail closed with a code from a fixed list. No answer carries text from the call or from an error. A command over 1 MiB, or input over 8 MiB, is refused as `size`.
 - **The hook command** names `node`'s script by absolute path and clears `NODE_OPTIONS`. On Windows it starts `cmd.exe` by its full path, sets `NoDefaultCurrentDirectoryInExePath=1`, and refuses a path holding a character `cmd` would read.
-- **The install** merges one hook per hooks file by key, keeps the person's hooks, records only the pact's entry, backs the file up, prints Codex's trust step when the entry is new or changed, and takes the entry and the files out when no rule is on or no harness takes them. Entries come out before the files they run are deleted. Seam A takes a `guard` harness part and holds `claude/guard/` to its three files.
+- **The install** merges one hook per hooks file by key, keeps the person's hooks, records only the pact's entry, backs the file up, prints Codex's trust step when the entry is new or changed, and takes the entry and the files out when no rule is on or no harness takes them. Entries come out before the files they run are deleted. A hooks path, a recorded one included, is a `.json` file outside `~/.pact` and every secret store, the bound T1 puts on a recorded target. Seam A takes a `guard` harness part and holds `claude/guard/` to its three files.
 
 ## Left open
 

@@ -36,7 +36,7 @@
 //     make it remove a file of the same name elsewhere.
 //   - A network share or a user-space mount whose root is a Claude folder, or
 //     a folder in one, aliases it past these checks: its final path shows no
-//     .claude segment and no Claude home prefix. Making such a share on
+//     .claude segment and no home folder prefix. Making such a share on
 //     Windows needs an administrator.
 //
 // It prints "REVIEW <sha256 of the rules written> <sha256 of the diff

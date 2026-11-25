@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 export const EVENTS = ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart'];
 
-/** Writes pact/config.json in the Claude home folder `h`: schema 1 and `doc`. */
+/** Writes .pact/config.json in the home folder `h`: schema 1 and `doc`. */
 export function config(h, doc) {
   mkdirSync(join(h, '.pact'), { recursive: true });
   writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, ...doc })}\n`);

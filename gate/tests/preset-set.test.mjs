@@ -18,7 +18,7 @@ const BLOCKS = join(REPO, 'examples', 'pact-config', 'blocks');
 const CONFIG = join(REPO, 'examples', 'pact-config', 'config-matt-pocock-skills.json');
 const SET = JSON.parse(readFileSync(CONFIG, 'utf8')).edits;
 
-/** A Claude home folder that binds the set, as the owner's configuration would. */
+/** A home folder that binds the set, as the owner's configuration would. */
 function homeWithSet(t, set = SET) {
   const h = tempDir(t, 'pact-preset-home-');
   mkdirSync(join(h, '.pact', 'blocks'), { recursive: true });

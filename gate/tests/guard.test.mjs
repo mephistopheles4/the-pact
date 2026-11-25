@@ -377,7 +377,7 @@ test('a recorded hook is found in the live file, and a changed or removed one is
 test('bad case: the install writes a hooks file only at a plain path outside the neutral home, through no link', () => {
   const none = () => false;
   assert.equal(core.guardPathReason('.codex/hooks.json', none), null);
-  for (const rel of ['../x.json', '/etc/x.json', '.pact/hooks.json', '.PACT/x', 'a\\b.json', 'C:/x']) assert.equal(core.guardPathReason(rel, none), 'unsafe path', rel);
+  for (const rel of ['../x.json', '/etc/x.json', '.pact/hooks.json', '.PACT/x.json', 'a\\b.json', 'C:/x.json', '.codex/auth.json', '.ssh/hooks.json', '.codex/config.toml']) assert.equal(core.guardPathReason(rel, none), 'unsafe path', rel);
   assert.equal(core.guardPathReason('.codex/hooks.json', () => true), 'path through a link');
 });
 

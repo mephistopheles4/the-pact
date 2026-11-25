@@ -166,7 +166,7 @@ test('bad case: a changed pact hook is drift, a hooks file that is not a strict 
   const dry = install(repo, h);
   passed(dry);
   assert.match(dry.stdout, /^ {2}\.codex\/hooks\.json \(the pact's guard hook changed since the install\)\r?$/m, dry.out);
-  refused(applyBound(repo, h), /live files changed since the last install/);
+  refused(applyBound(repo, h), /installed files or settings entries changed since the last install/);
   assert.deepEqual(json(h, CODEX), codex, 'nothing was written');
   for (const [text, says] of [['{ // a comment\n}', /\.codex\/hooks\.json is not a strict JSON object/], ['{"hooks": {"PreToolUse": 1}}', /is not the list the harness reads/]]) {
     const fresh = three(t);

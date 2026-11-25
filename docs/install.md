@@ -80,8 +80,10 @@ hook, while a rule is on.
   (`~/.claude`, `~/.codex`, `~/.gemini/config`).
 - **The install list.** The `harnesses` key of `~/.pact/config.json` names who
   is installed into, as `"harnesses": {"install": ["claude"]}`. With no list,
-  every found harness is in. A harness the last install recorded stays in when
-  its folder is gone, with a warning.
+  every found known harness is in, unless its description sets
+  `defaultInstall` to `false`; your own harness is in only when the list names
+  it. A harness the last install recorded stays in when its folder is gone, with
+  a warning.
 - **Taking one out.** Leave it out of the list: the next apply removes every
   file and settings entry the record holds for it, after backing them up. An
   empty list removes everything the pact installed.
@@ -97,14 +99,21 @@ under `~/.claude`. The pact migrates nothing, and reads none of the old paths.
 Do it yourself, once, in one sitting, straight before the apply, with no other
 session running:
 
-1. If `agent-identity` is on, turn it off and apply with the old install, as
-   [agent-identity](agent-identity.md#rolling-back) says, so no session pushes
+1. If `agent-identity` is on, set it to `false` in
+   `~/.claude/pact/config.json` and apply with the old install, as
+   [Turning it off](agent-identity.md#turning-it-off) says, so no session pushes
    through a gitconfig that has moved.
-2. Move `config.json`, `blocks/`, `builder.json`, `presets/`, `github.json`,
-   `linear.json`, the `gh-app-*.gitconfig` files and `handoff/` (to
-   `handoffs/`) from `~/.claude/pact/` to `~/.pact/`.
-3. Delete what the old record, `~/.claude/.pact-install.json`, lists, then the
-   record itself, and the pact's entries in `~/.claude/settings.json`.
+2. Move `config.json`, `blocks/`, `builder.json` and `builder.json.bak`,
+   `presets/`, `github.json`, `linear.json`, the `gh-app-*.gitconfig` files and
+   `handoff/` (to `handoffs/`) from `~/.claude/pact/` to `~/.pact/`. Delete the
+   old page, `~/.claude/pact/scriptorium.html`: it holds your configuration.
+3. In `~/.claude/settings.json`, take out the pact's entries: each rule the old
+   record, `~/.claude/.pact-install.json`, lists under `cleanerDeny`,
+   `cleanerAsk` and `stopDeny`, the `env` keys under `identityEnv`,
+   `autoCompactWindow`, the hooks that call `pact/hooks/compact-handoff.mjs`,
+   `permissions.defaultMode` and `skipAutoPermissionPrompt` (the next install
+   sets the last two again, and records them). Then delete each file the record
+   lists under `~/.claude`, and the record itself.
 4. Copy any lines of your own in `~/.codex/AGENTS.md` and
    `~/.gemini/AGENTS.md` into a configuration block.
 5. Rewrite every replaced part of your configuration that names a model in role
@@ -114,8 +123,12 @@ session running:
    `~/.gemini/AGENTS.md` if it exists. The pact owns those files from here.
 7. Run the dry run. A `WARN:` that a rules file exists and the record does not
    list it marks a copy step 3 or 6 missed.
-8. After the apply, and any sessions that push with your own credentials, turn
-   `agent-identity` back on and apply again.
+8. After the apply, and any sessions that push with your own credentials, set
+   `agent-identity` to `true` in `~/.pact/config.json`, run
+   `node claude/tools/gh-app.mjs refresh` in your clone, and apply again.
+
+Skip steps 4 and 6 while the dry run says the pact does not build a harness's
+format yet: your copy is then the only pact that harness reads.
 
 Backups under `~/.claude/pact/backups/` stay where they are. Never sync, share
 or commit that folder either.
@@ -215,8 +228,9 @@ parts:
   mechanics only: what each file is, where it goes, and that it is clean
   text. Read the pact's files as you would any skill you install.
 - **`Harnesses:`.** Each harness, in or out, and whether it was found. The
-  parts below then come in one block each: `== pact home (.pact) ==` for the
-  pact's own files, then one per harness. A harness you described with hooks
+  parts from `Drift:` to `settings.json:` then come in blocks: `== pact home
+  (.pact) ==` for the pact's own files, then one per harness. Those from
+  `Backup:` on print once. A harness you described with hooks
   gets `guards unverified for <id>`.
 - **`Drift:`.** On a later install, the number of installed files and
   settings entries changed since the last one. If it isn't 0, stop: `--apply` refuses, and you
@@ -224,8 +238,9 @@ parts:
 - **`Overwrite:`, `Add:` and `Delete:`.** The files `--apply` would replace,
   create and remove. On a first install, a rules file you already have, such as
   your own `~/.claude/CLAUDE.md`, is listed with a `WARN`, and `--apply`
-  refuses until you've moved it ([why](#before-the-first-install-into-pact):
-  the pact owns the whole file, so your own text goes in your configuration).
+  refuses until you move it out of the way: the pact owns the whole file, so put
+  your own text in your configuration. After an install from before `~/.pact`,
+  do [the one-time removal](#before-the-first-install-into-pact) instead.
   `Delete` lists only files an earlier pact install put there, or, on a first
   install, an agent named `builder`, `spec-builder` or `security-builder`,
   which older pact versions shipped.
@@ -256,7 +271,9 @@ parts:
   - turns on auto mode (`permissions.defaultMode` set to `auto`) and skips its
     opt-in prompt (`skipAutoPermissionPrompt`). To keep auto mode off, set
     `defaultMode` back after the install. Every later `--apply` sets it to
-    `auto` again, and its dry run warns you first;
+    `auto` again, and its dry run warns you first. Neither key counts as drift,
+    and taking Claude Code out removes each one the install set, unless you have
+    changed its value;
   - takes out the ask rules (`permissions.ask`) an older pact added. The
     pact sets no ask rules, bar one exception: the cleaner's two,
     added only while the cleaner is on. Claude Code guards its own folder and
@@ -758,15 +775,22 @@ hook the install adds.
 ## Roll back to an older version
 
 **To a commit that installs into `~/.claude`.** Such an installer knows
-nothing of `~/.pact`. In one sitting, with no other session running: turn
-`agent-identity` off and apply; set `"harnesses": {"install": []}`, run the dry
-run and apply, which removes every recorded file; check that
-`~/.pact/install.json` lists no file and no entry and that each file the dry run
-named is gone; move your configuration back to `~/.claude/pact/` and your hand
-copies back from `~/.pact/backups/hand-copies/`; do the checks below; then turn
-`agent-identity` back on there. Done when the older install's dry run shows no
-drift. The paths in the rest of this section are that older layout's, under
-`~/.claude`.
+nothing of `~/.pact`. In one sitting, with no other session running:
+
+1. Turn `agent-identity` off and apply.
+2. Set `"harnesses": {"install": []}`, run the dry run and apply, which removes
+   every recorded file and settings entry.
+3. Check that `~/.pact/install.json` lists no file and no entry, and that each
+   file the dry run named is gone.
+4. Take the `harnesses` key out of your configuration, which an older installer
+   refuses. Move what you moved in the one-time removal back from `~/.pact/` to
+   `~/.claude/pact/` (`handoffs/` to `handoff/`), and your hand copies back from
+   `~/.pact/backups/hand-copies/`.
+5. Do the checks and steps below, then turn `agent-identity` back on there.
+
+Done when the older install's dry run shows no drift. The paths in the rest of
+this section are that older layout's: `pact/` and the record,
+`.pact-install.json`, both under `~/.claude`.
 
 An older pact installs with that commit's own installer. Rollback is
 supported only to commits on the published `main` from the Node install's
