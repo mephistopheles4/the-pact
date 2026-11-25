@@ -730,9 +730,13 @@ hook the install adds.
   shell command, in each harness's hooks file (`~/.codex/hooks.json`,
   `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
   pact's entry, and the apply backs up each hooks file it changes.
+- **On Windows only Codex gets the hook.** The command is written for `cmd`;
+  under PowerShell it would print the environment and let the call through. The
+  dry run warns for each harness left unguarded.
 - **Trust it in Codex.** Codex runs a hook only once you trust it: open
-  `/hooks` and trust `pact-guard`. The dry run and the apply say so when the
-  entry is new or changed. An update to the guard or its rules needs no new
+  `/hooks` and trust `pact-guard`, the one from `~/.codex/hooks.json`: another
+  hooks file can use the name. The dry run and the apply say so when the entry
+  is new or changed. An update to the guard or its rules needs no new
   trust, and trust never checks them.
 - **What it answers.** It refuses a command a rule denies. A rule that asks
   prompts you in Antigravity and is refused in Codex. Any other command gets no
@@ -740,8 +744,9 @@ hook the install adds.
   every shell command with `The pact's guard failed (<code>); run the pact's
   dry run.`
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
-  `bash -c "..."` included. A hook that can't start, crashes or runs past 15
-  seconds lets the command through.
+  `bash -c "..."` included, and so does one typed into a shell that is already
+  running, which Codex runs no hook for. A hook that can't start, crashes or
+  runs past 15 seconds lets the command through.
 - **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
   shape, or sits behind a link refuses the dry run. A pact entry changed since
   the install is drift.

@@ -25,6 +25,9 @@ const MY_GROUP = { PreToolUse: [{ matcher: 'run_command', hooks: [{ command: 'ec
 const record = h => json(h, '.pact/install.json');
 const guardEntries = h => record(h).entries.filter(e => e.key.startsWith('guard.'));
 const GUARD_FILES = ['antigravity.mjs', 'codex.mjs', 'guard.mjs', 'rules.json'];
+// On Windows the pact writes Antigravity no hook: the shell it runs hooks under is not known to be cmd.
+const AG_HOOKED = process.platform !== 'win32';
+const NO_SHELL = /^WARN: antigravity: no guard hook is written on Windows: /m;
 const guardFiles = h => (existsSync(at(h, '.pact/guard')) ? readdirSync(at(h, '.pact/guard')).sort() : []);
 
 /** A home with Claude Code, Codex and Antigravity found in it, the person's own hooks in the last two, and the cleaner on. */
@@ -44,7 +47,8 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
   assert.match(dry.stdout, /^WARN: codex: .*; only its guard hook is installed\.\r?$/m, dry.out);
   assert.match(dry.stdout, TRUST, dry.out);
   assert.match(dry.stdout, /^\.codex\/hooks\.json: would be merged\r?\n {2}pact-guard hook: added\r?$/m, dry.out);
-  assert.match(dry.stdout, /^\.gemini\/config\/hooks\.json: would be merged\r?$/m, dry.out);
+  assert.equal(/^\.gemini\/config\/hooks\.json: would be merged\r?$/m.test(dry.stdout), AG_HOOKED, dry.out);
+  assert.equal(NO_SHELL.test(dry.stdout), !AG_HOOKED, dry.out);
   assert.match(dry.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): worktree-remove \(deny\), .*cleaner-override \(ask\)\r?$/m, dry.out);
   assert.deepEqual(guardFiles(h), [], 'a dry run writes nothing');
   const r = applyBound(repo, h);
@@ -60,9 +64,10 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
   assert.deepEqual([pact.matcher, pact.hooks[0].timeout, pact.hooks[0].statusMessage], ['^Bash$', 15, 'pact-guard']);
   const ag = json(h, AG);
   assert.deepEqual(ag.mine, MY_GROUP);
-  assert.deepEqual(ag['pact-guard'].PreToolUse.map(g => [g.matcher, g.hooks.length, g.hooks[0].timeout]), [['run_command', 1, 15]]);
+  assert.deepEqual((ag['pact-guard']?.PreToolUse ?? []).map(g => [g.matcher, g.hooks.length, g.hooks[0].timeout]), AG_HOOKED ? [['run_command', 1, 15]] : []);
 
-  assert.deepEqual(guardEntries(h).map(e => [e.harness, e.path, e.key, e.value]).sort(), [['antigravity', AG, 'guard.antigravity', ag['pact-guard'].PreToolUse[0]], ['codex', CODEX, 'guard.codex', pact]], 'only the pact\'s entries are recorded');
+  const recorded = [...(AG_HOOKED ? [['antigravity', AG, 'guard.antigravity', ag['pact-guard'].PreToolUse[0]]] : []), ['codex', CODEX, 'guard.codex', pact]];
+  assert.deepEqual(guardEntries(h).map(e => [e.harness, e.path, e.key, e.value]).sort(), recorded, 'only the pact\'s entries are recorded');
 
   // The command the entry holds, run as the harness would, denies a guarded command.
   const input = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git worktree remove w' } });
@@ -117,13 +122,13 @@ test('C16: a hooks file the record doesn\'t list is merged, not refused; one tha
   config(h, ON);
   passed(applyBound(repo, h));
   assert.equal(json(h, CODEX).hooks.PreToolUse.length, 1);
-  assert.deepEqual(Object.keys(json(h, AG)), ['mine', 'pact-guard']);
-  config(h, { ...ON, harnesses: { install: ['claude', 'antigravity'] } });
+  assert.deepEqual(Object.keys(json(h, AG)), AG_HOOKED ? ['mine', 'pact-guard'] : ['mine']);
+  config(h, { ...ON, harnesses: { install: ['claude', 'codex'] } });
   const out = applyBound(repo, h);
   passed(out);
-  assert.deepEqual(json(h, CODEX), {});
-  assert.deepEqual(Object.keys(json(h, AG)), ['mine', 'pact-guard']);
-  assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
+  assert.deepEqual(json(h, AG), { mine: MY_GROUP });
+  assert.equal(json(h, CODEX).hooks.PreToolUse.length, 1);
+  assert.deepEqual(guardEntries(h).map(e => e.harness), ['codex']);
 });
 
 test('with no rule on, no guard file or hook is written', t => {
@@ -180,9 +185,10 @@ test('bad case: a hooks file that is settings.json, or sits behind a link, refus
   refused(install(repo, shared), /the path of settings\.json for a hooks file/);
   const linked = home(t);
   mkdirSync(join(linked, 'elsewhere'));
-  mkdirSync(join(linked, '.gemini'));
-  symlinkSync(join(linked, 'elsewhere'), join(linked, '.gemini', 'config'), 'junction');
-  config(linked, ON);
-  refused(install(repo, linked), /path through a link for a hooks file: \.gemini\/config\/hooks\.json/);
+  mkdirSync(join(linked, '.codex'));
+  mkdirSync(join(linked, 'own'));
+  symlinkSync(join(linked, 'elsewhere'), join(linked, 'own', 'linked'), 'junction');
+  config(linked, { ...ON, harnesses: { own: [{ id: 'codex', hooks: { file: '~/own/linked/hooks.json', format: 'codex' } }] } });
+  refused(install(repo, linked), /path through a link for a hooks file: own\/linked\/hooks\.json/);
   assert.deepEqual(readdirSync(join(linked, 'elsewhere')), []);
 });

@@ -61,7 +61,7 @@ function chooseHarnesses({ stage, staged, home, parsed, record }) {
 }
 
 /** The dry run's harness list: each one in or out, then what the install does not do for it. */
-function harnessLines({ rows, warnings }, guardOn) {
+function harnessLines({ rows, warnings }, guarded, unguarded) {
   const out = [rows.length ? 'Harnesses:' : 'Harnesses: none found, so nothing installs'];
   for (const r of rows) out.push(`  ${r.id}${r.harness ? ` (${r.harness.name})` : ''}: ${r.in ? 'in' : 'out'}${r.detected ? '' : ', not found'}`);
   for (const w of warnings) out.push(`WARN: ${core.formatPlain(w)}`);
@@ -70,8 +70,9 @@ function harnessLines({ rows, warnings }, guardOn) {
     if (h?.own && h.hooks) out.push(`guards unverified for ${h.id}: the pact has not seen this harness run its hook`);
     if (!r.in) continue;
     const parts = core.builtParts(h);
-    if (!parts.rules) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s format yet; ${parts.guard && guardOn ? 'only its guard hook is installed' : 'nothing is installed into it'}.`);
+    if (!parts.rules) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s format yet; ${guarded.includes(h) ? 'only its guard hook is installed' : 'nothing is installed into it'}.`);
     else if (h.skills) out.push(`WARN: ${h.id}: the pact installs no skills yet.`);
+    if (unguarded.includes(h)) out.push(core.guardNoShellLine(h));
     if (h.hooks && !parts.settings && !parts.guard) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
   }
   return out;
@@ -233,7 +234,9 @@ async function main() {
   const window = claude ? core.compactWindow(parsed) : 0;
   // The guard (spec 0007 S8): its rules follow the switches, whichever harnesses are in; its files and hooks install while a harness with a guard hook is in and a rule is on.
   const rules = project ? [] : core.guardRules([...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(core.stopSwitchOn(parsed) ? ['session-stop-deny'] : [])]);
-  const guarded = rules.length ? taken.filter(h => core.builtParts(h).guard) : [];
+  const wired = rules.length ? taken.filter(h => core.builtParts(h).guard) : [];
+  const guarded = wired.filter(h => core.guardShellKnown(h, process.platform));
+  const unguarded = wired.filter(h => !guarded.includes(h));
   const guardOn = guarded.length > 0;
   const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, guardOn)], 'seam-a', 'the check');
   const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0, taken, guardOn), staged, commit);
@@ -448,7 +451,7 @@ async function main() {
   const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || hooksWill.length || stale || yoursListed || !record);
 
   // One block per harness, the pact's own files first (spec 0007 S9).
-  for (const l of harnessLines(choice, guardOn)) say(l);
+  for (const l of harnessLines(choice, guarded, unguarded)) say(l);
   const changed = new Set([...p.overwrite, ...p.add]);
   const ids = [...new Set([...(repoFiles.size || record ? ['pact'] : []), ...taken.map(h => h.id), ...recorded.map(h => h.id)])];
   for (const id of ids) {

@@ -1523,6 +1523,16 @@ export const guardTableText = rules => `${JSON.stringify({ rules }, null, 2)}\n`
 /** The line the dry run and the apply print when a Codex hook entry is new or changed (C15). */
 export const CODEX_TRUST_LINE = 'Codex: open /hooks and trust pact-guard; until then Codex runs unguarded.';
 
+/**
+ * Whether the hook's command can be trusted to the shell this harness runs it
+ * under. The Windows text is written for cmd: under PowerShell it prints the
+ * environment and lets the call through, and Codex is the one harness whose
+ * Windows hook shell is known to be cmd.
+ */
+export const guardShellKnown = (h, platform) => platform !== 'win32' || (h.id === 'codex' && h.hooks.format === 'codex');
+/** The warning for a harness that gets no guard hook because that shell is not known. */
+export const guardNoShellLine = h => `WARN: ${h.id}: no guard hook is written on Windows: the shell ${h.name} runs hooks under is not known to be cmd, and under PowerShell the command would print the environment. It runs unguarded.`;
+
 // Characters cmd or a shell would read as more than part of a path.
 const WIN_PATH_BAD = /["%!^&|<>\p{Cc}]/u;
 
@@ -1592,21 +1602,25 @@ export function guardMerge(live, { drop = [], want = [] }) {
       if (wanted) refuse('hooks-shape', `a hooks file's ${top}.${event} is not the list the harness reads, so the pact's guard cannot be added; fix the file first.`);
       continue;
     }
+    // The pact's hook is already there, once, under its matcher: the list
+    // stays as it is, with any hook the person put beside it in that group.
+    const mine = (list ?? []).flatMap(g => innerHooks(g).filter(h => ours.has(canonical(h))).map(h => [g.get('matcher'), canonical(h)]));
+    const held = wanted !== null && mine.length === 1 && mine[0][0] === wanted.group.get('matcher') && mine[0][1] === canonical(innerHooks(wanted.group)[0]);
     // Where the pact's own group sits now, so an update keeps its place.
     let place = -1;
-    const kept = [];
-    for (const g of list ?? []) {
+    const kept = held ? [...list] : [];
+    for (const g of held ? [] : list ?? []) {
       const rest = innerHooks(g).filter(h => !ours.has(canonical(h)));
       if (rest.length === innerHooks(g).length) kept.push(g);
       else if (rest.length) kept.push(new Map([...g, ['hooks', rest]]));
       else if (place < 0) place = kept.length;
     }
     if (wanted) {
-      kept.splice(place < 0 ? kept.length : place, 0, wanted.group);
+      if (!held) kept.splice(place < 0 ? kept.length : place, 0, wanted.group);
       const script = `${format}.mjs`;
-      if (kept.some(g => g !== wanted.group && innerHooks(g).some(h => isMap(h) && typeof h.get('command') === 'string' && h.get('command').includes('.pact') && h.get('command').includes(script)))) warnings.push(`another hook there names the pact's ${script} and differs from the pact's; it is left as it is.`);
+      if (kept.some(g => g !== wanted.group && innerHooks(g).some(h => isMap(h) && !ours.has(canonical(h)) && typeof h.get('command') === 'string' && h.get('command').includes('.pact') && h.get('command').includes(script)))) warnings.push(`another hook there names the pact's ${script} and differs from the pact's; it is left as it is.`);
       if (format === 'antigravity' && isMap(holder) && holder.get('enabled') === false) warnings.push(`${top} is switched off there ("enabled": false), so the harness runs unguarded; the pact leaves that setting as it is.`);
-      if (!(list ?? []).some(g => canonical(g) === canonical(wanted.group))) added.push(format);
+      if (!held) added.push(format);
     }
     if (list !== undefined && canonical(kept) === canonical(list)) continue;
     if (!wanted && list === undefined) continue;

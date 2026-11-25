@@ -15,3 +15,4 @@ install.test.mjs a node.cmd shim first on PATH is never run
 review.test.mjs bad case: a .claude folder named by its short name refuses
 review.test.mjs bad case: a .claude folder named with a trailing dot refuses, and nothing reaches the .claude folder
 seam-a.test.mjs bad case: two agents whose names differ only in case
+guard.test.mjs C12: on Windows a node or cmd planted in the working folder never runs

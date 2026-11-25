@@ -5,7 +5,7 @@
 // test are claude/guard/.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
@@ -131,6 +131,7 @@ test('a command no rule matches gets no answer, words inside data included', () 
     'git commit -m "x; git worktree remove w"',
     "git commit -F - <<'EOF'\ngit worktree remove w\nEOF",
     "$m = @'\ngit worktree remove w\n'@",
+    '$m = @"\nsay \\"\ngit worktree remove w\n"@',
     'ls # git worktree remove w',
     'claude rmx 1',
     'claude "stop the build"',
@@ -140,7 +141,7 @@ test('a command no rule matches gets no answer, words inside data included', () 
 });
 
 test('a deny anywhere beats an ask, and with a switch off its commands pass', () => {
-  assert.equal(guard.judge(`${ONE['cleaner-override']} && git branch -D x`, ALL).decision, 'deny');
+  assert.deepEqual(guard.judge(`${ONE['cleaner-override']} && ${ONE['session-stop']}`, ALL), { decision: 'deny', id: 'session-stop' }, 'the deny sits after the ask in the table');
   assert.equal(guard.judge(ONE['session-stop'], core.guardRules(['cleaner'])), null);
   assert.equal(guard.judge(ONE['worktree-remove'], core.guardRules(['session-stop-deny'])), null);
 });
@@ -231,7 +232,9 @@ for (const format of core.GUARD_FORMATS) {
       else if (format === 'codex') denied(got, format, ASK_CODEX);
       else denied(got, format, `The pact's guard asks the owner before this command (rule ${r.id}).`, 'force_ask');
     }
-    assert.deepEqual(runHook(at, format, CALLS[format]('git status')), SILENT);
+    // The tokenizer's cases reach the guard whole through the hook: later lines, continuations, quotes.
+    for (const command of ['ls\ngit worktree remove w', 'git worktree \\\nremove w', 'git worktree `\nremove w', "cat <<'EOF'\ntext\nEOF\ngit worktree remove w", '"git" \'worktree\' remove "w x"']) denied(runHook(at, format, CALLS[format](command)), format, blocks('worktree-remove'));
+    for (const command of ['git status', 'git commit -m "x; git worktree remove w"', "git commit -F - <<'EOF'\ngit worktree remove w\nEOF"]) assert.deepEqual(runHook(at, format, CALLS[format](command)), SILENT, command);
   });
 
   test(`C14: ${format} denies, never allows, on a broken guard, table or call, and shows nothing of the call`, t => {
@@ -294,13 +297,12 @@ test('C12: on Windows a node or cmd planted in the working folder never runs', {
   assert.equal(existsSync(marker), true, 'the planted node runs when nothing stops it');
 });
 
-test('C12: outside Windows the command runs the wrapper it names, from any working folder', { skip: WIN && 'the planted-program case above is Windows\'s' }, t => {
-  const at = installed(t);
-  const marker = join(at.cwd, 'planted.txt');
-  writeFileSync(join(at.cwd, 'node'), `#!/bin/sh\necho ran > '${marker}'\n`);
-  chmodSync(join(at.cwd, 'node'), 0o755);
-  denied(runHook(at, 'codex', CALLS.codex(ONE['worktree-remove'])), 'codex', blocks('worktree-remove'));
-  assert.equal(existsSync(marker), false);
+test('bad case: on Windows only Codex gets a hook, the one harness whose hook shell is known to be cmd', () => {
+  const as = (id, format) => ({ id, name: id, hooks: { format } });
+  const others = [as('antigravity', 'antigravity'), as('mine', 'codex'), as('mine', 'antigravity'), as('codex', 'antigravity')];
+  for (const h of [as('codex', 'codex'), ...others]) for (const platform of ['linux', 'darwin']) assert.equal(core.guardShellKnown(h, platform), true, `${h.id} ${platform}`);
+  assert.equal(core.guardShellKnown(as('codex', 'codex'), 'win32'), true);
+  for (const h of others) assert.equal(core.guardShellKnown(h, 'win32'), false, `${h.id} ${h.hooks.format}`);
 });
 
 // ------------------------------------------------------------ the hooks file merge
@@ -325,6 +327,10 @@ test('C15, C16: a merge over its own result changes nothing; a changed command i
   const first = core.guardMerge(read(JSON.stringify({ hooks: { PreToolUse: [OWNER] } })), { want: [want('codex')] });
   const again = core.guardMerge(first.merged, { drop: [want('codex')], want: [want('codex')] });
   assert.deepEqual([again.changed, again.added], [false, []]);
+  // A hook the person put inside the pact's group stays there, and the pact's entry is not new.
+  const inside = { matcher: '^Bash$', hooks: [entry(COMMAND).hooks[0], { type: 'command', command: 'echo inside' }] };
+  const shared = core.guardMerge(read(JSON.stringify({ hooks: { PreToolUse: [inside, OWNER] } })), { drop: [want('codex')], want: [want('codex')] });
+  assert.deepEqual([shared.changed, shared.added, shared.warnings], [false, [], []]);
   const moved = shown(first.merged);
   moved.hooks.PreToolUse.push(OWNER);
   const next = core.guardMerge(read(JSON.stringify(moved)), { drop: [want('codex')], want: [want('codex', 'new')] });
