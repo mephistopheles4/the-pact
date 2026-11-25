@@ -21,8 +21,12 @@ that compares release numbers.
   resolver on sample listings; no real tag existed to try it end to end.
 - **Two doc budgets rise** (`docs/install.md`, `docs/reference.md`) rather
   than cut needed text; PACT-110 cleans up.
+- **Two tag rulesets, not one.** The lenses found that a ruleset's bypass
+  covers each of its rules, so the app would also have moved or deleted tags.
+- **The lenses also found** a step name the allow-list never read, an untested
+  head check on a fresh clone, and `NODE_OPTIONS` reaching the install.
 - Nothing is tagged: `PACT_RELEASES` is unset, and the app, environment and
-  ruleset are the owner's to make.
+  rulesets are the owner's to make.
 
 **Record:** PACT-105's comments signed `build-pact-105-t6`: the T6 stop, the
 test rounds and the status.

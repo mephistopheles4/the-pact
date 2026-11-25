@@ -493,8 +493,9 @@ function releaseProblems(src) {
     for (const k of keys) if (!Object.hasOwn(obj, k)) out.push(`${where} lacks ${k}`);
   };
   if (/pull_request_target/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
-  if (code.split(RELEASE_KEY).length !== 2 || (code.match(/\bsecrets\b/g) ?? []).length !== 1) out.push("reads a secret other than the release app's key, or reads that key twice or not at all");
-  if (/\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/.test(code)) out.push("reads the job's own token");
+  // GitHub reads context names in any case.
+  if (code.split(RELEASE_KEY).length !== 2 || (code.match(/\bsecrets\b/gi) ?? []).length !== 1) out.push("reads a secret other than the release app's key, or reads that key twice or not at all");
+  if (/\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/i.test(code)) out.push("reads the job's own token");
   if (/actions\/checkout/.test(code)) out.push('checks the repo out');
   if (/upload-artifact|\bcache\b/.test(code)) out.push('uploads or caches the workspace');
   let w;
@@ -521,7 +522,7 @@ function releaseProblems(src) {
   extras('step 2', tag, ['name', 'env', 'shell', 'run']);
   if (!new RegExp(`^actions/create-github-app-token@${SHA}$`).test(app?.uses ?? '')) out.push('step 1 is not the app token action pinned to a full commit SHA');
   if (app?.id !== 'app' || !sameSet(app?.with, RELEASE_APP)) out.push("asks for the app token with other inputs than the client id, the key and contents: write");
-  if (!sameSet(tag?.env, RELEASE_ENV) || tag?.shell !== 'node {0}') out.push('hands the script another environment or shell than its own');
+  if (tag?.name !== 'Tag the tip of main' || !sameSet(tag?.env, RELEASE_ENV) || tag?.shell !== 'node {0}') out.push('hands the script another name, environment or shell than its own');
   // An expression inside the script would be pasted into the code before it runs.
   if (typeof tag?.run !== 'string' || tag.run.includes('${{')) out.push('has no script, or puts an expression into it');
   return [...new Set(out)];
@@ -1178,6 +1179,10 @@ for (const [label, plant, says] of [
   ["gives the job's token write access", s => s.replace('  contents: read', '  contents: write'), 'asks for more than read access to the contents'],
   ['gives the job permissions of its own', s => s.replace('    environment: release\n', '    environment: release\n    permissions:\n      contents: write\n'), "the job holds permissions, which the allow-list doesn't name"],
   ['reads a second secret', s => s.replace('          TOKEN:', '          OTHER: ${{ secrets.OTHER }}\n          TOKEN:'), ONE_SECRET],
+  // GitHub reads an expression in a step's name, and its context names ignore case.
+  ["reads a second secret, in capitals, in a step's name", s => s.replace('name: Tag the tip of main', 'name: ${{ SECRETS.OTHER }}'), ONE_SECRET],
+  ["reads the job's own token, in capitals, in a step's name", s => s.replace('name: Tag the tip of main', 'name: ${{ github.Token }}'), "reads the job's own token"],
+  ['names its tag step with an expression', s => s.replace('name: Tag the tip of main', 'name: ${{ env.X }}'), 'hands the script another name, environment or shell than its own'],
   ['reads another secret as the key', s => s.replace('secrets.PACT_RELEASE_APP_KEY', 'secrets.OTHER'), ONE_SECRET],
   ["reads the job's own token", s => s.replace('${{ steps.app.outputs.token }}', '${{ github.token }}'), "reads the job's own token"],
   ['checks the repo out', s => s.replace('    steps:\n', `    steps:\n      - uses: actions/checkout@${'a'.repeat(40)}\n`), 'checks the repo out'],

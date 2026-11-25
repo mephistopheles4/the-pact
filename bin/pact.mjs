@@ -46,14 +46,15 @@ function parseArgs(argv) {
 /**
  * The environment git and the install run with: this one, with PATH cut to its
  * full entries outside any node_modules folder (npx puts the running folder's
- * node_modules/.bin first), and no GIT_ variable.
+ * node_modules/.bin first), no GIT_ variable, and no NODE_OPTIONS, which the
+ * install refuses to run with.
  */
 function childEnv(env) {
   const out = {};
   let path = '';
   for (const [k, v] of Object.entries(env)) {
     if (/^path$/i.test(k)) path = v;
-    else if (!/^git_/i.test(k)) out[k] = v;
+    else if (!/^(git_|node_options$)/i.test(k)) out[k] = v;
   }
   const full = dir => (WIN ? /^"?[A-Za-z]:[\\/]/.test(dir) : dir.startsWith('/'));
   out.PATH = path.split(delimiter).filter(d => full(d) && !/(^|[\\/])node_modules([\\/"]|$)/i.test(d)).join(delimiter);

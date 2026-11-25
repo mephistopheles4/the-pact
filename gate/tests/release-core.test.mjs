@@ -57,4 +57,5 @@ test('release: after a checkout install at another commit, a release says it can
 
 test('release: a checkout without the recorded release\'s commit in its history warns as before', () => {
   assert.match(behind({ commit: ID('b'), release: 'v1.9.0' }, null), /is not in this checkout's history/);
+  assert.equal(behind({ commit: ID('a'), release: 'v1.9.0' }, null), null);
 });

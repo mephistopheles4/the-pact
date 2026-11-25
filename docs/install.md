@@ -553,8 +553,8 @@ session.
 
 ## Install from a release
 
-No release exists until the owner turns releases on. Then one command, from
-any folder, stands in for the clone and the dry run:
+Releases need the owner's switch, and the command is safe only once rulesets
+cover every tag. From any folder, it replaces the clone and dry run:
 
 ```
 npx github:mephistopheles4/the-pact#semver:^1

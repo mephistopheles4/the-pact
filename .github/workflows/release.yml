@@ -3,9 +3,9 @@
 # tags, so a tag here is code the owner runs.
 #
 # It tags nothing until the owner sets the repository variable PACT_RELEASES to
-# on. It tags with a GitHub App used for releases alone, the tag ruleset's only
-# bypass actor, whose private key is a secret of the release environment, which
-# the owner lets only main deploy to. A workflow on another branch holds neither.
+# on. It tags with a GitHub App used for releases alone, the one bypass of the
+# ruleset on creating tags, whose private key is a secret of the release
+# environment, which the owner lets only main deploy to. A workflow on another branch holds neither.
 #
 # No checkout: none of the repo's code runs. The file is held to an exact
 # allow-list, as codeql.yml is, and is the one file that may use workflow_run.

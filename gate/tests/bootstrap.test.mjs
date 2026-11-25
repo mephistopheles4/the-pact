@@ -14,7 +14,7 @@ const BOOT = join(REPO, 'bin', 'pact.mjs');
 const boot = () => import(pathToFileURL(BOOT).href);
 const WIN = process.platform === 'win32';
 
-const STUB = "import { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.STUB_OUT, JSON.stringify({ argv: process.argv.slice(1), cwd: process.cwd(), path: process.env.PATH ?? process.env.Path }));\n";
+const STUB = "import { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.STUB_OUT, JSON.stringify({ argv: process.argv.slice(1), cwd: process.cwd(), path: process.env.PATH ?? process.env.Path, nodeOptions: process.env.NODE_OPTIONS ?? null }));\n";
 
 const git = (cwd, ...args) => {
   const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -76,7 +76,9 @@ test('bootstrap: refuses when no release tag exists, and writes nothing', async 
 test('bootstrap: runs the clone\'s install by its full path as a dry run, never with --apply, from the home folder', async t => {
   const r = remote(t);
   const sha = r.release('v1.1.0');
-  const got = await run(t, r.url);
+  // The install refuses to run with NODE_OPTIONS set, so the bootstrap hands it none.
+  const got = await run(t, r.url, { env: { ...process.env, NODE_OPTIONS: '--no-warnings' } });
+  assert.equal(got.ran.nodeOptions, null);
   assert.deepEqual(got.ran.argv, [join(source(got.home), sha, 'gate', 'install.mjs'), '--release', 'v1.1.0', '--home', got.home]);
   assert.equal(realpathSync.native(got.ran.cwd), realpathSync.native(got.home));
   const refusedApply = await run(t, r.url, { argv: ['--default', '--apply'] });
@@ -95,6 +97,15 @@ test('bootstrap: refuses a clone whose head is not the tag\'s commit, and delete
   assert.match(got.out, /\[release-head\]/);
   assert.equal(got.ran, null);
   assert.equal(existsSync(clone), false);
+  // A fresh clone too: a branch of the tag's name is what git clones, so the head is not the tag's commit.
+  writeFileSync(join(r.dir, 'moved'), 'moved\n');
+  git(r.dir, 'add', '-A');
+  git(r.dir, 'commit', '-q', '-m', 'moved');
+  git(r.dir, 'branch', 'v1.1.0');
+  const fresh = await run(t, r.url);
+  assert.match(fresh.out, /\[release-head\]/);
+  assert.equal(fresh.ran, null);
+  assert.deepEqual(clones(fresh.home), []);
 });
 
 test('bootstrap: with no terminal and neither flag it refuses before it fetches or writes anything', async t => {
