@@ -33,7 +33,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
     - **What an agent-file change picks.** The test helpers are split by
       what they touch, so an agent file picks only the tests that
       read agents: those that import `payload.mjs` or read them themselves.
-      Of the install files, that's the smoke set and nine others, 10 of 18.
+      Of the install files, that's the smoke set and thirteen others, 14 of 19.
     - **Some changes still cost about a full suite.** The pact's rules file,
       `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
       deleted or renamed test file, is named by the copy list's entry for the
