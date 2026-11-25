@@ -171,8 +171,9 @@ Codex and Antigravity; and the release app's key.
   push there, while `PACT_RELEASES` is `on`. The
   Console's federation rule bounds who gets an Anthropic token; each job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the
-  Claude jobs' write token. Its secret check misses a bracket-form read outside
-  the Claude files and `release.yml`, and a new workflow may name the `release`
+  Claude jobs' write token. Outside
+  the Claude files and `release.yml`, its secret check sees only a read written
+  `secrets.NAME`, and a new workflow may name the `release`
   environment. It holds only while the test itself is unchanged; a change to it is read
   like any change. The bootstrap takes only an exact release tag and checks the
   clone's head, which keeps the clone consistent, not intact; npm picks the
@@ -199,7 +200,7 @@ rule holds back trusting a project's mise config until the owner says so in chat
 
 Also accepted. What you install and CI run: typing the
 `npx` command trusts GitHub and the tag ruleset, and npm may reuse a cached
-copy; a stolen release app key, while the app holds only `contents: write`, on this repo only, can create, move or delete a release tag, push a branch no ruleset covers and merge what `main`'s ruleset lets through; a copy left on a machine, such as the file GitHub hands the owner, is exposed there, and a leak is answered by deleting the key and checking every release tag; the cloud
+copy; a stolen release app key, while the app holds only `contents: write`, on this repo only, can create, move or delete any tag, push a branch no ruleset covers and merge what `main`'s ruleset lets through; a copy left on a machine, such as the file GitHub hands the owner, is exposed there, and a leak is answered by deleting the key and, once its tokens lapse in an hour, checking every tag's commit is on `main`, and each branch and merge the app made; the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
