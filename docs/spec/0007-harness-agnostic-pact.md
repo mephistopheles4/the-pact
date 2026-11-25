@@ -1,6 +1,6 @@
 # Spec: a harness-agnostic pact — V1
 
-Status: draft, after spec round 1 of 2. The owner settled the design in two
+Status: draft, after spec round 2 of 2 (final). The owner settled the design in two
 rounds (S2). The lead took the spec's further picks as flagged checkpoints.
 The spec counts once it is on `main`.
 
@@ -163,6 +163,24 @@ the issue lists each finding. A pick marked security is the owner's call
 42. Security: project installs stay Claude Code only in V1, as a residual
     (S13, S15).
 
+**The session's picks from spec round 2, the final round, flagged.** No lens
+read them again at spec; the security pair reads each ticket's diff. The
+round's comment on the issue lists each finding.
+
+43. Security: on Windows the hook command sets
+    `NoDefaultCurrentDirectoryInExePath=1`, and the bootstrap starts `git`
+    from the home folder, so a clone's own `node` or `git` never runs (S8,
+    S10).
+44. Security: the tree check finds git's real folders through git, records
+    HEAD, refs and stash, puts config and hooks back before any status, and
+    says what it can't see; the network-off option names MCP servers (S12,
+    S15).
+45. A trade-off: C3 exempts S7's command changes, and each decline has its
+    encoding and its form of C26 (S5, S12, S18).
+46. A trade-off: S14 rewrites the owner's replaced parts in role terms, and
+    C26 checks that no Claude model is named outside Claude Code (S14,
+    S18).
+
 ## S3 Terms
 
 These join `CONTEXT.md` in T1.
@@ -218,8 +236,9 @@ These join `CONTEXT.md` in T1.
   environment variable moves `~/.pact`; `CLAUDE_CONFIG_DIR` still moves
   Claude Code's own paths, as it does today.
 - The backups folder keeps today's protections: owner-only modes (700 and
-  600) on Linux and macOS, and `docs/install.md`'s "never sync, share or
-  commit", which names the old folder too.
+  600) on Linux and macOS, `docs/install.md`'s Windows access list named as
+  `~/.pact`'s, and its "never sync, share or commit", which names the old
+  folder too.
 - Every path in the payload, the tools, the hooks, the commands, the rules
   text and the agent-facing docs that names `~/.claude/pact` names `~/.pact`
   instead. `~/.claude` stays only where Claude Code itself reads it: its
@@ -246,6 +265,8 @@ configuration. Each has:
   `antigravity` (S8); or absent.
 - `models`: `{ "planning", "executor", "light" }`, each a model name the
   harness takes, `light` optional.
+- `defaultInstall`: `false` keeps a detected harness out of a missing
+  install list; optional, `true` when absent.
 - `capabilities`: a list from `subagents`, `tool-limits`, `cleaner`,
   `archive`, `native-rules`, `hook-ask`, `hook-trust` and `explicit-skills`,
   naming what the render may rely on (S7, S8, S12). `tool-limits` means an
@@ -269,7 +290,7 @@ The known descriptions:
 - **Detection.** The dry run lists each known harness whose `detect` folder
   exists, and each own harness. A harness is installed into only when the
   configuration's `harnesses.install` list names its id. A missing list means
-  every detected known harness. The dry run says which are in and which are
+  every detected known harness whose `defaultInstall` isn't `false`. The dry run says which are in and which are
   out. A harness the record lists whose `detect` folder is gone stays in:
   the dry run warns, and only a list that leaves it out removes its files.
 - **An own harness** may set any field above, but its formats must be the
@@ -289,8 +310,9 @@ The known descriptions:
 - **Mapping today's cells.** Each cell maps by the model it names: Opus to
   the planning model, Sonnet to the executor model, Haiku to the light
   model. Today's "Opus, low" for Quick Build reads "planning model, low", so
-  Claude Code runs as it does today. The owner's stage rule (item 12) is what
-  the default configuration and the presets hold for new cells.
+  Claude Code runs as it does today. Existing cells map by model, in the
+  default configuration and the presets as in a person's blocks; a cell the
+  builder adds defaults by stage, as item 12 says.
 - **The models line.** Each rendered rules file gets one line after the
   tiers part, whatever block fills that part: "Here the planning model is
   <planning>, the executor model <executor> and the light model <light>." A
@@ -415,10 +437,11 @@ wrapper `~/.pact/guard/<harness>.mjs`:
 - **The command.** It names the wrapper by its absolute path, quoted for the
   platform, since Windows shells don't expand `~` and a hook that can't start
   lets the call through. It clears `NODE_OPTIONS` in the platform's own form
-  (`env -u NODE_OPTIONS` on Linux and macOS, `set NODE_OPTIONS=` under
+  (`env -u NODE_OPTIONS` on Linux and macOS, `set "NODE_OPTIONS="` under
   `cmd /d /c` on Windows), so an inherited option can't crash node before the
-  wrapper runs. Both are fixed per machine, so Codex's trust holds; T4 and T5
-  probe the exact text.
+  wrapper runs. On Windows it also sets `NoDefaultCurrentDirectoryInExePath=1`,
+  so cmd never runs a `node` from the session's working folder. The text is
+  fixed per machine, so Codex's trust holds; T4 and T5 probe it exactly.
 - The wrapper reads the call from stdin in its harness's shape (Codex:
   `Bash`; Antigravity: `run_command`), passes the command text to `guard.mjs`,
   and writes its harness's answer. Codex: exit 2 with the reason on stderr,
@@ -508,7 +531,10 @@ under the tag ruleset, not only `v*` (below).
 `engines.node` `>=24`, `files`, no dependencies of any kind and no install
 scripts. A gate test holds it to that shape (C21).
 
-**The bootstrap,** `bin/pact.mjs`, uses Node's built-ins and `git` on PATH:
+**The bootstrap,** `bin/pact.mjs`, uses Node's built-ins and `git` on PATH.
+It starts `git` with the home folder as its working folder, and on Windows
+with `NoDefaultCurrentDirectoryInExePath=1`, so a `git` in the folder `npx`
+ran from never runs:
 
 1. Runs `git ls-remote --tags https://github.com/mephistopheles4/the-pact.git`,
    with no shell, keeps only tags named exactly `v1.<n>.0`, takes the highest
@@ -539,8 +565,11 @@ It keeps the last three clones and deletes older ones it made.
   actions pinned by SHA, and no checkout;
 - reads `main`'s tip through the API and tags only when `head_sha` is that
   tip, so a re-run of an old gate run tags nothing. The number is one past
-  the highest existing `v1.<n>.0`, never the run number, so a renamed
-  workflow can't restart it;
+  the highest existing `v1.<n>.0`, or 1 when none exists, never the run
+  number, so a renamed workflow can't restart it;
+- runs in a `release` concurrency group that never cancels, and reads the tip
+  again just before it creates the tag, so two close runs can't put the
+  higher number on the older commit;
 - creates the tag through the API (`git/refs`) with `github.token`, unless a
   release tag already points at `head_sha`;
 - runs none of the repo's code.
@@ -589,17 +618,27 @@ only `main` may deploy to, against "no secrets".
   the permission-request tool (S7).
 - **The tree check.** `review.md`, one shared file, gains one step under
   Running a lens. In a harness whose agents can't be held to their tools
-  (Codex today), the session takes, before and after each lens,
-  `git -c core.fsmonitor=false status --porcelain --ignored` and a hash of
-  `.git/config` and `.git/hooks/`. A lens that changed any of them is
+  (Codex today), the session, before each lens:
+  - finds git's real folders through git (`rev-parse --git-common-dir` and
+    `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since
+    in a linked worktree `.git` is a file;
+  - copies those outside the work tree, readable only by the owner;
+  - records `HEAD`, a hash of every ref and of the stash list, and
+    `status --porcelain --ignored=matching --untracked-files=all` run with
+    fsmonitor and every filter off, with a hash of each listed path's
+    content.
+
+  After the lens it first compares the git folders with the copies and puts
+  them back, then runs the same records again. Any change marks the lens
   inconclusive. The session puts back only what changed during the lens: a
-  path clean before is restored from `HEAD`, or deleted if it is new, and
-  `.git/config` and `.git/hooks/` come back from the copy taken before. A
-  path already changed before the lens is left as it is and named, so the
-  owner's own work is never thrown away. The change and the restore are a
-  flagged checkpoint.
+  moved ref goes back to its earlier value first; then a path clean before
+  is restored from that `HEAD`, or deleted if it is new. A path already
+  changed before the lens is left as it is and named, so the owner's own
+  work is never thrown away. The copies are deleted afterwards. The change
+  and the restore are a flagged checkpoint.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
-  (S15), Codex gets the no-subagents line for lenses.
+  (S15), T4 removes `subagents` from Codex's known description, so Codex
+  gets the no-subagents line and each lens runs in a separate session.
 - **Antigravity lenses** run on Gemini tiers only; the planning model there is
   `pro`.
 
@@ -610,7 +649,10 @@ only `main` may deploy to, against "no secrets".
 - **Project installs** (`--project-folder`) stay Claude Code only in V1: a
   repo made stricter is stricter in Claude Code alone (S15, S21).
 - **The tools** read their pins and settings from `~/.pact`. The cleaner
-  stays Claude-only. `gh-app.mjs`'s providers stay as they are.
+  stays Claude-only. `gh-app.mjs`'s providers stay as they are, and
+  `agent-identity` binds Claude Code sessions only: Codex and Antigravity
+  sessions push with the owner's own Git credentials, which the docs and
+  the threat model say (C27).
 - **The poster** refuses a post holding a live secret found in its own
   environment. Codex's shells drop variables named like KEY, SECRET or TOKEN
   by default, so under Codex it may see fewer secrets. T4's probe records the
@@ -634,13 +676,22 @@ straight before T9's apply, with no other session running:
    `~/.claude/pact/` to `~/.pact/`.
 3. Delete what the old record `~/.claude/.pact-install.json` lists, then the
    record itself, and the pact's entries in `~/.claude/settings.json`.
-4. Move the hand copies into `~/.pact/backups/hand-copies/`:
-   `~/.gemini/config/plugins/the-pact/` and the whole `~/.codex/AGENTS.md`,
-   which the pact owns from here (S9).
-5. Run the dry run. Any rules target it calls unrecorded is a copy step 3 or
-   4 missed.
-6. After T9's apply, turn `agent-identity` back on in `~/.pact/config.json`,
-   run `gh-app.mjs refresh` from `~/.pact/tools/`, and apply again.
+4. Copy any of the owner's own lines in `~/.codex/AGENTS.md` and
+   `~/.gemini/AGENTS.md` into a configuration block; it then reaches every
+   harness, since V1 has no text for one harness only (S21).
+5. Rewrite every replaced part of the configuration that names a model in
+   role terms (planning, executor, light), through Scriptorium or by hand,
+   so the rules outside Claude Code name no Claude model.
+6. Move the hand copies into `~/.pact/backups/hand-copies/`:
+   `~/.gemini/config/plugins/the-pact/`, the whole `~/.codex/AGENTS.md`, and
+   `~/.gemini/AGENTS.md` if it exists. The pact owns those files from here
+   (S9).
+7. Run the dry run. Any rules target it calls unrecorded is a copy step 3 or
+   6 missed.
+8. After T9's apply and C26's sessions, which push with the owner's own
+   credentials since `agent-identity` is off, turn it back on in
+   `~/.pact/config.json`, run `node claude/tools/gh-app.mjs refresh` from the
+   release clone, and apply again.
 
 The old backups stay where they are, as the owner's; `docs/install.md`'s
 never-sync rule names both folders.
@@ -668,8 +719,9 @@ never-sync rule names both folders.
 - the release job's conditions: a push run of `gate` on this repo's `main`,
   at `main`'s tip, with `PACT_RELEASES` on (C23);
 - `main`'s ruleset, as today, so a release commit passed review and `gate`;
-- the bootstrap's exact-name pick and its head check against the tag's
-  commit;
+- the bootstrap's exact-name pick and its head check, which keep the clone
+  consistent; npm, not the bootstrap, picks which bootstrap runs, so the tag
+  ruleset decides it;
 - the dry run and the owner's typed apply, as today;
 - `workflow.test.mjs`'s allow-list for the release job;
 - the guard's fail-closed answer;
@@ -678,8 +730,8 @@ never-sync rule names both folders.
   auto-proceed;
 - Codex's trust step: a precondition for the guard to run, not a control on
   a change to the script or the table;
-- the owner-typed skills' first line (S7), which holds only as far as the
-  model keeps to it.
+- the hook command's and the bootstrap's guard against a `node` or `git` in
+  the working folder (S8, S10).
 
 **Residual:**
 
@@ -694,20 +746,26 @@ never-sync rule names both folders.
   reads can write files or send data within the parent's sandbox, and read
   what the owner's account can: the agent app's key in Credential Manager,
   `~/.codex/auth.json`, `gh`'s token and `~/.pact`. The tree check (S12)
-  catches a write to the work tree, ignored files and `.git` included, but
-  not one outside it, a read or a send. The owner may also choose to run
-  Codex lenses only while the parent's network access is off. This widens
-  "Review rests on rules": the owner's call, asked before T4 starts.
+  sees a change to the work tree's status and content, to refs and to git's
+  own folders. It doesn't see a write outside them, a read or a send, and a
+  write inside an ignored folder too big to hash is seen only by its status
+  line. MCP servers come from the parent and run outside the sandbox, so the
+  owner's option is to run Codex lenses only with the parent's network off
+  and no MCP server in its profile; T4's probe records whether Codex asks
+  before a lens's MCP call and what its sandbox holds on native Windows. This
+  widens "Review rests on rules": the owner's call, asked before T4 starts.
 - **Antigravity skills can't be kept from the model.** A session there may
-  start `make-it-so` on its own despite the first line. After `scry`,
+  start `make-it-so` on its own; the skills' first line (S7) is a rule the
+  model keeps, not a control. After `scry`,
   `make-it-so` means "yes, 1 to N", open security picks included, and the
   record then shows it as the owner's answer. Or it starts `finis` and ends
   the work. In that harness only, the owner's typed answer stops being a
   sure sign the owner gave it. T5 probes the `force_ask` hook (S7). What is
   left fits "A session takes checkpoints alone" only if that class widens to
   name it: the owner's call, asked before T5 starts. On a no, Antigravity
-  leaves the default install list until a probed hook holds; it stays
-  detected, and the owner can still name it in the list.
+  leaves the default install list (`defaultInstall: false`) until a probed
+  hook holds; it stays detected, and the owner can still name it in the
+  list.
 - **The poster in Codex** may see fewer environment secrets, so its
   live-secret refusal covers less there (S13). It is a control that works
   without the session's cooperation, so its weakening is the owner's call,
@@ -717,10 +775,6 @@ never-sync rule names both folders.
   removes it; S14's dry run catches only a rules file.
 - **Guards are speed bumps,** as the deny rules are today: another spelling
   gets past them.
-- **Bare-name `node` and `git`.** The bootstrap and the hook start them by
-  name, and Windows searches the working folder first. An accepted-risk
-  candidate under "What you install and CI run", not built: an absolute node
-  path would need a new Codex trust whenever node moves.
 
 **The class and the scope.** "What you install and CI run" widens to name the
 bootstrap and the release job's tag token, and "Merges and installs" names
@@ -759,11 +813,13 @@ model must stay within its word budget.
   names `~/.claude/pact` (a gate test greps).
 - **C2** A dry run lists each detected known harness and each own harness,
   and says which the install list takes; a recorded harness whose `detect`
-  folder is gone stays in, with a warning.
+  folder is gone stays in, with a warning; one with `defaultInstall: false`
+  is detected and out.
 - **C3** For Claude Code, the rendered rules, agents, commands and settings
   match today's bytes, except for the paths, the neutral phrases and the
-  model roles of S6 and S7 (a gate test diffs against a fixture, in which
-  Quick Build reads "planning model, low").
+  model roles of S6 and S7, and S7's command changes: the first line,
+  `finis`'s archive block and `scriptorium`'s list (a gate test diffs
+  against a fixture, in which Quick Build reads "planning model, low").
 - **C4** An own harness with an unknown format refuses (`harness-format`), and
   one with a path inside a git work tree, inside `~/.pact` or outside the
   home refuses (`harness-path`). One with hooks gets the "guards unverified"
@@ -788,8 +844,10 @@ model must stay within its word budget.
   `allow_implicit_invocation: false`. `make-it-so`, `finis` and `scry` open
   with S7's line everywhere. `finis` without `archive` ends with S7's line
   and archives nothing. `scriptorium` names no one harness's folders.
-- **C10** `review.md` holds S12's tree check, with `--ignored`, fsmonitor
-  off, the `.git` hashes and the restore of only what changed.
+- **C10** `review.md` holds S12's tree check: git's folders found through git
+  and put back first, `HEAD`, refs and stash recorded, status with content
+  hashes and filters and fsmonitor off, moved refs reset, only what changed
+  restored, and the copies outside the work tree, deleted afterwards.
 - **C29** Each harness's rendered rules hold the models line with its own
   models, also under a configuration that replaces the tiers block.
 
@@ -801,7 +859,8 @@ model must stay within its word budget.
   run through the rendered entry's exact command text, each deny the
   matching command across the tokenizer cases, in their own deny shape, and
   answer nothing for a command no rule matches. The command names an
-  absolute path and clears `NODE_OPTIONS`; this runs on `gate-windows` too.
+  absolute path and clears `NODE_OPTIONS`; this runs on `gate-windows` too,
+  where a `node.cmd` planted in the working folder never runs.
 - **C13** An `ask` rule answers `force_ask` in Antigravity and is denied in
   Codex with S8's line.
 - **C14** A planted error in the guard, a missing table, a malformed call and
@@ -837,17 +896,19 @@ model must stay within its word budget.
 - **C22** The bootstrap takes the highest tag named exactly `v1.<n>.0`,
   ignores every other name, and prints the tag; it refuses when the clone's
   head isn't the tag's commit, and deletes the clone; it never runs
-  `--apply`; the apply line it leads to runs from another folder.
+  `--apply`; the apply line it leads to runs from another folder; a fake
+  `git` in the folder it runs from never runs.
 - **C23** `workflow.test.mjs` passes the release job only with exactly
   `contents: write`, no secrets, SHA-pinned actions, no checkout, the
   `workflow_run` trigger on `gate`, and each of S10's `if` conditions; a bad
-  case for each fails it, and so does a second workflow file that uses
-  `workflow_run`.
+  case for each fails it, and so do a missing `release` concurrency group
+  and a second workflow file that uses `workflow_run`.
 - **C28** With no terminal and neither flag, the bootstrap refuses
   (`bootstrap-choice`); `--default` never overwrites an existing
   configuration; the bootstrap keeps three clones.
 - **C32** Through the bootstrap path, installing a release lower than the
-  recorded one warns "behind the last install", and a higher one doesn't.
+  recorded one warns "behind the last install", and a higher one doesn't; a
+  checkout behind the recorded release's commit warns too.
 
 **Scriptorium**
 
@@ -870,7 +931,11 @@ model must stay within its word budget.
   apply from a release tag install into all three harnesses; Codex's hook is
   trusted; in each harness a session shows the rules loaded, runs a lens as
   a subagent on its planning model, and a guarded command (a raw
-  `git worktree remove`, with the cleaner on) is denied.
+  `git worktree remove`, with the cleaner on) is denied. The Codex and
+  Antigravity rules name no Claude model, and the dry run warns of no own
+  model name. On the owner's no to a widening: Codex runs a lens in a
+  separate session, and Antigravity is installed only when the list names
+  it.
 
 ## S19 Rollback
 
@@ -891,16 +956,19 @@ stay; nothing runs them unless someone types the bootstrap command.
    take a list of harnesses; Claude Code moves to `~/.pact` with today's
    bytes but for paths; the tools and docs; `CONTEXT.md`; a dated log. T1
    proves C17 and C18 with a test harness of the `claude-md` format in a test
-   home; T4 and T5 run them again for their harnesses.
+   home; T4 and T5 run them again for their harnesses. The `--home` rename
+   reaches `gate.yml`, which is read closely.
 2. **T2: the neutral rules source and per-harness render.** S6, S7, S12's
    `review.md` step; C5–C10, C29. Each changed rule's row in
-   `docs/rule-reasons.md`; `node builder/default-config.mjs`; a dated log.
-   Depends on T1.
+   `docs/rule-reasons.md`; `node builder/default-config.mjs`; C3's fixture
+   updated for S7's command changes only; a dated log. Depends on T1.
 3. **T3: the rule table and the shared guard.** S8; C11–C16. Depends on T1.
 4. **T4: Codex.** Its description, agents, skills and guard wrapper; C5, C9,
    C12–C15, C17 and C18 as they hold in Codex; a probe session on the
    installed Codex that confirms the deny shape, the trust step, the exact
-   hook command and the environment the poster sees, in its record. Depends
+   hook command, the environment the poster sees, whether Codex asks before
+   a lens's MCP call, and what its sandbox holds on native Windows, in its
+   record. Depends
    on T2, T3 and the owner's answer on Codex lenses.
 5. **T5: Antigravity.** The same, with the tool-name table; C5, C9, C12–C14,
    C17 and C18 as they hold in Antigravity; a probe session that confirms the
@@ -913,14 +981,18 @@ stay; nothing runs them unless someone types the bootstrap command.
 7. **T7: Scriptorium.** S11; C24, C25; the ADR amending 0171. Depends on T2.
 8. **T8: the threat model and the ADR.** S15; C27. May run beside T1–T7.
 9. **T9: end to end.** C26. Depends on T1–T8 merged, the owner's answers
-   below, the tag ruleset, `PACT_RELEASES`, the owner's S14 steps and the
-   owner's apply.
+   below, the tag ruleset, the owner's S14 steps and the owner's apply.
+   First it lists the remote's tags and the ruleset by API: the ruleset
+   covers every tag with no update or delete, and no tag but a release ends
+   in a version. Then the owner sets `PACT_RELEASES`, and a push to `main`
+   or a re-run of `gate` at the tip makes `v1.1.0`.
 
 **The freeze.** No apply writes into `~/.pact`, from a release tag or a
 checkout, before T9, and none before the owner has answered the two
 widenings and the scope change. Until then gate tests install into `--home`
-test folders only, and the release job tags nothing, since `PACT_RELEASES` is
-unset.
+test folders only, the release job tags nothing, since `PACT_RELEASES` is
+unset, and the owner's live install updates only from a checkout before T1's
+merge, or not at all.
 
 The work runs at the thorough tier on the sensitive route. The security pair
 reads this spec and each ticket's diff.
@@ -930,7 +1002,8 @@ reads this spec and each ticket's diff.
 | What | Kind | When |
 | --- | --- | --- |
 | The older Codex mirror ticket's state | the owner's call | any time |
-| The security picks, S2 items 35–39 and 42 | the owner's call | before the ticket each touches starts |
+| The security picks, S2 items 35–39 and 42–44 | the owner's call | before the ticket each touches starts |
+| The final round's trade-offs, S2 items 45 and 46 | the owner's call | before T1 starts |
 | Widening "Review rests on rules" for Codex lenses, and the network-off option (S15) | the owner's call; on a no, S12's fallback | before T4 starts |
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
@@ -965,4 +1038,5 @@ reads this spec and each ticket's diff.
 - Cloud sessions in Codex or Antigravity.
 - Antigravity plugins.
 - Project installs outside Claude Code.
-- An absolute node path in the hook command (S15).
+- Own rules text for one harness only.
+- A harness's own home variable, such as `CODEX_HOME`.
