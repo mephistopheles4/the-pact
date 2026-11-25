@@ -76,6 +76,10 @@ export const KIT_EXTRA = Object.freeze(['docs/brand/scriptorium/scriptorium-mark
 export const KIT_COMMAND = 'scriptorium';
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 export const RULES_REL = 'claude/CLAUDE.md';
+// Where the install writes each harness's render in the stage (spec 0007 S7); no commit may hold a file there.
+export const RENDERED_REL = 'rendered/';
+// Each agent format's names for the pact's tools (spec 0007 S7). Antigravity's is empty until a probe fills it, so no agent installs there.
+export const TOOL_TABLES = Object.freeze({ 'antigravity-md': Object.freeze({}) });
 export const OVERLAY_REL = 'claude/settings.overlay.json';
 // The review procedure file (#261): staged here, installed to one fixed live path.
 export const REVIEW_REL = 'claude/review.md';
@@ -899,14 +903,14 @@ export function parseProjectWrite(report, projectHash) {
 // ------------------------------------------------------------ seam A's copy set and overlay
 
 /**
- * Which parts of a harness this pact can write (spec 0007 S5, S9): its rules
- * and agents when its agents take the claude-md format (or it has none), its
- * commands folder, and the settings merge for Claude Code's own hooks file.
- * A harness in another format is listed and nothing is installed into it.
+ * Which parts of a harness this pact writes (spec 0007 S5, S7, S9): its rules,
+ * its agents (antigravity-md only once `tables` names tools for it), its
+ * commands folder, a skills folder's skills, and the settings merge for Claude
+ * Code's own hooks file.
  */
-export function builtParts(h) {
-  const built = !h.agents || h.agents.format === 'claude-md';
-  return { rules: built, agents: built && Boolean(h.agents), commands: built && Boolean(h.commands), settings: h.id === 'claude' && h.hooks?.format === 'claude' };
+export function builtParts(h, tables = TOOL_TABLES) {
+  const agents = Boolean(h.agents) && (h.agents.format !== 'antigravity-md' || Object.keys(tables['antigravity-md'] ?? {}).length > 0);
+  return { rules: true, agents, commands: Boolean(h.commands), skills: Boolean(h.skills), settings: h.id === 'claude' && h.hooks?.format === 'claude' };
 }
 
 /** Where a harness's files go, as the record keeps it: only the parts this pact writes. */
