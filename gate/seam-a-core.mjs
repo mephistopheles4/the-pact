@@ -70,7 +70,9 @@ const REVIEW_DIAGRAMS_DEST = '.pact/review-diagrams.md';
 // The pact's hook script (#482): exactly claude/hooks/<name>.mjs, installed to .pact/hooks/<name>.mjs only with --compact on.
 const PACT_HOOKS = Object.freeze(['compact-handoff']);
 // The parts a harness may take, and the form of its id (spec 0007 S5).
-const HARNESS_PARTS = Object.freeze(['rules', 'agents', 'commands']);
+const HARNESS_PARTS = Object.freeze(['rules', 'agents', 'commands', 'guard']);
+// The shared guard (spec 0007 S8): exactly claude/guard/<name>.mjs, installed to .pact/guard/<name>.mjs only when a harness takes the guard part.
+const GUARD_SCRIPTS = Object.freeze(['guard', 'codex', 'antigravity']);
 const HARNESS_ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
 // Settings that run a command, load code or reach a tool server. Refused by
 // name as an object key at any depth of the overlay, whatever the settings
@@ -543,6 +545,7 @@ function classify(root, report) {
   const commands = [];
   const tools = [];
   const hooks = [];
+  const guards = [];
   const installs = [];
   const kit = [];
   const skills = [];
@@ -615,6 +618,12 @@ function classify(root, report) {
         if (seg.length !== 3) report.fail('hook-path', rel, null, 'a subfolder in claude/hooks; a hook is claude/hooks/<name>.mjs');
         else if (!PACT_HOOKS.some(c => c === stem)) report.fail('hook-file-name', rel, null, 'a file in claude/hooks that is not a pact hook; the gate lists them');
         else hooks.push({ file: rel, stem, dest: `.pact/hooks/${seg[2]}` });
+      } else if (seg[1] === 'guard') {
+        // The shared guard (spec 0007 S8): exactly claude/guard/<name>.mjs, the name on GUARD_SCRIPTS. rules.json is the install's own, never in a commit.
+        const stem = seg.length === 3 && seg[2].endsWith('.mjs') ? seg[2].slice(0, -4) : null;
+        if (seg.length !== 3) report.fail('guard-path', rel, null, 'a subfolder in claude/guard; a guard file is claude/guard/<name>.mjs');
+        else if (!GUARD_SCRIPTS.some(c => c === stem)) report.fail('guard-file-name', rel, null, 'a file in claude/guard that is not part of the guard; the gate lists them');
+        else guards.push({ file: rel, stem, dest: `.pact/guard/${seg[2]}` });
       } else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       continue;
     }
@@ -623,7 +632,7 @@ function classify(root, report) {
     else if (!(seg[1] === '.gitkeep' || seg[1].endsWith('.contract.md') || seg[1].endsWith('.practice-test.md'))) report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   if (!installs.some(i => i.review)) report.fail('review-file', REVIEW_FILE, null, 'the review procedure file is missing');
-  return { agents, commands, tools, hooks, installs, kit, skills, rendered, overlay };
+  return { agents, commands, tools, hooks, guards, installs, kit, skills, rendered, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
@@ -652,7 +661,7 @@ function expand(installs, harnesses, rendered) {
 function run(root, listed, listedTools, compact, harnesses, report) {
   // @@TEST-CRASH-HOOK@@
   const settingsAllow = loadSettingsAllowlist(report);
-  const { agents, commands, tools, hooks, installs, kit, skills, rendered, overlay } = classify(root, report);
+  const { agents, commands, tools, hooks, guards, installs, kit, skills, rendered, overlay } = classify(root, report);
   let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
@@ -671,9 +680,14 @@ function run(root, listed, listedTools, compact, harnesses, report) {
     for (const name of PACT_HOOKS) if (!hooks.some(h => h.stem === name)) report.fail('hooks-not-in-pact', null, null, `--compact on, but the stage holds no claude/hooks/${name}.mjs: it is not in this pact`);
     installs.push(...hooks);
   }
+  // The guard installs only when a harness takes it (spec 0007 S8), and then whole.
+  if (harnesses.some(h => h.parts.includes('guard'))) {
+    for (const name of GUARD_SCRIPTS) if (!guards.some(g => g.stem === name)) report.fail('guard-not-in-pact', null, null, `--harness takes the guard, but the stage holds no claude/guard/${name}.mjs: it is not in this pact`);
+    installs.push(...guards);
+  }
   // Every other installed text file passes the text scanner: valid UTF-8, no
   // hidden or control characters, so what a reader sees is what the model reads.
-  for (const file of new Set([...installs, ...commands, ...tools, ...hooks, ...kit, ...skills].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
+  for (const file of new Set([...installs, ...commands, ...tools, ...hooks, ...guards, ...kit, ...skills].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
   for (const name of listed) {
     if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
   }
@@ -749,7 +763,7 @@ function parseArgs(argv, report) {
   if (compactValues.length !== 1) return report.fail('compact-arg', null, null, compactValues.length ? '--compact is given more than once' : 'no --compact: give on or off');
   if (compactValues[0] !== 'on' && compactValues[0] !== 'off') return report.fail('compact-arg', null, null, '--compact takes on or off');
   const harnesses = harnessList(given['--harness']);
-  if (harnesses === null) return report.fail('harness-arg', null, null, '--harness takes, once, none or harness ids each once, each followed by a colon and none or its parts (rules, agents, commands) joined by plus signs');
+  if (harnesses === null) return report.fail('harness-arg', null, null, '--harness takes, once, none or harness ids each once, each followed by a colon and none or its parts (rules, agents, commands, guard) joined by plus signs');
   if (commands === undefined || tools === undefined) return undefined;
   return { root: argv[0], commands, tools, compact: compactValues[0] === 'on', harnesses };
 }
