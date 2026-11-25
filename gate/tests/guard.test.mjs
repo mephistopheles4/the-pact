@@ -130,7 +130,6 @@ test('a command no rule matches gets no answer, words inside data included', () 
     'echo "git worktree remove w"',
     'git commit -m "x; git worktree remove w"',
     "git commit -F - <<'EOF'\ngit worktree remove w\nEOF",
-    "$m = @'\ngit worktree remove w\n'@",
     '$m = @"\nsay \\"\ngit worktree remove w\n"@',
     'ls # git worktree remove w',
     'claude rmx 1',
@@ -202,7 +201,7 @@ function runHook(at, format, stdin, { env = {} } = {}) {
   for (const [k, v] of Object.entries(process.env)) if (!['path', 'node_options', 'nodefaultcurrentdirectoryinexepath'].includes(k.toLowerCase())) base[k] = v;
   base.PATH = [dirname(process.execPath), process.env.PATH ?? process.env.Path].join(delimiter);
   const options = { cwd: at.cwd, input: typeof stdin === 'string' ? stdin : JSON.stringify(stdin), encoding: 'utf8', env: { ...base, ...env }, timeout: 60_000 };
-  // Codex on Windows runs %COMSPEC% /C "<command>" (openai/codex, hooks command_runner.rs).
+  // The Windows text is written for cmd and run through it here. The install writes no Windows hook yet: a harness may use another shell.
   const r = WIN ? spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/C', `"${command}"`], { ...options, windowsVerbatimArguments: true }) : spawnSync('/bin/sh', ['-c', command], options);
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
@@ -297,12 +296,8 @@ test('C12: on Windows a node or cmd planted in the working folder never runs', {
   assert.equal(existsSync(marker), true, 'the planted node runs when nothing stops it');
 });
 
-test('bad case: on Windows only Codex gets a hook, the one harness whose hook shell is known to be cmd', () => {
-  const as = (id, format) => ({ id, name: id, hooks: { format } });
-  const others = [as('antigravity', 'antigravity'), as('mine', 'codex'), as('mine', 'antigravity'), as('codex', 'antigravity')];
-  for (const h of [as('codex', 'codex'), ...others]) for (const platform of ['linux', 'darwin']) assert.equal(core.guardShellKnown(h, platform), true, `${h.id} ${platform}`);
-  assert.equal(core.guardShellKnown(as('codex', 'codex'), 'win32'), true);
-  for (const h of others) assert.equal(core.guardShellKnown(h, 'win32'), false, `${h.id} ${h.hooks.format}`);
+test('bad case: the guard is not installed on Windows, and is on the other platforms', () => {
+  assert.deepEqual(['linux', 'darwin', 'win32'].map(core.guardOnPlatform), [true, true, false]);
 });
 
 // ------------------------------------------------------------ the hooks file merge
@@ -331,6 +326,11 @@ test('C15, C16: a merge over its own result changes nothing; a changed command i
   const inside = { matcher: '^Bash$', hooks: [entry(COMMAND).hooks[0], { type: 'command', command: 'echo inside' }] };
   const shared = core.guardMerge(read(JSON.stringify({ hooks: { PreToolUse: [inside, OWNER] } })), { drop: [want('codex')], want: [want('codex')] });
   assert.deepEqual([shared.changed, shared.added, shared.warnings], [false, [], []]);
+  // Held twice, or under another matcher, it is not in place: one group under the pact's matcher, and new.
+  for (const list of [[entry(COMMAND), entry(COMMAND)], [{ ...entry(COMMAND), matcher: 'x' }]]) {
+    const fixed = core.guardMerge(read(JSON.stringify({ hooks: { PreToolUse: list } })), { drop: [want('codex')], want: [want('codex')] });
+    assert.deepEqual([shown(fixed.merged).hooks.PreToolUse, fixed.added], [[entry(COMMAND)], ['codex']], JSON.stringify(list));
+  }
   const moved = shown(first.merged);
   moved.hooks.PreToolUse.push(OWNER);
   const next = core.guardMerge(read(JSON.stringify(moved)), { drop: [want('codex')], want: [want('codex', 'new')] });

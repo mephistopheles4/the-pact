@@ -1524,14 +1524,13 @@ export const guardTableText = rules => `${JSON.stringify({ rules }, null, 2)}\n`
 export const CODEX_TRUST_LINE = 'Codex: open /hooks and trust pact-guard; until then Codex runs unguarded.';
 
 /**
- * Whether the hook's command can be trusted to the shell this harness runs it
- * under. The Windows text is written for cmd: under PowerShell it prints the
- * environment and lets the call through, and Codex is the one harness whose
- * Windows hook shell is known to be cmd.
+ * Whether the pact installs the guard on this platform. Not on Windows yet: the
+ * hook command is written for cmd, a harness may run hooks under PowerShell,
+ * and there the command prints the environment and lets the call through.
  */
-export const guardShellKnown = (h, platform) => platform !== 'win32' || (h.id === 'codex' && h.hooks.format === 'codex');
-/** The warning for a harness that gets no guard hook because that shell is not known. */
-export const guardNoShellLine = h => `WARN: ${h.id}: no guard hook is written on Windows: the shell ${h.name} runs hooks under is not known to be cmd, and under PowerShell the command would print the environment. It runs unguarded.`;
+export const guardOnPlatform = platform => platform !== 'win32';
+/** The warning for a harness that would take the guard where it is not installed. */
+export const guardNotYetLine = h => `WARN: ${h.id}: the pact's guard isn't installed on Windows yet, so ${h.name} runs unguarded.`;
 
 // Characters cmd or a shell would read as more than part of a path.
 const WIN_PATH_BAD = /["%!^&|<>\p{Cc}]/u;

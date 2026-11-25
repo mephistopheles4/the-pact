@@ -72,7 +72,7 @@ function harnessLines({ rows, warnings }, guarded, unguarded) {
     const parts = core.builtParts(h);
     if (!parts.rules) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s format yet; ${guarded.includes(h) ? 'only its guard hook is installed' : 'nothing is installed into it'}.`);
     else if (h.skills) out.push(`WARN: ${h.id}: the pact installs no skills yet.`);
-    if (unguarded.includes(h)) out.push(core.guardNoShellLine(h));
+    if (unguarded.includes(h)) out.push(core.guardNotYetLine(h));
     if (h.hooks && !parts.settings && !parts.guard) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
   }
   return out;
@@ -235,7 +235,7 @@ async function main() {
   // The guard (spec 0007 S8): its rules follow the switches, whichever harnesses are in; its files and hooks install while a harness with a guard hook is in and a rule is on.
   const rules = project ? [] : core.guardRules([...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(core.stopSwitchOn(parsed) ? ['session-stop-deny'] : [])]);
   const wired = rules.length ? taken.filter(h => core.builtParts(h).guard) : [];
-  const guarded = wired.filter(h => core.guardShellKnown(h, process.platform));
+  const guarded = core.guardOnPlatform(process.platform) ? wired : [];
   const unguarded = wired.filter(h => !guarded.includes(h));
   const guardOn = guarded.length > 0;
   const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, guardOn)], 'seam-a', 'the check');

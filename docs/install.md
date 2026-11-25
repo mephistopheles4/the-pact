@@ -730,9 +730,10 @@ hook the install adds.
   shell command, in each harness's hooks file (`~/.codex/hooks.json`,
   `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
   pact's entry, and the apply backs up each hooks file it changes.
-- **On Windows only Codex gets the hook.** The command is written for `cmd`;
-  under PowerShell it would print the environment and let the call through. The
-  dry run warns for each harness left unguarded.
+- **Not on Windows yet.** The hook command is written for `cmd`, and a harness
+  may run it under PowerShell, where it prints the environment and lets the call
+  through. On Windows the install writes no guard, and the dry run and the apply
+  warn for each harness left unguarded.
 - **Trust it in Codex.** Codex runs a hook only once you trust it: open
   `/hooks` and trust `pact-guard`, the one from `~/.codex/hooks.json`: another
   hooks file can use the name. The dry run and the apply say so when the entry
