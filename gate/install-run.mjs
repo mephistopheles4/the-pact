@@ -13,6 +13,7 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from './install-core.mjs';
+import * as harness from './harnesses.mjs';
 import * as io from './install-io.mjs';
 import { FOLD_CASE } from './paths.mjs';
 
@@ -37,6 +38,45 @@ async function loadCore(file) {
   } catch {
     return core.stops.moduleMissing(`gate/${file}`);
   }
+}
+
+/**
+ * The harnesses this install takes (spec 0007 S5): the commit's known ones and
+ * the user configuration's own, the configuration read again and held to the
+ * hash the renderer reported.
+ */
+function chooseHarnesses({ stage, staged, home, parsed, record }) {
+  if (!staged.has(harness.KNOWN_REL)) core.stops.harnessKnownMissing();
+  const known = harness.parseKnown(readFileSync(live(stage, harness.KNOWN_REL), 'utf8'));
+  let text = null;
+  if (parsed.config.kind === 'user') {
+    const bytes = io.readOptional(live(home, core.CONFIG_REL));
+    if (bytes === null || io.sha256(bytes) !== parsed.config.sha256) core.stops.configChanged();
+    text = bytes.toString('utf8');
+  }
+  const { install, own } = harness.configHarnesses(text);
+  const harnesses = harness.resolveHarnesses({ known, own, home, platform: process.platform, inWorkTree: io.insideWorkTree });
+  const detected = new Set(harnesses.filter(h => io.isFolder(live(home, h.detect))).map(h => h.id));
+  return harness.chooseHarnesses({ harnesses, install, detected, recorded: [...new Set(record ? record.harnesses.map(h => h.id) : [])] });
+}
+
+/** The dry run's harness list: each one in or out, then what the install does not do for it. */
+function harnessLines({ rows, warnings }) {
+  const out = [rows.length ? 'Harnesses:' : 'Harnesses: none found, so nothing installs'];
+  for (const r of rows) out.push(`  ${r.id}${r.harness ? ` (${r.harness.name})` : ''}: ${r.in ? 'in' : 'out'}${r.detected ? '' : ', not found'}`);
+  for (const w of warnings) out.push(`WARN: ${core.formatPlain(w)}`);
+  for (const r of rows) {
+    const h = r.harness;
+    if (h?.own && h.hooks) out.push(`guards unverified for ${h.id}: the pact has not seen this harness run its hook`);
+    if (!r.in) continue;
+    const parts = core.builtParts(h);
+    if (!parts.rules) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s format yet; nothing is installed into it.`);
+    else {
+      if (h.skills) out.push(`WARN: ${h.id}: the pact installs no skills yet.`);
+      if (h.hooks && !parts.settings) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
+    }
+  }
+  return out;
 }
 
 /** Runs a core in-process: its cleaned lines shown (ROOT lines never), its verdict needing both parts. */
@@ -75,8 +115,10 @@ async function main() {
     core.stops.runArgs();
   }
   const opts = core.parseArgs(run.words, process.platform);
-  const home = resolve(opts.claudeHome ?? join(homedir(), '.claude'));
+  const home = resolve(opts.home ?? homedir());
   const project = opts.projectFolder !== null;
+  // A home the caller names must be outside any repository (spec 0007 S4, C30).
+  if (opts.home !== null && io.insideWorkTree(home)) core.stops.homeWorkTree();
 
   // The stage against the commit's tree, from committed code (G7, G9).
   const tree = core.parseTree(readFileSync(join(work, 'tree')));
@@ -91,7 +133,8 @@ async function main() {
   if (reachableBytes === null) core.stops.reachableMissing();
   const reachable = core.parseReachable(reachableBytes, commit);
 
-  const recordFile = join(home, '.pact-install.json');
+  if (io.throughHomeLink(home, core.RECORD_REL)) core.stops.configLink();
+  const recordFile = live(home, core.RECORD_REL);
   const recordBytes = io.readOptional(recordFile);
   const record = core.parseRecord(recordBytes === null ? null : recordBytes.toString('utf8'));
   if (project) {
@@ -177,6 +220,11 @@ async function main() {
 
   // Seam A, in-process, on the staged and rendered copy (S-1 to S-3).
   const seamA = await loadCore('seam-a-core.mjs');
+  // The harnesses: a project install takes none.
+  const choice = project ? { rows: [], warnings: [] } : chooseHarnesses({ stage, staged, home, parsed, record });
+  const taken = choice.rows.filter(r => r.in).map(r => r.harness);
+  // The settings merge and the hook are Claude Code's: only with it in.
+  const claude = taken.find(h => core.builtParts(h).settings) ?? null;
   // The commands that install: the renderer's COMMANDS line, and /scriptorium whenever it is in the commit (#262).
   // They reach seam A as its --commands (#203, S8); each side works out the copy set on its own.
   const on = project ? [] : core.commandsOn(parsed.commands, staged.keys());
@@ -184,9 +232,9 @@ async function main() {
   // The tools that install: the renderer's TOOLS line alone, off by default (#280). They reach seam A as its --tools.
   const toolsOn = project ? [] : parsed.tools;
   // The auto-compact window (#482): the renderer's VALUE line, else the default; 0 is off, and a project install is always off. It reaches seam A as --compact.
-  const window = project ? 0 : core.compactWindow(parsed);
-  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off'], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0), staged, commit);
+  const window = claude ? core.compactWindow(parsed) : 0;
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken)], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0, taken), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const checkedOverlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   // After the hash check, and only then: the hook script's path and the window replace the overlay's two tokens.
@@ -265,40 +313,50 @@ async function main() {
   }
 
   // The plan (L1 to L3). Each live state it reads is kept, so the backup compares its copies with what the plan saw (#272, S7).
-  const linkIn = rel => io.throughLink(home, rel);
-  const { repoFiles, sourceOf } = core.installDestinations(checked, linkIn);
+  const recorded = record ? record.harnesses : [];
+  const targets = [...taken.map(core.targetsOf), ...recorded];
+  const mergedFiles = [...choice.rows.flatMap(r => (r.harness?.hooks ? [r.harness.hooks.file] : [])), ...recorded.flatMap(h => (h.settings ? [h.settings] : []))];
+  const linkIn = rel => io.throughHomeLink(home, rel);
+  const { repoFiles, sourceOf, harnessOf } = core.installDestinations(core.resolveDestinations(checked, taken), linkIn, mergedFiles);
   const seen = new Map();
   const liveAt = rel => {
     if (!seen.has(rel)) seen.set(rel, io.liveState(live(home, rel)));
     return seen.get(rel);
   };
-  const p = core.plan(record, repoFiles, liveAt, linkIn);
+  const p = core.plan(record, repoFiles, liveAt, linkIn, targets, mergedFiles);
   // #262: the person's agents are not the pact's to write, check or record.
   for (const rel of p.yours) repoFiles.delete(rel);
+  // The harness each path belongs to: this run's copy set, else the record's, else Claude Code's retired agents.
+  const recordHarness = new Map(record ? record.files.map(e => [e.path, e.harness]) : []);
+  const owner = rel => harnessOf.get(rel) ?? recordHarness.get(rel) ?? 'claude';
   // A pact command never shadowed by a same-named skill, nor a command or tool laid over a file the pact didn't write (#203, S8; #280).
-  core.checkSkillClash(on, rel => io.present(live(home, rel)));
-  core.checkNewPaths(repoFiles, record, liveAt);
+  if (taken.some(h => h.id === 'claude' && core.builtParts(h).commands)) core.checkSkillClash(on, rel => io.present(live(home, rel)));
+  core.checkNewPaths(repoFiles, record, liveAt, taken.flatMap(h => (core.builtParts(h).commands ? [h.commands.dir] : [])));
+  const unrecorded = core.unrecordedRules(taken.flatMap(h => (core.builtParts(h).rules ? [h.rules.path] : [])), record, liveAt);
 
-  // Settings (L4 to L9).
-  const settingsFile = join(home, 'settings.json');
-  const liveBytes = io.readOptional(settingsFile);
+  // Settings (L4 to L9). With Claude Code taken out, the entries the record
+  // lists are removed by the same merge, over an empty overlay.
+  const claudeFile = choice.rows.find(r => r.id === 'claude')?.harness?.hooks?.file ?? null;
+  const removing = !claude && record !== null && record.entries.length > 0 && claudeFile !== null;
+  const settingsRel = claude ? claude.hooks.file : removing ? claudeFile : null;
+  const settingsFile = settingsRel === null ? null : live(home, settingsRel);
+  const liveBytes = settingsFile === null ? null : io.readOptional(settingsFile);
   const liveSettings = liveBytes === null ? new Map() : core.readSettings(liveBytes.toString('utf8'));
   let merged = null;
   // #438: the cleaner's deny rules come and go with it; settings left untouched keep the record's list.
   // #439: the stop switch's rules likewise, in a record key of their own; a project install never turns the switch on.
-  const stopOn = project ? false : core.stopSwitchOn(parsed);
+  const stopOn = claude ? core.stopSwitchOn(parsed) : false;
   // #603: the identity switch. On, the claude app must be pinned and its gitconfig must be exactly what setup writes, or the install refuses before any write; off, the check is skipped, so a changed or missing gitconfig never blocks turning it off.
-  const identityOn = project ? false : core.identitySwitchOn(parsed);
+  const identityOn = claude ? core.identitySwitchOn(parsed) : false;
   const refusal = (rule, why) => new core.Refusal(rule, why);
   const identityChecks = () => {
-    const pinText = io.readOptional(join(home, 'pact', 'github.json'));
+    const pinText = io.readOptional(live(home, '.pact/github.json'));
     const app = pinText === null ? null : core.identityPinApp(pinText.toString('utf8'));
-    if (app === null) throw refusal('identity-pin', 'the agent-identity switch is on, but pact/github.json holds no claude app; run gh-app.mjs setup first.');
-    const cfg = io.readOptional(join(home, 'pact', 'gh-app-claude.gitconfig'));
+    if (app === null) throw refusal('identity-pin', 'the agent-identity switch is on, but .pact/github.json holds no claude app; run gh-app.mjs setup first.');
+    const cfg = io.readOptional(live(home, '.pact/gh-app-claude.gitconfig'));
     if (cfg === null) throw refusal('identity-gitconfig-missing', 'the agent-identity switch is on, but the claude app\'s gitconfig is missing; run gh-app.mjs setup first.');
     if (!core.identityNodeOk(process.execPath)) throw refusal('identity-node', 'this Node is not one the agent gitconfig may name (an absolute path to a program called node), so the gitconfig cannot be checked; run the install with a Node that is, then run gh-app.mjs setup under it.');
-    const userHome = dirname(home);
-    const want = core.identityGitconfigText({ userHome, claudeHome: home, nodePath: process.execPath, app, xdg: io.exists(join(userHome, '.config', 'git', 'config')) });
+    const want = core.identityGitconfigText({ userHome: home, nodePath: process.execPath, app, xdg: io.exists(join(home, '.config', 'git', 'config')) });
     const verdict = core.identityGitconfigVerdict(cfg.toString('utf8'), want);
     const line = core.identityGitconfigLine(verdict);
     if (!verdict.ok) throw refusal('identity-gitconfig', line);
@@ -315,51 +373,74 @@ async function main() {
   let notes = [];
   // #482: the hooks and the window, merged by key.
   const compact = { window, script: hookScript, recorded: record ? record.autoCompactWindow : null, platform: process.platform };
-  let compactBlock = [`auto-compact-window: ${window > 0 ? `on, ${window} tokens` : 'off'}`];
+  let compactBlock = claude ? [`auto-compact-window: ${window > 0 ? `on, ${window} tokens` : 'off'}`] : [];
+  const mergeTools = claude ? toolsOn : [];
   if (identityOn) identityBlock = identityChecks();
-  if (liveSettings === null) {
+  if (settingsRel === null) settings = null;
+  else if (liveSettings === null) {
     settings = 'not a strict JSON object: left untouched';
     notes = ['WARN: settings.json is not a strict JSON object (a comment, a trailing comma or another root); the merge leaves it untouched, and nothing in it was checked.'];
     if (identityOn) notes.push("WARN: settings.json is left untouched, so the agent-identity switch's two env keys are not set; git in a session stays your own until they are.");
     // #523: the cleaner on, its ask rules are not added to a file left untouched; say which.
-    if (toolsOn.includes('cleaner')) notes.push(`WARN: settings.json is left untouched, so the cleaner's two ask rules on remove --override are not added: ${core.CLEANER_ASK.map(core.formatPlain).join(', ')}`);
+    if (mergeTools.includes('cleaner')) notes.push(`WARN: settings.json is left untouched, so the cleaner's two ask rules on remove --override are not added: ${core.CLEANER_ASK.map(core.formatPlain).join(', ')}`);
   } else {
-    const cleanerPlan = core.cleanerDenyPlan(liveSettings, toolsOn, record ? record.cleanerDeny : []);
+    const cleanerPlan = core.cleanerDenyPlan(liveSettings, mergeTools, record ? record.cleanerDeny : []);
     const stopPlan = core.stopDenyPlan(liveSettings, stopOn, record ? record.stopDeny : []);
     // deny.record is the cleaner's record only; the stop switch's is kept in stopRecord.
     deny = { ...core.joinDeny(cleanerPlan, stopPlan), record: cleanerPlan.record };
     stopRecord = stopPlan.record;
-    askPlan = core.cleanerAskPlan(liveSettings, toolsOn, record ? record.cleanerAsk : []);
+    askPlan = core.cleanerAskPlan(liveSettings, mergeTools, record ? record.cleanerAsk : []);
     identity = core.identityEnvPlan(liveSettings, identityOn, record ? record.identityEnv : {}, core.identityEnvWanted(home));
     if (identity.conflicts.length) throw refusal('identity-env', `the agent-identity switch is on, but settings.json already sets env ${identity.conflicts.join(' and ')}; take it out first, since the install never overwrites your own env.`);
-    merged = core.mergeSettings(liveSettings, overlay, deny, compact, askPlan, identity);
-    if (liveBytes === null) settings = 'would be created from the overlay';
+    const applied = claude ? overlay : new Map();
+    merged = core.mergeSettings(liveSettings, applied, deny, compact, askPlan, identity);
+    if (liveBytes === null) settings = claude ? 'would be created from the overlay' : 'unchanged';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
-      notes = core.liveSettingsLines(liveSettings, overlay, compact);
+      if (claude) notes = core.liveSettingsLines(liveSettings, overlay, compact);
     }
-    changes = core.settingsChanges(liveSettings, overlay, deny, askPlan, identity);
-    compactBlock = core.compactLines(liveSettings, overlay, compact);
+    changes = core.settingsChanges(liveSettings, applied, deny, askPlan, identity);
+    compactBlock = core.compactLines(liveSettings, applied, compact);
   }
-  const settingsWill = settings.startsWith('would');
+  const settingsWill = settings !== null && settings.startsWith('would');
+  // The entries the record keeps next: those the merged settings hold, or, for a file left untouched, the last ones.
+  const lastEntries = record ? record.entries.filter(e => e.path === settingsRel) : [];
+  const entries = settingsRel === null || liveSettings === null
+    ? (record ? record.entries : [])
+    : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: [...deny.record, ...stopRecord], ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256 }) : [];
+  const drift = [...p.drift, ...(liveSettings === null ? [] : core.entryDrift(lastEntries, liveSettings))];
   const lastConfig = record ? record.config : new Map();
-  const stale = (record && record.commit.toLowerCase() !== commit) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig);
+  const targetsText = list => JSON.stringify(list);
+  const stale = (record && record.commit.toLowerCase() !== commit) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig) || targetsText(taken.map(core.targetsOf)) !== targetsText(recorded);
   // An agent the record lists that is now yours needs the record rewritten without it.
   const yoursListed = record ? p.yours.some(rel => record.files.some(e => e.path === rel)) : false;
   const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || stale || yoursListed || !record);
 
-  for (const [title, items] of [['Drift', p.drift], ['Overwrite', p.overwrite], ['Add', p.add], ['Delete', p.delete], ['Yours, left as is', p.yours]]) {
-    say(`${title}: ${items.length}`);
-    for (const i of items) say(`  ${core.formatPlain(i)}`);
+  // One block per harness, the pact's own files first (spec 0007 S9).
+  for (const l of harnessLines(choice)) say(l);
+  const changed = new Set([...p.overwrite, ...p.add]);
+  const ids = [...new Set([...(repoFiles.size || record ? ['pact'] : []), ...taken.map(h => h.id), ...recorded.map(h => h.id)])];
+  for (const id of ids) {
+    const h = taken.find(t => t.id === id);
+    say(id === 'pact' ? `== pact home (${core.NEUTRAL_REL}) ==` : `== ${id} (${h ? h.name : 'taken out'}) ==`);
+    const mine = rel => owner(rel) === id;
+    const driftHere = [...p.drift.filter(l => mine(l.slice(0, l.indexOf(' (')))), ...(id === 'claude' ? drift.slice(p.drift.length) : [])];
+    for (const [title, items] of [['Drift', driftHere], ['Overwrite', p.overwrite.filter(mine)], ['Add', p.add.filter(mine)], ['Delete', p.delete.filter(mine)], ['Yours, left as is', p.yours.filter(mine)]]) {
+      say(`${title}: ${items.length}`);
+      for (const i of items) say(`  ${core.formatPlain(i)}`);
+    }
+    if (h && core.builtParts(h).agents) for (const l of core.retiredAgentLines(rel => liveAt(rel).exists, p.delete, h.agents.dir)) say(l);
+    say(`Unchanged: ${[...repoFiles.keys()].filter(rel => mine(rel) && !changed.has(rel)).length}`);
+    for (const rel of unrecorded.filter(mine)) say(`WARN: ${core.formatPlain(rel)} already exists and the install record does not list it; --apply refuses until the one-time removal in docs/install.md is done.`);
+    if (id === 'claude' && settings !== null) {
+      say(`settings.json: ${settings}`);
+      if (settingsWill) for (const l of changes) say(l);
+      for (const l of compactBlock) say(l);
+      for (const l of identityBlock) say(l);
+      for (const l of notes) say(l);
+    }
   }
   for (const w of p.warnings) say(`WARN: ${core.formatPlain(w)}`);
-  for (const l of core.retiredAgentLines(rel => liveAt(rel).exists, p.delete)) say(l);
-  say(`Unchanged: ${p.same}`);
-  say(`settings.json: ${settings}`);
-  if (settingsWill) for (const l of changes) say(l);
-  for (const l of compactBlock) say(l);
-  for (const l of identityBlock) say(l);
-  for (const l of notes) say(l);
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
   const settingsCopied = settingsWill && liveBytes !== null;
   say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
@@ -367,7 +448,8 @@ async function main() {
   if (folder.link) say(`WARN: ${core.BACKUPS_REL} is not a plain folder: a link, a file or another reparse point; --apply refuses until it is moved out of the way.`);
   if (folder.staging.length) say(core.stagingLine(folder.staging));
   if (folder.others) say(core.othersLine(folder.others));
-  for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) {
+  const ownFiles = [...(settingsRel === null ? [] : [[settingsRel, settingsFile]]), [core.RECORD_REL, recordFile]];
+  for (const [rel, file] of ownFiles) {
     if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
   }
   say('Configuration:');
@@ -409,43 +491,64 @@ async function main() {
     say('RESULT: pass');
     return;
   }
-  core.checkApply({ configApplies, hashGiven: opts.renderedHash !== null, selfDiffers: run.selfDiffers, drift: p.drift.length > 0, dirty: run.dirty > 0, settingsObject: liveSettings !== null });
+  core.checkApply({ configApplies, hashGiven: opts.renderedHash !== null, selfDiffers: run.selfDiffers, drift: drift.length > 0, dirty: run.dirty > 0, settingsObject: settingsRel === null || liveSettings !== null, unrecorded });
 
   // Apply (X2 to X5): every staged byte re-hashed, the review last, then the writes.
   for (const [rel, sha] of repoFiles) if (io.fileSha256(live(stage, sourceOf.get(rel))) !== sha) core.stops.stageChanged(rel);
   // A temp file a hard stop left would stop the writes midway, so refuse before any (X5).
   for (const rel of [...p.overwrite, ...p.add]) if (io.exists(io.tempName(live(home, rel)))) core.stops.tempLeft(rel);
-  for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) if (io.exists(io.tempName(file))) core.stops.tempLeft(rel);
+  for (const [rel, file] of ownFiles) if (io.exists(io.tempName(file))) core.stops.tempLeft(rel);
   await writeReview();
   // @@TEST-BACKUP-HOOK@@
   // The backup, after every check and before CHECKS DONE, so a backup that fails still changed nothing (#272, S7).
-  const entries = core.backupEntries({ copy: [...p.overwrite, ...p.delete], add: p.add, live: rel => seen.get(rel), settings: settingsWill ? (liveBytes === null ? null : io.sha256(liveBytes)) : undefined, record: recordBytes === null ? null : io.sha256(recordBytes) });
+  const settingsBackup = settingsWill ? [{ path: settingsRel, harness: 'claude', sha256: liveBytes === null ? null : io.sha256(liveBytes) }] : [];
+  const toKeep = core.backupEntries({ copy: [...p.overwrite, ...p.delete], add: p.add, live: rel => seen.get(rel), settings: settingsBackup, record: recordBytes === null ? null : io.sha256(recordBytes), harnessOf: owner });
   const started = () => {
     backupStarted = true;
     say('BACKUP STARTED');
     // @@TEST-BACKUP-STARTED-HOOK@@
   };
-  const taken = io.takeBackup(io.FS_OPS, { home, commit, entries, platform: process.platform, now: () => new Date(), started });
-  backup = taken.name;
-  say(`backed up ${taken.files} file(s) to ${core.BACKUPS_REL}/${backup}`);
+  const made = io.takeBackup(io.FS_OPS, { home, commit, entries: toKeep, platform: process.platform, now: () => new Date(), started });
+  backup = made.name;
+  say(`backed up ${made.files} file(s) to ${core.BACKUPS_REL}/${backup}`);
   say('CHECKS DONE');
   writing = true;
   say('Applying.');
   for (const l of gateLines) say(l);
   mkdirSync(home, { recursive: true });
+  // The record is written after each change, so a failed apply leaves it
+  // matching the disk where it stopped (spec 0007 S9): it starts as what is
+  // already true, the last install's files and those that need no write.
+  const files = new Map();
+  for (const e of record ? record.files : []) if (e.path !== null && core.inTargets(e.path, e.harness, targets) && core.skipReason(e.path, linkIn, mergedFiles) === null && !p.yours.includes(e.path) && liveAt(e.path).file) files.set(e.path, { harness: e.harness, sha256: e.sha256 });
+  for (const [rel, sha] of repoFiles) if (!changed.has(rel)) files.set(rel, { harness: owner(rel), sha256: sha });
+  let entriesNow = record ? record.entries : [];
+  const writeRecord = () => {
+    const now = taken.map(core.targetsOf);
+    // A harness of the last install stays listed while the record still names a file in its folders.
+    const kept = recorded.filter(old => !now.some(t => targetsText(t) === targetsText(old)) && [...files].some(([rel, f]) => f.harness === old.id && core.inTargets(rel, old.id, [old]) && !core.inTargets(rel, old.id, now)));
+    const sorted = new Map([...files].sort(([a], [b]) => (a < b ? -1 : 1)));
+    // The window stays recorded when the settings file is left untouched.
+    io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, entries: entriesNow, gateNow }), 0o600);
+  };
   for (const rel of p.delete) {
     io.removeFile(live(home, rel));
+    files.delete(rel);
+    writeRecord();
     say(`deleted ${rel}`);
   }
-  for (const rel of [...p.overwrite, ...p.add]) {
+  for (const rel of changed) {
     io.writeReplacing(live(home, rel), readFileSync(live(stage, sourceOf.get(rel))));
+    files.set(rel, { harness: owner(rel), sha256: repoFiles.get(rel) });
+    writeRecord();
     say(`installed ${rel}`);
   }
   if (settingsWill) {
     io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, cleanerAsk: askPlan.record, stopDeny: stopRecord, identityEnv: identity.record, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
+  entriesNow = entries;
+  writeRecord();
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;
@@ -462,11 +565,13 @@ async function main() {
       bad++;
     }
   }
-  const after = io.readOptional(settingsFile);
-  if (core.guardHolds(after === null ? null : core.readSettings(after.toString('utf8')))) say('OK       settings.json (auto mode, no retired ask rules)');
-  else {
-    say('MISMATCH settings.json (auto mode is off or a retired ask rule remains)');
-    bad++;
+  if (claude) {
+    const after = io.readOptional(settingsFile);
+    if (core.guardHolds(after === null ? null : core.readSettings(after.toString('utf8')))) say('OK       settings.json (auto mode, no retired ask rules)');
+    else {
+      say('MISMATCH settings.json (auto mode is off or a retired ask rule remains)');
+      bad++;
+    }
   }
   if (bad) {
     say(`${bad} mismatch(es). ${core.backupKept(backup)}`);
@@ -483,7 +588,7 @@ try {
   await main();
 } catch (e) {
   for (const l of gateLines) say(l);
-  const left = writing === 'project' ? core.PROJECT_LEFT : `The Claude home folder may hold part of this install.${backup ? ` ${core.backupKept(backup)}` : ''}`;
+  const left = writing === 'project' ? core.PROJECT_LEFT : `The home folder may hold part of this install.${backup ? ` ${core.backupKept(backup)}` : ''}`;
   // Between BACKUP STARTED and CHECKS DONE only the backup's own refusal knows what it removed (#272, S9).
   const staged = backupStarted && !writing;
   if (e instanceof core.Refusal) say(`REFUSED: ${e.why} ${writing ? left : staged && !e.rule.startsWith('backup-') ? core.STAGING_LEFT : e.outcome}`);

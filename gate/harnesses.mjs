@@ -6,17 +6,12 @@
 //
 // Nothing here runs on import. Imports install-core.mjs only.
 
-import { Refusal, formatPlain } from './install-core.mjs';
+import { HARNESS_ID_RE as ID_RE, NEUTRAL_REL as NEUTRAL, PACT_ID, Refusal, formatPlain } from './install-core.mjs';
 
 export const KNOWN_REL = 'harnesses/known.json';
-/** The neutral home, under the home folder (S4). */
-export const NEUTRAL = '.pact';
-/** The harness id the neutral home's own files carry in the record; no harness may take it. */
-export const PACT_ID = 'pact';
 export const AGENT_FORMATS = Object.freeze(['claude-md', 'codex-toml', 'antigravity-md']);
 export const HOOK_FORMATS = Object.freeze(['claude', 'codex', 'antigravity']);
 export const CAPABILITIES = Object.freeze(['subagents', 'tool-limits', 'cleaner', 'archive', 'native-rules', 'hook-ask', 'hook-trust', 'explicit-skills']);
-const ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
 // One path segment below the home folder: a plain name, a leading dot allowed, never . or .., none ending in a dot.
 const SEGMENT_RE = /^\.?[A-Za-z0-9_-](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
 const MODEL_RE = /^\S{1,128}$/;
@@ -129,6 +124,30 @@ export function parseKnown(text) {
   }
   if (!Array.isArray(doc) || !doc.every(e => isObject(e) && typeof e.id === 'string' && ID_RE.test(e.id))) refuse('harness-known', `the commit's ${KNOWN_REL} is not a list of harness descriptions.`);
   return doc;
+}
+
+/**
+ * The `harnesses` key of the user configuration's text: `own`, the person's
+ * entries, and `install`, the ids the install takes, or null when there is no
+ * list. A missing key, or no file, is no entries and no list.
+ */
+export function configHarnesses(text) {
+  const none = { install: null, own: [] };
+  if (text === null) return none;
+  let doc;
+  try {
+    doc = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+  } catch {
+    refuse('harness-shape', 'the user configuration is not readable JSON.');
+  }
+  if (!isObject(doc) || !Object.hasOwn(doc, 'harnesses')) return none;
+  const h = doc.harnesses;
+  if (!isObject(h) || !Object.keys(h).every(k => k === 'install' || k === 'own')) refuse('harness-shape', 'harnesses in the user configuration is not an object of install and own.');
+  const install = h.install ?? null;
+  if (install !== null && !(Array.isArray(install) && install.every(i => typeof i === 'string' && ID_RE.test(i)) && new Set(install).size === install.length)) refuse('harness-shape', 'harnesses.install is not a list of harness ids, each once.');
+  const own = h.own ?? [];
+  if (!Array.isArray(own)) refuse('harness-shape', 'harnesses.own is not a list of harness descriptions.');
+  return { install, own };
 }
 
 /**

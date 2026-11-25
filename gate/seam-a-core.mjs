@@ -7,7 +7,7 @@
 // Seam A: the pact's own static check, run by the install (gate/install-run.mjs)
 // on a staged copy of what it is about to install. Zero dependencies.
 //
-//   node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...> --compact <on | off>
+//   node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...> --compact <on | off> --harness <none | id:parts,...>
 //
 // The stage root holds claude/, familiars/ and AGENTS.md as the commit has
 // them. Seam A checks install mechanics only (#262, the pact is vetted like a
@@ -15,7 +15,10 @@
 // frontmatter so the file still parses with a name that matches its stem, runs
 // the text scanner on every installed text file, holds
 // the settings overlay to its allow-list, and prints the exact copy set as
-// INSTALL lines, one per (staged path, live path) pair. What a file says, and
+// INSTALL lines, one per (staged path, destination) pair. A destination is a
+// path under the pact's home, .pact/..., or @<harness>/<part> for a file a
+// harness reads, which the install maps through that harness's description
+// (spec 0007 S9). What a file says, and
 // which tools an agent holds, is not its question. The install copies those
 // files and nothing else, and refuses unless its own reading of the stage agrees.
 //
@@ -24,11 +27,14 @@
 // an unknown name, a repeat, and a name with no file in the stage refuse.
 // Only a named command is listed for install.
 // --tools does the same for the pact's tools (#280), claude/tools/<name>.mjs,
-// each listed for install at pact/tools/<name>.mjs only when named. It too is
+// each listed for install at .pact/tools/<name>.mjs only when named. It too is
 // required exactly once, and the options may come in any order.
+// --harness names the harnesses that are in, each id with the parts it takes:
+// none, or rules, agents and commands joined by plus signs. Also exactly once.
+// With none, nothing is listed for install.
 // --compact (#482) is on or off, also exactly once. The pact's hook script is
 // exactly claude/hooks/<name>.mjs for a name on PACT_HOOKS; with on it is
-// listed for install at pact/hooks/<name>.mjs and must be in the stage, with
+// listed for install at .pact/hooks/<name>.mjs and must be in the stage, with
 // off it is not listed.
 // It also holds the settings overlay to gate/settings-allowlist.json, and
 // prints its hash as one SETTINGS line, which the install's merge must match.
@@ -54,11 +60,14 @@ const SETTINGS_ALLOWLIST = join(HERE, 'settings-allowlist.json');
 const OVERLAY = 'claude/settings.overlay.json';
 // The review procedure file (#261): one file, by exact path, to one fixed live path.
 const REVIEW_FILE = 'claude/review.md';
-const REVIEW_DEST = 'pact/review.md';
+const REVIEW_DEST = '.pact/review.md';
 const REVIEW_DIAGRAMS_FILE = 'claude/review-diagrams.md';
-const REVIEW_DIAGRAMS_DEST = 'pact/review-diagrams.md';
-// The pact's hook script (#482): exactly claude/hooks/<name>.mjs, installed to pact/hooks/<name>.mjs only with --compact on.
+const REVIEW_DIAGRAMS_DEST = '.pact/review-diagrams.md';
+// The pact's hook script (#482): exactly claude/hooks/<name>.mjs, installed to .pact/hooks/<name>.mjs only with --compact on.
 const PACT_HOOKS = Object.freeze(['compact-handoff']);
+// The parts a harness may take, and the form of its id (spec 0007 S5).
+const HARNESS_PARTS = Object.freeze(['rules', 'agents', 'commands']);
+const HARNESS_ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
 // Settings that run a command, load code or reach a tool server. Refused by
 // name as an object key at any depth of the overlay, whatever the settings
 // allow-list says. Hard-coded here so an allow-list edit cannot unban one.
@@ -534,11 +543,11 @@ function classify(root, report) {
   const kit = [];
   let overlay = false;
   const files = [...walk(root, 'claude', report), ...walk(root, 'familiars', report)];
-  // The builder kit (#203 S6): builder/ whole, and the kit's files elsewhere, each installed under pact/builder/ with /scriptorium.
+  // The builder kit (#203 S6): builder/ whole, and the kit's files elsewhere, each installed under .pact/builder/ with /scriptorium.
   for (const rel of [...walk(root, 'builder', report), ...BUILDER_KIT.filter(rel => !/^(builder|claude)\//.test(rel)).flatMap(rel => walk(root, rel, report))]) {
     if (!safePath(rel)) report.fail('path', rel, null, "a path with characters outside letters, digits, '.', '_' and '-'");
     else if (!inKit(rel)) report.fail('unclassified', rel, null, 'a builder file the builder kit does not list');
-    else kit.push({ file: rel, dest: `pact/builder/${rel}` });
+    else kit.push({ file: rel, dest: `.pact/builder/${rel}` });
   }
   for (const rel of files) {
     if (!safePath(rel)) {
@@ -547,9 +556,9 @@ function classify(root, report) {
     }
     const seg = rel.split('/');
     if (seg[0] === 'claude') {
-      if (inKit(rel)) kit.push({ file: rel, dest: `pact/builder/${rel}` });
+      if (inKit(rel)) kit.push({ file: rel, dest: `.pact/builder/${rel}` });
       if (rel === 'claude/CLAUDE.md') {
-        installs.push({ file: rel, dest: 'CLAUDE.md' });
+        installs.push({ file: rel, part: 'rules', dest: 'rules' });
       } else if (rel === 'claude/rules.source.md') {
         // The unrendered rules, copied by the install for the builder kit only.
       } else if (rel === REVIEW_FILE) {
@@ -559,7 +568,7 @@ function classify(root, report) {
       } else if (rel === OVERLAY) {
         overlay = true;
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
-        const a = { file: rel, stem: seg[2].slice(0, -3), dest: `agents/${seg[2]}` };
+        const a = { file: rel, stem: seg[2].slice(0, -3), part: 'agents', dest: `agents/${seg[2]}` };
         agents.push(a);
         installs.push(a);
       } else if (seg[1] === 'commands') {
@@ -567,19 +576,19 @@ function classify(root, report) {
         const stem = seg.length === 3 && seg[2].endsWith('.md') ? seg[2].slice(0, -3) : null;
         if (seg.length !== 3) report.fail('command-path', rel, null, 'a subfolder in claude/commands; a command is claude/commands/<name>.md');
         else if (!PACT_COMMANDS.some(c => c === stem)) report.fail('command-file-name', rel, null, 'a file in claude/commands that is not a pact command; the gate lists them');
-        else commands.push({ file: rel, stem, dest: `commands/${seg[2]}` });
+        else commands.push({ file: rel, stem, part: 'commands', dest: `commands/${seg[2]}` });
       } else if (seg[1] === 'tools') {
         // A pact tool (#280): exactly claude/tools/<name>.mjs, the name on PACT_TOOLS.
         const stem = seg.length === 3 && seg[2].endsWith('.mjs') ? seg[2].slice(0, -4) : null;
         if (seg.length !== 3) report.fail('tool-path', rel, null, 'a subfolder in claude/tools; a tool is claude/tools/<name>.mjs');
         else if (!PACT_TOOLS.some(c => c === stem)) report.fail('tool-file-name', rel, null, 'a file in claude/tools that is not a pact tool; the gate lists them');
-        else tools.push({ file: rel, stem, dest: `pact/tools/${seg[2]}` });
+        else tools.push({ file: rel, stem, dest: `.pact/tools/${seg[2]}` });
       } else if (seg[1] === 'hooks') {
         // A pact hook (#482): exactly claude/hooks/<name>.mjs, the name on PACT_HOOKS.
         const stem = seg.length === 3 && seg[2].endsWith('.mjs') ? seg[2].slice(0, -4) : null;
         if (seg.length !== 3) report.fail('hook-path', rel, null, 'a subfolder in claude/hooks; a hook is claude/hooks/<name>.mjs');
         else if (!PACT_HOOKS.some(c => c === stem)) report.fail('hook-file-name', rel, null, 'a file in claude/hooks that is not a pact hook; the gate lists them');
-        else hooks.push({ file: rel, stem, dest: `pact/hooks/${seg[2]}` });
+        else hooks.push({ file: rel, stem, dest: `.pact/hooks/${seg[2]}` });
       } else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       continue;
     }
@@ -607,7 +616,13 @@ function checkAgent(a, parsed, report) {
   else if (desc.kind === 'text' && desc.value.trim() === '') report.fail('description', a.file, desc.line, 'an empty description');
 }
 
-function run(root, listed, listedTools, compact, report) {
+/** Each install's destinations: a harness's part once per harness that takes it, the rest once, and nothing with no harness in. */
+function expand(installs, harnesses) {
+  if (!harnesses.length) return [];
+  return installs.flatMap(i => (i.part ? harnesses.filter(h => h.parts.includes(i.part)).map(h => ({ file: i.file, dest: `@${h.id}/${i.dest}` })) : [i]));
+}
+
+function run(root, listed, listedTools, compact, harnesses, report) {
   // @@TEST-CRASH-HOOK@@
   const settingsAllow = loadSettingsAllowlist(report);
   const { agents, commands, tools, hooks, installs, kit, overlay } = classify(root, report);
@@ -657,7 +672,7 @@ function run(root, listed, listedTools, compact, report) {
   // The copy set is printed only for a stage that passed, so nothing can be
   // read as approved for install from a failed run.
   if (report.failed) return;
-  const sorted = installs
+  const sorted = expand(installs, harnesses)
     .filter(i => safePath(i.file))
     .map(i => ({ ...i, hash: sha256(readFileSync(join(root, ...i.file.split('/')))) }))
     .sort((x, y) => (x.dest < y.dest ? -1 : x.dest > y.dest ? 1 : 0));
@@ -673,15 +688,15 @@ function run(root, listed, listedTools, compact, report) {
 /**
  * The command line: the stage root, then --commands and --tools, each exactly
  * once and in either order, each with none or names joined by commas, each
- * name once, and --compact on or off, once. Returns { root, commands, tools,
- * compact }, or undefined after recording
+ * name once, --compact on or off, once, and --harness, once. Returns { root,
+ * commands, tools, compact, harnesses }, or undefined after recording
  * every refusal. A name it prints is its list's own constant, never the
  * argument's text.
  */
 function parseArgs(argv, report) {
-  const usage = () => report.fail('usage', null, null, 'usage: node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...> --compact <on | off>');
+  const usage = () => report.fail('usage', null, null, 'usage: node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...> --compact <on | off> --harness <none | id:parts,...>');
   if (argv.length === 0 || argv[0] === '' || argv[0].startsWith('-')) return usage();
-  const given = { '--commands': [], '--tools': [], '--compact': [] };
+  const given = { '--commands': [], '--tools': [], '--compact': [], '--harness': [] };
   for (let i = 1; i < argv.length; i += 2) {
     if (!Object.hasOwn(given, argv[i])) return usage();
     given[argv[i]].push(argv[i + 1]);
@@ -704,8 +719,25 @@ function parseArgs(argv, report) {
   const compactValues = given['--compact'];
   if (compactValues.length !== 1) return report.fail('compact-arg', null, null, compactValues.length ? '--compact is given more than once' : 'no --compact: give on or off');
   if (compactValues[0] !== 'on' && compactValues[0] !== 'off') return report.fail('compact-arg', null, null, '--compact takes on or off');
+  const harnesses = harnessList(given['--harness']);
+  if (harnesses === null) return report.fail('harness-arg', null, null, '--harness takes, once, none or harness ids each once, each followed by a colon and none or its parts (rules, agents, commands) joined by plus signs');
   if (commands === undefined || tools === undefined) return undefined;
-  return { root: argv[0], commands, tools, compact: compactValues[0] === 'on' };
+  return { root: argv[0], commands, tools, compact: compactValues[0] === 'on', harnesses };
+}
+
+/** --harness's values as [{ id, parts }], or null when it is not in its form. */
+function harnessList(values) {
+  if (values.length !== 1 || typeof values[0] !== 'string') return null;
+  if (values[0] === 'none') return [];
+  const out = [];
+  for (const item of values[0].split(',')) {
+    const [id, parts, ...rest] = item.split(':');
+    if (rest.length || parts === undefined || !HARNESS_ID_RE.test(id) || out.some(h => h.id === id)) return null;
+    const list = parts === 'none' ? [] : parts.split('+');
+    if (list.some(p => !HARNESS_PARTS.includes(p)) || new Set(list).size !== list.length) return null;
+    out.push({ id, parts: list });
+  }
+  return out;
 }
 
 /**
@@ -716,7 +748,7 @@ export function check(argv) {
   const report = new Report();
   try {
     const args = parseArgs(argv, report);
-    if (args) run(args.root, args.commands, args.tools, args.compact, report);
+    if (args) run(args.root, args.commands, args.tools, args.compact, args.harnesses, report);
   } catch {
     // Never a pass, and never the error's text: it can quote a file.
     report.fail('internal', null, null, 'the check itself failed');

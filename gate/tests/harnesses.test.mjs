@@ -108,6 +108,19 @@ test('on Windows an own path is matched to the home folder without regard to cas
   assert.equal(byId(list, 'mine').detect, '.mine');
 });
 
+test('the configuration\'s harnesses key gives the install list and the own entries; none is no list', () => {
+  assert.deepEqual(h.configHarnesses(null), { install: null, own: [] });
+  assert.deepEqual(h.configHarnesses('{"schema": 1}'), { install: null, own: [] });
+  assert.deepEqual(h.configHarnesses(JSON.stringify({ harnesses: { own: [OWN] } })), { install: null, own: [{ ...OWN }] });
+  assert.deepEqual(h.configHarnesses('{"harnesses": {"install": []}}'), { install: [], own: [] });
+});
+
+test('bad case: a harnesses key of the wrong shape refuses', () => {
+  for (const bad of ['nope', '{"harnesses": []}', '{"harnesses": {"extra": 1}}', '{"harnesses": {"install": "claude"}}', '{"harnesses": {"install": ["claude", "claude"]}}', '{"harnesses": {"install": ["NO"]}}', '{"harnesses": {"own": {}}}']) {
+    assert.equal(rule(() => h.configHarnesses(bad)), 'harness-shape', bad);
+  }
+});
+
 // ------------------------------------------------------------ which harnesses the install takes
 
 const choose = ({ own = [], install = null, detected = [], recorded = [] } = {}) => h.chooseHarnesses({ harnesses: resolve(own), install, detected: new Set(detected), recorded });

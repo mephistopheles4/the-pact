@@ -10,14 +10,14 @@
 // script runs it through its Node runner, from the stage, only after every
 // check for that run has passed.
 //
-//   node review.mjs <review folder> <Claude home folder> <rendered rules file> <diff file>
+//   node review.mjs <review folder> <home folder> <rendered rules file> <diff file>
 //
 // The folder. Its path must be absolute. It is created if it does not exist
 // (its parent must), or else must be an empty folder that is not a link. Then
 // its final path, with links, short names and case resolved by the system
 // (realpath), is checked. It refuses a folder that is, or is under:
-//   - the Claude home folder named for the run, or the real default one
-//     (.claude in the user's home folder), by real path; or
+//   - the .claude or .pact folder of the home folder named for the run, or of
+//     the user's home folder, by real path; or
 //   - any folder named .claude, in any case, on the path as given or on its
 //     final path.
 // On any refusal after the folder exists, what this run wrote is taken away:
@@ -102,7 +102,7 @@ function writeNew(dir, name, bytes, made, report) {
 
 function run(argv, report) {
   if (argv.length !== 4 || argv.some(a => a === '' || a.startsWith('-'))) {
-    report.fail('usage', null, null, 'usage: node review.mjs <review folder> <Claude home folder> <rendered rules file> <diff file>');
+    report.fail('usage', null, null, 'usage: node review.mjs <review folder> <home folder> <rendered rules file> <diff file>');
     return;
   }
   const [folder, home, rulesFile, diffFile] = argv;
@@ -151,8 +151,9 @@ function run(argv, report) {
   // The .claude test runs on the path as given and on its final path, so a
   // .claude link that leads out to a folder of another name still refuses.
   if (segments(resolve(folder)).some(isClaudeSegment) || segments(real).some(isClaudeSegment)) return refuse('the review folder is in or under a folder named .claude');
-  // The Claude home named for the run, and the real default one, whatever was named.
-  if (within(real, realHome(home)) || within(real, realHome(join(homedir(), '.claude')))) return refuse('the review folder is in or under the Claude home folder');
+  // The Claude and pact folders of the home named for the run, and of the real one, whatever was named.
+  const kept = [home, homedir()].flatMap(h => ['.claude', '.pact'].map(f => realHome(join(h, f))));
+  if (kept.some(k => within(real, k))) return refuse('the review folder is in or under a Claude or pact folder of a home folder');
 
   // A refusal from here on takes away what this run wrote: its own files, by
   // name (unlinking never follows a link), and the folder if it created it.

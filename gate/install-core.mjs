@@ -1473,6 +1473,46 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
   return { add, drop: [], record: [...new Set([...ours, ...add])] };
 }
 
+// ------------------------------------------------------------ the settings entries the record keeps (spec 0007 S9)
+
+/**
+ * Every settings entry this install wrote into `path`, for the record: each
+ * permission rule it added, each env key it set, the window, and each of the
+ * overlay's hooks, each with its value and the value's hash. An entry the
+ * merged settings don't hold (a hook event that isn't a list) is left out.
+ */
+export function settingsEntries({ harness, path, merged, deny, ask, identityEnv, window, hooks, hash }) {
+  const out = [];
+  const add = (key, value) => out.push({ harness, path, key, value: toJsonValue(value), sha256: hash(Buffer.from(canonical(value), 'utf8')) });
+  for (const rule of deny) add('permissions.deny', rule);
+  for (const rule of ask) add('permissions.ask', rule);
+  for (const [k, v] of Object.entries(identityEnv)) add(`env.${k}`, v);
+  if (window > 0) {
+    add('autoCompactWindow', new Num(String(window)));
+    for (const [event, groups] of hooks ?? []) for (const g of groups) for (const h of innerHooks(g)) add(`hooks.${event}`, h);
+  }
+  return out.filter(e => !entryDrift([e], merged).length);
+}
+
+/** Each recorded entry the live settings no longer hold as recorded, as a drift line naming the file and the key only. */
+export function entryDrift(entries, live) {
+  const out = [];
+  const permissions = isMap(live.get('permissions')) ? live.get('permissions') : new Map();
+  const env = isMap(live.get('env')) ? live.get('env') : new Map();
+  const hooks = isMap(live.get('hooks')) ? live.get('hooks') : new Map();
+  for (const e of entries) {
+    const want = canonical(toMaps(e.value));
+    const [top, name = ''] = e.key.split('.');
+    let held;
+    if (top === 'permissions') held = listOf(permissions.get(name)).some(r => canonical(r) === want);
+    else if (top === 'env') held = env.has(name) && canonical(env.get(name)) === want;
+    else if (top === 'hooks') held = listOf(hooks.get(name)).some(g => innerHooks(g).some(h => canonical(h) === want));
+    else held = live.has(e.key) && canonical(live.get(e.key)) === want;
+    if (!held) out.push(`${e.path} ${formatPlain(e.key)} (the pact's entry changed since the install)`);
+  }
+  return out;
+}
+
 // ------------------------------------------------------------ the agent-identity switch (#603, S7)
 
 /** The two env keys the switch owns in settings.json: the install sets them while it is on, records them under identityEnv, and removes only a key whose live value is the recorded one. */

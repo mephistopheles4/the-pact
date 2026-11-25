@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { chmodSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import * as core from './install-core.mjs';
-import { FOLD_CASE } from './paths.mjs';
+import { FOLD_CASE, realOrResolved } from './paths.mjs';
 
 export const sha256 = b => createHash('sha256').update(b).digest('hex');
 export const blobId = b => createHash('sha1').update(`blob ${b.length}\0`).update(b).digest('hex');
@@ -82,6 +82,37 @@ function throughLinkWith(ops, root, rel) {
     }
   }
   return false;
+}
+
+/**
+ * The link test for a path under the home folder (spec 0007 S4, S9): a
+ * harness's top folder may itself be a link, as a person's ~/.claude may be,
+ * and is taken at its real path; the neutral home may not be one.
+ */
+export const throughHomeLink = (home, rel, ops = FS_OPS) => {
+  const [top, ...rest] = rel.split('/');
+  if (!rest.length || top.toLowerCase() === core.NEUTRAL_REL) return throughLinkWith(ops, home, rel);
+  return throughLinkWith(ops, join(home, top), rest.join('/'));
+};
+
+/** Whether `p`, or a folder that holds it, holds a .git entry: it is inside a git work tree. */
+export function insideWorkTree(p) {
+  let dir = realOrResolved(p);
+  for (;;) {
+    if (present(join(dir, '.git'))) return true;
+    const up = dirname(dir);
+    if (up === dir) return false;
+    dir = up;
+  }
+}
+
+/** Whether `p` is a folder, or a link to one. */
+export function isFolder(p) {
+  try {
+    return statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 /** A live path's state, as the plan reads it: whether anything is there, whether it is a file, and its hash. */
@@ -271,7 +302,7 @@ function removeTree(ops, home, rel, last) {
 export function takeBackup(ops, { home, commit, entries, platform, now, started }) {
   const unix = platform !== 'win32';
   const at = rel => join(home, ...rel.split('/'));
-  const link = rel => throughLinkWith(ops, home, rel);
+  const link = rel => throughHomeLink(home, rel, ops);
   const B = core.BACKUPS_REL;
   if (notPlainFolder(ops, home)) core.backupStops.link(B);
   const left = namesIn(ops, at(B)).filter(n => n.startsWith('.staging-'));
@@ -285,10 +316,10 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
   started();
   const stagingRel = `${B}/.staging-${name}`;
   const staging = at(stagingRel);
-  const made = []; // the home folder, pact and pact/backups, each only when this run made it
+  const made = []; // the home folder, .pact and .pact/backups, each only when this run made it
   let stagingMade = false;
   try {
-    for (const p of [home, at('pact'), at(B)]) {
+    for (const p of [home, at(core.NEUTRAL_REL), at(B)]) {
       if (presentWith(ops, p)) continue;
       ops.mkdir(p, 0o700);
       made.push(p);
@@ -303,7 +334,7 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
     const listed = [];
     for (const e of [...entries].sort((a, b) => (a.path < b.path ? -1 : 1))) {
       if (e.was !== 'file') {
-        listed.push({ path: e.path, was: 'absent' });
+        listed.push({ path: e.path, harness: e.harness, was: 'absent' });
         continue;
       }
       const bytes = ops.read(at(e.path));
@@ -319,7 +350,7 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
       writeNew(ops, dest, bytes);
       written.push(dest);
       if (sha256(ops.read(dest)) !== e.sha256) core.backupStops.failed();
-      listed.push({ path: e.path, was: 'file', sha256: e.sha256, bytes: bytes.length });
+      listed.push({ path: e.path, harness: e.harness, was: 'file', sha256: e.sha256, bytes: bytes.length });
     }
     const manifest = join(staging, 'manifest.json');
     writeNew(ops, manifest, Buffer.from(core.manifestText({ commit, created: date.toISOString(), entries: listed })));
@@ -343,7 +374,7 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
 }
 
 /**
- * Whether pact/backups is anything but a plain folder or absent: a link, a
+ * Whether .pact/backups is anything but a plain folder or absent: a link, a
  * reparse point, a file (#272, S7). The backup refuses then, and the dry run
  * and the prune leave it alone.
  */
@@ -373,7 +404,7 @@ function candidateIn(ops, home, name) {
 }
 
 /**
- * What pact/backups holds (S8, S9): `link`, true for anything but a plain folder or nothing (a file included), the staging folders
+ * What .pact/backups holds (S8, S9): `link`, true for anything but a plain folder or nothing (a file included), the staging folders
  * an earlier apply left, the candidates the prune may act on, and how many
  * other entries it leaves alone.
  */

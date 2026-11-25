@@ -8,8 +8,8 @@
 // runs it through its Node runner, from the stage, with the stage as its
 // working folder: never the project folder.
 //
-//   node project.mjs check <project folder> <Claude home folder>
-//   node project.mjs write <project folder> <Claude home folder> <rendered file> <sha256>
+//   node project.mjs check <project folder> <home folder>
+//   node project.mjs write <project folder> <home folder> <rendered file> <sha256>
 //
 // What a project install writes: one pact-owned rules file, RULES_NAME, in the
 // project's .claude/rules folder, and a record beside it, RECORD_NAME, under a
@@ -129,14 +129,15 @@ function inspect(given, home) {
     const sys = userInfo().homedir;
     if (typeof sys === 'string' && sys !== '') homes.unshift(sys);
   } catch {}
-  const named = realOrResolved(home);
-  for (const h of homes) {
-    const realHome = realOrResolved(h);
-    const realClaude = realOrResolved(join(h, '.claude'));
-    if (within(realHome, root)) refuse('project-home', 'the project folder is your home folder, or holds it');
-    if (within(realClaude, root) || within(root, realClaude)) refuse('project-home', 'the project folder is the Claude folder in your home folder, holds it, or is inside it');
+  // Your own home folders, then the one named for this install: a project may
+  // sit inside a home, but never hold it, nor overlap its Claude or pact folder.
+  for (const [h, whose] of [...homes.map(h => [h, 'your home folder']), [home, 'the home folder named for this install']]) {
+    if (within(realOrResolved(h), root)) refuse('project-home', `the project folder is ${whose}, or holds it`);
+    for (const [folder, what] of [['.claude', 'Claude'], ['.pact', 'pact']]) {
+      const kept = realOrResolved(join(h, folder));
+      if (within(kept, root) || within(root, kept)) refuse('project-home', `the project folder is the ${what} folder in ${whose}, holds it, or is inside it`);
+    }
   }
-  if (within(named, root) || within(root, named)) refuse('project-home', 'the project folder is the Claude home folder named for this install, holds it, or is inside it');
 
   const claudeDir = join(root, '.claude');
   if (!plainFolder(claudeDir, "the project's .claude folder")) refuse('project-none', 'there is no project configuration: the project folder has no .claude folder');
@@ -214,7 +215,7 @@ function write(args, report) {
 }
 
 function run(argv, report) {
-  const usage = 'usage: node project.mjs check <project folder> <Claude home folder>, or node project.mjs write <project folder> <Claude home folder> <rendered file> <sha256>';
+  const usage = 'usage: node project.mjs check <project folder> <home folder>, or node project.mjs write <project folder> <home folder> <rendered file> <sha256>';
   if (argv.some(a => a === '' || a.startsWith('-'))) return report.fail('usage', null, null, usage);
   try {
     if (argv[0] === 'check' && argv.length === 3) {
