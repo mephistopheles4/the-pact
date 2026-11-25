@@ -13,7 +13,7 @@ Only `clef setup --yes` fetches anything, and only these, each checked by size a
 
 Plan for about **7.6 GB** of free disk on the drive that holds your Claude home folder: setup refuses when the model, the archive, the unpacked files and a 10% margin do not fit. Downloads redirect only to a fixed list of hosts, over `https:` only. Everything lands in the clef folder, `<Claude home>/pact-clef/`, which no install writes or deletes.
 
-RAM and VRAM, measured on the owner's Windows machine (Vulkan, a discrete GPU with 32 GB, Q4_K_M, `-c 65536 -ub 8192`): the server's peak working set was about **7.0 GB** of RAM, and the GPU's memory use rose by about **8.0 GB** at load and **8.1 GB** after a 4,700-token prompt. CPU and Metal are not measured. A cold start (nothing running to ready) took about 5 seconds with the model in the file cache; a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
+RAM and VRAM, measured on the owner's Windows machine (Vulkan, a discrete GPU with 32 GB, Q4_K_M, `-c 65536 -ub 8192 -b 8192`): the server's peak working set was about **7.0 GiB** of RAM, and the GPU's memory use rose by about **7.8 GiB** at load and **7.9 GiB** after a 4,766-token prompt. That is about 1.1 GiB more GPU memory than the earlier `-c 16384 -ub 4096 -b 4096`, measured the same way. CPU and Metal are not measured under these arguments. A warm answer to a 4,766-token state took 527 to 645 ms. With the earlier arguments and a small state, a cold start (nothing running to ready) took about 5 seconds with the model in the file cache, and a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
 
 ## Commands
 
@@ -65,12 +65,12 @@ The supervisor stops itself after 30 minutes with no forwarded request, when the
 - **A pin bump.** After an install that changes the pin table, `ensure` reports `not-set-up` with `pin-changed` (and `status` shows the old tag) until you run `clef stop` and then `clef setup --yes`. Setup refuses `clef-running` while a supervisor lives.
 - **`CLAUDE_CONFIG_DIR`.** A value you set is accepted only as an absolute path, and the tool refuses it (`clef-home`) when the command starts from a folder that contains that Claude home folder, because a cloned project's settings can set that variable. Start from beside your Claude home folder, or from a subfolder of it other than `pact-clef/`, instead.
 - **Linux.** Setup refuses a machine without `/usr/bin/setpriv` (`clef-setpriv`); it keeps the server from outliving the supervisor.
-- **Prompt size.** The server takes a prompt of up to 8,192 tokens, its batch size: the state and the questions together. A longer one gets `502 {"error":"no-answer"}`. Four requests share the 65,536-token context.
+- **Prompt size.** The server takes a prompt of up to 8,192 tokens, its batch size, counting the state, the questions and the model's own template. As a rough guide, 18,702 characters of English state came to 4,766 tokens, so keep a state under about 30,000 characters. A longer prompt gets `502 {"error":"no-answer"}`, and a body over 256 KB gets `413` first.
 - **Logs.** `serve.log` in the clef folder holds counts, timings and reason words only, capped at 1 MB.
 
 ## macOS
 
-- **What it needs.** An Apple Silicon Mac on macOS 13.3 or later (the build's floor), with an arm64 Node 24. Expect 16 GB of memory to be the floor. Setup picks Metal, and `--cpu` picks CPU. Intel Macs, and an x64 node under Rosetta, are refused with `clef-platform`.
+- **What it needs.** An Apple Silicon Mac on macOS 13.3 or later (the build's floor), with an arm64 Node 24. Expect 16 GB of memory to be the floor; that was set under the earlier `-c 16384 -ub 4096`, and the current arguments are unmeasured on a Mac. Setup picks Metal, and `--cpu` picks CPU. Intel Macs, and an x64 node under Rosetta, are refused with `clef-platform`.
 - **Quarantine.** The tool's own downloads carry no quarantine mark. If macOS still blocks `llama-server` at start ("cannot be opened" or "not verified"), run `clef verify` first. Once it passes, run `xattr -dr com.apple.quarantine <clef folder>/runtime`.
 - **The files.** `run.key`, `run.json` and `run.server` are mode 0600. An access list the folder inherits can still grant another account access: `ls -le` shows one, as [install.md](install.md) says for backups.
 - **The keeper.** macOS has no way to end a child when its parent dies. So the supervisor starts a small keeper (`clef keep`, the same script, reached over a channel only the supervisor holds), and the keeper starts the server. When the supervisor dies, the channel closes and the keeper ends the server. `clef keep` run by hand refuses `clef-keep`.

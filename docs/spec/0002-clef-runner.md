@@ -374,7 +374,8 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   server starts on another OS-picked loopback port with `--host 127.0.0.1`,
   `--api-key-file <clef folder>/run.key` (mode 0600 on Linux and macOS, removed at
   stop), `--no-webui`, `--no-slots`, `-ngl 99` on Vulkan, and
-  `-c 65536 -ub 8192 -b 8192`. The argument list is fixed in the tool; no
+  `-c 65536 -ub 8192 -b 8192`; a prompt must fit one physical batch (`-ub`),
+  or b12211 refuses it. The argument list is fixed in the tool; no
   part comes from a caller. The key never appears on a command line.
 - **Its output.** The server's stdout and stderr are read only to count lines
   and to find the ready line; their text is discarded. No verbose flag is
