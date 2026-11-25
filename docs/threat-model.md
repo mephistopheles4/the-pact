@@ -197,7 +197,7 @@ can pass what it read to, or write tasks for, the owner's other sessions and
 the shared task list; a product's leaked secret is no security finding by
 itself; a Codex lens is read-only by instruction alone, keeps the shell and the
 parent's sandbox, approvals and MCP servers (which run outside the sandbox),
-so it can write or send within that sandbox and read what the owner's account
+so it can write or send through them and read what the owner's account
 can, keys and tokens included, its agent file turning off only apps, plugins,
 memories and the permission-request tool; `review.md`'s tree check sees changes to the work tree, refs and git's own folders, not
 a write elsewhere or inside an ignored folder too big to hash, a read or a send.
@@ -313,4 +313,4 @@ Each "Also accepted" line above details what the class it names covers; it is no
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, scope change and narrower poster cover; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, scope change, narrower poster cover and tag actor; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).

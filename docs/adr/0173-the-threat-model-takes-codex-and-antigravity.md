@@ -5,7 +5,7 @@ PACT-105 T8 ([spec 0007](../spec/0007-harness-agnostic-pact.md), S15, C27). The 
 - **Boundaries.** The bootstrap, its clone, the guard hook and the release job's tag token under "Code that runs"; `~/.pact` and the harness folders under "Merges and installs"; what Codex and Antigravity sessions send to OpenAI and Google under "What leaves the machine".
 - **Controls,** each with when it doesn't hold: both harnesses' sandbox and permission settings, the guard hook, the tag ruleset, the release job's conditions and the bootstrap's checks.
 - **Scope.** Codex with OpenAI's models and servers, and Antigravity with Google's, are out of scope, as Claude Code with Anthropic's are.
-- **Classes.** "What you install and CI run" takes the bootstrap and the tag token. "Review rests on rules" takes a Codex lens that is read-only by instruction alone. "A session takes checkpoints alone" takes an Antigravity session that starts an owner-typed command itself.
+- **Classes.** "What you install and CI run" takes the bootstrap and the tag token, named in its class line. A Codex lens that is read-only by instruction alone sits in the "Also accepted" line of "Review rests on rules", and an Antigravity session that starts an owner-typed command itself in that of "A session takes checkpoints alone". Those lines are part of their classes, whose class lines don't change.
 - **A narrower control.** The poster may see fewer secrets under Codex.
 - **The word cap** rises from 3,050 to 3,600 (`gate/tests/threat-model-cap.test.mjs`), for this repo's threat model. This amends the 3,000 of [ADR 0154](0154-threat-models-are-boundaries-first-and-capped.md), which [spec 0003](../spec/0003-clef-macos.md) had raised to 3,050.
 
