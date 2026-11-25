@@ -121,9 +121,10 @@ copies are gone (S18, C26).
 
 **The session's picks from the fact check, flagged, before the lead:**
 
-30. `make-it-so` ports only where a skill can be kept from the model's own
-    invocation (Codex); `finis` stays Claude Code's; `scry` and
-    `scriptorium` port everywhere (S7).
+30. Replaced by the owner's words, relayed by the lead (its decision 53):
+    "i dont think making expections like this for other harnesses is gonna
+    be easy to manage, i think scriptorium should be universal". So every
+    command ships to every harness as one universal set (S7).
 31. Codex lenses keep the shell and are read-only by instruction, with a
     tree check before and after each one (S12). A new residual for the owner
     (S15).
@@ -303,23 +304,24 @@ its name in V1), rendered once per harness:
   `WARN`, since a wrong name can hang a subagent. T5 fills the table from
   Antigravity's docs and checks it in a probe session (T5's record).
 
-**Commands as skills.** A pact command stands for an answer the owner types.
-A skill the model can start on its own could stand in for that answer, so:
+**Commands as skills.** The four commands are one universal set: every
+harness gets all four, with no per-harness exceptions (the owner's words,
+S2 item 30).
 
-- `make-it-so` and `finis` port only to a harness with `explicit-skills`.
-  In Codex each skill folder gets `agents/openai.yaml` with
-  `policy.allow_implicit_invocation: false`, so it runs only when typed as
-  `$make-it-so`. `finis` archives a Claude Code session, so it stays Claude
-  Code's in V1.
-- `scry` and `scriptorium` port to every harness with `skills`; the model
-  starting either one answers a question or builds a page, and decides
-  nothing.
-- Antigravity has no way to keep a skill from the model, so it gets `scry`
-  and `scriptorium` only. The dry run names each command left out of a
-  harness, and why.
-- A skill is the command's body as `SKILL.md`, with `name` and
-  `description` frontmatter and its paths on `~/.pact`. Claude Code keeps
-  the commands as commands.
+- Claude Code keeps them as commands, as today. Every other harness with
+  `skills` gets each as a skill: the command's body as `SKILL.md`, with
+  `name` and `description` frontmatter and its paths on `~/.pact`.
+- A pact command stands for an answer the owner types, so each skill is
+  kept from the model's own invocation wherever the harness allows it
+  (`explicit-skills`). In Codex each skill folder gets `agents/openai.yaml`
+  with `policy.allow_implicit_invocation: false`, so it runs only when typed
+  as `$make-it-so`. This is the same command everywhere, not an exception.
+- Antigravity can't keep a skill from the model, so there the model may
+  start `make-it-so` or `finis` itself. That is a residual for the owner
+  (S15).
+- `finis` archives a Claude Code session. Where the harness can't archive one,
+  it does the same check for outstanding work and then says: "Nothing is
+  outstanding; close this session." It archives nothing.
 
 **Links.** A skill folder is linked from the harness's skills folder to
 `~/.pact/skills/<n>`: a symlink, or on Windows a directory junction, which
@@ -544,8 +546,13 @@ The old backups stay where they are, as the owner's.
   check (S12) catches a write to the tree, not one outside it or a send.
   This widens "Review rests on rules": pending the owner's own word, and T8
   makes no edit for it before then.
-- **Antigravity skills** can't be kept from the model, which is why the
-  owner's answer commands don't go there (S7).
+- **Antigravity skills can't be kept from the model.** A session there may
+  start `make-it-so` on its own and take every recommendation in its last
+  message as if the owner had accepted them, or start `finis` and end the
+  work, saying nothing is outstanding. What it exposes: the owner's typed
+  answer stops being a sure sign the owner gave it, in that harness only.
+  It fits "A session takes checkpoints alone" only if that class widens to
+  name it, which is the owner's call (T8, pending).
 - **Guards are speed bumps,** as the deny rules are today: another spelling
   gets past them.
 
@@ -602,10 +609,10 @@ stay within its word budget.
   capability.
 - **C8** A configuration that names a model gets the dry run's warning in
   each harness but Claude Code.
-- **C9** `make-it-so` is installed only where `explicit-skills` holds, and in
-  Codex with `allow_implicit_invocation: false`; `finis` only in Claude Code;
-  `scry` and `scriptorium` wherever `skills` is set. The dry run names each
-  command left out.
+- **C9** All four commands reach every harness: as commands in Claude Code,
+  as skills wherever `skills` is set. In Codex each skill carries
+  `allow_implicit_invocation: false`. `finis` in a harness that can't
+  archive ends with S7's line and archives nothing.
 - **C10** `review.md` holds S12's tree check.
 
 **The guard**
@@ -705,7 +712,7 @@ reads this spec and each ticket's diff.
 | What | Kind | When |
 | --- | --- | --- |
 | The older Codex mirror ticket's state | the owner's call | any time |
-| Widening a threat-model class | the owner's call | at T8's merge |
+| Widening a threat-model class: Codex lenses (S12) and Antigravity skills (S15) | the owner's call | at T8's merge |
 | The tag ruleset on GitHub | the owner's own act | before T6 merges |
 | S14's one-time removal | the owner's own machine | before T9's apply |
 | Each install apply | the owner's typed command | in T9 |
