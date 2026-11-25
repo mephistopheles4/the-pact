@@ -95,7 +95,15 @@ function baseRoot(t, plant = () => {}) {
 
 // The no-configuration render, computed apart from the renderer, and the
 // committed outputs.
-const RENDER = withoutOpenMarks(repoText('claude/CLAUDE.md'));
+// What Claude Code receives (spec 0007 S7, S13): the models line, no capability
+// mark, and each agent's role written as Claude Code's own model.
+const forClaude = text => text
+  .replace('<!-- pact:if cleaner -->\n<!-- pact:end -->\n', '')
+  .replace(/<!-- pact:unless subagents -->\n[\s\S]*?<!-- pact:end -->\n/, '')
+  .replace('<!-- pact:models -->\n', '\nHere the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.\n')
+  .replace(/^model: planning$/m, 'model: opus')
+  .replace(/^model: light$/m, 'model: haiku');
+const RENDER = forClaude(withoutOpenMarks(repoText('claude/CLAUDE.md')));
 const committed = () => Object.fromEntries(Object.values(OUTPUTS).map(rel => [rel, repoText(rel)]));
 
 let generated = null;
@@ -469,7 +477,7 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {
-    assert.equal(body, repoText(source(dest)), dest);
+    assert.equal(body, dest.startsWith('agents/') ? forClaude(repoText(source(dest))) : repoText(source(dest)), dest);
     assert.match(setup, new RegExp(`^check_hash ${sha256(body)} '${dest.replace(/[.]/g, '\\.')}'$`, 'm'), dest);
   }
   assert.match(setup, new RegExp(`^EXPECTED_WRITES=${blocks.length + 1}$`, 'm'));

@@ -605,15 +605,16 @@ Here the planning model is `opus`, the executor model `sonnet` and the light mod
 
 Sensitive work gets more checking when I choose it. By default, sensitive
 work is auth, crypto, input validation and data migrations: thorough, planned
-and built on the planning model at high, with the security pair, `adversarial-lens` and
-`data-lens`, on the spec and the diff. That is the sensitive route. When the
-work matches that list, or you think it sensitive otherwise, say why in one
-line in your tier proposal and recommend the route; I take it or not. If I
-didn't take the route, offer the security pair once more at Test when the
-change matches the list. Beyond that one offer, sensitivity doesn't stop the
-run. A flag or an offer I haven't answered stays open, in one line, in every
-hand-off and in the result. If you find it later, say so in one line at the
-next hand-off or result, and keep saying it until I answer.
+and built on the planning model at high, with the security pair,
+`adversarial-lens` and `data-lens`, on the spec and the diff. That is the
+sensitive route. When the work matches that list, or you think it sensitive
+otherwise, say why in one line in your tier proposal and recommend the route;
+I take it or not. If I didn't take the route, offer the security pair once
+more at Test when the change matches the list. Beyond that one offer,
+sensitivity doesn't stop the run. A flag or an offer I haven't answered stays
+open, in one line, in every hand-off and in the result. If you find it later,
+say so in one line at the next hand-off or result, and keep saying it until I
+answer.
 
 Your effort is the one set at the start: take it as given, never judge it
 or stop the work over it.
@@ -1154,6 +1155,25 @@ lenses to offer, and when.
   teammate, so it gets no messaging or task tool beyond its own tool list.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
+- **The tree check,** where the harness can't hold an agent to its tools (Codex
+  today), around each lens. Before it:
+  - find git's real folders through git (`rev-parse --git-common-dir`, and
+    `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since in
+    a linked worktree `.git` is a file;
+  - copy those outside the work tree, readable only by the owner;
+  - record `HEAD`, a hash of every ref and of the stash list, and
+    `status --porcelain --ignored=matching --untracked-files=all`, with a hash
+    of each listed path's content. Run git with fsmonitor and every filter off:
+    `-c core.fsmonitor=false`, and each filter's `clean` and `process` empty
+    and `required` false.
+
+  After it, first compare git's folders with the copies and put them back, then
+  take the same records again. Any change marks the lens inconclusive. Put
+  back only what changed during the lens: a moved ref goes back to its earlier
+  value first; then a path clean before is restored from the earlier `HEAD`, or
+  deleted if it is new. A path already changed before the lens stays as it is,
+  and you name it, so my own work is never thrown away. Delete the copies. The
+  change and the restore are a checkpoint, flagged.
 
 ## The report template
 
@@ -1617,7 +1637,7 @@ check_hash() {
     echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash c7f6f500451a4119d480f6ea3bcc80b5ca8f836160f2f849024bff3716b0ad72 'CLAUDE.md'
+check_hash c8999d3a226f1405d0db1c0a22f20c7376653a317269f0de0de8512093968823 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1629,7 +1649,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash f5dbcc54ead5b09a905f493f6e7a370e06d6aa3b835843a18a6c45ed270ef7b7 '.pact/review.md'
+check_hash d2cd8df5b6a5b5bfd9e9e0b9bc0e0eca9eb068a4bcf76762b9955c1f7d34bd49 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1659,7 +1679,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy fcaa67407599"
+  echo "pact cloud copy 0a8caa42c5bc"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

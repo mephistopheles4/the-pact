@@ -6,22 +6,22 @@
       "id": "quick",
       "name": "Quick",
       "fits": "Small, one session, no plan needed",
-      "plan": "Opus, low",
-      "build": "Sonnet, medium"
+      "plan": "planning model, low",
+      "build": "executor model, medium"
     },
     {
       "id": "standard",
       "name": "Standard",
       "fits": "Needs a short spec",
-      "plan": "Opus, medium",
-      "build": "Sonnet, high"
+      "plan": "planning model, medium",
+      "build": "executor model, high"
     },
     {
       "id": "thorough",
       "name": "Thorough",
       "fits": "Too big for one session, or risky; cut into tickets, each its own session",
-      "plan": "Opus, high",
-      "build": "Sonnet, high"
+      "plan": "planning model, high",
+      "build": "executor model, high"
     }
   ],
   "sensitive": {
@@ -31,8 +31,8 @@
       "data migrations"
     ],
     "tier": "thorough",
-    "plan": "Opus, high",
-    "build": "Sonnet, high"
+    "plan": "planning model, high",
+    "build": "executor model, high"
   },
   "workflowGraph": {
     "stages": [

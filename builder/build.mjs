@@ -254,8 +254,8 @@ function templateLines(renderSrc, re, name) {
 /**
  * The rules file as the page shows it: the source without its mark comments.
  * A configurable part keeps its source text between two labels, and a rule
- * that renders only when something is on stands at its place under a label
- * saying what.
+ * that renders only when something is on, or only in some harnesses (spec 0007
+ * S7), stands at its place under a label saying what.
  */
 function rulesText(src, renderSrc) {
   const toolLines = mark => templateLines(renderSrc, new RegExp(`mark: '${mark}',\\s*template: Object\\.freeze\\(\\[([\\s\\S]*?)\\]\\)`), mark);
@@ -267,6 +267,10 @@ function rulesText(src, renderSrc) {
   };
   for (const m of PART_MARKS) before[m] = [m === 'workflow' ? '[Editable on the canvas, apart from its fixed sentences. The page starts from the default configuration, which adds a Skills column:]' : '[Editable on this page, apart from its fixed sentences:]'];
   return src.split('\n').flatMap(line => {
+    const harness = /^<!-- pact:(if|unless) ([a-z-]+) -->$/.exec(line.trim());
+    if (harness) return [`[Only in a harness ${harness[1] === 'if' ? 'with' : 'without'} the ${harness[2]} capability:]`];
+    if (line.trim() === '<!-- pact:end -->') return ['[End of that part.]'];
+    if (line.trim() === '<!-- pact:models -->') return ["[Each harness's own models are named here.]"];
     const m = MARK_RE.exec(line);
     if (!m) return [line];
     if (m[2] === 'begin') return before[m[3]] ?? [];

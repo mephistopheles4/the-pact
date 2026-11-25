@@ -31,6 +31,25 @@ lenses to offer, and when.
   teammate, so it gets no messaging or task tool beyond its own tool list.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
+- **The tree check,** where the harness can't hold an agent to its tools (Codex
+  today), around each lens. Before it:
+  - find git's real folders through git (`rev-parse --git-common-dir`, and
+    `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since in
+    a linked worktree `.git` is a file;
+  - copy those outside the work tree, readable only by the owner;
+  - record `HEAD`, a hash of every ref and of the stash list, and
+    `status --porcelain --ignored=matching --untracked-files=all`, with a hash
+    of each listed path's content. Run git with fsmonitor and every filter off:
+    `-c core.fsmonitor=false`, and each filter's `clean` and `process` empty
+    and `required` false.
+
+  After it, first compare git's folders with the copies and put them back, then
+  take the same records again. Any change marks the lens inconclusive. Put
+  back only what changed during the lens: a moved ref goes back to its earlier
+  value first; then a path clean before is restored from the earlier `HEAD`, or
+  deleted if it is new. A path already changed before the lens stays as it is,
+  and you name it, so my own work is never thrown away. Delete the copies. The
+  change and the restore are a checkpoint, flagged.
 
 ## The report template
 
