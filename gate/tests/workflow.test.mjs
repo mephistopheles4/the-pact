@@ -38,7 +38,9 @@ function commonProblems(src) {
   if (/pull_request_target|workflow_run/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
   const perms = /^permissions:\n((?:[ \t]+.+\n)+)/m.exec(`${code}\n`);
   if (!perms || perms[1].trim() !== 'contents: read' || (code.match(/^\s*permissions:/gm) ?? []).length !== 1) out.push('asks for more than read access to the contents');
-  if (/\bsecrets\.|\$\{\{\s*github\.token|GITHUB_TOKEN/.test(code)) out.push('reads a secret or the token');
+  // Spec 0007 S10: any form of a secret read, in any case, and no environment, which could hold the release app's key.
+  if (/\bsecrets\b|\$\{\{\s*github\.token|GITHUB_TOKEN/i.test(code)) out.push('reads a secret or the token');
+  if (/(?:^\s*(?:- )?|[{,]\s*)['"]?environment['"]?\s*:/m.test(code)) out.push('names a deployment environment');
   for (const m of code.matchAll(/uses:\s*(\S+)/g)) if (!/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/.test(m[1])) out.push(`uses ${m[1]}, not pinned to a full commit SHA`);
   // #351: every checkout step, not only the first.
   const checkouts = [...`${code}\n`.matchAll(/uses: actions\/checkout@[0-9a-f]{40}[^\n]*\n((?: {8,}.+\n)*)/g)];
@@ -716,6 +718,12 @@ for (const [label, plant, says] of [
 
 const OTHER = "name: other\non:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  lint:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo ok\n";
 for (const [label, other, says] of [
+  // PACT-105 C23: no other workflow reaches the release app's key.
+  ['names the release environment', OTHER.replace('    steps:', '    environment: release\n    steps:'), 'other.yml names a deployment environment'],
+  ['names an environment in a flow mapping', OTHER.replace('    runs-on: ubuntu-24.04', '    runs-on: ubuntu-24.04\n    x: {"environment": release}'), 'other.yml names a deployment environment'],
+  ['reads a secret in bracket form', OTHER.replace('echo ok', "echo ${{ secrets['X'] }}"), 'other.yml reads a secret or the token'],
+  ['reads a secret in capitals', OTHER.replace('echo ok', 'echo ${{ SECRETS.X }}'), 'other.yml reads a secret or the token'],
+  ['passes every secret on', OTHER.replace('    steps:', '    secrets: inherit\n    steps:'), 'other.yml reads a secret or the token'],
   ['asks for write access', OTHER.replace('contents: read', 'contents: write'), 'other.yml asks for more than read access to the contents'],
   ['runs on pull_request_target', OTHER.replace('  pull_request:', '  pull_request_target:'), 'other.yml runs on a trigger that holds secrets or a write token'],
   ['defines a job named gate', OTHER.replace('  lint:', '  gate:'), 'other.yml defines a job or check named gate'],

@@ -930,7 +930,8 @@ model must stay within its word budget.
   an app token asked for `contents: write` alone, SHA-pinned actions, no
   checkout, the `workflow_run` trigger on `gate`, and each of S10's `if`
   conditions; a bad case for each fails it, and so do a missing `release`
-  concurrency group and a second workflow file that uses `workflow_run`.
+  concurrency group, a second workflow file that uses `workflow_run`, and
+  another workflow that reads a secret or names an environment.
 - **C28** With no terminal and neither flag, the bootstrap refuses
   (`bootstrap-choice`); `--default` never overwrites an existing
   configuration; the bootstrap keeps three clones.
