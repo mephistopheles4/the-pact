@@ -26,7 +26,7 @@ const under = (inner, outer) => {
   return b.length <= a.length && b.every((s, i) => s === a[i]);
 };
 
-/** A throwaway <tmp>/home holding the Claude home folder .claude. */
+/** A throwaway <tmp>/home, a home folder holding .claude. */
 function layout(t) {
   const root = tempDir(t, 'pact-proj-');
   const homeDir = join(root, 'home');

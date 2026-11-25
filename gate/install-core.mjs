@@ -358,6 +358,8 @@ const psString = v => (v === null || v === undefined ? '' : typeof v === 'boolea
 
 const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const TARGET_KEYS = Object.freeze(['rules', 'agents', 'commands', 'settings']);
+/** A record's target, held to what a description's path may be: plain, outside the neutral home and every secret store, a rules file .md and a settings file .json. */
+const targetOk = (kind, v) => typeof v === 'string' && isCanonical(v) && v.split('/')[0].toLowerCase() !== NEUTRAL_REL && !isSecretStore(v) && (kind !== 'rules' || /\.md$/i.test(v)) && (kind !== 'settings' || /\.json$/i.test(v));
 
 /**
  * The install record (.pact/install.json), or null when there is none. It must
@@ -391,7 +393,7 @@ export function parseRecord(text) {
   if (!Array.isArray(harnesses)) badHarness();
   for (const h of harnesses) {
     if (!isPlainObject(h) || typeof h.id !== 'string' || !HARNESS_ID_RE.test(h.id) || h.id === PACT_ID) badHarness();
-    for (const [k, v] of Object.entries(h)) if (k !== 'id' && !(TARGET_KEYS.includes(k) && typeof v === 'string')) badHarness();
+    for (const [k, v] of Object.entries(h)) if (k !== 'id' && !(TARGET_KEYS.includes(k) && targetOk(k, v))) badHarness();
   }
   // Every settings entry the install wrote: where, which key, its value and the value's hash.
   const entries = ci(doc, 'entries') ?? [];
@@ -518,7 +520,7 @@ const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const SKILL_LINE_RE = /^SKILL ([A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+ )(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt] )[A-Za-z0-9._-]+) ([0-9a-f]{40}) ([A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*)$/;
 const SKILL_PATHS_MAX = 100;
 // The pact's default configuration (#183 T4a): the stage folder the renderer
-// reads when the Claude home folder holds no user file, and the preset it is
+// reads when the home folder holds no user file, and the preset it is
 // generated from, by title (a test holds the title equal to the preset's).
 export const DEFAULT_CONFIG_DIR = 'builder/default-config';
 export const DEFAULT_CONFIG_NAME = 'Level 3 · Full';
@@ -1241,11 +1243,13 @@ function retiredIn(live) {
  * `hooks` never go through that deep merge: they merge by key (hooksPlan), and
  * `autoCompactWindow` follows `compact.window` (#482).
  */
-export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY, identity = NO_IDENTITY) {
+export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY, identity = NO_IDENTITY, overlayDrop = []) {
   // #482: hooks never go through the deep merge, which would replace an owner's list; they merge by key below.
   const plain = new Map(overlay);
   plain.delete('hooks');
   const m = mergeDeep(live, plain);
+  // With no overlay, the merge shares the live permissions map; every change below is made on a copy.
+  if (isMap(m.get('permissions'))) m.set('permissions', new Map(m.get('permissions')));
   if (compact.script !== null) {
     const hp = hooksPlan(live, compact.window > 0 ? overlay.get('hooks') : null, compact);
     if (hp.hooks === undefined) m.delete('hooks');
@@ -1279,11 +1283,47 @@ export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPAC
     if (env.size) m.set('env', env);
     else m.delete('env');
   }
+  for (const key of overlayDrop) {
+    const [top, name] = key.split('.');
+    if (name === undefined) m.delete(top);
+    else if (isMap(m.get(top))) m.get(top).delete(name);
+  }
   return m;
 }
 
 const NO_DENY = Object.freeze({ add: [], drop: [], record: [] });
 const NO_IDENTITY = Object.freeze({ set: new Map(), drop: [], record: {} });
+
+// ------------------------------------------------------------ the overlay's plain keys (spec 0007 S9)
+
+/** The overlay's keys that are neither a list nor a hook: auto mode and its skipped prompt. */
+export const OVERLAY_KEYS = Object.freeze(['permissions.defaultMode', 'skipAutoPermissionPrompt']);
+const valueAt = (map, key) => {
+  const [top, name] = key.split('.');
+  if (name === undefined) return map.get(top);
+  return isMap(map.get(top)) ? map.get(top).get(name) : undefined;
+};
+const same = (a, b) => a !== undefined && b !== undefined && canonical(a) === canonical(b);
+
+/**
+ * Which of the overlay's plain keys the install owns. With an overlay applied,
+ * `record` holds each key the record already listed, and each whose value the
+ * live settings don't hold yet: a value already there is the owner's. With none
+ * (Claude Code taken out), `drop` holds each recorded key whose live value is
+ * still the recorded one. `recorded` is the record's entries.
+ */
+export function overlayKeysPlan(live, overlay, recorded) {
+  const record = [];
+  const drop = [];
+  for (const key of OVERLAY_KEYS) {
+    const was = recorded.find(e => e.key === key);
+    const want = valueAt(overlay, key);
+    if (want !== undefined) {
+      if (was || !same(valueAt(live, key), want)) record.push(key);
+    } else if (was && same(valueAt(live, key), toMaps(was.value))) drop.push(key);
+  }
+  return { record, drop };
+}
 
 // ------------------------------------------------------------ the pact's hooks (#482)
 
@@ -1477,16 +1517,21 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
 
 /**
  * Every settings entry this install wrote into `path`, for the record: each
- * permission rule it added, each env key it set, the window, and each of the
- * overlay's hooks, each with its value and the value's hash. An entry the
+ * permission rule it added, each of the overlay's plain keys it set, each env
+ * key it set, the window, and each of the overlay's hooks, each with its value
+ * and the value's hash. An entry the
  * merged settings don't hold (a hook event that isn't a list) is left out.
  */
-export function settingsEntries({ harness, path, merged, deny, ask, identityEnv, window, hooks, hash }) {
+export function settingsEntries({ harness, path, merged, deny, ask, identityEnv, window, hooks, hash, overlayKeys = [] }) {
   const out = [];
   // The value as the record reads it back: plain JSON, a number a number.
   const add = (key, value) => out.push({ harness, path, key, value: JSON.parse(JSON.stringify(toJsonValue(value))), sha256: hash(Buffer.from(canonical(value), 'utf8')) });
   for (const rule of deny) add('permissions.deny', rule);
   for (const rule of ask) add('permissions.ask', rule);
+  for (const key of overlayKeys) {
+    const value = valueAt(merged, key);
+    if (value !== undefined) add(key, value);
+  }
   for (const [k, v] of Object.entries(identityEnv)) add(`env.${k}`, v);
   if (window > 0) {
     add('autoCompactWindow', new Num(String(window)));
@@ -1516,7 +1561,7 @@ export function entryDrift(entries, live) {
 
 // ------------------------------------------------------------ the agent-identity switch (#603, S7)
 
-/** The two env keys the switch owns in settings.json: the install sets them while it is on, records them under identityEnv, and removes only a key whose live value is the recorded one. */
+/** The two env keys the switch owns in settings.json: the install sets them while it is on, records them in its entries, and removes only a key whose live value is the recorded one; a recorded key changed since is drift. */
 export const IDENTITY_ENV_KEYS = Object.freeze(['GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT']);
 const slashed = p => String(p).replaceAll('\\', '/');
 /** The gitconfig setup writes for the claude app, in the neutral home under the home folder. */
@@ -1743,19 +1788,30 @@ export function guardHolds(after) {
 // The settings and hooks files the known harnesses read: merged by key, never copied over or deleted.
 const MERGED_FILES = Object.freeze(['.claude/settings.json', '.claude.json', '.codex/hooks.json', '.gemini/config/hooks.json']);
 
+/** A path as Windows reads its name: forward slashes, no stream suffix, no trailing dot or space, lower case. */
+const windowsName = rel => rel
+  .replace(/\\/g, '/')
+  .split('/')
+  .map(s => s.replace(/:.*$/, '').replace(/[. ]+$/, ''))
+  .filter(Boolean)
+  .join('/')
+  .toLowerCase();
+
+// Other programs' keys and sign-ins under the home folder.
+const SECRET_STORES = /^(\.ssh|\.aws|\.gnupg|\.config\/gh)(\/|$)|^(\.codex\/auth\.json|\.gemini\/(oauth_creds|google_accounts)\.json|\.git-credentials|\.gitconfig|\.netrc)$/;
+
+/** Whether a home-relative path is one of them: no harness path may be, and the install never reads, writes or deletes one. */
+export const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));
+
 /**
  * Never deleted, overwritten or listed, whatever the record says: normalised as
  * Windows reads a name. `merged` adds the hooks files the person's own harness
  * descriptions name.
  */
 export function isProtected(rel, merged = []) {
-  const segs = rel
-    .replace(/\\/g, '/')
-    .split('/')
-    .map(s => s.replace(/:.*$/, '').replace(/[. ]+$/, ''))
-    .filter(Boolean);
-  const n = segs.join('/').toLowerCase();
-  const leaf = segs.length ? segs[segs.length - 1].toLowerCase() : '';
+  const n = windowsName(rel);
+  const leaf = n.slice(n.lastIndexOf('/') + 1);
+  if (isSecretStore(rel)) return true;
   if ([...MERGED_FILES, ...merged].some(f => f.toLowerCase() === n)) return true;
   if (leaf.startsWith('.credentials')) return true;
   if (/^\.claude\/(projects|memory|skills|handover)(\/|$)/.test(n)) return true;
@@ -2010,8 +2066,8 @@ export function checkBinding(opts, rulesHash, commit) {
 export function checkApply({ configApplies, hashGiven, selfDiffers, drift, dirty, settingsObject, unrecorded = [] }) {
   if (configApplies && !hashGiven) refuse('apply-needs-hash', 'a configuration applies, so --apply needs the full rendered hash the dry run showed, given with --rendered-hash.');
   if (selfDiffers) refuse('apply-self-differs', 'this install script differs from the committed copy.');
-  if (drift) refuse('apply-drift', 'live files changed since the last install. Whether to keep or replace those edits is the owner\'s decision; docs/install.md says how.');
-  if (unrecorded.length) refuse('unrecorded-target', `${unrecorded.map(formatPlain).join(', ')} already exists and the install record does not list it. The pact owns the whole rules file: move your own text into your configuration, then follow the one-time removal in docs/install.md.`);
+  if (drift) refuse('apply-drift', 'installed files or settings entries changed since the last install. Whether to keep or replace those edits is the owner\'s decision; docs/install.md says how.');
+  if (unrecorded.length) refuse('unrecorded-target', `${unrecorded.map(formatPlain).join(', ')} already exists and the install record does not list it. The pact owns the whole rules file: move your own text into your configuration and the file out of the way. After an install from before ~/.pact, follow the one-time removal in docs/install.md.`);
   if (dirty) refuse('apply-dirty', 'the working tree is not clean.');
   if (!settingsObject) refuse('apply-settings', "settings.json is not a strict JSON object, so the pact's guard cannot be merged into it; fix the file first.");
 }

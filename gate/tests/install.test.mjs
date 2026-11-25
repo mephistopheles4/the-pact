@@ -399,7 +399,7 @@ test('bad case: a record whose rules-file hash is not the rendered bytes\' hash 
   assert.equal(total(dry, 'Drift'), 1, dry.out);
   assert.match(dry.stdout, /^ {2}\.claude\/CLAUDE\.md \(changed since the install\)$/m, dry.out);
   const r = applyBound(repo, h);
-  refused(r, /^REFUSED: live files changed since the last install\./m);
+  refused(r, /^REFUSED: installed files or settings entries changed since the last install\./m);
   assert.deepEqual(readFileSync(join(h, '.claude', 'CLAUDE.md')), rendered);
 });
 

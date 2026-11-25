@@ -92,8 +92,16 @@ test('bad case: each wrong own entry refuses under its rule', () => {
     ['harness-path', [{ ...OWN, agents: { dir: '~/.PACT', format: 'claude-md' } }]],
     ['harness-path', [{ ...OWN, rules: { path: '~/.mine/RU LES.md' } }]],
     ['harness-path', [{ ...OWN, rules: { path: '~/.mine./RULES.md' } }]],
+    ['harness-path', [{ ...OWN, rules: { path: '~/.mine/profile' } }]],
+    ['harness-path', [{ ...OWN, hooks: { file: '~/.mine/hooks.yml', format: 'claude' } }]],
+    ['harness-path', [{ ...OWN, agents: { dir: '~/.ssh', format: 'claude-md' } }]],
+    ['harness-path', [{ id: 'claude', hooks: { file: '~/.gemini/oauth_creds.json', format: 'claude' } }]],
   ];
   for (const [want, own] of cases) assert.equal(rule(() => resolve(own)), want, JSON.stringify(own));
+});
+
+test('bad case: a known.json that is not a list of descriptions refuses', () => {
+  for (const bad of ['nope', '{}', '[1]', '[{"id": "Bad"}]']) assert.equal(rule(() => h.parseKnown(bad)), 'harness-known', bad);
 });
 
 test('bad case: an own path inside a git work tree refuses, and so does an overridden known path', () => {

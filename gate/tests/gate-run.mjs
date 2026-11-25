@@ -153,7 +153,7 @@ export function parityProblems(inProcess, child) {
 /**
  * Run the real renderer on the stage's rules file and put its output in its
  * place, as the install script does before seam A. With no `claudeHome`, it
- * renders against an empty Claude home folder, so no configuration applies. A
+ * renders against an empty home folder, so no configuration applies. A
  * stage with no rules file, or one that is not a regular file, is left as it
  * is for seam A to judge. Throws when the renderer refuses, since the install
  * would stop there.

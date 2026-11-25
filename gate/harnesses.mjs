@@ -6,7 +6,7 @@
 //
 // Nothing here runs on import. Imports install-core.mjs only.
 
-import { HARNESS_ID_RE as ID_RE, NEUTRAL_REL as NEUTRAL, PACT_ID, Refusal, formatPlain } from './install-core.mjs';
+import { HARNESS_ID_RE as ID_RE, NEUTRAL_REL as NEUTRAL, PACT_ID, Refusal, formatPlain, isSecretStore } from './install-core.mjs';
 
 export const KNOWN_REL = 'harnesses/known.json';
 export const AGENT_FORMATS = Object.freeze(['claude-md', 'codex-toml', 'antigravity-md']);
@@ -20,11 +20,11 @@ const CAP_MAX = 16 * 1024 * 1024;
 
 // Each part's keys: its path key, and the others.
 const PARTS = Object.freeze({
-  rules: { path: 'path', more: ['cap', 'sharedCap'] },
+  rules: { path: 'path', more: ['cap', 'sharedCap'], ext: '.md' },
   agents: { path: 'dir', more: ['format'], formats: AGENT_FORMATS },
   skills: { path: 'dir', more: [] },
   commands: { path: 'dir', more: [] },
-  hooks: { path: 'file', more: ['format'], formats: HOOK_FORMATS },
+  hooks: { path: 'file', more: ['format'], formats: HOOK_FORMATS, ext: '.json' },
 });
 const FIELDS = Object.freeze(['id', 'name', 'detect', ...Object.keys(PARTS), 'models', 'defaultInstall', 'capabilities']);
 
@@ -56,6 +56,7 @@ function homeRel(value, where, { home, platform }) {
   const segs = rest.split('/');
   if (!segs.every(s => SEGMENT_RE.test(s))) bad("holds a part that is empty, . or .., ends in a dot, or has a character outside letters, digits, '.', '_' and '-'");
   if (segs[0].toLowerCase() === NEUTRAL) bad(`is inside ~/${NEUTRAL}`);
+  if (isSecretStore(segs.join('/'))) bad('is a secret store the pact never touches');
   return segs.join('/');
 }
 
@@ -81,6 +82,8 @@ function checkFields(entry, id, ctx) {
     if (!isObject(v) || !Object.hasOwn(v, spec.path)) refuse('harness-shape', `${shown} ${part} is not an object with ${spec.path}.`);
     for (const key of Object.keys(v)) if (key !== spec.path && !spec.more.includes(key)) refuse('harness-field', `${shown} ${part} holds a field the pact does not know.`);
     const made = { [spec.path]: path(v[spec.path], `${part}.${spec.path}`) };
+    // The rules file is written whole and the hooks file merged into, so neither may be any file at all.
+    if (spec.ext && !made[spec.path].toLowerCase().endsWith(spec.ext)) refuse('harness-path', `${shown} ${part}.${spec.path} is not a ${spec.ext} file.`);
     if (spec.formats) {
       if (!spec.formats.includes(v.format)) refuse('harness-format', `${shown} ${part}.format is not one of ${spec.formats.join(', ')}.`);
       made.format = v.format;

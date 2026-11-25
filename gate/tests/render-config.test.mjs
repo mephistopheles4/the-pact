@@ -30,7 +30,7 @@ function homeWith(t, content) {
   return h;
 }
 
-/** Run the renderer on `src` against the Claude home folder `home`. */
+/** Run the renderer on `src` against the home folder `home`. */
 function render(t, home, src = SOURCE) {
   const dir = tempDir(t, 'pact-render-out-');
   const env = { ...process.env };

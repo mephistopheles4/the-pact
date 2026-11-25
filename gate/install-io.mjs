@@ -5,7 +5,7 @@
 // on import, and no error's text leaves here unhandled by the runner.
 import { createHash } from 'node:crypto';
 import { chmodSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import * as core from './install-core.mjs';
 import { FOLD_CASE, realOrResolved } from './paths.mjs';
 
@@ -101,7 +101,10 @@ export const throughHomeLink = (home, rel, ops = FS_OPS) => {
  * with ENOTDIR. Any other error counts as an entry, so the check fails closed.
  */
 export function insideWorkTree(p) {
-  let dir = realOrResolved(p);
+  // Start at the nearest part that exists, at its real path, so a linked folder above a file not yet made is followed.
+  let there = resolve(p);
+  while (!existsSync(there) && dirname(there) !== there) there = dirname(there);
+  let dir = realOrResolved(there);
   for (;;) {
     if (holdsGit(dir)) return true;
     const up = dirname(dir);

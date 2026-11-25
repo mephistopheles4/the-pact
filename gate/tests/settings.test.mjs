@@ -401,7 +401,7 @@ const NONE = ['--commands', 'none', '--tools', 'none', '--harness', 'claude:rule
   test('the hook script and --compact: base passes after the rows', async t => assertPasses(await run(base(), t)));
   test('--compact on lists the hook script for install at .pact/hooks, and off stages nothing of it', t => {
     const on = runCore('seam-a', [(() => { const root = stage(t, withHook()); renderStage(root); return root; })(), ...NONE, '--compact', 'on']);
-    assert.match(on.stdout, new RegExp(`^INSTALL [0-9a-f]{64} ${HOOK.replaceAll('.', '\\.')} \.pact/hooks/compact-handoff\\.mjs$`, 'm'));
+    assert.match(on.stdout, new RegExp(`^INSTALL [0-9a-f]{64} ${HOOK.replaceAll('.', '\\.')} \\.pact/hooks/compact-handoff\\.mjs$`, 'm'));
     const off = runCore('seam-a', [(() => { const root = stage(t, withHook()); renderStage(root); return root; })(), ...NONE, '--compact', 'off']);
     assert.equal(off.code, 0, off.out);
     assert.doesNotMatch(off.stdout, /compact-handoff/);
