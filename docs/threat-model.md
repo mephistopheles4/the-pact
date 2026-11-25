@@ -32,7 +32,7 @@ read. The full guide is the review procedure's Threat model section
 ```mermaid
 flowchart LR
   outside["Strangers, outside PRs, clones, fetched pages, heard speech"]
-  upstream["Plugins, upstream pins, CI dependencies, a design-system pin, a model, the npx bootstrap, the guard and the tag token"]
+  upstream["Plugins, upstream pins, CI dependencies, a design-system pin, a model, the npx bootstrap, the guard and the release app's key"]
   owner["Changes headed for main, ~/.pact or a harness folder"]
   session["A steered session: Claude Code, Codex or Antigravity"]
   readers["Readers of the tracker and other sessions"]
@@ -146,25 +146,27 @@ version pin supplies that runs by bare name, the pinned design system inlined
 into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
 setup, run with the owner's rights; the pact's `npx` bootstrap and the release
 clone it makes, run before any dry run; the guard, before each shell call in
-Codex and Antigravity; and the release job's tag token.
+Codex and Antigravity; and the release app's key.
 
 **Controls:**
 
-- **GitHub.** A tag ruleset on every tag: only the release job's actor creates
-  one, and none is moved or deleted. It doesn't hold while the owner edits it,
-  and is only as narrow as that actor, maybe every workflow's. Actions pinned to a full commit SHA in
+- **GitHub.** A tag ruleset on every tag: only the release app, its one bypass,
+  creates one, and none is moved or deleted. It doesn't hold while the owner
+  edits it. The app's key is a secret of the `release` environment, which only
+  `main` deploys to; that doesn't hold if another branch may deploy there or the
+  key is also a repository secret. Actions pinned to a full commit SHA in
   all five workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot
   security updates. They hold for what the pins and queries cover; an update
   is a pull request, read like any change.
 - **The pact's tools.** `gate/tests/workflow.test.mjs` holds all five
-  workflows to no secrets and no `pull_request_target`, and to a read-only
-  token but for an exact allow-list each on `codeql.yml`, the two Claude files
+  workflows to no `pull_request_target`, to no secret but the release app's
+  key, and to a read-only token but for an exact allow-list each on `codeql.yml`, the two Claude files
   and `release.yml`:
   `security-events: write` in one CodeQL job, skipped for Dependabot;
   `id-token: write` in each Claude job, with no key in the repo;
-  `contents: write` in the one release job, with no checkout, the only use of
-  `workflow_run`, which tags only this repo's `main` tip after `gate` passes a
+  in the one release job, whose own token only reads, an app token asked for
+  `contents: write` alone, with no checkout, the only use of `workflow_run`, which tags only this repo's `main` tip after `gate` passes a
   push there, while `PACT_RELEASES` is `on`. The
   Console's federation rule bounds who gets an Anthropic token; each job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the
@@ -194,7 +196,7 @@ rule holds back trusting a project's mise config until the owner says so in chat
 
 Also accepted. What you install and CI run: typing the
 `npx` command trusts GitHub and the tag ruleset, and npm may reuse a cached
-copy; the release job holds a tag token; the cloud
+copy; a stolen release app key does all `contents: write` does: it can tag, push a branch no ruleset covers and merge what `main`'s ruleset lets through; the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
@@ -344,7 +346,7 @@ Each "Also accepted" line above details what the class it names covers; it is no
 
 - **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, to take a step the rules keep for the owner, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
 - **A session takes checkpoints alone.** A session takes each checkpoint, a call the rules keep for the owner, as its own logged pick, open security picks included, on words from any prompt or replies it can't tell from its starter's; nothing waits but the cleaner's override rule, an install apply and mise trust.
-- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, bootstrap and tag token, a trusted mise config, a program a clone supplies by bare name, the pinned llama.cpp build and decision model, and the gate's unscanned test files run with the owner's rights or a write token.
+- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, bootstrap and release app key, a trusted mise config, a program a clone supplies by bare name, the pinned llama.cpp build and decision model, and the gate's unscanned test files run with the owner's rights or a write token.
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
@@ -372,4 +374,4 @@ quadrantChart
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, scope change, narrower poster cover and tag actor; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, scope change, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
