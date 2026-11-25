@@ -1483,7 +1483,8 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
  */
 export function settingsEntries({ harness, path, merged, deny, ask, identityEnv, window, hooks, hash }) {
   const out = [];
-  const add = (key, value) => out.push({ harness, path, key, value: toJsonValue(value), sha256: hash(Buffer.from(canonical(value), 'utf8')) });
+  // The value as the record reads it back: plain JSON, a number a number.
+  const add = (key, value) => out.push({ harness, path, key, value: JSON.parse(JSON.stringify(toJsonValue(value))), sha256: hash(Buffer.from(canonical(value), 'utf8')) });
   for (const rule of deny) add('permissions.deny', rule);
   for (const rule of ask) add('permissions.ask', rule);
   for (const [k, v] of Object.entries(identityEnv)) add(`env.${k}`, v);

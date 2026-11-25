@@ -275,7 +275,7 @@ const decided = fn => {
   }
 };
 {
-  const base = () => ({ in: JSON.stringify(['--claude-home', 'C:\\h']) });
+  const base = () => ({ in: JSON.stringify(['--home', 'C:\\h']) });
   const run = t => decided(() => core.parseArgs(JSON.parse(t.in), 'win32'));
   const rows = [
     { id: 'powershell-apply-switch', plant: t => ({ in: JSON.stringify([...JSON.parse(t.in), '-Apply']) }), fails: ['args-unread'], why: "the PowerShell installer's switch is a word the script does not read" },
@@ -391,6 +391,10 @@ const NONE = ['--commands', 'none', '--tools', 'none', '--harness', 'claude:rule
     { id: 'compact-no-value', plant: b => ({ ...b, argv: [...NONE, '--compact'] }), fails: ['compact-arg'], why: 'a flag with nothing after it' },
     { id: 'compact-other-value', plant: b => ({ ...b, argv: [...NONE, '--compact', 'yes'] }), fails: ['compact-arg'], why: 'on or off' },
     { id: 'compact-capitals', plant: b => ({ ...b, argv: [...NONE, '--compact', 'ON'] }), fails: ['compact-arg'], why: 'matched exactly' },
+    { id: 'harness-missing', plant: b => ({ ...b, argv: ['--commands', 'none', '--tools', 'none', '--compact', 'on'] }), fails: ['harness-arg'], why: 'the harness list never defaults' },
+    { id: 'harness-twice', plant: b => ({ ...b, argv: [...b.argv, '--harness', 'none'] }), fails: ['harness-arg'], why: 'given twice' },
+    { id: 'harness-unknown-part', plant: b => ({ ...b, argv: ['--commands', 'none', '--tools', 'none', '--compact', 'on', '--harness', 'claude:rules+skills'] }), fails: ['harness-arg'], why: 'a part the pact does not install' },
+    { id: 'harness-id-twice', plant: b => ({ ...b, argv: ['--commands', 'none', '--tools', 'none', '--compact', 'on', '--harness', 'claude:rules,claude:agents'] }), fails: ['harness-arg'], why: 'one harness, once' },
   ];
   test('the hook script and --compact: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`the hook script and --compact: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));

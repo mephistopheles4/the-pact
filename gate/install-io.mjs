@@ -95,16 +95,29 @@ export const throughHomeLink = (home, rel, ops = FS_OPS) => {
   return throughLinkWith(ops, join(home, top), rest.join('/'));
 };
 
-/** Whether `p`, or a folder that holds it, holds a .git entry: it is inside a git work tree. */
+/**
+ * Whether `p`, or a folder that holds it, holds a .git entry: it is inside a
+ * git work tree. `p` may be a file, and a file holds nothing: Unix says so
+ * with ENOTDIR. Any other error counts as an entry, so the check fails closed.
+ */
 export function insideWorkTree(p) {
   let dir = realOrResolved(p);
   for (;;) {
-    if (present(join(dir, '.git'))) return true;
+    if (holdsGit(dir)) return true;
     const up = dirname(dir);
     if (up === dir) return false;
     dir = up;
   }
 }
+
+const holdsGit = dir => {
+  try {
+    lstatSync(join(dir, '.git'));
+    return true;
+  } catch (e) {
+    return !(e && (e.code === 'ENOENT' || e.code === 'ENOTDIR'));
+  }
+};
 
 /** Whether `p` is a folder, or a link to one. */
 export function isFolder(p) {
