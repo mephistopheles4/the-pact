@@ -1,5 +1,5 @@
 // The threat model's word cap (#544, the spec's S10): the threat model stays
-// at or under 3,050 words, so a session reads all of it. The count is the
+// at or under 3,600 words, so a session reads all of it. The count is the
 // whole file split on whitespace, mermaid included, as the rule budget counts.
 // Raising the cap changes a built-in default that bounds something, so it is a
 // spec change.
@@ -11,8 +11,11 @@ import { stripToc } from '../../docs/toc.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
-// Spec 0003 M2 pick 6: raised from 3,000 to fit the two macOS clauses (the owner's call, relayed as the lead's decision 126); PACT-39 drops the word budgets.
-const CAP = 3050;
+// PACT-105 T8 (ADR 0173): raised from 3,050 for spec 0007 S15's text on Codex,
+// Antigravity, the bootstrap and the release tags, which didn't fit, so that no
+// security text was cut (the lead's flagged pick, its decision 59; the owner
+// reviews it). PACT-39 drops the word budgets.
+const CAP = 3600;
 
 /** Words: runs of non-whitespace, so CRLF and LF count the same, with the table of contents left out (PACT-78). */
 const words = text => stripToc(text).split(/\s+/).filter(Boolean).length;
@@ -31,7 +34,7 @@ test('threat-model cap: a copy padded to one word past the cap is reported over'
   const source = readFileSync(join(REPO, 'docs', 'threat-model.md'), 'utf8');
   writeFileSync(padded, `${source}\n${'padding '.repeat(CAP + 1 - words(source))}\n`);
   const text = readFileSync(padded, 'utf8');
-  assert.equal(words(text), 3051);
+  assert.equal(words(text), 3601);
   assert.deepEqual(overCap('padded', text), [`padded: ${CAP + 1} words, cap ${CAP}`]);
 });
 
