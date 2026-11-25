@@ -11,9 +11,15 @@ PACT-105 T8 ([spec 0007](../spec/0007-harness-agnostic-pact.md), S15, C27). The 
 
 ## What waits for the owner
 
-This record is no answer from the owner. Under [ADR 0132](0132-the-threat-model-holds-accepted-threat-classes.md), only a merge the owner confirms in chat widens a class, and a scope change and a weakened control come to the owner. Open: the three class widenings, the scope change and the poster's narrower coverage. The cap is the lead session's flagged pick, for the owner to review.
+This record is no answer from the owner. Under [ADR 0132](0132-the-threat-model-holds-accepted-threat-classes.md), only a merge the owner confirms in chat widens a class, and a scope change and a weakened control come to the owner. The threat model's "Open gaps" says these are open; the change that carries the owner's answers drops that sentence. Open:
 
-On a no to the Codex widening, each Codex lens runs in a separate session. On a no to the Antigravity widening, Antigravity leaves the default install list. Either way the threat model's text follows the answer.
+- **The three class widenings.** With the Codex one comes spec 0007's option to run Codex lenses only with the parent's network off and no MCP server in its profile; the threat model doesn't take it. On a no, each Codex lens runs in a separate session. On a no to the Antigravity one, Antigravity leaves the default install list. The spec doesn't say whether a command an Antigravity session starts itself can pass for the word an install apply or mise trust waits for; that is part of the same call.
+- **The scope change,** due before this ticket merges (spec 0007 S20). It covers the crossing to OpenAI and Google, which no class and no control covers; the spec gives no fallback for a no. What each provider keeps of that context is set by the owner's account there.
+- **The poster's narrower coverage** under Codex.
+- **Two placements.** Spec 0007 names no class for a project install that tightens Claude Code alone, or for a hand-made or old copy that loads beside the pact. The lead session placed both under "The pact gets loosened".
+- **The tag ruleset's actor.** The release job tags with the workflow's own token. If the narrowest actor the ruleset can name is one every workflow shares, any workflow on any branch can make a release tag, which the bootstrap runs. Spec 0007 has the packaging ticket stop and ask there.
+
+Whatever is answered, the threat model's text follows. The cap is the lead session's flagged pick, for the owner to review.
 
 ## Why
 
@@ -29,7 +35,6 @@ The file held 3,049 words of a cap of 3,050, and the new text didn't fit. Raisin
 
 ## Consequences
 
-- A session reads about 530 more words of threat model.
+- A session reads about 550 more words of threat model.
 - The text describes controls that spec 0007's other tickets build. A ticket that ships one differently changes the text with it.
-- Spec 0007 names no class for two residuals. Project installs that tighten Claude Code alone, and a hand-made or old copy that loads beside the pact, sit under "The pact gets loosened".
 - **Rollback:** revert the change; the cap goes back with the text.

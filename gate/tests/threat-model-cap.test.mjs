@@ -13,8 +13,8 @@ import { tempDir } from './tree.mjs';
 
 // PACT-105 T8 (ADR 0173): raised from 3,050 for spec 0007 S15's text on Codex,
 // Antigravity, the bootstrap and the release tags, which didn't fit, so that no
-// security text was cut (the lead's flagged pick, its decision 59; the owner
-// reviews it). PACT-39 drops the word budgets.
+// security text was cut (the lead session's flagged pick, spec 0007 S2 item 47;
+// the owner reviews it). PACT-39 drops the word budgets.
 const CAP = 3600;
 
 /** Words: runs of non-whitespace, so CRLF and LF count the same, with the table of contents left out (PACT-78). */

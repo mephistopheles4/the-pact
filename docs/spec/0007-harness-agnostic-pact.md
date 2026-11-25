@@ -181,6 +181,12 @@ round's comment on the issue lists each finding.
     C26 checks that no Claude model is named outside Claude Code (S14,
     S18).
 
+**The lead's pick at T8, flagged:**
+
+47. The threat model's word cap rises from 3,050 to 3,600, since S15's text
+    didn't fit it, and no text is cut
+    (`gate/tests/threat-model-cap.test.mjs`, ADR 0173).
+
 ## S3 Terms
 
 These join `CONTEXT.md` in T1.
@@ -1007,6 +1013,7 @@ reads this spec and each ticket's diff.
 | Widening "Review rests on rules" for Codex lenses, and the network-off option (S15) | the owner's call; on a no, S12's fallback | before T4 starts |
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
+| The threat-model cap at 3,600 (S2 item 47) | the lead's flagged pick, for review | any time |
 | The poster's narrower coverage in Codex (S13) | the owner's call | at T4's probe |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
 | The tag ruleset on every tag | the owner's own act | before T6 merges |
