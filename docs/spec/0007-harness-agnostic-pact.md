@@ -454,6 +454,10 @@ wrapper `~/.pact/guard/<harness>.mjs`:
   wrapper runs. On Windows it also sets `NoDefaultCurrentDirectoryInExePath=1`,
   so cmd never runs a `node` from the session's working folder. The text is
   fixed per machine, so Codex's trust holds; T4 and T5 probe it exactly.
+  **Open amendment (T3):** a harness may run hooks under PowerShell, where this
+  Windows text prints the environment and lets the call through. The Windows
+  command waits for T4's probe; until it is settled the install writes no guard
+  on Windows and says so.
 - The wrapper reads the call from stdin in its harness's shape (Codex:
   `Bash`; Antigravity: `run_command`), passes the command text to `guard.mjs`,
   and writes its harness's answer. Codex: exit 2 with the reason on stderr,
