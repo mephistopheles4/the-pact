@@ -542,7 +542,8 @@ The old backups stay where they are, as the owner's.
 - **Codex lenses** have the session's own reach: a lens steered by what it
   reads can write files or send data within the parent's sandbox. The tree
   check (S12) catches a write to the tree, not one outside it or a send.
-  This widens "Review rests on rules", and the owner decides it.
+  This widens "Review rests on rules": pending the owner's own word, and T8
+  makes no edit for it before then.
 - **Antigravity skills** can't be kept from the model, which is why the
   owner's answer commands don't go there (S7).
 - **Guards are speed bumps,** as the deny rules are today: another spelling
