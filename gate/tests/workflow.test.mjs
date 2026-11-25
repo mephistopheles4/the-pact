@@ -7,6 +7,9 @@
 // reads the files' text; it can't see what GitHub does with them, which the
 // S15 CI probe records.
 //
+// The release workflow (spec 0007 S10) alone may run on workflow_run; it is
+// held to an exact allow-list of its own.
+//
 // The CodeQL workflow (#239, #244) may ask for more: it uploads code-scanning
 // results, so its one job holds security-events: write. The two Claude
 // workflows (spec 0006) may too: each job holds id-token: write, to trade
@@ -457,6 +460,73 @@ function claudeProblems(src, gateSrc, which) {
   return [...new Set(out)];
 }
 
+// Spec 0007 S10: the release workflow, the one file that may run on workflow_run. Each of the job's conditions, held as written.
+const RELEASE_IF =
+  [
+    "github.event.workflow_run.conclusion == 'success'",
+    "github.event.workflow_run.event == 'push'",
+    "github.event.workflow_run.head_branch == 'main'",
+    'github.event.workflow_run.head_repository.full_name == github.repository',
+    "github.ref == 'refs/heads/main'",
+    "vars.PACT_RELEASES == 'on'",
+  ].join(' &&\n') + '\n';
+const RELEASE_KEY = '${{ secrets.PACT_RELEASE_APP_KEY }}';
+const RELEASE_APP = {
+  'client-id': '${{ vars.PACT_RELEASE_APP_CLIENT_ID }}',
+  'private-key': RELEASE_KEY,
+  'permission-contents': 'write',
+};
+const RELEASE_ENV = { TOKEN: '${{ steps.app.outputs.token }}', HEAD_SHA: '${{ github.event.workflow_run.head_sha }}' };
+
+/**
+ * Where the release workflow breaks its allow-list, as plain sentences; empty
+ * when it keeps it. Its job reads one secret, the release app's key, in the
+ * release environment; the job's own token only reads; it checks nothing out.
+ * What its script does is the release job test's.
+ */
+function releaseProblems(src) {
+  const code = codeOf(src);
+  const out = [];
+  const extras = (where, obj, keys) => {
+    if (!isMap(obj)) return out.push(`${where} is not a map`);
+    for (const k of Object.keys(obj)) if (!keys.includes(k)) out.push(extraKey(where, k));
+    for (const k of keys) if (!Object.hasOwn(obj, k)) out.push(`${where} lacks ${k}`);
+  };
+  if (/pull_request_target/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
+  if (code.split(RELEASE_KEY).length !== 2 || (code.match(/\bsecrets\b/g) ?? []).length !== 1) out.push("reads a secret other than the release app's key, or reads that key twice or not at all");
+  if (/\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/.test(code)) out.push("reads the job's own token");
+  if (/actions\/checkout/.test(code)) out.push('checks the repo out');
+  if (/upload-artifact|\bcache\b/.test(code)) out.push('uploads or caches the workspace');
+  let w;
+  try {
+    w = readYaml(code);
+  } catch (e) {
+    return [...out, `is not in the YAML the check reads: ${e.message}`];
+  }
+  extras('the file', w, ['name', 'on', 'permissions', 'jobs']);
+  if (w.name !== 'release') out.push('is not named release');
+  if (!sameSet(w.on, { workflow_run: { workflows: ['gate'], types: ['completed'] } })) out.push("runs on another trigger than the gate workflow's completion");
+  if (!same(w.permissions, { contents: 'read' })) out.push('asks for more than read access to the contents');
+  if (!isMap(w.jobs) || !same(Object.keys(w.jobs), ['release'])) out.push('holds a job other than release');
+  const job = isMap(w.jobs?.release) ? w.jobs.release : {};
+  extras('the job', job, ['if', 'runs-on', 'timeout-minutes', 'environment', 'concurrency', 'steps']);
+  if (job.if !== RELEASE_IF) out.push("runs its job without exactly spec 0007's conditions");
+  if (job['runs-on'] !== 'ubuntu-24.04' || !/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push('does not run on ubuntu-24.04 with a time limit');
+  if (job.environment !== 'release') out.push('does not run in the release environment');
+  if (!sameSet(job.concurrency, { group: 'release', 'cancel-in-progress': 'false' })) out.push('does not run in the release concurrency group that never cancels');
+  const steps = Array.isArray(job.steps) ? job.steps : [];
+  if (steps.length !== 2) out.push("holds other steps than the app token's and the tag's");
+  const [app, tag] = steps;
+  extras('step 1', app, ['uses', 'id', 'with']);
+  extras('step 2', tag, ['name', 'env', 'shell', 'run']);
+  if (!new RegExp(`^actions/create-github-app-token@${SHA}$`).test(app?.uses ?? '')) out.push('step 1 is not the app token action pinned to a full commit SHA');
+  if (app?.id !== 'app' || !sameSet(app?.with, RELEASE_APP)) out.push("asks for the app token with other inputs than the client id, the key and contents: write");
+  if (!sameSet(tag?.env, RELEASE_ENV) || tag?.shell !== 'node {0}') out.push('hands the script another environment or shell than its own');
+  // An expression inside the script would be pasted into the code before it runs.
+  if (typeof tag?.run !== 'string' || tag.run.includes('${{')) out.push('has no script, or puts an expression into it');
+  return [...new Set(out)];
+}
+
 // A file allowed a load the check can't read, with why it can't load a test file.
 const UNREAD_LOADS = new Map([['gate/install-run.mjs', "loads a gate module's core from the staged copy, by names the runner holds; the install stages no test file"]]);
 
@@ -501,7 +571,7 @@ function folderProblems(files) {
   const out = [];
   if (!files.has('gate.yml')) out.push('has no gate.yml');
   for (const [name, src] of files) {
-    const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : commonProblems(src);
+    const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : name === 'release.yml' ? releaseProblems(src) : commonProblems(src);
     out.push(...problems.map(p => `${name} ${p}`));
     // #356: the reader splits lines on a line feed alone, so any other break, or a control character but a tab, could hide a key from it.
     if (BREAKS.test(src.replace(/\r\n/g, '\n'))) out.push(`${name} holds a line break or control character other than a line feed`);
@@ -1081,6 +1151,65 @@ for (const [label, rel, text, says] of [
     assert.ok(problems.includes(says), problems.join('\n'));
   });
 }
+
+const RELEASE = join(WORKFLOWS, 'release.yml');
+// PACT-105 C23: the release workflow as it is passes its allow-list.
+test('the release workflow keeps its allow-list', () => {
+  assert.deepEqual(releaseProblems(readFileSync(RELEASE, 'utf8')), []);
+});
+
+const NO_CONDITION = "runs its job without exactly spec 0007's conditions";
+const ONE_SECRET = "reads a secret other than the release app's key, or reads that key twice or not at all";
+const cut = line => s => s.replace(`      ${line} &&\n`, '');
+// PACT-105 C23: each rule of the release allow-list catches its plant.
+for (const [label, plant, says] of [
+  ['drops the success condition', cut("github.event.workflow_run.conclusion == 'success'"), NO_CONDITION],
+  ['drops the push condition', cut("github.event.workflow_run.event == 'push'"), NO_CONDITION],
+  ['drops the head branch condition', cut("github.event.workflow_run.head_branch == 'main'"), NO_CONDITION],
+  ['drops the same-repository condition', cut('github.event.workflow_run.head_repository.full_name == github.repository'), NO_CONDITION],
+  ['drops the main ref condition', cut("github.ref == 'refs/heads/main'"), NO_CONDITION],
+  ['drops the releases switch', s => s.replace(" &&\n      vars.PACT_RELEASES == 'on'", ''), NO_CONDITION],
+  ['runs on any switch value', s => s.replace("vars.PACT_RELEASES == 'on'", "vars.PACT_RELEASES != 'off'"), NO_CONDITION],
+  ['joins a condition with or', s => s.replace("== 'success' &&", "== 'success' ||"), NO_CONDITION],
+  ['leaves the environment', s => s.replace('    environment: release\n', ''), 'does not run in the release environment'],
+  ['uses another environment', s => s.replace('environment: release', 'environment: other'), 'does not run in the release environment'],
+  ['drops the concurrency group', s => s.replace('    concurrency:\n      group: release\n      cancel-in-progress: false\n', ''), 'does not run in the release concurrency group that never cancels'],
+  ['cancels a running release', s => s.replace('cancel-in-progress: false', 'cancel-in-progress: true'), 'does not run in the release concurrency group that never cancels'],
+  ["gives the job's token write access", s => s.replace('  contents: read', '  contents: write'), 'asks for more than read access to the contents'],
+  ['gives the job permissions of its own', s => s.replace('    environment: release\n', '    environment: release\n    permissions:\n      contents: write\n'), "the job holds permissions, which the allow-list doesn't name"],
+  ['reads a second secret', s => s.replace('          TOKEN:', '          OTHER: ${{ secrets.OTHER }}\n          TOKEN:'), ONE_SECRET],
+  ['reads another secret as the key', s => s.replace('secrets.PACT_RELEASE_APP_KEY', 'secrets.OTHER'), ONE_SECRET],
+  ["reads the job's own token", s => s.replace('${{ steps.app.outputs.token }}', '${{ github.token }}'), "reads the job's own token"],
+  ['checks the repo out', s => s.replace('    steps:\n', `    steps:\n      - uses: actions/checkout@${'a'.repeat(40)}\n`), 'checks the repo out'],
+  ['pins the action to a tag', s => s.replace(/create-github-app-token@[0-9a-f]{40}/, 'create-github-app-token@v3'), 'step 1 is not the app token action pinned to a full commit SHA'],
+  ['uses another token action', s => s.replace('actions/create-github-app-token@', 'someone/create-github-app-token@'), 'step 1 is not the app token action pinned to a full commit SHA'],
+  ['asks the app for more', s => s.replace('          permission-contents: write\n', '          permission-contents: write\n          permission-workflows: write\n'), "asks for the app token with other inputs than the client id, the key and contents: write"],
+  ['drops the permission bound', s => s.replace('          permission-contents: write\n', ''), "asks for the app token with other inputs than the client id, the key and contents: write"],
+  ['keeps the token after the job', s => s.replace('          permission-contents: write\n', '          permission-contents: write\n          skip-token-revoke: true\n'), "asks for the app token with other inputs than the client id, the key and contents: write"],
+  ['pastes an expression into the script', s => s.replace('          main().then', '          // ${{ github.event.workflow_run.head_commit.message }}\n          main().then'), 'has no script, or puts an expression into it'],
+  ['adds a step', s => `${s.replace('    steps:\n', '    steps:\n      - run: echo ok\n')}`, "holds other steps than the app token's and the tag's"],
+  ['adds a trigger', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n'), "runs on another trigger than the gate workflow's completion"],
+  ['listens to another workflow', s => s.replace('workflows: [gate]', 'workflows: [gate, other]'), "runs on another trigger than the gate workflow's completion"],
+]) {
+  test(`bad case: the release allow-list catches a workflow that ${label}`, () => {
+    const src = readFileSync(RELEASE, 'utf8').replace(/\r\n/g, '\n');
+    const planted = plant(src);
+    assert.notEqual(planted, src, 'the plant changed the file');
+    assert.ok(releaseProblems(planted).includes(says), releaseProblems(planted).join('\n'));
+  });
+}
+
+// PACT-105 C23: the folder check hands the file to its allow-list, and a second file that uses workflow_run still fails.
+test('bad case: the folder check holds the release workflow to its allow-list, and no other file may use workflow_run', () => {
+  const files = realFolder();
+  assert.deepEqual(folderProblems(files), [], 'control: the real folder passes');
+  const broken = new Map([...files, ['release.yml', files.get('release.yml').replace('    environment: release\n', '')]]);
+  assert.ok(folderProblems(broken).includes('release.yml does not run in the release environment'), folderProblems(broken).join('\n'));
+  for (const name of ['release-copy.yml', 'Release.yml', 'release.yaml']) {
+    const copied = new Map([...files, [name, files.get('release.yml')]]);
+    assert.ok(folderProblems(copied).includes(`${name} runs on a trigger that holds secrets or a write token`), folderProblems(copied).join('\n'));
+  }
+});
 
 test('dependabot keeps the pinned actions current, holding a release back two weeks', () => {
   const src = readFileSync(join(REPO, '.github', 'dependabot.yml'), 'utf8');

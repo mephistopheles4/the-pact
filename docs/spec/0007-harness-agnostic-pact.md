@@ -181,6 +181,19 @@ round's comment on the issue lists each finding.
     C26 checks that no Claude model is named outside Claude Code (S14,
     S18).
 
+**Ticket T6's picks, flagged (47 and 48 are T8's):**
+
+49. Security, the lead's pick (its decision 76), pending the owner: the
+    release job tags with a GitHub App used only for releases, the tag
+    ruleset's only bypass actor, its key a secret of an environment only `main`
+    deploys to. It changes S10's and C23's "no secrets". Why: a bypass names a
+    role, app, team, user or deploy key, never a workflow, so a bypass for
+    `github.token` is one every workflow shares, and a workflow file on any
+    branch of the repo sets its own permissions and runs before review (S10).
+50. Trade-off: the word budgets of `docs/install.md` (8,000 to 8,100) and
+    `docs/reference.md` (2,250 to 2,300) rise for the release text, and
+    nothing is cut to make room, on the owner's rule; PACT-110 cleans up.
+
 ## S3 Terms
 
 These join `CONTEXT.md` in T1.
@@ -524,7 +537,9 @@ The installer is today's, generalised from one home to many harnesses:
 
 **The command:** `npx github:mephistopheles4/the-pact#semver:^1`. npm resolves
 the highest tag whose name ends in a `1.x.y` version, whatever comes before
-it, and runs the package's one `bin`, `pact`. So every tag in the repo is
+it, and runs the package's one `bin`, `pact`. When the default branch's tip
+carries such a tag, npm takes that one even if a higher one exists; the
+bootstrap still picks the highest release itself. So every tag in the repo is
 under the tag ruleset, not only `v*` (below).
 
 **`package.json`** at the repo root: `name`, `version` `1.0.0`, `bin`,
@@ -559,10 +574,12 @@ It keeps the last three clones and deletes older ones it made.
 
 - triggered by `workflow_run` of `gate` completing. The job's `if` requires
   `conclusion == 'success'`, `event == 'push'`, `head_branch == 'main'`,
-  `head_repository.full_name == github.repository`, and the repository
-  variable `PACT_RELEASES` set to `on`, which the owner sets in T9;
-- one job with `permissions: contents: write` and nothing else, no secrets,
-  actions pinned by SHA, and no checkout;
+  `head_repository.full_name == github.repository`,
+  `github.ref == 'refs/heads/main'`, and the repository variable
+  `PACT_RELEASES` set to `on`, which the owner sets in T9;
+- one job in the `release` environment, which only `main` may deploy to. Its
+  own token only reads; its one secret is the release app's key,
+  `PACT_RELEASE_APP_KEY`; actions are pinned by SHA; no checkout;
 - reads `main`'s tip through the API and tags only when `head_sha` is that
   tip, so a re-run of an old gate run tags nothing. The number is one past
   the highest existing `v1.<n>.0`, or 1 when none exists, never the run
@@ -570,8 +587,10 @@ It keeps the last three clones and deletes older ones it made.
 - runs in a `release` concurrency group that never cancels, and reads the tip
   again just before it creates the tag, so two close runs can't put the
   higher number on the older commit;
-- creates the tag through the API (`git/refs`) with `github.token`, unless a
-  release tag already points at `head_sha`;
+- creates the tag through the API (`git/refs`) with a token of the release
+  app, scoped to `contents: write` (`actions/create-github-app-token`, with the
+  variable `PACT_RELEASE_APP_CLIENT_ID`), unless a release tag already points
+  at `head_sha`;
 - runs none of the repo's code.
 
 `gate/tests/workflow.test.mjs` bans `workflow_run` in every workflow today.
@@ -581,11 +600,10 @@ is a spec change, flagged big and read by the security pair. A second file
 using `workflow_run` still fails (C23).
 
 **The tag ruleset** is the owner's act on GitHub. It targets every tag, not
-only `v*`: only the release job's actor creates one, and no one updates or
-deletes one. T6 checks which actor a bypass can name. If the narrowest
-actor is one every workflow in the repo shares, T6 stops and asks (S20): the
-owner takes that residual, or the job tags with a key held in an environment
-only `main` may deploy to, against "no secrets".
+only `v*`: only the release app creates one, as its one bypass actor, and no
+one updates or deletes one. T6 found that a bypass can name no actor narrower
+than every workflow while the job tags with `github.token`, so it tags with
+the app instead (S2 item 49).
 
 ## S11 Scriptorium
 
@@ -706,16 +724,18 @@ never-sync rule names both folders.
   shell call in Codex and Antigravity.
 - **Merges and installs:** installs now reach `~/.codex`, `~/.gemini` and
   `~/.agents/skills` as well as `~/.claude`, and an own harness's paths.
-- **A write token in CI:** the release job can create tags.
+- **A write key in CI:** the release job tags with the release app's key.
 - **What leaves the machine:** Codex and Antigravity sessions send their
   context to OpenAI and Google: the rendered rules, pins, private tracker
   text, hand-offs and private code among it.
 
 **Controls:**
 
-- the tag ruleset (GitHub): every tag, created only by the release job's
-  actor, none moved or deleted. It doesn't hold while the owner edits the
-  ruleset, and it is only as narrow as the actor T6 finds (S10);
+- the tag ruleset (GitHub): every tag, created only by the release app, none
+  moved or deleted. It doesn't hold while the owner edits the ruleset (S10);
+- the `release` environment (GitHub): only `main` reads the app's key. It
+  doesn't hold if the environment allows another branch, or the key is also a
+  repository secret;
 - the release job's conditions: a push run of `gate` on this repo's `main`,
   at `main`'s tip, with `PACT_RELEASES` on (C23);
 - `main`'s ruleset, as today, so a release commit passed review and `gate`;
@@ -739,6 +759,9 @@ never-sync rule names both folders.
   GitHub and the tag ruleset. npm may cache a resolved copy. The head check
   compares ids from the same server, so it checks consistency, not
   integrity. This widens "What you install and CI run".
+- **The release app's key** does all `contents: write` does, not tags alone:
+  it can push a branch no ruleset covers, and merge what `main`'s ruleset lets
+  through. This widens "What you install and CI run": the owner's call.
 - **A guard that never runs.** In an own harness, or in Codex before the
   trust step, a guard can be missing with no report beyond the dry run's
   line. The owner accepted this for own harnesses.
@@ -898,11 +921,12 @@ model must stay within its word budget.
   head isn't the tag's commit, and deletes the clone; it never runs
   `--apply`; the apply line it leads to runs from another folder; a fake
   `git` in the folder it runs from never runs.
-- **C23** `workflow.test.mjs` passes the release job only with exactly
-  `contents: write`, no secrets, SHA-pinned actions, no checkout, the
-  `workflow_run` trigger on `gate`, and each of S10's `if` conditions; a bad
-  case for each fails it, and so do a missing `release` concurrency group
-  and a second workflow file that uses `workflow_run`.
+- **C23** `workflow.test.mjs` passes the release job only with a job token that
+  only reads, no secret but the release app's key, the `release` environment,
+  an app token asked for `contents: write` alone, SHA-pinned actions, no
+  checkout, the `workflow_run` trigger on `gate`, and each of S10's `if`
+  conditions; a bad case for each fails it, and so do a missing `release`
+  concurrency group and a second workflow file that uses `workflow_run`.
 - **C28** With no terminal and neither flag, the bootstrap refuses
   (`bootstrap-choice`); `--default` never overwrites an existing
   configuration; the bootstrap keeps three clones.
@@ -1009,7 +1033,10 @@ reads this spec and each ticket's diff.
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
 | The poster's narrower coverage in Codex (S13) | the owner's call | at T4's probe |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
-| The tag ruleset on every tag | the owner's own act | before T6 merges |
+| The tag ruleset on every tag, the release app its one bypass | the owner's own act | before T6 merges |
+| The release app as that bypass, and its key's reach (S2 item 49, S15) | the owner's call | before T9 |
+| The raised budgets of two docs (S2 item 50) | a flagged pick, for review | any time |
+| The release app (contents write, this repo only); the `release` environment, deployable from `main` only; its secret `PACT_RELEASE_APP_KEY`; the variable `PACT_RELEASE_APP_CLIENT_ID` | the owner's own acts | before T9 |
 | `PACT_RELEASES` set to `on` | the owner's own act | in T9 |
 | S14's one-time removal; its step 4 moves the hand ports out of use | the owner's own machine | straight before T9's apply |
 | Each install apply | the owner's typed command | in T9 |

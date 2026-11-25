@@ -1,0 +1,88 @@
+# Release tags (spec 0007 S10): once the gate passed on a push to main, tag
+# main's tip v1.<n>.0, one past the highest release. npx installs only such
+# tags, so a tag here is code the owner runs.
+#
+# It tags nothing until the owner sets the repository variable PACT_RELEASES to
+# on. It tags with a GitHub App used for releases alone, the tag ruleset's only
+# bypass actor, whose private key is a secret of the release environment, which
+# the owner lets only main deploy to. A workflow on another branch holds neither.
+#
+# No checkout: none of the repo's code runs. The file is held to an exact
+# allow-list, as codeql.yml is, and is the one file that may use workflow_run.
+# The concurrency group sits on the job, so a run whose job is skipped never
+# displaces a waiting release.
+name: release
+
+on:
+  workflow_run:
+    workflows: [gate]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.ref == 'refs/heads/main' &&
+      vars.PACT_RELEASES == 'on'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: release
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        id: app
+        with:
+          client-id: ${{ vars.PACT_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PACT_RELEASE_APP_KEY }}
+          permission-contents: write
+      - name: Tag the tip of main
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: node {0}
+        run: |
+          const { TOKEN, HEAD_SHA, GITHUB_API_URL, GITHUB_REPOSITORY } = process.env;
+          async function call(path, body) {
+            const r = await fetch(`${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/${path}`, {
+              method: body ? 'POST' : 'GET',
+              headers: { authorization: `Bearer ${TOKEN}`, accept: 'application/vnd.github+json' },
+              body: body && JSON.stringify(body),
+              redirect: 'error',
+            });
+            if (!r.ok) throw new Error(`GitHub answered ${r.status} for ${path}.`);
+            return r.json();
+          }
+          const isTip = async () => (await call('git/ref/heads/main')).object.sha === HEAD_SHA;
+          async function releases() {
+            const found = [];
+            for (const { ref, object } of await call('git/matching-refs/tags/v1.')) {
+              const m = /^refs\/tags\/v1\.(0|[1-9]\d{0,8})\.0$/.exec(ref);
+              if (!m) continue;
+              const target = object.type === 'tag' ? (await call(`git/tags/${object.sha}`)).object : object;
+              found.push({ n: Number(m[1]), sha: target.sha });
+            }
+            return found;
+          }
+          async function main() {
+            if (!TOKEN) throw new Error('No app token.');
+            if (!/^[0-9a-f]{40}$/.test(HEAD_SHA ?? '')) throw new Error('The run names no commit.');
+            if (!(await isTip())) return 'main has moved past this run; nothing is tagged.';
+            const done = await releases();
+            if (done.some(r => r.sha === HEAD_SHA)) return 'A release already points at this commit; nothing is tagged.';
+            const tag = `v1.${Math.max(0, ...done.map(r => r.n)) + 1}.0`;
+            if (!(await isTip())) return 'main has moved past this run; nothing is tagged.';
+            await call('git/refs', { ref: `refs/tags/${tag}`, sha: HEAD_SHA });
+            return `Tagged ${tag} on ${HEAD_SHA}.`;
+          }
+          main().then(console.log, e => {
+            console.log(e.message);
+            process.exitCode = 1;
+          });

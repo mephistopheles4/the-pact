@@ -94,8 +94,8 @@ runs only, never a host run of `gate/tests/run.mjs`.
   commands.
 - **It needs athanor at commit `4121c28` or later,** the first to read
   `athanor.json`. Its version, `0.1.0`, doesn't tell the builds apart. An
-  older copy stops with exit 125 and asks for an `athanor` key in a
-  `package.json`: leave that file out, and ask the owner to update athanor,
+  older copy stops with exit 125 and asks for an `athanor` key in
+  `package.json`: never add one, and ask the owner to update athanor,
   since an install is the owner's. Run on the host when athanor can't run:
   no Docker, or an older copy.
 - **It passes when athanor exits 0 and the runner's result line ends in
