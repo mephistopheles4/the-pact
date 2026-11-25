@@ -1797,8 +1797,8 @@ const windowsName = rel => rel
   .join('/')
   .toLowerCase();
 
-// Other programs' keys and sign-ins under the home folder.
-const SECRET_STORES = /^(\.ssh|\.aws|\.gnupg|\.config\/gh)(\/|$)|^(\.codex\/auth\.json|\.gemini\/(oauth_creds|google_accounts)\.json|\.git-credentials|\.gitconfig|\.netrc)$/;
+// Programs' keys and sign-ins under the home folder, and any file whose name starts .credentials.
+const SECRET_STORES = /^(\.ssh|\.aws|\.gnupg|\.config\/gh)(\/|$)|^(\.claude\.json|\.codex\/auth\.json|\.gemini\/(oauth_creds|google_accounts)\.json|\.git-credentials|\.gitconfig|\.netrc)$|(^|\/)\.credentials[^/]*$/;
 
 /** Whether a home-relative path is one of them: no harness path may be, and the install never reads, writes or deletes one. */
 export const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));
@@ -1810,10 +1810,8 @@ export const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));
  */
 export function isProtected(rel, merged = []) {
   const n = windowsName(rel);
-  const leaf = n.slice(n.lastIndexOf('/') + 1);
   if (isSecretStore(rel)) return true;
   if ([...MERGED_FILES, ...merged].some(f => f.toLowerCase() === n)) return true;
-  if (leaf.startsWith('.credentials')) return true;
   if (/^\.claude\/(projects|memory|skills|handover)(\/|$)/.test(n)) return true;
   return /^\.pact\/((install|config|builder|github|linear)\.json$|gh-app-|(blocks|presets|backups|handoffs|source)(\/|$))/.test(n);
 }

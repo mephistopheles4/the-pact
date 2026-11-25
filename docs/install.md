@@ -123,7 +123,8 @@ session running:
    list it marks a copy step 3 or 6 missed.
 8. After the apply, and any sessions that push with your own credentials, set
    `agent-identity` to `true` in `~/.pact/config.json`, run
-   `node claude/tools/gh-app.mjs refresh` in your clone, and apply again.
+   `node claude/tools/gh-app.mjs refresh --provider claude` in your clone, once
+   per provider, and apply again.
 
 Skip steps 4 and 6 while the dry run says the pact does not build a harness's
 format yet: your copy is then the only pact that harness reads.
@@ -736,16 +737,18 @@ installer's own floor) and `node` on the PATH.
 **To a commit that installs into `~/.claude`.** Such an installer knows
 nothing of `~/.pact`. In one sitting, with no other session running:
 
-1. Turn `agent-identity` off and apply.
+1. If `clef` is on, stop and remove it ([clef.md](clef.md)). Turn
+   `agent-identity` off and apply.
 2. Set `"harnesses": {"install": []}`, run the dry run and apply, which removes
    every recorded file and settings entry.
 3. Check that `~/.pact/install.json` lists no file and no entry, and that each
    file the dry run named is gone.
 4. Take the `harnesses` key out of your configuration, which an older installer
-   refuses. Move what you moved in the one-time removal back from `~/.pact/` to
-   `~/.claude/pact/` (`handoffs/` to `handoff/`), and your hand copies back from
-   `~/.pact/backups/hand-copies/`.
-5. Do the checks and steps below, then turn `agent-identity` back on there.
+   refuses. Delete `~/.pact/scriptorium.html`. Move what you moved in the
+   one-time removal back from `~/.pact/` to `~/.claude/pact/` (`handoffs/` to
+   `handoff/`), and your hand copies back from `~/.pact/backups/hand-copies/`.
+5. Do the checks and steps below, applying nothing more at the newer commit
+   (that reinstalls the pact). Then turn `agent-identity` on at the old one.
 
 Done when the older install's dry run shows no drift. The paths in the rest of
 this section are that older layout's: `pact/` and the record,

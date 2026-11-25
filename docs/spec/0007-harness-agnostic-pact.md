@@ -306,8 +306,10 @@ The known descriptions:
 - **An own harness** may set any field above, but its formats must be the
   pact's own names; any other value refuses (`harness-format`). Its paths
   must be absolute, under the home folder, outside any git work tree and
-  outside `~/.pact`; otherwise it refuses (`harness-path`). Nothing else is
-  checked. The dry run prints, for each own harness with `hooks`: "guards
+  outside `~/.pact`; otherwise it refuses (`harness-path`). So does a rules
+  file not ending `.md`, a hooks file not ending `.json`, or a path on the
+  secret-store list; a name may start with a dot at any depth (T1's picks).
+  Nothing else is checked. The dry run prints, for each own harness with `hooks`: "guards
   unverified for `<name>`: the pact has not seen this harness run its hook".
 - **A known harness's fields** may be overridden by an own entry of the same
   id, field by field, under the same checks, with a `WARN` naming each.
@@ -517,7 +519,10 @@ The installer is today's, generalised from one home to many harnesses:
   link and entry in every harness against its hash in `install.json` and
   reports drift per harness, as it does for `~/.claude` today. After a
   checkout install, the behind check is today's, against the recorded
-  commit. After a release install, a release lower than the recorded one
+  commit. Two recorded entries are not compared,
+  `permissions.defaultMode` and `skipAutoPermissionPrompt` (the lead's pick at
+  T1): each apply sets them again, with a warning, so a hand edit doesn't
+  block it. After a release install, a release lower than the recorded one
   warns "behind the last install", and a checkout is checked against the
   recorded release's commit. A shallow release clone never needs history.
 - **A failed apply** leaves its backup and a record written file by file, so
