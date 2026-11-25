@@ -1262,9 +1262,7 @@ async function orphan(t, f, cfgExtra = {}, { started = new Date().toISOString(),
   f.setCfg({ propsLog: join(f.root, 'props.txt'), ...cfgExtra });
   const child = spawn(process.execPath, [f.stub, f.cfg, '--port', String(port), '--api-key-file', f.run.key], { stdio: 'ignore' });
   t.after(() => child.kill('SIGKILL'));
-  // Wait for an HTTP answer, not just a non-refusal: a probe that times out still reaches the stub later and would
-  // log a stray 'none' after the log is cleared below.
-  for (let i = 0; i < 100 && typeof (await clef.probeProps({ port, timeoutMs: 2000 })) !== 'number'; i++) await sleep(50);
+  for (let i = 0; i < 100 && (await clef.probeProps({ port, timeoutMs: 200 })) === 'refused'; i++) await sleep(50);
   clefRm(join(f.root, 'props.txt'), { force: true });
   writeFileSync(f.run.server, JSON.stringify({ run: 'old', pid: pid ?? child.pid, port, started }));
   return { child, port, key, props: () => (existsSync(join(f.root, 'props.txt')) ? readFileSync(join(f.root, 'props.txt'), 'utf8').split('\n').filter(Boolean) : []) };
