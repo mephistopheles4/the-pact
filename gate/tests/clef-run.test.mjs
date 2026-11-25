@@ -156,16 +156,17 @@ const QUESTIONS = {
 
 // ------------------------------------------------------------ pure pieces
 
+// #PACT-106 C1 (spec 0002 S7): the list is fixed, with -c 65536 -ub 8192 -b 8192 on every backend.
 test('serverArgs: the list is fixed, the key is a file, and Vulkan adds -ngl 99', () => {
   const a = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', vulkan: false });
-  assert.deepEqual(a, ['--host', '127.0.0.1', '--port', '4242', '--api-key-file', '/k/run.key', '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', '-c', '16384', '-ub', '4096', '-b', '4096', '-m', '/m/x.gguf']);
+  assert.deepEqual(a, ['--host', '127.0.0.1', '--port', '4242', '--api-key-file', '/k/run.key', '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', '-c', '65536', '-ub', '8192', '-b', '8192', '-m', '/m/x.gguf']);
   const v = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', vulkan: true });
-  assert.deepEqual(v.slice(10, 12), ['-ngl', '99']);
+  assert.deepEqual(v, [...a.slice(0, 10), '-ngl', '99', ...a.slice(10)]);
   assert.ok(!a.includes('--api-key'), 'no key on the command line');
   // Spec 0003 M4: Metal offloads as Vulkan does; macOS's CPU key names no device, so Metal is never used.
-  assert.deepEqual(clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', metal: true }).slice(10, 12), ['-ngl', '99']);
+  assert.deepEqual(clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', metal: true }), v);
   const c = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', noDevice: true });
-  assert.deepEqual(c.slice(10, 12), ['--device', 'none']);
+  assert.deepEqual(c, [...a.slice(0, 10), '--device', 'none', ...a.slice(10)]);
   assert.ok(!c.includes('-ngl'));
 });
 
@@ -176,6 +177,7 @@ test('serverArgs: a CPU backend ends with -nr, after --device none, and a GPU ba
   assert.deepEqual(cpu.slice(-3), ['-m', '/m/x.gguf', '-nr']);
   assert.deepEqual(cpu.slice(0, -1), clef.serverArgs(base), 'the CPU list is the plain list plus -nr');
   const mac = clef.serverArgs({ ...base, cpu: true, noDevice: true });
+  assert.deepEqual(mac.slice(0, -1), clef.serverArgs({ ...base, noDevice: true }), 'the macOS CPU list is the no-device list plus -nr');
   assert.equal(mac.at(-1), '-nr');
   assert.ok(mac.indexOf('--device') < mac.indexOf('-nr'));
   for (const gpu of [{ vulkan: true }, { metal: true }, {}]) assert.ok(!clef.serverArgs({ ...base, ...gpu }).includes('-nr'), JSON.stringify(gpu));

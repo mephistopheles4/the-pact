@@ -43,7 +43,7 @@ are no arm64 builds for Linux or Windows. Every live check ran on the owner's
 machine, and `docs/clef.md` reads as written for it.
 
 Running the real pinned server on CI's machines (U10) found that b12211, with
-0002 S7's arguments, aborts while loading the model on three of four runners:
+0002 S7's arguments at the time (`-c 16384 -ub 4096 -b 4096`), aborts while loading the model on three of four runners:
 Linux x64 on a Xeon with AMX, Linux arm64 and Windows arm64. So Linux x64 as
 pinned today does not run on every x64 CPU either.
 
@@ -424,7 +424,8 @@ throwaway `pact-e2e-experiment` branch with no PR, never merged, deleted
 once the spec is approved. Its workflow runs on a push to that branch only and
 keeps the lockdown every workflow keeps. On each runner it fetched the pinned
 archive and the model through the tool's own fetch (size and sha256 checked),
-started `llama-server` with 0002 S7's arguments on CPU, asked the six cases on
+started `llama-server` with 0002 S7's arguments at the time
+(`-c 16384 -ub 4096 -b 4096`) on CPU, asked the six cases on
 `/v1/systemone` and printed the time to ready, each answer's time and band,
 and the peak memory. On `windows-2025` it also ran the tool itself (setup,
 ensure, the cases, stop, remove).

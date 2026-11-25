@@ -374,7 +374,8 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   server starts on another OS-picked loopback port with `--host 127.0.0.1`,
   `--api-key-file <clef folder>/run.key` (mode 0600 on Linux and macOS, removed at
   stop), `--no-webui`, `--no-slots`, `-ngl 99` on Vulkan, and
-  `-c 16384 -ub 4096 -b 4096`. The argument list is fixed in the tool; no
+  `-c 65536 -ub 8192 -b 8192`; a prompt must fit one physical batch (`-ub`),
+  or b12211 refuses it. The argument list is fixed in the tool; no
   part comes from a caller. The key never appears on a command line.
 - **Its output.** The server's stdout and stderr are read only to count lines
   and to find the ready line; their text is discarded. No verbose flag is
@@ -485,7 +486,8 @@ the disk.
 `docs/clef.md`, for the owner and anyone who turns the tool on:
 
 - what it fetches and from where, and the disk it needs (about 7 GB);
-- the RAM and VRAM T4 measures (C14);
+- the RAM and VRAM measured under S7's current arguments, and T4's timings
+  (C14);
 - setup, verify, status, stop and remove; the CPU speed note;
 - **how a caller uses it:** `ensure`'s JSON line and exit codes, the token in
   `run.json`, the two routes, the body shape and the answer check. This
