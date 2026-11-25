@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, 
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { applyBound, commitAll, home, install, makeRepo, passed, refused } from './install-harness.mjs';
+import { REPO } from './text.mjs';
 
 const TRUST = /^(?: )*Codex: open \/hooks and trust pact-guard; until then Codex runs unguarded\.\r?$/m;
 const CODEX = '.codex/hooks.json';
@@ -177,10 +178,34 @@ test('bad case: a changed pact hook is drift, a hooks file that is not a strict 
   }
 });
 
-test('bad case: a hooks path only the install record names is held to the same bound', t => {
+// The undo steps are followed by hand, so they must allow what the guard's apply backs up.
+test('bad case: the undo steps allow each hooks file the apply backs up, one it made included', t => {
   const repo = makeRepo(t);
-  const h = three(t);
+  const h = home(t);
+  mkdirSync(join(h, '.codex'));
+  put(h, AG, { mine: MY_GROUP });
+  config(h, ON);
+  const r = applyBound(repo, h);
+  passed(r);
+  const name = /backed up \d+ file\(s\) to \.pact\/backups\/(\S+)/.exec(r.stdout)[1];
+  const hooksFile = e => [CODEX, AG].includes(e.path);
+  const listed = json(h, `.pact/backups/${name}/manifest.json`).entries.filter(hooksFile).map(e => [e.path, e.was]);
+  assert.deepEqual(listed, GUARDS ? [[CODEX, 'absent'], [AG, 'file']] : []);
+  // The record names a hooks file under its entries, never its files.
+  assert.deepEqual(record(h).files.filter(hooksFile), []);
+  const undo = readFileSync(join(REPO, 'docs', 'install.md'), 'utf8').replaceAll('\r\n', '\n').split('\n## Undo an apply\n')[1].split('\n## ')[0];
+  const rule = start => undo.split(/\n(?=   - |\d\. )/).find(b => b.startsWith(`   - ${start}`)).replace(/\s+/g, ' ');
+  assert.match(rule('each path is under'),/hooks file \(`~\/\.codex\/hooks\.json`, `~\/\.gemini\/config\/hooks\.json`/);
+  assert.match(rule('each `was: absent` path'), /a hooks file under its `entries`/);
+});
+
+test('bad case: a hooks path only the install record names is held to the same bound, under a harness that isn\'t found too', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  put(h, AG, { mine: MY_GROUP });
+  config(h, ON);
   passed(applyBound(repo, h));
+  assert.ok(!existsSync(join(h, '.codex')), 'Codex is not found here');
   // Planted, so the case runs on Windows too, where an apply records no guard entry.
   const doc = record(h);
   doc.entries.push({ harness: 'codex', path: '.ssh/hooks.json', key: 'guard.codex', value: { matcher: '^Bash$', hooks: [] }, sha256: '0'.repeat(64) });

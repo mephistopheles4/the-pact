@@ -93,8 +93,8 @@ someone hands a session to load, and a decision model's answer.
   and `respawn`, on only while `session-stop-deny` is on (off by default); the
   cleaner's stop yields to it. Deny
   rules are speed bumps: another spelling gets past them. The ask rule is
-  passed by `bypassPermissions`, a mod, or another spelling. In Codex and
-  Antigravity (not Windows) a guard hook denies what those rules deny, under the same
+  passed by `bypassPermissions`, a mod, or another spelling. Off Windows, in
+  Codex and Antigravity a guard hook denies what those rules deny, under the same
   switches; an ask rule prompts in Antigravity and denies in Codex. The hook
   denies on an error it catches; a hook that can't start, crashes past that or times out lets the call
   through, as does another spelling. In Codex it runs only once the owner

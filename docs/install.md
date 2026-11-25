@@ -921,7 +921,9 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
    - each path is relative to your home folder, with forward slashes and no `..`,
      and names its harness;
    - each path is under `.pact/` or a harness's own rules file, agents or
-     commands folder; none is under `.pact/blocks/`, `.pact/presets/`,
+     commands folder, or is its hooks file (`~/.codex/hooks.json`,
+     `~/.gemini/config/hooks.json`, or the one your own harness names); none
+     is under `.pact/blocks/`, `.pact/presets/`,
      `.pact/backups/`, `.pact/handoffs/`, `.pact/config.json`,
      `.pact/builder.json` or a `.credentials` file, the paths the install
      never touches; `.claude/settings.json` and `.pact/install.json` may be
@@ -930,8 +932,8 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
      `shasum -a 256`, or `Get-FileHash` in PowerShell (compare ignoring case);
    - each `was: absent` path, other than `settings.json` and
      `install.json`, is listed in your current
-     `~/.pact/install.json`, so a planted entry can't have you delete
-     a file of your own. Whatever could plant one could also rewrite the
+     `~/.pact/install.json` (a hooks file under its `entries`), so a planted
+     entry can't have you delete a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
    `~/<path>`. Keep `settings.json`
