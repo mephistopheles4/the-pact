@@ -34,6 +34,7 @@ Claude Code session on your machine.
 - [Updating later](#updating-later)
 - [The session stop switch](#the-session-stop-switch)
 - [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
+- [The guard in Codex and Antigravity](#the-guard-in-codex-and-antigravity)
 - [Roll back to an older version](#roll-back-to-an-older-version)
 - [Known limits](#known-limits)
 - [Undo an apply](#undo-an-apply)
@@ -646,6 +647,39 @@ installer's own floor) and `node` on the PATH.
   Claude Code's own transcript clean-up. On macOS an access control list the
   folder inherits can grant another account access despite the owner-only
   mode; check with `ls -le`.
+
+## The guard in Codex and Antigravity
+
+Claude Code keeps its permission rules. Codex and Antigravity, and a harness of
+your own whose hooks file takes either one's format, get the same rules from a
+hook the install adds.
+
+- **When.** Only while a rule is on (the cleaner, or the session stop switch)
+  and the install takes such a harness. [cleaner.md](cleaner.md) lists the
+  commands.
+- **What it writes.** `~/.pact/guard/`: the guard, a wrapper per format, and
+  `rules.json`, the rules that are on. And one `pact-guard` hook, run before a
+  shell command, in each harness's hooks file (`~/.codex/hooks.json`,
+  `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
+  pact's entry, and the apply backs up each hooks file it changes.
+- **Trust it in Codex.** Codex runs a hook only once you trust it: open
+  `/hooks` and trust `pact-guard`. The dry run and the apply say so when the
+  entry is new or changed. An update to the guard or its rules needs no new
+  trust, and trust never checks them.
+- **What it answers.** It refuses a command a rule denies. A rule that asks
+  prompts you in Antigravity and is refused in Codex. Any other command gets no
+  answer, so the harness's own permissions decide. A guard that fails refuses
+  every shell command with `The pact's guard failed (<code>); run the pact's
+  dry run.`
+- **A speed bump, not a gate.** Another spelling gets past it, a command inside
+  `bash -c "..."` included. A hook that can't start, crashes or runs past 15
+  seconds lets the command through.
+- **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
+  shape, or sits behind a link refuses the dry run. A pact entry changed since
+  the install is drift.
+- **Off.** Turning every rule off, or taking the harness out of the install
+  list, removes the entry, and the files once no harness takes them. Do that and
+  apply before you roll back to a commit without the guard.
 
 ## Roll back to an older version
 

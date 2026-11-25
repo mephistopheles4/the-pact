@@ -10,8 +10,9 @@ import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import * as core from '../install-core.mjs';
+import { check } from '../seam-a-core.mjs';
 import { REPO } from './text.mjs';
-import { tempDir } from './tree.mjs';
+import { tempDir, writeTree } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
 const guard = await import(pathToFileURL(join(REPO, 'claude', 'guard', 'guard.mjs')).href);
@@ -372,4 +373,24 @@ test('bad case: the install writes a hooks file only at a plain path outside the
   assert.equal(core.guardPathReason('.codex/hooks.json', none), null);
   for (const rel of ['../x.json', '/etc/x.json', '.pact/hooks.json', '.PACT/x', 'a\\b.json', 'C:/x']) assert.equal(core.guardPathReason(rel, none), 'unsafe path', rel);
   assert.equal(core.guardPathReason('.codex/hooks.json', () => true), 'path through a link');
+});
+
+// ------------------------------------------------------------ seam A's guard part
+
+const seam = (t, files, harness) => {
+  const root = tempDir(t, 'pact-seam-');
+  writeTree(root, files);
+  return check([root, '--commands', 'none', '--tools', 'none', '--compact', 'off', '--harness', harness]).lines;
+};
+const GUARD_STAGE = Object.fromEntries(core.GUARD_SCRIPTS.map(n => [`claude/guard/${n}.mjs`, '// x\n']));
+const guardFails = lines => lines.filter(l => /\bguard-(path|file-name|not-in-pact)\b/.test(l)).map(l => /guard-(path|file-name|not-in-pact)/.exec(l)[0]);
+
+test('bad case: seam A refuses a guard file it does not list, one in a subfolder, and a missing one while a harness takes the guard', t => {
+  assert.deepEqual(guardFails(seam(t, GUARD_STAGE, 'codex:guard')), []);
+  assert.deepEqual(guardFails(seam(t, { ...GUARD_STAGE, 'claude/guard/other.mjs': 'x\n' }, 'none')), ['guard-file-name']);
+  assert.deepEqual(guardFails(seam(t, { ...GUARD_STAGE, 'claude/guard/rules.json': '{}\n' }, 'none')), ['guard-file-name']);
+  assert.deepEqual(guardFails(seam(t, { ...GUARD_STAGE, 'claude/guard/sub/guard.mjs': 'x\n' }, 'none')), ['guard-path']);
+  const { 'claude/guard/codex.mjs': _, ...short } = GUARD_STAGE;
+  assert.deepEqual(guardFails(seam(t, short, 'codex:guard')), ['guard-not-in-pact']);
+  assert.deepEqual(guardFails(seam(t, short, 'codex:none')), []);
 });

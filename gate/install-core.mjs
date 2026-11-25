@@ -2240,7 +2240,6 @@ export const stops = Object.freeze({
   reviewRulesChanged: () => refuse('review-rules-changed', 'the staged rules file changed after the check.'),
   reviewChangedStage: () => refuse('review-changed-stage', 'the review module changed the stage.', REVIEW_LEFT),
   reviewFailed: () => refuse('review-failed', 'the review output was not written, or not as this run rendered it.', REVIEW_LEFT),
-  guardTableInTree: () => refuse('guard-table-in-tree', `the commit holds ${GUARD_TABLE_REL}, a file only the install makes.`),
   hooksNotObject: rel => refuse('hooks-not-object', `${formatPlain(rel)} is not a strict JSON object, so the pact's guard hook cannot be merged into it; fix the file first.`),
   hooksPath: (rel, why) => refuse('hooks-path', `${why} for a hooks file: ${formatPlain(rel)}.`),
   tempLeft: rel => refuse('temp-left', `a temp file the install writes through is already there: ${formatPlain(rel)}.pact-tmp. An earlier install stopped mid-write, and the file may hold a copy of your settings; check it, delete it, and run the install again.`),
