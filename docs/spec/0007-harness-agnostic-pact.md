@@ -292,6 +292,15 @@ its name in V1), rendered once per harness:
   `~/.pact` paths, the neutral phrases above and the model roles (C3).
 - The rule budget test counts the source, as today.
 
+**Tool limits, not choices.** Every part is one universal set. Two places
+differ per harness only because a tool can't do otherwise:
+
+- The cleaner's bullet renders only into Claude Code, because the cleaner
+  removes `.claude/worktrees` and stops sessions with `claude stop`. It goes
+  universal once the cleaner works in other harnesses.
+- An `ask` rule is an ask in Claude Code, `force_ask` in Antigravity and a
+  deny in Codex (S8). It goes universal once Codex hooks support ask.
+
 **Agents.** One source per agent, `claude/agents/<n>.md`, rendered per format:
 
 - `claude-md`: as today, with the model role mapped.
