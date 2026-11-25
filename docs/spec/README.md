@@ -13,6 +13,7 @@ None yet.
 
 ## All specs
 
+- [0007-harness-agnostic-pact](0007-harness-agnostic-pact.md) — the pact in a neutral home, `~/.pact`, rendered by one installer into Claude Code, Codex, Antigravity and a person's own harness, with one shared guard and tagged releases through `npx`
 - [0006-claude-workflows-wif](0006-claude-workflows-wif.md) — the Claude GitHub workflows, authenticated through Workload Identity Federation, under an exact allow-list of their own
 - [0005-clef-everywhere](0005-clef-everywhere.md) — Clef on Linux end to end without setpriv, on arm64 Linux and Windows and on Intel Macs, with CPU end-to-end runs in CI and a doc for anyone
 - [0004-portable-toc](0004-portable-toc.md) — a portable table-of-contents script and its per-repo config, which grimoire, stacks and athanor adopt by choice
