@@ -2,18 +2,19 @@
 // sensitive route. Words from claude/CLAUDE.md's "How much checking".
 import { LEFT, PAD, RIGHT, block, label, notched, sheet } from './draw.mjs';
 
-const COLS = [120, 360, 116, 116];
+const COLS = [112, 336, 132, 132];
 const HEAD = [['Tier'], ['Fits'], ['Plan'], ['Build']];
 const DASH = ['—'];
 const ROWS = [
-  ['Quick', ['Small, one session, no plan needed'], DASH, ['Opus, low']],
-  ['Standard', ['Needs a short spec'], ['Opus, medium'], ['Sonnet,', 'medium']],
-  ['Thorough', ['Too big for one session, or risky;', 'cut into tickets, each its own', 'session'], ['Opus, high'], ['Sonnet,', 'medium']],
+  ['Quick', ['Small, one session, no plan needed'], DASH, ['planning', 'model, low']],
+  ['Standard', ['Needs a short spec'], ['planning', 'model, medium'], ['executor', 'model, medium']],
+  ['Thorough', ['Too big for one session, or risky;', 'cut into tickets, each its own', 'session'], ['planning', 'model, high'], ['executor', 'model, medium']],
 ];
 const FLOOR = [
   'By default, sensitive work is auth, crypto, input validation and data',
   'migrations. The sensitive route: thorough, planned and built',
-  'on Opus at high, with the security pair on the spec and the diff.',
+  'on the planning model at high, with the security pair on the spec',
+  'and the diff.',
 ];
 const ROUTE = [
   'The agent recommends the route, with its why, in its tier proposal,',
@@ -22,9 +23,9 @@ const ROUTE = [
   'open in the result.',
 ];
 const MODELS = [
-  ['Plans', 'Opus'],
-  ['Builds', 'Sonnet · Opus for quick'],
-  ['Sensitive route', 'Opus, high effort'],
+  ['Plans', 'Planning model'],
+  ['Builds', 'Executor model'],
+  ['Sensitive route', 'Planning, high effort'],
 ];
 
 const CONTENT_W = RIGHT - LEFT;

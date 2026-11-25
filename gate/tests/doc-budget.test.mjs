@@ -27,7 +27,7 @@ const BUDGETS = Object.freeze({
   'docs/README.md': 300,
   'docs/poster-app.md': 600,
   'docs/poster.md': 8300,
-  'docs/reference.md': 2300,
+  'docs/reference.md': 2350,
   'docs/rule-reasons.md': 1200,
 });
 

@@ -45,11 +45,11 @@ The moves name no skills. You put your own skills and commands on the stages of 
 
 ## How much checking
 
-Not every change needs a spec. Each piece of work gets a tier (quick, standard or thorough), and the tier says how much checking it needs. Sensitive work, by default auth, crypto, input validation and data migrations, gets more when I choose it. (The default configuration a home install renders with none of your own lists auth, crypto and data migrations, planned on Opus at high and built on Sonnet at high; the pact text's own list also holds input validation.) When the work matches that list, the agent says why in one line in its tier proposal and recommends the sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. If I don't take it, the security pair is offered once more at Test when the change matches the list, and a flag I haven't answered stays open in the result. The rules file's Workflow table says what each tier sets at each stage, from Plan to Maintain, and which lenses to offer there.
+Not every change needs a spec. Each piece of work gets a tier (quick, standard or thorough), and the tier says how much checking it needs. Sensitive work, by default auth, crypto, input validation and data migrations, gets more when I choose it. (The default configuration a home install renders with none of your own lists auth, crypto and data migrations, planned on the planning model at high and built on the executor model at high; the pact text's own list also holds input validation.) When the work matches that list, the agent says why in one line in its tier proposal and recommends the sensitive route: thorough, planned and built on the planning model at high, with the security pair on the spec and the diff. The rules name roles, the planning model and the executor model, and each harness's rules say which of its own models those are: in Claude Code, Opus and Sonnet. If I don't take it, the security pair is offered once more at Test when the change matches the list, and a flag I haven't answered stays open in the result. The rules file's Workflow table says what each tier sets at each stage, from Plan to Maintain, and which lenses to offer there.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-02-tiers-dark.svg">
-  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. What quick, standard and thorough work each fits, and the models that plan and build it. By default, in the pact text, auth, crypto, input validation and data migrations are sensitive work; the agent recommends the sensitive route, thorough and on Opus at high, and I take it or not. The default configuration drops input validation." width="800">
+  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. What quick, standard and thorough work each fits, and the models that plan and build it. By default, in the pact text, auth, crypto, input validation and data migrations are sensitive work; the agent recommends the sensitive route, thorough and on the planning model at high, and I take it or not. The default configuration drops input validation." width="800">
 </picture>
 
 <details>
@@ -57,13 +57,13 @@ Not every change needs a spec. Each piece of work gets a tier (quick, standard o
 
 | Tier | Fits | Plan | Build |
 |---|---|---|---|
-| Quick | Small, one session, no plan needed | — | Opus, low |
-| Standard | Needs a short spec | Opus, medium | Sonnet, medium |
-| Thorough | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
+| Quick | Small, one session, no plan needed | — | planning model, low |
+| Standard | Needs a short spec | planning model, medium | executor model, medium |
+| Thorough | Too big for one session, or risky; cut into tickets, each its own session | planning model, high | executor model, medium |
 
-**Sensitive work · when I choose it.** By default, sensitive work is auth, crypto, input validation and data migrations. The default configuration, which a home install with none of your own renders, lists auth, crypto and data migrations, planned on Opus at high and built on Sonnet at high. The sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. If I don't, the security pair is offered once more at Test on a list match, and a flag I haven't answered stays open in the result.
+**Sensitive work · when I choose it.** By default, sensitive work is auth, crypto, input validation and data migrations. The default configuration, which a home install with none of your own renders, lists auth, crypto and data migrations, planned on the planning model at high and built on the executor model at high. The sensitive route: thorough, planned and built on the planning model at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. If I don't, the security pair is offered once more at Test on a list match, and a flag I haven't answered stays open in the result.
 
-**Models.** Opus plans. Sonnet builds, and Opus builds quick work. The sensitive route runs on Opus at high effort.
+**Models.** The planning model plans. The executor model builds, and the planning model builds quick work. The sensitive route runs on the planning model at high effort. In Claude Code they are Opus and Sonnet.
 
 </details>
 
@@ -124,7 +124,7 @@ Run the install script from the repo root with Node 24 or later. With no switch 
 node gate/install.mjs
 ```
 
-The pact's own files go into `~/.pact`, and the rules, agents and commands into `~/.claude`. The install knows Codex and Antigravity too, and writes nothing into them yet.
+The pact's own files go into `~/.pact`, and the rules, agents and commands into `~/.claude`. Where it finds Codex or Antigravity, the install writes their rules, and Codex's agents, and keeps their skills in `~/.pact/skills`, not yet linked into either. Neither has a guard yet.
 
 The full how-to, with the command for each shell, is in [docs/install.md](docs/install.md).
 

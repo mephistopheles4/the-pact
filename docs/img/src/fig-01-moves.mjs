@@ -1,6 +1,6 @@
 // FIG. 01: the four moves, my practices. What I do at each move,
 // what the agent does, and that each is taken up as the work needs it. Words
-// from claude/CLAUDE.md's "The moves" and "How Claude helps".
+// from claude/CLAUDE.md's "The moves" and "How the agent helps".
 import { LEFT, PAD, RIGHT, block, label, sheet } from './draw.mjs';
 
 const YOU = [
