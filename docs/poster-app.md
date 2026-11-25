@@ -1,8 +1,8 @@
 # The poster as an agent app
 
 With the agent-identity switch on, an app pinned in
-`~/.claude/pact/github.json` and `gh-app.mjs` installed under
-`~/.claude/pact/tools/` beside the poster (the pin's definition,
+`~/.pact/github.json` and `gh-app.mjs` installed under
+`~/.pact/tools/` beside the poster (the pin's definition,
 [agent-identity](agent-identity.md)), the poster is in **app mode**: every post
 and edit goes out as the bot of the pinned app whose bot login is the post's
 `as`, on a `post`-set installation token the helper mints for that provider and
