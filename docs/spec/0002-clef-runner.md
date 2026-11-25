@@ -486,7 +486,8 @@ the disk.
 `docs/clef.md`, for the owner and anyone who turns the tool on:
 
 - what it fetches and from where, and the disk it needs (about 7 GB);
-- the RAM and VRAM T4 measures (C14);
+- the RAM and VRAM measured under S7's current arguments, and T4's timings
+  (C14);
 - setup, verify, status, stop and remove; the CPU speed note;
 - **how a caller uses it:** `ensure`'s JSON line and exit codes, the token in
   `run.json`, the two routes, the body shape and the answer check. This

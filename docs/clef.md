@@ -70,7 +70,7 @@ The supervisor stops itself after 30 minutes with no forwarded request, when the
 
 ## macOS
 
-- **What it needs.** An Apple Silicon Mac on macOS 13.3 or later (the build's floor), with an arm64 Node 24. Expect 16 GB of memory to be the floor; that was set under the earlier `-c 16384 -ub 4096`, and the current arguments are unmeasured on a Mac. Setup picks Metal, and `--cpu` picks CPU. Intel Macs, and an x64 node under Rosetta, are refused with `clef-platform`.
+- **What it needs.** An Apple Silicon Mac on macOS 13.3 or later (the build's floor), with an arm64 Node 24. Expect 16 GB of memory to be the floor; that was set under the earlier `-c 16384 -ub 4096 -b 4096`, and the current arguments are unmeasured on a Mac. Setup picks Metal, and `--cpu` picks CPU. Intel Macs, and an x64 node under Rosetta, are refused with `clef-platform`.
 - **Quarantine.** The tool's own downloads carry no quarantine mark. If macOS still blocks `llama-server` at start ("cannot be opened" or "not verified"), run `clef verify` first. Once it passes, run `xattr -dr com.apple.quarantine <clef folder>/runtime`.
 - **The files.** `run.key`, `run.json` and `run.server` are mode 0600. An access list the folder inherits can still grant another account access: `ls -le` shows one, as [install.md](install.md) says for backups.
 - **The keeper.** macOS has no way to end a child when its parent dies. So the supervisor starts a small keeper (`clef keep`, the same script, reached over a channel only the supervisor holds), and the keeper starts the server. When the supervisor dies, the channel closes and the keeper ends the server. `clef keep` run by hand refuses `clef-keep`.
