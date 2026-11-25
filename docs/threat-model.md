@@ -151,17 +151,18 @@ Codex and Antigravity; and the release app's key.
 **Controls:**
 
 - **GitHub.** A tag ruleset on every tag: only the release app, its one bypass,
-  creates one, and none is moved or deleted. It doesn't hold while the owner
+  creates one, and no one else moves or deletes
+  one. It doesn't hold while the owner
   edits it. The app's key is a secret of the `release` environment, which only
-  `main` deploys to; that doesn't hold if another branch may deploy there or the
-  key is also a repository secret. Actions pinned to a full commit SHA in
+  `main` deploys to; that doesn't hold if another branch may deploy there or the key is also a repository secret or kept
+  elsewhere. Actions pinned to a full commit SHA in
   all five workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot
   security updates. They hold for what the pins and queries cover; an update
   is a pull request, read like any change.
 - **The pact's tools.** `gate/tests/workflow.test.mjs` holds all five
-  workflows to no `pull_request_target`, to no secret but the release app's
-  key, and to a read-only token but for an exact allow-list each on `codeql.yml`, the two Claude files
+  workflows to no `pull_request_target`, to no secret but the release app's key in
+  `release.yml`, and to a read-only token but for an exact allow-list each on `codeql.yml`, the two Claude files
   and `release.yml`:
   `security-events: write` in one CodeQL job, skipped for Dependabot;
   `id-token: write` in each Claude job, with no key in the repo;
@@ -170,7 +171,9 @@ Codex and Antigravity; and the release app's key.
   push there, while `PACT_RELEASES` is `on`. The
   Console's federation rule bounds who gets an Anthropic token; each job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the
-  Claude jobs' write token. It holds only while the test itself is unchanged; a change to it is read
+  Claude jobs' write token. Its secret check misses a bracket-form read outside
+  the Claude files and `release.yml`, and a new workflow may name the `release`
+  environment. It holds only while the test itself is unchanged; a change to it is read
   like any change. The bootstrap takes only an exact release tag and checks the
   clone's head, which keeps the clone consistent, not intact; npm picks the
   bootstrap, so the tag ruleset decides it. The bootstrap's `git` and the guard
@@ -196,7 +199,7 @@ rule holds back trusting a project's mise config until the owner says so in chat
 
 Also accepted. What you install and CI run: typing the
 `npx` command trusts GitHub and the tag ruleset, and npm may reuse a cached
-copy; a stolen release app key does all `contents: write` does: it can tag, push a branch no ruleset covers and merge what `main`'s ruleset lets through; the cloud
+copy; a stolen release app key, while the app holds only `contents: write`, on this repo only, can create, move or delete a release tag, push a branch no ruleset covers and merge what `main`'s ruleset lets through; a copy left on a machine, such as the file GitHub hands the owner, is exposed there, and a leak is answered by deleting the key and checking every release tag; the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs

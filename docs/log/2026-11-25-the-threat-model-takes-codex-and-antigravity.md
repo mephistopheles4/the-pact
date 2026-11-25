@@ -5,7 +5,7 @@ PACT-105 T8, thorough tier on the sensitive route. `docs/threat-model.md` takes 
 The file held 3,049 words of a cap of 3,050 and the new text added about 550, so the build stopped, as S20 says. The lead session picked a cap of 3,600 over cutting security text or waiting for PACT-39 (S2 item 47).
 The owner then asked, through the lead session, for the threat model's two charts back in the same effort. The count now leaves mermaid blocks out (S2 item 48), with tests that prose past the cap still fails. Both changes to the gate are in `gate/tests/threat-model-cap.test.mjs`.
 
-The packaging ticket then moved release tagging to a GitHub App used for releases alone. The threat model names that app and its key where it named the workflow's tag token, and the cap rose again, to 3,700, rather than cut text (S2 item 47; PACT-109 cleans the file up).
+The packaging ticket then moved release tagging to a GitHub App used for releases alone. The threat model names that app and its key where it named the workflow's tag token, and the cap rose again, to 3,750, rather than cut text (S2 item 47; PACT-109 cleans the file up).
 
 ## Record
 
