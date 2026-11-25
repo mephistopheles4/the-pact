@@ -463,7 +463,7 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   // The whole set, from the repo apart from seam A: the rules file, every
   // shipped agent (the lenses and scout, #262 S18) and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
-  // #482: the cloud copy also carries the compact hook, at pact/hooks/.
+  // #482: the cloud copy also carries the compact hook, at .pact/hooks/.
   const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), '.pact/review.md', '.pact/review-diagrams.md', '.pact/hooks/compact-handoff.mjs'].sort();
   assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
@@ -498,7 +498,7 @@ test('cloud copy: the Result section prints the marker only on a full, hash-matc
   assert.deepEqual(lines.filter(l => /NODE_FAILED=/.test(l)), ['  NODE_FAILED=version']);
   assert.ok(lines.indexOf('if [ -z "${NODE_FAILED:-}" ] && [ "$NODE_SEEN" != "v$NODE_VERSION" ]; then') > nodeAt);
   // HASH_FAILED counts every mismatch, and nothing resets it after the checks.
-  assert.match(tail, /^ {4}echo "HASH MISMATCH: ~\/\.claude\/\$rel"; HASH_FAILED=\$\(\(HASH_FAILED \+ 1\)\)$/m);
+  assert.match(tail, /^ {4}echo "HASH MISMATCH: \$\(config_shown "\$rel"\)"; HASH_FAILED=\$\(\(HASH_FAILED \+ 1\)\)$/m);
   assert.equal(lines.filter(l => /HASH_FAILED=/.test(l)).length, 2);
   // The token line tests for a value and never expands one.
   // #183 T3 C6: the proxy line asks the API with both variables unset.
@@ -608,15 +608,16 @@ test('cloud copy: both generated setup scripts parse under bash -n', { skip: (WI
   assert.notEqual(bad.status, 0);
 });
 
-// #482 C10: the cloud tail's settings merge, run under bash and jq against a temp CLAUDE_HOME.
+// #482 C10: the cloud tail's settings merge, run under bash and jq against a temp HOME and a temp CLAUDE_HOME apart from it.
+const userHome = home => `${home}/user`;
 function runTail(home, tail) {
   const overlay = repoText('claude/settings.overlay.json');
   const body = tail.split('__SETTINGS_OVERLAY__').join(overlay).split('__COMPACT_WINDOW__').join('400000');
-  return spawnSync('bash', ['-c', `CLAUDE_HOME="$1"\nCONFIG_WRITTEN=0\n${body}`, 'tail', home], { encoding: 'utf8', env: childEnv() });
+  return spawnSync('bash', ['-c', `CLAUDE_HOME="$1"\nCONFIG_WRITTEN=0\n${body}`, 'tail', home], { encoding: 'utf8', env: { ...childEnv(), HOME: userHome(home) } });
 }
 const EVENTS = ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart'];
 const cloudGroup = (home, event) => {
-  const group = { hooks: [{ type: 'command', command: 'node', args: [`${home}/pact/hooks/compact-handoff.mjs`, '400000'], timeout: 15 }] };
+  const group = { hooks: [{ type: 'command', command: 'node', args: [`${userHome(home)}/.pact/hooks/compact-handoff.mjs`, '400000'], timeout: 15 }] };
   return event === 'SessionStart' ? { matcher: 'compact', ...group } : group;
 };
 test('#482 C10: the cloud tail writes the hook groups and the window as the install does, keeps an owner hook, and a merge that drops it is seen to fail', { skip: WIN && 'not run: bash and jq are not on a Windows runner by default' }, t => {

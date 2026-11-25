@@ -83,8 +83,10 @@ the two keys are not set, and the apply refuses.
 ## Turning it off
 
 Set it to `false`, dry run, and apply on your word. The tool goes, and so do the
-recorded `env` keys whose live value is still the recorded one; a key you changed
-or wrote yourself stays. A missing or changed gitconfig doesn't block this.
+recorded `env` keys. A key you wrote yourself stays. A recorded key you changed
+shows as drift and the apply refuses: put its value back, or follow
+[Updating later](install.md#updating-later). A missing or changed gitconfig
+doesn't block this.
 
 ## Rolling back
 

@@ -88,14 +88,13 @@ how every session in every repo behaves. So:
   `off`, the only two words the install's parser takes. On, the install adds `STOP_DENY`'s eight
   rules (`claude stop *`, `claude kill *`, `claude daemon stop *` and
   `claude respawn *`, each as a `Bash(...)` and a `PowerShell(...)` rule) to
-  `permissions.deny` and records the ones it added under `stopDeny`; off, it
-  removes only rules both recorded and on that list. `parseRecord` refuses a
-  `stopDeny` that is not a list of strings. The cleaner's switch adds
-  `claude rm *` the same way, under `cleanerDeny`. It adds `CLEANER_ASK`'s two
+  `permissions.deny` and records the ones it added in the record's `entries`; off, it
+  removes only rules both recorded and on that list. `parseRecord` refuses
+  `entries` that are not a list of settings entries. The cleaner's switch adds
+  `claude rm *` the same way. It adds `CLEANER_ASK`'s two
   rules (`*cleaner.mjs*remove*--override*`, as a `Bash(...)` and a `PowerShell(...)` rule) to
-  `permissions.ask`, recorded under `cleanerAsk`; `cleanerAskPlan` is `denyPlan`
-  over the ask list, `mergeSettings` applies it after the retired-ask filter, and `parseRecord`
-  refuses a `cleanerAsk` that is not a list of strings. With `settings.json` not strict JSON and the
+  `permissions.ask`, recorded the same way; `cleanerAskPlan` is `denyPlan`
+  over the ask list, and `mergeSettings` applies it after the retired-ask filter. With `settings.json` not strict JSON and the
   cleaner on, a `WARN:` line names both rules. Each plan filters its record
   by its own list. None of the three is in the overlay or the allow-list, and
   the cloud copy adds none. The ask rules' misses are listed in ADR 0151. The

@@ -359,13 +359,13 @@ macOS. The cloud copy doesn't install it.
 `claude rm` joins the git rules because it deletes a session's
 worktree with whatever is left in it, uncommitted and untracked files
 included, which git's own keeps don't bound.
-It records the ones it added under `cleanerDeny` in `install.json`, and
+It records the ones it added in `install.json`'s `entries`, and
 turning the cleaner off removes only those; a rule you wrote yourself stays.
 A record from before `claude rm` joined holds only the git rules, and the
 next install with the cleaner on adds the two.
 
 The install also adds two ask rules, `Bash(*cleaner.mjs*remove*--override*)` and its
-`PowerShell(...)` twin, to `permissions.ask`, recorded under `cleanerAsk` and removed the same way.
+`PowerShell(...)` twin, to `permissions.ask`, recorded there too and removed the same way.
 They make Claude Code ask before a `remove --override` runs. They are a speed bump: a spelling that
 splits `cleaner.mjs`, `remove` or `--override` apart, or runs the tool through a wrapper that hides
 them, gets past. If `settings.json` is not strict JSON the install leaves it alone and warns.

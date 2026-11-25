@@ -1,6 +1,6 @@
 // The builder page (#53, slice 7): builder/scriptorium.html. What the page
 // saves installs like a hand-written file. Its own save logic runs in node:vm, with no page, into a
-// throwaway --claude-home that the install script then checks exactly as it
+// throwaway --home folder that the install script then checks exactly as it
 // checks a file written by hand. The page's other cases, which never install,
 // are in builder-page.test.mjs.
 import assert from 'node:assert/strict';
@@ -38,11 +38,14 @@ const L = pageLogic();
 
 // ------------------------------------------------------------ what the page saves installs like a hand-written file
 
-/** Write the page's files for `state` into the Claude home `h`'s pact folder, as a save into ~/.claude/pact does. */
+/**
+ * Write the page's files for `state` under the home folder `h`: a save writes
+ * into ~/.pact, and each agent file is downloaded into ~/.claude/agents.
+ */
 function saveInto(h, state) {
   const files = JSON.parse(JSON.stringify(L.buildFiles(state)));
   for (const f of files) {
-    const p = join(h, ...f.path.split('/'));
+    const p = join(h, f.agent ? '.claude' : '.pact', ...f.path.split('/'));
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, f.text);
   }
@@ -67,7 +70,7 @@ function installSaved(t, state) {
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Installed commit [0-9a-f]{40} with configuration [0-9a-f]{12}; all files verified\.\r?$/m, r.out);
-  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+  const rules = readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8');
   assert.match(rules, /^\*\*Configuration in effect\.\*\*/m);
   // The page installs only as the builder kit's copy (#203, S6).
   assert.deepEqual(listTree(h).filter(p => p.toLowerCase().endsWith(PAGE_NAME.toLowerCase())).map(p => p.split('\\').join('/')), ['.pact/builder/builder/scriptorium.html'], 'the page installed outside the kit');
@@ -80,7 +83,7 @@ test('a configuration the page saves with a value and an added move installs thr
   s.usage = 90;
   s.parts.moves.push({ lead: 'Leave it better', text: 'I leave the code a little better than I found it.' });
   const { rules, files } = installSaved(t, s);
-  assert.deepEqual(files.map(f => f.path), ['.pact/config.json', '.pact/blocks/moves.md']);
+  assert.deepEqual(files.map(f => f.path), ['config.json', 'blocks/moves.md']);
   assert.match(rules, /When it is above 90%/);
   assert.match(rules, /^- \*\*Stay the owner\.\*\*\n(?: {2}.*\n)+- \*\*Leave it better\.\*\*\n {2}I leave the code a little better than I found it\.$/m);
   assert.match(rules, /Values set: usage-pause 90\. Parts edited: moves \(replace\)\./);
@@ -91,18 +94,18 @@ test('the auto-compact window the page saves installs: a set value reaches the s
   const s = L.initialState();
   s.compact = 600000;
   const set = installSaved(t, s);
-  assert.deepEqual(set.files.map(f => f.path), ['.pact/config.json']);
+  assert.deepEqual(set.files.map(f => f.path), ['config.json']);
   assert.match(set.rules, /Values set: auto-compact-window 600000\./);
-  const live = JSON.parse(readFileSync(join(set.h, 'settings.json'), 'utf8'));
+  const live = JSON.parse(readFileSync(join(set.h, '.claude', 'settings.json'), 'utf8'));
   assert.equal(live.autoCompactWindow, 600000);
-  assert.deepEqual(live.hooks.Stop[0].hooks[0].args, [join(set.h, 'pact', 'hooks', 'compact-handoff.mjs'), '600000']);
+  assert.deepEqual(live.hooks.Stop[0].hooks[0].args, [join(set.h, '.pact', 'hooks', 'compact-handoff.mjs'), '600000']);
   const off = L.initialState();
   off.compact = 0;
   const gone = installSaved(t, off);
   assert.match(gone.rules, /Values set: auto-compact-window 0\./);
-  const none = JSON.parse(readFileSync(join(gone.h, 'settings.json'), 'utf8'));
+  const none = JSON.parse(readFileSync(join(gone.h, '.claude', 'settings.json'), 'utf8'));
   assert.equal(Object.hasOwn(none, 'hooks') || Object.hasOwn(none, 'autoCompactWindow'), false);
-  assert.equal(existsSync(join(gone.h, 'pact', 'hooks', 'compact-handoff.mjs')), false);
+  assert.equal(existsSync(join(gone.h, '.pact', 'hooks', 'compact-handoff.mjs')), false);
 });
 
 // #203 S10: a commands list the page saves installs those commands, beside /scriptorium.
@@ -111,7 +114,7 @@ test('a commands list the page saves installs /finis beside /scriptorium, and no
   s.usage = 90;
   s.commands = ['finis'];
   const { h } = installSaved(t, s);
-  assert.deepEqual(readdirSync(join(h, 'commands')).sort(), ['finis.md', 'scriptorium.md']);
+  assert.deepEqual(readdirSync(join(h, '.claude', 'commands')).sort(), ['finis.md', 'scriptorium.md']);
 });
 
 // #261 C14; #262
@@ -126,7 +129,7 @@ test('a configuration the page saves with your own move text, a removed move and
   assert.doesNotMatch(rules, /Sense the work/);
   assert.match(rules, /Values set: usage-pause 60\. Parts edited: moves \(replace\)\./);
   assert.match(rules, /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
-  assert.match(readFileSync(join(h, 'agents', 'integrity-lens.md'), 'utf8'), /^model: sonnet\neffort: low$/m);
+  assert.match(readFileSync(join(h, '.claude', 'agents', 'integrity-lens.md'), 'utf8'), /^model: sonnet\neffort: low$/m);
 });
 
 test('bad case: text the page flags is refused by the install too, since the page is not a trust boundary', t => {
@@ -141,7 +144,7 @@ test('bad case: text the page flags is refused by the install too, since the pag
   assert.match(dry.stdout, /FAIL invisible: /, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256('x')] });
   refused(r);
-  assert.ok(!existsSync(join(h, 'CLAUDE.md')), 'the refused configuration installed a rules file');
+  assert.ok(!existsSync(join(h, '.claude', 'CLAUDE.md')), 'the refused configuration installed a rules file');
 });
 
 // #262: the agent files the page saves are the person's: an install leaves them as written and never records them.
@@ -151,9 +154,9 @@ test('an added agent and an edited prompt the page saves are yours: the install 
   s.own.scout = L.PACT.agents.find(a => a.name === 'scout').file.replace(/\n---\n\n[\s\S]*$/, '\n---\n\nFind things, briefly.\n');
   s.usage = 90;
   const { files, h } = installSaved(t, s);
-  for (const name of ['my-reviewer', 'scout']) assert.equal(readFileSync(join(h, 'agents', `${name}.md`), 'utf8'), files.find(f => f.path === `agents/${name}.md`).text);
+  for (const name of ['my-reviewer', 'scout']) assert.equal(readFileSync(join(h, '.claude', 'agents', `${name}.md`), 'utf8'), files.find(f => f.path === `agents/${name}.md`).text);
   const recorded = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8')).files.map(f => f.path);
-  assert.ok(!recorded.includes('agents/my-reviewer.md') && !recorded.includes('agents/scout.md'), recorded.join(', '));
+  assert.ok(!recorded.includes('.claude/agents/my-reviewer.md') && !recorded.includes('.claude/agents/scout.md'), recorded.join(', '));
 });
 
 // ------------------------------------------------------------ checkpoint-stops, retired (#564)
@@ -185,7 +188,7 @@ test('S13: a shipped preset\'s saved configuration holds no settings key for che
     assert.doesNotMatch(dry.stdout, /checkpoint-stops/, dry.out);
     const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
     assert.equal(r.code, 0, r.out);
-    assert.ok(!readFileSync(join(h, 'CLAUDE.md'), 'utf8').includes(WAITS), 'no such line');
+    assert.ok(!readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8').includes(WAITS), 'no such line');
   }
 });
 
@@ -205,7 +208,7 @@ test('S13: a configuration that still sets checkpoint-stops dry-runs to the reti
     assert.match(dry.stdout, NOTE, dry.out);
     const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
     assert.equal(r.code, 0, r.out);
-    const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+    const rules = readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8');
     assert.ok(!rules.includes(WAITS) && !rules.includes('checkpoint-stops'), 'the installed rules never name the key');
   }
 });
@@ -220,7 +223,7 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
   assert.doesNotMatch(dry.stdout, /checkpoint-stops/, dry.out);
   const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
-  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+  const rules = readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8');
   assert.ok(!rules.includes(WAITS), 'no such line');
   assert.ok(!rules.includes('checkpoint-stops'), 'the notice names no such value');
   // The installed default rules hold the one Checkpoints bullet and the kept safeguards.
@@ -252,14 +255,15 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
 test('S13: a project with checkpoint-stops true or false dry-runs to the project WARN, and one holding only the key says to remove the file', t => {
   const repo = makeRepo(t);
   const root = tempDir(t, 'pact-proj-');
-  const ch = join(root, 'home', '.claude');
-  mkdirSync(join(ch, '.pact'), { recursive: true });
-  writeFileSync(join(ch, '.pact', 'config.json'), '{"schema": 1, "settings": {"checkpoint-stops": false}}\n');
+  const homeDir = join(root, 'home');
+  mkdirSync(join(homeDir, '.claude'), { recursive: true });
+  mkdirSync(join(homeDir, '.pact'), { recursive: true });
+  writeFileSync(join(homeDir, '.pact', 'config.json'), '{"schema": 1, "settings": {"checkpoint-stops": false}}\n');
   const project = (name, body) => {
     const p = join(root, 'home', `proj-${name}`);
     mkdirSync(join(p, '.claude'), { recursive: true });
     writeFileSync(join(p, '.claude', 'pact-config.json'), body);
-    return install(repo, ch, { extra: ['--project-folder', p] });
+    return install(repo, homeDir, { extra: ['--project-folder', p] });
   };
   const yes = project('true', '{"schema": 1, "settings": {"usage-pause": 60, "checkpoint-stops": true}}\n');
   assert.equal(yes.code, 0, yes.out);

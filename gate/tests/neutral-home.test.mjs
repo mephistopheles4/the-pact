@@ -44,8 +44,8 @@ function block(r, id) {
 // path reads <home>, and the settings are settings.merged.json: a settings.json is ignored by git.
 const FIXTURE = join(REPO, 'gate', 'tests', 'fixtures', 'claude-bytes');
 const CONFIG = '{"schema": 1, "commands": ["make-it-so", "finis", "scry"], "tools": ["poster", "cleaner"]}\n';
-/** The one change since the fixture: the pact's folder moved, and its hand-offs folder was renamed. */
-const moved = text => text.replaceAll('.claude/pact/handoff/', '.pact/handoffs/').replaceAll('.claude/pact/', '.pact/');
+/** The one change since the fixture: the pact's folder moved (named once in words), and its hand-offs folder was renamed. */
+const moved = text => text.replaceAll('.claude/pact/handoff/', '.pact/handoffs/').replaceAll('.claude/pact/', '.pact/').replaceAll('in my Claude folder beside', 'in `~/.pact` beside');
 const lf = text => text.replaceAll('\r\n', '\n');
 const fixture = rel => lf(readFileSync(join(FIXTURE, ...rel.split('/')), 'utf8'));
 /** settings.json as values, its home folder read as <home> and every separator as a slash. */

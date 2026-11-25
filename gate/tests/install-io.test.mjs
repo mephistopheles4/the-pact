@@ -137,14 +137,15 @@ const COMMIT = 'a'.repeat(40);
 function backupHome(t, { fresh = false } = {}) {
   const h = fresh ? join(tempDir(t, 'pact-bk-'), 'home') : tempDir(t, 'pact-bk-');
   const entries = [
-    { path: '.pact/install.json', was: 'absent' },
-    { path: 'agents/scout.md', was: 'absent' },
+    { path: '.pact/install.json', harness: 'pact', was: 'absent' },
+    { path: '.claude/agents/scout.md', harness: 'claude', was: 'absent' },
   ];
   if (!fresh) {
-    writeFileSync(join(h, 'CLAUDE.md'), 'mine\n');
-    writeFileSync(join(h, 'settings.json'), '{"k": 1}\n');
-    entries.unshift({ path: 'CLAUDE.md', was: 'file', sha256: io.sha256('mine\n') });
-    entries.push({ path: 'settings.json', was: 'file', sha256: io.sha256('{"k": 1}\n') });
+    mkdirSync(join(h, '.claude'));
+    writeFileSync(join(h, '.claude', 'CLAUDE.md'), 'mine\n');
+    writeFileSync(join(h, '.claude', 'settings.json'), '{"k": 1}\n');
+    entries.unshift({ path: '.claude/CLAUDE.md', harness: 'claude', was: 'file', sha256: io.sha256('mine\n') });
+    entries.push({ path: '.claude/settings.json', harness: 'claude', was: 'file', sha256: io.sha256('{"k": 1}\n') });
   }
   return { h, entries };
 }
@@ -176,7 +177,7 @@ test('#272 C3: each failing step of the backup refuses with nothing changed, and
     ["a copy's read-back that differs", { ...io.FS_OPS, read: p => (p.includes('.staging-') ? Buffer.from('changed\n') : io.FS_OPS.read(p)) }, process.platform],
     ['the manifest', failing('open', p => p.endsWith('manifest.json')), process.platform],
     ['the rename', failing('rename'), process.platform],
-    ['the chmod of pact/backups', failing('chmod'), 'linux'],
+    ['the chmod of .pact/backups', failing('chmod'), 'linux'],
   ];
   // A first install on an empty home copies nothing, so only the steps that make folders or the manifest can fail there.
   for (const fresh of [false, true]) {
@@ -187,7 +188,7 @@ test('#272 C3: each failing step of the backup refuses with nothing changed, and
       assert.equal(stateOf(h), before, `${step}${fresh ? ', on a first install' : ''}`);
     }
   }
-  // pact/backups is narrowed before the staging folder is made.
+  // .pact/backups is narrowed before the staging folder is made.
   const log = [];
   const order = { ...io.FS_OPS, chmod: (q, m) => (log.push(`chmod ${q.split(/[\\/]/).slice(-2).join('/')}`), io.FS_OPS.chmod(q, m)), mkdir: (q, m) => (log.push(q.includes('.staging-') ? 'staging' : 'mkdir'), io.FS_OPS.mkdir(q, m)) };
   const narrowed = backupHome(t);
@@ -196,7 +197,7 @@ test('#272 C3: each failing step of the backup refuses with nothing changed, and
   } catch (e) {
     if (!(e instanceof core.Refusal)) throw e; // on Windows the mode check refuses afterwards; the order is what counts here
   }
-  assert.ok(log.includes('chmod pact/backups') && log.indexOf('chmod pact/backups') < log.indexOf('staging'), log.join(' '));
+  assert.ok(log.includes('chmod .pact/backups') && log.indexOf('chmod .pact/backups') < log.indexOf('staging'), log.join(' '));
   // Every name taken refuses; one taken takes the next suffix.
   const { h, entries } = backupHome(t);
   mkdirSync(join(h, '.pact', 'backups', BASE_NAME), { recursive: true });
@@ -207,13 +208,13 @@ test('#272 C3: each failing step of the backup refuses with nothing changed, and
   assert.equal(stateOf(h), full);
   // A clean-up that fails names the staging folder instead.
   const other = backupHome(t);
-  assert.throws(() => backup(other.h, other.entries, { ops: failing('rmdir', p => p.includes('.staging-'), failing('rename')) }), refusal('backup-cleanup', new RegExp(`.pact/backups/\\.staging-${BASE_NAME} may hold a copy of your settings`)));
+  assert.throws(() => backup(other.h, other.entries, { ops: failing('rmdir', p => p.includes('.staging-'), failing('rename')) }), refusal('backup-cleanup', new RegExp(`\\.pact/backups/\\.staging-${BASE_NAME} may hold a copy of your settings`)));
 });
 
 test('#272 C4: a link on the backup path at the first check or the second, or at a source, refuses before anything is copied', t => {
   const elsewhere = tempDir(t, 'pact-bk-else-');
   const first = backupHome(t);
-  if (!linkOrSkip(t, elsewhere, join(first.h, 'pact'), WIN ? 'junction' : 'dir')) return;
+  if (!linkOrSkip(t, elsewhere, join(first.h, '.pact'), WIN ? 'junction' : 'dir')) return;
   const before = stateOf(first.h);
   assert.throws(() => backup(first.h, first.entries), refusal('backup-link', /^Nothing was changed\.$/));
   assert.equal(stateOf(first.h), before);
@@ -222,18 +223,18 @@ test('#272 C4: a link on the backup path at the first check or the second, or at
   const second = backupHome(t);
   const swapped = { ...io.FS_OPS, realpath: p => (p.includes('.staging-') ? `${p}-elsewhere` : io.FS_OPS.realpath(p)) };
   assert.throws(() => backup(second.h, second.entries, { ops: swapped }), refusal('backup-cleanup'));
-  // A plain file where pact/backups should be refuses too.
+  // A plain file where .pact/backups should be refuses too.
   const file = backupHome(t);
-  mkdirSync(join(file.h, 'pact'));
-  writeFileSync(join(file.h, 'pact', 'backups'), 'not a folder\n');
+  mkdirSync(join(file.h, '.pact'));
+  writeFileSync(join(file.h, '.pact', 'backups'), 'not a folder\n');
   const filed = stateOf(file.h);
   assert.throws(() => backup(file.h, file.entries), refusal('backup-link', /^Nothing was changed\.$/));
   assert.equal(stateOf(file.h), filed);
   // A retired agent a first install deletes is a source too, though the plan never link-tests it.
   const source = backupHome(t);
   writeFileSync(join(elsewhere, 'builder.md'), 'outside\n');
-  if (!linkOrSkip(t, elsewhere, join(source.h, 'agents'), WIN ? 'junction' : 'dir')) return;
-  const withSource = [...source.entries, { path: 'agents/builder.md', was: 'file', sha256: io.sha256('outside\n') }];
+  if (!linkOrSkip(t, elsewhere, join(source.h, '.claude', 'agents'), WIN ? 'junction' : 'dir')) return;
+  const withSource = [...source.entries, { path: '.claude/agents/builder.md', harness: 'claude', was: 'file', sha256: io.sha256('outside\n') }];
   const was = stateOf(source.h);
   assert.throws(() => backup(source.h, withSource), refusal('backup-link', /^Nothing was changed\.$/));
   assert.equal(stateOf(source.h), was);
@@ -243,11 +244,11 @@ test('#272 C4: a link on the backup path at the first check or the second, or at
 
 const OWN = '20261018T143005123Z-aaaaaaa';
 /** A backup folder named `name` under `h`, holding a manifest with `format`, and the record listed as a file or, with `noRecord`, absent. */
-function fakeBackup(h, name, { format = 'pact-backup-1', noRecord = false, manifest } = {}) {
+function fakeBackup(h, name, { format = 'pact-backup-2', noRecord = false, manifest } = {}) {
   const dir = join(h, '.pact', 'backups', name);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'CLAUDE.md'), 'old\n');
-  const entries = [{ path: '.pact/install.json', ...(noRecord ? { was: 'absent' } : { was: 'file', sha256: 'f'.repeat(64), bytes: 1 }) }];
+  const entries = [{ path: '.pact/install.json', harness: 'pact', ...(noRecord ? { was: 'absent' } : { was: 'file', sha256: 'f'.repeat(64), bytes: 1 }) }];
   if (manifest !== null) writeFileSync(join(dir, 'manifest.json'), manifest ?? `${JSON.stringify({ format, commit: COMMIT, created: '', entries })}\n`);
   return dir;
 }
@@ -275,9 +276,9 @@ test('#272 C7: the prune keeps the ten newest, this run\'s included, every one t
   fakeBackup(h, 'mine-kept');
   fakeBackup(h, older(3), { manifest: null });
   fakeBackup(h, older(4), { format: 'other-1' });
-  fakeBackup(h, older(5), { manifest: `${JSON.stringify({ format: 'pact-backup-1', commit: COMMIT, created: '', entries: [] })}${' '.repeat(1024 * 1024)}` });
+  fakeBackup(h, older(5), { manifest: `${JSON.stringify({ format: 'pact-backup-2', commit: COMMIT, created: '', entries: [] })}${' '.repeat(1024 * 1024)}` });
   const elsewhere = tempDir(t, 'pact-prune-else-');
-  writeFileSync(join(elsewhere, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-1', entries: [] })}\n`);
+  writeFileSync(join(elsewhere, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-2', entries: [] })}\n`);
   const linkedManifest = fakeBackup(h, older(6), { manifest: null });
   const linked = tryLink(join(elsewhere, 'manifest.json'), join(linkedManifest, 'manifest.json'), 'file') && tryLink(elsewhere, join(h, '.pact', 'backups', older(7)), WIN ? 'junction' : 'dir');
   mkdirSync(join(h, '.pact', 'backups', `.staging-${older(8)}`));
@@ -302,7 +303,7 @@ test('#272 C15: a prune that fails part way reports one warning naming the folde
   assert.equal(r.failed, true);
   const warns = core.pruneLines(r).filter(l => l.startsWith('WARN: '));
   assert.equal(warns.length, 1, warns.join('\n'));
-  assert.match(warns[0], /pact\/backups/);
+  assert.match(warns[0], /\.pact\/backups/);
   assert.ok(left(h).includes(older(101)), 'the backup it could not remove is left as it was, manifest and all');
   assert.ok(readdirSync(join(h, '.pact', 'backups', older(101))).includes('manifest.json'), 'the manifest goes last, so a half-removed backup stays a candidate');
 });
@@ -349,7 +350,7 @@ test('#272 C16: the clean-up and the prune remove a link inside a folder they re
   };
   assert.equal(io.pruneBackups(flip, { home: q, own: OWN }).failed, true);
   assert.ok(existsSync(join(q, '.pact', 'backups', older(101), 'CLAUDE.md')), 'nothing under the swapped folder is removed');
-  // A pact/backups that is a link is not pruned at all.
+  // A .pact/backups that is a link is not pruned at all.
   const linked = tempDir(t, 'pact-prune-');
   const target = tempDir(t, 'pact-prune-target-');
   for (let i = 1; i <= 12; i++) fakeBackup(target, older(i + 100));

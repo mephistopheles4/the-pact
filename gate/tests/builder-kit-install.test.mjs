@@ -1,5 +1,5 @@
 // The builder kit through the install script (#203 S6, C5; #262), end to end
-// against a throwaway repo and a throwaway --claude-home. Each repo plants the
+// against a throwaway repo and a throwaway --home folder. Each repo plants the
 // builder's files and a /scriptorium command over the shipped ones, so a case
 // doesn't depend on the shipped text. Never touches ~/.claude.
 import assert from 'node:assert/strict';
@@ -24,21 +24,21 @@ function repoWithKit(t, more) {
   });
 }
 
-// #203 C5; #262: the kit installs with /scriptorium, with no commands list, and runs from the Claude home folder.
+// #203 C5; #262: the kit installs with /scriptorium, with no commands list, and runs from the pact home.
 test('the builder kit installs with no commands list, holds the unrendered rules and no CLAUDE.md, and its builder writes a page outside any repo', t => {
   const repo = repoWithKit(t);
   const h = home(t);
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^ {2}\/scriptorium: on, always: part of the pact, with the builder kit under pact\/builder\/\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}\/scriptorium: on, always: part of the pact, with the builder kit under \.pact\/builder\/\r?$/m, dry.out);
   passed(applyBound(repo, h));
   const kit = join(h, '.pact', 'builder');
-  assert.equal(readFileSync(join(h, 'commands', 'scriptorium.md'), 'utf8'), SCRIPTORIUM);
+  assert.equal(readFileSync(join(h, '.claude', 'commands', 'scriptorium.md'), 'utf8'), SCRIPTORIUM);
   assert.equal(readFileSync(join(kit, 'claude', 'rules.source.md'), 'utf8'), readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8'), 'the kit holds the unrendered rules');
   assert.ok(!listTree(kit).some(rel => /(^|[\\/])CLAUDE\.md$/.test(rel)), 'the kit holds no file named CLAUDE.md');
   assert.deepEqual(readdirSync(join(kit, 'claude', 'agents')).sort(), readdirSync(join(repo, 'claude', 'agents')).sort());
   assert.ok(existsSync(join(kit, 'gate', 'render-core.mjs')) && existsSync(join(kit, 'builder', 'presets', 'level-3-full.json')));
-  assert.ok(!existsSync(join(h, 'rules.source.md')), 'the rules source goes only to the kit');
+  assert.ok(!listTree(h).some(rel => /rules\.source\.md$/.test(rel) && !rel.replaceAll('\\', '/').startsWith('.pact/builder/')), 'the rules source goes only to the kit');
 
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
@@ -55,7 +55,7 @@ test('the builder kit installs with no commands list, holds the unrendered rules
   const self = run([]);
   assert.equal(self.status, 1, self.stdout);
   assert.match(self.stdout, /never rebuilds its own page/);
-  const inHome = run(['--builder', builder, '--out', join(h, 'page.html')]);
+  const inHome = run(['--builder', builder, '--out', join(h, '.claude', 'page.html')]);
   assert.equal(inHome.status, 1, inHome.stdout);
   assert.match(inHome.stdout, /outside the Claude home folder/);
 });
@@ -73,11 +73,11 @@ test('the kit holds review.md, every command and the overlay, a page from the ki
   for (const rel of ['claude/review.md', 'claude/settings.overlay.json', ...commands.map(f => `claude/commands/${f}`)]) {
     assert.equal(readFileSync(join(kit, ...rel.split('/')), 'utf8'), fromRepo(rel), `${rel} is in the kit`);
   }
-  assert.deepEqual(readdirSync(join(h, 'commands')), ['scriptorium.md'], 'a command that is off stays out of the live folder');
+  assert.deepEqual(readdirSync(join(h, '.claude', 'commands')), ['scriptorium.md'], 'a command that is off stays out of the live folder');
   assert.equal(readFileSync(join(h, '.pact', 'review.md'), 'utf8'), fromRepo('claude/review.md'));
   assert.ok(!listTree(h).some(rel => /settings\.overlay\.json$/.test(rel) && !rel.replaceAll('\\', '/').includes('.pact/builder/')), 'the overlay is copied only to the kit');
   const overlay = JSON.parse(fromRepo('claude/settings.overlay.json'));
-  const merged = JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
+  const merged = JSON.parse(readFileSync(join(h, '.claude', 'settings.json'), 'utf8'));
   assert.equal(merged.permissions.defaultMode, overlay.permissions.defaultMode, 'the overlay is still merged');
   assert.equal(merged.skipAutoPermissionPrompt, overlay.skipAutoPermissionPrompt, 'the overlay is still merged');
 

@@ -1457,8 +1457,8 @@ export function cleanerAskPlan(live, toolsOn, recorded) {
 
 /**
  * The stop switch's deny rules for this install (#439 S1.2): the same plan,
- * over STOP_DENY only, so a rule of the cleaner's planted in stopDeny is never
- * dropped, printed or recorded again, and the cleaner's plan likewise.
+ * over STOP_DENY only: it never drops, prints or records one of the cleaner's
+ * rules, though the record lists both, and the cleaner's plan likewise.
  */
 export function stopDenyPlan(live, on, recorded) {
   return denyPlan(live, STOP_DENY, on, recorded);

@@ -1,5 +1,5 @@
 // Agent settings (#97): the install script end to end, against a throwaway
-// repo and --claude-home. Never touches ~/.claude. Expected agent bytes are built
+// repo and --home folder. Never touches ~/.claude. Expected agent bytes are built
 // here from the repo's copy, never taken from the renderer. The renderer's own
 // cases, which never install, are in agent-settings.test.mjs.
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { plantModule, plantNoDefault } from './gate-files.mjs';
 import { REPO } from './text.mjs';
-import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, refused, total } from './install-harness.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const AGENT = readFileSync(join(REPO, 'claude', 'agents', 'integrity-lens.md'), 'utf8');
@@ -41,10 +41,10 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   const want = Buffer.from(withAgent('sonnet', 'low'));
-  assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), want);
+  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'integrity-lens.md')), want);
   const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
-  assert.equal(manifest.files.find(f => f.path === 'agents/integrity-lens.md').sha256, sha256(want));
-  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
+  assert.equal(manifest.files.find(f => f.path === '.claude/agents/integrity-lens.md').sha256, sha256(want));
+  assert.match(readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8'), /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
   const again = install(repo, h);
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 
@@ -52,10 +52,10 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   configure(h, { schema: 1, settings: { 'usage-pause': 90 } });
   const dry2 = install(repo, h);
   assert.equal(dry2.code, 0, dry2.out);
-  assert.match(dry2.stdout, /^Drift: 0\r?$/m, dry2.out);
+  assert.equal(total(dry2, 'Drift'), 0, dry2.out);
   const r2 = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry2)] });
   assert.equal(r2.code, 0, r2.out);
-  assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), readFileSync(join(repo, 'claude', 'agents', 'integrity-lens.md')));
+  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'integrity-lens.md')), readFileSync(join(repo, 'claude', 'agents', 'integrity-lens.md')));
 });
 
 // #262: no setting is marked, in the dry run or the rules file; a person may run any agent on any model.
@@ -72,9 +72,9 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   const set = (name, model, effort) => Buffer.from(readFileSync(join(repo, 'claude', 'agents', `${name}.md`), 'utf8').replace(/^model: .*$/m, `model: ${model}`).replace(/^effort: .*$/m, `effort: ${effort}`));
-  assert.deepEqual(readFileSync(join(h, 'agents', 'behaviour-lens.md')), set('behaviour-lens', 'sonnet', 'medium'));
-  assert.deepEqual(readFileSync(join(h, 'agents', 'data-lens.md')), set('data-lens', 'opus', 'medium'));
-  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'behaviour-lens.md')), set('behaviour-lens', 'sonnet', 'medium'));
+  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'data-lens.md')), set('data-lens', 'opus', 'medium'));
+  const rules = readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8');
   assert.match(rules, /^Agents set: behaviour-lens \(sonnet, medium effort\), data-lens \(opus, medium effort\), integrity-lens \(opus, high effort\)\.$/m);
   assert.doesNotMatch(rules, /not security-tested|beside every report/);
   // Rollback: with the agents key gone, the next install puts back the committed files.
@@ -83,7 +83,7 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
   assert.equal(dry2.code, 0, dry2.out);
   const r2 = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry2)] });
   assert.equal(r2.code, 0, r2.out);
-  for (const a of ['behaviour-lens', 'data-lens', 'integrity-lens']) assert.deepEqual(readFileSync(join(h, 'agents', `${a}.md`)), readFileSync(join(repo, 'claude', 'agents', `${a}.md`)));
+  for (const a of ['behaviour-lens', 'data-lens', 'integrity-lens']) assert.deepEqual(readFileSync(join(h, '.claude', 'agents', `${a}.md`)), readFileSync(join(repo, 'claude', 'agents', `${a}.md`)));
 });
 
 test('bad case: an agent setting changed between the dry run and -Apply refuses by the rendered hash', t => {
@@ -95,7 +95,7 @@ test('bad case: an agent setting changed between the dry run and -Apply refuses 
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the hash given with --rendered-hash is not the full hash/m, r.out);
-  assert.ok(!existsSync(join(h, 'agents')), 'the refused install wrote agents');
+  assert.ok(!existsSync(join(h, '.claude', 'agents')), 'the refused install wrote agents');
 });
 
 // ------------------------------------------------------------ the install script: a renderer that lies
@@ -147,6 +147,7 @@ for (const [label, config, from, to, why] of [
     refused(r);
     assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'm'), r.out);
-    assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact/install.json' || f.startsWith('agents')), listTree(h).join('\n'));
+    const tree = listTree(h).map(f => f.replaceAll('\\', '/'));
+    assert.ok(!tree.some(f => f === '.claude/CLAUDE.md' || f === '.pact/install.json' || f.startsWith('.claude/agents')), tree.join('\n'));
   });
 }

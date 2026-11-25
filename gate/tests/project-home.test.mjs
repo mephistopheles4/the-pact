@@ -22,7 +22,7 @@ const under = (inner, outer) => {
 
 /** A new folder outside the real home folder: under the temp folder when that is outside it, else under ProgramData on Windows; null when neither can be made. */
 function outsideHome(t) {
-  // The temp folder by its long name, as tree.mjs's tempDir makes it (#351): a short 8.3 name with a ~ is refused in a Claude home.
+  // The temp folder by its long name, as tree.mjs's tempDir makes it (#351): a short 8.3 name with a ~ is refused in a home folder.
   const bases = [realpathSync.native(tmpdir()), WIN ? process.env.ProgramData : null].filter(b => b && !under(b, homedir()));
   for (const b of bases) {
     try {
@@ -34,8 +34,27 @@ function outsideHome(t) {
   return null;
 }
 
+test('bad case: a project in your own pact folder refuses when the run names another home (check only)', t => {
+  const root = outsideHome(t);
+  if (!root) {
+    t.skip('no folder outside the home folder can be made here (not run)');
+    return;
+  }
+  // The home folder the environment names stands in for yours.
+  const mine = join(root, 'my-home');
+  const project = join(mine, '.pact', 'project');
+  const named = join(root, 'named-home');
+  mkdirSync(project, { recursive: true });
+  mkdirSync(named);
+  const env = { ...process.env, HOME: mine, USERPROFILE: mine };
+  delete env.NODE_OPTIONS;
+  const r = spawnSync(process.execPath, [join(REPO, 'gate', 'project.mjs'), 'check', project, named], { encoding: 'utf8', env });
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /^FAIL project-home: the project folder is the pact folder in your home folder, holds it, or is inside it$/m, r.stdout);
+});
+
 test('bad case: HOME or USERPROFILE pointed elsewhere does not move the real home folder (check only)', t => {
-  // The fake home and the Claude home named for the run both sit outside the
+  // The fake home and the home folder named for the run both sit outside the
   // real home folder, so only the real home folder's own relation can refuse.
   const root = outsideHome(t);
   if (!root) {
@@ -43,12 +62,12 @@ test('bad case: HOME or USERPROFILE pointed elsewhere does not move the real hom
     return;
   }
   const fake = join(root, 'fake-home');
-  const ch = join(root, 'claude');
+  const named = join(root, 'named-home');
   mkdirSync(fake);
-  mkdirSync(ch);
+  mkdirSync(named);
   const env = { ...process.env, HOME: fake, USERPROFILE: fake };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [join(REPO, 'gate', 'project.mjs'), 'check', homedir(), ch], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [join(REPO, 'gate', 'project.mjs'), 'check', homedir(), named], { encoding: 'utf8', env });
   assert.equal(r.status, 1, r.stdout);
   assert.match(r.stdout, /^FAIL project-home: the project folder is your home folder, or holds it$/m, r.stdout);
 });

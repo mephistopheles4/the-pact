@@ -12,8 +12,8 @@ export function config(h, doc) {
   writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, ...doc })}\n`);
 }
 export const windowCfg = n => ({ settings: { 'auto-compact-window': n } });
-export const live = h => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
-export const writeLive = (h, doc) => writeFileSync(join(h, 'settings.json'), JSON.stringify(doc, null, 2), { mode: 0o600 });
+export const live = h => JSON.parse(readFileSync(join(h, '.claude', 'settings.json'), 'utf8'));
+export const writeLive = (h, doc) => writeFileSync(join(h, '.claude', 'settings.json'), JSON.stringify(doc, null, 2), { mode: 0o600 });
 export const script = h => join(h, '.pact', 'hooks', 'compact-handoff.mjs');
 
 /** The group the install writes for `event` with window `w`. */

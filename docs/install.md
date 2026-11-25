@@ -220,8 +220,11 @@ parts:
   settings entries changed since the last one. If it isn't 0, stop: `--apply` refuses, and you
   would lose those edits. On a first install it is 0.
 - **`Overwrite:`, `Add:` and `Delete:`.** The files `--apply` would replace,
-  create and remove. On a first install, `Overwrite` lists your own
-  `~/.claude/CLAUDE.md` if you have one. `Delete` lists only files an earlier pact install put there, or, on a first
+  create and remove. On a first install, a rules file you already have, such as
+  your own `~/.claude/CLAUDE.md`, is listed with a `WARN`, and `--apply`
+  refuses until you've moved it ([why](#before-the-first-install-into-pact):
+  the pact owns the whole file, so your own text goes in your configuration).
+  `Delete` lists only files an earlier pact install put there, or, on a first
   install, an agent named `builder`, `spec-builder` or `security-builder`,
   which older pact versions shipped.
 - **`Yours, left as is:`.** Agent files the pact leaves alone: one it didn't
@@ -375,7 +378,7 @@ parts:
   The cleaner on adds eighteen deny rules on raw worktree and branch
   removal commands and on `claude rm` to `settings.json`, each listed under
   `settings.json` as `+ permissions.deny`, and records the ones it added in
-  `install.json`; turning it off removes only those, also listed. A
+  `install.json`'s `entries`; turning it off removes only those, also listed. A
   rule you wrote yourself stays. [cleaner.md](cleaner.md) lists them, and
   says how to run your own `claude rm`: from a separate terminal, outside
   Claude Code, because whether Claude Code's `!` shell mode honours deny rules
@@ -384,8 +387,8 @@ parts:
   worktree, or after checking the worktree yourself.
 
   It adds two ask rules on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
-  and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added under
-  `cleanerAsk` in `install.json`; turning the cleaner off removes only those. They make Claude Code
+  and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added in
+  `install.json`'s `entries`; turning the cleaner off removes only those. They make Claude Code
   ask you before a `remove --override` runs, a speed bump and not a boundary: spellings that hide the
   words from the pattern get past it. If `settings.json` is not strict JSON the install leaves it
   untouched, so it adds neither the deny rules nor these, and the dry run and the apply print a `WARN:`
@@ -593,14 +596,16 @@ the apply takes its own backup (step 3).
 The dry run compares your live files with the record of the last install, so
 it shows any you have edited since.
 
-If the dry run shows drift, live files changed since the last install, and
-`--apply` refuses. Whether to keep or replace those edits is your decision.
-Move `~/.pact/install.json` out of the folder: the next dry run reads
-as a first install, with no drift, and lists the files `--apply` will
-overwrite. That apply's backup holds your edited files, and the install keeps
-it until you delete it, as a backup taken with no install record. After the
-apply, bring your edits back by hand from it, or carry them as a
-configuration (see below).
+If the dry run shows drift, installed files or settings entries changed since
+the last install, and `--apply` refuses. Whether to keep or replace those edits
+is your decision. A settings entry you can put back by hand. Otherwise move
+`~/.pact/install.json`, and every file its `files` list names, out of the way
+and keep them: the next dry run reads as a first install, with no drift.
+Moving the record alone is not enough, since a rules file, tool or command left
+in place is then unrecorded and `--apply` refuses. That apply's backup holds
+`settings.json` as it was, and the install keeps it until you delete it, as a
+backup taken with no install record. After the apply, bring your edits back by
+hand from what you moved, or carry them as a configuration (see below).
 
 To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
@@ -625,8 +630,8 @@ notice line names it, as `session-stop-deny on` or `off`.
   `claude stop *`, `claude kill *` (Claude Code's alias of stop),
   `claude daemon stop *` (stops the supervisor and, unless `--keep-workers` is passed, the sessions it hosts) and
   `claude respawn *` (restarts a session, or all with `--all`), each as a
-  `Bash(...)` and a `PowerShell(...)` rule. It records the ones it added under
-  `stopDeny` in `install.json`. Turning it off removes only rules that
+  `Bash(...)` and a `PowerShell(...)` rule. It records the ones it added in
+  `install.json`'s `entries`. Turning it off removes only rules that
   are both recorded and one of those eight, listed as `- permissions.deny`; an
   identical rule you wrote yourself stays. The cloud copy adds none of them.
 - **Who turns it on.** Turn it on if you run Brigade (the session-manager

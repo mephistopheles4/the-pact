@@ -14,7 +14,7 @@ import { plainAgent } from './text.mjs';
 import { writeTree } from './tree.mjs';
 
 const NAME = /^\d{8}T\d{9}Z-[0-9a-f]{7}(-\d{2})?$/;
-const STAGING_LEFT = /pact\/backups may hold a staging folder with a copy of your settings/;
+const STAGING_LEFT = /\.pact\/backups may hold a staging folder with a copy of your settings/;
 const backupsDir = h => join(h, '.pact', 'backups');
 const backups = h => (existsSync(backupsDir(h)) ? readdirSync(backupsDir(h)).sort() : []);
 const manifestOf = (h, name) => JSON.parse(readFileSync(join(backupsDir(h), name, 'manifest.json'), 'utf8'));
@@ -27,7 +27,7 @@ function edit(root, rel, from, to) {
   writeFileSync(p, s.replace(from, () => to));
 }
 
-/** Every file under `h` with its bytes, leaving out pact/backups; folders, empty or not, are not listed (C2). */
+/** Every file under `h` with its bytes, leaving out .pact/backups; folders, empty or not, are not listed (C2). */
 function files(h, rel = '') {
   const out = [];
   for (const d of readdirSync(join(h, rel), { withFileTypes: true })) {
@@ -50,10 +50,13 @@ function copyBack(h, name) {
   }
 }
 
-/** A home that holds the person's own rules file, settings and agent, as before a first install. */
+/**
+ * A home that holds the person's own settings and agent, as before a first
+ * install. No rules file: an unlisted one refuses the apply (unrecorded-target).
+ */
 function ownHome(t) {
   const h = home(t);
-  writeTree(h, { 'CLAUDE.md': 'my own rules\n', 'settings.json': '{"env": {"K": "v"}}\n', 'agents/my-own.md': plainAgent('my-own') });
+  writeTree(h, { '.claude/settings.json': '{"env": {"K": "v"}}\n', '.claude/agents/my-own.md': plainAgent('my-own') });
   return h;
 }
 
@@ -67,29 +70,32 @@ test('#272 C1: an apply first copies what it replaces into a dated backup, whose
   assert.equal(backups(h).length, 1);
   assert.match(first, NAME);
   assert.ok(first.endsWith(`-${commit.slice(0, 7)}`), first);
-  assert.equal(readFileSync(join(backupsDir(h), first, 'CLAUDE.md'), 'utf8'), 'my own rules\n');
-  assert.equal(readFileSync(join(backupsDir(h), first, 'settings.json'), 'utf8'), '{"env": {"K": "v"}}\n');
+  assert.equal(readFileSync(join(backupsDir(h), first, '.claude', 'settings.json'), 'utf8'), '{"env": {"K": "v"}}\n');
   const m = manifestOf(h, first);
   assert.deepEqual(Object.keys(m), ['format', 'commit', 'created', 'entries']);
-  assert.equal(m.format, 'pact-backup-1');
+  assert.equal(m.format, 'pact-backup-2');
   assert.equal(m.commit, commit);
   const paths = m.entries.map(e => e.path);
   assert.deepEqual(paths, [...paths].sort());
-  assert.deepEqual(m.entries.find(e => e.path === 'CLAUDE.md'), { path: 'CLAUDE.md', was: 'file', sha256: createHash('sha256').update('my own rules\n').digest('hex'), bytes: 13 });
-  assert.deepEqual(m.entries.find(e => e.path === '.pact/install.json'), { path: '.pact/install.json', was: 'absent' });
+  assert.deepEqual(m.entries.find(e => e.path === '.claude/settings.json'), { path: '.claude/settings.json', harness: 'claude', was: 'file', sha256: createHash('sha256').update('{"env": {"K": "v"}}\n').digest('hex'), bytes: 20 });
+  assert.deepEqual(m.entries.find(e => e.path === '.pact/install.json'), { path: '.pact/install.json', harness: 'pact', was: 'absent' });
   const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
-  for (const f of record.files.filter(f => f.path !== 'CLAUDE.md')) assert.deepEqual(m.entries.find(e => e.path === f.path), { path: f.path, was: 'absent' }, f.path);
-  assert.ok(!paths.includes('agents/my-own.md'), "the person's own agent is not the apply's to copy");
-  // A later apply copies the record, and an overwritten pact file; settings.json only when the apply writes it.
+  for (const f of record.files) assert.deepEqual(m.entries.find(e => e.path === f.path), { path: f.path, harness: f.path.startsWith('.claude/') ? 'claude' : 'pact', was: 'absent' }, f.path);
+  assert.ok(!paths.includes('.claude/agents/my-own.md'), "the person's own agent is not the apply's to copy");
+  // A later apply copies the record, and each overwritten pact file; settings.json only when the apply writes it.
+  const rulesBefore = readFileSync(join(h, '.claude', 'CLAUDE.md'));
+  writeFileSync(join(repo, 'claude', 'CLAUDE.md'), `${readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')}A changed line.\n`);
   writeFileSync(join(repo, 'claude', 'agents', 'scout.md'), `${readFileSync(join(repo, 'claude', 'agents', 'scout.md'), 'utf8')}A changed line.\n`);
-  git(repo, 'commit', '-qam', 'change scout');
-  const scoutBefore = readFileSync(join(h, 'agents', 'scout.md'));
+  git(repo, 'commit', '-qam', 'change the rules and scout');
+  const scoutBefore = readFileSync(join(h, '.claude', 'agents', 'scout.md'));
   const recordBefore = readFileSync(join(h, '.pact', 'install.json'));
   passed(applyBound(repo, h));
   const second = backups(h).find(n => n !== first);
-  assert.deepEqual(readFileSync(join(backupsDir(h), second, 'agents', 'scout.md')), scoutBefore);
+  assert.deepEqual(readFileSync(join(backupsDir(h), second, '.claude', 'agents', 'scout.md')), scoutBefore);
   assert.deepEqual(readFileSync(join(backupsDir(h), second, '.pact/install.json')), recordBefore);
-  assert.ok(!manifestOf(h, second).entries.some(e => e.path === 'settings.json'), 'settings.json is copied only when the apply writes it');
+  assert.deepEqual(readFileSync(join(backupsDir(h), second, '.claude', 'CLAUDE.md')), rulesBefore);
+  assert.deepEqual(manifestOf(h, second).entries.find(e => e.path === '.claude/CLAUDE.md'), { path: '.claude/CLAUDE.md', harness: 'claude', was: 'file', sha256: createHash('sha256').update(rulesBefore).digest('hex'), bytes: rulesBefore.length });
+  assert.ok(!manifestOf(h, second).entries.some(e => e.path === '.claude/settings.json'), 'settings.json is copied only when the apply writes it');
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
@@ -109,20 +115,26 @@ test('#272 C4: a staging folder an earlier apply left refuses --apply before any
   const h = ownHome(t);
   mkdirSync(join(backupsDir(h), '.staging-left'), { recursive: true });
   const before = files(h);
-  refused(applyBound(repo, h), /^REFUSED: pact\/backups holds 1 staging folder.* Nothing was changed\.$/m);
+  refused(applyBound(repo, h), /^REFUSED: \.pact\/backups holds 1 staging folder.* Nothing was changed\.$/m);
   assert.deepEqual(files(h), before);
   assert.deepEqual(backups(h), ['.staging-left']);
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('#272 C5: a live file changed while the install ran refuses before any install write', t => {
-  const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', '// @@TEST-BACKUP-HOOK@@', "writeFileSync(join(home, 'CLAUDE.md'), 'changed during the run\\n');"));
+  // The plant acts once a record is there, so the first install, which writes the rules file the apply later replaces, passes.
+  const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', '// @@TEST-BACKUP-HOOK@@', "if (io.exists(join(home, '.pact', 'install.json'))) writeFileSync(join(home, '.claude', 'CLAUDE.md'), 'changed during the run\\n');"));
   const h = ownHome(t);
+  passed(applyBound(repo, h));
+  writeFileSync(join(repo, 'claude', 'CLAUDE.md'), `${readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')}A changed line.\n`);
+  git(repo, 'commit', '-qam', 'change the rules');
+  const record = readFileSync(join(h, '.pact', 'install.json'));
+  const taken = backups(h);
   const r = applyBound(repo, h);
-  refused(r, /^REFUSED: CLAUDE\.md changed while the install ran.* Nothing was changed\.$/m);
-  assert.equal(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), 'changed during the run\n');
-  assert.ok(!existsSync(join(h, '.pact', 'install.json')), 'nothing was installed');
-  assert.deepEqual(backups(h), []);
+  refused(r, /^REFUSED: \.claude\/CLAUDE\.md changed while the install ran.* Nothing was changed\.$/m);
+  assert.equal(readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8'), 'changed during the run\n');
+  assert.deepEqual(readFileSync(join(h, '.pact', 'install.json')), record, 'nothing was installed');
+  assert.deepEqual(backups(h), taken);
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
@@ -141,46 +153,46 @@ test('#272 C6: on Linux and macOS the backup folders are 0700 and its files 0600
     if (st.isDirectory()) for (const n of readdirSync(p)) walk(rel ? `${rel}/${n}` : n);
   };
   walk('');
-  assert.ok(backups(h).some(n => existsSync(join(backupsDir(h), n, 'agents', 'scout.md'))), 'a backup holds a subfolder');
+  assert.ok(backups(h).some(n => existsSync(join(backupsDir(h), n, '.claude', 'agents', 'scout.md'))), 'a backup holds a subfolder');
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('#272 C9: the dry run and the apply say what the backup takes, and a refusal after the first write names it', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  writeFileSync(join(h, 'settings.json'), '{}\n');
+  writeFileSync(join(h, '.claude', 'settings.json'), '{}\n');
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^settings\.json: would be merged\n(?:.*\n)*?Backup: 1 file\(s\) to copy into pact\/backups\/ before the first write \(settings\.json included\)$/m);
+  assert.match(dry.stdout, /^settings\.json: would be merged\n(?:.*\n)*?Backup: 1 file\(s\) to copy into \.pact\/backups\/ before the first write \(settings\.json included\)$/m);
   const applyLine = dry.stdout.split('\n').find(l => l.includes(' --apply --commit '));
   mkdirSync(join(backupsDir(h), `.staging-x${String.fromCharCode(0x200b)}y`), { recursive: true });
   const warned = install(repo, h);
   passed(warned);
-  assert.match(warned.stdout, /^WARN: pact\/backups holds 1 leftover staging folder\(s\) \(\.staging-x\?y\); each may hold a copy of your settings\. Check and delete them; --apply refuses while they are there\.$/m);
+  assert.match(warned.stdout, /^WARN: \.pact\/backups holds 1 leftover staging folder\(s\) \(\.staging-x\?y\); each may hold a copy of your settings\. Check and delete them; --apply refuses while they are there\.$/m);
   assert.equal(warned.stdout.split('\n').find(l => l.includes(' --apply --commit ')), applyLine, 'the apply command does not change');
   rmSync(backupsDir(h), { recursive: true });
-  // An entry the prune does not recognise is counted, and a pact/backups that is not a folder warns and refuses.
+  // An entry the prune does not recognise is counted, and a .pact/backups that is not a folder warns and refuses.
   mkdirSync(join(backupsDir(h), 'mine'), { recursive: true });
-  assert.match(install(repo, h).stdout, /^WARN: pact\/backups holds 1 entry\(ies\) the install does not recognise as backups; the prune leaves them as they are, and they may hold copies of your settings\.$/m);
+  assert.match(install(repo, h).stdout, /^WARN: \.pact\/backups holds 1 entry\(ies\) the install does not recognise as backups; the prune leaves them as they are, and they may hold copies of your settings\.$/m);
   rmSync(backupsDir(h), { recursive: true });
   writeFileSync(backupsDir(h), 'not a folder\n');
   const blocked = install(repo, h);
   passed(blocked);
-  assert.match(blocked.stdout, /^WARN: pact\/backups is not a plain folder: a link, a file or another reparse point; --apply refuses until it is moved out of the way\.$/m);
-  refused(applyBound(repo, h), /^REFUSED: pact\/backups, on the backup's path, is a link, another reparse point or not what the backup expects; .* Nothing was changed\.$/m);
+  assert.match(blocked.stdout, /^WARN: \.pact\/backups is not a plain folder: a link, a file or another reparse point; --apply refuses until it is moved out of the way\.$/m);
+  refused(applyBound(repo, h), /^REFUSED: \.pact\/backups, on the backup's path, is a link, another reparse point or not what the backup expects; .* Nothing was changed\.$/m);
   rmSync(backupsDir(h));
   const r = applyBound(repo, h);
   passed(r);
   const lines = r.stdout.split('\n');
   const name = backups(h)[0];
   const at = s => lines.indexOf(s);
-  assert.ok(at('BACKUP STARTED') >= 0 && at('BACKUP STARTED') < at(`backed up 1 file(s) to pact/backups/${name}`) && at(`backed up 1 file(s) to pact/backups/${name}`) < at('Applying.'), r.out);
+  assert.ok(at('BACKUP STARTED') >= 0 && at('BACKUP STARTED') < at(`backed up 1 file(s) to .pact/backups/${name}`) && at(`backed up 1 file(s) to .pact/backups/${name}`) < at('Applying.'), r.out);
   // With nothing to merge, settings.json is not copied, and the line says so by leaving the note off.
-  assert.match(install(repo, h).stdout, /^Backup: 1 file\(s\) to copy into pact\/backups\/ before the first write$/m);
+  assert.match(install(repo, h).stdout, /^Backup: 1 file\(s\) to copy into \.pact\/backups\/ before the first write$/m);
   const broken = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  say('Applying.');\n  for", "  say('Applying.');\n  throw new Error('planted');\n  for"));
   const h2 = ownHome(t);
   const after = applyBound(broken, h2);
-  refused(after, new RegExp(`^REFUSED: the install failed while it ran\\. The Claude home folder may hold part of this install\\. The files it replaced are in pact/backups/${backups(h2)[0]}; see Undo an apply in docs/install\\.md\\.$`, 'm'));
+  refused(after, new RegExp(`^REFUSED: the install failed while it ran\\. The home folder may hold part of this install\\. The files it replaced are in \\.pact/backups/${backups(h2)[0]}; see Undo an apply in docs/install\\.md\\.$`, 'm'));
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
@@ -189,7 +201,7 @@ test('#272 C7: a refused apply prunes nothing, and the next verified apply prune
   const old = Array.from({ length: 12 }, (_, i) => `2025${String(i + 101).padStart(4, '0')}T000000000Z-bbbbbbb`);
   for (const name of old) {
     mkdirSync(join(backupsDir(h), name), { recursive: true });
-    writeFileSync(join(backupsDir(h), name, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-1', commit: 'b'.repeat(40), created: '', entries: [{ path: '.pact/install.json', was: 'file', sha256: 'f'.repeat(64), bytes: 1 }] })}\n`);
+    writeFileSync(join(backupsDir(h), name, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-2', commit: 'b'.repeat(40), created: '', entries: [{ path: '.pact/install.json', was: 'file', sha256: 'f'.repeat(64), bytes: 1 }] })}\n`);
   }
   const broken = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  say('Applying.');\n  for", "  say('Applying.');\n  throw new Error('planted');\n  for"));
   refused(applyBound(broken, h));
@@ -223,7 +235,7 @@ test('#272 C17: a run that ends after BACKUP STARTED, other than by the backup\'
   const repo = at('for (;;) {}');
   const signalHome = ownHome(t);
   const hash = renderedHash(install(repo, signalHome));
-  const p = spawnNodeInstallAsync([join(repo, 'gate', 'install.mjs'), '--claude-home', signalHome, '--apply', '--commit', git(repo, 'rev-parse', 'HEAD').trim(), '--rendered-hash', hash], { cwd: repo, env: nodeEnv() });
+  const p = spawnNodeInstallAsync([join(repo, 'gate', 'install.mjs'), '--home', signalHome, '--apply', '--commit', git(repo, 'rev-parse', 'HEAD').trim(), '--rendered-hash', hash], { cwd: repo, env: nodeEnv() });
   let out = '';
   p.stdout.on('data', d => (out += d));
   for (let i = 0; i < 1200 && !out.includes('BACKUP STARTED'); i++) await new Promise(r => setTimeout(r, 50));

@@ -175,6 +175,16 @@ export function wrapCheck(root, core, { before = '', after = '' }) {
   writeFileSync(p, `${s.replace(head, 'function checkUnplanted(argv) {')}\nexport function check(argv) {\n  const fs = process.getBuiltinModule('node:fs');\n  ${before}\n  const r = checkUnplanted(argv);\n  ${after}\n  return r;\n}\n`);
   return p;
 }
+/**
+ * The sum of a count line (Drift, Overwrite, Add, Delete, ...) over a dry run's
+ * blocks, one per harness: a 0 in one block says nothing about the others.
+ */
+export function total(r, title) {
+  const found = [...r.stdout.matchAll(new RegExp(`^${title}: (\\d+)\\r?$`, 'gm'))];
+  assert.ok(found.length, r.out);
+  return found.reduce((sum, m) => sum + Number(m[1]), 0);
+}
+
 /** An install that refused: exit 1, a REFUSED line, and the bootstrap's RESULT: refused last. */
 export function refused(r, says) {
   assert.equal(r.code, 1, r.out);

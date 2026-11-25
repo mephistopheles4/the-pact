@@ -2,7 +2,7 @@
 // a block or a project qualities list names the retired lens, and still plans
 // the install. #302 C4: it prints one fixed line for a live agent file named
 // for the lens, and leaves the file alone; the pact's own recorded copy is
-// deleted through its record. Run against a throwaway repo and --claude-home;
+// deleted through its record. Run against a throwaway repo and --home folder;
 // never touches ~/.claude. Every fixture is invented text (#302 C7). The
 // renderer's side is in a fast-tier file of its own.
 import assert from 'node:assert/strict';
@@ -10,11 +10,12 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, home, install, makeRepo } from './install-harness.mjs';
+import { applyBound, home, install, makeRepo, total } from './install-harness.mjs';
 
 const LENS = 'good-enough-lens';
 const SENTINEL = 'ZZSENTINELWORD';
-const ORPHAN = `agents/${LENS}.md`;
+const ORPHAN = `.claude/agents/${LENS}.md`;
+const ORPHAN_RE = ORPHAN.replaceAll('.', '\\.');
 
 function configure(h, config, blocks = {}) {
   mkdirSync(join(h, '.pact', 'blocks'), { recursive: true });
@@ -23,7 +24,7 @@ function configure(h, config, blocks = {}) {
 }
 
 function plant(h, text = `---\nname: ${LENS}\n---\n${SENTINEL}\n`) {
-  mkdirSync(join(h, 'agents'), { recursive: true });
+  mkdirSync(join(h, '.claude', 'agents'), { recursive: true });
   writeFileSync(join(h, ORPHAN), text);
 }
 
@@ -51,7 +52,7 @@ test('bad case: a project qualities list naming the retired lens draws a WARN in
   const repo = makeRepo(t);
   const h = home(t);
   const proj = home(t);
-  mkdirSync(join(proj, '.claude'));
+  mkdirSync(join(proj, '.claude'), { recursive: true });
   writeFileSync(join(proj, '.claude', 'pact-config.json'), `${JSON.stringify({ schema: 1, qualities: [{ quality: 'Speed', measure: SENTINEL, lenses: [LENS] }] })}\n`);
   const r = install(repo, h, { extra: ['--project-folder', proj] });
   assert.equal(r.code, 0, r.out);
@@ -64,7 +65,7 @@ test('bad case: a live agent file with the retired name, and no record, draws th
   const repo = makeRepo(t);
   const h = home(t);
   plant(h);
-  const line = new RegExp(`^WARN: ${ORPHAN} is named for ${LENS}, an agent the pact retired; the file is not the pact's, so the install leaves it as is\\.\\r?$`, 'm');
+  const line = new RegExp(`^WARN: ${ORPHAN_RE} is named for ${LENS}, an agent the pact retired; the file is not the pact's, so the install leaves it as is\\.\\r?$`, 'm');
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, line, dry.out);
@@ -96,16 +97,17 @@ test('the pact\'s own recorded copy is deleted through its record and draws no l
   const record = JSON.parse(readFileSync(recordFile, 'utf8'));
   const text = `---\nname: ${LENS}\n---\nold copy\n`;
   plant(h, text);
-  record.files.push({ path: ORPHAN, sha256: createHash('sha256').update(text).digest('hex') });
+  record.files.push({ harness: 'claude', path: ORPHAN, sha256: createHash('sha256').update(text).digest('hex') });
   writeFileSync(recordFile, JSON.stringify(record));
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, new RegExp(`^Delete: 1\\r?\\n {2}${ORPHAN.replace('/', '\\/')}`, 'm'), dry.out);
+  assert.match(dry.stdout, new RegExp(`^Delete: 1\\r?\\n {2}${ORPHAN_RE}`, 'm'), dry.out);
+  assert.equal(total(dry, 'Delete'), 1, dry.out);
   assert.doesNotMatch(dry.stdout, /an agent the pact retired/, dry.out);
   // Now the person changed it: the install keeps it and names it.
   plant(h, `${text}my own edit\n`);
   const changed = install(repo, h);
   assert.equal(changed.code, 0, changed.out);
-  assert.match(changed.stdout, /^Delete: 0\r?$/m, changed.out);
+  assert.equal(total(changed, 'Delete'), 0, changed.out);
   assert.match(changed.stdout, /an agent the pact retired/, changed.out);
 });
