@@ -8,8 +8,8 @@ PACT-105 T8 ([spec 0007](../spec/0007-harness-agnostic-pact.md), S15, C27). The 
 - **Classes.** "What you install and CI run" takes the bootstrap and the tag token, named in its class line. A Codex lens that is read-only by instruction alone sits in the "Also accepted" line of "Review rests on rules", and an Antigravity session that starts an owner-typed command itself in that of "A session takes checkpoints alone". Those lines are part of their classes, whose class lines don't change.
 - **A narrower control.** The poster may see fewer secrets under Codex.
 - **The word cap** rises from 3,050 to 3,600 (`gate/tests/threat-model-cap.test.mjs`), for this repo's threat model. This amends the 3,000 of [ADR 0154](0154-threat-models-are-boundaries-first-and-capped.md), which [spec 0003](../spec/0003-clef-macos.md) had raised to 3,050.
-- **The charts come back,** as the owner asked: the boundaries flowchart, with the harnesses, the new code that runs and the open crossing to the providers, and the quadrant of residual risk by class. The quadrant keeps its last judged places but two, for classes this change widens: "Review rests on rules" moves toward likely and severe, and "The pact gets loosened" a little toward severe.
-- **The count leaves mermaid blocks out.** Only a closed block goes, and prose in or after anything else still counts.
+- **The charts come back,** as the owner asked: the boundaries flowchart, with the harnesses, the new code that runs and the open crossing to the providers, and the quadrant of residual risk by class. The quadrant keeps its last judged places but two, for classes this change widens: "Review rests on rules" moves toward likely and severe, and "The pact gets loosened" a little toward severe. The other six were not judged again for this change.
+- **The count leaves mermaid blocks out.** The test reads fences as Markdown does; only a closed block goes, and prose in or after anything else still counts.
 
 ## What waits for the owner
 
@@ -40,6 +40,6 @@ The charts were removed twice to fit the count (PACT-65, PACT-101). A chart is f
 ## Consequences
 
 - A session reads about 550 more words of threat model, and the two charts.
-- Text inside a closed mermaid block is bounded by no cap; a change to the threat model is read like any change.
+- Text inside a closed mermaid block is bounded by no cap, and a `%%` comment there doesn't show on the rendered page; a change to the threat model is read like any change.
 - The text describes controls that spec 0007's other tickets build. A ticket that ships one differently changes the text with it.
 - **Rollback:** revert the change; the cap and the count go back with the text.

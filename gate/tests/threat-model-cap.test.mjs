@@ -18,12 +18,35 @@ import { tempDir } from './tree.mjs';
 const CAP = 3600;
 
 // PACT-105 T8 (ADR 0173): the charts don't count. They were dropped twice to fit
-// the count (PACT-65, PACT-101), and a chart is for the reader's eye. Only a
-// closed block goes, so an unclosed fence hides nothing.
-const MERMAID = /^```mermaid[ \t]*\r?\n[\s\S]*?^```[ \t]*\r?$/gm;
+// the count (PACT-65, PACT-101), and a chart is for the reader's eye.
+
+// A fence line as Markdown reads it: up to three spaces, then three or more
+// backticks or tildes; a backtick fence's info string holds no backtick.
+const FENCE = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})(.*?)\r?$/;
+
+/** The text without its closed mermaid blocks. An unclosed one stays, so it hides nothing. */
+const withoutCharts = text => {
+  const kept = [];
+  let open;
+  for (const line of text.split('\n')) {
+    const [, run, info] = FENCE.exec(line) ?? [];
+    if (!open) {
+      if (run) open = { run, chart: info.trim() === 'mermaid', lines: [line] };
+      else kept.push(line);
+      continue;
+    }
+    open.lines.push(line);
+    // It closes on the same character, a run at least as long, and nothing after.
+    if (run?.startsWith(open.run) && !info.trim()) {
+      if (!open.chart) kept.push(...open.lines);
+      open = undefined;
+    }
+  }
+  return [...kept, ...(open?.lines ?? [])].join('\n');
+};
 
 /** Words: runs of non-whitespace, so CRLF and LF count the same, with the table of contents (PACT-78) and mermaid blocks left out. */
-const words = text => stripToc(text).replace(MERMAID, '').split(/\s+/).filter(Boolean).length;
+const words = text => withoutCharts(stripToc(text)).split(/\s+/).filter(Boolean).length;
 
 /** A line naming the file, its count and the cap when the file goes past it, else nothing. */
 const overCap = (name, text) => (words(text) > CAP ? [`${name}: ${words(text)} words, cap ${CAP}`] : []);
@@ -53,23 +76,26 @@ test('threat-model cap: words are runs of non-whitespace, whatever the separator
   assert.equal(words('a b\r\nc\td\n- e '), 6);
 });
 
-// PACT-105 C7
+// PACT-105 C27
 test('threat-model cap: a mermaid chart does not count, however big', () => {
   const chart = `\`\`\`mermaid\r\nflowchart LR\r\n${'  a --> b\r\n'.repeat(CAP)}\`\`\`\r\n`;
   assert.deepEqual(overCap('at cap', `${'word\n'.repeat(CAP)}${chart}`), []);
 });
 
-// PACT-105 C7
+// PACT-105 C27
 test('threat-model cap: prose around a chart, in another fence or after an unclosed one still counts', () => {
   const chart = '```mermaid\nflowchart LR\n  a --> b\n```\n';
   const prose = 'word\n'.repeat(CAP + 1);
   assert.deepEqual(overCap('between', `${chart}${prose}${chart}`), [`between: ${CAP + 1} words, cap ${CAP}`]);
   assert.equal(words(`\`\`\`text\n${prose}\`\`\`\n`), CAP + 3);
   assert.equal(words(`\`\`\`mermaid\n${prose}`), CAP + 2);
+  assert.equal(words(`\`\`\`mermaid\nx\n  \`\`\`\n${prose}\`\`\`text\nz\n\`\`\`\n`), CAP + 4);
+  assert.equal(words(`\`\`\`mermaid\nx\n\`\`\`\`\n${prose}${chart}`), CAP + 1);
+  assert.equal(words(`\`\`\`\`text\n\`\`\`mermaid\n${prose}\`\`\`\n\`\`\`\`\n`), CAP + 5);
 });
 
 // PACT-78 C4
-test('threat-model cap: a table of contents does not count,and one word past the cap outside it still does', () => {
+test('threat-model cap: a table of contents does not count, and one word past the cap outside it still does', () => {
   const toc = `<!-- toc -->\n\n${'- [Heading](#heading)\n'.repeat(50)}\n<!-- /toc -->\n\n`;
   assert.deepEqual(overCap('at cap', `${toc}${'word\n'.repeat(CAP)}`), []);
   assert.deepEqual(overCap('over', `${toc}${'word\n'.repeat(CAP + 1)}`), [`over: ${CAP + 1} words, cap ${CAP}`]);
