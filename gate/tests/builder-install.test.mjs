@@ -238,7 +238,7 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
     'Its checkpoints are its own picks, and my confirmation counts wherever I give it',
     'Never relay a secret\'s value',
     'never its value',
-    'permission prompts and classifier blocks still stop you',
+    'permission prompts and blocks still stop you',
   ]) assert.ok(flat.includes(s), `the installed default rules hold "${s}"`);
   // PACT-50: one kind of checkpoint; no hard stop and no second list of acts that wait are left in the rules.
   assert.ok(!/hard stop/i.test(flat), 'the installed default rules name no hard stop');

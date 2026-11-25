@@ -31,7 +31,7 @@ import {
   readCopySet,
   renderNoConfig,
 } from '../../cloud-sessions/gen.mjs';
-import { REPO, withoutOpenMarks } from './text.mjs';
+import { REPO, forClaude, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const PAYLOAD = ['claude', 'familiars', 'AGENTS.md'];
@@ -95,14 +95,6 @@ function baseRoot(t, plant = () => {}) {
 
 // The no-configuration render, computed apart from the renderer, and the
 // committed outputs.
-// What Claude Code receives (spec 0007 S7, S13): the models line, no capability
-// mark, and each agent's role written as Claude Code's own model.
-const forClaude = text => text
-  .replace('<!-- pact:if cleaner -->\n<!-- pact:end -->\n', '')
-  .replace(/<!-- pact:unless subagents -->\n[\s\S]*?<!-- pact:end -->\n/, '')
-  .replace('<!-- pact:models -->\n', '\nHere the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.\n')
-  .replace(/^model: planning$/m, 'model: opus')
-  .replace(/^model: light$/m, 'model: haiku');
 const RENDER = forClaude(withoutOpenMarks(repoText('claude/CLAUDE.md')));
 const committed = () => Object.fromEntries(Object.values(OUTPUTS).map(rel => [rel, repoText(rel)]));
 

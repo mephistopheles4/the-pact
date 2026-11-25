@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import { applyBound, home, install, listTree, makeRepo, nodeEnv, refused, spawnNodeInstall, WIN, total } from './install-harness.mjs';
 import { runCore } from './gate-run.mjs';
 import { plantModule, plantNoDefault } from './gate-files.mjs';
-import { REPO, withoutOpenMarks } from './text.mjs';
+import { REPO, forClaude, withoutOpenMarks } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const CONFIG_REL = ['.pact', 'config.json'];
@@ -124,7 +124,7 @@ function expectedRules(repo, bytes, value) {
   );
   assert.notEqual(noticed, s, 'the notice slot was found and filled');
   s = noticed;
-  return Buffer.from(withoutOpenMarks(s));
+  return Buffer.from(forClaude(withoutOpenMarks(s)));
 }
 
 /** The full rendered hash a dry run printed in its Configuration block. */
@@ -193,7 +193,7 @@ test('with no configuration file the install renders the pact\'s default: the no
   const out = tempDir(t, 'pact-render-');
   const want = runCore('render', [join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]);
   assert.equal(want.failed, false, want.lines.join('\n'));
-  const rendered = readFileSync(join(out, 'CLAUDE.md'));
+  const rendered = Buffer.from(forClaude(readFileSync(join(out, 'CLAUDE.md'), 'utf8')));
   assert.deepEqual(readFileSync(join(h, '.claude', 'CLAUDE.md')), rendered);
   assert.match(rendered.toString('utf8'), /^\*\*Configuration in effect\.\*\* This file was rendered with the pact's default configuration `[0-9a-f]{12}`\.$/m);
   const digest = /^DIGEST ([0-9a-f]{12})$/m.exec(want.lines.join('\n'))[1];

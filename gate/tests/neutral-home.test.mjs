@@ -115,8 +115,11 @@ test('C17: one apply writes every harness in the list, records and backs up each
   assert.match(block(dry, 'mine'), /^ {2}\.mine\/RULES\.md$/m);
 
   passed(applyBound(repo, h));
-  // C7, C29: an own harness that names no models gets no models line.
-  assert.equal(read(h, '.mine/RULES.md'), read(h, '.claude/CLAUDE.md').replace(/\nHere the planning model is [^\n]*\n/, ''));
+  // C7, C29: an own harness that names no models gets no models line, and one with no subagents gets S12's line.
+  const mine = read(h, '.mine/RULES.md');
+  const alone = 'This harness has no subagents: run each lens in a separate session.\n';
+  assert.equal(mine.split(alone).length, 2, mine);
+  assert.equal(mine.replace(alone, ''), read(h, '.claude/CLAUDE.md').replace(/\nHere the planning model is [^\n]*\n/, ''));
   const files = record(h).files;
   for (const [id, path] of [['claude', '.claude/CLAUDE.md'], ['claude', '.claude/agents/scout.md'], ['mine', '.mine/RULES.md'], ['mine', '.mine/agents/scout.md'], ['pact', '.pact/review.md']]) {
     assert.ok(files.some(f => f.harness === id && f.path === path), `${id} ${path}`);
@@ -183,6 +186,16 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   edit(repo, 'harnesses/known.json', '"planning": "gpt-6.2-sol"', '"planning": "gpt-7"');
   commitAll(repo);
   assert.notEqual(bound(install(repo, h)), was);
+});
+
+test('bad case: a skill file already in ~/.pact/skills that the record does not list refuses', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  for (const dir of ['.codex', '.pact/skills/scriptorium']) mkdirSync(at(h, dir), { recursive: true });
+  writeFileSync(at(h, '.pact/skills/scriptorium/SKILL.md'), 'mine\n');
+  const r = install(repo, h);
+  refused(r, /^REFUSED: \.pact\/skills\/scriptorium\/SKILL\.md already exists, and the install record does not list it/m);
+  assert.equal(read(h, '.pact/skills/scriptorium/SKILL.md'), 'mine\n');
 });
 
 test('C6: rules over a harness cap refuse the whole install', t => {
