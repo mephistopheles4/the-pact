@@ -1,6 +1,6 @@
 // The project install (#53, slice 5), end to end: the install script against
-// a throwaway repo, a throwaway Claude home folder and throwaway projects.
-// The throwaway home is <tmp>/home with --claude-home <tmp>/home/.claude, so a
+// a throwaway repo, a throwaway home folder and throwaway projects.
+// The throwaway home is <tmp>/home, given with --home, and holds .claude, so a
 // project under <tmp>/home sits beside the Claude folder, as a real one does.
 // Cases that would reach the real home folder run as dry runs only.
 import assert from 'node:assert/strict';
@@ -44,12 +44,12 @@ function projectAt(p, n = 60) {
   return p;
 }
 
-function userFile(ch, n) {
-  mkdirSync(join(ch, 'pact'), { recursive: true });
-  writeFileSync(join(ch, 'pact', 'config.json'), `{"schema": 1, "settings": {"usage-pause": ${n}}}\n`);
+function userFile(homeDir, n) {
+  mkdirSync(join(homeDir, '.pact'), { recursive: true });
+  writeFileSync(join(homeDir, '.pact', 'config.json'), `{"schema": 1, "settings": {"usage-pause": ${n}}}\n`);
 }
 
-const projInstall = (repo, ch, proj, { apply = false, extra = [], ...rest } = {}) => install(repo, ch, { apply, extra: ['--project-folder', proj, ...extra], ...rest });
+const projInstall = (repo, homeDir, proj, { apply = false, extra = [], ...rest } = {}) => install(repo, homeDir, { apply, extra: ['--project-folder', proj, ...extra], ...rest });
 
 function projectHash(r) {
   const m = /^ {2}rendered project rules file: sha256 ([0-9a-f]{64})\r?$/m.exec(r.stdout);
@@ -104,20 +104,20 @@ function fileLink(t, target, at) {
 
 test('a project nested under the throwaway home installs: only its rules file and record, the home untouched', t => {
   const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
-  userFile(ch, 90);
+  const { homeDir } = layout(t);
+  userFile(homeDir, 90);
   const proj = projectAt(join(homeDir, 'proj'), 80);
   const homeBefore = snapshot(homeDir).filter(e => !e.includes(`${sep}proj`));
   const projBefore = snapshot(proj);
 
-  const dry = projInstall(repo, ch, proj);
+  const dry = projInstall(repo, homeDir, proj);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^ {2}rules file \.claude\/rules\/pact-project\.md: would be written \(new\)\r?$/m, dry.out);
   assert.match(dry.stdout, /^Check: passed on commit /m, dry.out);
   assert.deepEqual(snapshot(proj), projBefore, 'a dry run writes nothing');
   const hash = projectHash(dry);
 
-  const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', hash] });
+  const r = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', hash] });
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Installed commit [0-9a-f]{40} with configuration [0-9a-f]{12} into the project folder; all files verified\.\r?$/m, r.out);
   const rules = readFileSync(join(proj, ...RULES));
@@ -136,13 +136,13 @@ test('a project nested under the throwaway home installs: only its rules file an
   assert.deepEqual(snapshot(homeDir).filter(e => !e.includes(`${sep}proj`)), homeBefore, 'nothing is installed in the home folder');
 
   // Again: the recorded file may be replaced, and a same render reads unchanged.
-  const again = projInstall(repo, ch, proj);
+  const again = projInstall(repo, homeDir, proj);
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^ {2}rules file \.claude\/rules\/pact-project\.md: unchanged\r?$/m, again.out);
   writeFileSync(join(proj, '.claude', 'pact-config.json'), projectJson(70));
-  const next = projInstall(repo, ch, proj);
+  const next = projInstall(repo, homeDir, proj);
   assert.match(next.stdout, /would replace the existing file its record names .*not proof the pact wrote it/, next.out);
-  const r2 = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', projectHash(next)] });
+  const r2 = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', projectHash(next)] });
   assert.equal(r2.code, 0, r2.out);
   assert.equal(readFileSync(join(proj, ...RULES), 'utf8'), expectedRules(70));
 });
@@ -150,17 +150,17 @@ test('a project nested under the throwaway home installs: only its rules file an
 // #262 C21, C22: a project's own qualities list installs, and its dry run leads with the security-defaults line.
 test('a project with only a qualities list installs its table, and the dry run names it before every other warning', t => {
   const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
+  const { homeDir } = layout(t);
   const proj = join(homeDir, 'proj');
   mkdirSync(join(proj, '.claude'), { recursive: true });
   writeFileSync(join(proj, '.claude', 'pact-config.json'), `${JSON.stringify({ schema: 1, qualities: [{ quality: 'Security', measure: 'ASVS 5.0 level 2', lenses: ['adversarial-lens', 'data-lens'] }] })}\n`);
-  const dry = projInstall(repo, ch, proj);
+  const dry = projInstall(repo, homeDir, proj);
   assert.equal(dry.code, 0, dry.out);
   const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
   const at = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
   assert.equal(lines[at], "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (1 row), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.", dry.out);
   assert.equal(lines.findIndex(l => l.includes('WARN')), at, 'no warning comes before it');
-  const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', projectHash(dry)] });
+  const r = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', projectHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.match(readFileSync(join(proj, ...RULES), 'utf8'), /^\| Security \| ASVS 5\.0 level 2 \| `adversarial-lens`, `data-lens` \|$/m);
   // #288 C11: with its own qualities and no costLimits, the home Cost limits bind none of them there; the dry run says so, once.
@@ -171,7 +171,7 @@ test('a project with only a qualities list installs its table, and the dry run n
 // #288 C10, C13: a project with its own Cost limits installs end to end; the dry run names them with their row count and has no note.
 test('a project with a qualities list and costLimits installs both tables, and the dry run names the Cost limits with their row count', t => {
   const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
+  const { homeDir } = layout(t);
   const proj = join(homeDir, 'proj');
   mkdirSync(join(proj, '.claude'), { recursive: true });
   const config = {
@@ -182,7 +182,7 @@ test('a project with a qualities list and costLimits installs both tables, and t
   };
   // Not a template: the changed tier's string-literal scan (#151) loses its place after a multi-line one here, and stops tying this file to the agents.
   writeFileSync(join(proj, '.claude', 'pact-config.json'), JSON.stringify(config) + '\n');
-  const dry = projInstall(repo, ch, proj);
+  const dry = projInstall(repo, homeDir, proj);
   assert.equal(dry.code, 0, dry.out);
   const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
   const at = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
@@ -194,11 +194,11 @@ test('a project with a qualities list and costLimits installs both tables, and t
   assert.deepEqual(unnamed, ["  NOTE: the project configuration's Cost limits rows 2, 3, 4, 5, 6, 7, 8 and 9 are named by no quality's enoughCosts, so they limit the review itself in this project; to hold back a quality's lenses instead, name each in that quality's enoughCosts in the project's .claude/pact-config.json."], dry.out);
   const named = { ...config, qualities: [{ ...config.qualities[0], enoughCosts: config.costLimits.map(c => c.cost) }] };
   writeFileSync(join(proj, '.claude', 'pact-config.json'), JSON.stringify(named) + '\n');
-  const allNamed = projInstall(repo, ch, proj);
+  const allNamed = projInstall(repo, homeDir, proj);
   assert.equal(allNamed.code, 0, allNamed.out);
   assert.ok(!allNamed.stdout.includes('named by no quality'), 'every row named: no note');
   writeFileSync(join(proj, '.claude', 'pact-config.json'), JSON.stringify(config) + '\n');
-  const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', projectHash(dry)] });
+  const r = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', projectHash(dry)] });
   assert.equal(r.code, 0, r.out);
   const rules = readFileSync(join(proj, ...RULES), 'utf8');
   assert.match(rules, /^\| Security \| ASVS 5\.0 level 1 \| `adversarial-lens` \| ASVS L1 · Hardening \|$/m);
@@ -209,12 +209,12 @@ test('a project with a qualities list and costLimits installs both tables, and t
 
 test('siblings whose names share a prefix with the Claude folder install', t => {
   const repo = makeRepo(t);
-  const { root, homeDir, ch } = layout(t);
+  const { root, homeDir } = layout(t);
   const dotClaude2 = projectAt(join(homeDir, '.claude2'));
-  const r = projInstall(repo, ch, dotClaude2, { apply: true, extra: ['--rendered-hash', projectHash(projInstall(repo, ch, dotClaude2))] });
+  const r = projInstall(repo, homeDir, dotClaude2, { apply: true, extra: ['--rendered-hash', projectHash(projInstall(repo, homeDir, dotClaude2))] });
   assert.equal(r.code, 0, r.out);
   assert.ok(existsSync(join(dotClaude2, ...RULES)));
-  // A Claude home folder <tmp>/kh beside a project <tmp>/kh2.
+  // A home folder <tmp>/kh beside a project <tmp>/kh2.
   const kh = join(root, 'kh');
   mkdirSync(kh);
   const kh2 = projectAt(join(root, 'kh2'));
@@ -226,10 +226,10 @@ test('siblings whose names share a prefix with the Claude folder install', t => 
 
 test('bad case: a project install with no project file refuses, saying there is no project configuration', t => {
   const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
+  const { homeDir } = layout(t);
   const proj = join(homeDir, 'proj');
   mkdirSync(join(proj, '.claude'), { recursive: true });
-  const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
+  const r = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
   assert.match(r.stdout, /there is no project configuration/, r.out);
   assert.deepEqual(snapshot(proj), [`dir ${sep}.claude`]);
@@ -237,12 +237,12 @@ test('bad case: a project install with no project file refuses, saying there is 
 
 test('bad case: -Apply on a project install with no hash, a wrong hash or a cut-short hash refuses, with nothing written', t => {
   const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
+  const { homeDir } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
-  const hash = projectHash(projInstall(repo, ch, proj));
+  const hash = projectHash(projInstall(repo, homeDir, proj));
   const before = snapshot(proj);
   for (const extra of [[], ['--rendered-hash', 'b'.repeat(64)], ['--rendered-hash', hash.slice(0, 12)]]) {
-    const r = projInstall(repo, ch, proj, { apply: true, extra });
+    const r = projInstall(repo, homeDir, proj, { apply: true, extra });
     refused(r);
     // The Node install words this refusal as a home install does; the run's first line shows it was the project branch.
     assert.match(r.stdout, /^Project install from commit /m, r.out);
@@ -253,11 +253,11 @@ test('bad case: -Apply on a project install with no hash, a wrong hash or a cut-
 
 test('bad case: a project configuration changed after the dry run refuses, with nothing written', t => {
   const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
+  const { homeDir } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'), 60);
-  const hash = projectHash(projInstall(repo, ch, proj));
+  const hash = projectHash(projInstall(repo, homeDir, proj));
   writeFileSync(join(proj, '.claude', 'pact-config.json'), projectJson(50));
-  const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', hash] });
+  const r = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
   assert.ok(!existsSync(join(proj, '.claude', 'rules')));
 });
@@ -267,13 +267,13 @@ test('bad case: a project configuration changed after the dry run refuses, with 
 /** Run a containment case: plant, then -Apply; refused, the project and the outside folder unchanged. */
 function containment(t, plant, why) {
   const repo = makeRepo(t);
-  const { root, homeDir, ch } = layout(t);
+  const { root, homeDir } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const outside = join(root, 'outside');
   mkdirSync(outside);
   if (plant(proj, outside) === false) return;
   const before = [snapshot(proj), snapshot(outside)];
-  const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
+  const r = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
   if (why) assert.match(r.stdout, why, r.out);
   assert.deepEqual([snapshot(proj), snapshot(outside)], before, 'nothing was written');
@@ -360,37 +360,38 @@ test('bad case: a rules file that no longer matches its record refuses, saying h
 // ------------------------------------------------------------ home-folder relations
 
 /** -Apply on the project `proj` (and its trailing-separator spelling); each refuses with the home-folder rule and nothing written under `watch`. */
-function relation(t, repo, ch, proj, watch, why) {
+function relation(t, repo, homeDir, proj, watch, why) {
   for (const spelled of [proj, `${proj}${sep}`]) {
     const before = snapshot(watch);
-    const r = projInstall(repo, ch, spelled, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
+    const r = projInstall(repo, homeDir, spelled, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
     refused(r);
     assert.match(r.stdout, why, r.out);
     assert.deepEqual(snapshot(watch), before, 'nothing was written');
   }
 }
 
-const CLAUDE_REL = /FAIL project-home: the project folder is the Claude home folder named for this install, holds it, or is inside it/;
+const NAMED_CLAUDE = /FAIL project-home: the project folder is the Claude folder in the home folder named for this install, holds it, or is inside it/;
+const NAMED_HOME = /FAIL project-home: the project folder is the home folder named for this install, or holds it/;
 
 test('bad case: a project equal to the Claude folder refuses', t => {
   const repo = makeRepo(t);
-  const { root, ch } = layout(t);
+  const { root, homeDir, ch } = layout(t);
   projectAt(ch);
-  relation(t, repo, ch, ch, root, CLAUDE_REL);
+  relation(t, repo, homeDir, ch, root, NAMED_CLAUDE);
 });
 
 test('bad case: a project holding the Claude folder refuses', t => {
   const repo = makeRepo(t);
-  const { root, homeDir, ch } = layout(t);
+  const { root, homeDir } = layout(t);
   projectAt(homeDir);
-  relation(t, repo, ch, homeDir, root, CLAUDE_REL);
+  relation(t, repo, homeDir, homeDir, root, NAMED_HOME);
 });
 
 test('bad case: a project inside the Claude folder refuses', t => {
   const repo = makeRepo(t);
-  const { root, ch } = layout(t);
+  const { root, homeDir, ch } = layout(t);
   const proj = projectAt(join(ch, 'proj'));
-  relation(t, repo, ch, proj, root, CLAUDE_REL);
+  relation(t, repo, homeDir, proj, root, NAMED_CLAUDE);
 });
 
 /** A new folder outside the real home folder: under the temp folder when that is outside it, else under ProgramData on Windows; null when neither can be made. */
@@ -406,7 +407,7 @@ function outsideHome(t) {
   return null;
 }
 
-test('bad case: a project holding the Claude folder but not the home folder, with -ClaudeHome outside the home folder, refuses', t => {
+test('bad case: a project holding the home folder named with --home, outside your own home folder, refuses', t => {
   const root = outsideHome(t);
   if (!root) {
     t.skip('no folder outside the home folder can be made here (not run)');
@@ -414,17 +415,16 @@ test('bad case: a project holding the Claude folder but not the home folder, wit
   }
   const repo = makeRepo(t);
   const homeDir = join(root, 'home');
-  const ch = join(homeDir, '.claude');
-  mkdirSync(ch, { recursive: true });
+  mkdirSync(join(homeDir, '.claude'), { recursive: true });
   projectAt(homeDir);
-  assert.ok(!under(ch, homedir()));
-  relation(t, repo, ch, homeDir, root, CLAUDE_REL);
+  assert.ok(!under(homeDir, homedir()));
+  relation(t, repo, homeDir, homeDir, root, NAMED_HOME);
 });
 
 /** A dry run on a real-home project: refused by the home-folder rule, and nothing written there. Never -Apply. */
 function realHomeCase(t, proj, why) {
   const repo = makeRepo(t);
-  const { ch } = layout(t);
+  const { homeDir } = layout(t);
   const configAt = join(proj, '.claude', 'pact-config.json');
   const rulesAt = join(proj, ...RULES);
   if (existsSync(configAt) || existsSync(rulesAt)) {
@@ -433,7 +433,7 @@ function realHomeCase(t, proj, why) {
   }
   // A filesystem root already ends in a separator; a second would spell a network path.
   for (const spelled of proj.endsWith(sep) ? [proj] : [proj, `${proj}${sep}`]) {
-    const r = projInstall(repo, ch, spelled);
+    const r = projInstall(repo, homeDir, spelled);
     refused(r);
     assert.match(r.stdout, why, r.out);
     assert.ok(!existsSync(rulesAt) && !existsSync(configAt));
@@ -463,7 +463,7 @@ test('bad case: a project inside the real Claude folder refuses, before any writ
 
 test('git is never pointed at the project folder', t => {
   const repo = makeRepo(t);
-  const { root, homeDir, ch } = layout(t);
+  const { root, homeDir } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const marker = join(root, 'fsmonitor-ran');
   const hook = join(root, 'mark.cjs');
@@ -474,20 +474,20 @@ test('git is never pointed at the project folder', t => {
   spawnSync('git', ['-C', proj, 'status'], { encoding: 'utf8' });
   assert.ok(existsSync(marker), 'control: the fsmonitor hook runs when git is pointed at the project');
   rmSync(marker);
-  const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', projectHash(projInstall(repo, ch, proj))] });
+  const r = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', projectHash(projInstall(repo, homeDir, proj))] });
   assert.equal(r.code, 0, r.out);
   assert.ok(!existsSync(marker), 'git ran against the project folder');
 });
 
 test('Node never runs with the project folder as its working folder', t => {
-  const { root, homeDir, ch } = layout(t);
+  const { root, homeDir } = layout(t);
   // The checks run in-process in the install's runner (S3), so each logs the runner's working folder.
   const log = join(root, 'cwd.log');
   const repo = makeRepo(t, r => {
     for (const core of ['render-core', 'project-core', 'seam-a-core']) wrapCheck(r, core, { before: `fs.appendFileSync(${JSON.stringify(log)}, process.cwd() + '\\n');` });
   });
   const proj = projectAt(join(homeDir, 'proj'));
-  const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', projectHash(projInstall(repo, ch, proj))] });
+  const r = projInstall(repo, homeDir, proj, { apply: true, extra: ['--rendered-hash', projectHash(projInstall(repo, homeDir, proj))] });
   assert.equal(r.code, 0, r.out);
   const cwds = readFileSync(log, 'utf8').trim().split('\n');
   // Two renders, the project check and its write, and seam A.
@@ -502,9 +502,9 @@ test('bad case: a renderer that changes the stage on its project run refuses', t
     const from = 'function runProject(out, home, projectFolder, report) {\n';
     plantModule(join(r, 'gate'), 'render', from, `${from}  writeFileSync('planted.md', 'x\\n');\n`);
   });
-  const { homeDir, ch } = layout(t);
+  const { homeDir } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
-  const r = projInstall(repo, ch, proj);
+  const r = projInstall(repo, homeDir, proj);
   refused(r);
   assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
 });

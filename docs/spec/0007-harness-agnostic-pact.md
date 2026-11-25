@@ -190,8 +190,8 @@ round's comment on the issue lists each finding.
     role, app, team, user or deploy key, never a workflow, so a bypass for
     `github.token` is one every workflow shares, and a workflow file on any
     branch of the repo sets its own permissions and runs before review (S10).
-50. Trade-off: the word budgets of `docs/install.md` (8,000 to 8,100) and
-    `docs/reference.md` (2,250 to 2,300) rise for the release text, and
+50. Trade-off: the word budgets of `docs/install.md` (8,700 to 8,900) and
+    `docs/reference.md` (2,300 to 2,400) rise for the release text, and
     nothing is cut to make room, on the owner's rule; PACT-110 cleans up.
 
 ## S3 Terms
@@ -744,7 +744,8 @@ never-sync rule names both folders.
   consistent; npm, not the bootstrap, picks which bootstrap runs, so the tag
   ruleset decides it;
 - the dry run and the owner's typed apply, as today;
-- `workflow.test.mjs`'s allow-list for the release job;
+- `workflow.test.mjs`'s allow-list for the release job, and its refusal of
+  a secret or a deployment environment in the other workflows;
 - the guard's fail-closed answer;
 - Codex's sandbox and approval policy, which don't hold under full access,
   and Antigravity's permission settings, which don't hold under
@@ -1045,7 +1046,7 @@ reads this spec and each ticket's diff.
 | Two tag rulesets on every tag (S10): creating, the release app its one bypass once it exists; updating and deleting, no bypass | the owner's own act | before T6 merges |
 | The release app as that bypass, and its key's reach (S2 item 49, S15) | the owner's call | before T9 |
 | The raised budgets of two docs (S2 item 50) | a flagged pick, for review | any time |
-| The release app (contents write, this repo only); the `release` environment, set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as its secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags | the owner's own acts | before T9 |
+| The release app (contents write, this repo only); the `release` environment, set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as its secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags, branches and merges it made | the owner's own acts | before T9 |
 | Required reviewers on the `release` environment (S15) | an offer, unanswered; built without | before T9 |
 | `PACT_RELEASES` set to `on` | the owner's own act | in T9 |
 | S14's one-time removal; its step 4 moves the hand ports out of use | the owner's own machine | straight before T9's apply |

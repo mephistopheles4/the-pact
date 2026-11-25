@@ -43,7 +43,9 @@ const newToken = stateless => (stateless
 export function world(t, { platform = 'win32', env = {}, pin = true, key = true, keyPair = 'a' } = {}) {
   const home = tempDir(t, 'pact-ghapp-home-');
   const tmp = tempDir(t, 'pact-ghapp-tmp-');
-  mkdirSync(join(home, '.claude', 'pact'), { recursive: true });
+  // The pact folder holds the pin file and the gitconfig; Claude Code's folder holds the settings file the helper reads.
+  mkdirSync(join(home, '.pact'), { recursive: true });
+  mkdirSync(join(home, '.claude'), { recursive: true });
   const pair = keys()[keyPair];
   const publicKey = createPublicKey(pair.publicKey);
   const store = new Map();
@@ -175,7 +177,7 @@ export function derOf(pem) {
 export function writePin(w, apps) {
   const entry = { app_id: IDS.app, slug: SLUG, bot_login: BOT, bot_id: IDS.bot };
   const body = { owner: { login: OWNER, id: IDS.owner }, apps: apps ?? { claude: entry } };
-  writeFileSync(join(w.home, '.claude', 'pact', 'github.json'), `${JSON.stringify(body, null, 2)}\n`);
+  writeFileSync(join(w.home, '.pact', 'github.json'), `${JSON.stringify(body, null, 2)}\n`);
 }
 
 /** Everything the run printed, split by stream, as one string each. */

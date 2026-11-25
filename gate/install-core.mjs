@@ -1484,8 +1484,8 @@ export function cleanerAskPlan(live, toolsOn, recorded) {
 
 /**
  * The stop switch's deny rules for this install (#439 S1.2): the same plan,
- * over STOP_DENY only, so a rule of the cleaner's planted in stopDeny is never
- * dropped, printed or recorded again, and the cleaner's plan likewise.
+ * over STOP_DENY only: it never drops, prints or records one of the cleaner's
+ * rules, though the record lists both, and the cleaner's plan likewise.
  */
 export function stopDenyPlan(live, on, recorded) {
   return denyPlan(live, STOP_DENY, on, recorded);
@@ -1510,7 +1510,8 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
  */
 export function settingsEntries({ harness, path, merged, deny, ask, identityEnv, window, hooks, hash }) {
   const out = [];
-  const add = (key, value) => out.push({ harness, path, key, value: toJsonValue(value), sha256: hash(Buffer.from(canonical(value), 'utf8')) });
+  // The value as the record reads it back: plain JSON, a number a number.
+  const add = (key, value) => out.push({ harness, path, key, value: JSON.parse(JSON.stringify(toJsonValue(value))), sha256: hash(Buffer.from(canonical(value), 'utf8')) });
   for (const rule of deny) add('permissions.deny', rule);
   for (const rule of ask) add('permissions.ask', rule);
   for (const [k, v] of Object.entries(identityEnv)) add(`env.${k}`, v);

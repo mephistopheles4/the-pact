@@ -190,9 +190,9 @@ before every Bash and PowerShell call, with a 15 s timeout.
 
   ```js
   {
-    const base = () => ({ 'pact/config.json': '{"schema": 1}' });
+    const base = () => ({ '.pact/config.json': '{"schema": 1}' });
     const run = (tree, t) => moduleResult(/* the module's exit code and output */);
-    const rows = [{ id: 'unknown-mark', plant: tree => ({ ...tree, 'pact/config.json': '...' }), fails: ['edit-mark'], why: 'a mark the source lacks' }];
+    const rows = [{ id: 'unknown-mark', plant: tree => ({ ...tree, '.pact/config.json': '...' }), fails: ['edit-mark'], why: 'a mark the source lacks' }];
     test('<name>: base passes', async t => assertPasses(await run(base(), t)));
     for (const r of rows) test(`<name>: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
     test('<name>: base passes after the rows', async t => assertPasses(await run(base(), t)));

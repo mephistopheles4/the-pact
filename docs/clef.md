@@ -1,8 +1,8 @@
 # `clef`, the local decision model's runner
 
-`clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. Off by default: put `clef` on the `tools` list and apply the install, and `~/.claude/pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
+`clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. Off by default: put `clef` on the `tools` list and apply the install, and `~/.pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
 
-The design is [spec 0002](spec/0002-clef-runner.md); this page is for the owner and for anyone who turns it on. Every command is `node <Claude home>/pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
+The design is [spec 0002](spec/0002-clef-runner.md); this page is for the owner and for anyone who turns it on. Every command is `node ~/.pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
 
 ## What it fetches, and how much room it needs
 

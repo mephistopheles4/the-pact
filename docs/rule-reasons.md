@@ -35,7 +35,7 @@ This file is never installed.
 | A skill I can't invoke | The harness blocks invoking a skill with model invocation off, and a plugin skill can be missing from the session's list; without the rule the stage stalls or the skill is skipped silently. Naming the skill in the workflow is the owner's consent to run it. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |
 | Lenses are offers | An offer is a checkpoint, answered by whoever steers the session: the owner, or the grimoire head chef's lead in Turbo mode. |
-| Before you run a lens or post to the record, read `~/.claude/pact/review.md` | Points to the procedure, which no tool loads. |
+| Before you run a lens or post to the record, read `~/.pact/review.md` | Points to the procedure, which no tool loads. |
 | The placement call's bound (`review.md`, the threat model, step 2) | Outside text in a caller's `state` can steer a decision model to a confident wrong placement. Nothing else compares its answer with the session's own, or stops a finding being dropped on it. |
 | Qualities | The owner's quality list, with the lens that checks each. No tool measures them. |
 | Trade-off points | What a spec must record about trade-offs. No tool reads a spec. |

@@ -54,11 +54,11 @@ function render(t, home, def) {
   return { ...r, bytes };
 }
 
-/** A Claude home whose pact/config.json holds `doc`. */
+/** A home folder whose .pact/config.json holds `doc`. */
 function homeWith(t, doc) {
   const h = tempDir(t, 'pact-default-home-');
-  mkdirSync(join(h, 'pact'));
-  writeFileSync(join(h, 'pact', 'config.json'), JSON.stringify(doc));
+  mkdirSync(join(h, '.pact'));
+  writeFileSync(join(h, '.pact', 'config.json'), JSON.stringify(doc));
   return h;
 }
 
@@ -94,7 +94,7 @@ test('the page saves for the default preset exactly the files the generator writ
   for (const r of [REPO, root(t, withPresetSkills(SKILLS))]) {
     const page = buildPage(r, PAGE);
     const saved = onPage(page, `(() => { const s = initialState(); const p = PACT.presets.find(p => p.id === 'level-3-full'); takePreset(s, p, presetPicks(p)); return buildFiles(s); })()`);
-    const want = defaultFiles(r).map(f => ({ path: `pact/${f.path}`, text: f.text }));
+    const want = defaultFiles(r).map(f => ({ path: f.path, text: f.text }));
     assert.deepEqual(saved.map(f => ({ path: f.path, text: f.text })), want);
   }
   assert.deepEqual(JSON.parse(defaultFiles(root(t, withPresetSkills(SKILLS)))[0].text).skills, SKILLS);
@@ -191,7 +191,7 @@ test('with a person\'s configuration, the render is the same whether or not the 
   const run = (doc, t) => {
     const r = render(t, homeWith(t, doc));
     const page = skillsProblems(doc.skills);
-    const renderer = r.lines.filter(l => l.startsWith('FAIL config-skills: ')).map(l => l.replace(/^FAIL config-skills: pact\/config\.json: /, ''));
+    const renderer = r.lines.filter(l => l.startsWith('FAIL config-skills: ')).map(l => l.replace(/^FAIL config-skills: \.pact\/config\.json: /, ''));
     const builder = checkBuilder(REPO, builderWith(t, doc.skills)).refusals.filter(m => /^skills/.test(m));
     assert.deepEqual(renderer, page, "the renderer's words differ from the page's checker");
     assert.deepEqual(builder, page, "the builder's words differ from the page's checker");
@@ -232,7 +232,7 @@ test('the page loads a builder file\'s skills, and saves them unchanged in build
   const file = join(dir, 'builder.json');
   writeFileSync(file, JSON.stringify({ schema: 1, skills: SKILLS }));
   assert.deepEqual(checkBuilder(REPO, file).refusals, []);
-  const out = onPage(buildPage(REPO, PAGE, file), `(() => { const s = initialState(); return { kept: JSON.parse(builderWith(null, s).text).skills, config: JSON.parse(buildFiles(s).find(f => f.path === 'pact/config.json').text).skills, problems: problems(s) }; })()`);
+  const out = onPage(buildPage(REPO, PAGE, file), `(() => { const s = initialState(); return { kept: JSON.parse(builderWith(null, s).text).skills, config: JSON.parse(buildFiles(s).find(f => f.path === 'config.json').text).skills, problems: problems(s) }; })()`);
   assert.deepEqual(out.kept, SKILLS);
   assert.deepEqual(out.config, SKILLS);
   assert.deepEqual(out.problems, []);

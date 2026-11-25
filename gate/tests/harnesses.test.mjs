@@ -83,7 +83,8 @@ test('bad case: each wrong own entry refuses under its rule', () => {
     ['harness-shape', [{ ...OWN, models: { planning: 'two words', executor: 'x' } }]],
     ['harness-path', [{ ...OWN, rules: { path: '.mine/RULES.md' } }]],
     ['harness-path', [{ ...OWN, rules: { path: '/etc/RULES.md' } }]],
-    ['harness-path', [{ ...OWN, rules: { path: '/home/username/RULES.md' } }]],
+    // A neighbour whose name only starts with the home folder's, built so no tracked line holds a home path.
+    ['harness-path', [{ ...OWN, rules: { path: `${HOME}name/RULES.md` } }]],
     ['harness-path', [{ ...OWN, rules: { path: '~/.mine/../../other/RULES.md' } }]],
     ['harness-path', [{ ...OWN, rules: { path: '~' } }]],
     ['harness-path', [{ ...OWN, detect: '/home/user' }]],

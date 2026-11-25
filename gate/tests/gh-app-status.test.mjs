@@ -9,7 +9,7 @@ import { main } from '../../claude/tools/gh-app.mjs';
 import { BOT, IDS, NODE, OWNER, leakSurface, printed, world } from './gh-app-world.mjs';
 
 // The exact helper line the gitconfig writes; the world's home is filled in by gitWith.
-const PACT = '!"C:/Program Files/nodejs/node.exe" "@HOME@/.claude/pact/tools/gh-app.mjs" git-credential --provider claude';
+const PACT = '!"C:/Program Files/nodejs/node.exe" "@HOME@/.pact/tools/gh-app.mjs" git-credential --provider claude';
 const BOT_EMAIL = `${IDS.bot}+${BOT}@users.noreply.github.com`;
 const CANARY = `canary${'q'.repeat(18)}`;
 
@@ -161,7 +161,7 @@ test('status reads the gitconfig\'s node path and says only whether it still exi
   const exists = [];
   const w = world(t);
   gitWith(w, { helpers: GOOD });
-  writeFileSync(join(w.home, '.claude', 'pact', 'gh-app-claude.gitconfig'), `[credential "https://github.com"]\n  helper =\n  helper = "!\\"${NODE.replaceAll('\\', '/')}\\" \\"x/gh-app.mjs\\" git-credential --provider claude"\n`);
+  writeFileSync(join(w.home, '.pact', 'gh-app-claude.gitconfig'), `[credential "https://github.com"]\n  helper =\n  helper = "!\\"${NODE.replaceAll('\\', '/')}\\" \\"x/gh-app.mjs\\" git-credential --provider claude"\n`);
   w.io.fs = { ...w.io.fs, existsSync: p => { exists.push(p); return p === NODE.replaceAll('\\', '/'); } };
   await main(['status', '--provider', 'claude'], w.io);
   assert.ok(printed(w).out.includes('gitconfig node path exists: yes'));

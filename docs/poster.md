@@ -3,8 +3,8 @@
 The poster posts free text to GitHub as your `gh` account, and edits what a
 session posted there, then reads back what landed and checks it against what
 it sent. It is a pact tool, off unless
-the `tools` list in `~/.claude/pact/config.json` names it. When it's
-on, the install puts it at `~/.claude/pact/tools/poster.mjs`, and the rules
+the `tools` list in `~/.pact/config.json` names it. When it's
+on, the install puts it at `~/.pact/tools/poster.mjs`, and the rules
 file tells a session to post through it. Its scans catch accidents, not a
 session that sets out to get past them. For a secret, its refusal of a live
 environment secret's value is the only check, and only where the poster is on
@@ -45,15 +45,15 @@ In this page, "a session" is the Claude Code session running the poster, and
 Each shell gets its own command form, as `review.md` gives them:
 
 - **A POSIX shell** (Git Bash, Linux, macOS):
-  `node ~/.claude/pact/tools/poster.mjs <surface> --post <file> [--dry-run]`
+  `node ~/.pact/tools/poster.mjs <surface> --post <file> [--dry-run]`
 - **PowerShell:**
-  `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file> [--dry-run]`
+  `node "$HOME/.pact/tools/poster.mjs" <surface> --post <file> [--dry-run]`
 
 Those two forms and `schema` (below) are the only ones. Any other option is
 refused `usage/unknown-option`, on every surface and on the edits too, with no
 window where an old form still works, and one fixed `NEXT:` line says the poster
 takes a JSON post now and points to `node poster.mjs schema` and the Posting
-section of `~/.claude/pact/review.md`. The line holds no argument the session
+section of `~/.pact/review.md`. The line holds no argument the session
 gave.
 
 Run it from a scratch folder outside the repo: a new, empty folder the session
@@ -664,6 +664,5 @@ kept by hand from the poster's source; no test holds them.
   time, so a change made since, a removed line included, comes
   back. A refusal when the item changed since that read
   is #419.
-- **A Claude home elsewhere.** `review.md` names the default
-  `~/.claude`; an install with `--claude-home` elsewhere puts the poster
-  where the rule doesn't point.
+- **A home folder elsewhere.** `review.md` names `~/.pact`; an install with
+  `--home` elsewhere puts the poster where the rule doesn't point.

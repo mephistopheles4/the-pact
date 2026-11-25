@@ -12,7 +12,7 @@ import { REPO } from './text.mjs';
 
 const BUDGETS = Object.freeze({
   'AGENTS.md': 1750,
-  'CONTEXT.md': 2150,
+  'CONTEXT.md': 2300,
   'docs/agents/agent-apps.md': 600,
   'docs/agents/domain.md': 300,
   'docs/agents/gate-tests.md': 3350,
@@ -23,11 +23,11 @@ const BUDGETS = Object.freeze({
   'docs/agents/work-records.md': 600,
   'docs/agent-identity.md': 900,
   'docs/cleaner.md': 4200,
-  'docs/install.md': 8100,
+  'docs/install.md': 8900,
   'docs/README.md': 300,
   'docs/poster-app.md': 600,
   'docs/poster.md': 8300,
-  'docs/reference.md': 2300,
+  'docs/reference.md': 2400,
   'docs/rule-reasons.md': 1200,
 });
 

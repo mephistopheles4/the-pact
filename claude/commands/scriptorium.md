@@ -33,7 +33,7 @@ and renders the page. The shapes are in the headers of the kit's
    and give me the path on its `WROTE` line: the page goes to
    `~/.pact/scriptorium.html`, replacing the last one.
 6. **Hand over** what changed since the last file, and tell me the page sits
-   in my Claude folder beside my builder file and holds my lists in plain
+   in `~/.pact` beside my builder file and holds my lists in plain
    text: I may delete the file when I'm done. The page's checks
    are for usability; the install's dry run is the authority on what the page
    saves.

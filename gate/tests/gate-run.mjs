@@ -182,6 +182,9 @@ export function renderStage(root, claudeHome) {
   }
 }
 
+/** Seam A's --harness value for an install into Claude Code alone, as the install passes it. */
+export const CLAUDE_ARG = 'claude:rules+agents+commands';
+
 /**
  * Seam A on a stage, after rendering its rules file. The real seam A runs in-process
  * through its core (#140, T10); a `script` other than the real one is a
@@ -191,10 +194,10 @@ export function renderStage(root, claudeHome) {
  * --compact value, off by default, unlike the install, which passes on with
  * no configuration (#482).
  */
-export function runSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none', compact = 'off' } = {}) {
-  if (script !== SEAM_A) return childSeamA(root, script, { commands, tools, compact });
+export function runSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none', compact = 'off', harness = CLAUDE_ARG } = {}) {
+  if (script !== SEAM_A) return childSeamA(root, script, { commands, tools, compact, harness });
   renderStage(root);
-  const { code, stdout, stderr, out } = runCore('seam-a', [root, '--commands', commands, '--tools', tools, '--compact', compact]);
+  const { code, stdout, stderr, out } = runCore('seam-a', [root, '--commands', commands, '--tools', tools, '--compact', compact, '--harness', harness]);
   return { code, stdout, stderr, out };
 }
 
@@ -203,9 +206,9 @@ export function runSeamA(root, script = SEAM_A, { commands = 'none', tools = 'no
  * runSeamA does: for a planted copy, and for the wrapper tests that keep a
  * child run of the real one (#155).
  */
-export function childSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none', compact = 'off' } = {}) {
+export function childSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none', compact = 'off', harness = CLAUDE_ARG } = {}) {
   renderStage(root);
-  const r = spawnSync(process.execPath, [script, root, '--commands', commands, '--tools', tools, '--compact', compact], { encoding: 'utf8', env: childEnv() });
+  const r = spawnSync(process.execPath, [script, root, '--commands', commands, '--tools', tools, '--compact', compact, '--harness', harness], { encoding: 'utf8', env: childEnv() });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr };
 }
 

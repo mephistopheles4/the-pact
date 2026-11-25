@@ -30,6 +30,9 @@ const WORKFLOWS = join(REPO, '.github', 'workflows');
 const WORKFLOW = join(WORKFLOWS, 'gate.yml');
 const CODEQL = join(WORKFLOWS, 'codeql.yml');
 const codeOf = src => src.split('\n').filter(l => !/^\s*#/.test(l)).join('\n');
+// codeOf drops such a line even inside a script block, where GitHub still fills in an expression.
+const HIDDEN = /^\s*#.*\$\{\{/m;
+const HIDES = 'holds an expression on a line that starts with #';
 
 /** Where any workflow file breaks the lockdown every workflow keeps, as plain sentences; empty when it keeps it. */
 function commonProblems(src) {
@@ -40,7 +43,8 @@ function commonProblems(src) {
   if (!perms || perms[1].trim() !== 'contents: read' || (code.match(/^\s*permissions:/gm) ?? []).length !== 1) out.push('asks for more than read access to the contents');
   // Spec 0007 S10: any form of a secret read, in any case, and no environment, which could hold the release app's key.
   if (/\bsecrets\b|\$\{\{\s*github\.token|GITHUB_TOKEN/i.test(code)) out.push('reads a secret or the token');
-  if (/(?:^\s*(?:- )?|[{,]\s*)['"]?environment['"]?\s*:/m.test(code)) out.push('names a deployment environment');
+  if (/(?:^\s*(?:- )?|[{,]\s*)['"]?environment['"]?\s*:/im.test(code)) out.push('names a deployment environment');
+  if (HIDDEN.test(src)) out.push(HIDES);
   for (const m of code.matchAll(/uses:\s*(\S+)/g)) if (!/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/.test(m[1])) out.push(`uses ${m[1]}, not pinned to a full commit SHA`);
   // #351: every checkout step, not only the first.
   const checkouts = [...`${code}\n`.matchAll(/uses: actions\/checkout@[0-9a-f]{40}[^\n]*\n((?: {8,}.+\n)*)/g)];
@@ -263,7 +267,7 @@ function codeqlProblems(src, gateSrc) {
   };
   if (/^\s*(?:-\s+)?run:/m.test(code)) out.push('runs a shell command');
   if (/^\s*(?:-\s+)?env:/m.test(code)) out.push('sets environment variables');
-  if (/\bsecrets\.|\$\{\{\s*github\.token|GITHUB_TOKEN/.test(code)) out.push('reads a secret or the token');
+  if (/\bsecrets\b|\$\{\{\s*github\.token|GITHUB_TOKEN/i.test(code)) out.push('reads a secret or the token');
   if (/upload-artifact|\bcache\b/.test(code)) out.push('uploads or caches the workspace');
   if (yamlFormUsed(code)) out.push('uses a YAML anchor, alias, merge key or flow mapping');
   let w;
@@ -495,6 +499,7 @@ function releaseProblems(src) {
     for (const k of keys) if (!Object.hasOwn(obj, k)) out.push(`${where} lacks ${k}`);
   };
   if (/pull_request_target/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
+  if (HIDDEN.test(src)) out.push(HIDES);
   // GitHub reads context names in any case.
   if (code.split(RELEASE_KEY).length !== 2 || (code.match(/\bsecrets\b/gi) ?? []).length !== 1) out.push("reads a secret other than the release app's key, or reads that key twice or not at all");
   if (/\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/i.test(code)) out.push("reads the job's own token");
@@ -724,6 +729,9 @@ for (const [label, other, says] of [
   ['reads a secret in bracket form', OTHER.replace('echo ok', "echo ${{ secrets['X'] }}"), 'other.yml reads a secret or the token'],
   ['reads a secret in capitals', OTHER.replace('echo ok', 'echo ${{ SECRETS.X }}'), 'other.yml reads a secret or the token'],
   ['passes every secret on', OTHER.replace('    steps:', '    secrets: inherit\n    steps:'), 'other.yml reads a secret or the token'],
+  ['dumps every secret', OTHER.replace('echo ok', 'echo ${{ toJSON(secrets) }}'), 'other.yml reads a secret or the token'],
+  ['names an environment in capitals', OTHER.replace('    steps:', '    Environment: release\n    steps:'), 'other.yml names a deployment environment'],
+  ['hides a secret read on a script line that starts with #', OTHER.replace('run: echo ok', 'run: |\n          # ${{ secrets.X }}\n          echo ok'), `other.yml ${HIDES}`],
   ['asks for write access', OTHER.replace('contents: read', 'contents: write'), 'other.yml asks for more than read access to the contents'],
   ['runs on pull_request_target', OTHER.replace('  pull_request:', '  pull_request_target:'), 'other.yml runs on a trigger that holds secrets or a write token'],
   ['defines a job named gate', OTHER.replace('  lint:', '  gate:'), 'other.yml defines a job or check named gate'],
@@ -846,6 +854,9 @@ for (const [label, plant, says] of [
   ['reads GITHUB_TOKEN', s => s.replace('          category:', '          token: GITHUB_TOKEN\n          category:'), 'reads a secret or the token'],
   ['uploads the workspace', s => s.replace('      - uses: github/codeql-action/analyze', `      - uses: actions/upload-artifact@${'0'.repeat(40)}\n      - uses: github/codeql-action/analyze`), 'uploads or caches the workspace'],
   ['caches the workspace', s => s.replace('      - uses: github/codeql-action/analyze', `      - uses: actions/cache@${'0'.repeat(40)}\n      - uses: github/codeql-action/analyze`), 'uploads or caches the workspace'],
+  ['reads a secret in bracket form', s => s.replace('          category:', "          token: ${{ secrets['X'] }}\n          category:"), 'reads a secret or the token'],
+  ['dumps every secret', s => s.replace('          category:', '          token: ${{ toJSON(secrets) }}\n          category:'), 'reads a secret or the token'],
+  ['names the release environment', s => s.replace('    runs-on:', '    environment: release\n    runs-on:'), "the job holds environment, which the allow-list doesn't name"],
   ['builds the code', s => s.replace('build-mode: none', 'build-mode: autobuild'), 'does not run init on the matrix language with build-mode none'],
   ['adds a top-level key', s => s.replace('\njobs:\n', '\nconcurrency: codeql\njobs:\n'), extraKey('the file', 'concurrency')],
   ['runs on pushes to another branch', s => s.replace('    branches: [main]\n', '    branches: [develop]\n'), TRIGGERS],
@@ -1191,6 +1202,7 @@ for (const [label, plant, says] of [
   ["reads a second secret, in capitals, in a step's name", s => s.replace('name: Tag the tip of main', 'name: ${{ SECRETS.OTHER }}'), ONE_SECRET],
   ["reads the job's own token, in capitals, in a step's name", s => s.replace('name: Tag the tip of main', 'name: ${{ github.Token }}'), "reads the job's own token"],
   ['names its tag step with an expression', s => s.replace('name: Tag the tip of main', 'name: ${{ env.X }}'), 'hands the script another name, environment or shell than its own'],
+  ['hides a second secret on a script line that starts with #', s => s.replace(/(\n        run: \|-?\n)/, '$1          #${{ SECRETS.OTHER }}\n'), HIDES],
   ['reads another secret as the key', s => s.replace('secrets.PACT_RELEASE_APP_KEY', 'secrets.OTHER'), ONE_SECRET],
   ["reads the job's own token", s => s.replace('${{ steps.app.outputs.token }}', '${{ github.token }}'), "reads the job's own token"],
   ['checks the repo out', s => s.replace('    steps:\n', `    steps:\n      - uses: actions/checkout@${'a'.repeat(40)}\n`), 'checks the repo out'],
