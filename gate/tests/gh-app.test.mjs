@@ -1034,3 +1034,80 @@ test('an error with a message never reaches the output: a thrown Error prints th
   await main(['status', '--provider', 'claude'], v.io);
   assert.ok(!leakSurface(v).includes('kkkkkkkk'));
 });
+
+// ---------------------------------------------------------------- PACT-104: refresh
+
+const STALE = '[credential "https://github.com"]\n  helper =\n  helper = "!\\"C:/old/node.exe\\" x git-credential --provider claude"\n';
+const refreshed = (t, prior = STALE) => {
+  const w = world(t);
+  readBack(w);
+  if (prior !== null) writeFileSync(gitconfigFile(w), prior);
+  return w;
+};
+const gitconfigNow = w => (existsSync(gitconfigFile(w)) ? readFileSync(gitconfigFile(w), 'utf8') : null);
+
+// PACT-104 R1: refresh writes the gitconfig for the Node it runs under, stale or missing, from the pin and the stored key, and makes or mints nothing.
+for (const prior of [STALE, null]) test(`refresh ${prior ? 'rewrites a stale' : 'writes a missing'} gitconfig for the Node it runs under, after the pin check, and mints no token and makes no key`, async t => {
+  const w = refreshed(t, prior);
+  const keyBefore = Buffer.from(w.store.get('the-pact/gh-app/claude/key'));
+  const pinBefore = readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8');
+  assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 0, printed(w).err);
+  assert.equal(readFileSync(gitconfigFile(w), 'utf8'), gitconfigText({ home: w.home, nodePath: NODE, provider: 'claude', app: readPinFile(w).apps.claude, xdg: false }));
+  assert.ok(w.spy.spawns.some(s => s.file === 'gh' && s.args.includes(`apps/${SLUG}`)), 'the pin was checked');
+  assert.ok(w.spy.spawns.some(s => s.file === 'git' && s.args[0] === 'config'), 'the helper line was read back');
+  assert.equal(w.spy.fetches.length, 0, 'no token minted');
+  assert.deepEqual(w.store.get('the-pact/gh-app/claude/key'), keyBefore, 'the key is unchanged');
+  assert.equal(w.store.size, 1, 'nothing else stored');
+  assert.equal(readFileSync(join(w.home, '.claude', 'pact', 'github.json'), 'utf8'), pinBefore, 'the pin is unchanged');
+  assert.ok(!printed(w).out.includes(NODE.replaceAll('\\', '/')) &&!printed(w).out.includes(NODE), 'the Node path is not printed');
+});
+
+// PACT-104 R2: an existing gitconfig that can't be read is refused before anything is written, never taken as absent.
+test('refresh refuses, writing nothing, when the existing gitconfig cannot be read', async t => {
+  const w = refreshed(t);
+  const fs = w.io.fs;
+  w.io.fs = { ...fs, readFileSync: (p, ...a) => { if (p === gitconfigFile(w)) throw Object.assign(new Error('busy'), { code: 'EBUSY' }); return fs.readFileSync(p, ...a); } };
+  assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 1);
+  assert.ok(printed(w).err.includes(REASONS.gitconfig), printed(w).err);
+  assert.equal(readFileSync(gitconfigFile(w), 'utf8'), STALE);
+  assert.ok(!w.spy.spawns.some(s => s.file === 'git'), 'nothing was written or read back');
+});
+
+// PACT-104 R2: refresh refuses, writing nothing, without a pinned entry, a key or a passing pin check.
+{
+  const rows = [
+    { id: 'unpinned', reason: 'pin/unpinned', provider: 'codex', also: w => assert.equal(existsSync(join(w.home, '.claude', 'pact', 'gh-app-codex.gitconfig')), false) },
+    { id: 'no-key', reason: 'key/missing', setup: w => { w.store.delete('the-pact/gh-app/claude/key'); } },
+    { id: 'pin-check-cannot-run', reason: 'pin/unavailable', setup: w => { w.state.ghReadFails.add('user'); } },
+    { id: 'pin-check-fails', reason: 'pin/check', setup: w => { w.state.bot.type = 'User'; } },
+  ];
+  for (const r of rows) {
+    test(`refresh refuses: ${r.id}: the gitconfig is left as it was`, async t => {
+      const w = refreshed(t);
+      r.setup?.(w);
+      assert.equal(await main(['refresh', '--provider', r.provider ?? 'claude'], w.io), 1);
+      assert.ok(printed(w).err.includes(REASONS[r.reason]), printed(w).err);
+      assert.equal(readFileSync(gitconfigFile(w), 'utf8'), STALE);
+      r.also?.(w);
+    });
+  }
+}
+
+// PACT-104 R3: a helper line that reads back wrong refuses and puts the old gitconfig back, or leaves none.
+for (const prior of [STALE, null]) test(`refresh whose helper line reads back wrong refuses and ${prior ? 'puts the old gitconfig back' : 'leaves no gitconfig'}`, async t => {
+  const w = refreshed(t, prior);
+  w.state.git = () => ({ status: 0, stdout: '\n!evil\n', stderr: '' });
+  assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 1);
+  assert.ok(printed(w).err.includes(REASONS.gitconfig));
+  assert.equal(gitconfigNow(w), prior);
+});
+
+// PACT-104 R1: refresh writes the XDG include when that config exists.
+test('refresh writes the XDG include when that config exists', async t => {
+  const w = refreshed(t);
+  const { mkdirSync } = await import('node:fs');
+  mkdirSync(join(w.home, '.config', 'git'), { recursive: true });
+  writeFileSync(join(w.home, '.config', 'git', 'config'), '[core]\n');
+  assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 0, printed(w).err);
+  assert.match(readFileSync(gitconfigFile(w), 'utf8'), /\.config\/git\/config/);
+});

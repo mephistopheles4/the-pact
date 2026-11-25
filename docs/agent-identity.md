@@ -60,9 +60,9 @@ rest:
 - Your own `author.*`, `committer.*` and signing settings, which the include loads.
 - `GIT_CONFIG_GLOBAL` makes a session's `git config --global` write to the agent
   gitconfig, so `gh auth setup-git` swaps the helper out. The next dry run refuses
-  until you run setup again.
+  until you run `refresh`.
 - The helper script, the gitconfig, `NODE_OPTIONS` and the Node program stay
-  writable by your account, and `setup` writes any Node, so only the next dry run
+  writable by your account, and `setup` and `refresh` write any Node, so only the next dry run
   refuses a changed gitconfig.
 
 ## What the install checks
@@ -73,9 +73,8 @@ With the switch on, before any write:
 - The gitconfig equals the text setup writes, which the install computes with its
   own copy of `gitconfigText` from `gh-app.mjs` (a test holds them equal), under
   its own Node, which must be an absolute path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
-  with the part that differs (node path, include list or other lines) and "re-run
-  setup", and refuses on a `no`. It never prints a line of the file. After a new
-  XDG git config, or a change of Node path, run setup again.
+  with the part that differs (node path, include list or other lines) and "run
+  gh-app.mjs refresh", and refuses on a `no`. It never prints a line of the file.
 - Your own `env` doesn't already set either key. The install never overwrites it.
 
 A `settings.json` that isn't strict JSON is never changed: the dry run warns that

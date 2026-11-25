@@ -1502,12 +1502,12 @@ test('the identity gitconfig verdict names the part that differs and prints no l
   const said = v => core.identityGitconfigLine(v);
   assert.equal(said(core.identityGitconfigVerdict(want, want)), 'gitconfig as expected: yes');
   const node = core.identityGitconfigVerdict(want.replace('nodejs', 'other'), want);
-  assert.equal(said(node), 'gitconfig as expected: no: node path differs, re-run setup');
+  assert.equal(said(node), 'gitconfig as expected: no: node path differs, run gh-app.mjs refresh');
   const inc = core.identityGitconfigVerdict(want.replace('[user]', '  path = C:/Users/e/.config/git/config\n[user]'), want);
-  assert.equal(said(inc), 'gitconfig as expected: no: include list differs, re-run setup');
+  assert.equal(said(inc), 'gitconfig as expected: no: include list differs, run gh-app.mjs refresh');
   const other = core.identityGitconfigVerdict(want.replace('useHttpPath = true', 'useHttpPath = false'), want);
-  assert.equal(said(other), 'gitconfig as expected: no: other lines differ, re-run setup');
-  assert.equal(said(core.identityGitconfigVerdict(want.replace('nodejs', 'CANARY-LINE').replace('[user]', '  path = CANARY-PATH\n[user]'), want)), 'gitconfig as expected: no: node path differs, include list differs, re-run setup');
+  assert.equal(said(other), 'gitconfig as expected: no: other lines differ, run gh-app.mjs refresh');
+  assert.equal(said(core.identityGitconfigVerdict(want.replace('nodejs', 'CANARY-LINE').replace('[user]', '  path = CANARY-PATH\n[user]'), want)), 'gitconfig as expected: no: node path differs, include list differs, run gh-app.mjs refresh');
   assert.equal(core.identityGitconfigVerdict(want.replaceAll('\n', '\r\n'), want).ok, false, 'a rewritten line ending is a difference');
   for (const v of [node, inc, other]) assert.ok(!/CANARY|nodejs|useHttpPath|\.gitconfig/.test(said(v)));
 });
