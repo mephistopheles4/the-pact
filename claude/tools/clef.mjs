@@ -1385,7 +1385,7 @@ export function supervisorEnv(env, platform, runtime) {
 export function serverArgs({ port, keyFile, modelPath, vulkan, metal, noDevice, cpu }) {
   // --cors-origins names an origin no page has, so a web page cannot read even the server's keyless /health.
   // Spec 0005 U4: -nr ends the list on a CPU backend; b12211 aborts loading Clef-Flash when the CPU backend repacks weights.
-  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan || metal ? ['-ngl', '99'] : []), ...(noDevice ? ['--device', 'none'] : []), '-c', '16384', '-ub', '4096', '-b', '4096', '-m', modelPath, ...(cpu ? ['-nr'] : [])];
+  return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan || metal ? ['-ngl', '99'] : []), ...(noDevice ? ['--device', 'none'] : []), '-c', '65536', '-ub', '8192', '-b', '8192', '-m', modelPath, ...(cpu ? ['-nr'] : [])];
 }
 
 /** The program and arguments that start the server: on Linux through setpriv, so the kernel ends it when the supervisor dies. */

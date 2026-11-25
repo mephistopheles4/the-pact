@@ -13,7 +13,7 @@ Only `clef setup --yes` fetches anything, and only these, each checked by size a
 
 Plan for about **7.6 GB** of free disk on the drive that holds your Claude home folder: setup refuses when the model, the archive, the unpacked files and a 10% margin do not fit. Downloads redirect only to a fixed list of hosts, over `https:` only. Everything lands in the clef folder, `<Claude home>/pact-clef/`, which no install writes or deletes.
 
-RAM and VRAM, measured on the owner's Windows machine (Vulkan, a discrete GPU with 32 GB, Q4_K_M, `-c 16384`): the server's peak working set was about **7.0 GB** of RAM, and the GPU's memory use rose by about **8.5 GB** while it was loaded. A cold start (nothing running to ready) took about 5 seconds with the model in the file cache; a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
+RAM and VRAM, measured on the owner's Windows machine (Vulkan, a discrete GPU with 32 GB, Q4_K_M, `-c 65536 -ub 8192`): the server's peak working set was about **7.0 GB** of RAM, and the GPU's memory use rose by about **8.0 GB** at load and **8.1 GB** after a 4,700-token prompt. CPU and Metal are not measured. A cold start (nothing running to ready) took about 5 seconds with the model in the file cache; a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
 
 ## Commands
 
@@ -65,6 +65,7 @@ The supervisor stops itself after 30 minutes with no forwarded request, when the
 - **A pin bump.** After an install that changes the pin table, `ensure` reports `not-set-up` with `pin-changed` (and `status` shows the old tag) until you run `clef stop` and then `clef setup --yes`. Setup refuses `clef-running` while a supervisor lives.
 - **`CLAUDE_CONFIG_DIR`.** A value you set is accepted only as an absolute path, and the tool refuses it (`clef-home`) when the command starts from a folder that contains that Claude home folder, because a cloned project's settings can set that variable. Start from beside your Claude home folder, or from a subfolder of it other than `pact-clef/`, instead.
 - **Linux.** Setup refuses a machine without `/usr/bin/setpriv` (`clef-setpriv`); it keeps the server from outliving the supervisor.
+- **Prompt size.** The server takes a prompt of up to 8,192 tokens, its batch size: the state and the questions together. A longer one gets `502 {"error":"no-answer"}`. Four requests share the 65,536-token context.
 - **Logs.** `serve.log` in the clef folder holds counts, timings and reason words only, capped at 1 MB.
 
 ## macOS

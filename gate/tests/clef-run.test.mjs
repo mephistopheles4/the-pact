@@ -158,7 +158,7 @@ const QUESTIONS = {
 
 test('serverArgs: the list is fixed, the key is a file, and Vulkan adds -ngl 99', () => {
   const a = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', vulkan: false });
-  assert.deepEqual(a, ['--host', '127.0.0.1', '--port', '4242', '--api-key-file', '/k/run.key', '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', '-c', '16384', '-ub', '4096', '-b', '4096', '-m', '/m/x.gguf']);
+  assert.deepEqual(a, ['--host', '127.0.0.1', '--port', '4242', '--api-key-file', '/k/run.key', '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', '-c', '65536', '-ub', '8192', '-b', '8192', '-m', '/m/x.gguf']);
   const v = clef.serverArgs({ port: 4242, keyFile: '/k/run.key', modelPath: '/m/x.gguf', vulkan: true });
   assert.deepEqual(v.slice(10, 12), ['-ngl', '99']);
   assert.ok(!a.includes('--api-key'), 'no key on the command line');
