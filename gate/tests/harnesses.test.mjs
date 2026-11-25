@@ -96,6 +96,8 @@ test('bad case: each wrong own entry refuses under its rule', () => {
     ['harness-path', [{ ...OWN, hooks: { file: '~/.mine/hooks.yml', format: 'claude' } }]],
     ['harness-path', [{ ...OWN, agents: { dir: '~/.ssh', format: 'claude-md' } }]],
     ['harness-path', [{ id: 'claude', hooks: { file: '~/.gemini/oauth_creds.json', format: 'claude' } }]],
+    ['harness-path', [{ ...OWN, hooks: { file: '~/.claude.json', format: 'claude' } }]],
+    ['harness-path', [{ ...OWN, hooks: { file: '~/.claude/.Credentials.json', format: 'claude' } }]],
   ];
   for (const [want, own] of cases) assert.equal(rule(() => resolve(own)), want, JSON.stringify(own));
 });

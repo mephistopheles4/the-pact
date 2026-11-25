@@ -177,6 +177,17 @@ test('bad case: a changed pact hook is drift, a hooks file that is not a strict 
   }
 });
 
+test('bad case: a hooks path only the install record names is held to the same bound', t => {
+  const repo = makeRepo(t);
+  const h = three(t);
+  passed(applyBound(repo, h));
+  // Planted, so the case runs on Windows too, where an apply records no guard entry.
+  const doc = record(h);
+  doc.entries.push({ harness: 'codex', path: '.ssh/hooks.json', key: 'guard.codex', value: { matcher: '^Bash$', hooks: [] }, sha256: '0'.repeat(64) });
+  put(h, '.pact/install.json', doc);
+  refused(install(repo, h), /unsafe path for a hooks file: \.ssh\/hooks\.json/);
+});
+
 test('bad case: a commit that holds a guard table or an unknown guard file, or lacks one, installs nothing', t => {
   for (const [mutate, says] of [
     [root => writeFileSync(join(root, 'claude', 'guard', 'rules.json'), '{"rules": []}\n'), /guard-file-name/],

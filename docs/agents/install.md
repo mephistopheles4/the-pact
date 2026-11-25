@@ -240,7 +240,8 @@ An older pact installs with that commit's own installer.
   empty, then the configuration and hand copies moved back.
 - **Then, at the current commit, take out what the older pact doesn't know,** as that section lists:
   keys it refuses, and the four settings (the cleaner, `session-stop-deny`,
-  `agent-identity`, the auto-compact window) to turn off and apply before the rollback. Stop and
+  `agent-identity`, the auto-compact window) to turn off and apply before the rollback. After
+  those numbered steps, apply nothing more at the current commit. Stop and
   ask when `settings.json` still holds a hook that calls
   `.pact/hooks/compact-handoff.mjs` after the apply that turned the window off
   (the older installer's own warning about any `hooks` key is not that), or

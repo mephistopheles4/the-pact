@@ -181,6 +181,16 @@ round's comment on the issue lists each finding.
     C26 checks that no Claude model is named outside Claude Code (S14,
     S18).
 
+**The lead's pick at T8, flagged:**
+
+47. The threat model's word cap rises from 3,050 to 3,750, since S15's text
+    and the release app's (the lead's pick at T6, S2 item 49) didn't fit it,
+    and no text is cut
+    (`gate/tests/threat-model-cap.test.mjs`, ADR 0173).
+48. The threat model's two charts come back, as the owner asked, and the
+    word count leaves mermaid blocks out, since the charts were dropped twice
+    to fit it. Prose past the cap still fails (the same test, ADR 0173).
+
 ## S3 Terms
 
 These join `CONTEXT.md` in T1.
@@ -296,8 +306,10 @@ The known descriptions:
 - **An own harness** may set any field above, but its formats must be the
   pact's own names; any other value refuses (`harness-format`). Its paths
   must be absolute, under the home folder, outside any git work tree and
-  outside `~/.pact`; otherwise it refuses (`harness-path`). Nothing else is
-  checked. The dry run prints, for each own harness with `hooks`: "guards
+  outside `~/.pact`; otherwise it refuses (`harness-path`). So does a rules
+  file not ending `.md`, a hooks file not ending `.json`, or a path on the
+  secret-store list; a name may start with a dot at any depth (T1's picks).
+  Nothing else is checked. The dry run prints, for each own harness with `hooks`: "guards
   unverified for `<name>`: the pact has not seen this harness run its hook".
 - **A known harness's fields** may be overridden by an own entry of the same
   id, field by field, under the same checks, with a `WARN` naming each.
@@ -511,7 +523,10 @@ The installer is today's, generalised from one home to many harnesses:
   link and entry in every harness against its hash in `install.json` and
   reports drift per harness, as it does for `~/.claude` today. After a
   checkout install, the behind check is today's, against the recorded
-  commit. After a release install, a release lower than the recorded one
+  commit. Two recorded entries are not compared,
+  `permissions.defaultMode` and `skipAutoPermissionPrompt` (the lead's pick at
+  T1): each apply sets them again, with a warning, so a hand edit doesn't
+  block it. After a release install, a release lower than the recorded one
   warns "behind the last install", and a checkout is checked against the
   recorded release's commit. A shallow release clone never needs history.
 - **A failed apply** leaves its backup and a record written file by file, so
@@ -781,7 +796,7 @@ never-sync rule names both folders.
   gets past them.
 
 **The class and the scope.** "What you install and CI run" widens to name the
-bootstrap and the release job's tag token, and "Merges and installs" names
+bootstrap and the release app's key, and "Merges and installs" names
 `~/.pact` and the harness folders. Scope gains Codex with OpenAI's models and
 servers, and Antigravity with Google's, out of scope as Anthropic's are. The
 harness controls name both harnesses' controls and when each doesn't hold.
@@ -924,7 +939,7 @@ model must stay within its word budget.
 
 **The threat model (T8)**
 
-- **C27** `docs/threat-model.md` names the bootstrap, the tag token, `~/.pact`
+- **C27** `docs/threat-model.md` names the bootstrap, the release app's key, `~/.pact`
   and the harness folders in their classes, both harnesses' controls with
   when each doesn't hold, the scope line, and each owner answer; the
   doc-budget test passes.
@@ -1011,6 +1026,8 @@ reads this spec and each ticket's diff.
 | Widening "Review rests on rules" for Codex lenses, and the network-off option (S15) | the owner's call; on a no, S12's fallback | before T4 starts |
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
+| The threat-model cap at 3,750 (S2 item 47) | the lead's flagged pick, for review | any time |
+| Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
 | The poster's narrower coverage in Codex (S13) | the owner's call | at T4's probe |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
 | The tag ruleset on every tag | the owner's own act | before T6 merges |
