@@ -195,6 +195,16 @@ test('C31: an overlay key the settings already held is not recorded, and stays',
   assert.deepEqual(JSON.parse(read(h, '.claude/settings.json')), { permissions: { defaultMode: 'auto' } });
 });
 
+test('C31: an overlay key changed by hand after the install stays when Claude Code is taken out', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  passed(applyBound(repo, h));
+  writeFileSync(at(h, '.claude/settings.json'), read(h, '.claude/settings.json').replace('"auto"', '"plan"'));
+  configure(h, []);
+  passed(applyBound(repo, h));
+  assert.equal(JSON.parse(read(h, '.claude/settings.json')).permissions.defaultMode, 'plan');
+});
+
 test('bad case: a configuration that changes while the install runs refuses', t => {
   const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  let text = null;\n", "  writeFileSync(live(home, core.CONFIG_REL), '{\"schema\": 1}\\n');\n  let text = null;\n"));
   const h = home(t);

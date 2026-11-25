@@ -27,6 +27,8 @@ that compares release numbers.
   head check on a fresh clone, and `NODE_OPTIONS` reaching the install.
 - **A line starting with `#` hid an expression** from the workflow checks, even
   inside a script block; every workflow check now refuses one.
+- **The threat model's release text** follows what ships: two tag rulesets,
+  the stricter workflow check and the leaked-key answer.
 - Nothing is tagged: `PACT_RELEASES` is unset, and the app, environment and
   rulesets are the owner's to make.
 

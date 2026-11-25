@@ -12,7 +12,7 @@ The claim tests found two faults before review, both fixed here: on Linux and ma
 
 - A name may start with a dot at any depth, as harness folders do. Before, only the first could: a loosening.
 - The record keeps one list of added deny rules, which the cleaner's plan and the stop switch's each filter by their own rules.
-- Other programs' keys and sign-ins (`.ssh/`, `.codex/auth.json` and the rest of `SECRET_STORES`) are protected: no description may name one, and the install never writes or deletes one.
+- Keys and sign-ins (`.ssh/`, `.codex/auth.json`, `.claude.json`, any `.credentials` file and the rest of `SECRET_STORES`) are protected by name: no description may name one, and the install never writes or deletes one. A top-level folder link is followed past the names.
 - A rules file ends `.md` and a hooks or settings file `.json`, in a description and in the record. Spec 0007 S5 checks less.
 - The install records `permissions.defaultMode` and `skipAutoPermissionPrompt` when it set them, and taking Claude Code out removes them. Neither is drift: each apply sets them again, with a warning.
 
