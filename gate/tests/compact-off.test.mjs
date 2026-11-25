@@ -29,7 +29,7 @@ for (const [name, ownerLive] of [
     config(a, {});
     assert.equal(applyBound(repo, a).code, 0);
     assert.ok(live(a).autoCompactWindow);
-    const onRules = readFileSync(join(a, 'CLAUDE.md'), 'utf8');
+    const onRules = readFileSync(join(a, '.claude', 'CLAUDE.md'), 'utf8');
     config(a, windowCfg(0));
     // The Off dry run names what it removes.
     const dry = install(repo, a);
@@ -42,16 +42,16 @@ for (const [name, ownerLive] of [
     if (ownerLive.hooks) assert.deepEqual(live(a).hooks, ownerLive.hooks);
     else assert.equal(Object.hasOwn(live(a), 'hooks') || Object.hasOwn(live(a), 'autoCompactWindow'), false);
     // The rules file differs from the on install only in the notice's two lines.
-    const offRules = readFileSync(join(a, 'CLAUDE.md'), 'utf8');
+    const offRules = readFileSync(join(a, '.claude', 'CLAUDE.md'), 'utf8');
     assert.notEqual(offRules, onRules);
     assert.equal(withoutNotice(offRules), withoutNotice(onRules));
     config(b, windowCfg(0));
     assert.equal(applyBound(base, b).code, 0);
-    assert.equal(readFileSync(join(a, 'settings.json'), 'utf8'), readFileSync(join(b, 'settings.json'), 'utf8'));
+    assert.equal(readFileSync(join(a, '.claude', 'settings.json'), 'utf8'), readFileSync(join(b, '.claude', 'settings.json'), 'utf8'));
     assert.deepEqual(files(a), files(b));
     for (const p of files(a)) assert.deepEqual(readFileSync(join(a, p)), readFileSync(join(b, p)), p);
-    assert.equal(readdirSync(join(a, 'pact', 'hooks')).length, 0, 'the installed script is gone');
-    assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(a, '.pact-install.json'), 'utf8')), 'autoCompactWindow'), false, 'the record holds no window');
+    assert.equal(readdirSync(join(a, '.pact', 'hooks')).length, 0, 'the installed script is gone');
+    assert.deepEqual(JSON.parse(readFileSync(join(a, '.pact', 'install.json'), 'utf8')).entries.filter(e => e.key === 'autoCompactWindow'), [], 'the record holds no window');
   });
 }
 

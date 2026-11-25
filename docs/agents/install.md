@@ -17,13 +17,13 @@ how every session in every repo behaves. So:
 - **Install with [`gate/install.mjs`](../../gate/install.mjs)**, never by
   copying files by hand. The script installs from the clone, not through a
   symlink, so a checked-out branch is never live until you install it. A
-  direct edit to `~/.claude/` drifts from the repo.
+  direct edit to `~/.claude/` or `~/.pact/` drifts from the repo.
 - **The dry run** runs from the repo root, on Node 24 or later, with
   `NODE_OPTIONS` cleared: `$env:NODE_OPTIONS = $null; node gate/install.mjs`
   in PowerShell, or `env -u NODE_OPTIONS node gate/install.mjs` in a POSIX
   shell. It prints the files it would overwrite, add and delete, whether
   live files drifted since the last install (it compares them with
-  `~/.claude/.pact-install.json`), the commit it would install, and the apply
+  `~/.pact/install.json`), the commit it would install, and the apply
   command to run next. If there is drift, stop and ask rather than overwrite.
   Its output names the home folder and the live settings' names, so post only
   its verdict and counts, never the raw output.
@@ -45,7 +45,7 @@ how every session in every repo behaves. So:
   rules file, and the repo copy for every other file. It exits non-zero on a
   mismatch. Check that it exited zero.
 - **Read a backup by its manifest only.** Each apply backs up what it replaces
-  into `~/.claude/pact/backups/`, and a backup can hold a copy of
+  into `~/.pact/backups/`, and a backup can hold a copy of
   `settings.json`. A session checks one only by reading its `manifest.json`
   and comparing hashes with a hash command; it never opens a copy, and posts
   only the verdict and counts. An undo is the owner's, by hand
@@ -55,12 +55,12 @@ how every session in every repo behaves. So:
   pact didn't write, or one changed since it wrote it, is yours: the dry run
   lists it under "Yours, left as is", and the install never overwrites,
   deletes or records it. Delete your file to get the pact's back.
-- **Configuration.** With no `~/.claude/pact/config.json`, a home install
+- **Configuration.** With no `~/.pact/config.json`, a home install
   renders the pact's default from `builder/default-config/`.
-  The owner's settings live in `~/.claude/pact/config.json`
+  The owner's settings live in `~/.pact/config.json`
   (example: [`examples/pact-config/config.json`](../../examples/pact-config/config.json)).
   Its edits to open parts take their text from block files in
-  `~/.claude/pact/blocks/` (examples:
+  `~/.pact/blocks/` (examples:
   [`examples/pact-config/blocks/`](../../examples/pact-config/blocks/)).
   The installer reads them, never writes, deletes or lists them, and renders
   them into the rules file. The dry run's Configuration block shows each
@@ -88,14 +88,13 @@ how every session in every repo behaves. So:
   `off`, the only two words the install's parser takes. On, the install adds `STOP_DENY`'s eight
   rules (`claude stop *`, `claude kill *`, `claude daemon stop *` and
   `claude respawn *`, each as a `Bash(...)` and a `PowerShell(...)` rule) to
-  `permissions.deny` and records the ones it added under `stopDeny`; off, it
-  removes only rules both recorded and on that list. `parseRecord` refuses a
-  `stopDeny` that is not a list of strings. The cleaner's switch adds
-  `claude rm *` the same way, under `cleanerDeny`. It adds `CLEANER_ASK`'s two
+  `permissions.deny` and records the ones it added in the record's `entries`; off, it
+  removes only rules both recorded and on that list. `parseRecord` refuses
+  `entries` that are not a list of settings entries. The cleaner's switch adds
+  `claude rm *` the same way. It adds `CLEANER_ASK`'s two
   rules (`*cleaner.mjs*remove*--override*`, as a `Bash(...)` and a `PowerShell(...)` rule) to
-  `permissions.ask`, recorded under `cleanerAsk`; `cleanerAskPlan` is `denyPlan`
-  over the ask list, `mergeSettings` applies it after the retired-ask filter, and `parseRecord`
-  refuses a `cleanerAsk` that is not a list of strings. With `settings.json` not strict JSON and the
+  `permissions.ask`, recorded the same way; `cleanerAskPlan` is `denyPlan`
+  over the ask list, and `mergeSettings` applies it after the retired-ask filter. With `settings.json` not strict JSON and the
   cleaner on, a `WARN:` line names both rules. Each plan filters its record
   by its own list. None of the three is in the overlay or the allow-list, and
   the cloud copy adds none. The ask rules' misses are listed in ADR 0151. The
@@ -121,7 +120,7 @@ how every session in every repo behaves. So:
   *Compaction point:* on Windows CLI, a session compacts near 365000 to 370000
   with the hooks installed; fails if it compacts elsewhere. *Nudge and
   hand-off:* the session gets the nudge past 320000 and writes
-  `~/.claude/pact/handoff/<session id>.md` with no permission prompt; fails on
+  `~/.pact/handoffs/<session id>.md` with no permission prompt; fails on
   no nudge, a nudge on every tool call, or a prompt for the write. *Across
   compaction:* the first turn after compaction shows the "own notes" line and
   the file's text, and the summary names the file; fails if either is
@@ -151,7 +150,7 @@ how every session in every repo behaves. So:
   is off unless the home configuration's `tools` list names it, as
   `"tools": ["poster"]`; a project configuration may not hold the list, and
   no preset or shared builder file turns one on. A tool that is on installs
-  to `pact/tools/<name>.mjs`, gets a `WARN` line in the dry run, and fills its
+  to `.pact/tools/<name>.mjs`, gets a `WARN` line in the dry run, and fills its
   marked part of the rules file, which stays empty while it is off. The cloud
   copy installs none.
 - **The builder page.** [`builder/scriptorium.html`](../../builder/scriptorium.html)
@@ -166,25 +165,26 @@ how every session in every repo behaves. So:
   person's own builder comes from the `/scriptorium` command
   ([`claude/commands/scriptorium.md`](../../claude/commands/scriptorium.md)),
   which every install puts in place with the builder kit under
-  `~/.claude/pact/builder/`. It reads their skills, commands, agents and
-  configuration, keeps the result in `~/.claude/pact/builder.json`, and
+  `~/.pact/builder/`. It reads their skills, commands, agents and
+  configuration, keeps the result in `~/.pact/builder.json`, and
   renders a page that carries those lists in plain text. The kit reads
-  the person's own presets from `~/.claude/pact/presets/`, a folder the
+  the person's own presets from `~/.pact/presets/`, a folder the
   install never writes, lists or deletes, and the page lists them under
   "Your presets" with their agent rows unticked; a clone's run reads none.
   With no `--out`, `build.mjs --builder <file>` writes the page to
-  `pact/scriptorium.html` in the Claude home (`CLAUDE_CONFIG_DIR` when set),
+  `~/.pact/scriptorium.html`,
   through a temporary file renamed over the last page; it refuses a link or
   a folder at that path, and the install never touches the file. With `--out`,
   such a page belongs outside any repo: `build.mjs` refuses to write one
-  inside this clone or any git work tree, the kit, the Claude home folder, any
-  `.claude` folder, or over a file
+  inside this clone or any git work tree, the kit, `~/.pact`, the Claude home
+  folder, any `.claude` or `.pact` folder, or over a file
   ([ADR 0171](../adr/0171-the-scriptorium-page-has-a-fixed-path-in-the-claude-home.md)).
 - **Review output.** To read what a configuration does before installing it,
   add `--review-folder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
   no-configuration render) there. The folder must be new or empty, and outside
-  the Claude home folder and any `.claude` folder. Without the option, a dry
+  the `.claude` and `.pact` folders of your home and any folder named
+  `.claude`. Without the option, a dry
   run changes nothing on disk.
 - **Project install.** To make the pact stricter in one repo, add
   `--project-folder <full path>`. It reads the project's
@@ -199,10 +199,10 @@ how every session in every repo behaves. So:
   in the same file, and `acceptedRisks` is no key. The dry run leads with a
   security-defaults line for them, and a note line when a project
   has its own qualities and no `costLimits`. It writes one rules file, `.claude/rules/pact-project.md`, with a
-  record beside it. It installs nothing in the Claude home folder and no
+  record beside it. It installs nothing in your home folder and no
   agents into the project. It refuses a project with no configuration file, a
   project that is or holds your home folder, or is, holds or sits inside a
-  Claude folder, any link on its write path, and an existing rules file it has
+  Claude or pact folder, any link on its write path, and an existing rules file it has
   no record of writing. Like a home install it is a dry run first, and
   `--apply` needs the project rules file's full rendered hash, given as
   `--rendered-hash <hash>`. On a project install that hash binds the bytes
@@ -235,14 +235,19 @@ An older pact installs with that commit's own installer.
   stop to ask the owner. Check first, because an older commit's own
   `AGENTS.md` presents a PowerShell installer as the route, and nothing but
   these checks stands before one (the threat model's class The pact gets loosened).
+- **To a commit that installs into `~/.claude`,** the owner first does that
+  section's numbered steps: an empty install list applied, the record checked
+  empty, then the configuration and hand copies moved back.
 - **Then, at the current commit, take out what the older pact doesn't know,** as that section lists:
   keys it refuses, and the four settings (the cleaner, `session-stop-deny`,
-  `agent-identity`, the auto-compact window) to turn off and apply before the rollback. Stop and
+  `agent-identity`, the auto-compact window) to turn off and apply before the rollback. After
+  those numbered steps, apply nothing more at the current commit. Stop and
   ask when `settings.json` still holds a hook that calls
-  `pact/hooks/compact-handoff.mjs` after the apply that turned the window off
+  `.pact/hooks/compact-handoff.mjs` after the apply that turned the window off
   (the older installer's own warning about any `hooks` key is not that), or
   when a field check above fails.
 - **Then check out** exactly that id and run only `gate/install.mjs`, dry run
   first.
 - **Backups:** the same section says what a rollback does to
-  `pact/backups`.
+  `.pact/backups`. In an older commit that installs into `~/.claude`,
+  these paths are under `~/.claude/pact/`.

@@ -18,12 +18,12 @@ const BLOCKS = join(REPO, 'examples', 'pact-config', 'blocks');
 const CONFIG = join(REPO, 'examples', 'pact-config', 'config-matt-pocock-skills.json');
 const SET = JSON.parse(readFileSync(CONFIG, 'utf8')).edits;
 
-/** A Claude home folder that binds the set, as the owner's configuration would. */
+/** A home folder that binds the set, as the owner's configuration would. */
 function homeWithSet(t, set = SET) {
   const h = tempDir(t, 'pact-preset-home-');
-  mkdirSync(join(h, 'pact', 'blocks'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), readFileSync(CONFIG));
-  for (const e of set) writeFileSync(join(h, 'pact', 'blocks', e.file), readFileSync(join(BLOCKS, e.file)));
+  mkdirSync(join(h, '.pact', 'blocks'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), readFileSync(CONFIG));
+  for (const e of set) writeFileSync(join(h, '.pact', 'blocks', e.file), readFileSync(join(BLOCKS, e.file)));
   return h;
 }
 
@@ -39,7 +39,7 @@ test('the set renders with seam A passing', t => {
   const { root } = renderedWith(t, homeWithSet(t));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none', '--tools', 'none', '--compact', 'off'], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none', '--tools', 'none', '--compact', 'off', '--harness', 'claude:rules+agents+commands'], { encoding: 'utf8', env });
   assert.equal(lastLine(r.stdout), 'RESULT: pass', r.stdout + r.stderr);
 });
 

@@ -21,11 +21,11 @@ echo "$CONFIG_WRITTEN config files written (expected $EXPECTED_WRITES)"
 HASH_FAILED=0
 check_hash() {
   local want="$1" rel="$2" got
-  got="$(sha256sum "$CLAUDE_HOME/$rel" 2>/dev/null | cut -d ' ' -f 1)"
+  got="$(sha256sum "$(config_file "$rel")" 2>/dev/null | cut -d ' ' -f 1)"
   if [ "$got" = "$want" ]; then
-    echo "hash ok: ~/.claude/$rel"
+    echo "hash ok: $(config_shown "$rel")"
   else
-    echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
+    echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
 __EXPECTED_HASHES__

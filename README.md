@@ -110,6 +110,7 @@ Their reports go into the work's record word for word. The agent sorts the findi
 | `claude/tools/` | The pact tools, off unless you list them: today the poster, which posts free text to GitHub, edits what a session posted, and reads it back, and the cleaner, which removes leftover worktrees and their branches: each removal is a checkpoint |
 | `familiars/` | Empty: the agents' contracts are retired |
 | `gate/` | The install gate: the pact checks itself before it installs |
+| `harnesses/` | What the install knows about each harness: Claude Code, Codex and Antigravity |
 | `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON, and its presets; it installs with `/scriptorium` |
 | `cloud-sessions/` | Setup for Claude Code cloud sessions |
 
@@ -122,6 +123,8 @@ Run the install script from the repo root with Node 24 or later. With no switch 
 ```sh
 node gate/install.mjs
 ```
+
+The pact's own files go into `~/.pact`, and the rules, agents and commands into `~/.claude`. The install knows Codex and Antigravity too, and writes nothing into them yet.
 
 The full how-to, with the command for each shell, is in [docs/install.md](docs/install.md).
 

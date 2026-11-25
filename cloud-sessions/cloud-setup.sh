@@ -539,14 +539,17 @@ echo "== Config"
 CLAUDE_HOME="$HOME/.claude"
 CONFIG_WRITTEN=0
 mkdir -p "$CLAUDE_HOME/agents" || echo "WARN: cannot create $CLAUDE_HOME/agents"
-mkdir -p "$CLAUDE_HOME/pact" || echo "WARN: cannot create $CLAUDE_HOME/pact"
+# A written path: .pact/ paths sit under the home folder, the rest under ~/.claude.
+config_file() { case "$1" in .pact/*) printf '%s' "$HOME/$1" ;; *) printf '%s' "$CLAUDE_HOME/$1" ;; esac; }
+config_shown() { case "$1" in .pact/*) printf '~/%s' "$1" ;; *) printf '~/.claude/%s' "$1" ;; esac; }
 
-# write_config <path under ~/.claude>, body on stdin. Script-owned: overwrites.
+# write_config <path>, body on stdin. Script-owned: overwrites.
 write_config() {
-  if cat > "$CLAUDE_HOME/$1"; then
-    CONFIG_WRITTEN=$((CONFIG_WRITTEN + 1)); echo "wrote ~/.claude/$1"
+  local file; file="$(config_file "$1")"
+  if mkdir -p "${file%/*}" && cat > "$file"; then
+    CONFIG_WRITTEN=$((CONFIG_WRITTEN + 1)); echo "wrote $(config_shown "$1")"
   else
-    echo "WARN: could not write ~/.claude/$1"
+    echo "WARN: could not write $(config_shown "$1")"
   fi
 }
 
@@ -586,7 +589,7 @@ offer I can take or leave in a second. Then carry on with what I chose.
   is, never its value. Pin a merge to its reviewed head. Claude's own
   permission prompts and classifier blocks still stop you; these rules add no
   stop of their own.
-- **Keep the record** in the work's record, as the Posting section of `~/.claude/pact/review.md` says; with no record, in chat.
+- **Keep the record** in the work's record, as the Posting section of `~/.pact/review.md` says; with no record, in chat.
 
 ## How much checking
 
@@ -650,7 +653,7 @@ lenses unasked; that never lifts the sensitive flag, the Guards, my decisions
 or the read before posting.
 
 **Before you run a lens or post to the record, read
-`~/.claude/pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
+`~/.pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
 
 ## Qualities
 
@@ -952,7 +955,7 @@ Your question: what need did nobody write down?
 Add to the template you are handed: the red step, then one row per need, with where it is covered or `missing`. Each finding sits on a section or claim, the nearest one for a need with no home.
 __CLAUDE_CONFIG_EOF__
 
-write_config 'pact/hooks/compact-handoff.mjs' <<'__CLAUDE_CONFIG_EOF__'
+write_config '.pact/hooks/compact-handoff.mjs' <<'__CLAUDE_CONFIG_EOF__'
 // compact-handoff.mjs (#482): the pact's hook that carries a session through
 // auto-compaction. Claude Code runs it for five events, with the auto-compact
 // window as its one argument (node compact-handoff.mjs <window>):
@@ -964,8 +967,8 @@ write_config 'pact/hooks/compact-handoff.mjs' <<'__CLAUDE_CONFIG_EOF__'
 //   PreCompact                     ask the summary to name the hand-off file
 //   SessionStart (compact)         put the hand-off file back into context
 //
-// The hand-off lives in <home>/pact/handoff/<session_id>.md, <home> being two
-// folders above this script's own folder (<home>/pact/hooks/). A small
+// The hand-off lives in <pact home>/handoffs/<session_id>.md, <pact home> being
+// the folder above this script's own (<pact home>/hooks/). A small
 // <session_id>.turn file holds `open` or `nudged`. The pact never deletes
 // either. The hook acts only in a main session (a subagent's input carries
 // agent_id), reads at most the last 256 KB of the transcript, makes no network
@@ -1031,7 +1034,7 @@ function main() {
   if (typeof sid !== 'string' || !SESSION_RE.test(sid)) return;
 
   const script = fileURLToPath(import.meta.url);
-  const dir = resolve(dirname(script), '..', '..', 'pact', 'handoff');
+  const dir = resolve(dirname(script), '..', 'handoffs');
   const handoff = join(dir, `${sid}.md`);
   const turn = join(dir, `${sid}.turn`);
   const shown = handoff.replaceAll('\\', '/');
@@ -1092,7 +1095,7 @@ try {
 process.exitCode = 0;
 __CLAUDE_CONFIG_EOF__
 
-write_config 'pact/review-diagrams.md' <<'__CLAUDE_CONFIG_EOF__'
+write_config '.pact/review-diagrams.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact's diagram format
 
 How a review diagram is written and coloured; read it beside review.md's Diagrams section.
@@ -1113,7 +1116,7 @@ How a review diagram is written and coloured; read it beside review.md's Diagram
   with no diagram. GitHub and Linear both draw them.
 __CLAUDE_CONFIG_EOF__
 
-write_config 'pact/review.md' <<'__CLAUDE_CONFIG_EOF__'
+write_config '.pact/review.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact's review procedure
 
 How to run a lens and handle its report. The rules file's Workflow says which
@@ -1384,8 +1387,8 @@ when no other row answers the sentence.
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
-  `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
-  shell, or `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file>`
+  `node ~/.pact/tools/poster.mjs <surface> --post <file>` in a POSIX
+  shell, or `node "$HOME/.pact/tools/poster.mjs" <surface> --post <file>`
   in PowerShell; `schema` in place of the surface prints the fields and the
   kinds. Write each post as one JSON file, with its body in a `body_file`
   beside it, both in a scratch folder outside the repo, and run the poster
@@ -1424,7 +1427,7 @@ when no other row answers the sentence.
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
   can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
-  in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
+  in `~/.pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
   (`<slug>[bot]`). Assigning is the
@@ -1512,7 +1515,7 @@ SETTINGS_OVERLAY='{
 '
 # The auto-compact window the cloud copy sets (#482), from the generator's own copy of the default; the cloud has no Off.
 COMPACT_WINDOW='400000'
-COMPACT_SCRIPT="$CLAUDE_HOME/pact/hooks/compact-handoff.mjs"
+COMPACT_SCRIPT="$HOME/.pact/hooks/compact-handoff.mjs"
 
 # Deep-merge an overlay into ~/.claude/settings.json. The overlay wins on
 # ordinary keys; the file wins on plugin keys; permissions.allow, .deny and .ask are
@@ -1603,14 +1606,14 @@ echo "$CONFIG_WRITTEN config files written (expected $EXPECTED_WRITES)"
 HASH_FAILED=0
 check_hash() {
   local want="$1" rel="$2" got
-  got="$(sha256sum "$CLAUDE_HOME/$rel" 2>/dev/null | cut -d ' ' -f 1)"
+  got="$(sha256sum "$(config_file "$rel")" 2>/dev/null | cut -d ' ' -f 1)"
   if [ "$got" = "$want" ]; then
-    echo "hash ok: ~/.claude/$rel"
+    echo "hash ok: $(config_shown "$rel")"
   else
-    echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
+    echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash e5f357559863e11c03307687c1592b2f9e08de29277c2dd95c00670111e023df 'CLAUDE.md'
+check_hash bf12834fa61f1b1dc51aaf242ad8a34b799781355e7ef7c7981e52ced08896d7 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1620,9 +1623,9 @@ check_hash ffc248f8c6e59ae1f1c00d311483a0cc8ebd0454b4668feacb0a7c7139be75e2 'age
 check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'agents/reader-lens.md'
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
-check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
-check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e 'pact/review-diagrams.md'
-check_hash 23d38fce208ca163ced4563667cca3bf7fb14192388fc43ec5aaa122798dfcae 'pact/review.md'
+check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
+check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
+check_hash f5dbcc54ead5b09a905f493f6e7a370e06d6aa3b835843a18a6c45ed270ef7b7 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1652,7 +1655,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy f1bdbdb984fd"
+  echo "pact cloud copy 539eb8a5e547"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

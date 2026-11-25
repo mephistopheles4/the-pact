@@ -1,0 +1,35 @@
+[
+  {
+    "id": "claude",
+    "name": "Claude Code",
+    "detect": "~/.claude",
+    "rules": { "path": "~/.claude/CLAUDE.md" },
+    "agents": { "dir": "~/.claude/agents", "format": "claude-md" },
+    "commands": { "dir": "~/.claude/commands" },
+    "hooks": { "file": "~/.claude/settings.json", "format": "claude" },
+    "models": { "planning": "opus", "executor": "sonnet", "light": "haiku" },
+    "capabilities": ["subagents", "tool-limits", "cleaner", "archive", "native-rules"]
+  },
+  {
+    "id": "codex",
+    "name": "Codex",
+    "detect": "~/.codex",
+    "rules": { "path": "~/.codex/AGENTS.md", "sharedCap": 32768 },
+    "agents": { "dir": "~/.codex/agents", "format": "codex-toml" },
+    "skills": { "dir": "~/.agents/skills" },
+    "hooks": { "file": "~/.codex/hooks.json", "format": "codex" },
+    "models": { "planning": "gpt-6.2-sol", "executor": "gpt-6.2-astra" },
+    "capabilities": ["subagents", "hook-trust", "explicit-skills"]
+  },
+  {
+    "id": "antigravity",
+    "name": "Antigravity",
+    "detect": "~/.gemini/config",
+    "rules": { "path": "~/.gemini/AGENTS.md", "cap": 24000 },
+    "agents": { "dir": "~/.gemini/config/agents", "format": "antigravity-md" },
+    "skills": { "dir": "~/.gemini/config/skills" },
+    "hooks": { "file": "~/.gemini/config/hooks.json", "format": "antigravity" },
+    "models": { "planning": "pro", "executor": "flash", "light": "flash" },
+    "capabilities": ["subagents", "tool-limits", "hook-ask"]
+  }
+]

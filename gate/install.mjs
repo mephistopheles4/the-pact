@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The install bootstrap (#153, S3), dry run by default:
 //   node gate/install.mjs [--apply --commit <id>] [--rendered-hash <hash>]
-//        [--claude-home <path>] [--review-folder <path>] [--project-folder <path>]
+//        [--home <path>] [--review-folder <path>] [--project-folder <path>]
 // The only part of the install that runs from the working tree, so it stays
 // small, imports only node: built-ins, uses only syntax Node 16 parses (an old
 // Node still reaches the floor message) and never reads the options. It stages
@@ -28,7 +28,7 @@ const GIT_REDIRECTS = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT
 const KEEP = ['PATH', 'SystemRoot', 'windir', 'HOME', 'USERPROFILE', 'TEMP', 'TMP', 'TMPDIR'];
 const SIGNALS = WIN ? ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
 // What a run that ends between the runner's BACKUP STARTED and CHECKS DONE says (#272, S9): core.STAGING_LEFT's words, which this file can't import.
-const STAGED = 'pact/backups may hold a staging folder with a copy of your settings: check it and delete it; the next dry run names it.';
+const STAGED = '.pact/backups may hold a staging folder with a copy of your settings: check it and delete it; the next dry run names it.';
 
 const say = s => process.stdout.write(`${s}\n`);
 class Stop extends Error {}
@@ -134,7 +134,7 @@ function main() {
   const staged = [];
   const folded = new Set();
   for (const e of all) {
-    if (!(e.rel === 'AGENTS.md' || e.rel === 'docs/brand/scriptorium/scriptorium-mark.svg' || e.rel === 'examples/pact-config/builder.json' || (/^(builder|claude|familiars|gate)\//.test(e.rel) && e.rel.indexOf('gate/tests/') !== 0))) continue;
+    if (!(e.rel === 'AGENTS.md' || e.rel === 'docs/brand/scriptorium/scriptorium-mark.svg' || e.rel === 'examples/pact-config/builder.json' || (/^(builder|claude|familiars|gate|harnesses)\//.test(e.rel) && e.rel.indexOf('gate/tests/') !== 0))) continue;
     const shownRel = e.rel.replace(/[^A-Za-z0-9._/-]/g, '?');
     if (e.mode !== '100644' || e.type !== 'blob') refuse(`the commit holds ${shownRel} with file mode ${e.mode}; only plain files (100644) are installed.`);
     for (const seg of e.rel.split('/')) if (!/^[A-Za-z0-9._-]+$/.test(seg) || seg === '.' || seg === '..') refuse(`the commit holds a path with unsafe characters: ${shownRel}.`);
@@ -225,7 +225,7 @@ function main() {
     // ADR 0032's control 4: a pass is exit 0 and a last line of exactly RESULT: pass.
     const ok = !timedOut && code === 0 && last === 'RESULT: pass';
     if (timedOut) say(`REFUSED: the install's checks did not finish within ${LIMIT_MS / 1000} s. ${backupStarted ? STAGED : 'Nothing was changed.'}`);
-    else if (!ok && last !== 'RESULT: refused') say(checksDone ? 'REFUSED: the install runner failed after it began writing; the Claude home folder may hold part of this install.' : `REFUSED: the install runner did not end with a pass. ${backupStarted ? STAGED : 'Nothing was changed.'}`);
+    else if (!ok && last !== 'RESULT: refused') say(checksDone ? 'REFUSED: the install runner failed after it began writing; the home folder may hold part of this install.' : `REFUSED: the install runner did not end with a pass. ${backupStarted ? STAGED : 'Nothing was changed.'}`);
     if (!ok && (timedOut || last !== 'RESULT: refused')) say('RESULT: refused');
     process.exitCode = ok ? 0 : 1;
     cleanup();

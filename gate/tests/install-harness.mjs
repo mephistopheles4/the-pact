@@ -1,6 +1,6 @@
 // Runs the install script (gate/install.mjs) end to end, against a throwaway
-// git repo built from this tree and a throwaway --claude-home. Never touches
-// ~/.claude.
+// git repo built from this tree and a throwaway --home folder. Never touches
+// ~/.pact or ~/.claude.
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -130,13 +130,13 @@ export function nodeEnv(extra = {}, path = [NODE_DIR, ...basePath()]) {
 
 
 /**
- * Runs the Node install (gate/install.mjs) on `repo` with `home` as its Claude
- * home folder. `apply` passes --apply with the commit `apply` names (true: the
+ * Runs the Node install (gate/install.mjs) on `repo` with `home` as its home
+ * folder. `apply` passes --apply with the commit `apply` names (true: the
  * repo's HEAD).
  */
 export function install(repo, home, { apply = false, path, env = {}, extra = [], script = join(repo, 'gate', 'install.mjs'), cwd = repo } = {}) {
   path ??= [NODE_DIR, ...basePath()];
-  const args = [script, '--claude-home', home];
+  const args = [script, '--home', home];
   if (apply) args.push('--apply', '--commit', apply === true ? git(repo, 'rev-parse', 'HEAD').trim() : apply);
   args.push(...extra);
   const r = spawnNodeInstall(args, { cwd, encoding: 'utf8', env: envWith(path, env), timeout: 180_000 });
@@ -175,6 +175,16 @@ export function wrapCheck(root, core, { before = '', after = '' }) {
   writeFileSync(p, `${s.replace(head, 'function checkUnplanted(argv) {')}\nexport function check(argv) {\n  const fs = process.getBuiltinModule('node:fs');\n  ${before}\n  const r = checkUnplanted(argv);\n  ${after}\n  return r;\n}\n`);
   return p;
 }
+/**
+ * The sum of a count line (Drift, Overwrite, Add, Delete, ...) over a dry run's
+ * blocks, one per harness: a 0 in one block says nothing about the others.
+ */
+export function total(r, title) {
+  const found = [...r.stdout.matchAll(new RegExp(`^${title}: (\\d+)\\r?$`, 'gm'))];
+  assert.ok(found.length, r.out);
+  return found.reduce((sum, m) => sum + Number(m[1]), 0);
+}
+
 /** An install that refused: exit 1, a REFUSED line, and the bootstrap's RESULT: refused last. */
 export function refused(r, says) {
   assert.equal(r.code, 1, r.out);
@@ -189,8 +199,11 @@ export function passed(r) {
   assert.equal(r.stdout.trimEnd().split('\n').at(-1), 'RESULT: pass', r.out);
 }
 
+/** A throwaway home folder holding an empty .claude, so Claude Code is found in it. */
 export function home(t) {
-  return tempDir(t, 'pact-home-');
+  const dir = tempDir(t, 'pact-home-');
+  mkdirSync(join(dir, '.claude'));
+  return dir;
 }
 
 export function listTree(dir) {

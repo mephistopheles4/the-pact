@@ -276,6 +276,9 @@ export function renderNoConfig(source, { home } = {}) {
 
 // ---------------------------------------------------------------- step 3: seam A
 
+// Cloud sessions are Claude Code only (spec 0007 S13).
+const CLOUD_HARNESS = 'claude:rules+agents+commands';
+
 /**
  * Stage `files` (path -> bytes) in a new folder and run seam A on it. Returns
  * the copy set, [{ source, dest, buf }] in seam A's order, and the overlay's
@@ -289,7 +292,7 @@ function seamA(files) {
       mkdirSync(dirname(p), { recursive: true });
       writeFileSync(p, buf, { flag: 'wx' });
     }
-    const r = seamCheck([stage, '--commands', commandsArg(CLOUD_COMMANDS), '--tools', commandsArg(CLOUD_TOOLS), '--compact', 'on']);
+    const r = seamCheck([stage, '--commands', commandsArg(CLOUD_COMMANDS), '--tools', commandsArg(CLOUD_TOOLS), '--compact', 'on', '--harness', CLOUD_HARNESS]);
     if (r.failed || r.lines[r.lines.length - 1] !== 'RESULT: pass') {
       const rules = [...new Set(r.lines.map(l => /^FAIL ([a-z][a-z0-9-]*):/.exec(l)?.[1]).filter(Boolean))];
       refuse('cloud/seam-a', `seam A refused the stage (${rules.join(', ') || 'no rule named'})`);
@@ -310,7 +313,9 @@ export function readCopySet(lines, files) {
   for (const l of lines) {
     let m = /^INSTALL ([0-9a-f]{64}) (\S+) (\S+)$/.exec(l);
     if (m) {
-      const [, hash, source, dest] = m;
+      const [, hash, source, listed] = m;
+      // A file of the Claude harness lands under ~/.claude, where write_config puts every path outside .pact/.
+      const dest = listed === '@claude/rules' ? 'CLAUDE.md' : listed.replace(/^@claude\//, '');
       const buf = files.get(source);
       if (!buf || sha256(buf) !== hash) refuse('cloud/seam-a', `${source} does not match its INSTALL hash`);
       copy.push({ source, dest, buf });
@@ -325,6 +330,9 @@ export function readCopySet(lines, files) {
     }
   }
   if (copy.length === 0 || settings === null) refuse('cloud/seam-a', 'seam A printed no copy set');
+  // The rules file first, then the agents, then the pact's own files, each in name order.
+  const order = c => c.dest.replace(/^\./, '');
+  copy.sort((a, b) => (order(a) < order(b) ? -1 : order(a) > order(b) ? 1 : 0));
   if (copy[0].dest !== 'CLAUDE.md' || copy[0].source !== RULES_SOURCE) refuse('cloud/seam-a', 'the copy set does not start with the rules file');
   return { copy, overlay: settings };
 }

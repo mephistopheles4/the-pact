@@ -8,8 +8,8 @@
 // the install writes. The install script runs it from the stage, before seam A,
 // so seam A checks the bytes that get installed.
 //
-//   node render.mjs <source rules file> <output folder> <Claude home folder> [<default folder>]
-//   node render.mjs project <output folder> <Claude home folder> <project folder>
+//   node render.mjs <source rules file> <output folder> <home folder> [<default folder>]
+//   node render.mjs project <output folder> <home folder> <project folder>
 //
 // The second form is the project mode, described at the end of this header.
 //
@@ -21,13 +21,13 @@
 // once, closes after it opens, sits alone on its line, and never opens inside
 // another.
 //
-// The files it reads. The user file is CONFIG_REL under the Claude home
+// The files it reads. The user file is CONFIG_REL under the home
 // folder; each block file an edit names is under BLOCKS_REL beside it. Both
 // are read under these rules:
 //   - For the user file, only "does not exist" means no file. A link, a
 //     dangling link, a folder, a file with more than one link, or any read
 //     error refuses. A block file that does not exist refuses.
-//   - Every component below the Claude home folder is lstat'ed and must not be
+//   - Every component below the home folder is lstat'ed and must not be
 //     a link; the file's real path must stay where it was named; the open
 //     handle must be the regular, one-link file the lstat saw (device and
 //     inode); and it is read once, its size cap enforced during the read.
@@ -47,7 +47,10 @@
 //                  "file": <block path, except for remove> } ],
 //     "commands": [ <pact command name>, ... ],
 //     "tools": [ <pact tool name>, ... ],
-//     "skills": [ { "repo": <owner/name>, "commit": <40 hex>, "paths": [ <folder>, ... ] } ] }
+//     "skills": [ { "repo": <owner/name>, "commit": <40 hex>, "paths": [ <folder>, ... ] } ],
+//     "harnesses": { "install": [ <harness id>, ... ], "own": [ <harness description>, ... ] } }
+// The harnesses key (spec 0007 S5) changes nothing in the rules file: the
+// renderer holds its outer shape, and the install checks each description.
 // The commands list (#203) turns on pact commands: unique names from
 // PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
 // The tools list (#280) does the same for pact tools, from PACT_TOOLS, off by
@@ -199,17 +202,18 @@ const EDITS_MAX = 16;
 const OUTPUT_NAME = 'CLAUDE.md';
 const DIFF_NAME = 'config.diff';
 
-// The user configuration file and its blocks folder, under the Claude home folder.
-const CONFIG_REL = Object.freeze(['pact', 'config.json']);
-const CONFIG_SHOWN = 'pact/config.json';
-const CONFIG_NAMES = Object.freeze(['the pact folder', 'the user configuration file']);
+// The user configuration file and its blocks folder, under the home folder.
+const CONFIG_REL = Object.freeze(['.pact', 'config.json']);
+const CONFIG_SHOWN = '.pact/config.json';
+const CONFIG_NAMES = Object.freeze(['the .pact folder', 'the user configuration file']);
 const CONFIG_MAX = 64 * 1024;
-const BLOCKS_REL = Object.freeze(['pact', 'blocks']);
+const BLOCKS_REL = Object.freeze(['.pact', 'blocks']);
 const BLOCK_MAX = 16 * 1024;
 const BLOCK_PATH_MAX = 200;
 const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
-const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands', 'tools', 'skills']);
+const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands', 'tools', 'skills', 'harnesses']);
+const HARNESS_ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
 // Skill sources (#183 T4a): named for the cloud setup to fetch; the render only
 // checks them and reports each path. builder/parts.mjs's skillsProblems holds
 // the same checks for the builder and its page, and a test holds the two equal.
@@ -341,7 +345,7 @@ const TOOL_PARTS = new Map([
   })],
   ['cleaner', Object.freeze({
     mark: 'tool-cleaner',
-    template: Object.freeze(['- **Remove worktrees only through the cleaner,** `node ~/.claude/pact/tools/cleaner.mjs show` (PowerShell: `node "$HOME/.claude/pact/tools/cleaner.mjs" show`), then `remove` with its tags; it stops a finished session first. Each removal is a checkpoint.']),
+    template: Object.freeze(['- **Remove worktrees only through the cleaner,** `node ~/.pact/tools/cleaner.mjs show` (PowerShell: `node "$HOME/.pact/tools/cleaner.mjs" show`), then `remove` with its tags; it stops a finished session first. Each removal is a checkpoint.']),
   })],
 ]);
 
@@ -636,13 +640,13 @@ const NONE = Object.freeze({ kind: 'none' });
 const MISSING = Object.freeze({ kind: 'missing' });
 
 /**
- * One file under the Claude home folder, read under the rules in the header.
+ * One file under the home folder, read under the rules in the header.
  * `segs` are its path segments below the home folder; `names` label each one
  * in messages, the folders first and the file last. Returns MISSING when the
  * home folder or a segment does not exist, { buf } when it was read, or null
  * after recording the refusal (rule `rule`, or `size.rule` for the cap).
  */
-function readUnder(home, segs, names, { cap, shownFile, rule, size, rootLabel = 'the Claude home folder' }, report) {
+function readUnder(home, segs, names, { cap, shownFile, rule, size, rootLabel = 'the home folder' }, report) {
   const refuse = reason => {
     report.fail(rule, shownFile, null, reason);
     return null;
@@ -817,7 +821,7 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
   let ok = true;
   const keys = Object.keys(doc);
   if (keys.some(k => !TOP_KEYS.includes(k))) {
-    fail('config-key', 'a key that is not schema, settings, edits, agents, commands, tools or skills');
+    fail('config-key', 'a key that is not schema, settings, edits, agents, commands, tools, skills or harnesses');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -849,6 +853,10 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
     skills = checkSkills(doc.skills, fail);
     if (skills === null) ok = false;
   }
+  if (Object.hasOwn(doc, 'harnesses') && !harnessesOk(doc.harnesses)) {
+    fail('config-harnesses', 'harnesses must be an object of install, a list of harness ids each once, and own, a list of harness descriptions');
+    ok = false;
+  }
   const values = [];
   let retired = [];
   if (Object.hasOwn(doc, 'settings')) {
@@ -876,6 +884,14 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
   // #603 (S7): the agent-identity switch, and only it, adds gh-app to the tools the render turns on.
   if (tools !== null && values.some(([k, v]) => k === 'agent-identity' && v === true)) tools = PACT_TOOLS.filter(c => c === 'gh-app' || tools.includes(c));
   return ok ? { values, retired, edits, agents, commands, tools, skills } : null;
+}
+
+/** The harnesses key's outer shape (spec 0007 S5). */
+function harnessesOk(v) {
+  if (!isObject(v) || !Object.keys(v).every(k => k === 'install' || k === 'own')) return false;
+  const { install, own } = v;
+  if (install !== undefined && !(Array.isArray(install) && install.every(i => typeof i === 'string' && HARNESS_ID_RE.test(i)) && new Set(install).size === install.length)) return false;
+  return own === undefined || (Array.isArray(own) && own.every(isObject));
 }
 
 /**
@@ -1151,7 +1167,7 @@ function checkBlock(buf, file, report) {
  * Each edit's block, read and checked: the edits with `lines` (strings) and
  * `hash` added for each block, or null after recording every refusal.
  */
-function readBlocks(home, edits, report, where = { rel: BLOCKS_REL, shown: 'pact/blocks', names: ['the pact folder', 'the blocks folder'] }) {
+function readBlocks(home, edits, report, where = { rel: BLOCKS_REL, shown: '.pact/blocks', names: ['the .pact folder', 'the blocks folder'] }) {
   let ok = true;
   const out = [];
   for (const e of edits) {
@@ -1447,7 +1463,7 @@ function runProject(out, home, projectFolder, report) {
 }
 
 function run(argv, report) {
-  const usage = 'usage: node render.mjs <source rules file> <output folder> <Claude home folder> [<default configuration folder>], or node render.mjs project <output folder> <Claude home folder> <project folder>';
+  const usage = 'usage: node render.mjs <source rules file> <output folder> <home folder> [<default configuration folder>], or node render.mjs project <output folder> <home folder> <project folder>';
   if (argv.some(a => a === '' || a.startsWith('-'))) {
     report.fail('usage', null, null, usage);
     return;

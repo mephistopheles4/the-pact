@@ -1,6 +1,6 @@
 # The agent identity switch
 
-`agent-identity` in `~/.claude/pact/config.json` is `true` or `false`, `false`
+`agent-identity` in `~/.pact/config.json` is `true` or `false`, `false`
 when unset; the builder's Settings dialog shows it. A project configuration may
 not set it, and no preset or builder file turns it on. It has no part in the
 rules file; only the notice line names it. While it is on,
@@ -25,8 +25,8 @@ pact names them.
 
 ## Setting it up
 
-The switch needs the app pinned in `~/.claude/pact/github.json` and its
-gitconfig, `~/.claude/pact/gh-app-<provider>.gitconfig`, which `gh-app.mjs setup`
+The switch needs the app pinned in `~/.pact/github.json` and its
+gitconfig, `~/.pact/gh-app-<provider>.gitconfig`, which `gh-app.mjs setup`
 writes per provider; the install wires only Claude's. The helper isn't
 installed until the switch is on, so run setup from the clone (`node claude/tools/gh-app.mjs setup`), under the Node the install will run
 under (an absolute path to a program called `node`, not a shim). Without both the
@@ -35,11 +35,11 @@ install refuses: run setup.
 ## What it does
 
 - **The tool.** The renderer adds `gh-app` to the `TOOLS` line (the `tools` list
-  still refuses it), so the install copies `~/.claude/pact/tools/gh-app.mjs`,
+  still refuses it), so the install copies `~/.pact/tools/gh-app.mjs`,
   with its own WARN in the dry run.
 - **Two `env` keys** in `settings.json`: `GIT_CONFIG_GLOBAL`, pointing at the
-  gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them under
-  `identityEnv` in `.pact-install.json`. The gitconfig includes your own global
+  gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them in
+  the `entries` of `install.json`. The gitconfig includes your own global
   git config, sets the bot as `user.name` and `user.email` (your own `author.*`
   settings still win; see below), and drops Git Credential Manager, so a failed
   mint fails an HTTPS push.
@@ -48,7 +48,7 @@ install refuses: run setup.
 ## What it doesn't stop
 
 Your own credentials stay reachable by these routes. `node
-~/.claude/pact/tools/gh-app.mjs status` reports the askpass program, an SSH
+~/.pact/tools/gh-app.mjs status` reports the askpass program, an SSH
 remote, a URL rewrite and a helper set after the pact's; it does not report the
 rest:
 
@@ -69,7 +69,7 @@ rest:
 
 With the switch on, before any write:
 
-- `pact/github.json` holds a `claude` app of the pin's exact shape.
+- `.pact/github.json` holds a `claude` app of the pin's exact shape.
 - The gitconfig equals the text setup writes, which the install computes with its
   own copy of `gitconfigText` from `gh-app.mjs` (a test holds them equal), under
   its own Node, which must be an absolute path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
@@ -83,13 +83,15 @@ the two keys are not set, and the apply refuses.
 ## Turning it off
 
 Set it to `false`, dry run, and apply on your word. The tool goes, and so do the
-recorded `env` keys whose live value is still the recorded one; a key you changed
-or wrote yourself stays. A missing or changed gitconfig doesn't block this.
+recorded `env` keys. A key you wrote yourself stays. A recorded key you changed
+shows as drift and the apply refuses: put its value back, or follow
+[Updating later](install.md#updating-later). A missing or changed gitconfig
+doesn't block this.
 
 ## Rolling back
 
 Turn the switch off first, as above, take `agent-identity` out of
-`~/.claude/pact/config.json`, then revert each ticket's merge and reinstall
+`~/.pact/config.json`, then revert each ticket's merge and reinstall
 from a dry run after the four rollback checks in
 [Roll back to an older version](install.md#roll-back-to-an-older-version). An older
 installer refuses the `agent-identity` key and ignores `identityEnv`, so reverting

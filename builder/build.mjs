@@ -4,8 +4,8 @@
 //   node builder/build.mjs                                 rebuild builder/scriptorium.html from the example builder file
 //   node builder/build.mjs --check                         check the example builder file, and that the page is up to date
 //   node builder/build.mjs --builder <file> --check        check a builder file: refusals and findings
-//   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it, to a new file outside any repo and Claude folder
-//   node builder/build.mjs --builder <file>                check it, then write the page to pact/scriptorium.html in the Claude home (CLAUDE_CONFIG_DIR, else ~/.claude), replacing the last one
+//   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it, to a new file outside any repo, Claude folder and pact folder
+//   node builder/build.mjs --builder <file>                check it, then write the page to ~/.pact/scriptorium.html, replacing the last one
 //   node builder/build.mjs --builder <file> --texts        check it, then print each part it changes as the page saves it
 //
 // The page runs from disk with no network, so everything it shows is carried
@@ -524,7 +524,7 @@ export function loadBuilder(file, pact) {
 
 /**
  * Run each part a builder file changes through the installer's renderer, as
- * a replace edit, in a throwaway Claude home. Returns one refusal per part the
+ * a replace edit, in a throwaway home folder. Returns one refusal per part the
  * renderer refuses, carrying its FAIL lines.
  */
 export function partsThroughRenderer(root, parts) {
@@ -548,9 +548,9 @@ function renderEdits(root, edits) {
     const home = mkdtempSync(join(tmpdir(), 'scriptorium-check-'));
     const dest = mkdtempSync(join(tmpdir(), 'scriptorium-out-'));
     try {
-      mkdirSync(join(home, 'pact', 'blocks'), { recursive: true });
-      writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: e.mark, op: e.op, file: 'b.md' }] })}\n`);
-      writeFileSync(join(home, 'pact', 'blocks', 'b.md'), `${e.text}\n`);
+      mkdirSync(join(home, '.pact', 'blocks'), { recursive: true });
+      writeFileSync(join(home, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: e.mark, op: e.op, file: 'b.md' }] })}\n`);
+      writeFileSync(join(home, '.pact', 'blocks', 'b.md'), `${e.text}\n`);
       const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesPath(root), dest, home], { encoding: 'utf8', env });
       if (r.status !== 0) {
         const fails = (r.stdout || '').split('\n').filter(l => l.startsWith('FAIL '));
@@ -576,9 +576,9 @@ function agentClassesThroughRenderer(root, agents) {
   const home = mkdtempSync(join(tmpdir(), 'scriptorium-agents-'));
   const dest = mkdtempSync(join(tmpdir(), 'scriptorium-out-'));
   try {
-    mkdirSync(join(home, 'pact'), { recursive: true });
+    mkdirSync(join(home, '.pact'), { recursive: true });
     const set = Object.fromEntries(agents.map(a => [a.name, { model: a.model === 'opus' ? 'sonnet' : 'opus' }]));
-    writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, agents: set })}\n`);
+    writeFileSync(join(home, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, agents: set })}\n`);
     const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesPath(root), dest, home], { encoding: 'utf8', env });
     if (r.status !== 0) fail(`the installer's renderer refuses to set the configurable agents (${(r.stdout || '').split('\n').filter(l => l.startsWith('FAIL ')).join('; ')})`);
     const out = {};
@@ -629,7 +629,7 @@ export function shippedPresets(root, pact, dir = join(root, PRESETS_REL)) {
 export const OWN_PRESETS_MAX = 16;
 const OWN_PRESET_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}\.json$/;
 
-/** `<Claude home>/pact/presets` when `root` is the installed kit, else null: a clone reads no personal folder. */
+/** `~/.pact/presets`, beside the kit, when `root` is the installed kit, else null: a clone reads no personal folder. */
 export function personalPresetsDir(root) {
   return isKit(root) ? join(root, '..', 'presets') : null;
 }
@@ -740,8 +740,8 @@ function canonical(p) {
  * commit would publish it, and never over the builder file. Paths compare in
  * canonical form, so a different spelling of the same file is caught.
  * `fixed` is true only for the default path (PACT-96, ADR 0171): no --out was
- * given, so the page goes to pact/scriptorium.html in the Claude home. That one
- * path is let past the Claude-home, .claude-folder and new-file refusals, and
+ * given, so the page goes to ~/.pact/scriptorium.html. That one path is let
+ * past the Claude-folder, pact-folder and new-file refusals, and
  * must be a plain file when it is there: a link, a folder or anything else is
  * refused. Every other refusal holds for it, and every refusal holds for --out.
  */
@@ -750,10 +750,11 @@ export function outProblem(root, out, builder, fixed = false) {
   if (o === canonical(builder)) return 'must not be the builder file';
   const r = canonical(join(root, 'x')).slice(0, -1);
   if (o.startsWith(r)) return isKit(root) ? 'must be outside the builder kit' : 'must be outside this clone: a page carries your own parts and lists, so keep it out of any repo';
-  // The Claude home folder, as each of its spellings, and any .claude folder (#203, S6).
-  const homes = [process.env.CLAUDE_CONFIG_DIR, join(homedir(), '.claude'), ...(isKit(root) ? [join(root, '..', '..')] : [])].filter(Boolean).map(h => canonical(join(h, 'x')).slice(0, -1));
+  // The Claude home folder, as each of its spellings, the pact folder, and any
+  // .claude or .pact folder (#203, S6).
+  const homes = [process.env.CLAUDE_CONFIG_DIR, join(homedir(), '.claude'), join(homedir(), '.pact'), ...(isKit(root) ? [join(root, '..')] : [])].filter(Boolean).map(h => canonical(join(h, 'x')).slice(0, -1));
   const sep = r.slice(-1);
-  if (!fixed && (homes.some(h => o.startsWith(h)) || o.split(sep).slice(0, -1).some(seg => seg === '.claude'))) return 'must be outside the Claude home folder and any .claude folder';
+  if (!fixed && (homes.some(h => o.startsWith(h)) || o.split(sep).slice(0, -1).some(seg => seg === '.claude' || seg === '.pact'))) return 'must be outside the Claude home folder and any .claude or .pact folder';
   // A git work tree: the page's folder, or one above it, holds a .git entry. Walked from the real path, so a link into a repo is caught.
   for (let d = dirname(o); ; d = dirname(d)) {
     if (existsSync(join(d, '.git'))) return 'must be outside any git work tree: a page carries your own parts and lists, so keep it out of any repo';
@@ -773,8 +774,8 @@ export function outProblem(root, out, builder, fixed = false) {
   return null;
 }
 
-/** The fixed path of the page a run with no --out writes: pact/scriptorium.html in the Claude home (PACT-96, ADR 0171). */
-export const defaultOut = () => join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'pact', 'scriptorium.html');
+/** The fixed path of the page a run with no --out writes: ~/.pact/scriptorium.html (PACT-96, ADR 0171). No environment variable moves it. */
+export const defaultOut = () => join(homedir(), '.pact', 'scriptorium.html');
 
 /**
  * Writes `text` at `out`, replacing a page already there: to a temporary file in
@@ -850,7 +851,7 @@ function main(argv) {
   }
 
   if ([opts.check, opts.out, opts.texts].filter(Boolean).length > 1) return usage();
-  // With no --out, the page goes to its fixed path in the Claude home, replacing the last one (PACT-96, ADR 0171).
+  // With no --out, the page goes to its fixed path, replacing the last one (PACT-96, ADR 0171).
   const fixed = !opts.check && !opts.out && !opts.texts;
   if (fixed) opts.out = defaultOut();
   const r = checkBuilder(root, opts.builder);
@@ -889,7 +890,7 @@ function main(argv) {
   }
   process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
   process.stdout.write(fixed
-    ? 'NOTE the page sits in your Claude folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files: you may delete the file when you are done with it\n'
+    ? 'NOTE the page sits in your pact folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files: you may delete the file when you are done with it\n'
     : 'NOTE the page holds your lists, every preset listed from your presets folder and any agent files in plain text: you may delete the file when you are done with it\n');
 }
 

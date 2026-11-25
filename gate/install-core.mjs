@@ -26,10 +26,10 @@ export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium'
 // list so seam A takes its file, but the tools list refuses it, and only the
 // agent-identity switch (a later ticket of #599) installs it.
 export const PACT_TOOLS = Object.freeze(['poster', 'cleaner', 'clef', 'gh-app']);
-const TOOLS_DEST = 'pact/tools/';
+const TOOLS_DEST = '.pact/tools/';
 // The pact's hook script (#482), the install's own copy of PACT_HOOKS in gate/seam-a-core.mjs: claude/hooks/<name>.mjs installs to HOOKS_DEST<name>.mjs only while the auto-compact window is on.
 export const PACT_HOOKS = Object.freeze(['compact-handoff']);
-const HOOKS_DEST = 'pact/hooks/';
+const HOOKS_DEST = '.pact/hooks/';
 export const HOOK_SCRIPT_REL = `${HOOKS_DEST}compact-handoff.mjs`;
 export const HOOK_EVENTS = Object.freeze(['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart']);
 const HOOK_SCRIPT_TOKEN = '__PACT_HOOK_SCRIPT__';
@@ -67,7 +67,7 @@ export const STOP_DENY = Object.freeze([...STOP_PATTERNS.map(p => `Bash(${p})`),
 export const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/default-config.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
 export const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^claude\/commands\/[^/]+\.md$/, /^claude\/review\.md$/, /^claude\/settings\.overlay\.json$/, /^builder\/presets\/[^/]+\.json$/, /^builder\/default-config\/config\.json$/, /^builder\/default-config\/blocks\/[^/]+\.md$/]);
 export const inKit = rel => BUILDER_KIT.includes(rel) || BUILDER_KIT_PATTERNS.some(re => re.test(rel));
-const KIT_DEST = 'pact/builder/';
+const KIT_DEST = '.pact/builder/';
 // The unrendered rules file, which the install copies into the stage for the kit; never in a commit.
 export const KIT_RULES_REL = 'claude/rules.source.md';
 // The kit's files outside claude/, gate/ and builder/, staged by exact path.
@@ -79,12 +79,20 @@ export const RULES_REL = 'claude/CLAUDE.md';
 export const OVERLAY_REL = 'claude/settings.overlay.json';
 // The review procedure file (#261): staged here, installed to one fixed live path.
 export const REVIEW_REL = 'claude/review.md';
-export const REVIEW_DEST = 'pact/review.md';
+export const REVIEW_DEST = '.pact/review.md';
 // The diagram format file review.md points to: staged and installed beside it.
 export const REVIEW_DIAGRAMS_REL = 'claude/review-diagrams.md';
-export const REVIEW_DIAGRAMS_DEST = 'pact/review-diagrams.md';
-export const CONFIG_REL = 'pact/config.json';
-export const BLOCKS_REL = 'pact/blocks';
+export const REVIEW_DIAGRAMS_DEST = '.pact/review-diagrams.md';
+// Every path the install works with is relative to the home folder (spec 0007 S4).
+export const NEUTRAL_REL = '.pact';
+/** The harness id the neutral home's own files carry in the record and the backups; no harness may take it. */
+export const PACT_ID = 'pact';
+export const HARNESS_ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
+// The skills folder Claude Code reads, where a skill shadows a command of its name.
+export const CLAUDE_SKILLS_REL = '.claude/skills';
+export const CONFIG_REL = '.pact/config.json';
+export const BLOCKS_REL = '.pact/blocks';
+export const RECORD_REL = '.pact/install.json';
 export const PROJECT_CONFIG_REL = '.claude/pact-config.json';
 export const PROJECT_RULES_REL = '.claude/rules/pact-project.md';
 export const PROJECT_RECORD_REL = '.claude/rules/pact-project.record.json';
@@ -212,8 +220,8 @@ export const outputLines = lines => lines.join('\n').split('\n').filter(l => l !
 // ------------------------------------------------------------ the command line
 
 const FLAGS = new Set(['--apply']);
-const VALUED = new Set(['--commit', '--rendered-hash', '--claude-home', '--review-folder', '--project-folder']);
-const PATH_OPTIONS = ['--claude-home', '--review-folder', '--project-folder'];
+const VALUED = new Set(['--commit', '--rendered-hash', '--home', '--review-folder', '--project-folder']);
+const PATH_OPTIONS = ['--home', '--review-folder', '--project-folder'];
 const SAFE_PATH = /^[A-Za-z0-9 ._\-:\\/]+$/;
 
 /**
@@ -247,7 +255,7 @@ export function parseArgs(argv, platform) {
     const v = given.get(opt);
     if (/^[\\/]{2}/.test(v)) refuse('path-network', `${opt} names a network or device path; give a full path on this machine.`);
     if (!(win ? /^[A-Za-z]:[\\/]/.test(v) : v.startsWith('/'))) {
-      refuse('path-not-full', opt === '--claude-home' ? "--claude-home must be a full path, such as the default (your home folder's .claude). A hash goes after --rendered-hash." : `${opt} must be a full path.`);
+      refuse('path-not-full', opt === '--home' ? '--home must be a full path, such as the default (your home folder). A hash goes after --rendered-hash.' : `${opt} must be a full path.`);
     }
     if (!SAFE_PATH.test(v) || (win && v.indexOf(':', 2) >= 0)) refuse('path-chars', `${opt} holds a character the install does not take in a path: only letters, digits, spaces and . _ - : \\ / are taken. Use a folder whose full path holds only those.`);
   }
@@ -257,7 +265,7 @@ export function parseArgs(argv, platform) {
     apply: given.has('--apply'),
     commit: given.get('--commit') ?? null,
     renderedHash: given.has('--rendered-hash') ? given.get('--rendered-hash') : null,
-    claudeHome: given.get('--claude-home') ?? null,
+    home: given.get('--home') ?? null,
     reviewFolder: given.get('--review-folder') ?? null,
     projectFolder: given.get('--project-folder') ?? null,
     paths: PATH_OPTIONS.filter(o => given.has(o)).map(o => [o, given.get(o)]),
@@ -274,7 +282,7 @@ export function applyLine(paths, commit, renderedHash, platform) {
 // ------------------------------------------------------------ the commit's tree
 
 /** True for a path the install stages: claude/ (the pact's tools in claude/tools/ among it, #280), familiars/ and gate/ but its tests, and AGENTS.md. */
-export const isStaged = rel => rel === 'AGENTS.md' || KIT_EXTRA.includes(rel) || (/^(builder|claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
+export const isStaged = rel => rel === 'AGENTS.md' || KIT_EXTRA.includes(rel) || (/^(builder|claude|familiars|gate|harnesses)\//.test(rel) && !rel.startsWith('gate/tests/'));
 
 /**
  * The commit's tree from `ls-tree -r -z` bytes (S6, G7), checked again from
@@ -348,11 +356,16 @@ const asList = v => (v === null || v === undefined ? [] : Array.isArray(v) ? v :
 /** PowerShell's [string]: null is empty, a boolean is True or False. */
 const psString = v => (v === null || v === undefined ? '' : typeof v === 'boolean' ? (v ? 'True' : 'False') : typeof v === 'object' ? JSON.stringify(v) : String(v));
 
+const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const TARGET_KEYS = Object.freeze(['rules', 'agents', 'commands', 'settings']);
+/** A record's target, held to what a description's path may be: plain, outside the neutral home and every secret store, a rules file .md and a settings file .json. */
+const targetOk = (kind, v) => typeof v === 'string' && isCanonical(v) && v.split('/')[0].toLowerCase() !== NEUTRAL_REL && !isSecretStore(v) && (kind !== 'rules' || /\.md$/i.test(v)) && (kind !== 'settings' || /\.json$/i.test(v));
+
 /**
- * The install record (.pact-install.json), or null when there is none. It must
- * hold `commit` and `files` (S6, G5). Keys are read without regard to case, as
- * PowerShell read them, and the configuration entries' keys are only compared,
- * never printed (G6).
+ * The install record (.pact/install.json), or null when there is none. It must
+ * hold `commit` and a `files` list, which may be empty (an install into no
+ * harness). Keys are read without regard to case, and the configuration
+ * entries' keys are only compared, never printed (G6).
  */
 export function parseRecord(text) {
   if (text === null) return null;
@@ -364,7 +377,7 @@ export function parseRecord(text) {
   }
   const commit = ci(doc, 'commit');
   const files = ci(doc, 'files');
-  if (!(truthy(commit) && truthy(files))) refuse('record-not-pact', 'the install record is not a pact manifest (needs commit and files); fix or remove it.');
+  if (!(truthy(commit) && Array.isArray(files))) refuse('record-not-pact', 'the install record is not a pact manifest (needs commit and a files list); fix or remove it.');
   const config = new Map();
   for (const c of truthy(ci(doc, 'config')) ? asList(ci(doc, 'config')) : []) {
     const kind = ci(c, 'kind');
@@ -374,49 +387,51 @@ export function parseRecord(text) {
     else if (kind === 'block' && typeof ci(c, 'path') === 'string') config.set(`block ${ci(c, 'path')}`, sha);
   }
   const digest = ci(doc, 'digest');
-  const cleanerDeny = ci(doc, 'cleanerdeny') ?? [];
-  if (!Array.isArray(cleanerDeny) || cleanerDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerDeny is not a list of rule strings; fix or remove it.');
-  const cleanerAsk = ci(doc, 'cleanerask') ?? [];
-  if (!Array.isArray(cleanerAsk) || cleanerAsk.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerAsk is not a list of rule strings; fix or remove it.');
-  const stopDeny = ci(doc, 'stopdeny') ?? [];
-  if (!Array.isArray(stopDeny) || stopDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s stopDeny is not a list of rule strings; fix or remove it.');
-  // The two env keys the identity switch set (#603): an object of the fixed keys with string values, or none.
-  const identityEnv = ci(doc, 'identityenv') ?? {};
-  if (typeof identityEnv !== 'object' || Array.isArray(identityEnv) || Object.entries(identityEnv).some(([k, v]) => !IDENTITY_ENV_KEYS.includes(k) || typeof v !== 'string')) refuse('record-not-pact', 'the install record\'s identityEnv is not the two switch-owned env keys with string values; fix or remove it.');
-  // The auto-compact window this install set (#482); null when none, or not a window the install takes.
-  const recordedWindow = ci(doc, 'autocompactwindow');
+  // The harnesses the last install took, each with the paths it wrote into.
+  const harnesses = ci(doc, 'harnesses') ?? [];
+  const badHarness = () => refuse('record-not-pact', 'the install record\'s harnesses are not ids with their target paths; fix or remove it.');
+  if (!Array.isArray(harnesses)) badHarness();
+  for (const h of harnesses) {
+    if (!isPlainObject(h) || typeof h.id !== 'string' || !HARNESS_ID_RE.test(h.id) || h.id === PACT_ID) badHarness();
+    for (const [k, v] of Object.entries(h)) if (k !== 'id' && !(TARGET_KEYS.includes(k) && targetOk(k, v))) badHarness();
+  }
+  // Every settings entry the install wrote: where, which key, its value and the value's hash.
+  const entries = ci(doc, 'entries') ?? [];
+  if (!Array.isArray(entries) || !entries.every(e => isPlainObject(e) && ['harness', 'path', 'key', 'sha256'].every(k => typeof e[k] === 'string') && Object.hasOwn(e, 'value'))) refuse('record-not-pact', 'the install record\'s entries are not a list of settings entries; fix or remove it.');
+  const valuesAt = key => entries.filter(e => e.key === key && typeof e.value === 'string').map(e => e.value);
+  // The two env keys the identity switch set (#603), and the auto-compact window (#482): each only in the form the install writes.
+  const identityEnv = Object.fromEntries(IDENTITY_ENV_KEYS.flatMap(k => valuesAt(`env.${k}`).slice(0, 1).map(v => [k, v])));
+  const recordedWindow = entries.find(e => e.key === 'autoCompactWindow')?.value;
   return {
-    cleanerDeny,
-    identityEnv: { ...identityEnv },
-    cleanerAsk,
-    stopDeny,
+    harnesses: harnesses.map(h => ({ ...h })),
+    entries: entries.map(e => ({ harness: e.harness, path: e.path, key: e.key, value: e.value, sha256: e.sha256 })),
+    cleanerDeny: valuesAt('permissions.deny'),
+    identityEnv,
+    cleanerAsk: valuesAt('permissions.ask'),
+    stopDeny: valuesAt('permissions.deny'),
     autoCompactWindow: typeof recordedWindow === 'number' && compactWindowOk(recordedWindow) && recordedWindow > 0 ? recordedWindow : null,
     commit: psString(commit),
     digest: typeof digest === 'string' && /^[0-9a-f]{12}$/.test(digest) ? digest : null,
-    files: asList(files).map(e => ({ path: typeof ci(e, 'path') === 'string' ? ci(e, 'path') : null, sha256: psString(ci(e, 'sha256')) })),
+    files: files.map(e => ({ harness: typeof ci(e, 'harness') === 'string' ? ci(e, 'harness') : null, path: typeof ci(e, 'path') === 'string' ? ci(e, 'path') : null, sha256: psString(ci(e, 'sha256')) })),
     config,
     gate: truthy(ci(doc, 'gate')) ? asList(ci(doc, 'gate')).map(g => [psString(ci(g, 'path')), psString(ci(g, 'sha256'))]) : [],
   };
 }
 
-/** The record the install writes (S6, X6): commit, digest, config, files, gate, in today's shape. */
-export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], cleanerAsk = [], stopDeny = [], identityEnv = {}, autoCompactWindow = 0 }) {
+/**
+ * The record the install writes (S6, X6; spec 0007 S9): commit, digest, the
+ * harnesses with their paths, config, every file with its harness and hash,
+ * every settings entry, and the gate. `files` is path to { harness, sha256 }.
+ */
+export function recordText({ commit, digest, harnesses, userHash, blockHashes, files, entries, gateNow }) {
   const doc = {
     commit,
     digest: digest ?? null,
+    harnesses,
     config: [...(userHash ? [{ kind: 'user', sha256: userHash }] : []), ...[...blockHashes].map(([path, sha256]) => ({ kind: 'block', path, sha256 }))],
-    files: [...repoFiles].map(([path, sha256]) => ({ path, sha256 })),
+    files: [...files].map(([path, f]) => ({ harness: f.harness, path, sha256: f.sha256 })),
+    entries,
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
-    // #438: the cleaner's deny rules this install added, only while there are any.
-    ...(cleanerDeny.length ? { cleanerDeny: [...cleanerDeny] } : {}),
-    // #523: the cleaner's ask rules this install added, only while there are any.
-    ...(cleanerAsk.length ? { cleanerAsk: [...cleanerAsk] } : {}),
-    // #439: the stop switch's deny rules this install added, only while there are any.
-    ...(stopDeny.length ? { stopDeny: [...stopDeny] } : {}),
-    // #603: the env keys the identity switch set, only while there are any.
-    ...(Object.keys(identityEnv).length ? { identityEnv: { ...identityEnv } } : {}),
-    // #482: the window the install set, only while it is on.
-    ...(autoCompactWindow > 0 ? { autoCompactWindow } : {}),
   };
   return `${JSON.stringify(doc, null, 2)}\n`;
 }
@@ -505,7 +520,7 @@ const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const SKILL_LINE_RE = /^SKILL ([A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+ )(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt] )[A-Za-z0-9._-]+) ([0-9a-f]{40}) ([A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*)$/;
 const SKILL_PATHS_MAX = 100;
 // The pact's default configuration (#183 T4a): the stage folder the renderer
-// reads when the Claude home folder holds no user file, and the preset it is
+// reads when the home folder holds no user file, and the preset it is
 // generated from, by title (a test holds the title equal to the preset's).
 export const DEFAULT_CONFIG_DIR = 'builder/default-config';
 export const DEFAULT_CONFIG_NAME = 'Level 3 · Full';
@@ -710,7 +725,7 @@ export function checkAgentFile(name, set, committed, rendered, renderedHash) {
 
 // ------------------------------------------------------------ the project install (J1 to J4)
 
-export const PROJECT_LEFT = "The project's .claude/rules folder may hold what the write left; nothing was installed in the Claude home folder.";
+export const PROJECT_LEFT = "The project's .claude/rules folder may hold what the write left; nothing was installed in the home folder.";
 
 /** A path the platform calls fully qualified: a drive path or a UNC path on Windows, a rooted one elsewhere. */
 const fullyQualified = (p, platform) => (platform === 'win32' ? /^[A-Za-z]:[\\/]|^[\\/]{2}[^\\/]/.test(p) : p.startsWith('/'));
@@ -869,7 +884,7 @@ export function projectBlock(state, parsed) {
     ...[...parsed.retiredSettings].map(([k, v]) => retiredSettingWarn(k, v, 'the project configuration', true) + (parsed.values.size || parsed.qualities || parsed.costLimits ? '' : " It is the file's only setting, so remove the file.")),
     ...parsed.retiredNames.map(a => `  WARN: the project configuration's qualities list names ${a}, an agent the pact retired; take the name out of the list.`),
     ...(parsed.unnamedCosts.length ? [unnamedCostsLine(parsed.unnamedCosts)] : []),
-    '  Nothing is installed in the Claude home folder, and no agents go into the project.',
+    '  Nothing is installed in the home folder, and no agents go into the project.',
   ];
 }
 
@@ -884,19 +899,54 @@ export function parseProjectWrite(report, projectHash) {
 // ------------------------------------------------------------ seam A's copy set and overlay
 
 /**
- * The copy set by the install's own reading of the stage (#203, S8): a list
- * of [staged path, live path] pairs, one source to one or more live paths. A
- * pact command installs only when `commands` names it, a pact tool only when
- * `tools` names it, and a gate file only as a BUILDER_KIT entry under
- * pact/builder/. A staged file of no known kind pairs with null, which no
- * INSTALL line can match.
+ * Which parts of a harness this pact can write (spec 0007 S5, S9): its rules
+ * and agents when its agents take the claude-md format (or it has none), its
+ * commands folder, and the settings merge for Claude Code's own hooks file.
+ * A harness in another format is listed and nothing is installed into it.
  */
-export function expectedCopySet(stagedRels, commands = [], tools = [], compact = false) {
+export function builtParts(h) {
+  const built = !h.agents || h.agents.format === 'claude-md';
+  return { rules: built, agents: built && Boolean(h.agents), commands: built && Boolean(h.commands), settings: h.id === 'claude' && h.hooks?.format === 'claude' };
+}
+
+/** Where a harness's files go, as the record keeps it: only the parts this pact writes. */
+export function targetsOf(h) {
+  const p = builtParts(h);
+  return { id: h.id, ...(p.rules ? { rules: h.rules.path } : {}), ...(p.agents ? { agents: h.agents.dir } : {}), ...(p.commands ? { commands: h.commands.dir } : {}), ...(p.settings ? { settings: h.hooks.file } : {}) };
+}
+
+/** Seam A's --harness value for the harnesses that are in: `none`, or each id with the parts it takes. */
+export function harnessArg(harnesses) {
+  const list = harnesses.map(h => {
+    const p = builtParts(h);
+    const parts = ['rules', 'agents', 'commands'].filter(k => p[k]);
+    return `${h.id}:${parts.length ? parts.join('+') : 'none'}`;
+  });
+  return list.length ? list.join(',') : 'none';
+}
+
+/**
+ * The copy set by the install's own reading of the stage (#203, S8): a list
+ * of [staged path, destination] pairs, one source to one or more destinations.
+ * A destination is a path under the neutral home, or `@<harness>/<part>` for a
+ * harness's own file. A pact command installs only when `commands` names it, a
+ * pact tool only when `tools` names it, and a gate file only as a BUILDER_KIT
+ * entry under .pact/builder/. With no harness in, nothing installs. A staged
+ * file of no known kind pairs with null, which no INSTALL line can match.
+ */
+export function expectedCopySet(stagedRels, commands = [], tools = [], compact = false, harnesses = []) {
   const out = [];
   const kitOn = commands.includes(KIT_COMMAND);
+  const parts = harnesses.map(h => ({ id: h.id, ...builtParts(h) }));
+  const pact = (rel, dest) => {
+    if (harnesses.length) out.push([rel, dest]);
+  };
+  const each = (rel, part, tail) => {
+    for (const p of parts) if (p[part]) out.push([rel, `@${p.id}/${tail}`]);
+  };
   for (const rel of stagedRels) {
-    if (kitOn && inKit(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
-    if (rel.startsWith('gate/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep' || rel === KIT_RULES_REL) continue;
+    if (kitOn && inKit(rel)) pact(rel, `${KIT_DEST}${rel}`);
+    if (rel.startsWith('gate/') || rel.startsWith('harnesses/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep' || rel === KIT_RULES_REL) continue;
     if (/^familiars\/[^/]+\.(contract|practice-test)\.md$/.test(rel)) continue;
     // A builder or kit file goes only to the kit; one the kit doesn't list pairs with null.
     if (rel.startsWith('builder/') || KIT_EXTRA.includes(rel)) {
@@ -906,24 +956,45 @@ export function expectedCopySet(stagedRels, commands = [], tools = [], compact =
     let m;
     if ((m = /^claude\/commands\/(.*)$/.exec(rel))) {
       const name = /^([^/]+)\.md$/.exec(m[1])?.[1];
-      if (commands.includes(name)) out.push([rel, `commands/${name}.md`]);
+      if (commands.includes(name)) each(rel, 'commands', `commands/${name}.md`);
       else if (!PACT_COMMANDS.includes(name)) out.push([rel, null]);
     } else if ((m = /^claude\/tools\/(.*)$/.exec(rel))) {
-      // A pact tool (#280): claude/tools/<name>.mjs to pact/tools/<name>.mjs, never the general rule's tools/ at the home root.
+      // A pact tool (#280): claude/tools/<name>.mjs to .pact/tools/<name>.mjs.
       const name = /^([^/]+)\.mjs$/.exec(m[1])?.[1];
-      if (tools.includes(name)) out.push([rel, `${TOOLS_DEST}${name}.mjs`]);
+      if (tools.includes(name)) pact(rel, `${TOOLS_DEST}${name}.mjs`);
       else if (!PACT_TOOLS.includes(name)) out.push([rel, null]);
     } else if ((m = /^claude\/hooks\/(.*)$/.exec(rel))) {
-      // The pact's hook (#482): claude/hooks/<name>.mjs to pact/hooks/<name>.mjs, only while the window is on, never the general rule's hooks/ at the home root.
+      // The pact's hook (#482): claude/hooks/<name>.mjs to .pact/hooks/<name>.mjs, only while the window is on.
       const name = /^([^/]+)\.mjs$/.exec(m[1])?.[1];
-      if (compact && PACT_HOOKS.includes(name)) out.push([rel, `${HOOKS_DEST}${name}.mjs`]);
+      if (compact && PACT_HOOKS.includes(name)) pact(rel, `${HOOKS_DEST}${name}.mjs`);
       else if (!PACT_HOOKS.includes(name)) out.push([rel, null]);
-    } else if (rel === REVIEW_REL) out.push([rel, REVIEW_DEST]);
-    else if (rel === REVIEW_DIAGRAMS_REL) out.push([rel, REVIEW_DIAGRAMS_DEST]);
-    else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
+    } else if (rel === REVIEW_REL) pact(rel, REVIEW_DEST);
+    else if (rel === REVIEW_DIAGRAMS_REL) pact(rel, REVIEW_DIAGRAMS_DEST);
+    else if (rel === RULES_REL) each(rel, 'rules', 'rules');
+    else if ((m = /^claude\/agents\/([^/]+\.md)$/.exec(rel))) each(rel, 'agents', `agents/${m[1]}`);
     else out.push([rel, null]);
   }
   return out;
+}
+
+/**
+ * Each checked destination as a path under the home folder, with the harness it
+ * belongs to: `@<harness>/<part>` through that harness's description, and
+ * everything else the neutral home's own.
+ */
+export function resolveDestinations(checked, harnesses) {
+  const byId = new Map(harnesses.map(h => [h.id, h]));
+  return checked.map(([rel, { dest, sha256 }]) => {
+    if (!dest.startsWith('@')) {
+      if (!dest.startsWith(`${NEUTRAL_REL}/`)) refuse('dest-skip', `unsafe path for an install destination: ${formatPlain(dest)}.`);
+      return [rel, { dest, sha256, harness: PACT_ID }];
+    }
+    const m = /^@([a-z][a-z0-9-]*)\/(?:(rules)|(agents|commands)\/([^/]+))$/.exec(dest);
+    const h = m && byId.get(m[1]);
+    const base = h && (m[2] ? h.rules?.path : h[m[3]]?.dir);
+    if (!base) refuse('dest-skip', `no harness takes an install destination: ${formatPlain(dest)}.`);
+    return [rel, { dest: m[2] ? base : `${base}/${m[4]}`, sha256, harness: h.id }];
+  });
 }
 
 /**
@@ -978,29 +1049,38 @@ export function matchCopySet(lines, expected, stagedHashes, commit) {
 /**
  * The pact commands against the owner's skills folder (#203, S8): a skill
  * of the same name runs in place of the command, so anything at
- * skills/<name>, a folder, a file or a link, refuses. `present(rel)` tests
- * presence without following a link; nothing else in the folder is read.
+ * .claude/skills/<name>, a folder, a file or a link, refuses. `present(rel)`
+ * tests presence without following a link; nothing else in the folder is read.
  */
 export function checkSkillClash(commands, present) {
   for (const name of commands) {
-    const rel = `skills/${name}`;
-    if (present(rel)) refuse('command-skill-clash', `${rel} exists in the Claude home folder, and Claude Code would run that skill in place of the pact command /${name}. Rename or move it${name === KIT_COMMAND ? '' : `, or take ${name} out of the commands list`}.`);
+    const rel = `${CLAUDE_SKILLS_REL}/${name}`;
+    if (present(rel)) refuse('command-skill-clash', `${rel} exists in your home folder, and Claude Code would run that skill in place of the pact command /${name}. Rename or move it${name === KIT_COMMAND ? '' : `, or take ${name} out of the commands list`}.`);
   }
 }
 
 /**
  * A command, tool, kit or review file the install would add over a live file its
  * record does not list (#203 S8, #261 S5): refused, never overwritten. Agents
- * keep today's first-install behaviour. `live(rel)` is the plan's live state.
+ * keep today's first-install behaviour, and rules files have their own refusal
+ * (unrecordedRules). `live(rel)` is the plan's live state; `commandDirs` the
+ * harnesses' commands folders.
  */
-export function checkNewPaths(repoFiles, record, live) {
+export function checkNewPaths(repoFiles, record, live, commandDirs = []) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
-    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel.startsWith(TOOLS_DEST) || rel.startsWith(HOOKS_DEST) || rel === REVIEW_DEST || rel === REVIEW_DIAGRAMS_DEST) || listed.has(rel)) continue;
-    const always = rel === REVIEW_DEST || rel === REVIEW_DIAGRAMS_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel === `commands/${KIT_COMMAND}.md`;
+    const command = commandDirs.find(d => rel.startsWith(`${d}/`));
+    const always = rel === REVIEW_DEST || rel === REVIEW_DIAGRAMS_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel === `${command}/${KIT_COMMAND}.md`;
+    if (!(command || always || rel.startsWith(TOOLS_DEST)) || listed.has(rel)) continue;
     const next = always ? 'Move it out of the way, then install again.' : `Move it, or take its name out of the ${rel.startsWith(TOOLS_DEST) ? 'tools' : 'commands'} list.`;
-    if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
+    if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists, and the install record does not list it, so the pact did not put it there. ${next}`);
   }
+}
+
+/** The rules targets that hold something the record doesn't list (spec 0007 S9): the pact owns the whole file, so the apply refuses. */
+export function unrecordedRules(rulesPaths, record, live) {
+  const listed = new Set(record ? record.files.map(e => e.path) : []);
+  return rulesPaths.filter(rel => !listed.has(rel) && live(rel).exists);
 }
 
 /**
@@ -1015,11 +1095,11 @@ export function commandsBlock(on, stagedRels, listed = []) {
   for (const name of PACT_COMMANDS) {
     const here = staged.has(`claude/commands/${name}.md`);
     const always = name === KIT_COMMAND && here;
-    out.push(`  /${name}: ${always ? 'on, always: part of the pact, with the builder kit under pact/builder/' : on.includes(name) ? 'on' : 'off'}${here ? '' : ' (not in this commit)'}`);
+    out.push(`  /${name}: ${always ? 'on, always: part of the pact, with the builder kit under .pact/builder/' : on.includes(name) ? 'on' : 'off'}${here ? '' : ' (not in this commit)'}`);
   }
   const example = PACT_COMMANDS.find(name => name !== KIT_COMMAND && staged.has(`claude/commands/${name}.md`));
   out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command that can be turned on is in this commit.');
-  for (const name of on) if (!(name === KIT_COMMAND && staged.has(`claude/commands/${name}.md`))) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
+  for (const name of on) if (!(name === KIT_COMMAND && staged.has(`claude/commands/${name}.md`))) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to each harness's commands folder as ${name}.md.`);
   if (listed.includes(KIT_COMMAND) && staged.has(`claude/commands/${KIT_COMMAND}.md`)) out.push(`  NOTE: ${CONFIG_REL} lists ${KIT_COMMAND}, which now always installs; take it out of the list, since an older pact refuses it.`);
   return out;
 }
@@ -1041,7 +1121,7 @@ export function toolsBlock(on, stagedRels) {
   if (on.includes('gh-app')) out.push('  gh-app: on (the agent-identity switch)');
   for (const name of on) out.push(`  WARN: ${name === 'gh-app' ? 'the agent-identity switch' : 'the user configuration'} turns on the pact tool ${name}; it installs to ${TOOLS_DEST}${name}.mjs${TOOL_WARNS[name]}`);
   // PACT-81: a new installer learns clef's next step from the install itself.
-  if (on.includes('clef')) out.push('  clef next step: run `node <Claude home>/pact/tools/clef.mjs setup`, then the same with `--yes`; docs/clef.md says what it does.');
+  if (on.includes('clef')) out.push('  clef next step: run `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes`; docs/clef.md says what it does.');
   return out;
 }
 
@@ -1163,11 +1243,13 @@ function retiredIn(live) {
  * `hooks` never go through that deep merge: they merge by key (hooksPlan), and
  * `autoCompactWindow` follows `compact.window` (#482).
  */
-export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY, identity = NO_IDENTITY) {
+export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY, identity = NO_IDENTITY, overlayDrop = []) {
   // #482: hooks never go through the deep merge, which would replace an owner's list; they merge by key below.
   const plain = new Map(overlay);
   plain.delete('hooks');
   const m = mergeDeep(live, plain);
+  // With no overlay, the merge shares the live permissions map; every change below is made on a copy.
+  if (isMap(m.get('permissions'))) m.set('permissions', new Map(m.get('permissions')));
   if (compact.script !== null) {
     const hp = hooksPlan(live, compact.window > 0 ? overlay.get('hooks') : null, compact);
     if (hp.hooks === undefined) m.delete('hooks');
@@ -1201,11 +1283,47 @@ export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPAC
     if (env.size) m.set('env', env);
     else m.delete('env');
   }
+  for (const key of overlayDrop) {
+    const [top, name] = key.split('.');
+    if (name === undefined) m.delete(top);
+    else if (isMap(m.get(top))) m.get(top).delete(name);
+  }
   return m;
 }
 
 const NO_DENY = Object.freeze({ add: [], drop: [], record: [] });
 const NO_IDENTITY = Object.freeze({ set: new Map(), drop: [], record: {} });
+
+// ------------------------------------------------------------ the overlay's plain keys (spec 0007 S9)
+
+/** The overlay's keys that are neither a list nor a hook: auto mode and its skipped prompt. */
+export const OVERLAY_KEYS = Object.freeze(['permissions.defaultMode', 'skipAutoPermissionPrompt']);
+const valueAt = (map, key) => {
+  const [top, name] = key.split('.');
+  if (name === undefined) return map.get(top);
+  return isMap(map.get(top)) ? map.get(top).get(name) : undefined;
+};
+const same = (a, b) => a !== undefined && b !== undefined && canonical(a) === canonical(b);
+
+/**
+ * Which of the overlay's plain keys the install owns. With an overlay applied,
+ * `record` holds each key the record already listed, and each whose value the
+ * live settings don't hold yet: a value already there is the owner's. With none
+ * (Claude Code taken out), `drop` holds each recorded key whose live value is
+ * still the recorded one. `recorded` is the record's entries.
+ */
+export function overlayKeysPlan(live, overlay, recorded) {
+  const record = [];
+  const drop = [];
+  for (const key of OVERLAY_KEYS) {
+    const was = recorded.find(e => e.key === key);
+    const want = valueAt(overlay, key);
+    if (want !== undefined) {
+      if (was || !same(valueAt(live, key), want)) record.push(key);
+    } else if (was && same(valueAt(live, key), toMaps(was.value))) drop.push(key);
+  }
+  return { record, drop };
+}
 
 // ------------------------------------------------------------ the pact's hooks (#482)
 
@@ -1225,7 +1343,7 @@ const pathKey = (p, platform) => {
 /** The overlay with the hook script's path and the window put in place of the overlay's two tokens, after its hash check. The script must sit under the home folder. */
 export function fillHooks(overlay, home, script, window, platform = 'linux') {
   const root = pathKey(home, platform).replace(/\/$/, '');
-  if (!pathKey(script, platform).startsWith(`${root}/`)) refuse('hook-script-path', "the hook script's install path is not under the Claude home folder.");
+  if (!pathKey(script, platform).startsWith(`${root}/`)) refuse('hook-script-path', "the hook script's install path is not under the home folder.");
   const fill = v => {
     if (Array.isArray(v)) return v.map(fill);
     if (isMap(v)) return new Map([...v].map(([k, x]) => [k, fill(x)]));
@@ -1379,8 +1497,8 @@ export function cleanerAskPlan(live, toolsOn, recorded) {
 
 /**
  * The stop switch's deny rules for this install (#439 S1.2): the same plan,
- * over STOP_DENY only, so a rule of the cleaner's planted in stopDeny is never
- * dropped, printed or recorded again, and the cleaner's plan likewise.
+ * over STOP_DENY only: it never drops, prints or records one of the cleaner's
+ * rules, though the record lists both, and the cleaner's plan likewise.
  */
 export function stopDenyPlan(live, on, recorded) {
   return denyPlan(live, STOP_DENY, on, recorded);
@@ -1395,15 +1513,61 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
   return { add, drop: [], record: [...new Set([...ours, ...add])] };
 }
 
+// ------------------------------------------------------------ the settings entries the record keeps (spec 0007 S9)
+
+/**
+ * Every settings entry this install wrote into `path`, for the record: each
+ * permission rule it added, each of the overlay's plain keys it set, each env
+ * key it set, the window, and each of the overlay's hooks, each with its value
+ * and the value's hash. An entry the
+ * merged settings don't hold (a hook event that isn't a list) is left out.
+ */
+export function settingsEntries({ harness, path, merged, deny, ask, identityEnv, window, hooks, hash, overlayKeys = [] }) {
+  const out = [];
+  // The value as the record reads it back: plain JSON, a number a number.
+  const add = (key, value) => out.push({ harness, path, key, value: JSON.parse(JSON.stringify(toJsonValue(value))), sha256: hash(Buffer.from(canonical(value), 'utf8')) });
+  for (const rule of deny) add('permissions.deny', rule);
+  for (const rule of ask) add('permissions.ask', rule);
+  for (const key of overlayKeys) {
+    const value = valueAt(merged, key);
+    if (value !== undefined) add(key, value);
+  }
+  for (const [k, v] of Object.entries(identityEnv)) add(`env.${k}`, v);
+  if (window > 0) {
+    add('autoCompactWindow', new Num(String(window)));
+    for (const [event, groups] of hooks ?? []) for (const g of groups) for (const h of innerHooks(g)) add(`hooks.${event}`, h);
+  }
+  return out.filter(e => !entryDrift([e], merged).length);
+}
+
+/** Each recorded entry the live settings no longer hold as recorded, as a drift line naming the file and the key only. */
+export function entryDrift(entries, live) {
+  const out = [];
+  const permissions = isMap(live.get('permissions')) ? live.get('permissions') : new Map();
+  const env = isMap(live.get('env')) ? live.get('env') : new Map();
+  const hooks = isMap(live.get('hooks')) ? live.get('hooks') : new Map();
+  for (const e of entries) {
+    const want = canonical(toMaps(e.value));
+    const [top, name = ''] = e.key.split('.');
+    let held;
+    if (top === 'permissions') held = listOf(permissions.get(name)).some(r => canonical(r) === want);
+    else if (top === 'env') held = env.has(name) && canonical(env.get(name)) === want;
+    else if (top === 'hooks') held = listOf(hooks.get(name)).some(g => innerHooks(g).some(h => canonical(h) === want));
+    else held = live.has(e.key) && canonical(live.get(e.key)) === want;
+    if (!held) out.push(`${e.path} ${formatPlain(e.key)} (the pact's entry changed since the install)`);
+  }
+  return out;
+}
+
 // ------------------------------------------------------------ the agent-identity switch (#603, S7)
 
-/** The two env keys the switch owns in settings.json: the install sets them while it is on, records them under identityEnv, and removes only a key whose live value is the recorded one. */
+/** The two env keys the switch owns in settings.json: the install sets them while it is on, records them in its entries, and removes only a key whose live value is the recorded one; a recorded key changed since is drift. */
 export const IDENTITY_ENV_KEYS = Object.freeze(['GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT']);
 const slashed = p => String(p).replaceAll('\\', '/');
-/** The gitconfig setup writes for the claude app, under the Claude home folder. */
-export const identityGitconfigPath = claudeHome => `${slashed(claudeHome).replace(/\/$/, '')}/pact/gh-app-claude.gitconfig`;
+/** The gitconfig setup writes for the claude app, in the neutral home under the home folder. */
+export const identityGitconfigPath = home => `${slashed(home).replace(/\/$/, '')}/.pact/gh-app-claude.gitconfig`;
 /** The value the install gives each switch-owned key, a Map in key order. */
-export const identityEnvWanted = claudeHome => new Map([['GIT_CONFIG_GLOBAL', identityGitconfigPath(claudeHome)], ['GIT_TERMINAL_PROMPT', '0']]);
+export const identityEnvWanted = home => new Map([['GIT_CONFIG_GLOBAL', identityGitconfigPath(home)], ['GIT_TERMINAL_PROMPT', '0']]);
 
 /**
  * The switch's env plan: `set` (key to value, only where the live value differs),
@@ -1463,11 +1627,11 @@ function iniValue(v, force = false) {
 /**
  * The text the claude app's gitconfig must hold: the install's own copy of
  * gitconfigText in claude/tools/gh-app.mjs, which a test holds equal. `userHome`
- * is the Claude home folder's parent; `xdg` is whether the XDG config exists.
+ * is the home folder; `xdg` is whether the XDG config exists.
  */
-export function identityGitconfigText({ userHome, claudeHome, nodePath, app, xdg }) {
+export function identityGitconfigText({ userHome, nodePath, app, xdg }) {
   const h = slashed(userHome);
-  const helper = `!"${slashed(nodePath)}" "${slashed(claudeHome)}/pact/tools/gh-app.mjs" git-credential --provider claude`;
+  const helper = `!"${slashed(nodePath)}" "${h.replace(/\/$/, '')}/.pact/tools/gh-app.mjs" git-credential --provider claude`;
   return [
     '[include]',
     `  path = ${iniValue(`${h}/.gitconfig`)}`,
@@ -1621,55 +1785,96 @@ export function guardHolds(after) {
 
 // ------------------------------------------------------------ the plan
 
-/** Never deleted, overwritten or listed, whatever the record says: normalised as Windows reads a name. */
-export function isProtected(rel) {
-  const segs = rel
-    .replace(/\\/g, '/')
-    .split('/')
-    .map(s => s.replace(/:.*$/, '').replace(/[. ]+$/, ''))
-    .filter(Boolean);
-  const n = segs.join('/').toLowerCase();
-  const leaf = segs.length ? segs[segs.length - 1].toLowerCase() : '';
-  return n === 'settings.json' || n === '.pact-install.json' || n === 'pact/config.json' || n === 'pact/builder.json' || leaf.startsWith('.credentials') || /^(projects|memory|skills|handover|pact\/blocks|pact\/presets|pact\/backups)(\/|$)/.test(n);
+// The settings and hooks files the known harnesses read: merged by key, never copied over or deleted.
+const MERGED_FILES = Object.freeze(['.claude/settings.json', '.claude.json', '.codex/hooks.json', '.gemini/config/hooks.json']);
+
+/** A path as Windows reads its name: forward slashes, no stream suffix, no trailing dot or space, lower case. */
+const windowsName = rel => rel
+  .replace(/\\/g, '/')
+  .split('/')
+  .map(s => s.replace(/:.*$/, '').replace(/[. ]+$/, ''))
+  .filter(Boolean)
+  .join('/')
+  .toLowerCase();
+
+// Programs' keys and sign-ins under the home folder, and any file whose name starts .credentials.
+const SECRET_STORES = /^(\.ssh|\.aws|\.gnupg|\.config\/gh)(\/|$)|^(\.claude\.json|\.codex\/auth\.json|\.gemini\/(oauth_creds|google_accounts)\.json|\.git-credentials|\.gitconfig|\.netrc)$|(^|\/)\.credentials[^/]*$/;
+
+/** Whether a home-relative path is one of them: no harness path may be, and the install never reads, writes or deletes one. */
+export const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));
+
+/**
+ * Never deleted, overwritten or listed, whatever the record says: normalised as
+ * Windows reads a name. `merged` adds the hooks files the person's own harness
+ * descriptions name.
+ */
+export function isProtected(rel, merged = []) {
+  const n = windowsName(rel);
+  if (isSecretStore(rel)) return true;
+  if ([...MERGED_FILES, ...merged].some(f => f.toLowerCase() === n)) return true;
+  if (/^\.claude\/(projects|memory|skills|handover)(\/|$)/.test(n)) return true;
+  return /^\.pact\/((install|config|builder|github|linear)\.json$|gh-app-|(blocks|presets|backups|handoffs|source)(\/|$))/.test(n);
 }
 
 /** Only plain, canonical record paths are acted on: a name that is not already plain could be a Windows alias. */
 export function isCanonical(rel) {
   if (!rel || rel.includes('\\')) return false;
-  return rel.split('/').every(seg => /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(seg) && !seg.endsWith('.'));
+  return rel.split('/').every(seg => /^\.?[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(seg) && !seg.endsWith('.'));
 }
 
 /** Null when a record or install path is safe to act on; otherwise why not (S6, L1). `throughLink` is the I/O test. */
-export function skipReason(rel, throughLink) {
+export function skipReason(rel, throughLink, merged = []) {
   if (typeof rel !== 'string' || !rel || /^([\\/]|[A-Za-z]:)/.test(rel) || /(^|[\\/])\.\.([\\/]|$)/.test(rel)) return 'unsafe path';
-  if (isProtected(rel)) return 'protected path';
+  if (isProtected(rel, merged)) return 'protected path';
   if (!isCanonical(rel)) return 'non-canonical path';
   if (throughLink(rel)) return 'path through a link';
   return null;
 }
 
+const oneMd = (rel, dir) => Boolean(dir) && rel.startsWith(`${dir}/`) && /^[^/]+\.md$/.test(rel.slice(dir.length + 1));
+
+/**
+ * Whether the install may act on `rel` for `harness`: the neutral home for the
+ * pact's own files, and otherwise only a harness's rules file or a .md file
+ * directly in its agents or commands folder. `targets` holds the target sets of
+ * this run's harnesses and of the record's, so a harness taken out, or moved,
+ * can still be cleared.
+ */
+export function inTargets(rel, harness, targets) {
+  if (typeof rel !== 'string') return false;
+  const neutral = rel.toLowerCase().startsWith(`${NEUTRAL_REL}/`);
+  if (harness === PACT_ID) return neutral;
+  return !neutral && targets.some(t => t.id === harness && (rel === t.rules || oneMd(rel, t.agents) || oneMd(rel, t.commands)));
+}
+
 /** The live destinations of the copy set (S6, L1): each must be safe, and no two may fold to one name. */
-export function installDestinations(checked, throughLink) {
+export function installDestinations(checked, throughLink, merged = []) {
   const repoFiles = new Map();
   const sourceOf = new Map();
+  const harnessOf = new Map();
   const seen = new Set();
-  for (const [rel, { dest, sha256 }] of checked) {
-    const why = skipReason(dest, throughLink);
+  for (const [rel, { dest, sha256, harness }] of checked) {
+    const why = skipReason(dest, throughLink, merged);
     if (why) refuse('dest-skip', `${why} for an install destination: ${formatPlain(dest)}.`);
     if (seen.has(dest.toLowerCase())) refuse('dest-twice', `two files install to ${dest}.`);
     seen.add(dest.toLowerCase());
     repoFiles.set(dest, sha256);
     sourceOf.set(dest, rel);
+    harnessOf.set(dest, harness);
   }
-  return { repoFiles, sourceOf };
+  return { repoFiles, sourceOf, harnessOf };
 }
+
+/** The old builder agents' paths in Claude Code's agents folder, which a first install deletes (#262). */
+export const retiredPaths = targets => targets.filter(t => t.id === 'claude' && t.agents).flatMap(t => RETIRED.map(r => `${t.agents}/${r.slice('agents/'.length)}`));
 
 /**
  * The plan (S6, L2 and L3), from the record, the repo's files and each live
  * path's state ({ exists, file, sha256 }, by `live(rel)`): drift, overwrite,
  * add, delete and unchanged. A first install deletes only the retired agents.
+ * `targets` bounds what a record entry may name, and holds the agents folders.
  */
-export function plan(record, repoFiles, live, throughLink) {
+export function plan(record, repoFiles, live, throughLink, targets = [], merged = []) {
   const drift = [];
   const overwrite = [];
   const add = [];
@@ -1677,12 +1882,12 @@ export function plan(record, repoFiles, live, throughLink) {
   const warnings = [];
   // #262: an agent file the pact didn't write, or changed since it wrote it, is the person's: never overwritten, deleted or recorded.
   const yours = [];
-  const isAgent = rel => rel.startsWith('agents/');
+  const isAgent = rel => targets.some(t => oneMd(rel, t.agents));
   let same = 0;
   if (record) {
     const entries = [];
     for (const e of record.files) {
-      const why = skipReason(e.path, throughLink);
+      const why = skipReason(e.path, throughLink, merged) ?? (inTargets(e.path, e.harness, targets) ? null : "path outside its harness's folders");
       if (why) warnings.push(`${why} in the install record, skipped: ${e.path ?? ''}`);
       else entries.push(e);
     }
@@ -1696,7 +1901,7 @@ export function plan(record, repoFiles, live, throughLink) {
       else if (s.sha256 !== e.sha256.toLowerCase()) drift.push(`${e.path} (changed since the install)`);
     }
     del = entries.filter(e => !repoFiles.has(e.path) && live(e.path).exists && !yours.includes(e.path)).map(e => e.path);
-  } else del = RETIRED.filter(r => live(r).exists);
+  } else del = retiredPaths(targets).filter(r => live(r).exists);
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const [rel, sha] of repoFiles) {
     const s = live(rel);
@@ -1720,11 +1925,11 @@ export function plan(record, repoFiles, live, throughLink) {
  * pact's, so the install leaves it as is. Without the line such a file drops
  * out of every dry run, because the plan looks only at names in its payload.
  * `exists(rel)` is the live state; `deleting` is the plan's delete list. The
- * line holds the constant name only.
+ * line holds a harness's agents folder and the constant name only.
  */
-export function retiredAgentLines(exists, deleting) {
-  return RETIRED_AGENTS.filter(a => exists(`agents/${a}.md`) && !deleting.includes(`agents/${a}.md`))
-    .map(a => `WARN: agents/${a}.md is named for ${a}, an agent the pact retired; the file is not the pact's, so the install leaves it as is.`);
+export function retiredAgentLines(exists, deleting, dir) {
+  return RETIRED_AGENTS.filter(a => exists(`${dir}/${a}.md`) && !deleting.includes(`${dir}/${a}.md`))
+    .map(a => `WARN: ${dir}/${a}.md is named for ${a}, an agent the pact retired; the file is not the pact's, so the install leaves it as is.`);
 }
 
 // ------------------------------------------------------------ the configuration against the record
@@ -1856,10 +2061,11 @@ export function checkBinding(opts, rulesHash, commit) {
 }
 
 /** --apply's own refusals (S6, X1), in order. */
-export function checkApply({ configApplies, hashGiven, selfDiffers, drift, dirty, settingsObject }) {
+export function checkApply({ configApplies, hashGiven, selfDiffers, drift, dirty, settingsObject, unrecorded = [] }) {
   if (configApplies && !hashGiven) refuse('apply-needs-hash', 'a configuration applies, so --apply needs the full rendered hash the dry run showed, given with --rendered-hash.');
   if (selfDiffers) refuse('apply-self-differs', 'this install script differs from the committed copy.');
-  if (drift) refuse('apply-drift', 'live files changed since the last install. Whether to keep or replace those edits is the owner\'s decision; docs/install.md says how.');
+  if (drift) refuse('apply-drift', 'installed files or settings entries changed since the last install. Whether to keep or replace those edits is the owner\'s decision; docs/install.md says how.');
+  if (unrecorded.length) refuse('unrecorded-target', `${unrecorded.map(formatPlain).join(', ')} already exists and the install record does not list it. The pact owns the whole rules file: move your own text into your configuration and the file out of the way. After an install from before ~/.pact, follow the one-time removal in docs/install.md.`);
   if (dirty) refuse('apply-dirty', 'the working tree is not clean.');
   if (!settingsObject) refuse('apply-settings', "settings.json is not a strict JSON object, so the pact's guard cannot be merged into it; fix the file first.");
 }
@@ -1872,7 +2078,10 @@ export const stops = Object.freeze({
   runArgs: () => refuse('run-args', 'the install runner was not started by the install bootstrap: run node gate/install.mjs.'),
   stageUnreadable: () => refuse('stage-unreadable', 'the stage could not be read.'),
   reachableMissing: () => refuse('reachable-missing', "the install bootstrap wrote no list of this commit's history; run node gate/install.mjs from a clean checkout."),
-  configLink: () => refuse('config-link', 'the user configuration file, or the pact folder that holds it, is a link or other reparse point.'),
+  configLink: () => refuse('config-link', 'the user configuration file, or the .pact folder that holds it, is a link or other reparse point.'),
+  configChanged: () => refuse('config-changed', 'the user configuration changed while the install ran; run the install again.'),
+  homeWorkTree: () => refuse('home-work-tree', '--home is inside a git work tree; give a folder outside any repository.'),
+  harnessKnownMissing: () => refuse('harness-known', 'the commit holds no harnesses/known.json.'),
   blocksLink: () => refuse('blocks-link', 'the configuration blocks folder is a link or other reparse point.'),
   blocksUnreadable: () => refuse('blocks-unreadable', 'the configuration blocks folder could not be read.'),
   blocksHoldLink: () => refuse('blocks-hold-link', 'the configuration blocks folder holds a link or other reparse point.'),
@@ -1890,40 +2099,42 @@ export const stops = Object.freeze({
 
 // ------------------------------------------------------------ the backup (#272, S7 to S9)
 
-export const BACKUPS_REL = 'pact/backups';
-export const BACKUP_FORMAT = 'pact-backup-1';
+export const BACKUPS_REL = '.pact/backups';
+export const BACKUP_FORMAT = 'pact-backup-2';
 /** A backup's folder name: the UTC time to the millisecond, the commit's short id, and a free suffix when that is taken. */
 export const BACKUP_NAME_RE = /^\d{8}T\d{9}Z-[0-9a-f]{7}(-(0[2-9]|[1-9][0-9]))?$/;
 export const backupName = (date, commit) => `${date.toISOString().replace(/[-:.]/g, '')}-${commit.slice(0, 7)}`;
 /** What a run that ends between BACKUP STARTED and CHECKS DONE says, other than by the backup's own refusal. */
-export const STAGING_LEFT = 'pact/backups may hold a staging folder with a copy of your settings: check it and delete it; the next dry run names it.';
+export const STAGING_LEFT = '.pact/backups may hold a staging folder with a copy of your settings: check it and delete it; the next dry run names it.';
 export const backupKept = name => `The files it replaced are in ${BACKUPS_REL}/${name}; see Undo an apply in docs/install.md.`;
 
 const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 
 /**
- * The backup's entries, sorted by path (S7): each path the apply overwrites or
- * deletes, with the hash the plan read (`live(rel)`, memoised for the run);
- * each path it adds, as absent; settings.json when the apply writes it
- * (`settings`: the hash of the bytes the merge read, or null when it creates
- * the file); the record (`record`: its hash, or null when there is none).
+ * The backup's entries, sorted by path (S7), each naming its harness: each
+ * path the apply overwrites or deletes, with the hash the plan read
+ * (`live(rel)`, memoised for the run); each path it adds, as absent; each
+ * settings file the apply writes (`settings`: its path, harness and the hash of
+ * the bytes the merge read, or null when it creates the file); the record
+ * (`record`: its hash, or null when there is none).
  */
-export function backupEntries({ copy, add, live, settings, record }) {
+export function backupEntries({ copy, add, live, settings = [], record, harnessOf = () => PACT_ID }) {
   const out = [];
   for (const rel of copy) {
     const s = live(rel);
     if (!s || !s.file || !s.sha256) refuse('backup-source', `${formatPlain(rel)} is not a plain file, so the backup cannot copy it.`);
-    out.push({ path: rel, was: 'file', sha256: s.sha256 });
+    out.push({ path: rel, harness: harnessOf(rel), was: 'file', sha256: s.sha256 });
   }
-  for (const rel of add) out.push({ path: rel, was: 'absent' });
-  if (settings !== undefined) out.push(settings === null ? { path: 'settings.json', was: 'absent' } : { path: 'settings.json', was: 'file', sha256: settings });
-  out.push(record === null ? { path: '.pact-install.json', was: 'absent' } : { path: '.pact-install.json', was: 'file', sha256: record });
+  for (const rel of add) out.push({ path: rel, harness: harnessOf(rel), was: 'absent' });
+  const one = (path, harness, sha) => (sha === null ? { path, harness, was: 'absent' } : { path, harness, was: 'file', sha256: sha });
+  for (const f of settings) out.push(one(f.path, f.harness, f.sha256));
+  out.push(one(RECORD_REL, PACT_ID, record));
   return out.sort(byPath);
 }
 
 /** The manifest, written last into a backup: two-space JSON, keys in a fixed order, entries sorted by path. */
 export function manifestText({ commit, created, entries }) {
-  const listed = [...entries].sort(byPath).map(e => (e.was === 'file' ? { path: e.path, was: 'file', sha256: e.sha256, bytes: e.bytes } : { path: e.path, was: 'absent' }));
+  const listed = [...entries].sort(byPath).map(e => (e.was === 'file' ? { path: e.path, harness: e.harness, was: 'file', sha256: e.sha256, bytes: e.bytes } : { path: e.path, harness: e.harness, was: 'absent' }));
   return `${JSON.stringify({ format: BACKUP_FORMAT, commit, created, entries: listed }, null, 2)}\n`;
 }
 
@@ -1950,7 +2161,7 @@ export function readManifest(name, text) {
     return null;
   }
   if (!m || typeof m !== 'object' || m.format !== BACKUP_FORMAT || !Array.isArray(m.entries)) return null;
-  return { name, noRecord: m.entries.some(e => e && e.path === '.pact-install.json' && e.was === 'absent') };
+  return { name, noRecord: m.entries.some(e => e && e.path === RECORD_REL && e.was === 'absent') };
 }
 
 /**
@@ -1983,8 +2194,8 @@ export const backupStops = Object.freeze({
   stagingLeft: n => refuse('backup-staging-left', `${BACKUPS_REL} holds ${n} staging folder(s) an earlier apply left; each may hold a copy of your settings. Check and delete them, then run the install again.`),
   nameTaken: () => refuse('backup-name-taken', `no free backup name is left in ${BACKUPS_REL} for this millisecond, or the name was taken while the install ran; run the install again.`),
   changed: rel => refuse('backup-changed', `${formatPlain(rel)} changed while the install ran; run the install again.`),
-  mode: () => refuse('backup-mode', 'a backup file or folder can be read by other accounts on this machine; check the umask and the file system the Claude home folder sits on, then run the install again.'),
-  failed: () => refuse('backup-failed', 'the backup of the files this install replaces could not be written in full; check free space and that you can write to pact/backups, then run the install again.'),
+  mode: () => refuse('backup-mode', 'a backup file or folder can be read by other accounts on this machine; check the umask and the file system the home folder sits on, then run the install again.'),
+  failed: () => refuse('backup-failed', 'the backup of the files this install replaces could not be written in full; check free space and that you can write to .pact/backups, then run the install again.'),
   cleanup: stagingRel => refuse('backup-cleanup', 'the backup failed, and what it wrote could not be removed.', `${stagingRel} may hold a copy of your settings: check it and delete it, then run the install again.`),
 });
 

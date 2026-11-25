@@ -31,14 +31,14 @@ const json = v => JSON.stringify(v);
 
 // ------------------------------------------------------------ the command line (S4, A3 to A6)
 
-const winArgs = () => ({ in: json(['--claude-home', 'C:\\Users\\user\\.claude', '--apply', '--commit', ID('a'), '--rendered-hash', H('b'), '--review-folder', 'D:\\review out']) });
+const winArgs = () => ({ in: json(['--home', 'C:\\Users\\user\\.claude', '--apply', '--commit', ID('a'), '--rendered-hash', H('b'), '--review-folder', 'D:\\review out']) });
 {
   const base = winArgs;
   const run = t => decided(() => core.parseArgs(JSON.parse(t.in), 'win32'));
   const rows = [
     { id: 'unknown-word', plant: rep('"--apply"', '"--aply"'), fails: ['args-unread'], says: /holds 1 word the script does not read \(--aply\)/, why: 'a misspelled option is never dropped' },
     { id: 'repeated-option', plant: t => ({ in: json([...JSON.parse(t.in), '--apply']) }), fails: ['args-unread'], why: 'an option given twice' },
-    { id: 'repeated-valued-option', plant: t => ({ in: json([...JSON.parse(t.in), '--claude-home', 'C:\\other']) }), fails: ['args-unread'], says: /2 words/, why: 'a second value can never replace the first' },
+    { id: 'repeated-valued-option', plant: t => ({ in: json([...JSON.parse(t.in), '--home', 'C:\\other']) }), fails: ['args-unread'], says: /2 words/, why: 'a second value can never replace the first' },
     { id: 'equals-form', plant: rep('"--commit","', '"--commit=x","'), fails: ['args-unread'], why: 'the --name=value form is not read' },
     { id: 'prefix-match', plant: rep('"--apply"', '"--app"'), fails: ['args-unread'], why: 'no prefix matching' },
     { id: 'single-dash', plant: rep('"--apply"', '"-a"'), fails: ['args-unread'], why: 'no PowerShell-style short name' },
@@ -74,7 +74,7 @@ const winArgs = () => ({ in: json(['--claude-home', 'C:\\Users\\user\\.claude', 
   test('command line on windows: base passes after the rows', async t => assertPasses(await run(base(), t)));
 }
 
-const unixArgs = () => ({ in: json(['--claude-home', '/home/user/.claude', '--project-folder', '/work/my project']) });
+const unixArgs = () => ({ in: json(['--home', '/home/user/.claude', '--project-folder', '/work/my project']) });
 {
   const base = unixArgs;
   const run = t => decided(() => core.parseArgs(JSON.parse(t.in), 'linux'));
@@ -97,29 +97,29 @@ test('the command line: the base parses to its values, and an option given witho
   assert.equal(o.apply, true);
   assert.equal(o.commit, ID('a'));
   assert.equal(o.renderedHash, H('b'));
-  assert.deepEqual(o.paths, [['--claude-home', 'C:\\Users\\user\\.claude'], ['--review-folder', 'D:\\review out']]);
+  assert.deepEqual(o.paths, [['--home', 'C:\\Users\\user\\.claude'], ['--review-folder', 'D:\\review out']]);
   const dry = core.parseArgs(['--rendered-hash', ''], 'win32');
   assert.equal(dry.renderedHash, '', 'an empty hash is given, so it is compared');
   assert.equal(core.parseArgs([], 'linux').apply, false);
 });
 
 test('the command line: a refusal never shows a value, only cleaned option names', () => {
-  const r = decided(() => core.parseArgs(['--claude-home', 'C:\\secret-folder', '--x;y', 'C:\\secret-value'], 'win32'));
+  const r = decided(() => core.parseArgs(['--home', 'C:\\secret-folder', '--x;y', 'C:\\secret-value'], 'win32'));
   assert.equal(r.code, 1);
   assert.ok(!r.out.includes('secret'), r.out);
   assert.match(r.out, /\(--x\?y\)/);
 });
 
 test('the command line: a value typed after = in an option word is never shown, only the name before it', () => {
-  const r = decided(() => core.parseArgs(['--claude-home=C:\\SECRETMARK\\x'], 'win32'));
+  const r = decided(() => core.parseArgs(['--home=C:\\SECRETMARK\\x'], 'win32'));
   assert.deepEqual(r.fails, ['args-unread']);
   assert.ok(!r.out.includes('SECRETMARK'), r.out);
-  assert.match(r.out, /\(--claude-home\)/);
+  assert.match(r.out, /\(--home\)/);
 });
 
 test('the apply line quotes each path and carries --project-folder, the commit and the hash (S12)', () => {
-  const o = core.parseArgs(['--project-folder', 'C:\\work\\my project', '--claude-home', 'C:\\h'], 'win32');
-  assert.equal(core.applyLine(o.paths, ID('a'), H('b'), 'win32'), `$env:NODE_OPTIONS = $null; node gate/install.mjs --claude-home 'C:\\h' --project-folder 'C:\\work\\my project' --apply --commit ${ID('a')} --rendered-hash ${H('b')}`);
+  const o = core.parseArgs(['--project-folder', 'C:\\work\\my project', '--home', 'C:\\h'], 'win32');
+  assert.equal(core.applyLine(o.paths, ID('a'), H('b'), 'win32'), `$env:NODE_OPTIONS = $null; node gate/install.mjs --home 'C:\\h' --project-folder 'C:\\work\\my project' --apply --commit ${ID('a')} --rendered-hash ${H('b')}`);
   assert.equal(core.applyLine([], ID('a'), null, 'linux'), `env -u NODE_OPTIONS node gate/install.mjs --apply --commit ${ID('a')}`);
 });
 
@@ -172,8 +172,17 @@ const recordBase = () => ({ in: json({ commit: ID('a'), digest: null, config: []
     { id: 'no-commit', plant: rep(`"commit":"${ID('a')}",`, ''), fails: ['record-not-pact'], why: 'a record must name its commit' },
     { id: 'empty-commit', plant: rep(ID('a'), ''), fails: ['record-not-pact'], why: 'an empty commit is no commit' },
     { id: 'no-files', plant: t => ({ in: json({ ...JSON.parse(t.in), files: undefined }) }), fails: ['record-not-pact'], why: 'a record must list its files' },
-    { id: 'empty-files', plant: t => ({ in: json({ ...JSON.parse(t.in), files: [] }) }), fails: ['record-not-pact'], why: 'an empty list is falsy to PowerShell too' },
+    { id: 'files-not-a-list', plant: t => ({ in: json({ ...JSON.parse(t.in), files: {} }) }), fails: ['record-not-pact'], why: 'files must be a list, which may be empty' },
     { id: 'keys-differ-in-case', plant: rep('"digest"', '"Commit":"x","digest"'), fails: ['record-unreadable'], why: 'PowerShell refused keys that differ only in case' },
+    { id: 'harnesses-not-a-list', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: {} }) }), fails: ['record-not-pact'], why: "harnesses must be a list" },
+    { id: 'harness-named-pact', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'pact' }] }) }), fails: ['record-not-pact'], why: "the pact's own files are no harness" },
+    { id: 'harness-unknown-key', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', hooks: 'x' }] }) }), fails: ['record-not-pact'], why: "only the four targets" },
+    { id: 'target-not-text', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', rules: 5 }] }) }), fails: ['record-not-pact'], why: "a target is a path" },
+    { id: 'target-in-neutral-home', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', agents: '.pact/tools' }] }) }), fails: ['record-not-pact'], why: "a harness never holds the neutral home" },
+    { id: 'target-secret-store', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', agents: '.ssh' }] }) }), fails: ['record-not-pact'], why: "another program's keys" },
+    { id: 'target-not-canonical', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', agents: '.claude/../x' }] }) }), fails: ['record-not-pact'], why: "a plain path only" },
+    { id: 'rules-not-md', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', rules: '.config/shell/profile' }] }) }), fails: ['record-not-pact'], why: "a rules file is Markdown" },
+    { id: 'settings-not-json', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', settings: '.zshenv' }] }) }), fails: ['record-not-pact'], why: "a settings file is JSON" },
   ];
   test('install record: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`install record: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -183,18 +192,21 @@ const recordBase = () => ({ in: json({ commit: ID('a'), digest: null, config: []
 test('the install record: keys are read without regard to case, a BOM is dropped, and ill-typed configuration entries are ignored', () => {
   const r = core.parseRecord(`\ufeff${json({ COMMIT: ID('a'), Files: [{ Path: 'x', SHA256: 'AB' }, 'junk'], config: [{ kind: 'user', sha256: H('c') }, { kind: 'block', sha256: H('d') }, { kind: 5, sha256: H('e') }], digest: 'ABCDEF012345', gate: [{ path: 'gate/a.mjs', sha256: H('f') }] })}`);
   assert.equal(r.commit, ID('a'));
-  assert.deepEqual(r.files, [{ path: 'x', sha256: 'AB' }, { path: null, sha256: '' }]);
+  assert.deepEqual(r.files, [{ harness: null, path: 'x', sha256: 'AB' }, { harness: null, path: null, sha256: '' }]);
   assert.deepEqual([...r.config], [['user', H('c')]]);
   assert.equal(r.digest, null, 'a digest in capitals is not one');
   assert.deepEqual(r.gate, [['gate/a.mjs', H('f')]]);
   assert.equal(core.parseRecord(null), null);
+  assert.deepEqual(core.parseRecord(json({ commit: ID('a'), files: [] })).files, [], 'an install into no harness lists no file');
 });
 
 test('the record the install writes keeps today\'s shape and order', () => {
-  const text = core.recordText({ commit: ID('a'), digest: null, userHash: null, blockHashes: new Map(), repoFiles: new Map([['CLAUDE.md', H('b')]]), gateNow: new Map([['gate/x.mjs', H('c')]]) });
-  assert.deepEqual(JSON.parse(text), { commit: ID('a'), digest: null, config: [], files: [{ path: 'CLAUDE.md', sha256: H('b') }], gate: [{ path: 'gate/x.mjs', sha256: H('c') }] });
+  const claude = { id: 'claude', rules: '.claude/CLAUDE.md' };
+  const files = new Map([['.claude/CLAUDE.md', { harness: 'claude', sha256: H('b') }]]);
+  const text = core.recordText({ commit: ID('a'), digest: null, harnesses: [claude], userHash: null, blockHashes: new Map(), files, entries: [], gateNow: new Map([['gate/x.mjs', H('c')]]) });
+  assert.deepEqual(JSON.parse(text), { commit: ID('a'), digest: null, harnesses: [claude], config: [], files: [{ harness: 'claude', path: '.claude/CLAUDE.md', sha256: H('b') }], entries: [], gate: [{ path: 'gate/x.mjs', sha256: H('c') }] });
   assert.ok(text.endsWith('}\n'));
-  const back = core.parseRecord(core.recordText({ commit: ID('a'), digest: 'abcdef012345', userHash: H('1'), blockHashes: new Map([['a.md', H('2')]]), repoFiles: new Map([['x', H('3')]]), gateNow: new Map() }));
+  const back = core.parseRecord(core.recordText({ commit: ID('a'), digest: 'abcdef012345', harnesses: [], userHash: H('1'), blockHashes: new Map([['a.md', H('2')]]), files: new Map([['x', { harness: 'claude', sha256: H('3') }]]), entries: [], gateNow: new Map() }));
   assert.deepEqual([...back.config], [['user', H('1')], ['block a.md', H('2')]]);
   assert.equal(back.digest, 'abcdef012345');
 });
@@ -639,7 +651,7 @@ test('the project render with no user file: the digest is the project file\'s al
   assert.equal(p.user, null);
   const block = core.projectBlock({ kind: 'update', sha256: H('a') }, p);
   assert.ok(block.includes('  rules file .claude/rules/pact-project.md: unchanged'));
-  assert.ok(block.includes("  user configuration pact/config.json: none (the defaults bound the project's values)"));
+  assert.ok(block.includes("  user configuration .pact/config.json: none (the defaults bound the project's values)"));
   // A record names a file by its hash, which anyone can write: a hash that differs is never called the pact's.
   const other = core.projectBlock({ kind: 'update', sha256: H('b') }, p);
   assert.ok(other.includes(`  rules file .claude/rules/pact-project.md: would replace the existing file its record names (sha256 ${H('b')}); the record is a file in the project, not proof the pact wrote it`));
@@ -743,23 +755,27 @@ const agentRun = t => {
 // ------------------------------------------------------------ seam A's copy set and overlay (S-2, S-3)
 
 const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['claude/agents/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')], ['claude/review-diagrams.md', H('e')]]);
-const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} claude/agents/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, `INSTALL ${H('e')} claude/review-diagrams.md pact/review-diagrams.md`, 'RESULT: pass'].join('\n') });
+/** Claude Code's description, as far as the install core reads it (harnesses/known.json). */
+const CLAUDE = { id: 'claude', rules: { path: '.claude/CLAUDE.md' }, agents: { dir: '.claude/agents', format: 'claude-md' }, commands: { dir: '.claude/commands' }, hooks: { file: '.claude/settings.json', format: 'claude' } };
+/** The copy set with Claude Code the one harness in. */
+const copySet = (rels, commands = [], tools = []) => core.expectedCopySet(rels, commands, tools, false, [CLAUDE]);
+const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md @claude/rules`, `INSTALL ${H('2')} claude/agents/a.md @claude/agents/a.md`, `INSTALL ${H('3')} claude/agents/scout.md @claude/agents/scout.md`, `INSTALL ${H('d')} claude/review.md .pact/review.md`, `INSTALL ${H('e')} claude/review-diagrams.md .pact/review-diagrams.md`, 'RESULT: pass'].join('\n') });
 // #261 C3
 {
   const base = copyBase;
-  const run = t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(staged.keys()), staged, ID('a')));
+  const run = t => decided(() => core.matchCopySet(t.in.split('\n'), copySet(staged.keys()), staged, ID('a')));
   const rows = [
-    { id: 'listed-twice', plant: rep('RESULT', `INSTALL ${H('2')} claude/agents/a.md agents/a.md\nRESULT`), fails: ['copy-set-twice'], why: 'one file listed twice' },
-    { id: 'file-left-off', plant: rep(`INSTALL ${H('2')} claude/agents/a.md agents/a.md\n`, ''), fails: ['copy-set-mismatch'], why: 'a seam A that leaves a file off its list' },
+    { id: 'listed-twice', plant: rep('RESULT', `INSTALL ${H('2')} claude/agents/a.md @claude/agents/a.md\nRESULT`), fails: ['copy-set-twice'], why: 'one file listed twice' },
+    { id: 'file-left-off', plant: rep(`INSTALL ${H('2')} claude/agents/a.md @claude/agents/a.md\n`, ''), fails: ['copy-set-mismatch'], why: 'a seam A that leaves a file off its list' },
     { id: 'file-added', plant: rep('RESULT', `INSTALL ${H('7')} AGENTS.md AGENTS.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'a file that never installs' },
-    { id: 'other-destination', plant: rep('pact/review.md', 'agents/review.md'), fails: ['copy-set-mismatch'], why: 'the review file sent to another live path' },
+    { id: 'other-destination', plant: rep('.pact/review.md', 'agents/review.md'), fails: ['copy-set-mismatch'], why: 'the review file sent to another live path' },
     { id: 'other-hash', plant: rep(`INSTALL ${H('1')}`, `INSTALL ${H('0')}`), fails: ['copy-set-mismatch'], why: 'bytes other than the staged ones' },
-    { id: 'case-differs', plant: rep('claude/agents/a.md agents/a.md', 'claude/agents/A.md agents/a.md'), fails: ['copy-set-mismatch'], why: 'matched case-sensitively, as seam A matches' },
-    { id: 'gate-file', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/builder/gate/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'a gate file installs only as a builder kit entry (#203)' },
+    { id: 'case-differs', plant: rep('claude/agents/a.md @claude/agents/a.md', 'claude/agents/A.md @claude/agents/a.md'), fails: ['copy-set-mismatch'], why: 'matched case-sensitively, as seam A matches' },
+    { id: 'gate-file', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs .pact/builder/gate/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'a gate file installs only as a builder kit entry (#203)' },
     // #261 C3: both readings map the review file to one fixed live path; a seam A that sends it anywhere else disagrees.
-    { id: 'review-elsewhere', plant: rep('claude/review.md pact/review.md', 'claude/review.md review.md'), fails: ['copy-set-mismatch'], why: 'the review file at the top of the Claude folder, where the general rule would put it' },
-    { id: 'diagrams-elsewhere', plant: rep('claude/review-diagrams.md pact/review-diagrams.md', 'claude/review-diagrams.md review-diagrams.md'), fails: ['copy-set-mismatch'], why: 'the diagram format file at the top of the Claude folder, not beside review.md' },
-    { id: 'gate-file-elsewhere', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'nor anywhere else' },
+    { id: 'review-elsewhere', plant: rep('claude/review.md .pact/review.md', 'claude/review.md review.md'), fails: ['copy-set-mismatch'], why: 'the review file at the top of the home folder, where the general rule would put it' },
+    { id: 'diagrams-elsewhere', plant: rep('claude/review-diagrams.md .pact/review-diagrams.md', 'claude/review-diagrams.md review-diagrams.md'), fails: ['copy-set-mismatch'], why: 'the diagram format file at the top of the home folder, not beside review.md' },
+    { id: 'gate-file-elsewhere', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs .pact/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'nor anywhere else' },
   ];
   test('copy set: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`copy set: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -768,19 +784,19 @@ const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `
 
 // The copy set with pact commands (#203, S8): pairs, each side working out its own.
 const cmdStaged = new Map([...staged, ['claude/commands/finis.md', H('9')], ['claude/commands/make-it-so.md', H('b')]]);
-const cmdCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\nRESULT`), list: 'finis' });
+const cmdCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/commands/finis.md @claude/commands/finis.md\nRESULT`), list: 'finis' });
 {
   const base = cmdCopyBase;
   const run = t => {
     const st = t.extra ? new Map([...cmdStaged, [`claude/commands/${t.extra}.md`, H('c')]]) : cmdStaged;
-    return decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(st.keys(), t.list ? t.list.split(',') : []), st, ID('a')));
+    return decided(() => core.matchCopySet(t.in.split('\n'), copySet(st.keys(), t.list ? t.list.split(',') : []), st, ID('a')));
   };
   const rows = [
-    { id: 'listed-command-left-off', plant: rep(`INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a command the list names' },
-    { id: 'unlisted-command-added', plant: rep('RESULT', `INSTALL ${H('b')} claude/commands/make-it-so.md commands/make-it-so.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'the two sides read different lists' },
+    { id: 'listed-command-left-off', plant: rep(`INSTALL ${H('9')} claude/commands/finis.md @claude/commands/finis.md\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a command the list names' },
+    { id: 'unlisted-command-added', plant: rep('RESULT', `INSTALL ${H('b')} claude/commands/make-it-so.md @claude/commands/make-it-so.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'the two sides read different lists' },
     { id: 'install-side-list-differs', plant: t => ({ ...t, list: 'finis,make-it-so' }), fails: ['copy-set-mismatch'], why: 'the install side names a command seam A did not list' },
-    { id: 'extra-pair', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/extra.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'one source to a second live path no rule gives' },
-    { id: 'pair-twice', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\nRESULT`), fails: ['copy-set-twice'], why: 'a pair listed twice' },
+    { id: 'extra-pair', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md @claude/commands/extra.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'one source to a second live path no rule gives' },
+    { id: 'pair-twice', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md @claude/commands/finis.md\nRESULT`), fails: ['copy-set-twice'], why: 'a pair listed twice' },
     { id: 'unknown-file-as-null', plant: t => ({ ...t, in: t.in.replace('RESULT', `INSTALL ${H('c')} claude/commands/ship-it.md null\nRESULT`), extra: 'ship-it' }), fails: ['copy-set-mismatch'], why: 'a file of no known kind never matches, even a line naming null' },
     { id: 'other-command-path', plant: rep('commands/finis.md\n', 'agents/finis.md\n'), fails: ['copy-set-mismatch'], why: 'a command goes to commands/<name>.md' },
   ];
@@ -791,15 +807,15 @@ const cmdCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9
 
 // The copy set with pact tools (#280 C2): a tool pairs to its own live path only when on.
 const toolStaged = new Map([...staged, ['claude/tools/poster.mjs', H('9')]]);
-const toolCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/tools/poster.mjs pact/tools/poster.mjs\nRESULT`), list: 'poster' });
+const toolCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/tools/poster.mjs .pact/tools/poster.mjs\nRESULT`), list: 'poster' });
 // #280 C2
 {
   const base = toolCopyBase;
-  const run = t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(toolStaged.keys(), [], t.list ? t.list.split(',') : []), toolStaged, ID('a')));
+  const run = t => decided(() => core.matchCopySet(t.in.split('\n'), copySet(toolStaged.keys(), [], t.list ? t.list.split(',') : []), toolStaged, ID('a')));
   const rows = [
-    { id: 'listed-tool-left-off', plant: rep(`INSTALL ${H('9')} claude/tools/poster.mjs pact/tools/poster.mjs\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a tool the list names' },
+    { id: 'listed-tool-left-off', plant: rep(`INSTALL ${H('9')} claude/tools/poster.mjs .pact/tools/poster.mjs\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a tool the list names' },
     { id: 'tool-off-but-listed', plant: t => ({ ...t, list: '' }), fails: ['copy-set-mismatch'], why: 'off, a tool never installs' },
-    { id: 'tool-at-home-root', plant: rep('pact/tools/poster.mjs', 'tools/poster.mjs'), fails: ['copy-set-mismatch'], why: "the general claude/ rule's path is not the tool's" },
+    { id: 'tool-at-home-root', plant: rep('.pact/tools/poster.mjs', 'tools/poster.mjs'), fails: ['copy-set-mismatch'], why: "the general claude/ rule's path is not the tool's" },
   ];
   test('copy set with tools: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`copy set with tools: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -807,33 +823,33 @@ const toolCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('
 }
 
 // #280 C2
-test('the copy set with tools: a listed tool pairs to pact/tools/, an unlisted one is left out, an unknown one or a subfolder pairs with null', () => {
+test('the copy set with tools: a listed tool pairs to .pact/tools/, an unlisted one is left out, an unknown one or a subfolder pairs with null', () => {
   const rels = ['claude/CLAUDE.md', 'claude/tools/poster.mjs', 'claude/tools/sender.mjs', 'claude/tools/sub/poster.mjs'];
-  assert.deepEqual(core.expectedCopySet(rels, [], ['poster']), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/tools/poster.mjs', 'pact/tools/poster.mjs'], ['claude/tools/sender.mjs', null], ['claude/tools/sub/poster.mjs', null]]);
-  assert.deepEqual(core.expectedCopySet(['claude/tools/poster.mjs']), [], 'no list installs no tool');
+  assert.deepEqual(copySet(rels, [], ['poster']), [['claude/CLAUDE.md', '@claude/rules'], ['claude/tools/poster.mjs', '.pact/tools/poster.mjs'], ['claude/tools/sender.mjs', null], ['claude/tools/sub/poster.mjs', null]]);
+  assert.deepEqual(copySet(['claude/tools/poster.mjs']), [], 'no list installs no tool');
 });
 
 test('the copy set with commands: a listed command pairs, an unlisted pact command is left out, an unknown one pairs with null', () => {
-  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/commands/finis.md', 'claude/commands/make-it-so.md', 'claude/commands/ship-it.md', 'claude/commands/sub/finis.md', 'gate/a.mjs'], ['finis']);
-  assert.deepEqual(e, [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/commands/finis.md', 'commands/finis.md'], ['claude/commands/ship-it.md', null], ['claude/commands/sub/finis.md', null]]);
-  assert.deepEqual(core.expectedCopySet(['claude/commands/finis.md']), [], 'no list installs no command');
+  const e = copySet(['claude/CLAUDE.md', 'claude/commands/finis.md', 'claude/commands/make-it-so.md', 'claude/commands/ship-it.md', 'claude/commands/sub/finis.md', 'gate/a.mjs'], ['finis']);
+  assert.deepEqual(e, [['claude/CLAUDE.md', '@claude/rules'], ['claude/commands/finis.md', '@claude/commands/finis.md'], ['claude/commands/ship-it.md', null], ['claude/commands/sub/finis.md', null]]);
+  assert.deepEqual(copySet(['claude/commands/finis.md']), [], 'no list installs no command');
 });
 
-// #203 S6, S8; #262: the builder kit pairs under pact/builder/ only with /scriptorium on; the rules source goes only there, and a builder file the kit doesn't list pairs with null.
-test('the copy set with the builder kit: each kit file pairs under pact/builder/ only with scriptorium on, the rules source only there, an unlisted builder file with null', () => {
+// #203 S6, S8; #262: the builder kit pairs under .pact/builder/ only with /scriptorium on; the rules source goes only there, and a builder file the kit doesn't list pairs with null.
+test('the copy set with the builder kit: each kit file pairs under .pact/builder/ only with scriptorium on, the rules source only there, an unlisted builder file with null', () => {
   const rels = ['claude/CLAUDE.md', 'claude/rules.source.md', 'claude/agents/a.md', 'builder/build.mjs', 'builder/presets/p.json', 'builder/notes.txt', 'gate/shared.mjs', 'gate/seam-a.mjs', 'examples/pact-config/builder.json', 'claude/commands/scriptorium.md'];
-  assert.deepEqual(core.expectedCopySet(rels, ['scriptorium']), [
-    ['claude/CLAUDE.md', 'CLAUDE.md'],
-    ['claude/rules.source.md', 'pact/builder/claude/rules.source.md'],
-    ['claude/agents/a.md', 'pact/builder/claude/agents/a.md'], ['claude/agents/a.md', 'agents/a.md'],
-    ['builder/build.mjs', 'pact/builder/builder/build.mjs'],
-    ['builder/presets/p.json', 'pact/builder/builder/presets/p.json'],
+  assert.deepEqual(copySet(rels, ['scriptorium']), [
+    ['claude/CLAUDE.md', '@claude/rules'],
+    ['claude/rules.source.md', '.pact/builder/claude/rules.source.md'],
+    ['claude/agents/a.md', '.pact/builder/claude/agents/a.md'], ['claude/agents/a.md', '@claude/agents/a.md'],
+    ['builder/build.mjs', '.pact/builder/builder/build.mjs'],
+    ['builder/presets/p.json', '.pact/builder/builder/presets/p.json'],
     ['builder/notes.txt', null],
-    ['gate/shared.mjs', 'pact/builder/gate/shared.mjs'],
-    ['examples/pact-config/builder.json', 'pact/builder/examples/pact-config/builder.json'],
-    ['claude/commands/scriptorium.md', 'pact/builder/claude/commands/scriptorium.md'], ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
+    ['gate/shared.mjs', '.pact/builder/gate/shared.mjs'],
+    ['examples/pact-config/builder.json', '.pact/builder/examples/pact-config/builder.json'],
+    ['claude/commands/scriptorium.md', '.pact/builder/claude/commands/scriptorium.md'], ['claude/commands/scriptorium.md', '@claude/commands/scriptorium.md'],
   ]);
-  assert.deepEqual(core.expectedCopySet(rels, []), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/agents/a.md', 'agents/a.md'], ['builder/notes.txt', null]], 'no kit without /scriptorium');
+  assert.deepEqual(copySet(rels, []), [['claude/CLAUDE.md', '@claude/rules'], ['claude/agents/a.md', '@claude/agents/a.md'], ['builder/notes.txt', null]], 'no kit without /scriptorium');
 });
 
 // #203 S6: with /scriptorium on, the kit is whole or the install refuses.
@@ -853,8 +869,8 @@ test('the commands on: the listed ones, and scriptorium whenever the commit hold
 
 // #261 C3
 test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes to its fixed path', () => {
-  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/review-diagrams.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['claude/review-diagrams.md', 'pact/review-diagrams.md'], ['familiars/x.md', null]]);
+  const e = copySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/review-diagrams.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', '@claude/rules'], ['claude/review.md', '.pact/review.md'], ['claude/review-diagrams.md', '.pact/review-diagrams.md'], ['familiars/x.md', null]]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
@@ -880,16 +896,16 @@ const overlayBase = () => ({ in: [`SETTINGS ${sha256(OVERLAY)} claude/settings.o
 
 const noLink = () => false;
 {
-  const base = () => ({ in: json([['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/agents/a.md', 'agents/a.md']]), link: '' });
+  const base = () => ({ in: json([['claude/CLAUDE.md', '.claude/CLAUDE.md'], ['claude/agents/a.md', '.claude/agents/a.md']]), link: '' });
   const run = t => decided(() => core.installDestinations(new Map(JSON.parse(t.in).map(([rel, dest]) => [rel, { dest, sha256: H('1') }])), rel => rel === t.link));
   const rows = [
-    { id: 'unsafe', plant: rep('"agents/a.md"', '"../a.md"'), fails: ['dest-skip'], why: 'a destination outside the home folder' },
-    { id: 'rooted', plant: rep('"agents/a.md"', '"/etc/a.md"'), fails: ['dest-skip'], why: 'a rooted destination' },
-    { id: 'protected', plant: rep('"agents/a.md"', '"settings.json"'), fails: ['dest-skip'], why: "the owner's settings" },
-    { id: 'protected-alias', plant: rep('"agents/a.md"', '"Settings.json. "'), fails: ['dest-skip'], why: 'Windows drops trailing dots and spaces' },
-    { id: 'non-canonical', plant: rep('"agents/a.md"', '"agents/a.md."'), fails: ['dest-skip'], why: 'a name that is not plain' },
-    { id: 'through-link', plant: set('agents/a.md', 'link'), fails: ['dest-skip'], why: 'a live agents folder that is a link' },
-    { id: 'two-sources', plant: rep('"agents/a.md"', '"claude.md"'), fails: ['dest-twice'], why: 'two sources for one live path, folded' },
+    { id: 'unsafe', plant: rep('".claude/agents/a.md"', '"../a.md"'), fails: ['dest-skip'], why: 'a destination outside the home folder' },
+    { id: 'rooted', plant: rep('".claude/agents/a.md"', '"/etc/a.md"'), fails: ['dest-skip'], why: 'a rooted destination' },
+    { id: 'protected', plant: rep('".claude/agents/a.md"', '".claude/settings.json"'), fails: ['dest-skip'], why: "the owner's settings" },
+    { id: 'protected-alias', plant: rep('".claude/agents/a.md"', '".claude/Settings.json. "'), fails: ['dest-skip'], why: 'Windows drops trailing dots and spaces' },
+    { id: 'non-canonical', plant: rep('".claude/agents/a.md"', '".claude/agents/a.md."'), fails: ['dest-skip'], why: 'a name that is not plain' },
+    { id: 'through-link', plant: set('.claude/agents/a.md', 'link'), fails: ['dest-skip'], why: 'a live agents folder that is a link' },
+    { id: 'two-sources', plant: rep('".claude/agents/a.md"', '".claude/claude.md"'), fails: ['dest-twice'], why: 'two sources for one live path, folded' },
   ];
   test('install destinations: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`install destinations: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -899,78 +915,95 @@ const noLink = () => false;
 // dest-skip: the reasons behind the rule id the table above checks.
 test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
   for (const p of ['', '../x', 'a/../b', '/x', '\\x', 'C:x', null, 5]) assert.equal(core.skipReason(p, noLink), 'unsafe path', String(p));
-  for (const p of ['settings.json', 'SETTINGS.JSON', '.pact-install.json', 'pact/config.json', 'pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', 'pact/blocks/b.md', 'pact/presets', 'pact/presets/personal.json', 'Pact/Presets/p.json. ', 'pact/builder.json', 'Pact/Builder.json. ']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
-  for (const p of ['agents/a b.md', 'agents/.x', 'agents/a.', 'a\\b']) assert.equal(core.skipReason(p, noLink), 'non-canonical path', p);
-  assert.equal(core.skipReason('agents/a.md', () => true), 'path through a link');
-  assert.equal(core.skipReason('agents/a.md', noLink), null);
+  for (const p of ['.claude/settings.json', '.claude/SETTINGS.JSON', '.pact/install.json', '.pact/config.json', '.pact/config.json:stream', 'x/.credentials.json', '.claude/projects/a', '.claude/memory', '.claude/skills/x/y', '.claude/handover/z', '.pact/blocks/b.md', '.pact/presets', '.pact/presets/personal.json', '.Pact/Presets/p.json. ', '.pact/builder.json', '.Pact/Builder.json. ', '.claude.json', '.codex/hooks.json', '.gemini/config/hooks.json', '.pact/github.json', '.pact/linear.json', '.pact/gh-app-claude.gitconfig', '.pact/handoffs/a.md', '.pact/source/x/y.mjs', '.ssh/id', '.SSH/authorized_keys', '.aws/credentials', '.gnupg/x', '.config/gh/hosts.yml', '.codex/auth.json', '.gemini/oauth_creds.json', '.gemini/google_accounts.json', '.git-credentials', '.gitconfig', '.netrc']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+  // An own harness's hooks file is merged into, never copied over.
+  assert.equal(core.skipReason('.mine/hooks.json', noLink, ['.mine/hooks.json']), 'protected path');
+  // A name may start with a dot at any depth, as a harness's folders do.
+  assert.equal(core.skipReason('.claude/agents/.x', noLink), null);
+  for (const p of ['.claude/agents/a b.md', '.claude/agents/..x', '.claude/agents/a.', 'a\\b']) assert.equal(core.skipReason(p, noLink), 'non-canonical path', p);
+  assert.equal(core.skipReason('.claude/agents/a.md', () => true), 'path through a link');
+  assert.equal(core.skipReason('.claude/agents/a.md', noLink), null);
 });
 
-test('#272 C8: no install record can make the install write or delete a path under pact/backups', () => {
-  for (const p of ['pact/backups', 'pact/backups/20261018T143005123Z-addaa8a/settings.json', 'Pact/Backups/x. ', 'pact/backups:stream']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+test('#272 C8: no install record can make the install write or delete a path under .pact/backups', () => {
+  for (const p of ['.pact/backups', '.pact/backups/20261018T143005123Z-addaa8a/.claude/settings.json', '.Pact/Backups/x. ', '.pact/backups:stream']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
   const live = () => ({ exists: true, file: true, sha256: H('1') });
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'pact/backups/b/CLAUDE.md', sha256: H('1') }] }));
+  const record = core.parseRecord(json({ commit: 'x', files: [{ harness: 'pact', path: '.pact/backups/b/CLAUDE.md', sha256: H('1') }] }));
   const p = core.plan(record, new Map(), live, noLink);
   assert.deepEqual(p.delete, []);
-  assert.deepEqual(p.warnings, ['protected path in the install record, skipped: pact/backups/b/CLAUDE.md']);
+  assert.deepEqual(p.warnings, ['protected path in the install record, skipped: .pact/backups/b/CLAUDE.md']);
   // backup-source: a path the backup must copy that is no longer a plain file refuses before anything is made.
-  assert.throws(() => core.backupEntries({ copy: ['CLAUDE.md'], add: [], live: () => ({ exists: true, file: false, sha256: null }), record: null }), e => e instanceof core.Refusal && e.rule === 'backup-source');
+  assert.throws(() => core.backupEntries({ copy: ['.claude/CLAUDE.md'], add: [], live: () => ({ exists: true, file: false, sha256: null }), record: null }), e => e instanceof core.Refusal && e.rule === 'backup-source');
+});
+
+/** Where the record's harness may write, and a record entry under the harness its path belongs to. */
+const TARGETS = [core.targetsOf(CLAUDE)];
+const kept = (path, sha256) => ({ harness: path.startsWith('.pact/') ? 'pact' : 'claude', path, sha256 });
+
+// Spec 0007 S9: a record entry reaches only the folders of its own harness.
+test('bad case: a record entry outside its harness\'s folders is warned and never deleted', () => {
+  const outside = [['claude', '.bashrc'], ['pact', '.claude/CLAUDE.md'], ['claude', '.claude/agents/sub/x.md'], ['claude', '.claude/notes/x.md'], ['mine', '.claude/agents/x.md']];
+  const record = core.parseRecord(json({ commit: 'x', files: outside.map(([harness, path]) => ({ harness, path, sha256: H('1') })) }));
+  const p = core.plan(record, new Map(), () => ({ exists: true, file: true, sha256: H('1') }), noLink, TARGETS);
+  assert.deepEqual(p.delete, []);
+  assert.deepEqual(p.warnings, outside.map(([, path]) => `path outside its harness's folders in the install record, skipped: ${path}`));
 });
 
 // #262: an agent file changed since the install, or one the record never listed, is the person's: in yours, never drift, overwrite or delete.
 test('the plan: drift, overwrite, add, delete, yours and unchanged; a record hash in capitals is not drift; a first install deletes only the retired agents', () => {
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('9')], ['agents/a.md', H('9')], ['agents/old.md', H('3')], ['agents/edited-old.md', H('6')], ['agents/builder.md', H('4')], ['agents/mine.md', H('5')]]);
+  const liveFiles = new Map([['.claude/CLAUDE.md', H('1')], ['.pact/review.md', H('9')], ['.claude/agents/a.md', H('9')], ['.claude/agents/old.md', H('3')], ['.claude/agents/edited-old.md', H('6')], ['.claude/agents/builder.md', H('4')], ['.claude/agents/mine.md', H('5')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: liveFiles.get(rel) !== null, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const repoFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('2')], ['agents/a.md', H('2')], ['agents/new.md', H('5')], ['agents/mine.md', H('4')], ['agents/missing.md', H('7')]]);
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1').toUpperCase() }, { path: 'pact/review.md', sha256: H('8') }, { path: 'commands/finis.md', sha256: H('7') }, { path: 'agents/old.md', sha256: H('3') }, { path: 'agents/edited-old.md', sha256: H('3') }, { path: 'agents/a.md', sha256: H('8') }, { path: 'settings.json', sha256: H('0') }, { path: 'agents/missing.md', sha256: H('7') }] }));
-  const p = core.plan(record, repoFiles, live, noLink);
-  assert.deepEqual(p.drift, ['pact/review.md (changed since the install)', 'commands/finis.md (deleted since the install)']);
-  assert.deepEqual(p.yours, ['agents/edited-old.md', 'agents/a.md', 'agents/mine.md']);
-  assert.deepEqual(p.overwrite, ['pact/review.md']);
-  assert.deepEqual(p.add, ['agents/new.md', 'agents/missing.md']);
-  assert.deepEqual(p.delete, ['agents/old.md']);
-  assert.deepEqual(p.warnings, ['protected path in the install record, skipped: settings.json']);
+  const repoFiles = new Map([['.claude/CLAUDE.md', H('1')], ['.pact/review.md', H('2')], ['.claude/agents/a.md', H('2')], ['.claude/agents/new.md', H('5')], ['.claude/agents/mine.md', H('4')], ['.claude/agents/missing.md', H('7')]]);
+  const record = core.parseRecord(json({ commit: 'x', files: [kept('.claude/CLAUDE.md', H('1').toUpperCase()), kept('.pact/review.md', H('8')), kept('.claude/commands/finis.md', H('7')), kept('.claude/agents/old.md', H('3')), kept('.claude/agents/edited-old.md', H('3')), kept('.claude/agents/a.md', H('8')), kept('.claude/settings.json', H('0')), kept('.claude/agents/missing.md', H('7'))] }));
+  const p = core.plan(record, repoFiles, live, noLink, TARGETS);
+  assert.deepEqual(p.drift, ['.pact/review.md (changed since the install)', '.claude/commands/finis.md (deleted since the install)']);
+  assert.deepEqual(p.yours, ['.claude/agents/edited-old.md', '.claude/agents/a.md', '.claude/agents/mine.md']);
+  assert.deepEqual(p.overwrite, ['.pact/review.md']);
+  assert.deepEqual(p.add, ['.claude/agents/new.md', '.claude/agents/missing.md']);
+  assert.deepEqual(p.delete, ['.claude/agents/old.md']);
+  assert.deepEqual(p.warnings, ['protected path in the install record, skipped: .claude/settings.json']);
   assert.equal(p.same, 1);
-  assert.deepEqual(core.plan(null, repoFiles, live, noLink).delete, ['agents/builder.md']);
+  assert.deepEqual(core.plan(null, repoFiles, live, noLink, TARGETS).delete, ['.claude/agents/builder.md']);
 });
 
 // #262 C25, from CodeRabbit's review: a recorded agent path that is now a folder is drift, never the person's file.
 test('the plan: a recorded agent path that is no longer a file is drift, not yours', () => {
-  const live = rel => (rel === 'agents/a.md' ? { exists: true, file: false, sha256: null } : { exists: false, file: false, sha256: null });
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'agents/a.md', sha256: H('2') }] }));
-  const p = core.plan(record, new Map([['agents/a.md', H('2')]]), live, noLink);
+  const live = rel => (rel === '.claude/agents/a.md' ? { exists: true, file: false, sha256: null } : { exists: false, file: false, sha256: null });
+  const record = core.parseRecord(json({ commit: 'x', files: [kept('.claude/agents/a.md', H('2'))] }));
+  const p = core.plan(record, new Map([['.claude/agents/a.md', H('2')]]), live, noLink, TARGETS);
   assert.deepEqual(p.yours, []);
-  assert.deepEqual(p.drift, ['agents/a.md (deleted since the install)']);
+  assert.deepEqual(p.drift, ['.claude/agents/a.md (deleted since the install)']);
 });
 
 test('the plan: a record holding command and kit entries, under a payload without them, deletes them (#203, the rollback row)', () => {
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')], ['pact/builder/builder/build.mjs', H('3')], ['commands/mine.md', H('4')]]);
+  const liveFiles = new Map([['.claude/CLAUDE.md', H('1')], ['.claude/commands/finis.md', H('2')], ['.pact/builder/builder/build.mjs', H('3')], ['.claude/commands/mine.md', H('4')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: true, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'commands/finis.md', sha256: H('2') }, { path: 'pact/builder/builder/build.mjs', sha256: H('3') }] }));
-  const p = core.plan(record, new Map([['CLAUDE.md', H('1')]]), live, noLink);
-  assert.deepEqual(p.delete, ['commands/finis.md', 'pact/builder/builder/build.mjs']);
+  const record = core.parseRecord(json({ commit: 'x', files: [kept('.claude/CLAUDE.md', H('1')), kept('.claude/commands/finis.md', H('2')), kept('.pact/builder/builder/build.mjs', H('3'))] }));
+  const p = core.plan(record, new Map([['.claude/CLAUDE.md', H('1')]]), live, noLink, TARGETS);
+  assert.deepEqual(p.delete, ['.claude/commands/finis.md', '.pact/builder/builder/build.mjs']);
   assert.deepEqual(p.drift, []);
-  assert.ok(!p.delete.includes('commands/mine.md'), "the owner's own command is never deleted");
+  assert.ok(!p.delete.includes('.claude/commands/mine.md'), "the owner's own command is never deleted");
 });
 
 // #264 done-criterion: an install over the current pact deletes the live cross script, which the payload no longer holds.
 test('the plan: a record listing the retired cross script, under a payload without it, deletes it', () => {
-  // A file at the home folder's root goes the same way, as the retired tracker file's copy does.
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/cross.mjs', H('2')], ['tracker.md', H('3')]]);
+  // A file at the neutral home's root goes the same way, as a retired tracker file's copy would.
+  const liveFiles = new Map([['.claude/CLAUDE.md', H('1')], ['.pact/cross.mjs', H('2')], ['.pact/tracker.md', H('3')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: true, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'pact/cross.mjs', sha256: H('2') }, { path: 'tracker.md', sha256: H('3') }] }));
-  const p = core.plan(record, new Map([['CLAUDE.md', H('1')]]), live, noLink);
-  assert.deepEqual(p.delete, ['pact/cross.mjs', 'tracker.md']);
+  const record = core.parseRecord(json({ commit: 'x', files: [kept('.claude/CLAUDE.md', H('1')), kept('.pact/cross.mjs', H('2')), kept('.pact/tracker.md', H('3'))] }));
+  const p = core.plan(record, new Map([['.claude/CLAUDE.md', H('1')]]), live, noLink, TARGETS);
+  assert.deepEqual(p.delete, ['.pact/cross.mjs', '.pact/tracker.md']);
   assert.deepEqual(p.drift, []);
 });
 
 // ------------------------------------------------------------ pact commands against the live home folder (#203, S8)
 
 {
-  const base = () => ({ in: json(['make-it-so', 'finis']), present: json(['skills/other', 'skills/finis-old', 'commands/finis.md']) });
+  const base = () => ({ in: json(['make-it-so', 'finis']), present: json(['.claude/skills/other', '.claude/skills/finis-old', '.claude/commands/finis.md']) });
   const run = t => decided(() => core.checkSkillClash(JSON.parse(t.in), rel => JSON.parse(t.present).includes(rel)));
   const rows = [
-    { id: 'same-named-skill', plant: t => ({ ...t, present: json(['skills/finis']) }), fails: ['command-skill-clash'], says: /^REFUSED: skills\/finis exists in the Claude home folder, and Claude Code would run that skill in place of the pact command \/finis\./, why: 'a skill of the same name runs in place of the command' },
-    { id: 'first-name-clashes', plant: t => ({ ...t, present: json(['skills/make-it-so']) }), fails: ['command-skill-clash'], why: 'each listed name is checked' },
+    { id: 'same-named-skill', plant: t => ({ ...t, present: json(['.claude/skills/finis']) }), fails: ['command-skill-clash'], says: /^REFUSED: \.claude\/skills\/finis exists in your home folder, and Claude Code would run that skill in place of the pact command \/finis\./, why: 'a skill of the same name runs in place of the command' },
+    { id: 'first-name-clashes', plant: t => ({ ...t, present: json(['.claude/skills/make-it-so']) }), fails: ['command-skill-clash'], why: 'each listed name is checked' },
   ];
   test('skill clash: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`skill clash: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -980,23 +1013,25 @@ test('the plan: a record listing the retired cross script, under a payload witho
 test('skill clash: only listed names are checked, and only by the path the check names', () => {
   const asked = [];
   core.checkSkillClash(['finis'], rel => (asked.push(rel), false));
-  assert.deepEqual(asked, ['skills/finis']);
+  assert.deepEqual(asked, ['.claude/skills/finis']);
   assert.doesNotThrow(() => core.checkSkillClash([], () => true), 'no list, no check');
 });
 
+const COMMAND_DIRS = [CLAUDE.commands.dir];
+
 // #261 C3
 {
-  const base = () => ({ files: json([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')]]), record: json({ commit: 'x', files: [{ path: 'commands/finis.md', sha256: H('2') }] }), live: json(['CLAUDE.md', 'commands/finis.md']) });
-  const run = t => decided(() => core.checkNewPaths(new Map(JSON.parse(t.files)), t.record === 'null' ? null : core.parseRecord(t.record), rel => ({ exists: JSON.parse(t.live).includes(rel) })));
+  const base = () => ({ files: json([['.claude/CLAUDE.md', H('1')], ['.claude/commands/finis.md', H('2')]]), record: json({ commit: 'x', files: [{ path: '.claude/commands/finis.md', sha256: H('2') }] }), live: json(['.claude/CLAUDE.md', '.claude/commands/finis.md']) });
+  const run = t => decided(() => core.checkNewPaths(new Map(JSON.parse(t.files)), t.record === 'null' ? null : core.parseRecord(t.record), rel => ({ exists: JSON.parse(t.live).includes(rel) }), COMMAND_DIRS));
   const rows = [
-    { id: 'unlisted-live-file', plant: t => ({ ...t, record: json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }] }) }), fails: ['unlisted-live'], says: /^REFUSED: commands\/finis\.md already exists in the Claude home folder, and the install record does not list it/, why: "the owner's own command is never overwritten" },
+    { id: 'unlisted-live-file', plant: t => ({ ...t, record: json({ commit: 'x', files: [{ path: '.claude/CLAUDE.md', sha256: H('1') }] }) }), fails: ['unlisted-live'], says: /^REFUSED: \.claude\/commands\/finis\.md already exists, and the install record does not list it/, why: "the owner's own command is never overwritten" },
     { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
     // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
-    { id: 'review-path', plant: t => ({ ...t, files: json([['pact/review.md', H('4')]]), live: json(['pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
-    { id: 'diagrams-path', plant: t => ({ ...t, files: json([['pact/review-diagrams.md', H('4')]]), live: json(['pact/review-diagrams.md']) }), fails: ['unlisted-live'], says: /pact\/review-diagrams\.md already exists .* Move it out of the way, then install again\./, why: 'the diagram format file is never laid over a live file the pact did not put there' },
-    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
+    { id: 'review-path', plant: t => ({ ...t, files: json([['.pact/review.md', H('4')]]), live: json(['.pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists, .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
+    { id: 'diagrams-path', plant: t => ({ ...t, files: json([['.pact/review-diagrams.md', H('4')]]), live: json(['.pact/review-diagrams.md']) }), fails: ['unlisted-live'], says: /pact\/review-diagrams\.md already exists, .* Move it out of the way, then install again\./, why: 'the diagram format file is never laid over a live file the pact did not put there' },
+    { id: 'kit-path', plant: t => ({ ...t, files: json([['.pact/builder/x.mjs', H('3')]]), live: json(['.pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists, .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
     // unlisted-live, #280 C2: a tool is never laid over a live file the pact did not put there.
-    { id: 'tool-path', plant: t => ({ ...t, files: json([['pact/tools/poster.mjs', H('5')]]), live: json(['pact/tools/poster.mjs']) }), fails: ['unlisted-live'], says: /pact\/tools\/poster\.mjs already exists .* Move it, or take its name out of the tools list\./, why: 'the remedy names the tools list' },
+    { id: 'tool-path', plant: t => ({ ...t, files: json([['.pact/tools/poster.mjs', H('5')]]), live: json(['.pact/tools/poster.mjs']) }), fails: ['unlisted-live'], says: /pact\/tools\/poster\.mjs already exists, .* Move it, or take its name out of the tools list\./, why: 'the remedy names the tools list' },
   ];
   test('new command paths: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`new command paths: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -1004,8 +1039,8 @@ test('skill clash: only listed names are checked, and only by the path the check
 }
 
 test('new command paths: agents keep their first-install behaviour, and a path not live passes', () => {
-  assert.doesNotThrow(() => core.checkNewPaths(new Map([['agents/a.md', H('1')]]), null, () => ({ exists: true })));
-  assert.doesNotThrow(() => core.checkNewPaths(new Map([['commands/finis.md', H('1')]]), null, () => ({ exists: false })));
+  assert.doesNotThrow(() => core.checkNewPaths(new Map([['.claude/agents/a.md', H('1')]]), null, () => ({ exists: true }), COMMAND_DIRS));
+  assert.doesNotThrow(() => core.checkNewPaths(new Map([['.claude/commands/finis.md', H('1')]]), null, () => ({ exists: false }), COMMAND_DIRS));
 });
 
 test('the commands block lists every pact command, on or off, says which this commit lacks, and how to turn one on', () => {
@@ -1016,17 +1051,17 @@ test('the commands block lists every pact command, on or off, says which this co
     '  /finis: on',
     '  /scriptorium: off (not in this commit)',
     '  /scry: off (not in this commit)',
-    '  To turn one on, list its name in pact/config.json, for example: "commands": ["finis"]',
-    '  WARN: the user configuration turns on the pact command /finis; it installs to commands/finis.md.',
+    '  To turn one on, list its name in .pact/config.json, for example: "commands": ["finis"]',
+    '  WARN: the user configuration turns on the pact command /finis; it installs to each harness\'s commands folder as finis.md.',
   ]);
   assert.equal(core.commandsBlock([], []).filter(l => l.startsWith('  WARN')).length, 0);
   assert.equal(core.commandsBlock([], ['claude/CLAUDE.md']).at(-1), '  No pact command that can be turned on is in this commit.', 'never an example the commit lacks');
   assert.match(core.commandsBlock(['scriptorium'], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']).at(-1), /for example: "commands": \["finis"\]$/, 'the first staged command that can be turned on, in PACT_COMMANDS order');
   // #262: /scriptorium is always on, with no warning; a list that still names it is told to drop it.
   const always = core.commandsBlock(['scriptorium'], ['claude/commands/scriptorium.md'], ['scriptorium']);
-  assert.ok(always.includes('  /scriptorium: on, always: part of the pact, with the builder kit under pact/builder/'));
+  assert.ok(always.includes('  /scriptorium: on, always: part of the pact, with the builder kit under .pact/builder/'));
   assert.ok(!always.some(l => l.startsWith('  WARN')));
-  assert.match(always.at(-1), /^  NOTE: pact\/config\.json lists scriptorium, which now always installs; take it out of the list/);
+  assert.match(always.at(-1), /^  NOTE: \.pact\/config\.json lists scriptorium, which now always installs; take it out of the list/);
 });
 
 // #280 C4: the Tools block, and its WARN line word for word.
@@ -1036,18 +1071,18 @@ test('the tools block lists every pact tool, on or off, says which this commit l
     '  poster: on',
     '  cleaner: on',
     '  clef: off (not in this commit)',
-    '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]',
-    "  WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
+    '  To turn one on, list its name in .pact/config.json, for example: "tools": ["poster"]',
+    "  WARN: the user configuration turns on the pact tool poster; it installs to .pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
     // #438 S2.4
-    "  WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.",
+    "  WARN: the user configuration turns on the pact tool cleaner; it installs to .pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.",
   ]);
-  assert.deepEqual(core.toolsBlock([], ['claude/tools/poster.mjs']).slice(1), ['  poster: off', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]']);
+  assert.deepEqual(core.toolsBlock([], ['claude/tools/poster.mjs']).slice(1), ['  poster: off', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  To turn one on, list its name in .pact/config.json, for example: "tools": ["poster"]']);
   assert.deepEqual(core.toolsBlock([], []).slice(1), ['  poster: off (not in this commit)', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  No pact tool that can be turned on is in this commit.']);
   // PACT-61 S4: clef's WARN line, word for word.
   const clefOn = core.toolsBlock(['clef'], ['claude/tools/clef.mjs']);
-  assert.deepEqual(clefOn.at(-2), '  WARN: the user configuration turns on the pact tool clef; it installs to pact/tools/clef.mjs and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.');
+  assert.deepEqual(clefOn.at(-2), '  WARN: the user configuration turns on the pact tool clef; it installs to .pact/tools/clef.mjs and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.');
   // PACT-81 C1: the line after it names the setup command and the doc.
-  assert.deepEqual(clefOn.at(-1), '  clef next step: run `node <Claude home>/pact/tools/clef.mjs setup`, then the same with `--yes`; docs/clef.md says what it does.');
+  assert.deepEqual(clefOn.at(-1), '  clef next step: run `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes`; docs/clef.md says what it does.');
   // With clef off, no next-step line.
   assert.ok(!core.toolsBlock([], ['claude/tools/clef.mjs']).some(l => l.includes('next step')));
 });
@@ -1128,15 +1163,17 @@ test('the ask plan: on, it adds the two rules and records them, a second run add
   assert.deepEqual(core.settingsChanges(had, overlay, undefined, { add: [], drop: [...core.CLEANER_ASK], record: [] }).filter(l => l.includes('permissions.ask')), core.CLEANER_ASK.map(r => `  - permissions.ask: ${r}`));
 });
 
-// #523 C20: the record's reader takes cleanerAsk as a list of strings and refuses anything else.
-test('the install record\'s cleanerAsk is a list of rule strings, or the record is refused', () => {
+// #523 C20: the record's reader takes the cleaner's ask rules from its settings entries, and refuses entries in any other form.
+test('the cleaner\'s ask rules are read from the record\'s entries, a non-string is ignored, and a malformed entries list refuses', () => {
   const rec = extra => json({ commit: 'c', files: [{ path: 'x', sha256: H('a') }], ...extra });
-  assert.deepEqual(core.parseRecord(rec({ cleanerAsk: [...core.CLEANER_ASK] })).cleanerAsk, [...core.CLEANER_ASK]);
+  const entry = value => ({ harness: 'claude', path: '.claude/settings.json', key: 'permissions.ask', value, sha256: H('a') });
+  assert.deepEqual(core.parseRecord(rec({ entries: core.CLEANER_ASK.map(entry) })).cleanerAsk, [...core.CLEANER_ASK]);
   assert.deepEqual(core.parseRecord(rec({})).cleanerAsk, []);
-  for (const bad of ['Bash(x)', ['Bash(x)', 5]]) assert.throws(() => core.parseRecord(rec({ cleanerAsk: bad })), /cleanerAsk is not a list of rule strings/);
-  const text = core.recordText({ commit: 'c', digest: null, userHash: null, blockHashes: new Map(), repoFiles: new Map(), gateNow: new Map(), cleanerAsk: [...core.CLEANER_ASK] });
-  assert.deepEqual(JSON.parse(text).cleanerAsk, [...core.CLEANER_ASK]);
-  assert.equal(Object.hasOwn(JSON.parse(core.recordText({ commit: 'c', digest: null, userHash: null, blockHashes: new Map(), repoFiles: new Map(), gateNow: new Map() })), 'cleanerAsk'), false);
+  assert.deepEqual(core.parseRecord(rec({ entries: [entry(5)] })).cleanerAsk, [], 'a value that is no string is no rule');
+  for (const bad of ['Bash(x)', ['Bash(x)', 5], [{ ...entry('Bash(x)'), sha256: 5 }], [{ ...entry('Bash(x)'), value: undefined }]]) assert.throws(() => core.parseRecord(rec({ entries: bad })), /entries are not a list of settings entries/);
+  const write = entries => core.recordText({ commit: 'c', digest: null, harnesses: [], userHash: null, blockHashes: new Map(), files: new Map(), entries, gateNow: new Map() });
+  assert.deepEqual(core.parseRecord(write(core.CLEANER_ASK.map(entry))).cleanerAsk, [...core.CLEANER_ASK]);
+  assert.deepEqual(core.parseRecord(write([])).cleanerAsk, []);
 });
 
 // #265 C3: the merge takes the pact's retired ask rules out of the live list,
@@ -1327,13 +1364,13 @@ test('the configuration block: a removed configuration, changed and new files, a
   assert.deepEqual(core.configBlock(none, H('a'), record), ['  no configuration', "  NOTE: checkpoints never wait; each is the session's own logged pick (ADR 0157).", '  the last install had a configuration; this install removes it from the rules file']);
   const p = core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 });
   const b = core.configBlock(p, H('a'), record);
-  assert.equal(b[0], `  user file pact/config.json: sha256 ${U}, CHANGED since the last install`);
-  assert.equal(b[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, new since the last install`);
+  assert.equal(b[0], `  user file .pact/config.json: sha256 ${U}, CHANGED since the last install`);
+  assert.equal(b[1], `  block file .pact/blocks/a.md: sha256 ${H('e')}, new since the last install`);
   assert.equal(b[2], '  1 block file(s) the last install read are no longer used');
   assert.equal(b.find(l => l.includes('data-lens')), '  WARN: the user configuration sets data-lens to `sonnet`, high effort.');
   const blockChanged = core.configBlock(p, H('a'), core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] })));
-  assert.equal(blockChanged[0], `  user file pact/config.json: sha256 ${U}, unchanged since the last install`);
-  assert.equal(blockChanged[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, CHANGED since the last install`);
+  assert.equal(blockChanged[0], `  user file .pact/config.json: sha256 ${U}, unchanged since the last install`);
+  assert.equal(blockChanged[1], `  block file .pact/blocks/a.md: sha256 ${H('e')}, CHANGED since the last install`);
   assert.ok(core.configStale(core.configNow(p), record.config));
   assert.ok(!core.configStale(new Map([['user', H('0')]]), new Map([['user', H('0')]])));
 });
@@ -1396,8 +1433,8 @@ test('the renderer lines: the identity switch is on only for VALUE agent-identit
 
 // #603 C5: the install owns two env keys, records them, and removes only a key whose live value is the recorded one.
 test('the identity env plan: sets the two keys, never overwrites the owner\'s, and drops only a recorded key still at its recorded value', () => {
-  const wanted = core.identityEnvWanted('C:\\Users\\u\\.claude');
-  assert.deepEqual([...wanted], [['GIT_CONFIG_GLOBAL', 'C:/Users/u/.claude/pact/gh-app-claude.gitconfig'], ['GIT_TERMINAL_PROMPT', '0']]);
+  const wanted = core.identityEnvWanted('C:\\Users\\u');
+  assert.deepEqual([...wanted], [['GIT_CONFIG_GLOBAL', 'C:/Users/u/.pact/gh-app-claude.gitconfig'], ['GIT_TERMINAL_PROMPT', '0']]);
   const live = env => new Map(env === undefined ? [] : [['env', new Map(Object.entries(env))]]);
   const on = core.identityEnvPlan(live({ KEEP: '1' }), true, {}, wanted);
   assert.deepEqual([...on.set], [...wanted]);
@@ -1425,7 +1462,7 @@ test('the identity env plan: sets the two keys, never overwrites the owner\'s, a
 
 // #603 C5: merging puts the keys in beside the owner's, takes them out again, and an emptied env goes with them.
 test('the identity env merge keeps the owner\'s env keys, and removes an env the switch emptied', () => {
-  const wanted = core.identityEnvWanted('/h/.claude');
+  const wanted = core.identityEnvWanted('/h');
   const own = () => new Map([['env', new Map([['KEEP', '1']])]]);
   const plan = core.identityEnvPlan(own(), true, {}, wanted);
   const merged = core.mergeSettings(own(), new Map(), undefined, undefined, undefined, plan);
@@ -1438,14 +1475,17 @@ test('the identity env merge keeps the owner\'s env keys, and removes an env the
   assert.deepEqual(core.settingsChanges(new Map(), new Map(), undefined, undefined, plan), ['  set env.GIT_CONFIG_GLOBAL (the agent gitconfig)', '  set env.GIT_TERMINAL_PROMPT = 0']);
 });
 
-// #603 C5: the record holds the two keys while the switch is on, and refuses a record that holds anything else under identityEnv.
-test('the record carries identityEnv only while there is one, and refuses a malformed one', () => {
-  const base = { commit: ID('a'), digest: null, userHash: null, blockHashes: new Map(), repoFiles: new Map(), gateNow: new Map() };
-  assert.equal('identityEnv' in JSON.parse(core.recordText(base)), false);
+// #603 C5: the record holds the two keys while the switch is on, and nothing else it holds is read as one of them.
+test('the identity keys are read from the record\'s entries, others are ignored, and a malformed entries list refuses', () => {
+  const base = { commit: ID('a'), digest: null, harnesses: [], userHash: null, blockHashes: new Map(), files: new Map(), entries: [], gateNow: new Map() };
+  assert.deepEqual(core.parseRecord(core.recordText(base)).identityEnv, {});
+  const entry = (key, value) => ({ harness: 'claude', path: '.claude/settings.json', key, value, sha256: H('3') });
   const kept = { GIT_CONFIG_GLOBAL: 'C:/x', GIT_TERMINAL_PROMPT: '0' };
-  assert.deepEqual(core.parseRecord(core.recordText({ ...base, identityEnv: kept, repoFiles: new Map([['x', H('3')]]) })).identityEnv, kept);
-  const doc = identityEnv => json({ commit: ID('a'), files: [{ path: 'x', sha256: H('3') }], identityEnv });
-  for (const bad of [{ PATH: 'x' }, { GIT_CONFIG_GLOBAL: 1 }, ['GIT_CONFIG_GLOBAL'], 'x']) assert.equal(decided(() => core.parseRecord(doc(bad))).fails[0], 'record-not-pact', JSON.stringify(bad));
+  assert.deepEqual(core.parseRecord(core.recordText({ ...base, entries: Object.entries(kept).map(([k, v]) => entry(`env.${k}`, v)) })).identityEnv, kept);
+  const doc = entries => json({ commit: ID('a'), files: [{ path: 'x', sha256: H('3') }], entries });
+  // Another env key, or a value that is no string, never reaches identityEnv.
+  for (const other of [entry('env.PATH', 'x'), entry('env.GIT_CONFIG_GLOBAL', 1)]) assert.deepEqual(core.parseRecord(doc([other])).identityEnv, {}, JSON.stringify(other));
+  for (const bad of [{ GIT_CONFIG_GLOBAL: 'x' }, ['GIT_CONFIG_GLOBAL'], 'x', [{ key: 'env.GIT_CONFIG_GLOBAL', value: 'x' }]]) assert.equal(decided(() => core.parseRecord(doc(bad))).fails[0], 'record-not-pact', JSON.stringify(bad));
 });
 
 // #603 C5: the node path the gitconfig may name.
@@ -1485,20 +1525,19 @@ test('the install\'s gitconfig text equals the one gh-app.mjs setup writes, with
   const { gitconfigText } = await import('../../claude/tools/gh-app.mjs');
   for (const [userHome, nodePath] of [['C:\\Users\\user', 'C:\\Program Files\\nodejs\\node.exe'], ['/home/user', '/usr/local/bin/node'], ['D:\\a b\\u', 'D:\\a b\\node.exe'], ['C:\\Users\\a#b', 'C:\\Program Files\\nodejs\\node.exe'], ['C:\\Users\\a;b', 'C:\\Program Files\\nodejs\\node.exe']]) {
     for (const xdg of [false, true]) {
-      const claudeHome = `${userHome}${userHome.includes('\\') ? '\\' : '/'}.claude`;
-      assert.equal(core.identityGitconfigText({ userHome, claudeHome, nodePath, app: APP, xdg }), gitconfigText({ home: userHome, nodePath, app: APP, provider: 'claude', xdg }), `${userHome} xdg ${xdg}`);
+      assert.equal(core.identityGitconfigText({ userHome, nodePath, app: APP, xdg }), gitconfigText({ home: userHome, nodePath, app: APP, provider: 'claude', xdg }), `${userHome} xdg ${xdg}`);
     }
   }
 });
 
 // #603 C5: a home folder with a line break can't be written into the gitconfig, so the install refuses it.
 test('the install\'s gitconfig text refuses a home folder with a line break', () => {
-  for (const bad of ['\n', '\r', '\0']) assert.throws(() => core.identityGitconfigText({ userHome: `/home/a${bad}b`, claudeHome: `/home/a${bad}b/.claude`, nodePath: '/usr/local/bin/node', app: APP, xdg: false }), /line break/, JSON.stringify(bad));
+  for (const bad of ['\n', '\r', '\0']) assert.throws(() => core.identityGitconfigText({ userHome: `/home/a${bad}b`, nodePath: '/usr/local/bin/node', app: APP, xdg: false }), /line break/, JSON.stringify(bad));
 });
 
 // #603 C5: the dry run says which part differs, never the file's lines.
 test('the identity gitconfig verdict names the part that differs and prints no line of the file', () => {
-  const want = core.identityGitconfigText({ userHome: 'C:\\Users\\e', claudeHome: 'C:\\Users\\e\\.claude', nodePath: 'C:\\Program Files\\nodejs\\node.exe', app: APP, xdg: false });
+  const want = core.identityGitconfigText({ userHome: 'C:\\Users\\e', nodePath: 'C:\\Program Files\\nodejs\\node.exe', app: APP, xdg: false });
   const said = v => core.identityGitconfigLine(v);
   assert.equal(said(core.identityGitconfigVerdict(want, want)), 'gitconfig as expected: yes');
   const node = core.identityGitconfigVerdict(want.replace('nodejs', 'other'), want);

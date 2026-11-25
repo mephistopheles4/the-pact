@@ -9,8 +9,8 @@
 //   PreCompact                     ask the summary to name the hand-off file
 //   SessionStart (compact)         put the hand-off file back into context
 //
-// The hand-off lives in <home>/pact/handoff/<session_id>.md, <home> being two
-// folders above this script's own folder (<home>/pact/hooks/). A small
+// The hand-off lives in <pact home>/handoffs/<session_id>.md, <pact home> being
+// the folder above this script's own (<pact home>/hooks/). A small
 // <session_id>.turn file holds `open` or `nudged`. The pact never deletes
 // either. The hook acts only in a main session (a subagent's input carries
 // agent_id), reads at most the last 256 KB of the transcript, makes no network
@@ -76,7 +76,7 @@ function main() {
   if (typeof sid !== 'string' || !SESSION_RE.test(sid)) return;
 
   const script = fileURLToPath(import.meta.url);
-  const dir = resolve(dirname(script), '..', '..', 'pact', 'handoff');
+  const dir = resolve(dirname(script), '..', 'handoffs');
   const handoff = join(dir, `${sid}.md`);
   const turn = join(dir, `${sid}.turn`);
   const shown = handoff.replaceAll('\\', '/');

@@ -8,8 +8,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## Installing
 
-- **Edit the repo copy, never the live file** in `~/.claude/`, and never copy
-  files there by hand.
+- **Edit the repo copy, never the live file** in `~/.claude/` or `~/.pact/`,
+  and never copy files there by hand.
 - **Dry run first,** as [install](docs/agents/install.md) says: show the owner
   the dry run; on drift, or the warning that the checkout is behind the last
   install, stop and ask.

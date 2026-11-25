@@ -61,7 +61,7 @@ flowchart LR
   owner --> B3
   session --> B4
   B4 --> readers
-  B4 -. "Codex and Antigravity context, not yet the owner's call" .-> providers
+  B4 -. "Codex and Antigravity context, out of scope" .-> providers
 
   style B1 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
   style B2 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
@@ -378,4 +378,4 @@ quadrantChart
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, scope change, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).

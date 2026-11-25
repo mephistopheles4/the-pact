@@ -45,20 +45,20 @@ test('seam A passes on the repo payload, and lists every file it would install',
   const installs = r.stdout.split('\n').filter(l => l.startsWith('INSTALL '));
   const dests = installs.map(l => l.split(' ')[3]).sort();
   assert.deepEqual(dests, [
-    'CLAUDE.md',
-    'agents/adversarial-lens.md',
-    'agents/behaviour-lens.md',
-    'agents/conventions-lens.md',
-    'agents/data-lens.md',
-    'agents/executability-lens.md',
-    'agents/integrity-lens.md',
-    'agents/reader-lens.md',
-    'agents/scout.md',
-    'agents/unstated-lens.md',
+    '@claude/agents/adversarial-lens.md',
+    '@claude/agents/behaviour-lens.md',
+    '@claude/agents/conventions-lens.md',
+    '@claude/agents/data-lens.md',
+    '@claude/agents/executability-lens.md',
+    '@claude/agents/integrity-lens.md',
+    '@claude/agents/reader-lens.md',
+    '@claude/agents/scout.md',
+    '@claude/agents/unstated-lens.md',
     // The review procedure file (#261), at its one fixed live path, and the diagram format file beside it.
-    'pact/review-diagrams.md',
-    'pact/review.md',
-  ]);
+    '.pact/review-diagrams.md',
+    '.pact/review.md',
+    '@claude/rules',
+  ].sort());
   for (const l of installs) assert.match(l, /^INSTALL [0-9a-f]{64} \S+ \S+$/);
 });
 
@@ -68,7 +68,7 @@ test('a minimal valid unmigrated agent passes', t => {
 
 test('an install line carries the staged bytes hash', t => {
   const r = expectPass(t, { [A]: plainAgent('probe') });
-  const line = r.stdout.split('\n').find(l => l.endsWith(' agents/probe.md'));
+  const line = r.stdout.split('\n').find(l => l.endsWith(' @claude/agents/probe.md'));
   assert.ok(line, r.out);
   const [, hash, src] = line.split(' ');
   assert.equal(src, 'claude/agents/probe.md');
@@ -112,8 +112,8 @@ test('an agent with any tools, any key or no tools line passes and installs', t 
     'claude/agents/probe.md': plainAgent('probe', ['hooks: x', 'permissionMode: default'], 'tools: [Read, Bash, WebFetch, mcp__any__*]'),
     'claude/agents/bare.md': plainAgent('bare', [], null),
   });
-  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/probe\.md agents\/probe\.md$/m);
-  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/bare\.md agents\/bare\.md$/m);
+  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/probe\.md @claude\/agents\/probe\.md$/m);
+  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/bare\.md @claude\/agents\/bare\.md$/m);
 });
 
 // One live path per file: two agents whose names differ only in case install to one path.
@@ -309,18 +309,18 @@ const RV = 'claude/review.md';
 const review = body => `# Review\n\n${body}\n`;
 
 // #261 C3
-test('the review file installs to pact/review.md and nowhere else', t => {
+test('the review file installs to .pact/review.md and nowhere else', t => {
   const r = expectPass(t, {});
   const lines = r.stdout.split('\n').filter(l => l.includes(' claude/review.md '));
   assert.equal(lines.length, 1, r.out);
-  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review\.md pact\/review\.md$/);
+  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review\.md \.pact\/review\.md$/);
 });
 
-test('the diagram format file installs to pact/review-diagrams.md beside the review file', t => {
+test('the diagram format file installs to .pact/review-diagrams.md beside the review file', t => {
   const r = expectPass(t, { 'claude/review-diagrams.md': review('Draw it.') });
   const lines = r.stdout.split('\n').filter(l => l.includes(' claude/review-diagrams.md '));
   assert.equal(lines.length, 1, r.out);
-  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review-diagrams\.md pact\/review-diagrams\.md$/);
+  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review-diagrams\.md \.pact\/review-diagrams\.md$/);
 });
 
 // review-file
