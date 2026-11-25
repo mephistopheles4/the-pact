@@ -186,6 +186,9 @@ round's comment on the issue lists each finding.
 47. The threat model's word cap rises from 3,050 to 3,600, since S15's text
     didn't fit it, and no text is cut
     (`gate/tests/threat-model-cap.test.mjs`, ADR 0173).
+48. The threat model's two charts come back, as the owner asked, and the
+    word count leaves mermaid blocks out, since the charts were dropped twice
+    to fit it. Prose past the cap still fails (the same test, ADR 0173).
 
 ## S3 Terms
 
@@ -1014,6 +1017,7 @@ reads this spec and each ticket's diff.
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
 | The threat-model cap at 3,600 (S2 item 47) | the lead's flagged pick, for review | any time |
+| Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
 | The poster's narrower coverage in Codex (S13) | the owner's call | at T4's probe |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
 | The tag ruleset on every tag | the owner's own act | before T6 merges |

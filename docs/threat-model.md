@@ -29,6 +29,46 @@ read. The full guide is the review procedure's Threat model section
 
 ## Boundaries
 
+```mermaid
+flowchart LR
+  outside["Strangers, outside PRs, clones, fetched pages, heard speech"]
+  upstream["Plugins, upstream pins, CI dependencies, a design-system pin, a model, the npx bootstrap, the guard and the tag token"]
+  owner["Changes headed for main, ~/.pact or a harness folder"]
+  session["A steered session: Claude Code, Codex or Antigravity"]
+  readers["Readers of the tracker and other sessions"]
+  providers["OpenAI and Google"]
+
+  subgraph B1["Text into a session"]
+    T1["Text steers a session"]
+    T2["A session takes checkpoints alone"]
+  end
+  subgraph B2["Code that runs"]
+    T3["What you install and CI run"]
+    T4["Pinned design-system code"]
+  end
+  subgraph B3["Merges and installs"]
+    T5["The pact gets loosened"]
+    T6["Review rests on rules"]
+  end
+  subgraph B4["What leaves the machine"]
+    T7["Posts are public"]
+    T8["Who counts as you"]
+  end
+
+  outside --> B1
+  upstream --> B2
+  session --> B3
+  owner --> B3
+  session --> B4
+  B4 --> readers
+  B4 -. "Codex and Antigravity context, not yet the owner's call" .-> providers
+
+  style B1 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B2 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B3 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B4 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+```
+
 ### Text into a session
 
 **Crosses:** tracker text (GitHub issues; the owner's pinned private tracker text in a
@@ -310,6 +350,25 @@ Each "Also accepted" line above details what the class it names covers; it is no
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
 - **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, except on the owner's private issue tracker (`docs/agents/issue-tracker.md`), and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
 - **Who counts as you.** Every session posts as the owner, or as a pinned agent app and can still write as the owner by the routes above; an app's key holder counts as the owner for code. A lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
+
+```mermaid
+quadrantChart
+  title Residual risk by class, judged not measured
+  x-axis Unlikely --> Likely
+  y-axis Minor --> Severe
+  quadrant-1 Act now
+  quadrant-2 Guard closely
+  quadrant-3 Accept
+  quadrant-4 Watch
+  Text steers a session: [0.56, 0.86]
+  Who counts as you: [0.40, 0.82]
+  Posts are public: [0.80, 0.75]
+  What you install and CI run: [0.22, 0.92]
+  The pact gets loosened: [0.45, 0.76]
+  Review rests on rules: [0.62, 0.64]
+  A session takes checkpoints alone: [0.45, 0.70]
+  Pinned design-system code: [0.12, 0.55]
+```
 
 ## Open gaps
 

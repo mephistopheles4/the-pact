@@ -1,8 +1,8 @@
 // The threat model's word cap (#544, the spec's S10): the threat model stays
-// at or under 3,600 words, so a session reads all of it. The count is the
-// whole file split on whitespace, mermaid included, as the rule budget counts.
-// Raising the cap changes a built-in default that bounds something, so it is a
-// spec change.
+// at or under 3,600 words, so a session reads all of it. The count is the file
+// split on whitespace, with its table of contents and mermaid blocks left out.
+// Raising the cap, or leaving more out of the count, changes a built-in default
+// that bounds something, so it is a spec change.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,8 +17,13 @@ import { tempDir } from './tree.mjs';
 // the owner reviews it). PACT-39 drops the word budgets.
 const CAP = 3600;
 
-/** Words: runs of non-whitespace, so CRLF and LF count the same, with the table of contents left out (PACT-78). */
-const words = text => stripToc(text).split(/\s+/).filter(Boolean).length;
+// PACT-105 T8 (ADR 0173): the charts don't count. They were dropped twice to fit
+// the count (PACT-65, PACT-101), and a chart is for the reader's eye. Only a
+// closed block goes, so an unclosed fence hides nothing.
+const MERMAID = /^```mermaid[ \t]*\r?\n[\s\S]*?^```[ \t]*\r?$/gm;
+
+/** Words: runs of non-whitespace, so CRLF and LF count the same, with the table of contents (PACT-78) and mermaid blocks left out. */
+const words = text => stripToc(text).replace(MERMAID, '').split(/\s+/).filter(Boolean).length;
 
 /** A line naming the file, its count and the cap when the file goes past it, else nothing. */
 const overCap = (name, text) => (words(text) > CAP ? [`${name}: ${words(text)} words, cap ${CAP}`] : []);
@@ -48,8 +53,23 @@ test('threat-model cap: words are runs of non-whitespace, whatever the separator
   assert.equal(words('a b\r\nc\td\n- e '), 6);
 });
 
+// PACT-105 C7
+test('threat-model cap: a mermaid chart does not count, however big', () => {
+  const chart = `\`\`\`mermaid\r\nflowchart LR\r\n${'  a --> b\r\n'.repeat(CAP)}\`\`\`\r\n`;
+  assert.deepEqual(overCap('at cap', `${'word\n'.repeat(CAP)}${chart}`), []);
+});
+
+// PACT-105 C7
+test('threat-model cap: prose around a chart, in another fence or after an unclosed one still counts', () => {
+  const chart = '```mermaid\nflowchart LR\n  a --> b\n```\n';
+  const prose = 'word\n'.repeat(CAP + 1);
+  assert.deepEqual(overCap('between', `${chart}${prose}${chart}`), [`between: ${CAP + 1} words, cap ${CAP}`]);
+  assert.equal(words(`\`\`\`text\n${prose}\`\`\`\n`), CAP + 3);
+  assert.equal(words(`\`\`\`mermaid\n${prose}`), CAP + 2);
+});
+
 // PACT-78 C4
-test('threat-model cap: a table of contents does not count, and one word past the cap outside it still does', () => {
+test('threat-model cap: a table of contents does not count,and one word past the cap outside it still does', () => {
   const toc = `<!-- toc -->\n\n${'- [Heading](#heading)\n'.repeat(50)}\n<!-- /toc -->\n\n`;
   assert.deepEqual(overCap('at cap', `${toc}${'word\n'.repeat(CAP)}`), []);
   assert.deepEqual(overCap('over', `${toc}${'word\n'.repeat(CAP + 1)}`), [`over: ${CAP + 1} words, cap ${CAP}`]);
