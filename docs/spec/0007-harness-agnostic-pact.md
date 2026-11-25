@@ -298,7 +298,7 @@ The known descriptions:
   must be absolute, under the home folder, outside any git work tree and
   outside `~/.pact`; otherwise it refuses (`harness-path`). Nothing else is
   checked. The dry run prints, for each own harness with `hooks`: "guards
-  unverified for <name>: the pact has not seen this harness run its hook".
+  unverified for `<name>`: the pact has not seen this harness run its hook".
 - **A known harness's fields** may be overridden by an own entry of the same
   id, field by field, under the same checks, with a `WARN` naming each.
 
@@ -315,7 +315,7 @@ The known descriptions:
   builder adds defaults by stage, as item 12 says.
 - **The models line.** Each rendered rules file gets one line after the
   tiers part, whatever block fills that part: "Here the planning model is
-  <planning>, the executor model <executor> and the light model <light>." A
+  `<planning>`, the executor model `<executor>` and the light model `<light>`." A
   configuration that replaces the tiers block can't drop it (C29).
 - **Agent files name roles.** Each source agent's `model:` is `planning`,
   `executor` or `light`: every lens `planning`, scout `light`. The renderer
@@ -324,7 +324,7 @@ The known descriptions:
 - **A person's own names still work.** A configuration block, an agent
   setting or a builder table cell that names a model, such as "Opus", renders
   as written, in every harness. The dry run warns for each harness that isn't
-  Claude Code: "<file> names model <name>, which <harness> may not have".
+  Claude Code: "`<file>` names model `<name>`, which `<harness>` may not have".
 - **Effort.** Claude Code and Codex agents keep `effort` (Codex as
   `model_reasoning_effort`, the same five words). Antigravity agents have no
   effort field, so it is dropped there.
@@ -457,7 +457,7 @@ wrapper `~/.pact/guard/<harness>.mjs`:
   run it in a terminal."
 - **It fails closed where it can.** The wrapper catches every error, an
   unreadable table included, and answers deny with: "The pact's guard failed
-  (<code>); run the pact's dry run." `<code>` is an id from a closed list,
+  (`<code>`); run the pact's dry run." `<code>` is an id from a closed list,
   never text from the call or an error message. It never answers allow; a
   call no rule matches gets no answer at all, so the harness's own
   permission flow goes on. Both harnesses let a call through when the hook
