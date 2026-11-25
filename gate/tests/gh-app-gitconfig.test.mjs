@@ -24,9 +24,9 @@ function world(t, { helper } = {}) {
   const root = realpathSync(tempDir(t, 'pact-gitconfig-'));
   const userHome = join(root, 'user');
   const claudeHome = join(userHome, '.claude');
-  mkdirSync(join(claudeHome, 'pact', 'tools'), { recursive: true });
+  mkdirSync(join(claudeHome, '.pact', 'tools'), { recursive: true });
   mkdirSync(join(root, 'repo'));
-  copyFileSync(join(REPO, 'claude', 'tools', 'gh-app.mjs'), join(claudeHome, 'pact', 'tools', 'gh-app.mjs'));
+  copyFileSync(join(REPO, 'claude', 'tools', 'gh-app.mjs'), join(claudeHome, '.pact', 'tools', 'gh-app.mjs'));
   writeFileSync(join(root, 'canary.mjs'), `if (process.argv[2] === 'get') process.stdout.write('username=canary\\npassword=${CANARY}\\n');\n`);
   writeFileSync(join(root, 'stub.mjs'), `if (process.argv[2] === 'get') process.stdout.write('username=x-access-token\\npassword=${STUB}\\n');\n`);
   const node = slash(process.execPath);
@@ -41,7 +41,7 @@ function world(t, { helper } = {}) {
     assert.notEqual(lines.join('\n'), text, 'the helper line was found');
     text = lines.join('\n');
   }
-  writeFileSync(join(claudeHome, 'pact', 'gh-app-claude.gitconfig'), text);
+  writeFileSync(join(claudeHome, '.pact', 'gh-app-claude.gitconfig'), text);
   const env = {
     PATH: process.env.PATH,
     ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
@@ -51,7 +51,7 @@ function world(t, { helper } = {}) {
     TMP: root,
     TMPDIR: root,
     GIT_CONFIG_SYSTEM: join(root, 'system.gitconfig'),
-    GIT_CONFIG_GLOBAL: join(claudeHome, 'pact', 'gh-app-claude.gitconfig'),
+    GIT_CONFIG_GLOBAL: join(claudeHome, '.pact', 'gh-app-claude.gitconfig'),
     GIT_TERMINAL_PROMPT: '0',
   };
   const cwd = join(root, 'repo');

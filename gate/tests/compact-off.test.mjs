@@ -50,8 +50,8 @@ for (const [name, ownerLive] of [
     assert.equal(readFileSync(join(a, 'settings.json'), 'utf8'), readFileSync(join(b, 'settings.json'), 'utf8'));
     assert.deepEqual(files(a), files(b));
     for (const p of files(a)) assert.deepEqual(readFileSync(join(a, p)), readFileSync(join(b, p)), p);
-    assert.equal(readdirSync(join(a, 'pact', 'hooks')).length, 0, 'the installed script is gone');
-    assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(a, '.pact-install.json'), 'utf8')), 'autoCompactWindow'), false, 'the record holds no window');
+    assert.equal(readdirSync(join(a, '.pact', 'hooks')).length, 0, 'the installed script is gone');
+    assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(a, '.pact', 'install.json'), 'utf8')), 'autoCompactWindow'), false, 'the record holds no window');
   });
 }
 

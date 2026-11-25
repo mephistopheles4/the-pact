@@ -21,7 +21,7 @@ const digestOf = bytes => sha256(`user ${sha256(bytes)}\n`).slice(0, 12);
 
 /** The user configuration file's path under the Claude home `h`, with its folder made. */
 function configPath(h) {
-  mkdirSync(join(h, 'pact'), { recursive: true });
+  mkdirSync(join(h, '.pact'), { recursive: true });
   return join(h, ...CONFIG_REL);
 }
 
@@ -137,7 +137,7 @@ function dryRunHash(r) {
 /** Nothing of the install was written: no rules file, no record, no agents. */
 function nothingWritten(h) {
   const tree = listTree(h);
-  assert.ok(!tree.some(f => f === 'CLAUDE.md' || f === '.pact-install.json' || f.startsWith('agents')), tree.join('\n'));
+  assert.ok(!tree.some(f => f === 'CLAUDE.md' || f === '.pact/install.json' || f.startsWith('agents')), tree.join('\n'));
 }
 
 // #261 C7
@@ -170,7 +170,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
   const text = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.ok(text.includes('When it is above 90%') && !text.includes('above 75%'));
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.equal(manifest.digest, digestOf(EXAMPLE));
   assert.deepEqual(manifest.config, [{ kind: 'user', sha256: sha256(EXAMPLE) }]);
   assert.equal(manifest.files.find(f => f.path === 'CLAUDE.md').sha256, sha256(want));
@@ -197,7 +197,7 @@ test('with no configuration file the install renders the pact\'s default: the no
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), rendered);
   assert.match(rendered.toString('utf8'), /^\*\*Configuration in effect\.\*\* This file was rendered with the pact's default configuration `[0-9a-f]{12}`\.$/m);
   const digest = /^DIGEST ([0-9a-f]{12})$/m.exec(want.lines.join('\n'))[1];
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.equal(manifest.digest, digest);
   assert.deepEqual(manifest.config, []);
   assert.match(r.stdout, new RegExp(`^Installed commit [0-9a-f]{40} with the pact's default configuration ${digest}; all files verified\\.\\r?$`, 'm'), r.out);
@@ -232,7 +232,7 @@ test('with no configuration file the dry run names the pact\'s default and its d
   // The security-defaults line says whether the default changed since the default was last installed.
   assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }).code, 0);
   assert.match(install(repo, h).stdout, /^WARN: SECURITY DEFAULTS: you have no configuration .* The default is unchanged since the last install\.\r?$/m);
-  const mf = join(h, '.pact-install.json');
+  const mf = join(h, '.pact', 'install.json');
   writeFileSync(mf, JSON.stringify({ ...JSON.parse(readFileSync(mf, 'utf8')), digest: 'b'.repeat(12) }));
   assert.match(install(repo, h).stdout, /^WARN: SECURITY DEFAULTS: you have no configuration .* The default CHANGED since the last install\.\r?$/m);
 });
@@ -275,7 +275,7 @@ test('a record that names another configuration hash is stale: the dry run says 
   writeFileSync(configPath(h), EXAMPLE);
   assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   // Only the record changes: the render, and so every installed file, stays the same.
-  const mf = join(h, '.pact-install.json');
+  const mf = join(h, '.pact', 'install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
   m.config[0].sha256 = 'b'.repeat(64);
   writeFileSync(mf, JSON.stringify(m));
@@ -419,7 +419,7 @@ test('bad case: a pact folder that is a link refuses before the renderer runs', 
   const h = home(t);
   const elsewhere = tempDir(t);
   writeFileSync(join(elsewhere, 'config.json'), EXAMPLE);
-  symlinkSync(elsewhere, join(h, 'pact'), 'junction');
+  symlinkSync(elsewhere, join(h, '.pact'), 'junction');
   const r = install(repo, h, { apply: true });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the user configuration file, or the pact folder that holds it, is a link or other reparse point\./m, r.out);
@@ -430,8 +430,8 @@ test('bad case: a pact folder that is a link refuses before the renderer runs', 
 test('bad case: a blocks folder that is a link refuses before the renderer runs', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  mkdirSync(join(h, 'pact'));
-  symlinkSync(tempDir(t), join(h, 'pact', 'blocks'), 'junction');
+  mkdirSync(join(h, '.pact'));
+  symlinkSync(tempDir(t), join(h, '.pact', 'blocks'), 'junction');
   const r = install(repo, h);
   refused(r);
   assert.match(r.stdout, /^REFUSED: the configuration blocks folder is a link or other reparse point\./m, r.out);
@@ -441,7 +441,7 @@ test('bad case: a blocks folder that is a link refuses before the renderer runs'
 test('bad case: a link deep in the blocks folder, under a hidden name, refuses before the renderer runs', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const deep = join(h, 'pact', 'blocks', 'sub', '.hidden');
+  const deep = join(h, '.pact', 'blocks', 'sub', '.hidden');
   mkdirSync(deep, { recursive: true });
   if (WIN) spawnSync('attrib', ['+h', deep]);
   symlinkSync(tempDir(t), join(deep, 'link'), 'junction');
@@ -454,8 +454,8 @@ test('bad case: a link deep in the blocks folder, under a hidden name, refuses b
 test('a blocks folder of plain files and folders passes the attribute test', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  mkdirSync(join(h, 'pact', 'blocks', 'sub'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'blocks', 'sub', 'a.md'), 'Text.\n');
+  mkdirSync(join(h, '.pact', 'blocks', 'sub'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'blocks', 'sub', 'a.md'), 'Text.\n');
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
 });
@@ -466,12 +466,12 @@ test('the user file and its blocks folder are never deleted, whatever the record
   const repo = makeRepo(t);
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
-  mkdirSync(join(h, 'pact', 'blocks'));
-  writeFileSync(join(h, 'pact', 'blocks', 'a.md'), 'Text.\n');
+  mkdirSync(join(h, '.pact', 'blocks'));
+  writeFileSync(join(h, '.pact', 'blocks', 'a.md'), 'Text.\n');
   assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
-  const mf = join(h, '.pact-install.json');
+  const mf = join(h, '.pact', 'install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
-  const planted = ['pact/config.json', 'PACT/Config.JSON', 'pact/config.json.', 'pact/blocks/a.md', 'Pact/Blocks/a.md', 'pact/blocks', 'pact/presets/p.json', 'Pact/Presets/p.json', 'pact/presets'];
+  const planted = ['.pact/config.json', 'PACT/Config.JSON', '.pact/config.json.', '.pact/blocks/a.md', 'Pact/Blocks/a.md', '.pact/blocks', '.pact/presets/p.json', 'Pact/Presets/p.json', '.pact/presets'];
   for (const path of planted) m.files.push({ path, sha256: 'a'.repeat(64) });
   writeFileSync(mf, JSON.stringify(m));
   const dry = install(repo, h);
@@ -482,9 +482,9 @@ test('the user file and its blocks folder are never deleted, whatever the record
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(configPath(h)), EXAMPLE);
-  assert.ok(existsSync(join(h, 'pact', 'blocks', 'a.md')));
+  assert.ok(existsSync(join(h, '.pact', 'blocks', 'a.md')));
   // #264 S7: the live-file check names the review file now the script is gone.
-  assert.ok(existsSync(join(h, 'pact', 'review.md')), 'the review file still installs beside the user file');
+  assert.ok(existsSync(join(h, '.pact', 'review.md')), 'the review file still installs beside the user file');
   const after = JSON.parse(readFileSync(mf, 'utf8'));
   assert.ok(!after.files.some(f => /^pact\/(config|blocks|presets)/i.test(f.path)), 'the record never lists the user file, its blocks or the presets folder');
 });
@@ -561,7 +561,7 @@ test('a record from before configurations (no config, no digest) reads as no con
   const repo = makeRepo(t);
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
-  const mf = join(h, '.pact-install.json');
+  const mf = join(h, '.pact', 'install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
   delete m.config;
   delete m.digest;

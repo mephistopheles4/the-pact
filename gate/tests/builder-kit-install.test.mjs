@@ -32,7 +32,7 @@ test('the builder kit installs with no commands list, holds the unrendered rules
   passed(dry);
   assert.match(dry.stdout, /^ {2}\/scriptorium: on, always: part of the pact, with the builder kit under pact\/builder\/\r?$/m, dry.out);
   passed(applyBound(repo, h));
-  const kit = join(h, 'pact', 'builder');
+  const kit = join(h, '.pact', 'builder');
   assert.equal(readFileSync(join(h, 'commands', 'scriptorium.md'), 'utf8'), SCRIPTORIUM);
   assert.equal(readFileSync(join(kit, 'claude', 'rules.source.md'), 'utf8'), readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8'), 'the kit holds the unrendered rules');
   assert.ok(!listTree(kit).some(rel => /(^|[\\/])CLAUDE\.md$/.test(rel)), 'the kit holds no file named CLAUDE.md');
@@ -65,7 +65,7 @@ test('the kit holds review.md, every command and the overlay, a page from the ki
   const repo = repoWithKit(t);
   const h = home(t);
   passed(applyBound(repo, h));
-  const kit = join(h, 'pact', 'builder');
+  const kit = join(h, '.pact', 'builder');
   const fromRepo = rel => readFileSync(join(repo, ...rel.split('/')), 'utf8');
   const commands = readdirSync(join(repo, 'claude', 'commands')).sort();
   assert.ok(commands.length > 1, 'the commit holds a command that is off');
@@ -74,8 +74,8 @@ test('the kit holds review.md, every command and the overlay, a page from the ki
     assert.equal(readFileSync(join(kit, ...rel.split('/')), 'utf8'), fromRepo(rel), `${rel} is in the kit`);
   }
   assert.deepEqual(readdirSync(join(h, 'commands')), ['scriptorium.md'], 'a command that is off stays out of the live folder');
-  assert.equal(readFileSync(join(h, 'pact', 'review.md'), 'utf8'), fromRepo('claude/review.md'));
-  assert.ok(!listTree(h).some(rel => /settings\.overlay\.json$/.test(rel) && !rel.replaceAll('\\', '/').includes('pact/builder/')), 'the overlay is copied only to the kit');
+  assert.equal(readFileSync(join(h, '.pact', 'review.md'), 'utf8'), fromRepo('claude/review.md'));
+  assert.ok(!listTree(h).some(rel => /settings\.overlay\.json$/.test(rel) && !rel.replaceAll('\\', '/').includes('.pact/builder/')), 'the overlay is copied only to the kit');
   const overlay = JSON.parse(fromRepo('claude/settings.overlay.json'));
   const merged = JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
   assert.equal(merged.permissions.defaultMode, overlay.permissions.defaultMode, 'the overlay is still merged');

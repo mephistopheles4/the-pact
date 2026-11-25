@@ -18,8 +18,8 @@ const LIVE = ['pact', 'tools', 'poster.mjs'];
 /** A Claude home folder whose configuration sets `tools`. */
 function homeWith(t, tools) {
   const h = home(t);
-  mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, tools })}\n`);
+  mkdirSync(join(h, '.pact'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, tools })}\n`);
   return h;
 }
 
@@ -55,8 +55,8 @@ test('the poster on: the dry run warns, it installs at pact/tools/poster.mjs byt
   assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact tool poster; it installs to pact\/tools\/poster\.mjs and posts and edits on GitHub as your gh account\. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}pact\/tools\/poster\.mjs\r?$/m, dry.out);
   assert.deepEqual(readFileSync(join(h, ...LIVE)), readFileSync(join(repo, 'claude', 'tools', 'poster.mjs')));
-  const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
-  assert.ok(record.files.some(f => f.path === 'pact/tools/poster.mjs'), 'the record lists the tool');
+  const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
+  assert.ok(record.files.some(f => f.path === '.pact/tools/poster.mjs'), 'the record lists the tool');
   assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^- \*\*Post through the poster,\*\*/m, 'the rules file carries its rule');
   // Run from its install path, from an empty folder, with no gh on the path: it refuses before any gh call.
   const empty = tempDir(t, 'pact-poster-run-');
@@ -75,7 +75,7 @@ test('the poster off: by default it never installs, and turning it off deletes t
   const h = homeWith(t, ['poster']);
   installed(repo, h);
   assert.ok(existsSync(join(h, ...LIVE)));
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
   const dry = installed(repo, h);
   assert.match(dry.stdout, /^Delete: 1\r?\n {2}pact\/tools\/poster\.mjs\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}poster: off\r?$/m, dry.out);
@@ -91,7 +91,7 @@ test('the poster off: by default it never installs, and turning it off deletes t
 test('bad case: a live file at the tool path the record does not list refuses, and is left alone', t => {
   const repo = makeRepo(t);
   const h = homeWith(t, ['poster']);
-  mkdirSync(join(h, 'pact', 'tools'));
+  mkdirSync(join(h, '.pact', 'tools'));
   writeFileSync(join(h, ...LIVE), 'my own poster\n');
   refused(install(repo, h), /^REFUSED: pact\/tools\/poster\.mjs already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there\. Move it, or take its name out of the tools list\./m);
   refusedUnchanged(repo, h, /^REFUSED: pact\/tools\/poster\.mjs already exists/m);
@@ -132,7 +132,7 @@ function filesOf(h) {
   for (const rel of listTree(h)) {
     const p = join(h, rel);
     const name = rel.split(/[\\/]/).join('/');
-    if (!statSync(p).isFile() || name === '.pact-install.json' || name.startsWith('pact/backups/')) continue;
+    if (!statSync(p).isFile() || name === '.pact/install.json' || name.startsWith('.pact/backups/')) continue;
     let bytes = readFileSync(p);
     if (name === 'settings.json') bytes = Buffer.from(bytes.toString('utf8').split(h).join('<home>').split(h.replaceAll('\\', '/')).join('<home>').split(h.replaceAll('\\', '\\\\')).join('<home>'));
     out[name] = createHash('sha256').update(bytes).digest('hex');
@@ -152,9 +152,9 @@ test('clef off: the apply writes and records the same files as a commit without 
   assert.match(base.stdout, /^ {2}clef: off \(not in this commit\)\r?$/m, base.out);
   assert.match(dry.stdout, /^ {2}clef: off\r?$/m, dry.out);
   assert.deepEqual(differ(filesOf(h2), filesOf(h1)), [], 'the same bytes in the same places');
-  const record = h => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).files.map(f => `${f.path} ${f.sha256 ?? f.hash ?? ''}`).sort();
+  const record = h => JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8')).files.map(f => `${f.path} ${f.sha256 ?? f.hash ?? ''}`).sort();
   assert.deepEqual(record(h2), record(h1), 'the same files recorded');
-  assert.ok(!existsSync(join(h2, 'pact', 'tools', 'clef.mjs')));
+  assert.ok(!existsSync(join(h2, '.pact', 'tools', 'clef.mjs')));
 });
 
 // PACT-61 C2: with clef on, the apply adds pact/tools/clef.mjs and nothing else; the dry run warns; the clef folder is left alone.
@@ -171,12 +171,12 @@ test('clef on: the dry run warns, the apply adds pact/tools/clef.mjs and no othe
   assert.match(dry.stdout, /^ {2}clef: on\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact tool clef; it installs to pact\/tools\/clef\.mjs and, when you run its setup, downloads a llama\.cpp server build \(about 25–39 MB\) and a Clef model \(about 6\.7 GB\) from GitHub and Hugging Face, then runs them on this machine, listening on 127\.0\.0\.1 only\.\r?$/m, dry.out);
   const added = Object.keys(filesOf(on)).filter(f => !f.startsWith('pact-clef/') && !(f in filesOf(off)));
-  assert.deepEqual(added, ['pact/tools/clef.mjs']);
-  assert.deepEqual(readFileSync(join(on, 'pact', 'tools', 'clef.mjs')), readFileSync(join(repo, 'claude', 'tools', 'clef.mjs')));
+  assert.deepEqual(added, ['.pact/tools/clef.mjs']);
+  assert.deepEqual(readFileSync(join(on, '.pact', 'tools', 'clef.mjs')), readFileSync(join(repo, 'claude', 'tools', 'clef.mjs')));
   assert.deepEqual(differ(filesOf(folder), before), [], 'an install leaves the clef folder as it was');
-  writeFileSync(join(on, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
+  writeFileSync(join(on, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
   installed(repo, on);
-  assert.ok(!existsSync(join(on, 'pact', 'tools', 'clef.mjs')), 'taking clef off removes the script');
+  assert.ok(!existsSync(join(on, '.pact', 'tools', 'clef.mjs')), 'taking clef off removes the script');
   assert.deepEqual(differ(filesOf(folder), before), [], 'a turn-off leaves the clef folder as it was');
 });
 
@@ -188,7 +188,7 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   const FOREIGN = 'Bash(foreign *)';
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: OWN } })}\n`);
   const deny = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
-  const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const record = () => JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const added = CLEANER_DENY.filter(r => r !== OWN[0]);
 
   const on = installed(repo, h);
@@ -202,9 +202,9 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   // A rule outside the fixed eighteen that the record lists stays.
   const r = record();
   r.cleanerDeny.push(FOREIGN);
-  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
+  writeFileSync(join(h, '.pact', 'install.json'), `${JSON.stringify(r, null, 2)}\n`);
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...deny(), FOREIGN] } })}\n`);
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
   const off = installed(repo, h);
   for (const x of added) assert.ok(off.stdout.includes(`  - permissions.deny: ${x}`), x);
   assert.deepEqual(deny(), [OWN[0], FOREIGN, OWN[1]].sort());
@@ -213,7 +213,7 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   // A malformed record refuses; an install that never turned the cleaner on removes nothing.
   const good = record();
   for (const bad of ['Bash(x)', ['Bash(x)', 5]]) {
-    writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...good, cleanerDeny: bad }, null, 2)}\n`);
+    writeFileSync(join(h, '.pact', 'install.json'), `${JSON.stringify({ ...good, cleanerDeny: bad }, null, 2)}\n`);
     refused(install(repo, h), /^REFUSED: the install record's cleanerDeny is not a list of rule strings/m);
   }
   const fresh = homeWith(t, []);
@@ -229,7 +229,7 @@ test('the cleaner on adds its two ask rules and records them; off removes only r
   const own = 'Bash(mine)';
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { ask: [own, CLEANER_ASK[0]] } })}\n`);
   const ask = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.ask;
-  const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const record = () => JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const dry = install(repo, h);
   passed(dry);
   assert.ok(dry.stdout.includes(`  + permissions.ask: ${CLEANER_ASK[1]}`), dry.out);
@@ -239,7 +239,7 @@ test('the cleaner on adds its two ask rules and records them; off removes only r
   assert.deepEqual(record().cleanerAsk, [CLEANER_ASK[1]], 'an identical rule the owner wrote before is not recorded');
   installed(repo, h);
   assert.deepEqual(record().cleanerAsk, [CLEANER_ASK[1]], 'a second install keeps the record');
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
   const off = installed(repo, h);
   assert.ok(off.stdout.includes(`  - permissions.ask: ${CLEANER_ASK[1]}`), off.out);
   assert.deepEqual(ask(), [own, CLEANER_ASK[0]].sort());
@@ -248,7 +248,7 @@ test('the cleaner on adds its two ask rules and records them; off removes only r
   // A malformed record refuses.
   const good = record();
   for (const bad of ['Bash(x)', ['Bash(x)', 5]]) {
-    writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...good, cleanerAsk: bad }, null, 2)}\n`);
+    writeFileSync(join(h, '.pact', 'install.json'), `${JSON.stringify({ ...good, cleanerAsk: bad }, null, 2)}\n`);
     refused(install(repo, h), /^REFUSED: the install record's cleanerAsk is not a list of rule strings/m);
   }
 
@@ -277,8 +277,8 @@ test('a sixteen-rule cleaner record gets the two claude rm rules on the next ins
   const sixteen = CLEANER_DENY.filter(r => !RM.includes(r));
   assert.equal(sixteen.length, 16);
   installed(repo, h);
-  const rec = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
-  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...rec, cleanerDeny: sixteen }, null, 2)}\n`);
+  const rec = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
+  writeFileSync(join(h, '.pact', 'install.json'), `${JSON.stringify({ ...rec, cleanerDeny: sixteen }, null, 2)}\n`);
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: sixteen } })}\n`);
   const dry = install(repo, h);
   passed(dry);
@@ -286,19 +286,19 @@ test('a sixteen-rule cleaner record gets the two claude rm rules on the next ins
   assert.equal(dry.stdout.split('\n').filter(l => l.includes('+ permissions.deny:')).length, 2, 'only the two are added');
   installed(repo, h);
   assert.deepEqual(JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny, [...CLEANER_DENY].sort());
-  assert.deepEqual([...JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).cleanerDeny].sort(), [...CLEANER_DENY].sort(), 'the record holds all eighteen');
+  assert.deepEqual([...JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8')).cleanerDeny].sort(), [...CLEANER_DENY].sort(), 'the record holds all eighteen');
 });
 
 /** A Claude home folder whose configuration sets `tools` and, if given, the stop switch. */
 function stopHome(t, tools, stop) {
   const h = home(t);
-  mkdirSync(join(h, 'pact'), { recursive: true });
+  mkdirSync(join(h, '.pact'), { recursive: true });
   setConfig(h, tools, stop);
   return h;
 }
 function setConfig(h, tools, stop) {
   const doc = { schema: 1, tools, ...(stop === undefined ? {} : { settings: { 'session-stop-deny': stop } }) };
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify(doc)}\n`);
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify(doc)}\n`);
 }
 
 // #439 C1: the switch unset or false adds no claude stop rule, whatever the cleaner does.
@@ -310,7 +310,7 @@ test('session-stop-deny unset or false: no claude stop rule is added or recorded
     assert.ok(!dry.stdout.includes('claude stop'), 'the dry run shows no stop rule');
     const deny = JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
     assert.ok(deny.every(r => !STOP_DENY.includes(r)), 'settings.json holds no stop rule');
-    assert.equal(JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).stopDeny, undefined);
+    assert.equal(JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8')).stopDeny, undefined);
   }
 });
 
@@ -322,7 +322,7 @@ test('session-stop-deny on adds and records the eight rules; off removes only ru
   const FOREIGN = 'Bash(foreign *)';
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: OWN } })}\n`);
   const deny = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
-  const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const record = () => JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const added = STOP_DENY.filter(r => r !== OWN[0]);
 
   const on = installed(repo, h);
@@ -338,7 +338,7 @@ test('session-stop-deny on adds and records the eight rules; off removes only ru
   // Entries outside the eight fixed rules that the record lists stay, in the live list and out of the record: a foreign rule and one of the cleaner's.
   const r = record();
   r.stopDeny.push(FOREIGN, CLEANER_DENY[0]);
-  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
+  writeFileSync(join(h, '.pact', 'install.json'), `${JSON.stringify(r, null, 2)}\n`);
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...deny(), FOREIGN, CLEANER_DENY[0]] } })}\n`);
   const kept = installed(repo, h);
   assert.deepEqual(record().stopDeny, added, 'an entry off the fixed list is never recorded again');
@@ -357,7 +357,7 @@ test('the stop plan and the cleaner plan each touch only their own fixed rules, 
   const repo = makeRepo(t);
   const h = stopHome(t, ['cleaner'], true);
   const deny = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
-  const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const record = () => JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const bothOn = installed(repo, h);
   for (const r of STOP_DENY) assert.ok(bothOn.stdout.includes(`  + permissions.deny: ${r}`), r);
   assert.deepEqual([...deny()].sort(), [...CLEANER_DENY, ...STOP_DENY].sort());
@@ -377,7 +377,7 @@ test('the stop plan and the cleaner plan each touch only their own fixed rules, 
   const r = record();
   r.cleanerDeny.push(STOP_DENY[0]);
   r.stopDeny.push(CLEANER_DENY[0]);
-  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
+  writeFileSync(join(h, '.pact', 'install.json'), `${JSON.stringify(r, null, 2)}\n`);
   // Cleaner off, stop on: the cleaner's plan drops its own rules and leaves the stop rules planted in its record.
   setConfig(h, [], true);
   const cleanerOff = installed(repo, h);
@@ -398,9 +398,9 @@ test('a malformed stopDeny in the record refuses', t => {
   const repo = makeRepo(t);
   const h = stopHome(t, [], true);
   installed(repo, h);
-  const good = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const good = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   for (const bad of ['Bash(x)', ['Bash(x)', 5], { a: 1 }]) {
-    writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...good, stopDeny: bad }, null, 2)}\n`);
+    writeFileSync(join(h, '.pact', 'install.json'), `${JSON.stringify({ ...good, stopDeny: bad }, null, 2)}\n`);
     refused(install(repo, h), /^REFUSED: the install record's stopDeny is not a list of rule strings/m);
   }
 });
@@ -411,7 +411,7 @@ test('settings.json that is not strict JSON: the dry run plans no stop rule and 
   const repo = makeRepo(t);
   const h = stopHome(t, [], true);
   installed(repo, h);
-  const recordFile = join(h, '.pact-install.json');
+  const recordFile = join(h, '.pact', 'install.json');
   const before = readFileSync(recordFile, 'utf8');
   assert.deepEqual(JSON.parse(before).stopDeny, [...STOP_DENY]);
   const bad = '{ // a comment\n  "permissions": { "deny": [] }\n}\n';
@@ -440,20 +440,20 @@ const gitconfigFor = h => identityGitconfigText({ userHome: dirname(h), claudeHo
 function identityHome(t, on, { pin = PIN, gitconfig = gitconfigFor, tools = [], env, nested = false } = {}) {
   // `nested` puts the Claude home under its own user folder, so a test can add an XDG git config there.
   const h = nested ? join(tempDir(t, 'pact-user-'), '.claude') : home(t);
-  mkdirSync(join(h, 'pact'), { recursive: true });
+  mkdirSync(join(h, '.pact'), { recursive: true });
   setIdentity(h, on, tools);
-  if (pin !== null) writeFileSync(join(h, 'pact', 'github.json'), pin);
+  if (pin !== null) writeFileSync(join(h, '.pact', 'github.json'), pin);
   const g = typeof gitconfig === 'function' ? gitconfig(h) : gitconfig;
-  if (g !== null) writeFileSync(join(h, 'pact', 'gh-app-claude.gitconfig'), g);
+  if (g !== null) writeFileSync(join(h, '.pact', 'gh-app-claude.gitconfig'), g);
   if (env !== undefined) writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ env })}\n`);
   return h;
 }
 function setIdentity(h, on, tools = []) {
   const doc = { schema: 1, tools, ...(on === undefined ? {} : { settings: { 'agent-identity': on } }) };
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify(doc)}\n`);
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify(doc)}\n`);
 }
 const liveEnv = h => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).env;
-const recordOf = h => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+const recordOf = h => JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
 
 // #603 C5: on, the dry run checks the gitconfig and warns, the install copies the helper, sets and records the two env keys beside the owner's own.
 test('agent-identity on: the helper installs byte for byte, the two env keys are set and recorded beside the owner\'s, and the dry run says the gitconfig is as expected', t => {
@@ -468,7 +468,7 @@ test('agent-identity on: the helper installs byte for byte, the two env keys are
   assert.deepEqual(readFileSync(join(h, ...GH_APP_LIVE)), readFileSync(join(repo, 'claude', 'tools', 'gh-app.mjs')));
   assert.deepEqual(liveEnv(h), { KEEP: 'mine', GIT_CONFIG_GLOBAL: `${h.replaceAll('\\', '/')}/pact/gh-app-claude.gitconfig`, GIT_TERMINAL_PROMPT: '0' });
   assert.deepEqual(recordOf(h).identityEnv, { GIT_CONFIG_GLOBAL: liveEnv(h).GIT_CONFIG_GLOBAL, GIT_TERMINAL_PROMPT: '0' });
-  assert.ok(recordOf(h).files.some(f => f.path === 'pact/tools/gh-app.mjs'), 'the record lists the tool');
+  assert.ok(recordOf(h).files.some(f => f.path === '.pact/tools/gh-app.mjs'), 'the record lists the tool');
   // A second install changes nothing.
   const again = installed(repo, h);
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
@@ -480,7 +480,7 @@ test('agent-identity off: the tool and the two recorded env keys go, the owner\'
   const h = identityHome(t, true, { env: { KEEP: 'mine' } });
   installed(repo, h);
   setIdentity(h, false);
-  rmSync(join(h, 'pact', 'gh-app-claude.gitconfig'));
+  rmSync(join(h, '.pact', 'gh-app-claude.gitconfig'));
   const dry = installed(repo, h);
   assert.match(dry.stdout, /^Delete: 1\r?\n {2}pact\/tools\/gh-app\.mjs\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}- env\.GIT_CONFIG_GLOBAL\r?$/m, dry.out);
@@ -546,7 +546,7 @@ test('agent-identity on: an XDG git config added after setup is refused, and one
   writeFileSync(xdg, '[core]\n  autocrlf = false\n');
   const dry = install(repo, h);
   refused(dry, /gitconfig as expected: no: include list differs, run gh-app.mjs refresh/);
-  writeFileSync(join(h, 'pact', 'gh-app-claude.gitconfig'), gitconfigFor(h));
+  writeFileSync(join(h, '.pact', 'gh-app-claude.gitconfig'), gitconfigFor(h));
   assert.match(gitconfigFor(h), /\.config\/git\/config/, 'the rewritten gitconfig includes the XDG file');
   passed(install(repo, h));
 });
@@ -571,5 +571,5 @@ test('agent-identity on with a settings.json that is not strict JSON: the dry ru
   assert.match(dry.stdout, /^WARN: settings\.json is left untouched, so the agent-identity switch's two env keys are not set/m, dry.out);
   refused(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }), /settings\.json is not a strict JSON object/);
   assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), bad, 'settings.json is untouched');
-  assert.ok(!existsSync(join(h, '.pact-install.json')), 'no record is written');
+  assert.ok(!existsSync(join(h, '.pact', 'install.json')), 'no record is written');
 });

@@ -38,10 +38,10 @@ function readAll(dir) {
 /** Render the repo's rules file for a home holding `config` and the given blocks. */
 function render(t, config, blocks = {}) {
   const h = tempDir(t, 'pact-retired-home-');
-  mkdirSync(join(h, 'pact', 'blocks'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify(config)}\n`);
+  mkdirSync(join(h, '.pact', 'blocks'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify(config)}\n`);
   for (const [rel, text] of Object.entries(blocks)) {
-    const p = join(h, 'pact', 'blocks', ...rel.split('/'));
+    const p = join(h, '.pact', 'blocks', ...rel.split('/'));
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, text);
   }

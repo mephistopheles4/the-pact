@@ -49,11 +49,11 @@ test('the pact tool list is one list: the install keeps the same names in the sa
 }
 
 // #280 C2
-test('seam A lists a tool for install only when --tools names it, at pact/tools/<name>.mjs', t => {
+test('seam A lists a tool for install only when --tools names it, at .pact/tools/<name>.mjs', t => {
   const root = stage(t, { [TOOL]: GOOD });
   const on = runSeamA(root, undefined, { tools: 'poster' });
   assert.equal(on.code, 0, on.out);
-  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/tools\/poster\.mjs pact\/tools\/poster\.mjs$/m, on.out);
+  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/tools\/poster\.mjs \.pact\/tools\/poster\.mjs$/m, on.out);
   const off = runSeamA(root, undefined, { tools: 'none' });
   assert.equal(off.code, 0, off.out);
   assert.doesNotMatch(off.stdout, /tools\//, off.out);
@@ -76,10 +76,11 @@ function seamWith(t, tree, argv) {
   return moduleResult(r.code, r.stdout, r.stderr);
 }
 const args = (...a) => JSON.stringify(['--commands', 'none', ...a]);
+const HARNESS = ['--harness', 'claude:rules+agents+commands'];
 // #280 C3
 {
   const base = () => ({ [TOOL]: GOOD, argv: args('--tools', 'poster') });
-  const run = ({ argv, ...tree }, t) => seamWith(t, tree, ['--compact', 'off', ...JSON.parse(argv)]);
+  const run = ({ argv, ...tree }, t) => seamWith(t, tree, ['--compact', 'off', ...HARNESS, ...JSON.parse(argv)]);
   const rows = [
     { id: 'missing', plant: t => ({ ...t, argv: args() }), fails: ['tools-arg'], why: 'the list never defaults' },
     { id: 'given-twice', plant: t => ({ ...t, argv: args('--tools', 'poster', '--tools', 'poster') }), fails: ['tools-arg'], why: 'given twice, even the same' },
@@ -106,7 +107,7 @@ test('seam A passes over the helper file: scanned and kept off, or listed when -
   assert.doesNotMatch(off.stdout, /tools\//, off.out);
   const on = runSeamA(root, undefined, { tools: 'gh-app' });
   assert.equal(on.code, 0, on.out);
-  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/tools\/gh-app\.mjs pact\/tools\/gh-app\.mjs$/m, on.out);
+  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/tools\/gh-app\.mjs \.pact\/tools\/gh-app\.mjs$/m, on.out);
   const bad = runSeamA(stage(t, { [file]: "console.log('a​tool');\n" }), undefined, { tools: 'none' });
   assert.equal(bad.code, 1, bad.out);
   assert.match(bad.stdout, /^FAIL invisible: claude\/tools\/gh-app\.mjs line 1: /m, bad.out);
@@ -121,7 +122,7 @@ test('seam A passes over the clef file: scanned and kept off, or listed when --t
   assert.doesNotMatch(off.stdout, /tools\//, off.out);
   const on = runSeamA(root, undefined, { tools: 'clef' });
   assert.equal(on.code, 0, on.out);
-  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/tools\/clef\.mjs pact\/tools\/clef\.mjs$/m, on.out);
+  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/tools\/clef\.mjs \.pact\/tools\/clef\.mjs$/m, on.out);
   const bad = runSeamA(stage(t, { [file]: "console.log('a​tool');\n" }), undefined, { tools: 'none' });
   assert.equal(bad.code, 1, bad.out);
   assert.match(bad.stdout, /^FAIL invisible: claude\/tools\/clef\.mjs line 1: /m, bad.out);
@@ -129,7 +130,7 @@ test('seam A passes over the clef file: scanned and kept off, or listed when --t
 
 // #280 C3
 test('seam A takes --tools before or after --commands', t => {
-  const r = seamWith(t, { [TOOL]: GOOD }, ['--tools', 'poster', '--commands', 'none', '--compact', 'off']);
+  const r = seamWith(t, { [TOOL]: GOOD }, ['--tools', 'poster', '--commands', 'none', '--compact', 'off', ...HARNESS]);
   assert.equal(r.code, 0, r.out);
 });
 
@@ -140,8 +141,8 @@ const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 function renderWith(t, config, { source = SOURCE, out = tempDir(t, 'pact-render-out-') } = {}) {
   const h = tempDir(t, 'pact-render-home-');
   if (config !== null) {
-    mkdirSync(join(h, 'pact'));
-    writeFileSync(join(h, 'pact', 'config.json'), config);
+    mkdirSync(join(h, '.pact'));
+    writeFileSync(join(h, '.pact', 'config.json'), config);
   }
   return { ...runCore('render', [source, out, h]), out };
 }
@@ -271,7 +272,7 @@ test('with the poster off, the rules file is the no-configuration render byte fo
 // ------------------------------------------------------------ the cleaner's part and deny rules (#438)
 
 // #464 T4: the how-to moved into the cleaner's own printed output.
-const CLEANER_PART = '- **Remove worktrees only through the cleaner,** `node ~/.claude/pact/tools/cleaner.mjs show` (PowerShell: `node "$HOME/.claude/pact/tools/cleaner.mjs" show`), then `remove` with its tags; it stops a finished session first. Each removal is a checkpoint.';
+const CLEANER_PART = '- **Remove worktrees only through the cleaner,** `node ~/.pact/tools/cleaner.mjs show` (PowerShell: `node "$HOME/.pact/tools/cleaner.mjs" show`), then `remove` with its tags; it stops a finished session first. Each removal is a checkpoint.';
 
 // #438 C14
 test('with the cleaner on, the rules file holds its part after the poster\'s; off, it is the no-configuration render', t => {
@@ -311,14 +312,14 @@ test('the cleaner\'s ask rules are the two fixed rules, equal in both files, and
   };
   const pair = 'a=0123456789abcdef';
   const hit = [
-    `node "$HOME/.claude/pact/tools/cleaner.mjs" remove --override ${pair}`,
-    `node "C:/x/.claude/pact/tools/cleaner.mjs" remove --override ${pair}`,
-    `env -u NODE_OPTIONS node ~/.claude/pact/tools/cleaner.mjs remove --yes 0123456789 --override ${pair}`,
+    `node "$HOME/.pact/tools/cleaner.mjs" remove --override ${pair}`,
+    `node "C:/x/.pact/tools/cleaner.mjs" remove --override ${pair}`,
+    `env -u NODE_OPTIONS node ~/.pact/tools/cleaner.mjs remove --yes 0123456789 --override ${pair}`,
     `node.exe C:\\x\\cleaner.mjs remove --override ${pair}`,
     `& node "C:/x/cleaner.mjs" remove --override ${pair}`,
     `$env:NODE_OPTIONS = $null; node "C:/x/cleaner.mjs" remove --override ${pair}`,
   ];
-  const miss = ['node "$HOME/.claude/pact/tools/cleaner.mjs" show', 'node "$HOME/.claude/pact/tools/cleaner.mjs" remove --yes 0123456789'];
+  const miss = ['node "$HOME/.pact/tools/cleaner.mjs" show', 'node "$HOME/.pact/tools/cleaner.mjs" remove --yes 0123456789'];
   for (const rule of CLEANER_ASK) {
     for (const c of hit) assert.ok(glob(rule).test(c), `${rule} should match ${c}`);
     for (const c of miss) assert.ok(!glob(rule).test(c), `${rule} should not match ${c}`);

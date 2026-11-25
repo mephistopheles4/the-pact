@@ -45,8 +45,8 @@ function projectAt(p, n = 60) {
 }
 
 function userFile(ch, n) {
-  mkdirSync(join(ch, 'pact'), { recursive: true });
-  writeFileSync(join(ch, 'pact', 'config.json'), `{"schema": 1, "settings": {"usage-pause": ${n}}}\n`);
+  mkdirSync(join(ch, '.pact'), { recursive: true });
+  writeFileSync(join(ch, '.pact', 'config.json'), `{"schema": 1, "settings": {"usage-pause": ${n}}}\n`);
 }
 
 const projInstall = (repo, ch, proj, { apply = false, extra = [], ...rest } = {}) => install(repo, ch, { apply, extra: ['--project-folder', proj, ...extra], ...rest });

@@ -370,7 +370,7 @@ test("the install's retired ask rules are the pact's old rules, exactly", () => 
 // The hook script and --compact: seam A's core on a rendered stage, with the given arguments after the stage root.
 const HOOK = 'claude/hooks/compact-handoff.mjs';
 const withHook = extra => ({ [HOOK]: realHook(), ...extra });
-const NONE = ['--commands', 'none', '--tools', 'none'];
+const NONE = ['--commands', 'none', '--tools', 'none', '--harness', 'claude:rules+agents+commands'];
 {
   const run = ({ files, argv }, t) => {
     const root = stage(t, files);
@@ -395,9 +395,9 @@ const NONE = ['--commands', 'none', '--tools', 'none'];
   test('the hook script and --compact: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`the hook script and --compact: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
   test('the hook script and --compact: base passes after the rows', async t => assertPasses(await run(base(), t)));
-  test('--compact on lists the hook script for install at pact/hooks, and off stages nothing of it', t => {
+  test('--compact on lists the hook script for install at .pact/hooks, and off stages nothing of it', t => {
     const on = runCore('seam-a', [(() => { const root = stage(t, withHook()); renderStage(root); return root; })(), ...NONE, '--compact', 'on']);
-    assert.match(on.stdout, new RegExp(`^INSTALL [0-9a-f]{64} ${HOOK.replaceAll('.', '\\.')} pact/hooks/compact-handoff\\.mjs$`, 'm'));
+    assert.match(on.stdout, new RegExp(`^INSTALL [0-9a-f]{64} ${HOOK.replaceAll('.', '\\.')} \.pact/hooks/compact-handoff\\.mjs$`, 'm'));
     const off = runCore('seam-a', [(() => { const root = stage(t, withHook()); renderStage(root); return root; })(), ...NONE, '--compact', 'off']);
     assert.equal(off.code, 0, off.out);
     assert.doesNotMatch(off.stdout, /compact-handoff/);

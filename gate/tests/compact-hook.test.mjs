@@ -17,8 +17,8 @@ const SID = 'abc-123';
 /** A temp home with the script installed in it, and a transcript whose last assistant entry holds `used` tokens of context (split across the three usage fields). */
 function setup(t, used = 0) {
   const h = tempDir(t, 'pact-hook-home-');
-  mkdirSync(join(h, 'pact', 'hooks'), { recursive: true });
-  const script = join(h, 'pact', 'hooks', 'compact-handoff.mjs');
+  mkdirSync(join(h, '.pact', 'hooks'), { recursive: true });
+  const script = join(h, '.pact', 'hooks', 'compact-handoff.mjs');
   cpSync(SOURCE, script);
   const transcript = join(h, 'transcript.jsonl');
   const entry = (type, u) => JSON.stringify({ type, message: { usage: u } });
@@ -29,7 +29,7 @@ function setup(t, used = 0) {
   lines.push(JSON.stringify({ type: 'user', message: { content: 'tool result' } }));
   writeFileSync(transcript, `${lines.join('\n')}\n`);
   // The session's own folder, apart from the home: nothing of the hook's may land in it.
-  return { h, script, transcript, dir: join(h, 'pact', 'handoff'), cwd: tempDir(t, 'pact-hook-cwd-') };
+  return { h, script, transcript, dir: join(h, '.pact', 'handoff'), cwd: tempDir(t, 'pact-hook-cwd-') };
 }
 
 /** Run the hook for `input`; the window argument is 400000 unless `window` is given, and `env` adds to a clean environment. */
@@ -151,7 +151,7 @@ test('#482 C8: a session_id outside [A-Za-z0-9-], a missing transcript and bad J
   const { createHash } = await import('node:crypto');
   const overlay = core.readSettings(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
   const home = join('/', 'tmp', 'claude-home');
-  const inside = join(home, 'pact', 'hooks', 'compact-handoff.mjs');
+  const inside = join(home, '.pact', 'hooks', 'compact-handoff.mjs');
   const hash = b => createHash('sha256').update(b).digest('hex');
   const cfg = hash('cfg');
   const digest = hash(Buffer.from(`user ${cfg}\n`, 'ascii')).slice(0, 12);
@@ -207,5 +207,5 @@ test('#482: the default window is one number in the renderer, the install and th
   assert.ok(seam.includes("const PACT_HOOKS = Object.freeze(['compact-handoff']);"));
   const overlay = JSON.parse(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
   assert.deepEqual(Object.keys(overlay.hooks), [...core.HOOK_EVENTS]);
-  assert.equal(core.HOOK_SCRIPT_REL, 'pact/hooks/compact-handoff.mjs');
+  assert.equal(core.HOOK_SCRIPT_REL, '.pact/hooks/compact-handoff.mjs');
 });

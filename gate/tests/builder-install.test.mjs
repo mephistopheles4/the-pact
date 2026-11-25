@@ -70,7 +70,7 @@ function installSaved(t, state) {
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.match(rules, /^\*\*Configuration in effect\.\*\*/m);
   // The page installs only as the builder kit's copy (#203, S6).
-  assert.deepEqual(listTree(h).filter(p => p.toLowerCase().endsWith(PAGE_NAME.toLowerCase())).map(p => p.split('\\').join('/')), ['pact/builder/builder/scriptorium.html'], 'the page installed outside the kit');
+  assert.deepEqual(listTree(h).filter(p => p.toLowerCase().endsWith(PAGE_NAME.toLowerCase())).map(p => p.split('\\').join('/')), ['.pact/builder/builder/scriptorium.html'], 'the page installed outside the kit');
   return { rules, files, h };
 }
 
@@ -80,7 +80,7 @@ test('a configuration the page saves with a value and an added move installs thr
   s.usage = 90;
   s.parts.moves.push({ lead: 'Leave it better', text: 'I leave the code a little better than I found it.' });
   const { rules, files } = installSaved(t, s);
-  assert.deepEqual(files.map(f => f.path), ['pact/config.json', 'pact/blocks/moves.md']);
+  assert.deepEqual(files.map(f => f.path), ['.pact/config.json', '.pact/blocks/moves.md']);
   assert.match(rules, /When it is above 90%/);
   assert.match(rules, /^- \*\*Stay the owner\.\*\*\n(?: {2}.*\n)+- \*\*Leave it better\.\*\*\n {2}I leave the code a little better than I found it\.$/m);
   assert.match(rules, /Values set: usage-pause 90\. Parts edited: moves \(replace\)\./);
@@ -91,7 +91,7 @@ test('the auto-compact window the page saves installs: a set value reaches the s
   const s = L.initialState();
   s.compact = 600000;
   const set = installSaved(t, s);
-  assert.deepEqual(set.files.map(f => f.path), ['pact/config.json']);
+  assert.deepEqual(set.files.map(f => f.path), ['.pact/config.json']);
   assert.match(set.rules, /Values set: auto-compact-window 600000\./);
   const live = JSON.parse(readFileSync(join(set.h, 'settings.json'), 'utf8'));
   assert.equal(live.autoCompactWindow, 600000);
@@ -152,7 +152,7 @@ test('an added agent and an edited prompt the page saves are yours: the install 
   s.usage = 90;
   const { files, h } = installSaved(t, s);
   for (const name of ['my-reviewer', 'scout']) assert.equal(readFileSync(join(h, 'agents', `${name}.md`), 'utf8'), files.find(f => f.path === `agents/${name}.md`).text);
-  const recorded = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).files.map(f => f.path);
+  const recorded = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8')).files.map(f => f.path);
   assert.ok(!recorded.includes('agents/my-reviewer.md') && !recorded.includes('agents/scout.md'), recorded.join(', '));
 });
 
@@ -195,8 +195,8 @@ test('S13: a configuration that still sets checkpoint-stops dry-runs to the reti
   for (const value of ['true', 'false']) {
     const repo = makeRepo(t);
     const h = home(t);
-    mkdirSync(join(h, 'pact'), { recursive: true });
-    writeFileSync(join(h, 'pact', 'config.json'), `{"schema": 1, "settings": {"checkpoint-stops": ${value}}}\n`);
+    mkdirSync(join(h, '.pact'), { recursive: true });
+    writeFileSync(join(h, '.pact', 'config.json'), `{"schema": 1, "settings": {"checkpoint-stops": ${value}}}\n`);
     const dry = install(repo, h);
     assert.equal(dry.code, 0, dry.out);
     assert.match(dry.stdout, new RegExp(`^render\\| RETIRED-SETTING checkpoint-stops ${value}\\r?$`, 'm'), dry.out);
@@ -253,8 +253,8 @@ test('S13: a project with checkpoint-stops true or false dry-runs to the project
   const repo = makeRepo(t);
   const root = tempDir(t, 'pact-proj-');
   const ch = join(root, 'home', '.claude');
-  mkdirSync(join(ch, 'pact'), { recursive: true });
-  writeFileSync(join(ch, 'pact', 'config.json'), '{"schema": 1, "settings": {"checkpoint-stops": false}}\n');
+  mkdirSync(join(ch, '.pact'), { recursive: true });
+  writeFileSync(join(ch, '.pact', 'config.json'), '{"schema": 1, "settings": {"checkpoint-stops": false}}\n');
   const project = (name, body) => {
     const p = join(root, 'home', `proj-${name}`);
     mkdirSync(join(p, '.claude'), { recursive: true });

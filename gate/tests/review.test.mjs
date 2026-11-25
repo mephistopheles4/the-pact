@@ -111,8 +111,8 @@ for (const [label, make] of [
   [
     'a folder deep under the Claude home folder',
     (base, home) => {
-      mkdirSync(join(home, 'pact'));
-      return join(home, 'pact', 'review');
+      mkdirSync(join(home, '.pact'));
+      return join(home, '.pact', 'review');
     },
   ],
 ]) {

@@ -193,8 +193,8 @@ const run = (tree, t) => {
   const r = runCheck(check, [SOURCE, join(d, 'out'), join(d, 'home')]);
   return moduleResult(r.code, r.stdout);
 };
-const base = () => ({ 'pact/config.json': edits([{ mark: 'moves', op: 'add-after', file: 'ok.md' }]), 'pact/blocks/ok.md': 'Text.\\n' });
-const rows = [{ id: 'unknown-mark', plant: h => ({ ...h, 'pact/config.json': edits([{ mark: 'move-9', op: 'remove' }]) }), fails: ['edit-mark'], why: 'a row between the two bases' }];
+const base = () => ({ '.pact/config.json': edits([{ mark: 'moves', op: 'add-after', file: 'ok.md' }]), '.pact/blocks/ok.md': 'Text.\\n' });
+const rows = [{ id: 'unknown-mark', plant: h => ({ ...h, '.pact/config.json': edits([{ mark: 'move-9', op: 'remove' }]) }), fails: ['edit-mark'], why: 'a row between the two bases' }];
 test('shared state: base passes', async t => assertPasses(await run(base(), t)));
 for (const r of rows) test(\`shared state: \${r.id}\`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
 test('shared state: base passes after the rows', async t => assertPasses(await run(base(), t)));

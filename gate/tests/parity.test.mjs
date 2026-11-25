@@ -15,7 +15,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { MODULES, parityProblems, preloadRefusal, renderStage, runCheck, runCore, runWrapper, stageGate } from './gate-run.mjs';
+import { CLAUDE_ARG, MODULES, parityProblems, preloadRefusal, renderStage, runCheck, runCore, runWrapper, stageGate } from './gate-run.mjs';
 import { realAgents, realOverlay } from './payload.mjs';
 import { REPO, failRules } from './text.mjs';
 import { read, tempDir, writeTree } from './tree.mjs';
@@ -39,7 +39,7 @@ function seamStage(root, files = {}) {
     ...files,
   });
   renderStage(root);
-  return [root, '--commands', 'none', '--tools', 'none', '--compact', 'off'];
+  return [root, '--commands', 'none', '--tools', 'none', '--compact', 'off', '--harness', CLAUDE_ARG];
 }
 
 const reviewInputs = root => {
@@ -60,7 +60,7 @@ const projectIn = (root, config) => {
 
 const renderIn = (root, config) => {
   const [out, home] = dirs(root, 'out', 'home');
-  if (config !== undefined) writeTree(home, { 'pact/config.json': config });
+  if (config !== undefined) writeTree(home, { '.pact/config.json': config });
   return [SOURCE, out, home];
 };
 

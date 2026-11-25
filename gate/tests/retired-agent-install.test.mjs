@@ -17,9 +17,9 @@ const SENTINEL = 'ZZSENTINELWORD';
 const ORPHAN = `agents/${LENS}.md`;
 
 function configure(h, config, blocks = {}) {
-  mkdirSync(join(h, 'pact', 'blocks'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify(config)}\n`);
-  for (const [name, text] of Object.entries(blocks)) writeFileSync(join(h, 'pact', 'blocks', name), text);
+  mkdirSync(join(h, '.pact', 'blocks'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify(config)}\n`);
+  for (const [name, text] of Object.entries(blocks)) writeFileSync(join(h, '.pact', 'blocks', name), text);
 }
 
 function plant(h, text = `---\nname: ${LENS}\n---\n${SENTINEL}\n`) {
@@ -92,7 +92,7 @@ test('the pact\'s own recorded copy is deleted through its record and draws no l
   // The repo no longer ships the lens, so an older install's copy is planted by hand and recorded.
   const first = applyBound(repo, h);
   assert.equal(first.code, 0, first.out);
-  const recordFile = join(h, '.pact-install.json');
+  const recordFile = join(h, '.pact', 'install.json');
   const record = JSON.parse(readFileSync(recordFile, 'utf8'));
   const text = `---\nname: ${LENS}\n---\nold copy\n`;
   plant(h, text);

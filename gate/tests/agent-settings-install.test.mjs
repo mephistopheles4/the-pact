@@ -20,8 +20,8 @@ const withAgent = (model, effort) => AGENT.replace(/^model: .*$/m, `model: ${mod
 // ------------------------------------------------------------ the install script, end to end
 
 function configure(h, config) {
-  mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify(config)}\n`);
+  mkdirSync(join(h, '.pact'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify(config)}\n`);
 }
 
 function dryRunHash(r) {
@@ -42,7 +42,7 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   assert.equal(r.code, 0, r.out);
   const want = Buffer.from(withAgent('sonnet', 'low'));
   assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), want);
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.equal(manifest.files.find(f => f.path === 'agents/integrity-lens.md').sha256, sha256(want));
   assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
   const again = install(repo, h);
@@ -147,6 +147,6 @@ for (const [label, config, from, to, why] of [
     refused(r);
     assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'm'), r.out);
-    assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json' || f.startsWith('agents')), listTree(h).join('\n'));
+    assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact/install.json' || f.startsWith('agents')), listTree(h).join('\n'));
   });
 }

@@ -24,7 +24,7 @@ test('#482 C1: with no configuration, or one that leaves the key unset, the inst
     for (const e of EVENTS) assert.deepEqual(s.hooks[e], [pactGroup(h, 400000, e)], e);
     assert.deepEqual(readFileSync(script(h)), readFileSync(join(repo, 'claude', 'hooks', 'compact-handoff.mjs')));
   }
-  assert.deepEqual(files(a).filter(p => p !== 'pact/config.json'), files(b).filter(p => p !== 'pact/config.json'));
+  assert.deepEqual(files(a).filter(p => p !== '.pact/config.json'), files(b).filter(p => p !== '.pact/config.json'));
 });
 
 // C2

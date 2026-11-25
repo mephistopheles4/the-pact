@@ -24,8 +24,8 @@ function repoWithFinis(t, more) {
 /** A Claude home folder whose configuration turns on `commands`. */
 function homeWith(t, commands) {
   const h = home(t);
-  mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, commands })}\n`);
+  mkdirSync(join(h, '.pact'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, commands })}\n`);
   return h;
 }
 
@@ -57,10 +57,10 @@ test('a listed command installs to commands/<name>.md, and dropping it from the 
   assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}commands\/finis\.md\r?$/m, dry.out);
   passed(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }));
   assert.equal(readFileSync(join(h, 'commands', 'finis.md'), 'utf8'), FINIS);
-  const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.ok(record.files.some(f => f.path === 'commands/finis.md'), 'the record lists the command');
 
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, commands: [] })}\n`);
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, commands: [] })}\n`);
   const dry2 = install(repo, h);
   passed(dry2);
   assert.match(dry2.stdout, /^Delete: 1\r?\n {2}commands\/finis\.md\r?$/m, dry2.out);
@@ -143,7 +143,7 @@ test('bad case: a listed command that is not in this pact refuses at seam A', t 
 
 // ------------------------------------------------------------ the seam between the renderer, seam A and the install (S8)
 
-const RUNNER_ARGS = "[stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off']";
+const RUNNER_ARGS = "[stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken)]";
 /** Replace the runner's seam A arguments with `to`, in the repo's committed runner. */
 const plantRunnerArgs = to => root => {
   const p = join(root, 'gate', 'install-run.mjs');

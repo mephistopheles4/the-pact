@@ -38,7 +38,7 @@ test('a file under gate/tests is not staged, checked or recorded as part of the 
   const h = home(t);
   const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const inGate = manifest.gate.map(g => g.path).filter(p => p.startsWith('gate/tests/'));
   assert.deepEqual(inGate, []);
 });
@@ -50,7 +50,7 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
   writeTree(h, { 'agents/my-own.md': plainAgent('my-own') });
   assert.equal(applyBound(repo, h).code, 0);
   // A manifest from before the gate: the same files, no gate block.
-  const mf = join(h, '.pact-install.json');
+  const mf = join(h, '.pact', 'install.json');
   const old = JSON.parse(readFileSync(mf, 'utf8'));
   delete old.gate;
   writeFileSync(mf, JSON.stringify(old));
@@ -62,7 +62,7 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
   assert.equal(r.code, 0, r.out);
   assert.ok(existsSync(join(h, 'agents', 'my-own.md')));
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) assert.ok(existsSync(join(h, 'agents', f)), f);
-  assert.equal(readdirSync(join(h, 'pact', 'backups')).length, 2);
+  assert.equal(readdirSync(join(h, '.pact', 'backups')).length, 2);
 });
 
 // ------------------------------------------------------------ gate fingerprints
@@ -198,7 +198,7 @@ test('lines built from the install record are cleaned', t => {
   const repo = makeRepo(t);
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
-  const mf = join(h, '.pact-install.json');
+  const mf = join(h, '.pact', 'install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
   m.gate.push({ path: 'gate/\u001b[2Kx', sha256: 'aa' });
   m.files.push({ path: 'agents/\u001b[2Ky.md', sha256: 'aa' });
@@ -284,15 +284,15 @@ test('canary: the install never echoes agent file content', t => {
 test('bad case: a live pact/review.md the record does not list refuses, on the dry run and on --apply, and nothing is written', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'review.md'), 'my own notes\n');
+  mkdirSync(join(h, '.pact'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'review.md'), 'my own notes\n');
   const before = listTree(h);
   for (const r of [install(repo, h), install(repo, h, { apply: true })]) {
     refused(r);
     assert.match(r.stdout, /^REFUSED: pact\/review\.md already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there\. Move it out of the way, then install again\./m, r.out);
   }
   assert.deepEqual(listTree(h), before);
-  assert.equal(readFileSync(join(h, 'pact', 'review.md'), 'utf8'), 'my own notes\n');
+  assert.equal(readFileSync(join(h, '.pact', 'review.md'), 'utf8'), 'my own notes\n');
 });
 
 // ------------------------------------------------------------ the check's runner, on real Node
@@ -345,7 +345,7 @@ test('--apply installs the default render as the rules file, and the record hold
   assert.match(r.stdout, /^render\| CONFIG default [0-9a-f]{64}$/m, r.out);
   assert.match(r.stdout, /^OK {7}CLAUDE\.md$/m, r.out);
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), rendered);
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const entry = manifest.files.find(f => f.path === 'CLAUDE.md');
   assert.equal(entry.sha256, sha256(rendered));
   assert.notEqual(entry.sha256, sha256(source));
@@ -390,7 +390,7 @@ test('bad case: a record whose rules-file hash is not the rendered bytes\' hash 
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
   // The hash an install that ignored the render would have recorded.
-  const mf = join(h, '.pact-install.json');
+  const mf = join(h, '.pact', 'install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
   m.files.find(f => f.path === 'CLAUDE.md').sha256 = sha256(source);
   writeFileSync(mf, JSON.stringify(m));

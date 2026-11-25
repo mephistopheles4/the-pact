@@ -46,7 +46,7 @@ test('seam A lists a command for install only when --commands names it', t => {
   const root = stage(t, { [CMD]: GOOD });
   const on = runSeamA(root, undefined, { commands: 'finis' });
   assert.equal(on.code, 0, on.out);
-  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/commands\/finis\.md commands\/finis\.md$/m, on.out);
+  assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/commands\/finis\.md @claude\/commands\/finis\.md$/m, on.out);
   const off = runSeamA(root, undefined, { commands: 'none' });
   assert.equal(off.code, 0, off.out);
   assert.doesNotMatch(off.stdout, /^INSTALL .*commands\//m, off.out);
@@ -57,7 +57,7 @@ test('a command with a shell line, an argument, an include and any key passes an
   const body = '---\ndescription: x\nallowed-tools: Bash\n---\n\nRun !`git status` with $ARGUMENTS and read @notes.md.\n';
   const r = runSeamA(stage(t, { [CMD]: body }), undefined, { commands: 'finis' });
   assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/commands\/finis\.md commands\/finis\.md$/m, r.out);
+  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/commands\/finis\.md @claude\/commands\/finis\.md$/m, r.out);
 });
 
 // ------------------------------------------------------------ seam A: --commands (S8)
@@ -71,7 +71,7 @@ function seamWith(t, tree, argv) {
 }
 {
   const base = () => ({ [CMD]: GOOD, argv: JSON.stringify(['--commands', 'finis', '--tools', 'none']) });
-  const run = ({ argv, ...tree }, t) => seamWith(t, tree, ['--compact', 'off', ...JSON.parse(argv)]);
+  const run = ({ argv, ...tree }, t) => seamWith(t, tree, ['--compact', 'off', '--harness', 'claude:rules+agents+commands', ...JSON.parse(argv)]);
   const rows = [
     { id: 'missing', plant: t => ({ ...t, argv: JSON.stringify(['--tools', 'none']) }), fails: ['commands-arg'], why: 'the list never defaults' },
     { id: 'given-twice', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis', '--commands', 'finis', '--tools', 'none']) }), fails: ['commands-arg'], why: 'given twice, even the same' },
@@ -110,8 +110,8 @@ const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 function renderWith(t, config) {
   const h = tempDir(t, 'pact-render-home-');
   if (config !== null) {
-    mkdirSync(join(h, 'pact'));
-    writeFileSync(join(h, 'pact', 'config.json'), config);
+    mkdirSync(join(h, '.pact'));
+    writeFileSync(join(h, '.pact', 'config.json'), config);
   }
   const out = tempDir(t, 'pact-render-out-');
   return runCore('render', [SOURCE, out, h]);
@@ -177,7 +177,7 @@ test('the shipped /make-it-so, /finis and /scry pass seam A and are listed to in
   const r = runSeamA(root, undefined, { commands: SHIPPED.join(',') });
   assert.equal(r.code, 0, r.out);
   for (const n of SHIPPED) {
-    assert.match(r.stdout, new RegExp(`^INSTALL [0-9a-f]{64} claude/commands/${n}\\.md commands/${n}\\.md$`, 'm'), r.out);
+    assert.match(r.stdout, new RegExp(`^INSTALL [0-9a-f]{64} claude/commands/${n}\\.md @claude/commands/${n}\\.md$`, 'm'), r.out);
   }
 });
 

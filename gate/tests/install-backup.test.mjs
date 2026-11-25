@@ -15,7 +15,7 @@ import { writeTree } from './tree.mjs';
 
 const NAME = /^\d{8}T\d{9}Z-[0-9a-f]{7}(-\d{2})?$/;
 const STAGING_LEFT = /pact\/backups may hold a staging folder with a copy of your settings/;
-const backupsDir = h => join(h, 'pact', 'backups');
+const backupsDir = h => join(h, '.pact', 'backups');
 const backups = h => (existsSync(backupsDir(h)) ? readdirSync(backupsDir(h)).sort() : []);
 const manifestOf = (h, name) => JSON.parse(readFileSync(join(backupsDir(h), name, 'manifest.json'), 'utf8'));
 
@@ -32,7 +32,7 @@ function files(h, rel = '') {
   const out = [];
   for (const d of readdirSync(join(h, rel), { withFileTypes: true })) {
     const r = rel ? `${rel}/${d.name}` : d.name;
-    if (r === 'pact/backups') continue;
+    if (r === '.pact/backups') continue;
     if (d.isDirectory()) out.push(...files(h, r));
     else out.push(`${r} ${readFileSync(join(h, r)).toString('base64')}`);
   }
@@ -76,19 +76,19 @@ test('#272 C1: an apply first copies what it replaces into a dated backup, whose
   const paths = m.entries.map(e => e.path);
   assert.deepEqual(paths, [...paths].sort());
   assert.deepEqual(m.entries.find(e => e.path === 'CLAUDE.md'), { path: 'CLAUDE.md', was: 'file', sha256: createHash('sha256').update('my own rules\n').digest('hex'), bytes: 13 });
-  assert.deepEqual(m.entries.find(e => e.path === '.pact-install.json'), { path: '.pact-install.json', was: 'absent' });
-  const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  assert.deepEqual(m.entries.find(e => e.path === '.pact/install.json'), { path: '.pact/install.json', was: 'absent' });
+  const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   for (const f of record.files.filter(f => f.path !== 'CLAUDE.md')) assert.deepEqual(m.entries.find(e => e.path === f.path), { path: f.path, was: 'absent' }, f.path);
   assert.ok(!paths.includes('agents/my-own.md'), "the person's own agent is not the apply's to copy");
   // A later apply copies the record, and an overwritten pact file; settings.json only when the apply writes it.
   writeFileSync(join(repo, 'claude', 'agents', 'scout.md'), `${readFileSync(join(repo, 'claude', 'agents', 'scout.md'), 'utf8')}A changed line.\n`);
   git(repo, 'commit', '-qam', 'change scout');
   const scoutBefore = readFileSync(join(h, 'agents', 'scout.md'));
-  const recordBefore = readFileSync(join(h, '.pact-install.json'));
+  const recordBefore = readFileSync(join(h, '.pact', 'install.json'));
   passed(applyBound(repo, h));
   const second = backups(h).find(n => n !== first);
   assert.deepEqual(readFileSync(join(backupsDir(h), second, 'agents', 'scout.md')), scoutBefore);
-  assert.deepEqual(readFileSync(join(backupsDir(h), second, '.pact-install.json')), recordBefore);
+  assert.deepEqual(readFileSync(join(backupsDir(h), second, '.pact/install.json')), recordBefore);
   assert.ok(!manifestOf(h, second).entries.some(e => e.path === 'settings.json'), 'settings.json is copied only when the apply writes it');
 });
 
@@ -121,7 +121,7 @@ test('#272 C5: a live file changed while the install ran refuses before any inst
   const r = applyBound(repo, h);
   refused(r, /^REFUSED: CLAUDE\.md changed while the install ran.* Nothing was changed\.$/m);
   assert.equal(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), 'changed during the run\n');
-  assert.ok(!existsSync(join(h, '.pact-install.json')), 'nothing was installed');
+  assert.ok(!existsSync(join(h, '.pact', 'install.json')), 'nothing was installed');
   assert.deepEqual(backups(h), []);
 });
 
@@ -137,7 +137,7 @@ test('#272 C6: on Linux and macOS the backup folders are 0700 and its files 0600
   const walk = rel => {
     const p = join(backupsDir(h), rel);
     const st = statSync(p);
-    assert.equal(st.mode & 0o777, st.isDirectory() ? 0o700 : 0o600, rel || 'pact/backups');
+    assert.equal(st.mode & 0o777, st.isDirectory() ? 0o700 : 0o600, rel || '.pact/backups');
     if (st.isDirectory()) for (const n of readdirSync(p)) walk(rel ? `${rel}/${n}` : n);
   };
   walk('');
@@ -189,7 +189,7 @@ test('#272 C7: a refused apply prunes nothing, and the next verified apply prune
   const old = Array.from({ length: 12 }, (_, i) => `2025${String(i + 101).padStart(4, '0')}T000000000Z-bbbbbbb`);
   for (const name of old) {
     mkdirSync(join(backupsDir(h), name), { recursive: true });
-    writeFileSync(join(backupsDir(h), name, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-1', commit: 'b'.repeat(40), created: '', entries: [{ path: '.pact-install.json', was: 'file', sha256: 'f'.repeat(64), bytes: 1 }] })}\n`);
+    writeFileSync(join(backupsDir(h), name, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-1', commit: 'b'.repeat(40), created: '', entries: [{ path: '.pact/install.json', was: 'file', sha256: 'f'.repeat(64), bytes: 1 }] })}\n`);
   }
   const broken = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  say('Applying.');\n  for", "  say('Applying.');\n  throw new Error('planted');\n  for"));
   refused(applyBound(broken, h));

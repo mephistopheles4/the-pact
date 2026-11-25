@@ -43,7 +43,7 @@ test('node: --apply installs the files byte for byte, writes the record and the 
   const repo = makeRepo(t);
   const h = home(t);
   passed(applyBound(repo, h));
-  const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.equal(record.commit, git(repo, 'rev-parse', 'HEAD').trim());
   // #482: the default install records the window it set (C1).
   assert.deepEqual(Object.keys(record), ['commit', 'digest', 'config', 'files', 'gate', 'autoCompactWindow']);
@@ -82,7 +82,7 @@ test('node: a new settings file and the record are owner-only on Unix', t => {
   const h = home(t);
   passed(applyBound(repo, h));
   assert.equal(statSync(join(h, 'settings.json')).mode & 0o777, 0o600);
-  assert.equal(statSync(join(h, '.pact-install.json')).mode & 0o777, 0o600);
+  assert.equal(statSync(join(h, '.pact', 'install.json')).mode & 0o777, 0o600);
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
@@ -212,7 +212,7 @@ test('node: a checkout behind the last install warns after the security-defaults
   const repo = makeRepo(t);
   const h = home(t);
   const BEHIND = /^WARN: the last install's commit/;
-  const recordFile = join(h, '.pact-install.json');
+  const recordFile = join(h, '.pact', 'install.json');
   const setCommit = c => writeFileSync(recordFile, JSON.stringify({ ...JSON.parse(readFileSync(recordFile, 'utf8')), commit: c }));
   const tail = "is not in this checkout's history: this checkout is behind it or on another line. Installing may roll the pact back; fast-forward the checkout first, unless you mean to.";
   /** A run's behind lines, after checking that the security-defaults line is its first warning and comes before them. */
@@ -273,8 +273,8 @@ test('node: other pact-install folders in the temp folder are counted, never rem
 });
 
 const userConfig = (h, n = 90) => {
-  mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `{"schema": 1, "settings": {"usage-pause": ${n}}}\n`);
+  mkdirSync(join(h, '.pact'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `{"schema": 1, "settings": {"usage-pause": ${n}}}\n`);
 };
 const renderedHash = r => /^ {2}rendered rules file: sha256 ([0-9a-f]{64})$/m.exec(r.stdout)?.[1];
 
@@ -293,7 +293,7 @@ test('node: a configuration binds --apply to the rendered hash, and the record n
   refused(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }), /is not the full hash of the rules file this run rendered/);
   userConfig(h, 90);
   passed(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }));
-  const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.match(record.digest, /^[0-9a-f]{12}$/);
   assert.equal(record.config[0].kind, 'user');
   assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /90%/);
@@ -317,9 +317,9 @@ test('node: --review-folder writes the rendered rules and the diff once every ch
 test('node: a configuration blocks folder that is a link refuses before the renderer runs', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  mkdirSync(join(h, 'pact'));
+  mkdirSync(join(h, '.pact'));
   try {
-    symlinkSync(tempDir(t, 'pact-blocks-'), join(h, 'pact', 'blocks'), WIN ? 'junction' : 'dir');
+    symlinkSync(tempDir(t, 'pact-blocks-'), join(h, '.pact', 'blocks'), WIN ? 'junction' : 'dir');
   } catch (e) {
     if (e.code === 'EPERM') return t.skip('this account may not make a link here');
     throw e;
@@ -353,7 +353,7 @@ test('node: a pact folder that is a link refuses before the renderer reads the u
   const h = home(t);
   const elsewhere = tempDir(t, 'pact-else-');
   writeFileSync(join(elsewhere, 'config.json'), '{"schema": 1, "settings": {"usage-pause": 90}}\n');
-  if (!junctionOrSkip(t, elsewhere, join(h, 'pact'))) return;
+  if (!junctionOrSkip(t, elsewhere, join(h, '.pact'))) return;
   const r = install(repo, h);
   refused(r, /^REFUSED: the user configuration file, or the pact folder that holds it, is a link or other reparse point\./m);
   assert.ok(!/^render\| /m.test(r.stdout), 'the renderer never ran');
@@ -362,8 +362,8 @@ test('node: a pact folder that is a link refuses before the renderer reads the u
 test('node: a link inside the configuration blocks folder refuses before the renderer runs', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  mkdirSync(join(h, 'pact', 'blocks', '.hidden'), { recursive: true });
-  if (!junctionOrSkip(t, tempDir(t, 'pact-else-'), join(h, 'pact', 'blocks', '.hidden', 'deep'))) return;
+  mkdirSync(join(h, '.pact', 'blocks', '.hidden'), { recursive: true });
+  if (!junctionOrSkip(t, tempDir(t, 'pact-else-'), join(h, '.pact', 'blocks', '.hidden', 'deep'))) return;
   refused(install(repo, h), /^REFUSED: the configuration blocks folder holds a link or other reparse point\./m);
 });
 
@@ -373,7 +373,7 @@ test('node: a configuration blocks folder that cannot be read refuses', t => {
   if (process.getuid?.() === 0) return skipUnlessLinuxCi(t, 'a folder this account cannot read can only be made as a user other than root');
   const repo = makeRepo(t);
   const h = home(t);
-  const locked = join(h, 'pact', 'blocks', 'locked');
+  const locked = join(h, '.pact', 'blocks', 'locked');
   mkdirSync(locked, { recursive: true });
   chmodSync(locked, 0o000);
   // Put back before the home folder's own cleanup, which runs first among the after hooks.

@@ -752,7 +752,7 @@ const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `
     { id: 'listed-twice', plant: rep('RESULT', `INSTALL ${H('2')} claude/agents/a.md agents/a.md\nRESULT`), fails: ['copy-set-twice'], why: 'one file listed twice' },
     { id: 'file-left-off', plant: rep(`INSTALL ${H('2')} claude/agents/a.md agents/a.md\n`, ''), fails: ['copy-set-mismatch'], why: 'a seam A that leaves a file off its list' },
     { id: 'file-added', plant: rep('RESULT', `INSTALL ${H('7')} AGENTS.md AGENTS.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'a file that never installs' },
-    { id: 'other-destination', plant: rep('pact/review.md', 'agents/review.md'), fails: ['copy-set-mismatch'], why: 'the review file sent to another live path' },
+    { id: 'other-destination', plant: rep('.pact/review.md', 'agents/review.md'), fails: ['copy-set-mismatch'], why: 'the review file sent to another live path' },
     { id: 'other-hash', plant: rep(`INSTALL ${H('1')}`, `INSTALL ${H('0')}`), fails: ['copy-set-mismatch'], why: 'bytes other than the staged ones' },
     { id: 'case-differs', plant: rep('claude/agents/a.md agents/a.md', 'claude/agents/A.md agents/a.md'), fails: ['copy-set-mismatch'], why: 'matched case-sensitively, as seam A matches' },
     { id: 'gate-file', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/builder/gate/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'a gate file installs only as a builder kit entry (#203)' },
@@ -799,7 +799,7 @@ const toolCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('
   const rows = [
     { id: 'listed-tool-left-off', plant: rep(`INSTALL ${H('9')} claude/tools/poster.mjs pact/tools/poster.mjs\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a tool the list names' },
     { id: 'tool-off-but-listed', plant: t => ({ ...t, list: '' }), fails: ['copy-set-mismatch'], why: 'off, a tool never installs' },
-    { id: 'tool-at-home-root', plant: rep('pact/tools/poster.mjs', 'tools/poster.mjs'), fails: ['copy-set-mismatch'], why: "the general claude/ rule's path is not the tool's" },
+    { id: 'tool-at-home-root', plant: rep('.pact/tools/poster.mjs', 'tools/poster.mjs'), fails: ['copy-set-mismatch'], why: "the general claude/ rule's path is not the tool's" },
   ];
   test('copy set with tools: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`copy set with tools: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -809,7 +809,7 @@ const toolCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('
 // #280 C2
 test('the copy set with tools: a listed tool pairs to pact/tools/, an unlisted one is left out, an unknown one or a subfolder pairs with null', () => {
   const rels = ['claude/CLAUDE.md', 'claude/tools/poster.mjs', 'claude/tools/sender.mjs', 'claude/tools/sub/poster.mjs'];
-  assert.deepEqual(core.expectedCopySet(rels, [], ['poster']), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/tools/poster.mjs', 'pact/tools/poster.mjs'], ['claude/tools/sender.mjs', null], ['claude/tools/sub/poster.mjs', null]]);
+  assert.deepEqual(core.expectedCopySet(rels, [], ['poster']), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/tools/poster.mjs', '.pact/tools/poster.mjs'], ['claude/tools/sender.mjs', null], ['claude/tools/sub/poster.mjs', null]]);
   assert.deepEqual(core.expectedCopySet(['claude/tools/poster.mjs']), [], 'no list installs no tool');
 });
 
@@ -824,14 +824,14 @@ test('the copy set with the builder kit: each kit file pairs under pact/builder/
   const rels = ['claude/CLAUDE.md', 'claude/rules.source.md', 'claude/agents/a.md', 'builder/build.mjs', 'builder/presets/p.json', 'builder/notes.txt', 'gate/shared.mjs', 'gate/seam-a.mjs', 'examples/pact-config/builder.json', 'claude/commands/scriptorium.md'];
   assert.deepEqual(core.expectedCopySet(rels, ['scriptorium']), [
     ['claude/CLAUDE.md', 'CLAUDE.md'],
-    ['claude/rules.source.md', 'pact/builder/claude/rules.source.md'],
-    ['claude/agents/a.md', 'pact/builder/claude/agents/a.md'], ['claude/agents/a.md', 'agents/a.md'],
-    ['builder/build.mjs', 'pact/builder/builder/build.mjs'],
-    ['builder/presets/p.json', 'pact/builder/builder/presets/p.json'],
+    ['claude/rules.source.md', '.pact/builder/claude/rules.source.md'],
+    ['claude/agents/a.md', '.pact/builder/claude/agents/a.md'], ['claude/agents/a.md', 'agents/a.md'],
+    ['builder/build.mjs', '.pact/builder/builder/build.mjs'],
+    ['builder/presets/p.json', '.pact/builder/builder/presets/p.json'],
     ['builder/notes.txt', null],
-    ['gate/shared.mjs', 'pact/builder/gate/shared.mjs'],
-    ['examples/pact-config/builder.json', 'pact/builder/examples/pact-config/builder.json'],
-    ['claude/commands/scriptorium.md', 'pact/builder/claude/commands/scriptorium.md'], ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
+    ['gate/shared.mjs', '.pact/builder/gate/shared.mjs'],
+    ['examples/pact-config/builder.json', '.pact/builder/examples/pact-config/builder.json'],
+    ['claude/commands/scriptorium.md', '.pact/builder/claude/commands/scriptorium.md'], ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
   ]);
   assert.deepEqual(core.expectedCopySet(rels, []), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/agents/a.md', 'agents/a.md'], ['builder/notes.txt', null]], 'no kit without /scriptorium');
 });
@@ -854,7 +854,7 @@ test('the commands on: the listed ones, and scriptorium whenever the commit hold
 // #261 C3
 test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes to its fixed path', () => {
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/review-diagrams.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['claude/review-diagrams.md', 'pact/review-diagrams.md'], ['familiars/x.md', null]]);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', '.pact/review.md'], ['claude/review-diagrams.md', '.pact/review-diagrams.md'], ['familiars/x.md', null]]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
@@ -899,16 +899,16 @@ const noLink = () => false;
 // dest-skip: the reasons behind the rule id the table above checks.
 test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
   for (const p of ['', '../x', 'a/../b', '/x', '\\x', 'C:x', null, 5]) assert.equal(core.skipReason(p, noLink), 'unsafe path', String(p));
-  for (const p of ['settings.json', 'SETTINGS.JSON', '.pact-install.json', 'pact/config.json', 'pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', 'pact/blocks/b.md', 'pact/presets', 'pact/presets/personal.json', 'Pact/Presets/p.json. ', 'pact/builder.json', 'Pact/Builder.json. ']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+  for (const p of ['settings.json', 'SETTINGS.JSON', '.pact/install.json', '.pact/config.json', '.pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', '.pact/blocks/b.md', '.pact/presets', '.pact/presets/personal.json', 'Pact/Presets/p.json. ', '.pact/builder.json', 'Pact/Builder.json. ']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
   for (const p of ['agents/a b.md', 'agents/.x', 'agents/a.', 'a\\b']) assert.equal(core.skipReason(p, noLink), 'non-canonical path', p);
   assert.equal(core.skipReason('agents/a.md', () => true), 'path through a link');
   assert.equal(core.skipReason('agents/a.md', noLink), null);
 });
 
 test('#272 C8: no install record can make the install write or delete a path under pact/backups', () => {
-  for (const p of ['pact/backups', 'pact/backups/20261018T143005123Z-addaa8a/settings.json', 'Pact/Backups/x. ', 'pact/backups:stream']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+  for (const p of ['.pact/backups', '.pact/backups/20261018T143005123Z-addaa8a/settings.json', 'Pact/Backups/x. ', '.pact/backups:stream']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
   const live = () => ({ exists: true, file: true, sha256: H('1') });
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'pact/backups/b/CLAUDE.md', sha256: H('1') }] }));
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: '.pact/backups/b/CLAUDE.md', sha256: H('1') }] }));
   const p = core.plan(record, new Map(), live, noLink);
   assert.deepEqual(p.delete, []);
   assert.deepEqual(p.warnings, ['protected path in the install record, skipped: pact/backups/b/CLAUDE.md']);
@@ -918,14 +918,14 @@ test('#272 C8: no install record can make the install write or delete a path und
 
 // #262: an agent file changed since the install, or one the record never listed, is the person's: in yours, never drift, overwrite or delete.
 test('the plan: drift, overwrite, add, delete, yours and unchanged; a record hash in capitals is not drift; a first install deletes only the retired agents', () => {
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('9')], ['agents/a.md', H('9')], ['agents/old.md', H('3')], ['agents/edited-old.md', H('6')], ['agents/builder.md', H('4')], ['agents/mine.md', H('5')]]);
+  const liveFiles = new Map([['CLAUDE.md', H('1')], ['.pact/review.md', H('9')], ['agents/a.md', H('9')], ['agents/old.md', H('3')], ['agents/edited-old.md', H('6')], ['agents/builder.md', H('4')], ['agents/mine.md', H('5')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: liveFiles.get(rel) !== null, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const repoFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('2')], ['agents/a.md', H('2')], ['agents/new.md', H('5')], ['agents/mine.md', H('4')], ['agents/missing.md', H('7')]]);
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1').toUpperCase() }, { path: 'pact/review.md', sha256: H('8') }, { path: 'commands/finis.md', sha256: H('7') }, { path: 'agents/old.md', sha256: H('3') }, { path: 'agents/edited-old.md', sha256: H('3') }, { path: 'agents/a.md', sha256: H('8') }, { path: 'settings.json', sha256: H('0') }, { path: 'agents/missing.md', sha256: H('7') }] }));
+  const repoFiles = new Map([['CLAUDE.md', H('1')], ['.pact/review.md', H('2')], ['agents/a.md', H('2')], ['agents/new.md', H('5')], ['agents/mine.md', H('4')], ['agents/missing.md', H('7')]]);
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1').toUpperCase() }, { path: '.pact/review.md', sha256: H('8') }, { path: 'commands/finis.md', sha256: H('7') }, { path: 'agents/old.md', sha256: H('3') }, { path: 'agents/edited-old.md', sha256: H('3') }, { path: 'agents/a.md', sha256: H('8') }, { path: 'settings.json', sha256: H('0') }, { path: 'agents/missing.md', sha256: H('7') }] }));
   const p = core.plan(record, repoFiles, live, noLink);
-  assert.deepEqual(p.drift, ['pact/review.md (changed since the install)', 'commands/finis.md (deleted since the install)']);
+  assert.deepEqual(p.drift, ['.pact/review.md (changed since the install)', 'commands/finis.md (deleted since the install)']);
   assert.deepEqual(p.yours, ['agents/edited-old.md', 'agents/a.md', 'agents/mine.md']);
-  assert.deepEqual(p.overwrite, ['pact/review.md']);
+  assert.deepEqual(p.overwrite, ['.pact/review.md']);
   assert.deepEqual(p.add, ['agents/new.md', 'agents/missing.md']);
   assert.deepEqual(p.delete, ['agents/old.md']);
   assert.deepEqual(p.warnings, ['protected path in the install record, skipped: settings.json']);
@@ -943,11 +943,11 @@ test('the plan: a recorded agent path that is no longer a file is drift, not you
 });
 
 test('the plan: a record holding command and kit entries, under a payload without them, deletes them (#203, the rollback row)', () => {
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')], ['pact/builder/builder/build.mjs', H('3')], ['commands/mine.md', H('4')]]);
+  const liveFiles = new Map([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')], ['.pact/builder/builder/build.mjs', H('3')], ['commands/mine.md', H('4')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: true, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'commands/finis.md', sha256: H('2') }, { path: 'pact/builder/builder/build.mjs', sha256: H('3') }] }));
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'commands/finis.md', sha256: H('2') }, { path: '.pact/builder/builder/build.mjs', sha256: H('3') }] }));
   const p = core.plan(record, new Map([['CLAUDE.md', H('1')]]), live, noLink);
-  assert.deepEqual(p.delete, ['commands/finis.md', 'pact/builder/builder/build.mjs']);
+  assert.deepEqual(p.delete, ['commands/finis.md', '.pact/builder/builder/build.mjs']);
   assert.deepEqual(p.drift, []);
   assert.ok(!p.delete.includes('commands/mine.md'), "the owner's own command is never deleted");
 });
@@ -992,11 +992,11 @@ test('skill clash: only listed names are checked, and only by the path the check
     { id: 'unlisted-live-file', plant: t => ({ ...t, record: json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }] }) }), fails: ['unlisted-live'], says: /^REFUSED: commands\/finis\.md already exists in the Claude home folder, and the install record does not list it/, why: "the owner's own command is never overwritten" },
     { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
     // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
-    { id: 'review-path', plant: t => ({ ...t, files: json([['pact/review.md', H('4')]]), live: json(['pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
-    { id: 'diagrams-path', plant: t => ({ ...t, files: json([['pact/review-diagrams.md', H('4')]]), live: json(['pact/review-diagrams.md']) }), fails: ['unlisted-live'], says: /pact\/review-diagrams\.md already exists .* Move it out of the way, then install again\./, why: 'the diagram format file is never laid over a live file the pact did not put there' },
-    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
+    { id: 'review-path', plant: t => ({ ...t, files: json([['.pact/review.md', H('4')]]), live: json(['.pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
+    { id: 'diagrams-path', plant: t => ({ ...t, files: json([['.pact/review-diagrams.md', H('4')]]), live: json(['.pact/review-diagrams.md']) }), fails: ['unlisted-live'], says: /pact\/review-diagrams\.md already exists .* Move it out of the way, then install again\./, why: 'the diagram format file is never laid over a live file the pact did not put there' },
+    { id: 'kit-path', plant: t => ({ ...t, files: json([['.pact/builder/x.mjs', H('3')]]), live: json(['.pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
     // unlisted-live, #280 C2: a tool is never laid over a live file the pact did not put there.
-    { id: 'tool-path', plant: t => ({ ...t, files: json([['pact/tools/poster.mjs', H('5')]]), live: json(['pact/tools/poster.mjs']) }), fails: ['unlisted-live'], says: /pact\/tools\/poster\.mjs already exists .* Move it, or take its name out of the tools list\./, why: 'the remedy names the tools list' },
+    { id: 'tool-path', plant: t => ({ ...t, files: json([['.pact/tools/poster.mjs', H('5')]]), live: json(['.pact/tools/poster.mjs']) }), fails: ['unlisted-live'], says: /pact\/tools\/poster\.mjs already exists .* Move it, or take its name out of the tools list\./, why: 'the remedy names the tools list' },
   ];
   test('new command paths: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`new command paths: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));

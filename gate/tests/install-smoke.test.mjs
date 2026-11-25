@@ -35,7 +35,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) {
     assert.deepEqual(readFileSync(join(h, 'agents', f)), readFileSync(join(repo, 'claude', 'agents', f)), f);
   }
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const gatePaths = manifest.gate.map(g => g.path).sort();
   // Written out, so a stray gate file fails it; the four cores came with #155.
   // The Node install's gate is the gate folder alone (#153, S9). The tracker
@@ -62,12 +62,12 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
   // #261 S5: the review file installs byte for byte, and the manifest lists it.
-  assert.deepEqual(readFileSync(join(h, 'pact', 'review.md')), readFileSync(join(repo, 'claude', 'review.md')));
-  assert.ok(manifest.files.some(f => f.path === 'pact/review.md'), JSON.stringify(manifest.files));
+  assert.deepEqual(readFileSync(join(h, '.pact', 'review.md')), readFileSync(join(repo, 'claude', 'review.md')));
+  assert.ok(manifest.files.some(f => f.path === '.pact/review.md'), JSON.stringify(manifest.files));
   assert.ok(!existsSync(join(h, 'review.md')), 'the review file is never at the top of the Claude folder');
   // #280 C2: the poster is off by default, so neither its install path nor any other copy of it is in the home folder.
   assert.ok(existsSync(join(repo, 'claude', 'tools', 'poster.mjs')), 'the control: the repo holds the poster');
-  assert.ok(!existsSync(join(h, 'pact', 'tools', 'poster.mjs')) && !listTree(h).some(f => /poster/.test(f)), listTree(h).join('\n'));
+  assert.ok(!existsSync(join(h, '.pact', 'tools', 'poster.mjs')) && !listTree(h).some(f => /poster/.test(f)), listTree(h).join('\n'));
   // scout installs as agents/scout.md from claude/agents/ (#262 S18); no contract ever reaches the home folder (#210, at Test).
   assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'claude', 'agents', 'scout.md')));
   assert.ok(existsSync(join(repo, 'familiars', 'scout.contract.md')), 'the control: the repo holds a planted contract that could have installed');
@@ -83,7 +83,7 @@ test('bad case: a tampered live review file is drift, and --apply refuses and ch
   const repo = makeRepo(t);
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
-  const live = join(h, 'pact', 'review.md');
+  const live = join(h, '.pact', 'review.md');
   writeFileSync(live, `${readFileSync(live, 'utf8')}\n// tampered\n`);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
@@ -98,11 +98,11 @@ test('bad case: a deleted live review file is drift, and --apply refuses and cha
   const repo = makeRepo(t);
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
-  rmSync(join(h, 'pact', 'review.md'));
+  rmSync(join(h, '.pact', 'review.md'));
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^Drift: 1\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}pact\/review\.md \(deleted since the install\)\r?$/m, dry.out);
   refused(applyBound(repo, h));
-  assert.ok(!existsSync(join(h, 'pact', 'review.md')), 'a refused apply changes nothing');
+  assert.ok(!existsSync(join(h, '.pact', 'review.md')), 'a refused apply changes nothing');
 });
