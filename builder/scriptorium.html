@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-XPqngk/irOXpGn0vjwU5yVcn9Pq5nPKqrE03O+XlIYo='; style-src 'sha256-3lxArc6XX64+Io1IaknVLchsUaUdtBFmK3GEqPSdEzU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-pUYmXUhOA1S0n65cDrfmvixwf7es6xb696n8fXTfEac='; style-src 'sha256-fdt2rp0AGwjAZpJ0BxRJnu/DbCvrCkaV571jcgtWbxI='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1409,6 +1409,13 @@ input[type="number"].av-input { width: 5.5em; font-variant-numeric: tabular-nums
 details.av-disclosure > .av-disclosure-body { display: flex; flex-direction: column; gap: var(--space-row); padding: var(--space-row) var(--av-s2) var(--space-section); }
 dialog.settings .av-field { gap: var(--space-item); }
 .agent-add .add-square { flex: none; width: var(--av-control-h); padding: 0; font-size: var(--av-t-lead); line-height: 1; letter-spacing: 0; text-align: center; height: var(--av-control-h); }
+/* Harnesses: the three models and the add form's fields sit side by side where there is room. */
+/* The sheet's stack is a wrapping column, so each row takes its width, or its height is measured narrow. */
+#harnesses .av-tool-bar--stack > * { width: 100%; }
+.harness-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-row) var(--av-s2); }
+.harness-head { display: flex; flex-wrap: wrap; align-items: center; }
+.harness-caps { flex-wrap: wrap; gap: var(--space-row) var(--av-s2); }
+.harness-path { overflow-wrap: anywhere; text-transform: none; letter-spacing: normal; }
 </style>
 </head>
 <body class="av-paper">
@@ -1462,6 +1469,7 @@ dialog.settings .av-field { gap: var(--space-item); }
 </dialog>
 <dialog class="av-dialog settings" id="settings" aria-label="Settings"></dialog>
 <dialog class="av-dialog settings" id="agents" aria-label="Agents"></dialog>
+<dialog class="av-dialog settings" id="harnesses" aria-label="Harnesses"></dialog>
 <dialog class="av-dialog settings" id="presets" aria-label="Presets"></dialog>
 <dialog class="av-dialog settings" id="pacttext" aria-label="The pact's text"></dialog>
 <script>
@@ -6433,7 +6441,7 @@ function chooseHarnesses({ harnesses, install, detected, recorded }) {
   for (const id of lost) rows.push({ id, harness: null, detected: false, in: false });
   return { rows, warnings };
 }
-return { CAPABILITIES, AGENT_FORMATS, resolveHarnesses };
+return { CAPABILITIES, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses };
 })();
 const rendered = (() => {
 const { CAPABILITIES } = described;
@@ -7156,7 +7164,7 @@ function receives(state, id) {
 }
 
 // Shown wherever the config.json download button is, with or without a folder picker.
-const DOWNLOAD_NOTE = 'Unless you set the commands under Settings, a downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands. Unless you set the tools under Settings, a downloaded config.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools.';
+const DOWNLOAD_NOTE = 'Unless you set the commands under Settings, a downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands. Unless you set the tools under Settings, a downloaded config.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools. Unless you change a harness under Harnesses, it holds no harnesses key either: if yours has one, copy that entry across, or the next install picks its harnesses without it.';
 // The pact commands a save may list (#203, S10), in the installer's order, each with what it stands for. /scriptorium is not
 // among them: every install puts it in place with the builder kit.
 const OPT_COMMANDS = Object.freeze([
@@ -8840,7 +8848,7 @@ function boot() {
       showDialog('export');
     });
     const tourStart = el('button', { type: 'button', class: 'av-tool-chip av-tool-chip--ghost', 'data-av-tour-start': '' }, 'Take the tour');
-    $('actions').replaceChildren(tourStart, el('span', { id: 'reset', class: 'chips' }), chip('Presets', false, () => openPresets(), 'av-tool-chip--ghost'), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Agents', false, openAgents, 'av-tool-chip--ghost'), chip('The pact', false, openPactText, 'av-tool-chip--ghost'), scheme, exporter);
+    $('actions').replaceChildren(tourStart, el('span', { id: 'reset', class: 'chips' }), chip('Presets', false, () => openPresets(), 'av-tool-chip--ghost'), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Agents', false, openAgents, 'av-tool-chip--ghost'), chip('Harnesses', false, openHarnesses, 'av-tool-chip--ghost'), chip('The pact', false, openPactText, 'av-tool-chip--ghost'), scheme, exporter);
     renderReset();
   }
 
@@ -8852,6 +8860,7 @@ function boot() {
     renderAgents();
     if (editor) editor.reset();
     renderSettings();
+    renderHarnesses();
     renderOutput();
   }
 
@@ -9616,6 +9625,214 @@ function boot() {
 
 
 
+  /**
+   * The harnesses dialog (spec 0007 S11): one row per harness with its place in
+   * the install list and its three models, a form for a harness of the
+   * person's own, and, read only, what each one receives.
+   */
+  const ownModel = new Set(); // the model boxes opened for a name that is not in the harness's list
+  const openReceived = new Set(); // the files left open under "What each receives"
+  let shownHarness = null;
+  const harnessDraft = {}; // what is typed in the add form, kept while the dialog redraws
+  let harnessWhy = '';
+  let harnessFormOpen = false;
+  const MODEL_LABELS = { planning: 'Planning model', executor: 'Executor model', light: 'Light model' };
+  const OTHER = '__other__';
+
+  /** Redraw after a change, focus staying on the control that made it. */
+  function harnessChanged() {
+    const at = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('aria-label');
+    renderHarnesses();
+    renderOutput();
+    const box = $('harnesses');
+    if (!at || typeof box.querySelectorAll !== 'function') return;
+    const again = [...box.querySelectorAll('[aria-label]')].find(n => n.getAttribute('aria-label') === at);
+    if (again) again.focus();
+  }
+
+  const option = (value, text, selected) => {
+    const o = el('option', { value, text });
+    o.selected = selected;
+    return o;
+  };
+
+  /** One model of one harness: the harness's own names to pick from, or a name typed. */
+  function modelField(row, role) {
+    const known = PACT.harness.known.find(k => k.id === row.id);
+    const own = known ? known.models : (describedHarnesses(state).find(h => h.id === row.id) || {}).models;
+    const names = [...new Set(Object.values(own || {}).filter(Boolean))];
+    const now = row.models[role];
+    const key = `${row.id}:${role}`;
+    const typed = ownModel.has(key) || (now !== '' && !names.includes(now));
+    const label = `${row.name}: ${MODEL_LABELS[role].toLowerCase()}`;
+    const empty = role === 'light' ? "The executor's" : own ? null : 'None';
+    const pick = el('select', { 'aria-label': label }, ...(empty ? [option('', empty, !typed && now === '')] : []), ...names.map(n => option(n, n, !typed && now === n)), option(OTHER, 'Another model…', typed));
+    pick.value = typed ? OTHER : now;
+    pick.addEventListener('change', () => {
+      if (pick.value === OTHER) ownModel.add(key);
+      else {
+        ownModel.delete(key);
+        setHarnessModel(state, row.id, role, pick.value);
+      }
+      harnessChanged();
+    });
+    let name = null;
+    if (typed) {
+      name = el('input', { type: 'text', 'aria-label': `${label}, by name`, placeholder: 'model name or ID' });
+      name.value = now;
+      name.addEventListener('change', () => {
+        setHarnessModel(state, row.id, role, name.value.trim());
+        harnessChanged();
+      });
+    }
+    return el('div', { class: 'av-field' }, el('span', { class: 'av-field-label', text: MODEL_LABELS[role] }), pick, name);
+  }
+
+  function harnessRow(row) {
+    const take = el('input', { type: 'checkbox', 'aria-label': `Install into ${row.name}` });
+    take.checked = row.in;
+    take.addEventListener('change', () => {
+      setHarnessIn(state, row.id, take.checked);
+      harnessChanged();
+    });
+    const found = row.detected === null ? (row.own ? 'your own' : '') : row.detected ? 'folder found' : 'folder not found';
+    const bad = harnessProblems(state).filter(p => p.where === row.id);
+    return el(
+      'div',
+      { class: 'wf-group lens-row' },
+      el('div', { class: 'row-line harness-head' },
+        el('label', { class: 'av-check' }, take, el('span', { text: row.name })),
+        el('code', { text: row.id }),
+        el('span', { class: 'av-annot', text: [found, row.in ? 'in the install' : 'not installed into'].filter(Boolean).join(' · ') }),
+        row.own ? el('button', { type: 'button', class: 'row-x', title: 'Remove this harness', 'aria-label': `Remove the harness ${row.name}`, onclick: () => {
+          removeHarness(state, row.id);
+          harnessChanged();
+        } }, '×') : null),
+      el('div', { class: 'harness-fields' }, ...ROLES.map(role => modelField(row, role))),
+      ...bad.map(p => el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: p.text })),
+    );
+  }
+
+  /** The add form's fields as the entry config.json holds: empty ones left out. */
+  function draftEntry() {
+    const v = k => (harnessDraft[k] || '').trim();
+    const part = (key, path, more = {}) => (v(key) || Object.values(more).some(Boolean) ? { [path]: v(key), ...Object.fromEntries(Object.entries(more).filter(([, x]) => x)) } : null);
+    const bytes = k => (v(k) ? Number(v(k)) : '');
+    const parts = {
+      rules: { path: v('rules'), ...(v('cap') ? { cap: bytes('cap') } : {}), ...(v('sharedCap') ? { sharedCap: bytes('sharedCap') } : {}) },
+      agents: part('agents', 'dir', v('agents') ? { format: v('agentsFormat') || harnessLib.AGENT_FORMATS[0] } : {}),
+      skills: part('skills', 'dir'),
+      commands: part('commands', 'dir'),
+      hooks: part('hooks', 'file', v('hooks') ? { format: v('hooksFormat') || harnessLib.HOOK_FORMATS[0] } : {}),
+      models: v('planning') || v('executor') || v('light') ? { planning: v('planning'), executor: v('executor'), ...(v('light') ? { light: v('light') } : {}) } : null,
+    };
+    const caps = harnessLib.CAPABILITIES.filter(c => harnessDraft[`cap:${c}`]);
+    return { id: v('id'), name: v('name'), detect: v('detect'), ...Object.fromEntries(Object.entries(parts).filter(([, x]) => x)), ...(caps.length ? { capabilities: caps } : {}) };
+  }
+
+  function harnessForm() {
+    const field = (key, label, placeholder) => {
+      const box = el('input', { type: 'text', 'aria-label': `New harness: ${label.toLowerCase()}`, placeholder });
+      box.value = harnessDraft[key] || '';
+      box.addEventListener('input', () => (harnessDraft[key] = box.value));
+      return el('label', { class: 'av-field' }, el('span', { class: 'av-field-label', text: label }), box);
+    };
+    const format = (key, label, list) => {
+      const now = harnessDraft[key] || list[0];
+      const pick = el('select', { 'aria-label': `New harness: ${label.toLowerCase()}` }, ...list.map(f => option(f, f, f === now)));
+      pick.value = now;
+      pick.addEventListener('change', () => (harnessDraft[key] = pick.value));
+      return el('label', { class: 'av-field' }, el('span', { class: 'av-field-label', text: label }), pick);
+    };
+    const capability = c => {
+      const box = el('input', { type: 'checkbox', 'aria-label': `New harness: ${c}` });
+      box.checked = Boolean(harnessDraft[`cap:${c}`]);
+      box.addEventListener('change', () => (harnessDraft[`cap:${c}`] = box.checked));
+      return el('label', { class: 'av-check' }, box, el('code', { text: c }));
+    };
+    const group = (title, ...fields) => [el('span', { class: 'av-label', text: title }), el('div', { class: 'harness-fields' }, ...fields)];
+    const d = el('details', { class: 'av-disclosure av-disclosure--quiet' },
+      el('summary', { text: 'Add a harness' }),
+      el('div', { class: 'av-disclosure-body' },
+        el('p', { class: 'av-annot', text: 'A harness of your own needs an id, a name, a folder that shows it is here, and where its rules file goes. Write every path as ~/ and a path. Leave a part empty and nothing of that kind installs into it.' }),
+        ...group('Harness', field('id', 'Id', 'a-z, digits, dashes'), field('name', 'Name', 'what the dry run calls it'), field('detect', 'Detect folder', '~/.mine')),
+        ...group('Rules', field('rules', 'Rules file', '~/.mine/AGENTS.md'), field('cap', 'Size cap in bytes', 'none'), field('sharedCap', 'Shared cap in bytes', 'none')),
+        ...group('Agents, skills and commands', field('agents', 'Agents folder', 'none'), format('agentsFormat', 'Agent format', harnessLib.AGENT_FORMATS), field('skills', 'Skills folder', 'none'), field('commands', 'Commands folder', 'none')),
+        ...group('Hooks', field('hooks', 'Hooks file', 'none'), format('hooksFormat', 'Hooks format', harnessLib.HOOK_FORMATS)),
+        ...group('Models', field('planning', 'Planning model', 'none'), field('executor', 'Executor model', 'none'), field('light', 'Light model', "the executor's")),
+        el('span', { class: 'av-label', text: 'What it can do' }),
+        el('div', { class: 'chips harness-caps' }, ...harnessLib.CAPABILITIES.map(capability)),
+        harnessWhy ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `Not added: ${harnessWhy}` }) : null,
+        el('div', { class: 'chips' }, chip('Add this harness', true, () => {
+          const why = addHarness(state, draftEntry());
+          harnessWhy = why || '';
+          if (!why) {
+            for (const k of Object.keys(harnessDraft)) delete harnessDraft[k];
+            harnessFormOpen = false;
+          }
+          harnessChanged();
+        }))));
+    d.open = harnessFormOpen;
+    d.addEventListener('toggle', () => (harnessFormOpen = d.open));
+    return d;
+  }
+
+  /** The files one harness would receive from the page as it stands, read only. */
+  function receivedSection(rows) {
+    if (!rows.some(r => r.id === shownHarness)) shownHarness = rows.length ? rows[0].id : null;
+    if (shownHarness === null) return [el('p', { class: 'av-annot', text: 'No harness is listed, so nothing installs.' })];
+    const picks = rows.map(r => chip(r.name, r.id === shownHarness, () => {
+      shownHarness = r.id;
+      harnessChanged();
+    }, r.id === shownHarness ? '' : 'av-tool-chip--ghost', true));
+    const got = receives(state, shownHarness);
+    const row = rows.find(r => r.id === shownHarness);
+    const file = f => {
+      const key = `${shownHarness} ${f.path}`;
+      const d = el('details', { class: 'av-disclosure av-disclosure--quiet' }, el('summary', {}, el('code', { class: 'harness-path', text: f.path }), f.yours ? el('span', { class: 'av-annot', text: ' your own file, which the install leaves as it is' }) : null), el('div', { class: 'av-disclosure-body' }, el('pre', { class: 'preset-file', text: f.text })));
+      d.open = openReceived.has(key);
+      d.addEventListener('toggle', () => (d.open ? openReceived.add(key) : openReceived.delete(key)));
+      return d;
+    };
+    return [
+      el('div', { class: 'chips' }, ...picks),
+      row.in ? null : el('p', { class: 'av-annot', text: `${row.name} is not in the install list: this is what it would receive if it were.` }),
+      got.refusal ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `The install would stop: ${got.refusal}` }) : null,
+      ...got.warnings.map(w => el('p', { class: 'av-annot', text: `The dry run would warn: ${w}` })),
+      el('div', { class: 'accs' }, ...got.files.map(file)),
+    ];
+  }
+
+  function renderHarnesses() {
+    const rows = harnessList(state);
+    const changed = harnessesChanged(state.harnesses);
+    const looked = PACT.machine ? 'Listed as your install\'s dry run would list them when this page was written. Build the page again to look afresh.' : 'This page was written without looking at your machine, so it lists every harness the pact knows. A list you change here is exactly what installs.';
+    $('harnesses').replaceChildren(el(
+      'div',
+      { class: 'av-tool-sheet' },
+      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Harnesses' }), el('p', { class: 'av-tool-blurb', text: 'The programs the pact installs into, the models each one uses, and what each receives.' })), closeX('harnesses')),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' },
+        el('h3', { class: 'section-title', text: 'Install list and models' }),
+        el('p', { class: 'av-annot', text: looked }),
+        ...rows.map(harnessRow),
+        harnessForm(),
+        el('div', { class: 'chips' }, chip('Leave as is', !changed, () => {
+          state.harnesses = initialState().harnesses;
+          ownModel.clear();
+          harnessChanged();
+        }, changed ? 'av-tool-chip--ghost' : '', true)),
+        el('p', { class: 'av-annot', text: changed ? 'Changed here: a save applies these changes to the harnesses in your config.json, and the next install reads them. Leave as is drops them.' : 'Left as is: a save keeps the harnesses already in your config.json.' })),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' },
+        el('h3', { class: 'section-title', text: 'What each harness receives' }),
+        el('p', { class: 'av-annot', text: 'The rules, agents, commands and skills as the install would write them from this page. The line naming your configuration is filled in by the install. Settings keys, hooks, tools and the review procedure are not shown.' }),
+        ...receivedSection(rows)),
+    ));
+  }
+  function openHarnesses() {
+    renderHarnesses();
+    showDialog('harnesses');
+  }
+
   /** The pact's own text (#464 T8): every rule it installs, to read here and never to edit. */
   function openPactText() {
     const T = PACT.pactText;
@@ -9626,7 +9843,7 @@ function boot() {
       el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: "The pact's text, not configurable" }), el('p', { class: 'av-tool-blurb', text: 'Every rule a home install writes, to read. It leaves out the lines a project configuration writes. The agents are in Agents, each whole file.' })), closeX('pacttext')),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' },
         el('div', { class: 'accs' },
-          fold('The rules file', 'Installed at ~/.claude/CLAUDE.md, shown as it stands before any configuration. A label in square brackets marks what you can change, or what renders only when something is on.', T.rules),
+          fold('The rules file', 'Installed as each harness\'s rules file (~/.claude/CLAUDE.md for Claude Code), shown as it stands before any configuration; Harnesses shows each one\'s own render. A label in square brackets marks what you can change, or what renders only when something is on.', T.rules),
           fold('The review procedure', 'Installed at ~/.pact/review.md.', T.review),
           ...T.commands.map(c => fold(`/${c.name}`, c.name === ALWAYS_COMMAND.name ? 'Always installed.' : 'Installed only when you turn it on, under Settings.', c.text)),
           fold('The settings keys', 'Merged into ~/.claude/settings.json, keeping your other keys. The hooks block is the pact\'s auto-compact hook: the installer puts its script path and your window in place of the two tokens, and merges it by key, so your own hooks stay.', T.settings),
@@ -9667,7 +9884,7 @@ function boot() {
       if (e && e.name === 'AbortError') return setStatus('Save cancelled. Nothing was written.', '');
       return setStatus('The folder could not be opened. Use the download buttons instead.', 'error');
     }
-    const kept = await keepCommandsIn(dir, files);
+    const kept = await keepCommandsIn(dir, files, state.harnesses);
     if (kept.refuse) return setStatus(kept.refuse, 'error');
     files = kept.files;
     // The four parts' keys go into the folder's builder.json, so a rebuilt page reloads them (#262, D9).
@@ -9743,7 +9960,7 @@ function boot() {
     $('output').replaceChildren(
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
       el('p', { class: 'av-annot', text: canPick
-        ? `Save writes these files into the folder you pick: choose your pact folder (~/.pact). It replaces config.json and any block file of the same name, leaving each agent file to its download button, and keeping a commands list config.json already holds unless you set the commands under Settings, and a tools list the same way. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.`
+        ? `Save writes these files into the folder you pick: choose your pact folder (~/.pact). It replaces config.json and any block file of the same name, leaving each agent file to its download button, and keeping a commands list config.json already holds unless you set the commands under Settings, and a tools list the same way. It keeps config.json\'s harnesses too, applying what you changed under Harnesses. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.`
         : `This browser has no folder picker, so save each file with its download button and put it where it says. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.` }),
       el('ul', { class: 'callouts' }, ...notes),
       el('div', { class: 'files' }, ...fileViews),

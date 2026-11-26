@@ -151,7 +151,7 @@ function renderCode(root) {
       own(/^const windowsName = [\s\S]*?;$/m),
       own(/^const SECRET_STORES = .*;$/m),
       'const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));',
-    ], 'CAPABILITIES, AGENT_FORMATS, resolveHarnesses'),
+    ], 'CAPABILITIES, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses'),
     '})();',
     'const rendered = (() => {',
     wrapped('gate/harness-render.mjs', ['const { CAPABILITIES } = described;', 'const Buffer = { byteLength: s => utf8Length(s) };'], 'renderHarnesses'),

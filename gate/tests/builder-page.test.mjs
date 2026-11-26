@@ -921,6 +921,35 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.doesNotMatch(P.ids.output.text, /\r/);
 });
 
+// PACT-105 S11, C24: the Harnesses dialog's controls reach the saved configuration and the read-only view.
+test('stub page: Harnesses opens, a harness left out, a model and an added harness reach the save, and each file received is shown', () => {
+  const P = bootPage();
+  P.button(P.ids.actions, 'Harnesses').click();
+  const box = P.ids.harnesses;
+  const labelled = label => P.find(box, n => n.attrs['aria-label'] === label)[0];
+  const fire = (node, event) => node.listeners[event].forEach(f => f({}));
+  assert.match(box.text, /~\/\.claude\/CLAUDE\.md/);
+  const codex = labelled('Install into Codex');
+  codex.checked = false;
+  fire(codex, 'change');
+  const planning = labelled('Claude Code: planning model');
+  planning.value = 'sonnet';
+  fire(planning, 'change');
+  for (const [field, value] of [['id', 'mine'], ['name', 'My harness'], ['detect folder', '~/.mine'], ['rules file', '/etc/RULES.md']]) typeInto(labelled(`New harness: ${field}`), value);
+  P.button(box, 'Add this harness').click();
+  assert.match(box.text, /Not added: .*~\//);
+  typeInto(labelled('New harness: rules file'), '~/.mine/RULES.md');
+  P.button(box, 'Add this harness').click();
+  assert.doesNotMatch(box.text, /Not added/);
+  P.button(box, 'My harness').click();
+  assert.match(box.text, /~\/\.mine\/RULES\.md/);
+  P.button(P.ids.actions, 'Export').click();
+  const saved = P.ids.output.text;
+  assert.match(saved, /"install": \[\s*"claude",\s*"antigravity",\s*"mine"\s*\]/);
+  assert.match(saved, /"planning": "sonnet"/);
+  assert.match(saved, /"path": "~\/\.mine\/RULES\.md"/);
+});
+
 // PACT-96 S6, C6: cards of different heights; after the first draw and after Arrange, no two cards' boxes overlap.
 test('stub page: the first layout after the first draw, and Arrange, stack cards by their rendered height so no two overlap', () => {
   const SIZE = { 'wf-stage': [200, 70], 'wf-cond': [168, 130], 'wf-skill': [188, 140], 'wf-agent': [168, 28] };
