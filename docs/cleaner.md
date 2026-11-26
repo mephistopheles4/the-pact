@@ -295,15 +295,11 @@ A background session is **finished** when its status file, named `<pid>.json`,
 says kind `bg`, status `idle`, an 8-hex `jobId` that opens its `sessionId`, and
 a positive whole `pid`. Anything else is live.
 
-A worktree is read on as free, its tag covering the jobId, pid and switch,
+A worktree is read on as free, its tag covering the jobId and pid,
 when one finished session holds it, its lock carries that pid, and no other
 status file carries its jobId or sessionId. It says `in use by a finished
 background session; remove stops it first`. Otherwise it stays in use; with no `claude`
-(from an absolute `PATH` entry; no shim) or the **stop
-switch** on, a line says which. The switch is
-on when `~/.claude/settings.json`'s `permissions.deny` holds `Bash(claude stop
-*)` or `PowerShell(claude stop *)`, or the file is a link, not plain, not
-strict JSON, or has a `deny` that is no list of strings.
+(from an absolute `PATH` entry; no shim), a line says so.
 
 A plant must also rewrite the victim's status file and the lock, which any
 owner process can; the tie stops only one that leaves them as written.
@@ -312,7 +308,7 @@ owner process can; the tie stops only one that leaves them as written.
 
 1. On a yes, changed or untracked files: `left, git would refuse, so the
    session was not stopped`.
-2. It reads both again; a difference is `left, it changed since the read`.
+2. It reads the session again; a difference is `left, it changed since the read`.
 3. `claude stop <jobId>` by absolute path, no shell, 30 s; a failure is `left, the session did
    not stop`.
 4. It waits up to 15 s until no status file names the folder and the pid is
@@ -329,7 +325,7 @@ in a `git worktree remove`; it never passes `-f`, `-D` or `--delete`, never
 pushes or prunes, never touches a stash, and never removes anything its
 name-back didn't name with the same facts. It asks no remote for anything, but
 in a partial clone a read without `--recoverable` could make git fetch a
-missing object. It never stops a live session, or any while the stop switch is on. It unlocks a session lock, and lifts any other lock only for an
+missing object. It never stops a live session. It unlocks a session lock, and lifts any other lock only for an
 override. Without an override, git's own refusals stand: a worktree with
 changed or untracked files, another lock or a submodule is left. Without
 `--recoverable`, a worktree's ignored files, such as `.env`, go with its
@@ -367,8 +363,6 @@ The install also adds two ask rules, `Bash(*cleaner.mjs*remove*--override*)` and
 They make Claude Code ask before a `remove --override` runs. They are a speed bump: a spelling that
 splits `cleaner.mjs`, `remove` or `--override` apart, or runs the tool through a wrapper that hides
 them, gets past. If `settings.json` is not strict JSON the install leaves it alone and warns.
-
-Its own stop is held back while `session-stop-deny` is on.
 
 They are a speed bump with the classifier behind them, not a gate: other
 spellings of the same commands get past them (a flag before the subcommand, a

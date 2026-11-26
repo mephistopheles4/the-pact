@@ -1,5 +1,7 @@
 # Deny rules come only behind a switch that owns them and records them
 
+Superseded in part by [ADR 0176](0176-the-stop-switch-is-removed.md) (2026-11-26): the stop commands' switch and its eight rules are removed. The cleaner's rules stay behind the cleaner's switch.
+
 The pact adds a deny rule to `permissions.deny` in `settings.json` only behind a switch that owns it, and records each rule it adds so turning the switch off removes only those (#439). It extends [ADR 0124](0124-the-cleaner-removes-worktrees-with-fixed-commands-and-never-forces.md), which put the cleaner's deny rules behind the cleaner. Two switches of that kind are now in play:
 
 - **`claude rm *` joins the cleaner's switch.** `CLEANER_DENY` holds eighteen rules, the sixteen git rules plus `Bash(claude rm *)` and `PowerShell(claude rm *)`, recorded under `cleanerDeny`. The cleaner is how worktrees go, and `claude rm` deletes a session's worktree with whatever is left in it, which git's keeps don't bound.

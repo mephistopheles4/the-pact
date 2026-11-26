@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { AVIATION_PIN, EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, personalPresets, personalPresetsDir, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, agentModelOf, modelChoiceOk, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
-import { BUILDER_KIT, CLEANER_ASK, CLEANER_DENY, STOP_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
+import { BUILDER_KIT, CLEANER_ASK, CLEANER_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -1305,10 +1305,9 @@ test('stub page: "The pact" shows the pact\'s text read-only, each file byte for
   assert.match(PAGE, /<dialog[^>]*\bid="pacttext"/);
   assert.equal(dialog.attrs.open, '');
   const commandNames = readdirSync(join(REPO, 'claude', 'commands')).map(f => `/${f.slice(0, -3)}`).sort();
-  assert.deepEqual(P.find(dialog, n => n.tag === 'summary').map(n => n.textContent), ['The rules file', 'The review procedure', ...commandNames, 'The settings keys', "The cleaner's deny rules", "The cleaner's ask rules", "The stop switch's deny rules"]);
+  assert.deepEqual(P.find(dialog, n => n.tag === 'summary').map(n => n.textContent), ['The rules file', 'The review procedure', ...commandNames, 'The settings keys', "The cleaner's deny rules", "The cleaner's ask rules"]);
   assert.ok(P.find(dialog, n => n.tag === 'pre').some(n => n.textContent === CLEANER_DENY.join('\n')), 'each of the cleaner\'s deny rules is shown');
   assert.ok(P.find(dialog, n => n.tag === 'pre').some(n => n.textContent === CLEANER_ASK.join('\n')), 'each of the cleaner\'s ask rules is shown');
-  assert.ok(P.find(dialog, n => n.tag === 'pre').some(n => n.textContent === STOP_DENY.join('\n')), 'each of the stop switch\'s deny rules is shown');
   assert.deepEqual(P.find(dialog, n => ['input', 'textarea', 'select'].includes(n.tag)), [], 'nothing in it can be edited');
   const shown = P.find(dialog, n => n.tag === 'pre').map(n => n.textContent);
   const source = rel => readFileSync(join(REPO, ...rel.split('/')), 'utf8');
@@ -1551,6 +1550,17 @@ test('stub page: the review step warns that a downloaded config.json holds no co
     assert.equal(/keeping a commands list config\.json already holds unless you set the commands under Settings/.test(text), picker, `picker ${picker}: the save note says Save keeps the list only where Save exists`);
   }
 });
+// PACT-116 C6
+test('stub page: Settings holds these sections and switches only, and a default save writes no settings key', () => {
+  const P = bootPage();
+  openSettings(P);
+  assert.deepEqual(P.find(P.ids.settings, n => n.tag === 'h3').map(n => n.textContent), ['Usage limits', 'Agent identity']);
+  const rows = new Set([...[...L.OPT_TOOLS].map(c => c.name), ...readdirSync(join(REPO, 'claude', 'commands')).map(f => `/${f.slice(0, -3)}`)]);
+  const others = P.find(P.ids.settings, n => n.tag === 'input' && n.attrs.type === 'checkbox').map(n => n.attrs['aria-label']).filter(l => !rows.has(l));
+  assert.deepEqual(others, ['Sessions act as their own GitHub App']);
+  assert.equal(Object.hasOwn(JSON.parse(L.buildFiles(L.initialState())[0].text), 'settings'), false);
+});
+
 // #280 C5: the tools list works as the commands list does: left as is until set on the page, then saved as set.
 test('a tools list set on the page is saved in the installer\'s order, and wins over the folder\'s; left as is, the folder\'s is kept', () => {
   // #599 T1 (r3 X-N3): gh-app is the one exception: only the agent-identity switch installs it, so the page never lists it.
@@ -2477,11 +2487,11 @@ test('stub page: a builder file that sets checkpoint-stops shows the note at boo
 test('bad case: a builder file or a shared file whose settings hold another key, a non-boolean or no object is refused', t => {
   const refusals = settings => checkBuilder(REPO, builderFile(t, { schema: 1, settings })).refusals;
   assert.deepEqual(refusals({}), []);
-  for (const bad of [{ 'usage-pause': 50 }, { 'session-stop-deny': true }, { 'checkpoint-stops': false, 'usage-pause': 50 }, { 'auto-compact-window': 0 }, []]) assert.deepEqual(refusals(bad), [RETIRED_ONLY], JSON.stringify(bad));
+  for (const bad of [{ 'usage-pause': 50 }, { 'agent-identity': true }, { 'checkpoint-stops': false, 'usage-pause': 50 }, { 'auto-compact-window': 0 }, []]) assert.deepEqual(refusals(bad), [RETIRED_ONLY], JSON.stringify(bad));
   for (const bad of ['false', 0, 1, null, [], {}]) assert.deepEqual(refusals({ 'checkpoint-stops': bad }), ['settings checkpoint-stops must be true or false'], JSON.stringify(bad));
   assert.deepEqual(checkBuilder(REPO, builderFile(t, '{"schema": 1, "settings": "off"}')).refusals, [RETIRED_ONLY]);
   assert.equal(L.presetFromText('{"schema": 1, "settings": {"usage-pause": 50}}').refuse, RETIRED_ONLY);
-  assert.equal(L.presetFromText('{"schema": 1, "settings": {"checkpoint-stops": false, "session-stop-deny": true}}').refuse, RETIRED_ONLY);
+  assert.equal(L.presetFromText('{"schema": 1, "settings": {"checkpoint-stops": false, "agent-identity": true}}').refuse, RETIRED_ONLY);
   for (const bad of ['[]', 'null', '"off"', '1']) assert.equal(L.presetFromText(`{"schema": 1, "settings": ${bad}}`).refuse, RETIRED_ONLY, bad);
   for (const bad of ['"false"', '0', 'null', '[]']) assert.equal(L.presetFromText(`{"schema": 1, "settings": {"checkpoint-stops": ${bad}}}`).refuse, 'settings checkpoint-stops must be true or false', bad);
   // A preset in the presets folder is a builder file: a shipped one that held another key would stop the build.

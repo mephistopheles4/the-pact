@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-3fa2rp4twugzHFVd3kjnlHZwvaJUGq2dR9y+DeqoUu4='; style-src 'sha256-nZA7IW6ch0b3zv3WKjrW3Bl1e+9Hc4SgpU1D8Qh9Wig='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-10fsOMNOKC9n0E5/dxZ0fZWGtzaf2f6Vz0n+PJhNIGE='; style-src 'sha256-nZA7IW6ch0b3zv3WKjrW3Bl1e+9Hc4SgpU1D8Qh9Wig='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -2787,10 +2787,6 @@ const PACT = /* pact-data:begin */ {
   "off": 0,
   "def": 400000
  },
- "stopSwitch": {
-  "name": "session-stop-deny",
-  "def": false
- },
  "identitySwitch": {
   "name": "agent-identity",
   "def": false
@@ -3388,8 +3384,7 @@ const PACT = /* pact-data:begin */ {
   ],
   "settings": "{\n  \"permissions\": {\n    \"defaultMode\": \"auto\"\n  },\n  \"skipAutoPermissionPrompt\": true,\n  \"hooks\": {\n    \"PostToolUse\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"UserPromptSubmit\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"Stop\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"PreCompact\": [\n      {\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ],\n    \"SessionStart\": [\n      {\n        \"matcher\": \"compact\",\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"node\", \"args\": [\"__PACT_HOOK_SCRIPT__\", \"__PACT_WINDOW__\"], \"timeout\": 15 }\n        ]\n      }\n    ]\n  }\n}\n",
   "cleanerDeny": "Bash(git worktree remove *)\nBash(git * worktree remove *)\nBash(git branch -d *)\nBash(git * branch -d *)\nBash(git branch -D *)\nBash(git * branch -D *)\nBash(git branch --delete *)\nBash(git * branch --delete *)\nBash(claude rm *)\nPowerShell(git worktree remove *)\nPowerShell(git * worktree remove *)\nPowerShell(git branch -d *)\nPowerShell(git * branch -d *)\nPowerShell(git branch -D *)\nPowerShell(git * branch -D *)\nPowerShell(git branch --delete *)\nPowerShell(git * branch --delete *)\nPowerShell(claude rm *)",
-  "cleanerAsk": "Bash(*cleaner.mjs*remove*--override*)\nPowerShell(*cleaner.mjs*remove*--override*)",
-  "stopDeny": "Bash(claude stop *)\nBash(claude kill *)\nBash(claude daemon stop *)\nBash(claude respawn *)\nPowerShell(claude stop *)\nPowerShell(claude kill *)\nPowerShell(claude daemon stop *)\nPowerShell(claude respawn *)"
+  "cleanerAsk": "Bash(*cleaner.mjs*remove*--override*)\nPowerShell(*cleaner.mjs*remove*--override*)"
  },
  "harness": {
   "known": [
@@ -6860,7 +6855,7 @@ function initialState() {
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
   // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
   // #183 T4a: skills holds the skill sources, named for the cloud setup to fetch, as the builder file gives them; a save writes them into config.json.
-  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, identity: PACT.identitySwitch.def, agents, agentsAt: JSON.parse(JSON.stringify(agents)), own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, harnesses: { take: {}, models: {}, add: {}, remove: [], agentModels: {} }, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
+  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, identity: PACT.identitySwitch.def, agents, agentsAt: JSON.parse(JSON.stringify(agents)), own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, harnesses: { take: {}, models: {}, add: {}, remove: [], agentModels: {} }, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
 }
 
 /** Each agent's fields the person changed on this page, by agent name. */
@@ -6986,9 +6981,7 @@ function buildFiles(state) {
   if (state.session !== null) config.settings = { ...config.settings, [PACT.session.name]: state.session };
   // #482: the window is written only when it differs from the default; Off writes 0.
   if (state.compact !== PACT.compact.def) config.settings = { ...config.settings, [PACT.compact.name]: state.compact };
-  // #439: the stop switch is written only when it differs from its default, off.
-  if (state.stopDeny !== PACT.stopSwitch.def) config.settings = { ...config.settings, [PACT.stopSwitch.name]: state.stopDeny };
-  // #603: the agent-identity switch, likewise written only when on. gh-app never goes into the tools list: the switch alone installs it.
+  // #603: the agent-identity switch is written only when on. gh-app never goes into the tools list: the switch alone installs it.
   if (state.identity !== PACT.identitySwitch.def) config.settings = { ...config.settings, [PACT.identitySwitch.name]: state.identity };
   // Only the fields that differ from the agent file's own are written.
   const agents = {};
@@ -9261,13 +9254,6 @@ function boot() {
       el(
         'section',
         { class: 'av-tool-bar av-tool-bar--stack' },
-        el('h3', { class: 'section-title', text: 'Session stop' }),
-        stopRow(),
-        el('p', { class: 'av-annot', text: `Off by default. On, the next install adds two deny rules for a raw claude stop, one for Bash and one for PowerShell, to permissions.deny in ~/.claude/settings.json, and records them so turning this off removes only those. A speed bump, not a gate: a flag before the subcommand or a wrapped call gets past it, and your own claude stop from a separate terminal is unaffected. Brigade's own stop tool is expected to run outside permission rules; that is assumed, not measured. Installing is your decision, in chat.` }),
-      ),
-      el(
-        'section',
-        { class: 'av-tool-bar av-tool-bar--stack' },
         el('h3', { class: 'section-title', text: 'Agent identity' }),
         identityRow(),
         el('p', { class: 'av-annot', text: `Off by default. On, the next install adds the gh-app helper to ~/.pact/tools/ and two keys to env in ~/.claude/settings.json, GIT_CONFIG_GLOBAL and GIT_TERMINAL_PROMPT, and records them so turning this off removes only those. Git over HTTPS in every local session then runs as the GitHub App you created for Claude Code, with tokens minted from a key in Windows Credential Manager; an askpass program, an SSH remote and a global git write still go around it. The install refuses until gh-app.mjs setup has pinned the app and written its gitconfig, and refuses if your own env already sets either key. Your own terminal is unaffected. Installing is your decision, in chat.` }),
@@ -9314,17 +9300,6 @@ function boot() {
    * tool, each off unless ticked. Until one is ticked or unticked, a save
    * leaves the folder's own tools list as it is.
    */
-  /** The stop switch (#439): one checkbox, off by default; on, a save writes session-stop-deny true. */
-  function stopRow() {
-    const box = el('input', { type: 'checkbox', 'aria-label': 'Deny raw claude stop' });
-    box.checked = state.stopDeny === true;
-    box.addEventListener('change', () => {
-      state.stopDeny = box.checked;
-      renderSettings();
-      renderOutput();
-    });
-    return el('label', { class: 'command-row av-check' }, box, el('code', { text: PACT.stopSwitch.name }), el('span', { class: 'av-annot', text: 'Deny raw claude stop' }));
-  }
   /** The agent-identity switch (#603): one checkbox, off by default; on, a save writes agent-identity true. */
   function identityRow() {
     const box = el('input', { type: 'checkbox', 'aria-label': 'Sessions act as their own GitHub App' });
@@ -10282,8 +10257,7 @@ function boot() {
           ...T.commands.map(c => fold(`/${c.name}`, c.name === ALWAYS_COMMAND.name ? 'Always installed.' : 'Installed only when you turn it on, under Settings.', c.text)),
           fold('The settings keys', 'Merged into ~/.claude/settings.json, keeping your other keys. The hooks block is the pact\'s auto-compact hook: the installer puts its script path and your window in place of the two tokens, and merges it by key, so your own hooks stay.', T.settings),
           fold("The cleaner's deny rules", 'Added to permissions.deny in ~/.claude/settings.json only while the cleaner is on, under Settings.', T.cleanerDeny),
-          fold("The cleaner's ask rules", 'Added to permissions.ask in ~/.claude/settings.json only while the cleaner is on, under Settings. They make Claude Code ask you before a remove --override runs, a speed bump and not a boundary.', T.cleanerAsk),
-          fold("The stop switch's deny rules", 'Added to permissions.deny in ~/.claude/settings.json only while Session stop is on, under Settings.', T.stopDeny))),
+          fold("The cleaner's ask rules", 'Added to permissions.ask in ~/.claude/settings.json only while the cleaner is on, under Settings. They make Claude Code ask you before a remove --override runs, a speed bump and not a boundary.', T.cleanerAsk))),
     ));
     showDialog('pacttext');
   }

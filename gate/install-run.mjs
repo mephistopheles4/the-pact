@@ -253,7 +253,7 @@ async function main() {
   const window = claude ? core.compactWindow(parsed) : 0;
   // The guard (spec 0007 S8): its command rules follow the switches, whichever harnesses are in. Its files and hooks
   // install while a harness with a guard hook is in and a rule is on.
-  const switches = project ? [] : [...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(core.stopSwitchOn(parsed) ? ['session-stop-deny'] : [])];
+  const switches = !project && toolsOn.includes('cleaner') ? ['cleaner'] : [];
   const rules = core.guardRules(switches);
   const wired = switches.length ? taken.filter(h => core.builtParts(h).guard) : [];
   const guardOn = wired.length > 0;
@@ -382,8 +382,6 @@ async function main() {
   let merged = null;
   let plain = { record: [], drop: [] };
   // #438: the cleaner's deny rules come and go with it; settings left untouched keep the record's list.
-  // #439: the stop switch's rules likewise; a project install never turns the switch on.
-  const stopOn = claude ? core.stopSwitchOn(parsed) : false;
   // #603: the identity switch. On, the claude app must be pinned and its gitconfig must be exactly what setup writes, or the install refuses before any write; off, the check is skipped, so a changed or missing gitconfig never blocks turning it off.
   const identityOn = claude ? core.identitySwitchOn(parsed) : false;
   const refusal = (rule, why) => new core.Refusal(rule, why);
@@ -403,7 +401,6 @@ async function main() {
   let identity = { set: new Map(), drop: [], record: record ? record.identityEnv : {}, conflicts: [] };
   let identityBlock = [];
   let deny = { add: [], drop: [], record: record ? record.cleanerDeny : [] };
-  let stopRecord = record ? record.stopDeny : [];
   // #523: the cleaner's ask rules, with the cleaner's switch.
   let askPlan = { add: [], drop: [], record: record ? record.cleanerAsk : [] };
   let settings;
@@ -423,11 +420,9 @@ async function main() {
     if (mergeTools.includes('cleaner')) notes.push(`WARN: settings.json is left untouched, so the cleaner's two ask rules on remove --override are not added: ${core.CLEANER_ASK.map(core.formatPlain).join(', ')}`);
   } else {
     const cleanerPlan = core.cleanerDenyPlan(liveSettings, mergeTools, record ? record.cleanerDeny : []);
-    const stopPlan = core.stopDenyPlan(liveSettings, stopOn, record ? record.stopDeny : []);
-    // The record lists every added deny rule once, so cleanerDeny and stopDeny hold the same list and each plan filters it by its own rules.
-    // Here deny.record is the cleaner's own; the stop switch's is kept in stopRecord.
-    deny = { ...core.joinDeny(cleanerPlan, stopPlan), record: cleanerPlan.record };
-    stopRecord = stopPlan.record;
+    const retiredPlan = core.retiredDenyPlan(liveSettings, record ? record.cleanerDeny : []);
+    // The record lists every added deny rule once, under cleanerDeny, and each plan filters it by its own rules.
+    deny = { ...core.joinDeny(cleanerPlan, retiredPlan), record: cleanerPlan.record };
     askPlan = core.cleanerAskPlan(liveSettings, mergeTools, record ? record.cleanerAsk : []);
     identity = core.identityEnvPlan(liveSettings, identityOn, record ? record.identityEnv : {}, core.identityEnvWanted(home));
     if (identity.conflicts.length) throw refusal('identity-env', `the agent-identity switch is on, but settings.json already sets env ${identity.conflicts.join(' and ')}; take it out first, since the install never overwrites your own env.`);
@@ -448,7 +443,7 @@ async function main() {
   const lastEntries = claudeRecorded.filter(e => e.path === settingsRel);
   const entries = settingsRel === null || liveSettings === null
     ? claudeRecorded
-    : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: [...deny.record, ...stopRecord], ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record }) : [];
+    : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: deny.record, ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record }) : [];
   const settingsDrift = liveSettings === null ? [] : core.entryDrift(lastEntries.filter(e => !core.OVERLAY_KEYS.includes(e.key)), liveSettings);
   // The guard's hook, one keyed merge per hooks file (spec 0007 S8).
   const hooks = core.guardPlans(guardRecorded, wired.map(h => ({ harness: h.id, path: h.hooks.file, format: h.hooks.format, command: core.guardCommand({ script: join(home, ...core.guardScriptRel(h.hooks.format).split('/')), platform: process.platform, systemRoot: process.env.SystemRoot }) })));

@@ -16,7 +16,7 @@ import { tempDir, writeTree } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
 const guard = await import(pathToFileURL(join(REPO, 'claude', 'guard', 'guard.mjs')).href);
-const ALL = core.guardRules(['cleaner', 'session-stop-deny']);
+const ALL = core.guardRules(['cleaner']);
 
 // ------------------------------------------------------------ the rule table
 
@@ -25,13 +25,11 @@ const both = patterns => [...patterns.map(p => `Bash(${p})`), ...patterns.map(p 
 test('C11: the permission rules made from the table are, for each switch, the same text as before the table', () => {
   assert.deepEqual([...core.CLEANER_DENY], both(['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *', 'claude rm *']));
   assert.deepEqual([...core.CLEANER_ASK], both(['*cleaner.mjs*remove*--override*']));
-  assert.deepEqual([...core.STOP_DENY], both(['claude stop *', 'claude kill *', 'claude daemon stop *', 'claude respawn *']));
 });
 
 test('a rule whose switch is off is not in the table; the rendered table reads back as its rules', () => {
   assert.deepEqual(core.guardRules([]), []);
   assert.deepEqual([...new Set(core.guardRules(['cleaner']).map(r => r.switch))], ['cleaner']);
-  assert.deepEqual([...new Set(core.guardRules(['session-stop-deny']).map(r => r.switch))], ['session-stop-deny']);
   assert.equal(new Set(ALL.map(r => r.id)).size, core.GUARD_RULES.length);
   assert.deepEqual(guard.parseTable(core.guardTableText(ALL)), JSON.parse(JSON.stringify(ALL)));
   assert.deepEqual(guard.parseTable(core.guardTableText([])), []);
@@ -70,10 +68,6 @@ const ONE = {
   'branch-delete-after-options': 'git --no-pager branch --delete old',
   'session-remove': 'claude rm 1a2b',
   'cleaner-override': 'node ~/.pact/tools/cleaner.mjs remove w1 --override dirty',
-  'session-stop': 'claude stop 1a2b',
-  'session-kill': 'claude kill 1a2b',
-  'daemon-stop': 'claude daemon stop now',
-  'session-respawn': 'claude respawn 1a2b',
 };
 
 test('each rule of the table is met by its command', () => {
@@ -140,9 +134,14 @@ test('a command no rule matches gets no answer, words inside data included', () 
 });
 
 test('a deny anywhere beats an ask, and with a switch off its commands pass', () => {
-  assert.deepEqual(guard.judge(`${ONE['cleaner-override']} && ${ONE['session-stop']}`, ALL), { decision: 'deny', id: 'session-stop' }, 'the deny sits after the ask in the table');
-  assert.equal(guard.judge(ONE['session-stop'], core.guardRules(['cleaner'])), null);
-  assert.equal(guard.judge(ONE['worktree-remove'], core.guardRules(['session-stop-deny'])), null);
+  assert.deepEqual(guard.judge(`${ONE['cleaner-override']} && ${ONE['worktree-remove']}`, ALL), { decision: 'deny', id: 'worktree-remove' });
+  assert.equal(guard.judge(ONE['worktree-remove'], core.guardRules([])), null);
+});
+
+// PACT-116 C5
+test('every guard rule hangs on the cleaner, and none stops, kills or respawns a session or the daemon', () => {
+  assert.deepEqual([...new Set(core.GUARD_RULES.map(r => r.switch))], ['cleaner']);
+  for (const command of ['claude stop 1a2b', 'claude kill 1a2b', 'claude daemon stop now', 'claude respawn 1a2b']) assert.equal(guard.judge(command, core.GUARD_RULES), null, command);
 });
 
 test('a long adversarial command is judged well inside the hook\'s timeout', () => {

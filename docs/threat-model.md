@@ -92,13 +92,11 @@ someone hands a session to load, and a decision model's answer.
   which don't hold under auto-proceed.
 - **Harness, installed by the pact.** Deny rules on raw `git worktree remove`,
   `git branch -d`, `-D` and `--delete`, and `claude rm`, and an ask rule on a
-  `cleaner.mjs remove --override` call, on only while the cleaner is on (off by default). Eight deny rules on raw `claude stop`, `kill`, `daemon stop`
-  and `respawn`, on only while `session-stop-deny` is on (off by default); the
-  cleaner's stop yields to it. Deny
+  `cleaner.mjs remove --override` call, on only while the cleaner is on (off by default). Deny
   rules are speed bumps: another spelling gets past them. The ask rule is
   passed by `bypassPermissions`, a mod, or another spelling. In Codex and
   Antigravity a guard hook denies what those rules deny, under the same
-  switches; an ask rule prompts in Antigravity and denies in Codex. The hook
+  switch; an ask rule prompts in Antigravity and denies in Codex. The hook
   denies on an error it catches; a hook that can't start (on Windows, one whose
   `cmd.exe` or launcher is missing, since the launcher denies a missing `node`)
   or times out lets the call through, as do a crash past that (off Windows), another spelling and, in

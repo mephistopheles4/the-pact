@@ -318,12 +318,6 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     // #501: the home parser takes the word off for the weekly limit only; every other spelling stays refused.
     { id: 'value-session-off', plant: rep('VALUE usage-pause 90', 'VALUE usage-pause-session off'), fails: ['render-unknown-line'], why: 'off for the session limit' },
     { id: 'value-compact-off', plant: rep('RESULT', 'VALUE auto-compact-window off\nRESULT'), fails: ['render-unknown-line'], why: 'off for the auto-compact window' },
-    // #439 C7: the home parser takes the stop switch as on or off, and nothing else.
-    { id: 'value-stop-yes', plant: rep('RESULT', 'VALUE session-stop-deny yes\nRESULT'), fails: ['render-unknown-line'], why: 'a word the stop switch does not take' },
-    { id: 'value-stop-raw-true', plant: rep('RESULT', 'VALUE session-stop-deny true\nRESULT'), fails: ['render-unknown-line'], why: 'the raw true the renderer must not print' },
-    { id: 'value-stop-capitals', plant: rep('RESULT', 'VALUE session-stop-deny ON\nRESULT'), fails: ['render-unknown-line'], why: 'on in capitals' },
-    { id: 'value-stop-two-words', plant: rep('RESULT', 'VALUE session-stop-deny on off\nRESULT'), fails: ['render-unknown-line'], why: 'two words after the setting' },
-    { id: 'value-stop-twice', plant: rep('RESULT', 'VALUE session-stop-deny on\nVALUE session-stop-deny off\nRESULT'), fails: ['render-value-twice'], why: 'the stop switch twice' },
     // #564 C6, S7.2d: the retired setting is no VALUE; its RETIRED-SETTING line takes the retired name with true or false, once.
     { id: 'value-checkpoint-on', plant: rep('RESULT', 'VALUE checkpoint-stops on\nRESULT'), fails: ['render-unknown-line'], why: 'the retired setting as a value (on)' },
     { id: 'value-checkpoint-off', plant: rep('RESULT', 'VALUE checkpoint-stops off\nRESULT'), fails: ['render-unknown-line'], why: 'the retired setting as a value (off)' },
@@ -451,15 +445,6 @@ test('the renderer lines: a home render takes usage-pause off, and the dry run s
   const block = core.configBlock(home, H('9'), null);
   assert.equal(block.filter(l => /usage-pause/.test(l)).length, 1);
   assert.ok(block.includes('  WARN: the user configuration turns usage-pause off.'));
-});
-
-// #439 C1, C2, C7: no VALUE line means the stop switch is off; on and off both parse; a project render never takes it.
-test('the renderer lines: the stop switch is on only for VALUE session-stop-deny on, and a project render refuses the line', () => {
-  const parse = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
-  assert.equal(core.stopSwitchOn(parse(renderBase().in)), false, 'no line');
-  assert.equal(core.stopSwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE session-stop-deny off\nRESULT'))), false);
-  assert.equal(core.stopSwitchOn(parse(renderBase().in.replace('RESULT', 'VALUE session-stop-deny on\nRESULT'))), true);
-  assert.throws(() => core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE session-stop-deny on').split('\n'), sha256), e => e.rule === 'project-render-unknown-line');
 });
 
 // #564 C6: the home and project parsers read RETIRED-SETTING for the retired name, true or false, and no VALUE line for it.

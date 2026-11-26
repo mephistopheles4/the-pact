@@ -309,8 +309,6 @@ const SETTINGS = new Map([
   ['usage-pause-session', Object.freeze({ mark: 'usage-pause-session', min: 0, max: 100, def: null, template: SESSION_TEMPLATE, tighter: 'lower', projectLine: SESSION_PROJECT_LINE })],
   // #482: the auto-compact window, in tokens. It has no part in the rules file (mark: null), so its value never changes the rules text. 0 turns it off. A project may not set it.
   ['auto-compact-window', Object.freeze({ mark: null, min: 100000, max: 1000000, step: 10000, off: 0, def: 400000, template: null, tighter: null, projectLine: null })],
-  // #439: the stop switch, `true` or `false`, off by default. It has no part in the rules file (mark: null), so only the notice line changes. A project may not set it.
-  ['session-stop-deny', Object.freeze({ kind: 'switch', mark: null, def: false, template: null, tighter: null, projectLine: null })],
   // #603: the agent-identity switch, `true` or `false`, off by default. It has no part in the rules file (mark: null); on, the TOOLS line gains gh-app and the install owns two env keys. A project may not set it.
   ['agent-identity', Object.freeze({ kind: 'switch', mark: null, def: false, template: null, tighter: null, projectLine: null })],
 ]);
