@@ -28,12 +28,12 @@ function script() {
 
 /**
  * One run of the workflow's script, or with `job: 'promote'` of the owner's
- * command, `node gate/release-promote.mjs <rc>`. `tips` are main's tip at each read, the last one
+ * command, `node gate/release-promote.mjs <beta>`. `tips` are main's tip at each read, the last one
  * repeating; `refs` maps a tag name to its object; `tags` an annotated tag
  * object's id to the commit it names. Returns the code, the output, every tag
  * the script created and the tokens it sent.
  */
-async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha('a'), token = 'test-token', fail = null, job = 'candidate', rc = '', compare = 'ahead' } = {}) {
+async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha('a'), token = 'test-token', fail = null, job = 'beta', rc = '', compare = 'ahead' } = {}) {
   const created = [];
   const requests = [];
   const sent = new Set();
@@ -49,7 +49,7 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
       if (fail && path.startsWith(fail)) return answer(500, {});
       if (req.method === 'GET' && path === 'git/ref/heads/main') return answer(200, { object: { type: 'commit', sha: tips[Math.min(reads++, tips.length - 1)] } });
       if (req.method === 'GET' && path === 'git/matching-refs/tags/v1.') return answer(200, Object.entries(refs).map(([name, object]) => ({ ref: `refs/tags/${name}`, object })));
-      // The comparison of a candidate's commit with main answers the status the test gives.
+      // The comparison of a beta's commit with main answers the status the test gives.
       if (req.method === 'GET' && /^compare\/[0-9a-f]{40}\.\.\.main$/.test(path)) return answer(200, { status: compare });
       const tag = /^git\/tags\/([0-9a-f]{40})$/.exec(path);
       // A tag object names a commit, given as its id, or another tag, given as { type: 'tag', sha }.
@@ -86,29 +86,32 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
 }
 
 const commit = c => ({ type: 'commit', sha: sha(c) });
-const RC_ONLY = /^refs\/tags\/v1\.\d+\.0-rc\.\d+$/;
+const BETA_ONLY = /^refs\/tags\/v1\.\d+\.0-beta\.\d+$/;
 
-test('release job: on a push with no release yet it tags main\'s tip v1.1.0-rc.1, with the token it was handed', async t => {
+test('release job: on a push with no release yet it tags main\'s tip v1.1.0-beta.1, with the token it was handed', async t => {
   const got = await release(t);
   assert.equal(got.code, 0, got.out);
-  assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.1.0-rc.1', sha: sha('a') }]);
+  assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.1.0-beta.1', sha: sha('a') }]);
   assert.deepEqual(got.sent, ['Bearer test-token']);
+  // A legacy -rc does not count toward the beta's number.
+  const legacy = await release(t, { refs: { 'v1.1.0-rc.1': commit('b'), 'v1.1.0-rc.3': commit('c') } });
+  assert.deepEqual(legacy.created, [{ ref: 'refs/tags/v1.1.0-beta.1', sha: sha('a') }], legacy.out);
 });
 
-test('release job: a push numbers the next minor after the highest stable release, and counts candidates of that minor, ignoring other names', async t => {
-  const refs = { 'v1.2.0': commit('b'), 'v1.10.0': commit('c'), 'v1.12.0-rc.9': commit('b'), 'v1.11.0-rc.1': commit('b'), 'v1.11.0-rc.3': commit('c'), 'v1.99.1': commit('d'), 'v1.011.0': commit('d'), 'v1.50.0-rc1': commit('d'), 'v1.11.0-rc.03': commit('d') };
+test('release job: a push numbers the next minor after the highest stable release, and counts betas of that minor, ignoring other names', async t => {
+  const refs = { 'v1.2.0': commit('b'), 'v1.10.0': commit('c'), 'v1.12.0-beta.9': commit('b'), 'v1.11.0-beta.1': commit('b'), 'v1.11.0-beta.3': commit('c'), 'v1.11.0-rc.7': commit('c'), 'v1.99.1': commit('d'), 'v1.011.0': commit('d'), 'v1.50.0-beta1': commit('d'), 'v1.11.0-beta.03': commit('d') };
   const got = await release(t, { refs });
-  assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.11.0-rc.4', sha: sha('a') }], got.out);
-  // Bad case: candidates of a minor already released do not count toward the next one.
-  const next = await release(t, { refs: { 'v1.3.0': commit('b'), 'v1.3.0-rc.7': commit('c') } });
-  assert.deepEqual(next.created, [{ ref: 'refs/tags/v1.4.0-rc.1', sha: sha('a') }], next.out);
+  assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.11.0-beta.4', sha: sha('a') }], got.out);
+  // Bad case: betas of a minor already released do not count toward the next one.
+  const next = await release(t, { refs: { 'v1.3.0': commit('b'), 'v1.3.0-beta.7': commit('c') } });
+  assert.deepEqual(next.created, [{ ref: 'refs/tags/v1.4.0-beta.1', sha: sha('a') }], next.out);
 });
 
-test('release job: a push never makes a stable tag or a major, whatever the tags hold', async t => {
-  for (const refs of [{}, { 'v1.1.0': commit('b') }, { 'v1.1.0-rc.1': commit('b') }, { 'v2.0.0': commit('b'), 'v1.4.0-rc.2': commit('c') }]) {
+test('release job: a push never makes a stable tag, an -rc or a major, whatever the tags hold', async t => {
+  for (const refs of [{}, { 'v1.1.0': commit('b') }, { 'v1.1.0-rc.1': commit('b') }, { 'v1.1.0-beta.1': commit('b') }, { 'v2.0.0': commit('b'), 'v1.4.0-rc.2': commit('c') }]) {
     const got = await release(t, { refs });
     assert.equal(got.created.length, 1, got.out);
-    assert.match(got.created[0].ref, RC_ONLY, JSON.stringify(refs));
+    assert.match(got.created[0].ref, BETA_ONLY, JSON.stringify(refs));
   }
 });
 
@@ -124,8 +127,9 @@ test('release job: tags nothing when main moves between its first read and the t
   assert.deepEqual(got.created, []);
 });
 
-test('release job: tags nothing when a release or candidate already points at the commit, an annotated one included', async t => {
+test('release job: tags nothing when a release or beta already points at the commit, an annotated one included', async t => {
   assert.deepEqual((await release(t, { refs: { 'v1.1.0': commit('a') } })).created, []);
+  assert.deepEqual((await release(t, { refs: { 'v1.2.0-beta.1': commit('a') } })).created, []);
   assert.deepEqual((await release(t, { refs: { 'v1.2.0-rc.1': commit('a') } })).created, []);
   assert.deepEqual((await release(t, { refs: { 'v1.1.0': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: sha('a') } })).created, []);
 });

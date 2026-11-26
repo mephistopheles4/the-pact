@@ -1,19 +1,19 @@
-# Release candidates (spec 0007 S10): once the gate passed on a push to main,
-# the one job here tags main's tip v1.<n>.0-rc.<k>, a release candidate of the
-# next minor, with this workflow's own token (contents: write). It never makes a
-# stable tag. Candidate tags stay open; npx installs stable tags unless asked
-# for a candidate.
+# Beta releases (spec 0007 S10, renamed by spec 0009): once the gate passed on
+# a push to main, the one job here tags main's tip v1.<n>.0-beta.<k>, a beta of
+# the next minor, with this workflow's own token (contents: write). It never
+# makes a stable tag or a legacy -rc one. Beta tags stay open; npx installs
+# stable tags unless asked for a beta.
 #
 # A stable tag is made by the owner, under the owner's own account, with
-# `node gate/release-promote.mjs <rc>`, which tags that candidate's commit
+# `node gate/release-promote.mjs <beta>`, which tags that beta's commit
 # v1.<n>.0. The tag rulesets are the owner's: only the owner creates a tag
-# but a candidate, and no tag is updated or deleted.
+# but a beta, and no tag is updated or deleted.
 #
 # The job tags nothing until the owner sets the repository variable
 # PACT_RELEASES to on. No checkout: none of the repo's code runs. The file is
 # held to an exact allow-list, as codeql.yml is, and is the one file that may
 # use workflow_run. The concurrency group never cancels, so a run whose job is
-# skipped never displaces a waiting candidate.
+# skipped never displaces a waiting beta.
 name: release
 
 on:
@@ -25,7 +25,7 @@ permissions:
   contents: read
 
 jobs:
-  candidate:
+  beta:
     if: |
       github.ref == 'refs/heads/main' &&
       vars.PACT_RELEASES == 'on' &&
@@ -42,7 +42,7 @@ jobs:
       group: release
       cancel-in-progress: false
     steps:
-      - name: Tag a release candidate
+      - name: Tag a beta release
         env:
           TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -60,26 +60,26 @@ jobs:
             return r.json();
           }
           const isTip = async () => (await call('git/ref/heads/main')).object.sha === HEAD_SHA;
-          // Every v1.<n>.0 and v1.<n>.0-rc.<k> tag; k is null for a stable release.
+          // Every v1.<n>.0, -beta.<k> and legacy -rc.<k> tag; kind is null for a stable release.
           async function releases() {
             const found = [];
             for (const { ref, object } of await call('git/matching-refs/tags/v1.')) {
-              const m = /^refs\/tags\/(v1\.(0|[1-9]\d{0,8})\.0(?:-rc\.([1-9]\d{0,8}))?)$/.exec(ref);
+              const m = /^refs\/tags\/(v1\.(0|[1-9]\d{0,8})\.0(?:-(beta|rc)\.([1-9]\d{0,8}))?)$/.exec(ref);
               if (!m) continue;
               const target = object.type === 'tag' ? (await call(`git/tags/${object.sha}`)).object : object;
-              found.push({ tag: m[1], n: Number(m[2]), k: m[3] ? Number(m[3]) : null, sha: target.sha });
+              found.push({ tag: m[1], n: Number(m[2]), kind: m[3] ?? null, k: Number(m[4] ?? 0), sha: target.sha });
             }
             return found;
           }
-          // A green push to main: the next candidate of the next minor, never a stable tag.
+          // A green push to main: the next beta of the next minor, never a stable tag.
           async function main() {
             if (!TOKEN) throw new Error('No token.');
             if (!/^[0-9a-f]{40}$/.test(HEAD_SHA ?? '')) throw new Error('The run names no commit.');
             if (!(await isTip())) return 'main has moved past this run; nothing is tagged.';
             const done = await releases();
             if (done.some(r => r.sha === HEAD_SHA)) return 'A release already points at this commit; nothing is tagged.';
-            const n = Math.max(0, ...done.filter(r => r.k === null).map(r => r.n)) + 1;
-            const tag = `v1.${n}.0-rc.${Math.max(0, ...done.filter(r => r.n === n && r.k !== null).map(r => r.k)) + 1}`;
+            const n = Math.max(0, ...done.filter(r => r.kind === null).map(r => r.n)) + 1;
+            const tag = `v1.${n}.0-beta.${Math.max(0, ...done.filter(r => r.n === n && r.kind === 'beta').map(r => r.k)) + 1}`;
             if (!(await isTip())) return 'main has moved past this run; nothing is tagged.';
             await call('git/refs', { ref: `refs/tags/${tag}`, sha: HEAD_SHA });
             return `Tagged ${tag} on ${HEAD_SHA}.`;
