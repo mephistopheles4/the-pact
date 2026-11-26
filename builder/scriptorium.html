@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-W9wqIGEP5iGcvkL4vjAi1yxFLtaHu1yNczQ65MikahU='; style-src 'sha256-nZA7IW6ch0b3zv3WKjrW3Bl1e+9Hc4SgpU1D8Qh9Wig='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-x2xV+jWuUTgvshrr4EoiUaRSz6BLf9U4vJGg4w00wa0='; style-src 'sha256-nZA7IW6ch0b3zv3WKjrW3Bl1e+9Hc4SgpU1D8Qh9Wig='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -10359,7 +10359,7 @@ function boot() {
   let agentWhy = '';
 
   /** A table that scrolls sideways where it is wider than the dialog. */
-  const harnessTable = (heads, rows) => el('div', { class: 'harness-scroll' }, el('table', { class: 'harness-table' },
+  const harnessTable = (label, heads, rows) => el('div', { class: 'harness-scroll', role: 'region', 'aria-label': label, tabindex: '0' }, el('table', { class: 'harness-table' },
     el('thead', {}, el('tr', {}, ...heads.map(text => el('th', { scope: 'col', text })))),
     el('tbody', {}, ...rows.map(([label, ...cells]) => el('tr', {}, el('th', { scope: 'row', text: label }), ...cells.map(c => el('td', {}, ...[c].flat())))))));
 
@@ -10368,8 +10368,10 @@ function boot() {
   /** One agent's model in one harness: the default, a role's model, a known model or a name typed. */
   function agentCell(agent, cell, name) {
     if (!cell.files) return note('no agent files');
-    const effort = note(cell.dropped ? 'effort dropped' : cell.effort ? `effort ${cell.effort}` : '');
-    if (cell.locked) return [el('code', { text: cell.model || 'no model' }), note(cell.locked), effort];
+    const effortText = cell.dropped ? 'effort dropped' : cell.effort ? `effort ${cell.effort}` : '';
+    if (cell.locked) return [el('code', { text: cell.model || 'no model' }), note(cell.locked), note(effortText)];
+    // A closed dropdown cuts a long label short, so the model stands under it too.
+    const effort = note([cell.model || 'no model', effortText].filter(Boolean).join(', '));
     const key = `${cell.id}:agent:${agent}`;
     const names = knownModels(state, cell.id);
     const typed = ownModel.has(key) || (cell.own !== null && !names.includes(cell.own));
@@ -10411,7 +10413,7 @@ function boot() {
       el('p', { class: 'av-annot', text: 'The model each agent file names in each harness, as the install would write it. A change writes that agent’s key in the harness’s own entry.' }),
       ...columns.map((c, i) => (rows[0].cells[i].refusal ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `${c.name}: the install would stop: ${rows[0].cells[i].refusal}` }) : null)),
       agentWhy ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: agentWhy }) : null,
-      harnessTable(['Agent', ...columns.map(c => c.name)], rows.map(r => [r.agent, ...r.cells.map((c, i) => agentCell(r.agent, c, columns[i].name))])),
+      harnessTable('Agent models', ['Agent', ...columns.map(c => c.name)],rows.map(r => [r.agent, ...r.cells.map((c, i) => agentCell(r.agent, c, columns[i].name))])),
     ];
   }
 
@@ -10442,7 +10444,7 @@ function boot() {
           dropTierKey(state, h.id, key);
           redrawHarnesses();
         }, 'av-tool-chip--ghost'))),
-        harnessTable(['Tier', 'Plan', 'Build'], h.rows.map(r => [r.name, effortCell(h, r, 'plan'), effortCell(h, r, 'build')])),
+        harnessTable(`Tier efforts of ${h.name}`, ['Tier', 'Plan', 'Build'],h.rows.map(r => [r.name, effortCell(h, r, 'plan'), effortCell(h, r, 'build')])),
       ]),
     ];
   }
@@ -10451,7 +10453,7 @@ function boot() {
     const { heads, rows } = acrossTable(across(state));
     return [
       el('p', { class: 'av-annot', text: 'What the install would write for every harness the pact knows and each of yours, found or not. Read only.' }),
-      harnessTable(['Setting', ...heads.map(h => h.name)], rows.map(r => [r.label, ...r.cells.map(text => el('span', { text }))])),
+      harnessTable('Across harnesses', ['Setting', ...heads.map(h => h.name)],rows.map(r => [r.label, ...r.cells.map(text => el('span', { text }))])),
     ];
   }
 
