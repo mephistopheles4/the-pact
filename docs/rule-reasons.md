@@ -31,6 +31,7 @@ This file is never installed.
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
 | Remove worktrees only through the cleaner | It can't tell the owner's yes: each removal is a checkpoint (the Safety quality; `AGENTS.md`, Reviewing a change here). The line names the command: a lead may run a cleaner only when the user-level rules name its program, and the bare line named neither. |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. The tables name roles and one line names the harness's models for them, since no harness maps a role to a model. |
+| For `<effort>`, take the effort the tier table gives (the models line) | A model named with `<effort>` is no name a session can use, and no harness reads the effort from the tables. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | A skill I can't invoke | The harness blocks invoking a skill with model invocation off, and a plugin skill can be missing from the session's list; without the rule the stage stalls or the skill is skipped silently. Naming the skill in the workflow is the owner's consent to run it. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. Where a harness has no subagents, it says each lens runs in a session of its own, which no harness arranges. |
