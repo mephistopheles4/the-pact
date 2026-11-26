@@ -879,8 +879,9 @@ never-sync rule names both folders.
   through. Before the second tag ruleset exists it can also move or delete a
   tag. A change merged to `main` can read the key from the `release`
   environment; required reviewers on it would put each run that can read it
-  behind the owner's approval, with no session's help, at one click per
-  release. This widens "What you install and CI run": the owner's call.
+  behind an approval by the owner's account, which a session holding that
+  account's token could likely give too (not probed), at one click per release.
+  This widens "What you install and CI run": the owner's call.
 - **A guard that never runs.** In an own harness, or in Codex before the
   trust step, a guard can be missing with no report beyond the dry run's
   line. The owner accepted this for own harnesses.
