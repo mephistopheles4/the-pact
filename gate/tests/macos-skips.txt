@@ -16,3 +16,5 @@ review.test.mjs bad case: a .claude folder named by its short name refuses
 review.test.mjs bad case: a .claude folder named with a trailing dot refuses, and nothing reaches the .claude folder
 seam-a.test.mjs bad case: two agents whose names differ only in case
 guard.test.mjs C12: on Windows a node or cmd planted in the working folder never runs
+guard.test.mjs C12: on Windows each shell a harness may use passes the wrapper's answer on
+guard.test.mjs C14: on Windows a launcher whose wrapper can't run, or ends any other way, denies

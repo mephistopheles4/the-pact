@@ -695,9 +695,10 @@ only `main` may deploy to, against "no secrets".
   sessions push with the owner's own Git credentials, which the docs and
   the threat model say (C27).
 - **The poster** refuses a post holding a live secret found in its own
-  environment. Codex's shells drop variables named like KEY, SECRET or TOKEN
-  by default, so under Codex it may see fewer secrets. T4's probe records the
-  environment it sees (S15).
+  environment. T4's probe found that Codex 0.159.0, left at its defaults,
+  hands its shells every variable, ones named like KEY, SECRET or TOKEN
+  included, so the poster sees them as it would elsewhere. A Codex set to drop
+  them leaves it fewer (S15).
 - **Docs.** `docs/install.md`, `docs/agents/install.md`,
   `docs/agents/issue-tracker.md`, `docs/agents/agent-apps.md`,
   `docs/reference.md` and the README name `~/.pact`, the `npx` command and
@@ -807,15 +808,16 @@ never-sync rule names both folders.
   leaves the default install list (`defaultInstall: false`) until a probed
   hook holds; it stays detected, and the owner can still name it in the
   list.
-- **The poster in Codex** may see fewer environment secrets, so its
-  live-secret refusal covers less there (S13). It is a control that works
-  without the session's cooperation, so its weakening is the owner's call,
-  at T4's probe.
+- **The poster in Codex** sees fewer environment secrets only where Codex is
+  set to drop them (S13): T4's probe found its shells keep them by default,
+  where they are in any command's reach too. It is a control that works
+  without the session's cooperation, so its weakening is the owner's call.
 - **Project installs** tighten a repo in Claude Code alone (S13).
 - **An old copy** left behind loads beside the new pact until a person
   removes it; S14's dry run catches only a rules file.
 - **Guards are speed bumps,** as the deny rules are today: another spelling
-  gets past them.
+  gets past them, and in Codex so does text typed into a running shell, which
+  runs no hook (T4's probe).
 
 **The class and the scope.** "What you install and CI run" widens to name the
 bootstrap and the release app's key, and "Merges and installs" names
@@ -1051,7 +1053,7 @@ reads this spec and each ticket's diff.
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
 | The threat-model cap at 3,750 (S2 item 47) | the lead's flagged pick, for review | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
-| The poster's narrower coverage in Codex (S13) | the owner's call | at T4's probe |
+| The poster's narrower coverage in Codex (S13); T4's probe found none at Codex's defaults | the owner's call | at T4's probe |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
 | The tag ruleset on every tag | the owner's own act | before T6 merges |
 | `PACT_RELEASES` set to `on` | the owner's own act | in T9 |

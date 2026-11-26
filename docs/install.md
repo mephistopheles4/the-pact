@@ -773,7 +773,8 @@ hook the install adds.
   holds `AppData` is a Windows one, and Windows couldn't run that hook.
 - **Trust it in Codex.** Codex runs a hook only once you trust it: open
   `/hooks` and trust `pact-guard`, the one from `~/.codex/hooks.json`: another
-  hooks file can use the name. The dry run and the apply say so when the entry
+  hooks file can use the name. Until then `codex exec` skips it and says
+  nothing. The dry run and the apply say so when the entry
   is new or changed. An update to the guard or its rules needs no new
   trust, and trust never checks them.
 - **What it answers.** It refuses a command a rule denies. A rule that asks
