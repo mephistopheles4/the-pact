@@ -1077,8 +1077,9 @@ removes one), the pact's hook in each guard hooks file under `entries` (as step
 `.pact/install.json`. Hold each path to step 3's first two checks, and each link
 to a target of `.pact/skills/` and its name, and stop on any other. Delete the
 folders a copied skill leaves empty. Then do
-steps 4 to 6 with that backup. A path under `files` that it doesn't list may have
-been yours before a later apply: where the oldest backup listing it says
+steps 4 to 6 with that backup. A path under the removed record's `files` (note
+them before you remove it) that the backup doesn't list may have been yours
+before a later apply: where the oldest backup listing it says
 `was: file`, check that copy as step 3 does and copy it back as step 4 does. Then
 do step 7. Step 4's restored `settings.json` takes the
 pact's hook entries and `autoCompactWindow` out with it; had you no backup of
