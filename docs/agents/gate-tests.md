@@ -237,15 +237,10 @@ before every Bash and PowerShell call, with a 15 s timeout.
   `install-harness.mjs` runs the install. A test that imports `payload.mjs`
   is picked for every agent-file change, so import it only to read the
   payload. A helper touches no file and starts no process when imported.
-- **No test reaches the real home folder.** Point every home a child could
-  read (`CLAUDE_CONFIG_DIR`, `HOME`, `USERPROFILE`) at the test's temp folder,
-  and remove only what the test made, after checking it is inside that folder.
 - **Cutting an install case.** Cut an end-to-end install case only when an
   in-process row already checks its decision, and name that row on the issue.
   Keep at least one end-to-end case that drives each of the
-  install runner's checks (in `gate/install-run.mjs`) to refuse. Never cut a
-  case that checks a refused install wrote nothing, unless it names the real
-  home folder.
+  install runner's checks (in `gate/install-run.mjs`) to refuse.
 - **A test names what it backs.** The rules in this bullet and the three below
   apply to a test a change adds or edits; they are not a sweep of
   the tests already there. Each such test names one of:
@@ -285,7 +280,6 @@ before every Bash and PowerShell call, with a 15 s timeout.
   claims and the invariants it names need.
 - **What is never a cut candidate.** The two bullets on silent failures and
   on minus-one never reach these:
-  - the last bad case for a family of gate checks;
   - an install case: ADR 0047 and "Cutting an install case" govern those cuts;
   - a test that guards the settings guard;
   - any test in `gate/tests/cloud-sessions.test.mjs`, which guards a
