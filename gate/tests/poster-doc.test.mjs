@@ -615,7 +615,7 @@ test('C5: a post of a kind with no quote is the body file with its trailing line
   assert.equal(sent(t, 'issue-comment', NOTE, 'Body.\r\n'), 'Body.\n\nSigned: build-524');
 });
 
-// ---------------------------------------------------------------- C6, C7: the body file
+// ---------------------------------------------------------------- C6: the body file
 
 // #524 C6
 test('C6: a body file holding an owned line outside a fence is refused post/owned-line, and the same lines inside a fence are not', t => {
@@ -644,16 +644,21 @@ test('C6: a body file holding an owned line outside a fence is refused post/owne
   assert.equal(run(t, 'issue-comment', NOTE, { body: '## A heading\n\nThe signature reads Signed: in prose, and a read-back is mentioned.\n' }).code, 0);
 });
 
-// #524 C7: the quote is the owner's words, so the prose check skips it
-test('C7: a hard-wrapped quote posts, and the same wrap in the body file is refused text/hard-wrap', t => {
-  const wrapped = 'This was typed with a line break in the middle\nand it carries on after the break.';
-  assert.equal(run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, text: wrapped }] }).code, 0);
-  const r = run(t, 'issue-comment', NOTE, { body: `${wrapped}\n` });
-  assert.equal(r.code, 2, out(r));
-  assert.ok(rules(r).some(l => l.startsWith('text/hard-wrap ')), out(r));
-  // A relative link in the owner's words is no refusal either; in the body file it is.
-  assert.equal(run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, text: 'See [the doc](docs/x.md) for it.' }] }).code, 0);
-  assert.ok(rules(run(t, 'issue-comment', NOTE, { body: 'See [the doc](docs/x.md) for it.\n' })).some(l => l.startsWith('link/relative ')));
+// PACT-115 C2: the accident checks on a body's shape are gone, so each of these posts as written
+test('C2: a body with a hard-wrapped paragraph, a relative link and an open fence dry-runs clean', t => {
+  const body = [
+    'This was typed with a line break in the middle',
+    'and it carries on after the break.',
+    '',
+    'See [the doc](docs/x.md) for it.',
+    '',
+    '```text',
+    'a fence left open',
+    '',
+  ].join('\n');
+  const r = run(t, 'issue-comment', NOTE, { body });
+  assert.equal(r.code, 0, out(r));
+  assert.equal(r.lines.at(-1), 'RESULT: dry-run issue-comment');
 });
 
 // ---------------------------------------------------------------- the forms T1 can't reach from a command line

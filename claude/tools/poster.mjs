@@ -693,6 +693,41 @@ function postRules(doc, surface, now) {
   return out;
 }
 
+// Block-quote markers at the start of a line.
+const QUOTE_RE = /^(?:[ ]{0,3}>[ ]?)+/;
+
+/** `line` with every code span replaced by spaces, matching backtick runs by length in one pass. */
+function blankCodeSpans(line) {
+  if (!line.includes('`')) return line;
+  const runs = [];
+  for (let i = 0; i < line.length; i += 1) {
+    if (line[i] !== '`') continue;
+    let j = i;
+    while (j < line.length && line[j] === '`') j += 1;
+    runs.push({ at: i, len: j - i });
+    i = j - 1;
+  }
+  // The next run of the same length after each run, from the right, once.
+  const nextSame = new Array(runs.length).fill(-1);
+  const seen = new Map();
+  for (let k = runs.length - 1; k >= 0; k -= 1) {
+    nextSame[k] = seen.get(runs[k].len) ?? -1;
+    seen.set(runs[k].len, k);
+  }
+  const out = [];
+  let from = 0;
+  for (let k = 0; k < runs.length; k += 1) {
+    if (nextSame[k] < 0) continue;
+    const end = runs[nextSame[k]].at + runs[nextSame[k]].len;
+    out.push(line.slice(from, runs[k].at), ' '.repeat(end - runs[k].at));
+    from = end;
+    // Runs inside the span are code; resume after its closing run.
+    while (k + 1 < runs.length && runs[k + 1].at < end) k += 1;
+  }
+  out.push(line.slice(from));
+  return out.join('');
+}
+
 /** Whether a text opens an HTML comment or a fold it doesn't close, which would hide what follows it on the page. */
 function hidesAhead(text) {
   const before = linesOf(text).map(blankCodeSpans).join('\n');
@@ -1556,7 +1591,7 @@ const TABLE = Object.freeze({
 const FENCE_OPEN_RE = /^ {0,3}(`{3,}|~{3,})([^]*)$/;
 const FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 
-/** The fence `line` opens, as [run, info], or null. The table check and the fence check read fences through these two alone. */
+/** The fence `line` opens, as [run, info], or null. The table check reads fences through these two alone. */
 function fenceOpens(line) {
   const open = line.match(FENCE_OPEN_RE);
   return open && !(open[1][0] === '`' && open[2].includes('`')) ? [open[1], open[2]] : null;
@@ -1731,236 +1766,6 @@ export function tableCheck(body) {
     for (const rule of dispositionRules(cells[2].text)) refuse(rule, cells[2].col);
   }
   return out;
-}
-
-// A line no diagram holds: a fence run, or a fold's tag. In a `mermaid` fence it means the fence was left open.
-const DIAGRAM_END_RE = /^ {0,3}(?:`{3,}|~{3,}|<\/?details[\s>])/i;
-
-/**
- * A fence left open in `body`, as [{ rule, where }]: one fence/unclosed at
- * the line and column of its opening run, or nothing. A fence is left open
- * when the body ends inside it, or when a `mermaid` fence runs into a line no
- * diagram holds, another fence or a fold's tag. It reads fences as the table
- * check does, so a fence it reports is one that hid what followed it, folds
- * and table included, from that check and from the reader (#401).
- */
-export function fenceCheck(body) {
-  let fence = null;
-  let diagram = false;
-  let where = '';
-  const lines = body.split(LINE_END_RE);
-  for (let n = 0; n < lines.length; n += 1) {
-    const line = lines[n];
-    if (fence !== null) {
-      if (fenceCloses(fence, line)) fence = null;
-      else if (diagram && DIAGRAM_END_RE.test(line)) return [{ rule: 'fence/unclosed', where }];
-      continue;
-    }
-    const open = fenceOpens(line);
-    if (open) {
-      fence = open[0];
-      diagram = open[1].trim().split(/[ \t]/)[0].toLowerCase() === 'mermaid';
-      where = `body ${n + 1}:${line.indexOf(fence[0]) + 1}`;
-    }
-  }
-  return fence === null ? [] : [{ rule: 'fence/unclosed', where }];
-}
-
-// ---------------------------------------------------------------- the prose checks
-
-const PROSE = Object.freeze({ wrap: 'text/hard-wrap', link: 'link/relative' });
-
-// A fence for these checks: a run of three or more backticks or tildes at any
-// indent, whatever follows it, closed by a run of the same character at least
-// as long with nothing after it but spaces or tabs. Looser than the table
-// check's twice over, so a fence-like line mostly means fewer refusals.
-const PROSE_FENCE_OPEN_RE = /^[ \t]*(`{3,}|~{3,})/;
-const PROSE_FENCE_CLOSE_RE = /^[ \t]*(`{3,}|~{3,})[ \t]*$/;
-const QUOTE_RE = /^(?:[ ]{0,3}>[ ]?)+/;
-const OWN_BLOCK_RE = /^(?:[ ]{0,3}#{1,6}(?:[ \t]|$)|[ \t]*\||[ ]{0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$|[ \t]*<[A-Za-z/!]|[ ]{0,3}\[[^\]]*\]:|[ ]{0,3}\[!\w+\][ \t]*$)/;
-const LIST_MARKER_RE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
-const REF_DEF_RE = /^[ ]{0,3}\[([^\]]*)\]:[ \t]*(<[^>]*>|\S*)/;
-const HTML_ATTR_RE = /\b(?:href|src)[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gid;
-// A scheme has two letters or more, so a drive letter such as D: is none (#364).
-const SCHEME_RE = /^(?:[A-Za-z][A-Za-z0-9+.-]+:|\/\/|#)/;
-// A line's end, past closing quotes, brackets and emphasis marks: one of `.!?:;`.
-const SENTENCE_END_RE = /[.!?:;][)"'\]*_`\u2019\u201d\u00bb]*$/;
-const BOLD_LABEL_RE = /^\*\*[^*]+(?::\*\*|\*\*:)/;
-
-/** Whether a line's last word holds `http://` or `https://`: a link at its end. */
-const endsInLink = t => {
-  const word = t.slice(Math.max(t.lastIndexOf(' '), t.lastIndexOf('	')) + 1);
-  return word.includes('http://') || word.includes('https://');
-};
-
-/** `line` with every code span replaced by spaces, matching backtick runs by length in one pass. */
-function blankCodeSpans(line) {
-  if (!line.includes('`')) return line;
-  const runs = [];
-  for (let i = 0; i < line.length; i += 1) {
-    if (line[i] !== '`') continue;
-    let j = i;
-    while (j < line.length && line[j] === '`') j += 1;
-    runs.push({ at: i, len: j - i });
-    i = j - 1;
-  }
-  // The next run of the same length after each run, from the right, once.
-  const nextSame = new Array(runs.length).fill(-1);
-  const seen = new Map();
-  for (let k = runs.length - 1; k >= 0; k -= 1) {
-    nextSame[k] = seen.get(runs[k].len) ?? -1;
-    seen.set(runs[k].len, k);
-  }
-  const out = [];
-  let from = 0;
-  for (let k = 0; k < runs.length; k += 1) {
-    if (nextSame[k] < 0) continue;
-    const end = runs[nextSame[k]].at + runs[nextSame[k]].len;
-    out.push(line.slice(from, runs[k].at), ' '.repeat(end - runs[k].at));
-    from = end;
-    // Runs inside the span are code; resume after its closing run.
-    while (k + 1 < runs.length && runs[k + 1].at < end) k += 1;
-  }
-  out.push(line.slice(from));
-  return out.join('');
-}
-
-/** The targets of the links in `line` (code spans and comments already blanked), as [{ target, at }]. */
-function linkTargets(line) {
-  const out = [];
-  let p = line.indexOf('](');
-  while (p >= 0) {
-    let s = p + 2;
-    while (line[s] === ' ' || line[s] === '\t') s += 1;
-    let e = s;
-    if (line[s] === '<') {
-      s += 1;
-      e = s;
-      while (e < line.length && line[e] !== '>') e += 1;
-    } else {
-      while (e < line.length && !/[\s)\]]/.test(line[e])) e += 1;
-    }
-    if (e > s) out.push({ target: line.slice(s, e), at: s });
-    p = line.indexOf('](', Math.max(e, p + 2));
-  }
-  const def = line.match(REF_DEF_RE);
-  if (def && !def[1].startsWith('^') && def[2] !== '') {
-    const raw = def[2];
-    const angled = raw.startsWith('<');
-    const target = angled ? raw.slice(1, -1) : raw;
-    if (target !== '') out.push({ target, at: def[0].length - raw.length + (angled ? 1 : 0) });
-  }
-  for (const m of line.matchAll(HTML_ATTR_RE)) {
-    const g = m[1] !== undefined ? 1 : m[2] !== undefined ? 2 : 3;
-    if (m[g] !== '') out.push({ target: m[g], at: m.indices[g][0] });
-  }
-  return out;
-}
-
-/**
- * Each place the body's prose would land broken on GitHub, as
- * [{ rule, where }]: a hard-wrapped paragraph, list item or quote
- * (text/hard-wrap, a line that continues one that stopped mid-sentence), and a
- * link whose target has no scheme and is not an anchor (link/relative). Each
- * rule is reported once, at its first hit; `where` is the line and column,
- * never the text. Fences and HTML comments are not read, and a line broken on
- * purpose (two trailing spaces, a backslash, a bold label starting the next
- * line) is not a wrap. Lines end as CommonMark ends them. One pass over the
- * lines, each pattern anchored or bounded by a class that cannot overlap what
- * follows it.
- */
-export function proseCheck(body) {
-  let wrap = null;
-  let relative = null;
-  let fence = null;
-  let comment = false;
-  let open = false;
-  let prev = '';
-  const lines = body.split(LINE_END_RE);
-  for (let n = 0; n < lines.length; n += 1) {
-    const raw = lines[n];
-    const quote = raw.match(QUOTE_RE);
-    const off = quote ? quote[0].length : 0;
-    let line = quote ? raw.slice(off) : raw;
-    if (fence !== null) {
-      const close = line.match(PROSE_FENCE_CLOSE_RE);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-      continue;
-    }
-    const startedInComment = comment;
-    if (!startedInComment) {
-      const f = line.match(PROSE_FENCE_OPEN_RE);
-      if (f) {
-        fence = f[1];
-        open = false;
-        continue;
-      }
-    }
-    // Blank the comments out, keeping every column.
-    let hadComment = startedInComment;
-    if (startedInComment || line.includes('<!--')) {
-      const parts = [];
-      let pos = 0;
-      for (;;) {
-        if (comment) {
-          const j = line.indexOf('-->', pos);
-          if (j < 0) {
-            parts.push(' '.repeat(line.length - pos));
-            pos = line.length;
-            break;
-          }
-          parts.push(' '.repeat(j + 3 - pos));
-          pos = j + 3;
-          comment = false;
-        } else {
-          const j = line.indexOf('<!--', pos);
-          if (j < 0) break;
-          hadComment = true;
-          parts.push(line.slice(pos, j));
-          pos = j;
-          comment = true;
-          parts.push('    ');
-          pos = j + 4;
-        }
-      }
-      parts.push(line.slice(pos));
-      line = parts.join('');
-    }
-    const text = line.trim();
-    if (hadComment || text === '') {
-      open = false;
-      if (text === '') continue;
-    }
-    const indented = /^(?: {4}|\t)/.test(line);
-    const ownBlock = OWN_BLOCK_RE.test(line);
-    const codeLine = indented && !open && !LIST_MARKER_RE.test(line);
-    if (!codeLine && relative === null) {
-      for (const { target, at } of linkTargets(blankCodeSpans(line))) {
-        if (SCHEME_RE.test(target)) continue;
-        relative = { rule: PROSE.link, where: `body ${n + 1}:${[...(quote ? raw.slice(0, off) : '')].length + [...line.slice(0, at)].length + 1}` };
-        break;
-      }
-    }
-    if (hadComment || codeLine) {
-      open = false;
-      continue;
-    }
-    if (ownBlock) {
-      open = false;
-      continue;
-    }
-    if (LIST_MARKER_RE.test(line)) {
-      open = true;
-      prev = raw.slice(off);
-      continue;
-    }
-    if (open && wrap === null && !SENTENCE_END_RE.test(prev.trimEnd()) && !endsInLink(prev.trimEnd()) && !/(?: {2}|[\\])$/.test(prev) && !BOLD_LABEL_RE.test(text)) {
-      wrap = { rule: PROSE.wrap, where: `body ${n + 1}:1` };
-    }
-    open = true;
-    prev = raw.slice(off);
-  }
-  return [wrap, relative].filter(Boolean);
 }
 
 // ---------------------------------------------------------------- gh
@@ -2717,7 +2522,7 @@ export const NEXT_FOR = Object.freeze({
   'post/field start_none': 'NEXT: give the task a passage or `start_none`, never both, and no `start_none` on a decision or on a kind that takes no quote (a note, status, review, reply or lens report). Keep the one that fits and post again.',
   'secret/env': "NEXT: remove the value from the named field and post again; the line names the variable, never the value. A lens report stays as it is: tell the owner where it is, in chat, and don't post it.",
   'text/hidden': 'NEXT: remove the hidden character from the named field and post again. A lens report stays as it is: tell the owner where it is, in chat, and don\'t post it.',
-  // PACT-52: the usage, field, file, text, fence, link and table rules (usage/unknown-option has OLD_OPTION_NEXT).
+  // PACT-52: the usage, field, file, text and table rules (usage/unknown-option has OLD_OPTION_NEXT).
   'usage/surface': 'NEXT: give a surface first: issue, pull-request, issue-comment, pull-request-review, review-thread-reply, issue-edit, pull-request-edit, issue-comment-edit or review-thread-reply-edit, then `--post <file>`. `schema` prints the fields.',
   'usage/argument': 'NEXT: the only arguments are `<surface> --post <file>` and `--dry-run`. Remove the stray word and run again.',
   'usage/repeated': 'NEXT: give `--post <file>` and `--dry-run` once each. Remove the repeat and run again.',
@@ -2745,9 +2550,6 @@ export const NEXT_FOR = Object.freeze({
   'file/empty': 'NEXT: the named file is empty. Write the text into it, or drop the post.',
   'text/body-length': 'NEXT: the text is over 65,536 characters. Cut it down, or split it into several posts.',
   'text/hidden-line': "NEXT: the text opens an HTML comment or a fold it doesn't close, which hides what follows it. Close it, or remove it.",
-  'fence/unclosed': 'NEXT: close the fence the named line opens, with a run of backticks at least as long as the one that opened it, or remove the fence.',
-  'text/hard-wrap': 'NEXT: join the wrapped lines: one line per paragraph, list item or quote, since GitHub shows every line break.',
-  'link/relative': 'NEXT: give the link a full address with a scheme, such as `https://`, or an anchor on the same page; GitHub leaves a relative target as written.',
   'table/header': "NEXT: the Lens dispositions table's header row is exactly `| Finding | Lens | Disposition | Rerun |`, with no markup. Fix the header and run again.",
   'table/cells': 'NEXT: give every row of the table four cells, with the Lens cell filled in.',
   'table/disposition': 'NEXT: start each Disposition cell with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted`; a row whose Finding cell is exactly `withheld, see chat` takes one bare `open`, `fixed`, `taken` or `dismissed`.',
@@ -2800,18 +2602,16 @@ function prepare(argv, io, app) {
     if (plan.reason !== undefined) fields.push({ field: 'reason', text: plan.reason });
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env };
-    // The table check and the prose checks run after the content scan, on the
-    // body only; the prose check skips the owner's quote. Past the first fifty,
-    // the table refusals are counted, not listed, so the result line stays in view.
+    // The table check runs after the content scan, on the body only. Past the
+    // first fifty, its refusals are counted, not listed, so the result line stays in view.
     // In app mode a post goes out `as` the app's bot login and no other (#599, S8).
     const notApp = app !== null && plan.as !== app.bot ? [{ rule: 'as/not-app', where: 'as' }] : [];
     const hits = [...plan.late, ...notApp, ...scan(fields, { ...ctx, surface: plan.surface })];
     const tables = tableCheck(plan.body);
-    const prose = [...fenceCheck(plan.body), ...proseCheck(renderBody(plan, true))];
     if (tables.length > TABLE_LISTED) {
-      return { result: refused([...hits, ...tables.slice(0, TABLE_LISTED), ...prose], [`NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`], hits.length + tables.length + prose.length) };
+      return { result: refused([...hits, ...tables.slice(0, TABLE_LISTED)], [`NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`], hits.length + tables.length) };
     }
-    if (hits.length || tables.length || prose.length) return { result: refused([...hits, ...tables, ...prose]) };
+    if (hits.length || tables.length) return { result: refused([...hits, ...tables]) };
     const edit = isEdit(plan.surface);
     if (edit) {
       const own = editBodyChecks(plan);
