@@ -96,17 +96,17 @@ setup, run with the owner's rights.
 
 **Controls:**
 
-- **GitHub.** Actions pinned to a full commit SHA in all four
+- **GitHub.** Actions pinned to a full commit SHA in all three
   workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot
   security updates. They hold for what the pins and queries cover; an update
   is a pull request, read like any change.
-- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all four
+- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all three
   workflows to a read-only token, no secrets and no `pull_request_target`, and
-  `codeql.yml` and the two Claude files to an exact allow-list each:
+  `codeql.yml` and `claude.yml` to an exact allow-list each:
   `security-events: write` in one CodeQL job, skipped for Dependabot;
-  `id-token: write` in each Claude job, with no key in the repo. The
-  Console's federation rule bounds who gets an Anthropic token; each job's guard,
+  `id-token: write` and caps in the Claude job, no key in the repo. The
+  Console's federation rule bounds who gets an Anthropic token; the job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the write
   token. It holds only while the test itself is unchanged; a change to it is read
   like any change. The Scriptorium page's policy (`builder/build.mjs`) sets
@@ -133,13 +133,14 @@ setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
 with the owner's rights, and a crafted model could exploit a parser bug; a
-Claude run that an allowed actor, or a session with an app key, starts
-reads anyone's text and spends Anthropic tokens; it can steer what Claude
-writes through the app's token, short of `main`; an allowed bot's comment that
-merely contains `@claude` starts one; the rule pins no ref or workflow, so any
-workflow on any branch of the owner's repos that an allowed actor starts can
-mint an Anthropic token (the service account's scope is the owner's to
-confirm); the review plugin is fetched unpinned. Pinned design-system code: each re-pin is reviewed
+Claude run an allowed actor or an app key's holder starts reads anyone's
+text and spends Anthropic tokens; that text can steer it and the Claude app
+token it can read (Workflows write included), up to a merge on `main`
+or a leaking commit or post (accepted, identity-gated); a mere `@claude`
+starts one; a review or diff-line comment runs the pull request's
+`claude.yml`, minting an Anthropic token, not a write token; until the owner
+pins the rule, any workflow of the owner's an allowed actor starts can mint
+one. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs

@@ -326,7 +326,7 @@ function codeqlProblems(src, gateSrc) {
   return [...new Set(out)];
 }
 
-// Spec 0006 W3, W4: the two Claude workflows, each held to an exact allow-list of its own. Neither reads a secret:
+// Spec 0006 V2 W3, W4: the one Claude workflow, held to an exact allow-list of its own. It reads no secret:
 // each run trades GitHub's OIDC token for an Anthropic token through Workload Identity Federation.
 // The owner's three agent apps may start a run too (an owner's decision, spec 0006 W2.3); allowed_bots names the same three, never '*'.
 const APPS = ['mephistos-homunculus', 'mephistos-euphorion', 'mephistos-wagner'];
@@ -341,13 +341,14 @@ const ANSWER_GUARD =
     "(github.event_name == 'pull_request_review' && " + MENTION('review') + ' && ' + IN_LIST('review') + ')',
     "(github.event_name == 'issues' && (" + MENTION('issue') + " || contains(github.event.issue.title, '@claude')) && " + IN_LIST('issue') + ')',
   ].join(' ||\n') + '\n';
-const REVIEW_GUARD = 'github.event.pull_request.head.repo.full_name == github.repository && ' + IN_LIST('pull_request');
 // The federation IDs are identifiers, not credentials, and are held exactly: another well-formed ID would point a run at another rule.
 const FEDERATION = {
   anthropic_federation_rule_id: 'fdrl_01V8jy6dtvy7Ebf916SRieME',
   anthropic_organization_id: '6161ef7b-3383-44f6-bd62-34226aa8c2fc',
   anthropic_service_account_id: 'svac_01QUZe8emXQcqnE1opH93J5e',
 };
+// W2.5, W2.6: the caps and the two tools tag mode lacks, held exactly. A run reviews through the inline comment tool and opens a pull request through gh pr create.
+const CLAUDE_ARGS = '--model claude-opus-5-5 --max-turns 60 --max-budget-usd 5 --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr create:*)"';
 const CLAUDE = {
   'claude.yml': {
     name: 'claude',
@@ -355,30 +356,20 @@ const CLAUDE = {
     on: { issue_comment: ['created'], pull_request_review_comment: ['created'], issues: ['opened', 'assigned'], pull_request_review: ['submitted'] },
     permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', actions: 'read', 'id-token': 'write' },
     guard: ANSWER_GUARD,
-    inputs: { ...FEDERATION, allowed_bots: APPS.join(','), additional_permissions: 'actions: read\n' },
-  },
-  'claude-code-review.yml': {
-    name: 'claude-code-review',
-    job: 'claude-review',
-    on: { pull_request: ['opened', 'synchronize', 'ready_for_review', 'reopened'] },
-    permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', 'id-token': 'write' },
-    guard: REVIEW_GUARD,
-    inputs: {
-      ...FEDERATION,
-      allowed_bots: APPS.join(','),
-      plugin_marketplaces: 'https://github.com/anthropics/claude-code.git',
-      plugins: 'code-review@claude-code-plugins',
-      prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}',
-      claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"',
-    },
+    // W2.6: one group per issue or pull request; a run in progress is never cancelled.
+    concurrency: { group: 'claude-${{ github.event.issue.number || github.event.pull_request.number }}', 'cancel-in-progress': 'false' },
+    inputs: { ...FEDERATION, allowed_bots: APPS.join(','), additional_permissions: 'actions: read\n', claude_args: CLAUDE_ARGS },
   },
 };
+// Spec 0006 V2 W1: the review workflow ran on every push to every pull request; it is gone, and a file by its name is refused.
+const REVIEW_GONE = 'is the review workflow V2 removed';
+const isReviewFile = n => /^claude-code-review\.ya?ml$/i.test(n);
 /** A value with every map's keys in order, so two maps compare by what they hold. */
 const sorted = v => (isMap(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, sorted(x)])) : v);
 const sameSet = (a, b) => same(sorted(a), sorted(b));
 
 /**
- * Where one of the two Claude workflows breaks its allow-list, as plain
+ * Where the Claude workflow breaks its allow-list, as plain
  * sentences; empty when it keeps it. 'which' is the file's name, and its
  * values are CLAUDE's. Every level holds exactly the keys W3 names; the guard
  * and the action's inputs, the federation IDs included, are the file's own.
@@ -415,10 +406,11 @@ function claudeProblems(src, gateSrc, which) {
 
   if (!isMap(w.jobs) || !same(Object.keys(w.jobs), [spec.job])) out.push('holds a job other than its own');
   const job = isMap(w.jobs?.[spec.job]) ? w.jobs[spec.job] : {};
-  extras('the job', job, ['if', 'runs-on', 'timeout-minutes', 'permissions', 'steps']);
+  extras('the job', job, ['if', 'runs-on', 'timeout-minutes', 'concurrency', 'permissions', 'steps']);
   if (!sameSet(job.permissions, spec.permissions)) out.push('gives the job other permissions than its own');
   if (job.if !== spec.guard) out.push('runs its job under another guard than its own');
-  if (job['runs-on'] !== 'ubuntu-24.04' || !/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push('does not run on ubuntu-24.04 with a time limit');
+  if (job['runs-on'] !== 'ubuntu-24.04' || job['timeout-minutes'] !== '30') out.push('does not run on ubuntu-24.04 with a 30-minute time limit');
+  if (!sameSet(job.concurrency, spec.concurrency)) out.push('runs under another concurrency group than its own');
 
   const steps = Array.isArray(job.steps) ? job.steps : [];
   const actions = ['actions/checkout', 'anthropics/claude-code-action'];
@@ -445,7 +437,8 @@ function claudeProblems(src, gateSrc, which) {
   if (isMap(steps[0]) && checkout?.['persist-credentials'] !== 'false') out.push('leaves the token in the checkout');
   if (checkout) {
     extras("step 1's with", checkout, ['fetch-depth', 'persist-credentials']);
-    if (Object.hasOwn(checkout, 'fetch-depth') && !/^\d+$/.test(checkout['fetch-depth'])) out.push("step 1's fetch-depth is not a number");
+    // W2.7: a review's git diff needs a merge base, so the checkout keeps the full history.
+    if (checkout['fetch-depth'] !== '0') out.push("step 1's fetch-depth is not 0, a full history");
   }
   if (action) {
     extras("the action's with", action, Object.keys(spec.inputs));
@@ -496,13 +489,14 @@ function premiseProblems(files) {
 
 // #356: a control character but a tab or a line feed (C0, DEL and C1, the QA pair's read), a lone carriage return and next line among them, or a Unicode line break.
 const BREAKS = /[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]/;
-/** Where the workflow folder breaks the lockdown: the gate workflow's own, the allow-lists of the CodeQL workflow and the two Claude workflows, every other file's common lockdown, and no other job named gate or gate-windows. */
+/** Where the workflow folder breaks the lockdown: the gate workflow's own, the allow-lists of the CodeQL workflow and the Claude workflow, every other file's common lockdown, no review workflow, and no other job named gate or gate-windows. */
 function folderProblems(files) {
   const out = [];
   if (!files.has('gate.yml')) out.push('has no gate.yml');
   for (const [name, src] of files) {
     const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : commonProblems(src);
     out.push(...problems.map(p => `${name} ${p}`));
+    if (isReviewFile(name)) out.push(`${name} ${REVIEW_GONE}`);
     // #356: the reader splits lines on a line feed alone, so any other break, or a control character but a tab, could hide a key from it.
     if (BREAKS.test(src.replace(/\r\n/g, '\n'))) out.push(`${name} holds a line break or control character other than a line feed`);
     if (name === 'gate.yml') continue;
@@ -790,8 +784,8 @@ for (const [label, plant, says] of [
   });
 }
 
-// Spec 0006 W3, W4: each Claude workflow is held to its own allow-list. Each plant is run against both files unless the row names one.
-const CLAUDE_FILES = ['claude.yml', 'claude-code-review.yml'];
+// Spec 0006 W3, W4: the one Claude workflow is held to its own allow-list.
+const CLAUDE_FILES = ['claude.yml'];
 const claudeSrc = file => readFileSync(join(WORKFLOWS, file), 'utf8');
 const CL = {
   triggers: 'runs on other triggers or event types than its own',
@@ -800,7 +794,9 @@ const CL = {
   jobs: 'holds a job other than its own',
   perms: 'gives the job other permissions than its own',
   guard: 'runs its job under another guard than its own',
-  runner: 'does not run on ubuntu-24.04 with a time limit',
+  runner: 'does not run on ubuntu-24.04 with a 30-minute time limit',
+  concurrency: 'runs under another concurrency group than its own',
+  depth: "step 1's fetch-depth is not 0, a full history",
   steps: 'holds other steps than checkout and claude-code-action, in that order',
   secret: 'reads a secret or the token',
   cred: 'sets a credential that takes precedence over federation',
@@ -821,7 +817,7 @@ const afterCheckoutInputs = text => s => s.replace('          persist-credential
 const dropAssociation = s => s.replace(/contains\(fromJSON\('\["OWNER","MEMBER","COLLABORATOR"\]'\), github\.event\.[a-z_.]+\.author_association\) \|\| /, '');
 const BOT_LIST = '"mephistos-homunculus[bot]","mephistos-euphorion[bot]","mephistos-wagner[bot]"';
 
-test('the two Claude workflows keep their allow-lists', () => {
+test('the Claude workflow keeps its allow-list', () => {
   const gate = readFileSync(WORKFLOW, 'utf8');
   for (const file of CLAUDE_FILES) assert.deepEqual(claudeProblems(claudeSrc(file), gate, file), [], file);
 });
@@ -832,20 +828,15 @@ for (const [label, plant, says, only] of [
   ['adds a manual run', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n'), CL.triggers],
   ['adds pull_request_target', s => s.replace('\non:\n', '\non:\n  pull_request_target:\n'), [CL.hot, CL.triggers]],
   ['adds workflow_run', s => s.replace('\non:\n', '\non:\n  workflow_run:\n    workflows: [gate]\n    types: [completed]\n'), [CL.hot, CL.triggers]],
-  ['runs on pull_request_target instead of pull_request', s => s.replace('  pull_request:\n', '  pull_request_target:\n'), [CL.hot, CL.triggers], ['claude-code-review.yml']],
-  ['names pull_request_target as a flow list', s => s.replace(/\non:\n {2}pull_request:\n {4}types: .*\n/, '\non: [pull_request_target]\n'), [CL.hot, CL.triggers], ['claude-code-review.yml']],
   ['adds an event type', s => s.replace(/types: \[([^\]]*)\]/, 'types: [$1, edited]'), CL.triggers],
   ['drops the assigned type', s => s.replace('[opened, assigned]', '[opened]'), CL.triggers, ['claude.yml']],
-  ['drops the synchronize type', s => s.replace('opened, synchronize, ', 'opened, '), CL.triggers, ['claude-code-review.yml']],
   ['drops a trigger', s => s.replace('  pull_request_review:\n    types: [submitted]\n', ''), CL.triggers, ['claude.yml']],
-  ['drops the types of its only trigger', s => s.replace(/ {2}pull_request:\n {4}types: .*\n/, '  pull_request:\n'), CL.triggers, ['claude-code-review.yml']],
   // Top level.
   ['adds a top-level key', s => s.replace('\njobs:\n', '\nconcurrency: x\njobs:\n'), extraKey('the file', 'concurrency')],
   ['sets a top-level env', s => s.replace('\njobs:\n', '\nenv:\n  X: y\njobs:\n'), [CL.env, extraKey('the file', 'env')]],
   ['sets top-level defaults', s => s.replace('\njobs:\n', '\ndefaults:\n  run:\n    shell: sh\njobs:\n'), extraKey('the file', 'defaults')],
   ['drops its name', s => s.replace(/^name: .*\n/, ''), file => CL.named(file)],
   ['is renamed', s => s.replace(/^name: .*\n/, 'name: scan\n'), file => CL.named(file)],
-  ['is named for the other file', s => s.replace(/^name: .*\n/, s.startsWith('name: claude-code-review') ? 'name: claude\n' : 'name: claude-code-review\n'), file => CL.named(file)],
   ['writes a key twice', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions:\n  contents: read\n  contents: read\n'), /^is not in the YAML the check reads: the key contents repeats/],
   // Permissions: reads, and id-token: write for the job only.
   ['asks for write access at the top level', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions:\n  contents: write\n'), CL.top],
@@ -862,13 +853,12 @@ for (const [label, plant, says, only] of [
   ['drops the job permissions', s => s.replace(/ {4}permissions:\n(?: {6}.+\n)+/, ''), [CL.perms, 'the job lacks permissions']],
   ['gives the job actions: write', s => s.replace('      actions: read\n', '      actions: write\n'), CL.perms, ['claude.yml']],
   ['drops actions from the job', s => s.replace('      actions: read\n', ''), CL.perms, ['claude.yml']],
-  ['adds actions: read to the job', s => s.replace('      id-token: write\n', '      id-token: write\n      actions: read\n'), CL.perms, ['claude-code-review.yml']],
   // Jobs.
   ['adds a second job', s => s + '  extra:\n    runs-on: ubuntu-24.04\n', CL.jobs],
   ['renames its job', s => s.replace(/\n {2}(claude|claude-review):\n/, '\n  other:\n'), CL.jobs],
   ['names its job gate', s => s.replace(/\n {2}(claude|claude-review):\n/, '\n  gate:\n'), CL.jobs],
   ['gives its job the name gate', s => s.replace('    runs-on:', '    name: gate\n    runs-on:'), extraKey('the job', 'name')],
-  ...['needs', 'strategy', 'container', 'services', 'defaults', 'environment', 'concurrency', 'outputs', 'continue-on-error', 'secrets'].map(key => [
+  ...['needs', 'strategy', 'container', 'services', 'defaults', 'environment', 'outputs', 'continue-on-error', 'secrets'].map(key => [
     'gives the job a ' + key + ' key',
     afterTimeout('    ' + key + ': x\n'),
     extraKey('the job', key),
@@ -880,6 +870,13 @@ for (const [label, plant, says, only] of [
   ['runs on a runner from a variable', s => s.replace('runs-on: ubuntu-24.04', 'runs-on: ${{ vars.RUNNER }}'), CL.runner],
   ['drops the time limit', s => s.replace('    timeout-minutes: 30\n', ''), [CL.runner, 'the job lacks timeout-minutes']],
   ['sets a time limit that is not a number', s => s.replace('timeout-minutes: 30', 'timeout-minutes: soon'), CL.runner],
+  ['raises the time limit', s => s.replace('timeout-minutes: 30', 'timeout-minutes: 360'), CL.runner],
+  // Concurrency: one group per issue or pull request, never cancelling a run in progress (W2.6).
+  ['drops the concurrency group', s => s.replace(/ {4}concurrency:\n(?: {6}.+\n)+/, ''), [CL.concurrency, 'the job lacks concurrency']],
+  ['cancels a run in progress', s => s.replace('cancel-in-progress: false', 'cancel-in-progress: true'), CL.concurrency],
+  ['shares one group across every issue', s => s.replace(/(group: ).*/, '$1claude'), CL.concurrency],
+  ['keys its group on the issue alone', s => s.replace(' || github.event.pull_request.number', ''), CL.concurrency],
+  ['writes its concurrency as a word', s => s.replace(/ {4}concurrency:\n(?: {6}.+\n)+/, '    concurrency: claude\n'), CL.concurrency],
   // The guard, held exactly as the file writes it.
   ['drops an association check', dropAssociation, CL.guard],
   ['lets in another association', s => s.replace('"COLLABORATOR"', '"COLLABORATOR","CONTRIBUTOR"'), CL.guard],
@@ -889,9 +886,8 @@ for (const [label, plant, says, only] of [
   ['drops the @claude check on issues', s => s.replace("(contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))", 'true'), CL.guard, ['claude.yml']],
   ['drops an event from the guard', s => s.replace(/ \|\|\n {6}\(github\.event_name == 'issues'.*\n/, '\n'), CL.guard, ['claude.yml']],
   ['writes its guard on one line', s => s.replace('    if: |\n      (github', '    if: (github').replace(/\n {6}\(github/g, ' (github'), CL.guard, ['claude.yml']],
-  ['drops the check that the head is this repo', s => s.replace('github.event.pull_request.head.repo.full_name == github.repository && ', ''), CL.guard, ['claude-code-review.yml']],
-  ['checks the base repo instead of the head', s => s.replace('pull_request.head.repo.full_name', 'pull_request.base.repo.full_name'), CL.guard, ['claude-code-review.yml']],
-  ['joins its guard with or', s => s.replace(' && (contains(fromJSON', ' || (contains(fromJSON'), CL.guard, ['claude-code-review.yml']],
+  ['joins its guard with or', s => s.replace(' && (contains(fromJSON', ' || (contains(fromJSON'), CL.guard],
+  ['is named for the deleted review file', s => s.replace(/^name: .*\n/, 'name: claude-code-review\n'), file => CL.named(file)],
   ['drops the app logins from the guard', s => s.replace(/ \|\| contains\(fromJSON\('\["mephistos.*?\]'\), github\.event\.[a-z_]+\.user\.login\)/, ''), CL.guard],
   ['lets in an extra login', s => s.replace('"mephistos-wagner[bot]"', '"mephistos-wagner[bot]","other[bot]"'), CL.guard],
   ['lets in an extra login by its bare name', s => s.replace('"mephistos-wagner[bot]"', '"mephistos-wagner[bot]","other"'), CL.guard],
@@ -899,8 +895,7 @@ for (const [label, plant, says, only] of [
   ['drops an app from the guard', s => s.replace(',"mephistos-wagner[bot]"', ''), CL.guard],
   ['checks the sender instead of the author', s => s.replace('.user.login', '.sender.login'), CL.guard],
   ['admits a login on its own', s => s.replace(BOT_LIST + ']\'), github.event.', BOT_LIST + ']\'), github.actor, github.event.'), CL.guard],
-  ['reads the association of the wrong author', s => s.replace('github.event.pull_request.author_association', 'github.event.sender.author_association'), CL.guard, ['claude-code-review.yml']],
-  ['ends its guard in true', s => s.replace(/(if: .*)\n/, '$1 || true\n'), CL.guard, ['claude-code-review.yml']],
+  ['reads the association of the wrong author', s => s.replace('github.event.comment.author_association', 'github.event.sender.author_association'), CL.guard],
   // Steps and pins.
   ['pins checkout to a tag', s => s.replace(/actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@v7'), 'step 1 is not actions/checkout pinned to a full commit SHA'],
   ['pins the action to a tag', s => s.replace(/claude-code-action@[0-9a-f]{40}/, 'claude-code-action@v1'), 'step 2 is not anthropics/claude-code-action pinned to a full commit SHA'],
@@ -924,12 +919,13 @@ for (const [label, plant, says, only] of [
   ['leaves persist-credentials out', s => s.replace('          persist-credentials: false\n', ''), [CL.checkout, "step 1's with lacks persist-credentials"]],
   ['writes persist-credentials as a word', s => s.replace('persist-credentials: false', "persist-credentials: 'no'"), CL.checkout],
   ...['ref', 'token', 'repository', 'path', 'submodules', 'ssh-key', 'sparse-checkout'].map(key => ['gives checkout a ' + key + ' input', afterCheckoutInputs('          ' + key + ': x\n'), extraKey("step 1's with", key)]),
-  ['writes the checkout step\'s with as nothing', s => s.replace(/ {8}with:\n {10}fetch-depth: 1\n {10}persist-credentials: false\n/, '        with:\n'), ["step 1's with is not a map", CL.checkout]],
-  ['writes the checkout step\'s with as a word', s => s.replace(/ {8}with:\n {10}fetch-depth: 1\n {10}persist-credentials: false\n/, '        with: x\n'), ["step 1's with is not a map", CL.checkout]],
+  ['writes the checkout step\'s with as nothing', s => s.replace(/ {8}with:\n {10}fetch-depth: 0\n {10}persist-credentials: false\n/, '        with:\n'), ["step 1's with is not a map", CL.checkout]],
+  ['writes the checkout step\'s with as a word', s => s.replace(/ {8}with:\n {10}fetch-depth: 0\n {10}persist-credentials: false\n/, '        with: x\n'), ["step 1's with is not a map", CL.checkout]],
   ['writes the action step\'s with as nothing', s => s.replace(/ {8}with:\n {10}anthropic_federation_rule_id[\s\S]*$/, '        with:\n'), "step 2's with is not a map"],
   ['writes the action step\'s with as a word', s => s.replace(/ {8}with:\n {10}anthropic_federation_rule_id[\s\S]*$/, '        with: x\n'), "step 2's with is not a map"],
-  ['takes the fetch depth from an expression', s => s.replace('fetch-depth: 1', 'fetch-depth: ${{ github.event.number }}'), "step 1's fetch-depth is not a number"],
-  ['drops the fetch depth', s => s.replace('          fetch-depth: 1\n', ''), "step 1's with lacks fetch-depth"],
+  ['takes the fetch depth from an expression', s => s.replace('fetch-depth: 0', 'fetch-depth: ${{ github.event.number }}'), CL.depth],
+  ['takes a shallow checkout', s => s.replace('fetch-depth: 0', 'fetch-depth: 1'), CL.depth],
+  ['drops the fetch depth', s => s.replace('          fetch-depth: 0\n', ''), ["step 1's with lacks fetch-depth", CL.depth]],
   // The action's inputs.
   ...['allow_fork_prs', 'allowed_non_write_users', 'github_token', 'trigger_phrase', 'settings', 'bot_name', 'use_bedrock'].map(key => [
     'gives the action a ' + key + ' input',
@@ -971,21 +967,19 @@ for (const [label, plant, says, only] of [
   ['asks for more permissions', s => s.replace('additional_permissions: |\n            actions: read\n', 'additional_permissions: |\n            actions: write\n'), 'holds another additional_permissions than its own', ['claude.yml']],
   ['adds a permission to additional_permissions', s => s.replace('            actions: read\n', '            actions: read\n            contents: write\n'), 'holds another additional_permissions than its own', ['claude.yml']],
   ['drops additional_permissions', s => s.replace(/ {10}additional_permissions: \|\n {12}actions: read\n/, ''), WITH + ' lacks additional_permissions', ['claude.yml']],
-  ['changes the prompt', s => s.replace('--comment ', '--comment --dangerous '), 'holds another prompt than its own', ['claude-code-review.yml']],
-  ['takes the prompt from the pull request', s => s.replace(/(prompt: ).*/, "$1'${{ github.event.pull_request.body }}'"), 'holds another prompt than its own', ['claude-code-review.yml']],
-  ['widens the allowed tools', s => s.replace('mcp__github_inline_comment__create_inline_comment', 'Bash'), 'holds another claude_args than its own', ['claude-code-review.yml']],
-  ['drops the tool the review posts through', s => s.replace(',Bash(gh pr comment:*)', ''), 'holds another claude_args than its own', ['claude-code-review.yml']],
-  ['lets the review read issues', s => s.replace('Bash(gh pr view:*)', 'Bash(gh pr view:*),Bash(gh issue view:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
-  ['lets the review merge', s => s.replace('Bash(gh pr comment:*)', 'Bash(gh pr comment:*),Bash(gh pr merge:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
-  ['lets the review run any gh command', s => s.replace('Bash(gh pr view:*)', 'Bash(gh:*)'), 'holds another claude_args than its own', ['claude-code-review.yml']],
-  ['adds an argument', s => s.replace('--allowedTools', '--dangerously-skip-permissions --allowedTools'), 'holds another claude_args than its own', ['claude-code-review.yml']],
-  ['drops claude_args', s => s.replace(/ {10}claude_args: .*\n/, ''), WITH + ' lacks claude_args', ['claude-code-review.yml']],
-  ['fetches the plugin from another marketplace', s => s.replace('github.com/anthropics/claude-code.git', 'github.com/someone/claude-code.git'), 'holds another plugin_marketplaces than its own', ['claude-code-review.yml']],
-  ['loads another plugin', s => s.replace('code-review@claude-code-plugins', 'other@claude-code-plugins'), 'holds another plugins than its own', ['claude-code-review.yml']],
+  ['widens the allowed tools', s => s.replace('mcp__github_inline_comment__create_inline_comment', 'Bash'), 'holds another claude_args than its own'],
+  ['lets a run merge', s => s.replace(':*)"', ':*),Bash(gh pr merge:*)"'), 'holds another claude_args than its own'],
+  ['lets a run use any gh command', s => s.replace(/Bash\(gh pr [a-z]+:\*\)/, 'Bash(gh:*)'), 'holds another claude_args than its own'],
+  ['raises the spend cap', s => s.replace('--max-budget-usd 5', '--max-budget-usd 50'), 'holds another claude_args than its own'],
+  ['drops the spend cap', s => s.replace(' --max-budget-usd 5', ''), 'holds another claude_args than its own'],
+  ['raises the turn cap', s => s.replace('--max-turns 60', '--max-turns 600'), 'holds another claude_args than its own'],
+  ['drops the model', s => s.replace('--model claude-opus-5-5 ', ''), 'holds another claude_args than its own'],
+  ['adds an argument', s => s.replace('--allowedTools', '--dangerously-skip-permissions --allowedTools'), 'holds another claude_args than its own'],
+  ['drops claude_args', s => s.replace(/ {10}claude_args: .*\n/, ''), WITH + ' lacks claude_args'],
   // YAML forms the reader cannot see through.
   ['uses a YAML anchor and alias', s => s.replace('    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n', '    runs-on: &runner ubuntu-24.04\n    timeout-minutes: *runner\n'), YAML_FORM],
   ['uses a merge key', afterTimeout('    <<: x\n'), YAML_FORM],
-  ['uses a flow mapping', s => s.replace('        with:\n          fetch-depth: 1\n          persist-credentials: false\n', '        with: { fetch-depth: 1, persist-credentials: false }\n'), YAML_FORM],
+  ['uses a flow mapping', s => s.replace('        with:\n          fetch-depth: 0\n          persist-credentials: false\n', '        with: { fetch-depth: 0, persist-credentials: false }\n'), YAML_FORM],
   ['uses a flow mapping for its permissions', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions: { contents: read }\n'), YAML_FORM],
 ]) {
   for (const file of CLAUDE_FILES.filter(f => !only || only.includes(f))) {
@@ -1001,14 +995,17 @@ for (const [label, plant, says, only] of [
   }
 }
 
-// Spec 0006 W3: each file is held to its own values, not the other's.
-test("bad case: the Claude allow-list catches each file read against the other file's values", () => {
-  const gate = readFileSync(WORKFLOW, 'utf8');
-  assert.notDeepEqual(claudeProblems(claudeSrc('claude.yml'), gate, 'claude-code-review.yml'), []);
-  assert.notDeepEqual(claudeProblems(claudeSrc('claude-code-review.yml'), gate, 'claude.yml'), []);
-});
+// Spec 0006 V2 W3: the review workflow is gone, and a file by its name, in any case or extension, is refused.
+for (const name of ['claude-code-review.yml', 'Claude-Code-Review.yml', 'claude-code-review.yaml']) {
+  test('bad case: the folder check refuses a review workflow named ' + name, () => {
+    const files = realFolder();
+    assert.deepEqual(folderProblems(files), [], 'control: the real folder passes');
+    files.set(name, claudeSrc('claude.yml'));
+    assert.ok(folderProblems(files).includes(name + ' ' + REVIEW_GONE), folderProblems(files).join('\n'));
+  });
+}
 
-// Spec 0006 W3: the folder check hands the two files to the allow-list, and every other file stays under the common lockdown.
+// Spec 0006 W3: the folder check hands the file to the allow-list, and every other file stays under the common lockdown.
 for (const file of CLAUDE_FILES) {
   test('bad case: the folder check holds ' + file + ' to the Claude allow-list', () => {
     const files = realFolder();
