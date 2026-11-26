@@ -2,13 +2,13 @@
 // a throwaway repo, a throwaway Claude home folder and throwaway projects.
 // The throwaway home is <tmp>/home with --claude-home <tmp>/home/.claude, so a
 // project under <tmp>/home sits beside the Claude folder, as a real one does.
-// Cases that would reach the real home folder run as dry runs only.
+// No case names the real home folder (PACT-114).
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, sep } from 'node:path';
+import { join, sep } from 'node:path';
 import { test } from 'node:test';
 import { git, install, makeRepo, refused, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
@@ -419,44 +419,6 @@ test('bad case: a project holding the Claude folder but not the home folder, wit
   projectAt(homeDir);
   assert.ok(!under(ch, homedir()));
   relation(t, repo, ch, homeDir, root, CLAUDE_REL);
-});
-
-/** A dry run on a real-home project: refused by the home-folder rule, and nothing written there. Never -Apply. */
-function realHomeCase(t, proj, why) {
-  const repo = makeRepo(t);
-  const { ch } = layout(t);
-  const configAt = join(proj, '.claude', 'pact-config.json');
-  const rulesAt = join(proj, ...RULES);
-  if (existsSync(configAt) || existsSync(rulesAt)) {
-    t.skip('this folder already holds a project configuration or rules file, so the case is not planted (not run)');
-    return;
-  }
-  // A filesystem root already ends in a separator; a second would spell a network path.
-  for (const spelled of proj.endsWith(sep) ? [proj] : [proj, `${proj}${sep}`]) {
-    const r = projInstall(repo, ch, spelled);
-    refused(r);
-    assert.match(r.stdout, why, r.out);
-    assert.ok(!existsSync(rulesAt) && !existsSync(configAt));
-  }
-}
-
-test('bad case: a project equal to the real home folder refuses, before any write (dry run only)', t => {
-  realHomeCase(t, homedir(), /FAIL project-home: the project folder is your home folder, or holds it/);
-});
-
-test('bad case: a project holding the real home folder refuses, before any write (dry run only)', t => {
-  realHomeCase(t, dirname(homedir()), /FAIL project-home: the project folder is your home folder, or holds it/);
-});
-
-test('bad case: a project equal to the real Claude folder refuses, before any write (dry run only)', { skip: !existsSync(join(homedir(), '.claude')) && 'there is no real Claude folder here (not run)' }, t => {
-  realHomeCase(t, join(homedir(), '.claude'), /FAIL project-home: the project folder is the Claude folder in your home folder/);
-});
-
-// An existing folder inside the real Claude folder, so nothing is made there.
-const INSIDE_REAL = ['agents', 'pact', 'rules', 'projects'].map(n => join(homedir(), '.claude', n)).find(p => existsSync(p) && lstatSync(p).isDirectory() && !lstatSync(p).isSymbolicLink());
-
-test('bad case: a project inside the real Claude folder refuses, before any write (dry run only)', { skip: !INSIDE_REAL && 'the real Claude folder holds no plain folder to name (not run)' }, t => {
-  realHomeCase(t, INSIDE_REAL, /FAIL project-home: the project folder is the Claude folder in your home folder, holds it, or is inside it/);
 });
 
 // ------------------------------------------------------------ git and Node stay out of the project
