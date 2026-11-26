@@ -763,7 +763,16 @@ the app instead (S2 item 49).
 - **The harness section.** One row per harness the dry run would see, known
   and own: its name, whether it is in the install list, and its three
   models, each a dropdown of that harness's known models plus a free entry.
-  An "Add a harness" row takes an own harness's fields (S5).
+  An "Add a harness" row takes an own harness's fields (S5). Antigravity's
+  model dropdowns also offer `pro`, `flash` and `flash_lite`.
+- **Agent models and tier efforts** ([spec 0008](0008-per-harness-models-and-efforts.md)
+  D6). A row per pact agent and a column per harness set `agentModels`; a row
+  per tier sets `tierEfforts`. A change writes one key of the harness's own
+  entry, and a renamed or dropped tier takes its key along.
+- **Across harnesses.** A read-only column per known and own harness: its
+  models line, each tier's cells and each agent's model and effort. `node
+  builder/build.mjs --overview <file>` writes this alone, from the home
+  configuration, to a new page outside any repo, and installs nothing.
 - **What each harness receives.** The page shows each harness's rendered
   rules, agents and skills, read-only, as the install would write them.
 - **Before any install.** `/scriptorium` keeps working in Claude Code, from

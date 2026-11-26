@@ -702,3 +702,61 @@ export function skillsProblems(v) {
   if (count > SKILL_PATHS_MAX) out.push(`skills names more than ${SKILL_PATHS_MAX} paths in all`);
   return out;
 }
+
+// ------------------------------------------------------------ across harnesses (spec 0008 D6)
+// The page's Across-harnesses section and the overview page `build.mjs --overview` writes read the same
+// columns from the installer's renderer, handed in as `lib`, so neither works a value out itself.
+
+/** The model and effort an agent file the renderer wrote names, each null when it names none. */
+export function agentPick(text, format) {
+  const toml = format === 'codex-toml';
+  const head = text.replaceAll('\r\n', '\n').split(toml ? '\ndeveloper_instructions = ' : '\n---\n')[0];
+  const read = (key, re) => {
+    const found = new RegExp(`^${key}${re}`, 'm').exec(head)?.[1];
+    return found === undefined ? null : toml ? JSON.parse(found) : found.trim();
+  };
+  if (toml) return { model: read('model', ' = (".*")$'), effort: read('model_reasoning_effort', ' = (".*")$'), dropped: false };
+  // Antigravity has no effort for an agent, so the renderer drops the line.
+  return { model: read('model', ': (.*)$'), effort: read('effort', ': (.*)$'), dropped: format === 'antigravity-md' };
+}
+
+/**
+ * One harness as `lib.renderHarnesses` writes it from `input` ({ rules, agents, commands }):
+ * { refusal, modelsLine, tiers, agents }. A harness that takes no agent files has `agents` null;
+ * one the installer would refuse has the refusal and nothing else.
+ */
+export function acrossColumn(lib, input, h) {
+  let files;
+  try {
+    files = lib.renderHarnesses({ ...input, harnesses: [h] }).files;
+  } catch (e) {
+    if (!(e instanceof lib.Refusal)) throw e;
+    return { id: h.id, refusal: e.why, modelsLine: null, tiers: [], agents: null };
+  }
+  const rules = files.get(`rendered/${h.id}/rules.md`);
+  const prefix = `rendered/${h.id}/agents/`;
+  const made = [...files].filter(([rel]) => rel.startsWith(prefix)).map(([rel, text]) => [rel.slice(prefix.length).replace(/\.(md|toml)$/, ''), agentPick(text, h.agents.format)]);
+  return {
+    id: h.id,
+    refusal: null,
+    modelsLine: /^Here the planning model is [^\r\n]*/m.exec(rules)?.[0] ?? null,
+    tiers: lib.tierRows(rules),
+    agents: made.length ? Object.fromEntries(made) : null,
+  };
+}
+
+/** The columns as one table: { rows: [{ label, cells }] }, a cell for each column, the pact's agents named by `names`. */
+export function acrossRows(columns, names) {
+  const row = (label, cell) => ({ label, cells: columns.map(c => (c.refusal ? 'the install would stop' : cell(c))) });
+  const tiers = [...new Set(columns.flatMap(c => c.tiers.map(t => t.name)))];
+  const agentText = (c, name) => {
+    const a = c.agents?.[name];
+    if (!a) return 'no agent file';
+    return `${a.model ?? 'no model'}, ${a.dropped ? 'effort dropped' : (a.effort ?? 'no effort')}`;
+  };
+  return [
+    { label: 'Models line', cells: columns.map(c => (c.refusal ? `The install would stop: ${c.refusal}` : (c.modelsLine ?? 'no models line'))) },
+    ...tiers.flatMap(name => [['Plan', 'plan'], ['Build', 'build']].map(([stage, key]) => row(`${name}, ${stage}`, c => c.tiers.find(t => t.name === name)?.[key] ?? 'no such tier'))),
+    ...names.map(name => row(name, c => agentText(c, name))),
+  ];
+}

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-uJqCyUH2PUvOSDd2c9cr7jH2rN6Sg36I7BYQwG9W6Cw='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-W9wqIGEP5iGcvkL4vjAi1yxFLtaHu1yNczQ65MikahU='; style-src 'sha256-nZA7IW6ch0b3zv3WKjrW3Bl1e+9Hc4SgpU1D8Qh9Wig='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1417,6 +1417,12 @@ dialog.settings .av-field { gap: var(--space-item); }
 .harness-head { display: flex; flex-wrap: wrap; align-items: center; }
 .harness-caps { flex-wrap: wrap; gap: var(--space-row) var(--av-s2); }
 .harness-path { overflow-wrap: anywhere; text-transform: none; letter-spacing: normal; }
+.harness-scroll { overflow-x: auto; }
+.harness-table { border-collapse: collapse; width: 100%; }
+.harness-table th, .harness-table td { border-bottom: var(--av-rule-hair) solid var(--av-ink-12); padding: var(--space-item) var(--av-s2) var(--space-item) 0; text-align: left; vertical-align: top; }
+.harness-table td { min-width: 11rem; overflow-wrap: anywhere; }
+.harness-table select, .harness-table input { display: block; max-width: 18rem; }
+.harness-table td > .av-annot { display: block; }
 </style>
 </head>
 <body class="av-paper">
@@ -6227,6 +6233,64 @@ function skillsProblems(v) {
   if (count > SKILL_PATHS_MAX) out.push(`skills names more than ${SKILL_PATHS_MAX} paths in all`);
   return out;
 }
+
+// ------------------------------------------------------------ across harnesses (spec 0008 D6)
+// The page's Across-harnesses section and the overview page `build.mjs --overview` writes read the same
+// columns from the installer's renderer, handed in as `lib`, so neither works a value out itself.
+
+/** The model and effort an agent file the renderer wrote names, each null when it names none. */
+function agentPick(text, format) {
+  const toml = format === 'codex-toml';
+  const head = text.replaceAll('\r\n', '\n').split(toml ? '\ndeveloper_instructions = ' : '\n---\n')[0];
+  const read = (key, re) => {
+    const found = new RegExp(`^${key}${re}`, 'm').exec(head)?.[1];
+    return found === undefined ? null : toml ? JSON.parse(found) : found.trim();
+  };
+  if (toml) return { model: read('model', ' = (".*")$'), effort: read('model_reasoning_effort', ' = (".*")$'), dropped: false };
+  // Antigravity has no effort for an agent, so the renderer drops the line.
+  return { model: read('model', ': (.*)$'), effort: read('effort', ': (.*)$'), dropped: format === 'antigravity-md' };
+}
+
+/**
+ * One harness as `lib.renderHarnesses` writes it from `input` ({ rules, agents, commands }):
+ * { refusal, modelsLine, tiers, agents }. A harness that takes no agent files has `agents` null;
+ * one the installer would refuse has the refusal and nothing else.
+ */
+function acrossColumn(lib, input, h) {
+  let files;
+  try {
+    files = lib.renderHarnesses({ ...input, harnesses: [h] }).files;
+  } catch (e) {
+    if (!(e instanceof lib.Refusal)) throw e;
+    return { id: h.id, refusal: e.why, modelsLine: null, tiers: [], agents: null };
+  }
+  const rules = files.get(`rendered/${h.id}/rules.md`);
+  const prefix = `rendered/${h.id}/agents/`;
+  const made = [...files].filter(([rel]) => rel.startsWith(prefix)).map(([rel, text]) => [rel.slice(prefix.length).replace(/\.(md|toml)$/, ''), agentPick(text, h.agents.format)]);
+  return {
+    id: h.id,
+    refusal: null,
+    modelsLine: /^Here the planning model is [^\r\n]*/m.exec(rules)?.[0] ?? null,
+    tiers: lib.tierRows(rules),
+    agents: made.length ? Object.fromEntries(made) : null,
+  };
+}
+
+/** The columns as one table: { rows: [{ label, cells }] }, a cell for each column, the pact's agents named by `names`. */
+function acrossRows(columns, names) {
+  const row = (label, cell) => ({ label, cells: columns.map(c => (c.refusal ? 'the install would stop' : cell(c))) });
+  const tiers = [...new Set(columns.flatMap(c => c.tiers.map(t => t.name)))];
+  const agentText = (c, name) => {
+    const a = c.agents?.[name];
+    if (!a) return 'no agent file';
+    return `${a.model ?? 'no model'}, ${a.dropped ? 'effort dropped' : (a.effort ?? 'no effort')}`;
+  };
+  return [
+    { label: 'Models line', cells: columns.map(c => (c.refusal ? `The install would stop: ${c.refusal}` : (c.modelsLine ?? 'no models line'))) },
+    ...tiers.flatMap(name => [['Plan', 'plan'], ['Build', 'build']].map(([stage, key]) => row(`${name}, ${stage}`, c => c.tiers.find(t => t.name === name)?.[key] ?? 'no such tier'))),
+    ...names.map(name => row(name, c => agentText(c, name))),
+  ];
+}
 /* parts-code:end */
 
 /* render-code:begin */
@@ -6503,7 +6567,7 @@ function chooseHarnesses({ harnesses, install, detected, recorded }) {
   for (const id of lost) rows.push({ id, harness: null, detected: false, in: false });
   return { rows, warnings };
 }
-return { CAPABILITIES, EFFORT_SLOT, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses };
+return { CAPABILITIES, EFFORT_SLOT, TIER_KEY_RE, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses };
 })();
 const rendered = (() => {
 const { CAPABILITIES, EFFORT_SLOT } = described;
@@ -6588,6 +6652,14 @@ function tierTables(lines) {
     tiers: all.find(([head]) => cellText(head, 1) === 'Tier' && column(head, 'Plan', 2) > 0 && column(head, 'Build', 2) > 0),
     workflow: all.find(([head]) => cellText(head, 1) === 'Stage'),
   };
+}
+
+/** Each tier of the rules' tiers table: its key, its name, and its Plan and Build cells as written. Scriptorium shows these. */
+function tierRows(rules) {
+  const { tiers } = tierTables(rules.split('\n'));
+  if (!tiers) return [];
+  const [head, ...rows] = tiers;
+  return rows.filter(r => /^\*\*.+\*\*$/.test(cellText(r, 1))).map(r => ({ key: tierKey(tierName(r)), name: tierName(r), plan: cellText(r, column(head, STAGES.plan, 2)), build: cellText(r, column(head, STAGES.build, 2)) }));
 }
 
 /** The cells one tier key rewrites, as [row, column, effort], or why the key finds nothing. */
@@ -6789,7 +6861,7 @@ function renderHarnesses({ rules, agents, commands, harnesses, tables = TOOL_TAB
   if (readers.length) skills(commands, readers, files);
   return { files, warnings };
 }
-return { renderHarnesses };
+return { renderHarnesses, tierRows, tierKey };
 })();
 return { ...described, ...rendered, Refusal };
 })();
@@ -6862,7 +6934,12 @@ function initialState() {
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
   // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
   // #183 T4a: skills holds the skill sources, named for the cloud setup to fetch, as the builder file gives them; a save writes them into config.json.
-  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, identity: PACT.identitySwitch.def, agents, agentsAt: JSON.parse(JSON.stringify(agents)), own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, harnesses: { take: {}, models: {}, add: {}, remove: [] }, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
+  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, identity: PACT.identitySwitch.def, agents, agentsAt: JSON.parse(JSON.stringify(agents)), own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, harnesses: { take: {}, models: {}, add: {}, remove: [], agentModels: {}, tierEfforts: {}, dropKeys: {} }, tiersAt: tierNames(PACT.ownParts || PACT.parts.defaults), tiersSaved: null, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
+}
+
+/** Each tier's id and name: what a harness's tier keys follow when a tier is renamed or dropped. */
+function tierNames(parts) {
+  return parts.tiers.map(({ id, name }) => ({ id, name }));
 }
 
 /** Each agent's fields the person changed on this page, by agent name. */
@@ -7009,8 +7086,9 @@ function buildFiles(state) {
   // The pact tools the person set (#280), in the installer's order; off unless listed.
   if (Array.isArray(state.tools)) config.tools = OPT_TOOLS.map(c => c.name).filter(n => state.tools.includes(n));
   // Harnesses (spec 0007 S11): nothing is written until the person changes one; then the changes are written over what the page knew of the pact folder.
-  if (harnessesChanged(state.harnesses)) {
-    const harnesses = harnessesWith(PACT.machine?.harnesses, state.harnesses);
+  const changes = changesOf(state);
+  if (harnessesChanged(changes, PACT.machine?.harnesses)) {
+    const harnesses = harnessesWith(PACT.machine?.harnesses, changes);
     if (harnesses) config.harnesses = harnesses;
   }
   const edits = [];
@@ -7107,7 +7185,7 @@ function keepFolderKeys(files, existing, changes, touched = {}) {
   const lists = ['commands', 'tools'];
   const built = JSON.parse(files[0].text);
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { files };
-  const changed = Boolean(changes) && harnessesChanged(changes);
+  const changed = Boolean(changes) && harnessesChanged(changes, doc?.harnesses);
   const kept = lists.filter(k => Object.hasOwn(doc, k) && !Object.hasOwn(built, k));
   if (!changed && Object.hasOwn(doc, 'harnesses')) kept.push('harnesses');
   // Agent settings: a field the person didn't change on the page (`touched`) stays the folder's; one they changed is the
@@ -7167,9 +7245,44 @@ const PAGE_HOME = '/pact-page-home';
 const ROLES = Object.freeze(['planning', 'executor', 'light']);
 const NOTICE_SHOWN = '**Configuration in effect.** [The install names your configuration here.]';
 
-/** Whether the person changed any harness on the page. */
-function harnessesChanged(c) {
-  return c.remove.length > 0 || [c.take, c.models, c.add].some(o => Object.keys(o).length > 0);
+/** Whether the person changed any harness on the page, or renamed or dropped a tier that an own entry of `base` has a key for. */
+function harnessesChanged(c, base) {
+  if (c.remove.length > 0 || [c.take, c.models, c.add, c.agentModels, c.tierEfforts, c.dropKeys].some(o => Object.keys(o || {}).length > 0)) return true;
+  const moved = Object.keys(c.moves || {});
+  return ((base && base.own) || []).some(e => moved.some(k => Object.hasOwn(e.tierEfforts || {}, k)));
+}
+
+/** The tier keys that moved since the tiers were `since`: { old key: its new key, or null for a dropped tier }. */
+function tierMoves(state, since) {
+  const { tierKey, TIER_KEY_RE } = harnessLib;
+  const now = new Map(state.parts.tiers.map(t => [t.id, tierKey(t.name)]));
+  const held = new Set(now.values());
+  const out = {};
+  for (const t of since) {
+    const was = tierKey(t.name);
+    const is = now.get(t.id);
+    if (!TIER_KEY_RE.test(was)) continue;
+    if (is === undefined) {
+      if (!held.has(was)) out[was] = null;
+    } else if (is !== was && TIER_KEY_RE.test(is)) out[was] = is;
+  }
+  return out;
+}
+
+/**
+ * The page's harness changes as a save applies them: the tier efforts, held by
+ * tier id, under each tier's current key, and the keys that moved since `since`.
+ */
+function changesOf(state, since = state.tiersAt) {
+  const tierEfforts = {};
+  for (const [id, tiers] of Object.entries(state.harnesses.tierEfforts)) {
+    for (const [tier, stages] of Object.entries(tiers)) {
+      const found = state.parts.tiers.find(t => t.id === tier);
+      const key = found ? harnessLib.tierKey(found.name) : '';
+      if (harnessLib.TIER_KEY_RE.test(key)) (tierEfforts[id] ||= {})[key] = stages;
+    }
+  }
+  return { ...state.harnesses, tierEfforts, moves: tierMoves(state, since) };
 }
 
 /** The rows before anything is changed here: the machine's, else every known harness. */
@@ -7178,7 +7291,7 @@ const startingRows = () => (PACT.machine ? PACT.machine.rows : PACT.harness.know
 /** A configuration's harnesses key, `base` or undefined, with the page's `changes` applied: the key to write, or undefined for none. */
 function harnessesWith(base, changes) {
   const copy = v => JSON.parse(JSON.stringify(v));
-  if (!harnessesChanged(changes)) return base && copy(base);
+  if (!harnessesChanged(changes, base)) return base && copy(base);
   const own = copy((base && base.own) || []).filter(e => !changes.remove.includes(e.id));
   const put = entry => {
     const at = own.findIndex(e => e.id === entry.id);
@@ -7186,6 +7299,16 @@ function harnessesWith(base, changes) {
     else own[at] = entry;
   };
   for (const entry of Object.values(changes.add)) put(copy(entry));
+  // A renamed or dropped tier takes its key along, in every own entry; a key that moved wins over one already there.
+  const moves = changes.moves || {};
+  for (const entry of own) {
+    if (!entry.tierEfforts) continue;
+    const keys = Object.entries(entry.tierEfforts);
+    const stayed = keys.filter(([k]) => !Object.hasOwn(moves, k));
+    const moved = keys.filter(([k]) => Object.hasOwn(moves, k) && moves[k] !== null).map(([k, v]) => [moves[k], v]);
+    entry.tierEfforts = Object.fromEntries([...stayed, ...moved]);
+    if (!stayed.length && !moved.length) delete entry.tierEfforts;
+  }
   for (const [id, changed] of Object.entries(changes.models)) {
     const entry = own.find(e => e.id === id) || { id };
     const known = PACT.harness.known.find(k => k.id === id);
@@ -7195,6 +7318,44 @@ function harnessesWith(base, changes) {
     if (!models.light) delete models.light;
     entry.models = models;
     put(entry);
+  }
+  // One field of one entry, key by key; a field left empty goes.
+  const edit = (id, field, change) => {
+    const entry = own.find(e => e.id === id) || { id };
+    const map = { ...entry[field] };
+    change(map);
+    if (Object.keys(map).length) entry[field] = map;
+    else delete entry[field];
+    put(entry);
+  };
+  for (const [id, changed] of Object.entries(changes.agentModels || {})) {
+    edit(id, 'agentModels', map => {
+      for (const [name, model] of Object.entries(changed)) {
+        if (model === null) delete map[name];
+        else map[name] = model;
+      }
+    });
+  }
+  for (const [id, keys] of Object.entries(changes.dropKeys || {})) edit(id, 'tierEfforts', map => keys.forEach(k => delete map[k]));
+  for (const [id, tiers] of Object.entries(changes.tierEfforts || {})) {
+    const known = PACT.harness.known.find(k => k.id === id)?.tierEfforts || {};
+    edit(id, 'tierEfforts', map => {
+      for (const [key, stages] of Object.entries(tiers)) {
+        // A key replaces the known one whole, so it starts from what is in effect.
+        const had = Object.hasOwn(map, key);
+        const value = { ...(had ? map[key] : known[key]) };
+        for (const [stage, effort] of Object.entries(stages)) {
+          if (effort === null) delete value[stage];
+          else value[stage] = effort;
+        }
+        const asKnown = ['plan', 'build'].every(s => value[s] === known[key]?.[s]);
+        if (!had && asKnown) continue;
+        if (Object.keys(value).length) map[key] = value;
+        // Only null drops a known key.
+        else if (known[key]) map[key] = null;
+        else delete map[key];
+      }
+    });
   }
   let install = (base && base.install) || null;
   if (Object.keys(changes.take).length) {
@@ -7206,17 +7367,21 @@ function harnessesWith(base, changes) {
     }
     install = [...list];
   }
-  const out = { ...(install ? { install: [...install] } : {}), ...(own.length ? { own } : {}) };
+  // A known harness's id alone overrides nothing.
+  const entries = own.filter(e => Object.keys(e).length > 1 || !PACT.harness.known.some(k => k.id === e.id));
+  const out = { ...(install ? { install: [...install] } : {}), ...(entries.length ? { own: entries } : {}) };
   return Object.keys(out).length ? out : undefined;
 }
 
 /** The harness descriptions as the installer resolves them from `own`; throws the installer's Refusal. */
 const resolved = own => harnessLib.resolveHarnesses({ known: PACT.harness.known, own: own || [], home: PAGE_HOME, platform: 'linux', inWorkTree: null });
 
-/** Every harness described by the pact folder's own entries and those added here, without the page's model choices. */
+/** The own entries of the pact folder and those added here, without the page's model and effort choices. */
+const describedOwn = state => harnessesWith(PACT.machine?.harnesses, { ...changesOf(state), take: {}, models: {}, agentModels: {}, tierEfforts: {}, dropKeys: {} })?.own;
+
+/** Every harness described by the pact folder's own entries and those added here, without the page's model and effort choices. */
 function describedHarnesses(state) {
-  const c = state.harnesses;
-  return resolved(harnessesWith(PACT.machine?.harnesses, { ...c, take: {}, models: {} })?.own);
+  return resolved(describedOwn(state));
 }
 
 const modelsOf = h => Object.fromEntries(ROLES.map(r => [r, (h.models && h.models[r]) || '']));
@@ -7259,7 +7424,7 @@ function addHarness(state, entry) {
   const all = describedHarnesses(state);
   if (all.some(h => h.id === entry.id)) return `a harness with the id ${entry.id} is already here`;
   try {
-    resolved([...(harnessesWith(PACT.machine?.harnesses, { ...state.harnesses, take: {}, models: {} })?.own || []), entry]);
+    resolved([...(describedOwn(state) || []), entry]);
   } catch (e) {
     if (!(e instanceof harnessLib.Refusal)) throw e;
     return e.why;
@@ -7272,7 +7437,7 @@ function addHarness(state, entry) {
 /** Remove a person's own harness: its entry goes, and it leaves the install list. One only added here is just forgotten. */
 function removeHarness(state, id) {
   const c = state.harnesses;
-  delete c.models[id];
+  for (const changed of [c.models, c.agentModels, c.tierEfforts, c.dropKeys]) delete changed[id];
   if (Object.hasOwn(c.add, id)) {
     delete c.add[id];
     if (!c.remove.includes(id)) {
@@ -7294,7 +7459,147 @@ function harnessProblems(state) {
       if (!/^\S{1,128}$/.test(models[role])) out.push({ where: id, level: 'error', text: `the ${role} model must be one word of at most 128 characters` });
     }
   }
-  return out;
+  return [...out, ...tierProblems(state)];
+}
+
+/** What the install would refuse of a harness's own tier keys: one that finds no row, or no effort in its cell. */
+function tierProblems(state) {
+  if (partsProblems(state.parts).some(f => f.level === 'error')) return [];
+  const { config, input } = rendering(state);
+  let all;
+  try {
+    all = resolved(config.harnesses?.own).filter(h => h.ownTiers.length);
+  } catch (e) {
+    // A model typed here that the install would refuse is a problem of its own, above.
+    if (!(e instanceof harnessLib.Refusal)) throw e;
+    return [];
+  }
+  if (!all.length) return [];
+  const taken = takenIds(state);
+  return all.flatMap(h => {
+    try {
+      harnessLib.renderHarnesses({ ...input, harnesses: [{ ...h, rules: { ...h.rules, cap: null, sharedCap: null } }] });
+      return [];
+    } catch (e) {
+      if (!(e instanceof harnessLib.Refusal)) throw e;
+      return e.rule === 'tier-effort' ? [{ where: h.id, level: taken.includes(h.id) ? 'error' : 'warn', text: e.why }] : [];
+    }
+  });
+}
+
+// ------------------------------------------------------------ agent models and tier efforts (spec 0008 D6)
+
+/** Set the model one agent takes in one harness, null for the default: null, or why the install would refuse it. */
+function setAgentModel(state, id, agent, model) {
+  if (model !== null && !(/^\S{1,128}$/.test(model) && !model.includes(harnessLib.EFFORT_SLOT))) return `a model is one word of at most 128 characters, without ${harnessLib.EFFORT_SLOT}`;
+  (state.harnesses.agentModels[id] ||= {})[agent] = model;
+  return null;
+}
+
+/** Set one harness's effort for a tier's plan or build, null for the table's own. */
+function setTierEffort(state, id, tier, stage, effort) {
+  ((state.harnesses.tierEfforts[id] ||= {})[tier] ||= {})[stage] = effort;
+}
+
+/** Remove a tier key of one harness's own entry that names no tier. */
+function dropTierKey(state, id, key) {
+  const keys = (state.harnesses.dropKeys[id] ||= []);
+  if (!keys.includes(key)) keys.push(key);
+}
+
+/** The model names a harness's dropdowns offer: its known models, and Antigravity's three tiers. A name holding <effort> is a role's alone. */
+function knownModels(state, id) {
+  const h = PACT.harness.known.find(k => k.id === id) || describedHarnesses(state).find(x => x.id === id);
+  const tiers = h?.agents?.format === 'antigravity-md' ? ['pro', 'flash', 'flash_lite'] : [];
+  return [...new Set([...Object.values(h?.models || {}).filter(m => m && !m.includes(harnessLib.EFFORT_SLOT)), ...tiers])];
+}
+
+/** The saved configuration and what the installer's renderer is handed for it. */
+function rendering(state) {
+  const { config, files } = savedConfig(state);
+  const agents = new Map(PACT.agents.map(a => [a.name, configuredAgent(a, config)]));
+  return { config, input: { rules: configuredRules(config, files), agents, commands: new Map(Object.entries(PACT.harness.commands)) } };
+}
+
+/**
+ * One row per pact agent and a cell per listed harness: the model and effort the
+ * install would write, the harness's own key, what applies without it
+ * (`fallback`), the models its roles name, and why the cell is locked, or null.
+ */
+function agentTable(state) {
+  const { config, input } = rendering(state);
+  const entries = config.harnesses?.own || [];
+  const all = resolved(entries);
+  // The same entries with no key of an agent's own: what "as the default says" names.
+  const bare = resolved(entries.map(e => (e.agentModels ? { ...e, agentModels: Object.fromEntries(Object.entries(e.agentModels).filter(([name]) => name === '*')) } : e)));
+  const columns = harnessList(state).map(row => {
+    const h = all.find(x => x.id === row.id);
+    return { id: row.id, name: row.name, h, own: entries.find(e => e.id === row.id)?.agentModels || {}, now: acrossColumn(harnessLib, input, h), unset: acrossColumn(harnessLib, input, bare.find(x => x.id === row.id)) };
+  });
+  const rows = PACT.agents.map(({ name }) => ({
+    agent: name,
+    cells: columns.map(({ id, h, own, now, unset }) => {
+      const set = config.agents?.[name]?.model;
+      // A model the configuration names stays; a role it names is still the harness's to map.
+      const fixed = set && !ROLES.includes(set) ? set : null;
+      const mine = id === 'claude' && Object.hasOwn(state.own, name);
+      const written = now.agents?.[name];
+      const effort = (state.agents[name] || {}).effort;
+      const roles = !h.models ? [] : ROLES.flatMap(role => {
+        const model = (role === 'light' && h.models.light) || h.models[role === 'light' ? 'executor' : role];
+        if (!model.includes(harnessLib.EFFORT_SLOT)) return [{ role, model }];
+        return (h.efforts || PACT.agentChoices.efforts).includes(effort) ? [{ role, model: model.replace(harnessLib.EFFORT_SLOT, effort) }] : [];
+      });
+      return {
+        id,
+        files: Boolean(h.agents),
+        refusal: now.refusal,
+        locked: mine ? 'your own agent file' : fixed ? 'set by the configuration' : null,
+        model: mine ? fileModel(ownFile(state, name), {}).model : (fixed ?? written?.model ?? null),
+        effort: written?.effort ?? null,
+        dropped: h.agents?.format === 'antigravity-md',
+        own: Object.hasOwn(own, name) ? own[name] : null,
+        fallback: unset.agents?.[name]?.model ?? null,
+        roles,
+      };
+    }),
+  }));
+  return { columns: columns.map(({ id, name }) => ({ id, name })), rows };
+}
+
+/** The effort a table cell ends in, or null. */
+const cellEffort = cell => /^[^,]+, ([a-z]+)$/.exec(cell || '')?.[1] ?? null;
+
+/** One entry per listed harness: each tier's plan and build effort, as in effect, as its own or known key sets it and as the table says; and its own keys that name no tier. */
+function tierTable(state) {
+  const { config, input } = rendering(state);
+  const all = resolved(config.harnesses?.own);
+  const written = harnessLib.tierRows(input.rules);
+  return harnessList(state).map(row => {
+    const h = all.find(x => x.id === row.id);
+    const now = acrossColumn(harnessLib, input, h);
+    const rows = state.parts.tiers.map(t => {
+      const key = harnessLib.tierKey(t.name);
+      const stage = s => {
+        const table = cellEffort(written.find(r => r.key === key)?.[s]);
+        const own = h.tierEfforts?.[key]?.[s] ?? null;
+        return { table, own, effective: cellEffort(now.tiers.find(r => r.key === key)?.[s]) ?? own ?? table };
+      };
+      return { tier: t.id, name: t.name, keyed: harnessLib.TIER_KEY_RE.test(key), plan: stage('plan'), build: stage('build') };
+    });
+    return { id: row.id, name: row.name, refusal: now.refusal, efforts: h.efforts || PACT.agentChoices.efforts, rows, orphans: h.ownTiers.filter(k => !written.some(r => r.key === k)) };
+  });
+}
+
+/** A column per harness, known and own, detected or not: what the install would write for it. */
+function across(state) {
+  const { config, input } = rendering(state);
+  return resolved(config.harnesses?.own).map(h => ({ ...acrossColumn(harnessLib, input, h), heading: PACT.harness.known.find(k => k.id === h.id)?.name ?? h.id }));
+}
+
+/** Those columns as the table the page and the overview page show. */
+function acrossTable(columns) {
+  return { heads: columns.map(c => ({ id: c.id, name: c.heading })), rows: acrossRows(columns, PACT.agents.map(a => a.name)) };
 }
 
 /** The configuration the next install would read: the page's save, over what the pact folder holds. */
@@ -7302,7 +7607,7 @@ function savedConfig(state) {
   const files = buildFiles(state);
   const m = PACT.machine;
   const there = m && Object.fromEntries(Object.entries({ agents: m.agents, commands: m.commands, tools: m.tools, harnesses: Object.keys(m.harnesses).length ? m.harnesses : null }).filter(([, v]) => v));
-  const kept = there ? keepFolderKeys(files, JSON.stringify(there), state.harnesses, touchedAgents(state)) : { files };
+  const kept = there ? keepFolderKeys(files, JSON.stringify(there), changesOf(state), touchedAgents(state)) : { files };
   return { config: JSON.parse(kept.files[0].text), files };
 }
 
@@ -7421,6 +7726,7 @@ function startState() {
   const state = initialState();
   const landing = !PACT.ownParts && PACT.presets.find(p => p.id === LANDING_PRESET);
   if (landing) takePreset(state, landing, presetPicks(landing));
+  state.tiersAt = tierNames(state.parts);
   return state;
 }
 
@@ -9889,7 +10195,7 @@ function boot() {
   function modelField(row, role) {
     const known = PACT.harness.known.find(k => k.id === row.id);
     const own = known ? known.models : (describedHarnesses(state).find(h => h.id === row.id) || {}).models;
-    const names = [...new Set(Object.values(own || {}).filter(Boolean))];
+    const names = [...new Set([...Object.values(own || {}).filter(Boolean), ...knownModels(state, row.id)])];
     const now = row.models[role];
     const key = `${row.id}:${role}`;
     const typed = ownModel.has(key) || (now !== '' && !names.includes(now));
@@ -10050,9 +10356,118 @@ function boot() {
     ];
   }
 
+  let agentWhy = '';
+
+  /** A table that scrolls sideways where it is wider than the dialog. */
+  const harnessTable = (heads, rows) => el('div', { class: 'harness-scroll' }, el('table', { class: 'harness-table' },
+    el('thead', {}, el('tr', {}, ...heads.map(text => el('th', { scope: 'col', text })))),
+    el('tbody', {}, ...rows.map(([label, ...cells]) => el('tr', {}, el('th', { scope: 'row', text: label }), ...cells.map(c => el('td', {}, ...[c].flat())))))));
+
+  const note = text => el('span', { class: 'av-annot', text });
+
+  /** One agent's model in one harness: the default, a role's model, a known model or a name typed. */
+  function agentCell(agent, cell, name) {
+    if (!cell.files) return note('no agent files');
+    const effort = note(cell.dropped ? 'effort dropped' : cell.effort ? `effort ${cell.effort}` : '');
+    if (cell.locked) return [el('code', { text: cell.model || 'no model' }), note(cell.locked), effort];
+    const key = `${cell.id}:agent:${agent}`;
+    const names = knownModels(state, cell.id);
+    const typed = ownModel.has(key) || (cell.own !== null && !names.includes(cell.own));
+    const label = `${name}: model of ${agent}`;
+    const now = typed ? OTHER : cell.own === null ? '' : `model:${cell.own}`;
+    const pick = el('select', { 'aria-label': label },
+      option('', `As the default says (${cell.fallback || 'no model'})`, now === ''),
+      ...cell.roles.map(r => option(`role:${r.role}`, `The ${r.role} model (${r.model})`, false)),
+      ...names.map(m => option(`model:${m}`, m, now === `model:${m}`)),
+      option(OTHER, 'Another model…', typed));
+    pick.value = now;
+    pick.addEventListener('change', () => {
+      const v = pick.value;
+      agentWhy = '';
+      if (v === OTHER) ownModel.add(key);
+      else {
+        ownModel.delete(key);
+        const model = v === '' ? null : v.startsWith('role:') ? cell.roles.find(r => `role:${r.role}` === v).model : v.slice('model:'.length);
+        agentWhy = setAgentModel(state, cell.id, agent, model) || '';
+      }
+      redrawHarnesses();
+    });
+    let box = null;
+    if (typed) {
+      box = el('input', { type: 'text', 'aria-label': `${label}, by name`, placeholder: 'model name or ID' });
+      box.value = cell.own || '';
+      box.addEventListener('change', () => {
+        const why = setAgentModel(state, cell.id, agent, box.value.trim());
+        agentWhy = why ? `Not set for ${agent} in ${name}: ${why}` : '';
+        setTimeout(redrawHarnesses, 0);
+      });
+    }
+    return [pick, box, effort];
+  }
+
+  function agentSection() {
+    const { columns, rows } = agentTable(state);
+    return [
+      el('p', { class: 'av-annot', text: 'The model each agent file names in each harness, as the install would write it. A change writes that agent’s key in the harness’s own entry.' }),
+      ...columns.map((c, i) => (rows[0].cells[i].refusal ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `${c.name}: the install would stop: ${rows[0].cells[i].refusal}` }) : null)),
+      agentWhy ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: agentWhy }) : null,
+      harnessTable(['Agent', ...columns.map(c => c.name)], rows.map(r => [r.agent, ...r.cells.map((c, i) => agentCell(r.agent, c, columns[i].name))])),
+    ];
+  }
+
+  /** One tier's plan or build effort in one harness. */
+  function effortCell(harness, row, stage) {
+    const at = row[stage];
+    if (!row.keyed) return note('this tier’s name makes no key');
+    if (at.table === null && at.own === null) return note('none');
+    const efforts = [...new Set([...harness.efforts, ...(at.own ? [at.own] : [])])];
+    const pick = el('select', { 'aria-label': `${harness.name}: ${stage} effort of ${row.name}` },
+      option('', `As the table says (${at.table || 'none'})`, at.own === null),
+      ...efforts.map(e => option(e, e, at.own === e)));
+    pick.value = at.own || '';
+    pick.addEventListener('change', () => {
+      setTierEffort(state, harness.id, row.tier, stage, pick.value || null);
+      redrawHarnesses();
+    });
+    return pick;
+  }
+
+  function tierSection() {
+    return [
+      el('p', { class: 'av-annot', text: 'Each tier’s plan and build effort in each harness. A change writes that tier’s key in the harness’s own entry. The sensitive route is not changed here.' }),
+      ...tierTable(state).flatMap(h => [
+        el('span', { class: 'av-label', text: h.name }),
+        h.refusal ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `The install would stop: ${h.refusal}` }) : null,
+        ...h.orphans.map(key => el('div', { class: 'row-line' }, el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `Its tier key ${key} names no tier here.` }), chip(`Remove the key ${key} from ${h.name}`, false, () => {
+          dropTierKey(state, h.id, key);
+          redrawHarnesses();
+        }, 'av-tool-chip--ghost'))),
+        harnessTable(['Tier', 'Plan', 'Build'], h.rows.map(r => [r.name, effortCell(h, r, 'plan'), effortCell(h, r, 'build')])),
+      ]),
+    ];
+  }
+
+  function acrossSection() {
+    const { heads, rows } = acrossTable(across(state));
+    return [
+      el('p', { class: 'av-annot', text: 'What the install would write for every harness the pact knows and each of yours, found or not. Read only.' }),
+      harnessTable(['Setting', ...heads.map(h => h.name)], rows.map(r => [r.label, ...r.cells.map(text => el('span', { text }))])),
+    ];
+  }
+
+  /** A section's nodes, or why the installer refuses the harnesses as they stand. */
+  function unlessRefused(section) {
+    try {
+      return section();
+    } catch (e) {
+      if (!(e instanceof harnessLib.Refusal)) throw e;
+      return [el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `The install would stop: ${e.why}` })];
+    }
+  }
+
   function drawHarnessDialog() {
     const rows = harnessList(state);
-    const changed = harnessesChanged(state.harnesses);
+    const changed = harnessesChanged(changesOf(state), PACT.machine?.harnesses);
     const looked = PACT.machine ? 'Listed as your install\'s dry run would list them when this page was written. Build the page again to look afresh.' : 'This page was written without looking at your machine, so it lists every harness the pact knows. A save into your pact folder changes only what you change here, with one exception: if your config.json has no install list, changing a tick or adding a harness writes a list of every harness ticked here. The install then puts the pact into each of them, found on your machine or not.';
     $('harnesses').replaceChildren(el(
       'div',
@@ -10066,9 +10481,13 @@ function boot() {
         el('div', { class: 'chips' }, chip('Leave as is', !changed, () => {
           state.harnesses = initialState().harnesses;
           ownModel.clear();
+          agentWhy = '';
           redrawHarnesses();
         }, changed ? 'av-tool-chip--ghost' : '', true)),
         el('p', { class: 'av-annot', text: changed ? 'Changed here: a save into your pact folder applies these changes over the harnesses in your config.json. A downloaded config.json does not read yours. Leave as is drops the changes.' : 'Left as is: a save into your pact folder keeps the harnesses already in your config.json.' })),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('h3', { class: 'section-title', text: 'Agent models' }), ...unlessRefused(agentSection)),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('h3', { class: 'section-title', text: 'Tier efforts' }), ...unlessRefused(tierSection)),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('h3', { class: 'section-title', text: 'Across harnesses' }), ...unlessRefused(acrossSection)),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' },
         el('h3', { class: 'section-title', text: 'What each harness receives' }),
         el('p', { class: 'av-annot', text: 'The rules, agents, commands and skills as the install would write them from this page. The line naming your configuration is filled in by the install. Settings keys, hooks, tools and the review procedure are not shown.' }),
@@ -10131,7 +10550,8 @@ function boot() {
       if (e && e.name === 'AbortError') return setStatus('Save cancelled. Nothing was written.', '');
       return setStatus('The folder could not be opened. Use the download buttons instead.', 'error');
     }
-    const kept = await keepFolderKeysIn(dir, files, state.harnesses, touchedAgents(state));
+    // The folder's tier keys follow the tiers as last saved there.
+    const kept = await keepFolderKeysIn(dir, files, changesOf(state, state.tiersSaved || state.tiersAt), touchedAgents(state));
     if (kept.refuse) return setStatus(kept.refuse, 'error');
     files = kept.files;
     // The four parts' keys go into the folder's builder.json, so a rebuilt page reloads them (#262, D9).
@@ -10161,6 +10581,7 @@ function boot() {
       return setStatus('Saving failed part way. Check the folder before you install.', 'error');
     }
     const where = dir.name === '.pact' ? '' : ` The installer reads the folder named .pact in your home folder; this one is "${dir.name}", so move the files there.`;
+    state.tiersSaved = tierNames(state.parts);
     const agents = agentCount ? ` Download ${agentCount === 1 ? 'the agent file' : `the ${agentCount} agent files`} into ~/.claude/agents.` : '';
     setStatus(`Saved ${own.length} file${own.length === 1 ? '' : 's'}.${where}${agents} Next, run the install's dry run.`, 'ok');
   }

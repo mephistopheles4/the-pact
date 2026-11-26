@@ -19,7 +19,7 @@ const MODEL_RE = /^\S{1,128}$/;
 export const EFFORT_SLOT = '<effort>';
 // A tier's key: its name in the tiers table, in lower case, each run of spaces one hyphen.
 // harness-render.mjs's tierKey makes it.
-const TIER_KEY_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const TIER_KEY_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const NAME_MAX = 64;
 const CAP_MAX = 16 * 1024 * 1024;
 
