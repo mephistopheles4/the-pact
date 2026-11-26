@@ -1098,9 +1098,9 @@ bootstrap and the release job's token, and "Merges and installs" names
 `~/.pact` and the harness folders. Scope gains Codex with OpenAI's models and
 servers, and Antigravity with Google's, out of scope as Anthropic's are. The
 harness controls name both harnesses' controls and when each doesn't hold.
-Widening a class and changing the scope are the owner's calls. The threat model must stay within its word budget:
-4,200 words of prose (S2 items 47 and 52), raised on the owner's
-word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
+Widening a class and changing the scope are the owner's calls. S2 items 47,
+50 and 52 record the threat model's and install.md's word budgets as they
+were; the budgets and their tests went with PACT-114 (decision 197, C27).
 
 ## S16 Trade-offs
 
@@ -1382,7 +1382,6 @@ reads this spec and each ticket's diff.
 - the ruleset on creating tags can't take the Repository admin role as its
   one bypass;
 - the owner declines a widening and its fallback can't be built;
-- the threat-model edit can't fit its word budget;
 - a known harness's docs and its behaviour on the owner's machine differ on
   a field S5 names.
 

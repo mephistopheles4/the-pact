@@ -627,6 +627,14 @@ test('the CodeQL workflow keeps its allow-list', () => {
   assert.deepEqual(codeqlProblems(readFileSync(CODEQL, 'utf8'), readFileSync(WORKFLOW, 'utf8')), []);
 });
 
+// PACT-105: the CodeQL allow-list's #-line rule catches a secret read hidden in its config.
+test('bad case: the CodeQL allow-list catches a secret read in its config on a line that starts with #', () => {
+  const src = readFileSync(CODEQL, 'utf8').replace(/\r\n/g, '\n');
+  const planted = src.replace('            paths-ignore:', '            # ${{ secrets.X }}\n            paths-ignore:');
+  assert.notEqual(planted, src, 'the plant changed the file');
+  assert.ok(codeqlProblems(planted, readFileSync(WORKFLOW, 'utf8')).includes(HIDES), codeqlProblems(planted, readFileSync(WORKFLOW, 'utf8')).join('\n'));
+});
+
 // Spec 0006 W3, W4: the one Claude workflow is held to its own allow-list.
 const CLAUDE_FILES = ['claude.yml'];
 const claudeSrc = file => readFileSync(join(WORKFLOWS, file), 'utf8');
@@ -634,6 +642,15 @@ const claudeSrc = file => readFileSync(join(WORKFLOWS, file), 'utf8');
 test('the Claude workflow keeps its allow-list', () => {
   const gate = readFileSync(WORKFLOW, 'utf8');
   for (const file of CLAUDE_FILES) assert.deepEqual(claudeProblems(claudeSrc(file), gate, file), [], file);
+});
+
+// PACT-105: the Claude allow-list's #-line rule catches a secret read hidden in the checkout's inputs.
+test('bad case: the Claude allow-list catches a secret read on a line that starts with #', () => {
+  const src = claudeSrc('claude.yml').replace(/\r\n/g, '\n');
+  const planted = src.replace('          persist-credentials: false\n', '          persist-credentials: false\n          # ${{ secrets.X }}\n');
+  assert.notEqual(planted, src, 'the plant changed the file');
+  const got = claudeProblems(planted, readFileSync(WORKFLOW, 'utf8'), 'claude.yml');
+  assert.ok(got.includes(HIDES), got.join('\n'));
 });
 
 // Spec 0006 V2 W3: the review workflow is gone, and a file by its name, in any case or extension, is refused.

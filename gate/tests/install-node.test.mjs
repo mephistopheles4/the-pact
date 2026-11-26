@@ -91,7 +91,7 @@ test('node: --apply keeps the live settings: an exact large number, the owner\'s
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: an installed file that is a hard link loses only its own name; the other file keeps its bytes', t => {
-  const repo = sharedRepo();
+  const repo = makeRepo(t);
   const h = home(t);
   const outside = join(tempDir(t, 'pact-outside-'), 'victim.md');
   writeFileSync(outside, 'victim\n');
