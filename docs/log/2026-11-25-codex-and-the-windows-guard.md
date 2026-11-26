@@ -33,7 +33,7 @@ Codex CLI 0.159.0 on Windows 11, run in throwaway homes (`CODEX_HOME`, `HOME` an
 - **Secrets under other names** reach every command in Codex, and a dropped value stays readable where it was set. The poster in a Codex shell no longer refuses a dropped value.
 - **Antigravity's hook on Windows** was probed by the T5 session, not this one: it reported this launcher, under agy 1.2.14, blocking both a denial and a launcher failure.
 - **Not probed:** the trust step in `/hooks`, the elevated sandbox, a Codex of another version, a hook under a session shell other than PowerShell, and the pact's links in the real `~/.agents/skills`.
-- **Word budgets.** `docs/install.md`'s was raised to 10,200 and `docs/reference.md`'s to 2,450 (PACT-110 cleans them up), and the threat model's cap to 4,000 (PACT-109).
+- **Word budgets.** `docs/install.md`'s was raised to 10,250 and `docs/reference.md`'s to 2,450 (PACT-110 cleans them up), and the threat model's cap to 4,000 (PACT-109).
 
 ## Record
 

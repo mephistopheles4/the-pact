@@ -50,10 +50,12 @@
 // authority on what the page saves.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { CONFIG_REL, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain, parseRecord } from '../gate/install-core.mjs';
+import { KNOWN_REL, chooseHarnesses, configHarnesses, parseKnown, resolveHarnesses } from '../gate/harnesses.mjs';
 import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
@@ -86,6 +88,9 @@ const DATA_RE = /\/\* pact-data:begin \*\/[\s\S]*?\/\* pact-data:end \*\//;
 // The parts' compiler and checks, copied in from builder/parts.mjs (#262), so the page and the check share one compiler.
 const PARTS_CODE_RE = /\/\* parts-code:begin \*\/[\s\S]*?\/\* parts-code:end \*\//;
 const PARTS_FILE = join(dirname(fileURLToPath(import.meta.url)), 'parts.mjs');
+// The installer's harness descriptions and renderer, copied in from gate/ (spec
+// 0007 S11), so the page shows what the install would write.
+const RENDER_CODE_RE = /\/\* render-code:begin \*\/[\s\S]*?\/\* render-code:end \*\//;
 // The Scriptorium mark (#275), copied into the page's head as plain markup.
 const MARK_REL = 'docs/brand/scriptorium/scriptorium-mark.svg';
 const MARK_SLOT_RE = /(<span class="brand-mark" aria-hidden="true">)[\s\S]*?(<\/span>)/;
@@ -113,6 +118,50 @@ function markMarkup(root) {
 
 /** builder/parts.mjs as page script: its header comment and every "export " taken off. */
 const partsCode = () => readFileSync(PARTS_FILE, 'utf8').replace(/^(?:\/\/.*\n)+\n/, '').replace(/^export /gm, '');
+/**
+ * The installer's harness code as page script: gate/harnesses.mjs and
+ * gate/harness-render.mjs, each wrapped in its own function so its names stay
+ * its own, with its header comment, imports and every "export " taken off. What
+ * they import from the install core is handed in ahead of them, taken from that
+ * module itself. The page has no Buffer, so the page's own byte count stands in for Buffer.byteLength.
+ */
+function renderCode(root) {
+  const read = rel => readFileSync(join(root, ...rel.split('/')), 'utf8').replaceAll('\r\n', '\n');
+  const core = read('gate/install-core.mjs');
+  // A declaration the core keeps to itself, taken by its text.
+  const own = re => re.exec(core)?.[0] ?? fail(`gate/install-core.mjs no longer declares ${re.source} in the expected form`);
+  const wrapped = (rel, before, names) => {
+    const code = read(rel).replace(/^(?:\/\/.*\n)+\n/, '').replace(/^import .*\n/gm, '').replace(/^export /gm, '').trim();
+    if (/^\s*import\b/m.test(code)) fail(`${rel} imports in a form the page cannot carry`);
+    return [...before, code, `return { ${names} };`].join('\n');
+  };
+  return [
+    'const harnessLib = (() => {',
+    `const RENDERED_REL = ${JSON.stringify(RENDERED_REL)};`,
+    `const TOOL_TABLES = ${JSON.stringify(TOOL_TABLES)};`,
+    `const GUARD_FORMATS = ${JSON.stringify(GUARD_FORMATS)};`,
+    'class Refusal extends Error { constructor(rule, why) { super(why); this.rule = rule; this.why = why; } }',
+    builtParts.toString(),
+    'const described = (() => {',
+    wrapped('gate/harnesses.mjs', [
+      `const ID_RE = ${HARNESS_ID_RE};`,
+      `const NEUTRAL = ${JSON.stringify(NEUTRAL_REL)};`,
+      `const PACT_ID = ${JSON.stringify(PACT_ID)};`,
+      `const formatPlain = ${formatPlain};`,
+      own(/^const windowsName = [\s\S]*?;$/m),
+      own(/^const SECRET_STORES = .*;$/m),
+      'const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));',
+    ], 'CAPABILITIES, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses'),
+    '})();',
+    'const rendered = (() => {',
+    wrapped('gate/harness-render.mjs', ['const { CAPABILITIES } = described;', 'const Buffer = { byteLength: s => utf8Length(s) };'], 'renderHarnesses'),
+    '})();',
+    'return { ...described, ...rendered, Refusal };',
+    '})();',
+    '',
+  ].join('\n');
+}
+
 const SCRIPT_RE = /<script>([\s\S]*?)<\/script\s*>/gi;
 const STYLE_RE = /<style>([\s\S]*?)<\/style\s*>/i;
 
@@ -244,11 +293,11 @@ function parseSource(src) {
 
 const codeSpans = text => [...text.matchAll(/`([^`\n]+)`/g)].map(m => m[1]);
 
-/** The quoted lines of a template in gate/render-core.mjs's text, a setting's number shown as N. */
-function templateLines(renderSrc, re, name) {
+/** The quoted lines of a template in gate/render-core.mjs's text, a setting's number shown as `number`. */
+function templateLines(renderSrc, re, name, number = 'N') {
   const body = re.exec(renderSrc)?.[1];
   if (!body) fail(`gate/render-core.mjs no longer declares ${name} in the expected form`);
-  return [...body.matchAll(/'([^']*)'|`([^`]*)`/g)].map(m => (m[1] ?? m[2]).replaceAll('${n}', 'N'));
+  return [...body.matchAll(/'([^']*)'|`([^`]*)`/g)].map(m => (m[1] ?? m[2]).replaceAll('${n}', number));
 }
 
 /**
@@ -290,6 +339,113 @@ function pactText(root, src, renderSrc) {
     cleanerDeny: CLEANER_DENY.join('\n'),
     cleanerAsk: CLEANER_ASK.join('\n'),
     stopDeny: STOP_DENY.join('\n'),
+  };
+}
+
+/** The commit's known harness descriptions, as written. */
+const knownHarnesses = root => parseKnown(readFileSync(join(root, ...KNOWN_REL.split('/')), 'utf8'));
+
+/**
+ * What the page needs to say what each harness receives (spec 0007 S11): the
+ * descriptions, the pact's command files, the rules source and its open marks,
+ * and the lines a configuration adds to it, read from gate/render-core.mjs.
+ */
+function harnessData(root, src, renderSrc) {
+  const tool = mark => templateLines(renderSrc, new RegExp(`mark: '${mark}',\\s*template: Object\\.freeze\\(\\[([\\s\\S]*?)\\]\\)`), mark);
+  // The number's place stays as the template writes it; the page fills it.
+  const setting = name => templateLines(renderSrc, new RegExp(`const ${name} = n => \\[([\\s\\S]*?)\\];`), name, '${n}');
+  const read = rel => readFileSync(join(root, ...rel.split('/')), 'utf8');
+  return {
+    known: knownHarnesses(root),
+    commandNames: [...PACT_COMMANDS],
+    rules: src,
+    open: listFrom(renderSrc, 'OPEN_MARKS'),
+    templates: { 'usage-pause': setting('USAGE_TEMPLATE'), 'usage-pause-session': setting('SESSION_TEMPLATE'), 'tool-poster': tool('tool-poster'), 'tool-cleaner': tool('tool-cleaner') },
+    commands: Object.fromEntries(readdirSync(join(root, 'claude', 'commands')).filter(f => f.endsWith('.md')).sort().map(f => [f.slice(0, -3), read(`claude/commands/${f}`)])),
+  };
+}
+
+/**
+ * What this machine's pact folder says (spec 0007 S11), read only for the page
+ * at its fixed path: the config's harnesses, commands and tools, and the rows
+ * the install dry run would list. Returns { data, findings }; what the
+ * installer would refuse is a finding naming no text from the file, and the
+ * page is written without it.
+ */
+export function machineData(home = homedir(), root = join(dirname(fileURLToPath(import.meta.url)), '..')) {
+  const findings = [];
+  const at = rel => join(home, ...rel.split('/'));
+  const readOr = rel => {
+    try {
+      return readFileSync(at(rel), 'utf8');
+    } catch (e) {
+      if (e.code !== 'ENOENT') findings.push(`harnesses: ${rel} could not be read`);
+      return null;
+    }
+  };
+  const isFolder = rel => {
+    try {
+      return statSync(at(rel)).isDirectory();
+    } catch {
+      return false;
+    }
+  };
+  const known = knownHarnesses(root);
+  let configText = readOr(CONFIG_REL)?.replace(/^\ufeff/, '') ?? null;
+  let config = null;
+  if (configText !== null) {
+    try {
+      config = JSON.parse(configText);
+    } catch {
+      findings.push(`harnesses: ${CONFIG_REL} is not readable JSON; the page starts without it`);
+      configText = null;
+    }
+  }
+  let recorded = [];
+  const recordText = readOr(RECORD_REL);
+  if (recordText !== null) {
+    try {
+      recorded = [...new Set(parseRecord(recordText).harnesses.map(h => h.id))];
+    } catch (e) {
+      if (!(e instanceof Refusal)) throw e;
+      findings.push(`harnesses: ${RECORD_REL} could not be read as an install record; its harnesses are not listed`);
+    }
+  }
+  const rowsFor = ({ install, own }, listed) => {
+    const harnesses = resolveHarnesses({ known, own, home, platform: process.platform, inWorkTree: null });
+    const detected = new Set(harnesses.filter(h => isFolder(h.detect)).map(h => h.id));
+    return chooseHarnesses({ harnesses, install, detected, recorded: listed }).rows;
+  };
+  let described = { install: null, own: [] };
+  let rows;
+  try {
+    described = configHarnesses(configText);
+    rows = rowsFor(described, recorded);
+  } catch (e) {
+    if (!(e instanceof Refusal)) throw e;
+    // The rule id alone: the sentence can hold text from the file.
+    findings.push(`harnesses: the install would refuse the harnesses in ${CONFIG_REL} or ${RECORD_REL} (${e.rule}); the page lists the known ones only`);
+    described = { install: null, own: [] };
+    rows = rowsFor(described, []);
+  }
+  const strings = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string') : null);
+  // A full path under the home folder holds the account's name, and the page cannot resolve it: each goes in as ~/ and a path.
+  const homed = entry => {
+    const h = resolveHarnesses({ known, own: [entry], home, platform: process.platform, inWorkTree: null }).find(x => x.id === entry.id);
+    const out = structuredClone(entry);
+    if (out.detect !== undefined) out.detect = `~/${h.detect}`;
+    for (const [part, key] of [['rules', 'path'], ['agents', 'dir'], ['skills', 'dir'], ['commands', 'dir'], ['hooks', 'file']]) if (out[part]) out[part][key] = `~/${h[part][key]}`;
+    return out;
+  };
+  const own = described.own.map(homed);
+  return {
+    data: {
+      harnesses: { ...(described.install ? { install: described.install } : {}), ...(own.length ? { own } : {}) },
+      commands: strings(config?.commands),
+      tools: strings(config?.tools),
+      rows: rows.filter(r => r.harness).map(r => ({ id: r.id, in: r.in, detected: r.detected })),
+    },
+    findings,
   };
 }
 
@@ -354,7 +510,7 @@ export function pactData(root) {
   const stopSwitch = stopSwitchFrom(renderSrc);
   const identitySwitch = identitySwitchFrom(renderSrc);
   const retiredSettings = retiredSettingsFrom(renderSrc);
-  return { always, editable, setting, session, compact, stopSwitch, identitySwitch, retiredSettings, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
+  return { always, editable, setting, session, compact, stopSwitch, identitySwitch, retiredSettings, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc), harness: harnessData(root, src, renderSrc) };
 }
 
 // ------------------------------------------------------------ the builder file
@@ -689,17 +845,19 @@ export function personalPresets(root, pact, dir = personalPresetsDir(root)) {
 }
 
 /** The page `html` with its data object rebuilt from the pact and the builder file, and its policy hashes recomputed. */
-export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_REL), ownPresets = []) {
+export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_REL), ownPresets = [], machine = null) {
   if (!DATA_RE.test(html)) fail('the page has no pact-data marks');
   const pact = pactData(root);
   const { builder, refusals } = loadBuilder(builderFile, pact);
   if (!builder) fail(`the builder file is refused: ${refusals.join('; ')}`);
   const presets = shippedPresets(root, pact);
   // JSON inside a script: "<" is escaped, so no text can close the script or open a comment.
-  const json = JSON.stringify({ ...pact, presets, ownPresets, ...builder }, null, 1).replaceAll('<', ESC_LT);
+  const json = JSON.stringify({ ...pact, presets, ownPresets, ...builder, machine }, null, 1).replaceAll('<', ESC_LT);
   let out = html.replace(DATA_RE, () => `/* pact-data:begin */ ${json} /* pact-data:end */`);
   if (!PARTS_CODE_RE.test(out)) fail('the page has no parts-code marks');
   out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);
+  if (!RENDER_CODE_RE.test(out)) fail('the page has no render-code marks');
+  out = out.replace(RENDER_CODE_RE, () => `/* render-code:begin */\n${renderCode(root)}/* render-code:end */`);
   if (!MARK_SLOT_RE.test(out)) fail('the page has no brand-mark slot');
   out = out.replace(MARK_SLOT_RE, (_, a, b) => `${a}${markMarkup(root)}${b}`);
   // The pins are read from the template `html`, before the data went in: a builder file or preset holding mark text can't make or break a mark.
@@ -883,7 +1041,10 @@ function main(argv) {
     process.exitCode = 1;
     return;
   }
-  const html = buildPage(root, readFileSync(page, 'utf8'), opts.builder, own.presets);
+  // Only the page at its fixed path is the person's own, so only writing it reads their pact folder.
+  const machine = fixed ? machineData(homedir(), root) : null;
+  for (const m of machine?.findings ?? []) process.stdout.write(`FINDING ${m}\n`);
+  const html = buildPage(root, readFileSync(page, 'utf8'), opts.builder, own.presets, machine?.data ?? null);
   try {
     if (fixed) replaceFile(resolve(opts.out), html);
     else writeFileSync(resolve(opts.out), html, { flag: 'wx' });

@@ -188,8 +188,9 @@ round's comment on the issue lists each finding.
     findings didn't fit it, and no text is cut
     (`gate/tests/threat-model-cap.test.mjs`, ADR 0173). By the same rule, T4
     raises `docs/install.md`'s budget from 9,500 to 10,200 for its skill links,
-    guard and shell policy, and `docs/reference.md`'s from 2,400 to 2,450 on
-    its merge with T6 (`gate/tests/doc-budget.test.mjs`, PACT-110).
+    guard and shell policy, then to 10,250 on its merge with T7, and
+    `docs/reference.md`'s from 2,400 to 2,450 on its merge with T6
+    (`gate/tests/doc-budget.test.mjs`, PACT-110).
 48. The threat model's two charts come back, as the owner asked, and the
     word count leaves mermaid blocks out, since the charts were dropped twice
     to fit it. Prose past the cap still fails (the same test, ADR 0173).
@@ -204,8 +205,14 @@ round's comment on the issue lists each finding.
     `github.token` is one every workflow shares, and a workflow file on any
     branch of the repo sets its own permissions and runs before review (S10).
 50. Trade-off: the word budgets of `docs/install.md` (8,700 to 9,100, then
-    9,500 with T3's text) and `docs/reference.md` (2,300 to 2,400) rise, and
-    nothing is cut to make room, on the owner's rule; PACT-110 cleans up.
+    9,500 with T3's text and 9,550 with T7's) and `docs/reference.md` (2,300
+    to 2,400, then 2,450 with T7's) rise, and nothing is cut to make room, on
+    the owner's rule; PACT-110 cleans up.
+51. Trade-off: the builder kit gains `gate/install-core.mjs`,
+    `gate/harnesses.mjs`, `gate/harness-render.mjs` and
+    `harnesses/known.json`, so the page chooses and renders harnesses as the
+    install does (T7, S11). Three more gate files then install. The owner
+    hasn't answered it.
 
 ## S3 Terms
 
