@@ -108,7 +108,8 @@ changes the gate.
    stays in the shell's environment, where a read-only command such as
    `echo` reaches it, so W2.7 gives the token nothing worth stealing. The gate
    also refuses a `permissions` key in `.claude/settings.json`, which the run
-   loads from the base branch and which could widen the list.
+   loads from the base branch and which could widen the list or turn the two
+   blocks off: project settings outrank the user settings the action writes.
 7. **Writes go through the owner's own app, not the Claude GitHub app.** The
    Claude GitHub app holds Workflows, Actions and hooks write besides what the
    action needs, and GitHub lets no installation accept less. The owner's
@@ -125,7 +126,9 @@ changes the gate.
    action as `github_token`; the action then skips its own exchange for the
    Claude app's token. Merging a pull request and pushing need Contents
    write, which neither the app nor any token holds, so a stolen token or key
-   can comment, edit issues and pull requests, and nothing more. The cost: a
+   can comment, delete comments, edit, close, approve and retarget pull
+   requests, and merge one existing branch into another through
+   update-branch, all short of `main`. The cost: a
    mention can no longer commit (W7). The mention's token holds Issues write;
    the review's adds Pull requests write for inline comments. The token is
    masked, and revoked when the job ends. Both
@@ -346,8 +349,10 @@ workflow validation". Its residual lines become:
 - a run that an allowed actor starts reads issue, comment and pull request
   text from anyone, and that text can steer what Claude posts through the
   app's token; no token holds Contents write, so a run, or anyone holding
-  its token, can comment and edit issues and pull requests but cannot push,
-  merge or reach `main`;
+  its token, can comment, delete comments, edit, close, approve and retarget
+  pull requests, and merge one existing branch into another through
+  update-branch, but cannot push, merge or reach `main`; a session pulling a
+  branch with the app's commit on it treats it as outsiders' code;
 - a steered run can read the app token from its own environment, and what
   the read limits miss, and post it through the masked tools in a shape
   `redactSecrets` does not know; an update to the tracking comment keeps its
@@ -404,7 +409,9 @@ plan.
 - **Code owner review on `main`.** Requiring it would make every change to
   the Claude controls wait for the owner, and would block a pull request the
   owner's own account opens on those paths, since an author can't approve
-  their own. V2 leaves it off; the owner decides (W9).
+  their own. V2 leaves it off; the owner decides (W9). If a review is ever
+  required, make it code owner review: the app can approve, but only the
+  owner is a code owner.
 - **Egress control against reliability.** The firewall runner is in
   technical preview: GitHub reports 15 to 20 percent slower jobs, and an open
   report of jobs that never end; the time limits bound that. Moving back to
@@ -431,7 +438,9 @@ Before merge:
   public.
 - C6. The owner's checklist is on the issue, and W9's before-merge steps are
   done: the environment's branch policy, read back through the API, lists
-  only `main`; this repo has no Claude GitHub app installation.
+  only `main`; this repo has no Claude GitHub app installation; the new
+  app's page shows exactly Issues write, Pull requests write, Contents read
+  and Metadata read, and its installation lists this repo only.
 
 After merge:
 
@@ -446,8 +455,8 @@ After merge:
   not an ask starts no review.
 - C10. An `@claude` comment from the owner on an issue gets an answer in its
   tracking comment that quotes a file from the checkout. Asked to read
-  `/etc/hostname`, it reports the read refused, and the result line counts a
-  permission denial. Asked to make an edit, it says it can't, and no branch
+  `/etc/hostname`, and then to run `cat /etc/hostname`, it reports both
+  refused, and the result line counts the permission denials. Asked to make an edit, it says it can't, and no branch
   appears.
 - C11. The run summary's egress log shows the policy loaded in enforce mode,
   and no blocked host the run needed.
