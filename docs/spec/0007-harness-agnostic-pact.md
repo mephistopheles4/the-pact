@@ -225,6 +225,16 @@ round's comment on the issue lists each finding.
 55. Security: `~/.pact` outside Claude Code's protected paths stays an open gap
     in the threat model; no ask rule is added.
 
+**The owner's later pick, relayed by the lead (its decision 132):**
+
+56. Security, a control loosened: the tree check only detects. The lead's
+    say-back: "keep a simple check: one command records the repo's state before
+    a lens runs and compares it afterwards. The backup copies and the restore
+    step go. A lens that changes something is still caught, but your
+    uncommitted work can't be put back for you automatically." The owner:
+    "Yes, please. That sounds good." It replaces the copies and the restore of
+    items 38, 44 and 53 (S12).
+
 ## S3 Terms
 
 These join `CONTEXT.md` in T1.
@@ -725,35 +735,23 @@ the app instead (S2 item 49).
   the permission-request tool (S7).
 - **The tree check.** `review.md`, one shared file, gains one step under
   Running a lens. In a harness whose agents can't be held to their tools
-  (Codex today), where the rules file also sends `scout` to it, the session,
-  before each lens and each `scout` pass:
-  - finds git's real folders through git (`rev-parse --git-common-dir` and
-    `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since
-    in a linked worktree `.git` is a file;
-  - copies those outside the work tree, readable only by the owner, keeping a
-    hash of each copy, its file names included, and the records below, in the
-    session's own output, never in a file a lens can write;
-  - records `HEAD`, a hash of every ref and of the stash list, and
-    `status --porcelain --ignored=matching --untracked-files=all` run with
-    fsmonitor and every filter off, with a hash of each listed path's
-    content.
+  (Codex today), where the rules file also sends `scout` to it, the session
+  runs one command from the work tree's top folder before each lens and each
+  `scout` pass, and keeps what it prints in its own output, never in a file a
+  lens can write. The command prints one hash for each top-level entry of the
+  work tree, ignored files included, and for git's `HEAD`, `config`,
+  `config.worktree`, `commondir`, `hooks`, `info`, refs, stash log and index,
+  found from `.git` itself, since in a linked worktree it is a file. It records
+  a link or junction as its target, never following it. It runs git only to
+  list the index, last, with fsmonitor off and from Node's own folder, so
+  neither a program a lens named in git's config nor a `git.exe` it left in the
+  tree runs. A file it can't read fails the run.
 
-  After it the session first stops any process the agent left running and
-  removes any new link or junction, one in a file's place too, the git folders
-  included. It checks each copy against its hash, and again right before it puts
-  anything back from it. While all match, it compares the git folders with the
-  copies, puts them back and checks them against the same hashes. Where a copy,
-  or a git folder after that, differs from its hash, it stops: it runs no more
-  git there, restores nothing more and brings it to the owner. Else it brings
-  any difference it found to the owner and runs the same records again. Any
-  change, a removed link included, marks the lens or pass inconclusive. The
-  session puts back only what changed during it: a moved ref goes back to its
-  earlier value first; then a path clean before is restored with git from that
-  `HEAD`, or deleted if it is new. Each path is removed, put back or restored as
-  itself, never through a link or junction. A path already changed before it is
-  left as it is and named, so the owner's own work is never thrown away. The
-  copies are deleted afterwards. The change and the restore are a flagged
-  checkpoint.
+  After the pass the session stops any process the agent left running, runs the
+  command again before any other git, and compares the two outputs. On any
+  difference, or a failed run, it stops: it runs no git in that tree, changes
+  nothing, counts the pass inconclusive and reports to the owner which lines
+  differ. It keeps no copy and restores nothing.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
   (S15), T4 removes `subagents` from Codex's known description, so Codex
   gets the no-subagents line and each lens runs in a separate session.
@@ -889,10 +887,12 @@ never-sync rule names both folders.
   reads can write files or send data within the parent's sandbox, and read
   what the owner's account can: the agent app's key in Credential Manager,
   `~/.codex/auth.json`, `gh`'s token and `~/.pact`. The tree check (S12)
-  sees a change to the work tree's status and content, to refs and to git's
-  own folders. It doesn't see a write outside them, a read or a send, and a
-  write inside an ignored folder too big to hash is seen only by its status
-  line. MCP servers come from the parent and run outside the sandbox, so the
+  sees a change to the work tree's files, ignored ones included, and to git's
+  config, hooks, `info`, `HEAD`, refs and index. It undoes none, so
+  uncommitted work a lens changed stays changed. It doesn't see a write
+  elsewhere, git's objects, a submodule's git folder and another worktree's
+  included, or a read or a send. MCP servers come from the parent and run
+  outside the sandbox, so the
   owner's option is to run Codex lenses only with the parent's network off
   and no MCP server in its profile. T4's probe found that neither holds it
   everywhere: an interactive session asks before a lens's MCP call unless the
@@ -1018,10 +1018,11 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   with S7's line everywhere. `finis` without `archive` ends with S7's line
   and archives nothing. `scriptorium` names no one harness's folders.
 - **C10** `review.md` holds S12's tree check, around each lens and `scout`
-  pass: git's folders found through git and put back first, a failed hash check
-  stopping it, `HEAD`, refs and stash recorded, status with content hashes and
-  filters and fsmonitor off, moved refs reset, only what changed restored, and
-  the copies outside the work tree, deleted afterwards.
+  pass: one command, run before and after, whose record covers every file and
+  git's config, hooks, `info`, `HEAD`, refs and index, stays the same across a
+  `git status`, runs no program git's config names or the tree holds, and
+  fails rather than record less. Any difference stops the session, which restores nothing and
+  reports it.
 - **C29** Each harness's rendered rules hold the models line with its own
   models, also under a configuration that replaces the tiers block.
 
@@ -1197,7 +1198,7 @@ reads this spec and each ticket's diff.
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
 | The threat-model cap at 4,200 and `docs/install.md`'s budget (S2 items 47 and 52) | the lead's flagged pick, for review | any time |
-| The tree check around `scout`, the narrower undo and the open `~/.pact` gap (S2 items 53–55) | the lead's flagged picks, for review | any time |
+| The tree check around `scout` and the open `~/.pact` gap (S2 items 53 and 55; item 56 drops item 53's undo) | the lead's flagged picks, for review | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
 | The poster's narrower coverage in Codex, which the install's shell policy makes: it no longer refuses a value the policy drops, though a command can still read it where it was set (S13, S15) | the owner's call | at T4's probe |
 | Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |
