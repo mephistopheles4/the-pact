@@ -141,6 +141,7 @@ test('bad case: an apply that leaves the line out of the Codex config reports a 
   });
   const h = codexHome(t);
   const r = applyBound(repo, h);
-  assert.notEqual(r.status, 0, r.out);
+  assert.equal(r.code, 1, r.out);
   assert.match(r.stdout, /^MISMATCH \.codex\/config\.toml \(the shell policy is not there\)\r?$/m, r.out);
+  assert.match(r.stdout, /^\d+ mismatch\(es\)\./m, r.out);
 });

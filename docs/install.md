@@ -117,15 +117,17 @@ shell_environment_policy.ignore_default_excludes = false # the pact: secret-name
 ```
 
 Variables with `KEY`, `SECRET` or `TOKEN` in their name, in any case, then stay
-out of those shells, a lens's included. A command that reads one there, such as
+out of those shells, a lens's included (probed on Windows only). A command that reads one there, such as
 `gh` reading `GH_TOKEN`, no longer finds it; `gh` then uses its stored login,
 if it has one.
 
 - **Where a value stays readable.** The line only drops the name from the
   environment Codex hands its shells. The value is still wherever you set it: a
-  shell profile, which a login shell reads again, a saved Windows user variable,
-  a `.env` file or a credential store. And the poster, run from a Codex shell,
-  can no longer refuse a post that holds it. This was probed on Windows only.
+  shell profile, a saved Windows user variable, a `.env` file or a credential
+  store. A variable your profile sets comes back in a command Codex runs in a
+  login shell, which it allows by default. Neither that nor a saved Windows user
+  variable was probed. And the poster, run from a Codex shell, can no longer
+  refuse a post that holds a dropped value.
 - **What still gets through.** Other names, such as `DB_PASSWORD`,
   `AWS_CREDENTIALS`, `CONNECTION_STRING` and `GITHUB_PAT`. Hooks see every
   variable. A trusted project's `.codex/config.toml`, or a `-c` flag, can set
@@ -971,8 +973,7 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
    6 for each in turn.
 2. **Know what it undoes.** A copy-back puts each listed file back as it was
    before that apply, losing any edit made to it since, including what Claude
-   Code writes to `settings.json`, such as permission rules, and what you or
-   Codex wrote to its `config.toml`, such as a tighter approval setting.
+   Code writes to `settings.json`, such as permission rules.
 3. **Check its `manifest.json` before you act on it,** and stop on any
    failure:
    - each path is relative to your home folder, with forward slashes and no `..`,
@@ -998,16 +999,17 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
      entry can't have you delete a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
-   `~/<path>`. Keep `settings.json` and `config.toml`
+   `~/<path>`. Keep `settings.json`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
-   and macOS. If Codex's `config.toml` has changed since that apply, don't copy
-   it back: change only the pact's line, to match the backup's copy.
+   and macOS. Don't copy Codex's `config.toml` back, which would undo what you or
+   Codex wrote to it since, such as a tighter approval setting: change only the
+   pact's line, to match the backup's copy.
 5. **Delete each `was: absent` path** that is there. A skill link goes as a
    link, never through it: `rm "$HOME/<path>"` on Linux and macOS,
    `cmd /c rmdir "$HOME\<path>"` in PowerShell, with the path's slashes turned
    to backslashes, and no `-r` or `/s`. In a copied skill folder, delete the
-   files your record lists, then the empty folders. If Codex has written to its
-   `config.toml` since, delete only the pact's line.
+   files your record lists, then the empty folders. Delete Codex's `config.toml`
+   only if the pact's line is all it holds; else delete that line.
 6. **Make each `was: link` entry again:**
    `ln -s "$HOME/<target>" "$HOME/<path>"`, or
    `New-Item -ItemType Junction -Path "$HOME\<path>" -Target "$HOME\<target>"`
@@ -1030,7 +1032,7 @@ current record lists: the agents, `.pact/review.md`, `.pact/review-diagrams.md`,
 folder, each pact command in `.claude/commands/`, `/scriptorium` included,
 `.pact/tools/poster.mjs` and `.pact/tools/cleaner.mjs` if listed,
 `.pact/hooks/compact-handoff.mjs` if listed, and `.pact/install.json`. Then do
-steps 4 to 7 with that backup. Step 5's restored `settings.json` takes the
+steps 4 to 7 with that backup. Step 4's restored `settings.json` takes the
 pact's hook entries and `autoCompactWindow` out with it; had you no backup of
 it, remove the entries that call the deleted script by hand. If you had no `settings.json` before, step 5
 deletes it, with anything Claude Code wrote there since.
