@@ -134,7 +134,7 @@ test('a command no rule matches gets no answer, words inside data included', () 
 });
 
 test('a deny anywhere beats an ask, and with a switch off its commands pass', () => {
-  assert.deepEqual(guard.judge(`${ONE['cleaner-override']} && ${ONE['worktree-remove']}`, ALL), { decision: 'deny', id: 'worktree-remove' });
+  assert.deepEqual(guard.judge(`${ONE['cleaner-override']} && ${ONE['worktree-remove']}`, [...ALL].reverse()), { decision: 'deny', id: 'worktree-remove' }, 'with the ask ahead of the deny in the table');
   assert.equal(guard.judge(ONE['worktree-remove'], core.guardRules([])), null);
 });
 

@@ -75,6 +75,7 @@ export const CLEANER_DENY = permissionRules('cleaner', 'deny');
 // adds under cleanerAsk. The builder's copy is in shared.mjs, held equal to this one by a test.
 export const CLEANER_ASK = permissionRules('cleaner', 'ask');
 // Rules a retired switch once added. An install drops each one both recorded and still in permissions.deny, and records none.
+// The list goes with the next change to the install record's format, or on the owner's word (ADR 0176).
 export const RETIRED_DENY = Object.freeze([
   'Bash(claude stop *)', 'Bash(claude kill *)', 'Bash(claude daemon stop *)', 'Bash(claude respawn *)',
   'PowerShell(claude stop *)', 'PowerShell(claude kill *)', 'PowerShell(claude daemon stop *)', 'PowerShell(claude respawn *)',

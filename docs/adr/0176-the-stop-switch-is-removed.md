@@ -1,6 +1,6 @@
 # The stop switch is removed
 
-The `session-stop-deny` setting goes, with no stand-in (PACT-116). Supersedes [ADR 0169](0169-the-cleaner-stops-a-finished-session-behind-the-stop-switch.md), and [ADR 0148](0148-deny-rules-come-only-behind-a-switch-that-owns-them-and-records-them.md) in part. The owner never asked for it. Their words, in the lead's chat as the issue quotes them: "remove that, that was added by drift i never asked for"; and, relayed by the lead, in the PACT-116 comment "Decision (relayed): no security pair; remove the switch completely": "And I never asked for this tool, so please nuke it hard."
+The `session-stop-deny` setting goes, with no stand-in (PACT-116). Supersedes [ADR 0169](0169-the-cleaner-stops-a-finished-session-behind-the-stop-switch.md), and [ADR 0148](0148-deny-rules-come-only-behind-a-switch-that-owns-them.md) in part. The owner never asked for it. Their words, in the lead's chat as the issue quotes them: "remove that, that was added by drift i never asked for"; and, relayed by the lead, in the PACT-116 comment "Decision (relayed): no security pair; remove the switch completely": "And I never asked for this tool, so please nuke it hard."
 
 ## What changed
 

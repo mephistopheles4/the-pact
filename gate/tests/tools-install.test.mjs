@@ -354,7 +354,7 @@ test('a retired rule the record does not list is the owner\'s own: it stays and 
   assert.deepEqual(recorded(h, 'permissions.deny'), []);
 });
 
-// PACT-116 C2: a settings.json that is not strict JSON is left alone, and the record keeps the rules for the next install.
+// PACT-116 C2: a settings file that is not strict JSON is left alone, and the record keeps the rules for the next install.
 test('settings.json that is not strict JSON keeps the retired rules in the record until an install can read it', t => {
   const repo = sharedRepo();
   const h = retiredHome(t, repo, []);

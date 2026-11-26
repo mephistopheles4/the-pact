@@ -79,10 +79,11 @@ how every session in every repo behaves. So:
   weekly `usage-pause`; unset, the rules file has no session line.
   `usage-pause` also takes `false`, which renders no weekly line. Rolling back
   past any of these is in [install](../install.md#roll-back-to-an-older-version).
-- **The cleaner's rules.** On, the cleaner adds its deny rules, `claude rm *`
-  among them, to `permissions.deny` and records the ones it added in the record's
-  `entries`; off, it removes only rules both recorded and on its list.
-  `parseRecord` refuses `entries` that are not a list of settings entries. It adds `CLEANER_ASK`'s two
+- **The cleaner's rules.** With the cleaner on, the install adds its deny rules,
+  `claude rm *` among them, to `permissions.deny` and records the ones it added
+  in the record's `entries`; with it off, the install removes only rules both
+  recorded and on its list.
+  `parseRecord` refuses `entries` that are not a list of settings entries. The install adds `CLEANER_ASK`'s two
   rules (`*cleaner.mjs*remove*--override*`, as a `Bash(...)` and a `PowerShell(...)` rule) to
   `permissions.ask`, recorded the same way; `cleanerAskPlan` is `denyPlan`
   over the ask list, and `mergeSettings` applies it after the retired-ask filter. With `settings.json` not strict JSON and the
@@ -90,7 +91,8 @@ how every session in every repo behaves. So:
   by its own list. Neither list is in the overlay or the allow-list, and
   the cloud copy adds neither. The ask rules' misses are listed in ADR 0151. The
   deny rules are a speed bump: a flag before the
-  subcommand and a wrapped call get past them. An install also drops each rule
+  subcommand and a wrapped call get past them.
+- **Retired deny rules.** With the cleaner on or off, an install drops each rule
   in `RETIRED_DENY` that is both recorded and live, and records none.
 - **The field check for the deny rules,** run after the owner applies with the
   cleaner on; a session reports the result and does not apply for the owner: a

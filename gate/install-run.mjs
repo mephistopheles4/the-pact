@@ -421,7 +421,7 @@ async function main() {
   } else {
     const cleanerPlan = core.cleanerDenyPlan(liveSettings, mergeTools, record ? record.cleanerDeny : []);
     const retiredPlan = core.retiredDenyPlan(liveSettings, record ? record.cleanerDeny : []);
-    // The record lists every added deny rule once, under cleanerDeny, and each plan filters it by its own rules.
+    // cleanerDeny holds every recorded deny rule, the retired ones included; each plan filters it by its own rules.
     deny = { ...core.joinDeny(cleanerPlan, retiredPlan), record: cleanerPlan.record };
     askPlan = core.cleanerAskPlan(liveSettings, mergeTools, record ? record.cleanerAsk : []);
     identity = core.identityEnvPlan(liveSettings, identityOn, record ? record.identityEnv : {}, core.identityEnvWanted(home));
