@@ -2187,14 +2187,16 @@ export function installDestinations(checked, throughLink, merged = []) {
 
 // ------------------------------------------------------------ the skill links (spec 0007 S7, S9)
 
-/** Each skill folder the harnesses are to hold: one per path, for the first harness that reads it. */
+/** Each skill folder the harnesses are to hold: one per path, for the first harness that reads it, a copy when any that reads it takes copies. */
 export function skillsWanted(harnesses, names) {
   const out = new Map();
   for (const h of harnesses) {
     if (!builtParts(h).skills) continue;
     for (const name of names) {
       const path = `${h.skills.dir}/${name}`;
-      if (!out.has(path.toLowerCase())) out.set(path.toLowerCase(), { harness: h.id, path, target: `${SKILLS_DEST}${name}` });
+      const key = path.toLowerCase();
+      if (!out.has(key)) out.set(key, { harness: h.id, path, target: `${SKILLS_DEST}${name}` });
+      if (h.capabilities.includes('skill-copies')) out.get(key).copy = true;
     }
   }
   return [...out.values()];
@@ -2214,7 +2216,8 @@ function linkReason(l, targets, throughLink, merged) {
 /**
  * What the skill folders need. `state(path, target)` is the live answer:
  * 'absent', 'ours' (a link to the target) or 'other'. `add` is linked, `copy`
- * copied (no link can be made, or the record already lists a copy), `keep`
+ * copied (the harness takes copies, no link can be made, or the record already
+ * lists one), `keep`
  * linked already, `remove` a recorded link no harness takes, `yours` a path the
  * record doesn't list, left as is, `drift` a recorded link that became
  * something else, and `blocked` a wanted path the install may not act on, for
@@ -2246,7 +2249,7 @@ export function linkPlan({ wanted, record, targets, state, canLink, throughLink,
       else changed(w);
     } else if (copied(w.path)) out.copy.push(w);
     else if (now !== 'absent') out.yours.push(w);
-    else (canLink ? out.add : out.copy).push(w);
+    else (canLink && !w.copy ? out.add : out.copy).push(w);
   }
   for (const [key, l] of recorded) {
     if (taken.has(key)) continue;
