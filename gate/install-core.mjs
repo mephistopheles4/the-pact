@@ -115,8 +115,8 @@ export const RULES_REL = 'claude/CLAUDE.md';
 // Where the install writes each harness's render in the stage (spec 0007 S7); isStaged takes no commit's file there.
 export const RENDERED_REL = 'rendered/';
 // Each agent format's names for the pact's tools (spec 0007 S7); a tool with no name here is dropped from the agent.
-// Antigravity's are its documented names, each accepted by agy 1.2.14. A probe found it gives a subagent fewer
-// tools than its file lists, never more (docs/antigravity.md).
+// Antigravity's are its documented names, each accepted by agy 1.2.14, whose probe found a subagent gets fewer of
+// them than its file lists, and no shell it doesn't list (docs/log/2026-11-25-antigravity.md).
 export const TOOL_TABLES = Object.freeze({
   'antigravity-md': Object.freeze({ Read: 'view_file', Glob: 'find_by_name', Grep: 'grep_search', Bash: 'run_command', WebFetch: 'read_url_content', WebSearch: 'search_web' }),
 });
@@ -1641,7 +1641,7 @@ const LAUNCH_FAILED = "The pact's guard failed (launch); run the pact's dry run.
 const LAUNCH_ANSWERS = Object.freeze({
   // Codex blocks on exit 2 with a reason, so 2 passes through.
   codex: ['if %ERRORLEVEL% EQU 2 exit /b 2', `echo ${LAUNCH_FAILED}>&2`, 'exit /b 2'],
-  // Antigravity lets a call through on a non-zero exit, so the denial is its JSON answer.
+  // Antigravity's documentation says a non-zero exit lets the call through, so the denial is its JSON answer.
   antigravity: [`echo {"decision":"deny","reason":"${LAUNCH_FAILED}"}`, 'exit /b 0'],
 });
 

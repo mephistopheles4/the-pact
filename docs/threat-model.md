@@ -98,7 +98,9 @@ someone hands a session to load, and a decision model's answer.
   switches; an ask rule prompts in Antigravity and denies in Codex. The hook
   denies on an error it catches; a hook that can't start or times out lets the
   call through, as do a crash past that (off Windows), another spelling and, in
-  Codex, text typed into a running shell. In Codex it runs only once the owner
+  Codex, text typed into a running shell. In Antigravity it also judges text
+  typed into a running program, and asks before a read tool opens the skill
+  file of `make-it-so`, `finis` or `scry`. In Codex it runs only once the owner
   trusts it in `/hooks`, and trust never sees a change to its script or rules.
   In a harness the owner describes, nothing verifies it runs.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
@@ -134,10 +136,13 @@ start prompt as the owner's ask; a session started under a goal or a free hand
 acts on its starter's reply, on its start prompt's word, on what its hand-off
 notes say after a compaction, or on a reply it can't tell from its starter's; a
 free hand's design pick can cover what a change stores, logs or sends; an
-Antigravity session can start an owner-typed command itself, which a first line
-in the command only asks it not to, so the record can show `make-it-so`'s yes,
+Antigravity session can start an owner-typed command itself, past the skill's
+switch and the guard's ask by a shell read or a child `agy` run, which a first
+line in the command only asks it not to, so the record can show `make-it-so`'s yes,
 open security picks included, that the owner never gave, or can end the work
-with `finis`.
+with `finis`;
+by rule, nothing it starts is the owner's word for an install apply or mise
+trust.
 
 ### Code that runs
 
@@ -147,7 +152,7 @@ version pin supplies that runs by bare name, the pinned design system inlined
 into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
 setup, run with the owner's rights; the pact's `npx` bootstrap and the release
 clone it makes, run before any dry run; the guard, before each shell call in
-Codex and Antigravity; and the release app's key.
+Codex and Antigravity, and there before typed input and some reads; and the release app's key.
 
 **Controls:**
 
@@ -246,7 +251,9 @@ itself; a Codex lens is read-only by instruction alone, keeps the shell and the
 parent's sandbox, approvals and MCP servers (which run outside the sandbox),
 so it can write or send through them and read what the owner's account
 can, keys and tokens included, its agent file turning off only apps, plugins,
-memories and the permission-request tool; `review.md`'s tree check sees changes to the work tree, refs and git's own folders, not
+memories and the permission-request tool; an Antigravity lens also gets
+`manage_task`, which types into running programs, and `send_message`,
+whatever its file lists; `review.md`'s tree check sees changes to the work tree, refs and git's own folders, not
 a write elsewhere or inside an ignored folder too big to hash, a read, a send, or a later write by a process the lens left running.
 The pact gets loosened: a project install tightens Claude Code alone, not Codex
 or Antigravity, and a hand-made or old copy loads beside the pact until a person removes it.
@@ -279,7 +286,9 @@ it.
   for posts sent through it, and permission rules on `gh` don't see its calls.
   Under a Codex set to drop secret-named variables, it sees fewer secrets; by
   default (probed on 0.159.0) Codex's shells keep them, for any command to read.
-  Its text fields and edit checks catch accidents only and are not a control.
+  So do Antigravity's (agy 1.2.14), with no setting found that drops them:
+  don't start an Antigravity session with secrets in its environment.
+  The poster's text fields and edit checks catch accidents only and are not a control.
   With an app pinned it refuses a post as anything but the pinned bot the
   post's `as` names, for posts sent through it.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows

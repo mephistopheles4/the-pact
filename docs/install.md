@@ -36,6 +36,7 @@ Claude Code session on your machine.
 - [The session stop switch](#the-session-stop-switch)
 - [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
 - [The guard in Codex and Antigravity](#the-guard-in-codex-and-antigravity)
+- [What Antigravity doesn't do](#what-antigravity-doesnt-do)
 - [Roll back to an older version](#roll-back-to-an-older-version)
 - [Known limits](#known-limits)
 - [Undo an apply](#undo-an-apply)
@@ -72,9 +73,8 @@ moves `~/.pact`.
 
 A **harness** is a program the rules install into. The pact knows three, in
 [`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
-`codex` and `antigravity`. The install writes each one's rules, and the agents
-of Claude Code and Codex; Antigravity gets none yet.
-[Skill links](#skill-links) give Codex and Antigravity the commands, and
+`codex` and `antigravity`. The install writes each one's rules and agents.
+[Skills](#skill-links) give Codex and Antigravity the commands, and
 [the guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
 
 - **Detection.** A known harness is found when its `detect` folder exists
@@ -96,11 +96,13 @@ of Claude Code and Codex; Antigravity gets none yet.
 ### Skill links
 
 Codex and Antigravity get each command that is on as a skill. The pact keeps the
-skill in `~/.pact/skills/<name>`, and links `<name>` in the harness's skills
-folder (`~/.agents/skills`, `~/.gemini/config/skills`) to it: a directory
-junction on Windows, a symlink elsewhere. The dry run lists each link it makes
-or removes. Where no link can be made, it warns, and the apply copies the
-folder's files instead. A folder of yours with a skill's name is left as it is,
+skill in `~/.pact/skills/<name>`. In Codex's skills folder
+(`~/.agents/skills`) `<name>` is a link to it: a directory junction on
+Windows, a symlink elsewhere. Into Antigravity's
+(`~/.gemini/config/skills`) the apply copies the folder's files, since
+Antigravity lists no linked folder. The dry run lists each link it makes or
+removes. Where no link can be made, it warns, and the apply copies the files
+instead. A folder of yours with a skill's name is left as it is,
 listed under `Yours, left as is:`. A link the pact made that you have since
 replaced is drift. The install removes only the links and copies its record
 lists.
@@ -140,10 +142,6 @@ session running:
    `agent-identity` to `true` in `~/.pact/config.json`, run
    `node claude/tools/gh-app.mjs refresh --provider claude` in your clone, once
    per provider, and apply again.
-
-While the dry run says the pact does not build Antigravity's agent format,
-moving `~/.gemini/config/plugins/the-pact/` leaves Antigravity without the
-pact's agents.
 
 Backups under `~/.claude/pact/backups/` stay where they are. Never sync, share
 or commit that folder either.
@@ -754,12 +752,15 @@ Claude Code keeps its permission rules. Codex and Antigravity, and a harness of
 your own whose hooks file takes either one's format, get the same rules from a
 hook the install adds.
 
-- **When.** Only while a rule is on (the cleaner, or the session stop switch)
-  and the install takes such a harness. [cleaner.md](cleaner.md) lists the
-  commands.
+- **When.** Only while a rule is on and the install takes such a harness. The
+  command rules follow the cleaner and the session stop switch
+  ([cleaner.md](cleaner.md) lists the commands). Antigravity has one more, on
+  while `/make-it-so`, `/finis` or `/scry` is: its hook asks you before a
+  session reads that skill's `SKILL.md`. Typing the command asks nothing.
 - **What it writes.** `~/.pact/guard/`: the guard, a wrapper per format, and
   `rules.json`, the rules that are on. And one `pact-guard` hook, run before a
-  shell command, in each harness's hooks file (`~/.codex/hooks.json`,
+  shell command (in Antigravity also before input typed into a running program
+  and, for the rule above, before a file read), in each harness's hooks file (`~/.codex/hooks.json`,
   `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
   pact's entry, and the apply backs up each hooks file it changes.
 - **On Windows** the install also writes a launcher beside each wrapper,
@@ -780,11 +781,13 @@ hook the install adds.
 - **What it answers.** It refuses a command a rule denies. A rule that asks
   prompts you in Antigravity and is refused in Codex. Any other command gets no
   answer, so the harness's own permissions decide. A guard that fails refuses
-  every shell command with `The pact's guard failed (<code>); run the pact's
-  dry run.`
+  every call its hook matches with `The pact's guard failed (<code>); run the
+  pact's dry run.`
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
   `bash -c "..."` included, and so does one typed into a shell that is already
-  running, which Codex runs no hook for. A hook that can't start or runs past
+  running, which Codex runs no hook for; Antigravity's hook reads a typed line,
+  though not one sent a few characters at a time. A skill file read through a
+  shell command passes too. A hook that can't start or runs past
   15 seconds lets the command through, and so does a crash outside what the
   wrapper catches, except on Windows, where the launcher denies.
 - **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
@@ -793,6 +796,21 @@ hook the install adds.
 - **Off.** Turning every rule off, or taking the harness out of the install
   list, removes the entry, and the files once no harness takes them. Do that and
   apply before you roll back to a commit without the guard.
+
+## What Antigravity doesn't do
+
+Seen on its command line, agy 1.2.14, on Windows
+([the probe](log/2026-11-25-antigravity.md)):
+
+- **Lenses can't search.** An agent gets fewer tools than its file lists: the
+  searching and web page tools don't arrive, so a lens reads only files it can
+  name. Every agent also gets `manage_task` and `send_message`.
+- **Its shells see your secrets.** A command gets every environment variable,
+  ones named like a key, token or password included, and no setting to drop them
+  was found. Don't start it with secrets in its environment.
+- **A session can still start your commands,** by reading the skill's file with
+  a shell command. What it starts is never your word for an install apply or
+  mise trust.
 
 ## Roll back to an older version
 

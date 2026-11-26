@@ -269,7 +269,8 @@ configuration. Each has:
   byte cap; optional `"sharedCap"`, a cap the rules share with other files.
 - `agents`: `{ "dir", "format" }`, format one of `claude-md`, `codex-toml`,
   `antigravity-md` (S7).
-- `skills`: `{ "dir" }`, the folder skills are linked into; or absent.
+- `skills`: `{ "dir" }`, the folder skills are linked or copied into; or
+  absent.
 - `commands`: `{ "dir" }`, Claude Code's commands folder; or absent.
 - `hooks`: `{ "file", "format" }`, format one of `claude`, `codex`,
   `antigravity` (S8); or absent.
@@ -278,11 +279,12 @@ configuration. Each has:
 - `defaultInstall`: `false` keeps a detected harness out of a missing
   install list; optional, `true` when absent.
 - `capabilities`: a list from `subagents`, `tool-limits`, `cleaner`,
-  `archive`, `native-rules`, `hook-ask`, `hook-trust` and `explicit-skills`,
-  naming what the render may rely on (S7, S8, S12). `tool-limits` means an
-  agent file can take tools away; `explicit-skills` means a skill can be kept
-  from the model's own invocation; `archive` means a session can be
-  archived.
+  `archive`, `native-rules`, `hook-ask`, `hook-trust`, `explicit-skills` and
+  `skill-copies`, naming what the install may rely on (S7, S8, S12).
+  `tool-limits` means an agent file can take tools away; `explicit-skills`
+  means a skill can be kept from the model's own invocation; `skill-copies`
+  means the harness finds no linked skill folder, so its skills are copied;
+  `archive` means a session can be archived.
 
 The known descriptions:
 
@@ -295,7 +297,7 @@ The known descriptions:
 | `commands` | `~/.claude/commands` | none | none |
 | `hooks` | `~/.claude/settings.json`, `claude` | `~/.codex/hooks.json`, `codex` | `~/.gemini/config/hooks.json`, `antigravity` |
 | `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-astra`, none | `pro`, `flash`, `flash` |
-| `capabilities` | `subagents`, `tool-limits`, `cleaner`, `archive`, `native-rules` | `subagents`, `hook-trust`, `explicit-skills` | `subagents`, `tool-limits`, `hook-ask` |
+| `capabilities` | `subagents`, `tool-limits`, `cleaner`, `archive`, `native-rules` | `subagents`, `hook-trust`, `explicit-skills` | `subagents`, `tool-limits`, `hook-ask`, `explicit-skills`, `skill-copies` |
 
 - **Detection.** The dry run lists each known harness whose `detect` folder
   exists, and each own harness. A harness is installed into only when the
@@ -354,7 +356,7 @@ The known descriptions:
 | --- | --- | --- | --- | --- |
 | Rules | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md` | rendered copy |
 | Agents | Markdown, frontmatter `name`, `description`, `tools`, `model`, `effort` | TOML: `name`, `description`, `developer_instructions`, `model`, `model_reasoning_effort` | Markdown, frontmatter `name`, `description`, `model`, `tools` | rendered copy |
-| Commands | `commands/<n>.md`, as today | skills | skills | skill folders linked |
+| Commands | `commands/<n>.md`, as today | skills | skills | skill folders linked; copied for Antigravity |
 | Guards | native rules in `settings.json` | `hooks.json` entry | `hooks.json` entry | rendered entry; the guard script stays in `~/.pact` |
 
 **The rules file.** One source, `claude/CLAUDE.md` (the payload folder keeps
@@ -395,9 +397,16 @@ differ per harness only because a tool can't do otherwise:
   `WebSearch`) to Antigravity's; a name with no entry is dropped with a
   `WARN`, since a wrong name can hang a subagent. A lens whose mapped list
   comes out empty, or loses `Read`, `Glob` or `Grep`, refuses
-  (`agent-tools`), since an empty list may mean every tool. T5 fills the
-  table from Antigravity's docs and checks it, and what an empty list means,
-  in a probe session (T5's record).
+  (`agent-tools`), since an empty list may mean every tool. Antigravity's
+  table is `view_file`, `find_by_name`, `grep_search`, `run_command`,
+  `read_url_content` and `search_web`, in the order of the six names. T5's
+  probe of agy 1.2.14 found: an empty list leaves only `send_message` and
+  `manage_task`, and no list leaves more; an unknown name stops the subagent;
+  and a subagent gets fewer tools than its file lists, never a shell it
+  doesn't list. `find_by_name`, `grep_search` and `read_url_content` did not
+  arrive, so a lens there can't search, and every subagent also gets
+  `manage_task` and `send_message`
+  ([T5's record](../log/2026-11-25-antigravity.md)).
 
 **Commands as skills.** The four commands are one universal set: every
 harness gets all four, with no per-harness exceptions (the owner's words,
@@ -405,7 +414,8 @@ S2 item 30).
 
 - Claude Code keeps them as commands, as today. Every other harness with
   `skills` gets each as a skill: the command's body as `SKILL.md`, with
-  `name` and `description` frontmatter and its paths on `~/.pact`.
+  `name` and `description` frontmatter, the key above, and its paths on
+  `~/.pact`.
 - A pact command stands for an answer the owner types, so each skill is
   kept from the model's own invocation wherever the harness allows it
   (`explicit-skills`). In Codex each skill folder gets `agents/openai.yaml`
@@ -414,11 +424,15 @@ S2 item 30).
 - Each skill that stands for an owner's answer (`make-it-so`, `finis`,
   `scry`) opens with the same line in every harness: "Act only if the
   person's latest message names this command; otherwise say so and stop."
-- Antigravity can't keep a skill from the model, so there that line is what
-  holds a self-start back. T5 probes whether a `PreToolUse` hook that answers
-  `force_ask` when the model reads one of those `SKILL.md` files makes
-  Antigravity ask the person; if it does, the render adds it. What is left is
-  a residual for the owner (S15).
+- Antigravity keeps a skill from the model when its `SKILL.md` carries
+  `disable-model-invocation: true`: the skill is left out of what the model
+  sees, and a typed `/<name>` still runs it. A skill carries the key where its
+  command's own frontmatter does and a harness that reads the folder has
+  `explicit-skills`; the render adds it to no other.
+- A session can still find the file and read it, so Antigravity's guard also
+  asks the person before a read tool opens the `SKILL.md` of one of those
+  three (S8). T5's probe saw the ask on such a read, and none when the owner
+  types the command. What is left is a residual for the owner (S15).
 - `finis` archives a Claude Code session. Its archive step sits in a
   `pact:if archive` block; a harness without `archive` gets instead the same
   check for outstanding work and then: "Nothing is outstanding; close this
@@ -432,7 +446,9 @@ S2 item 30).
 **Links.** A skill folder is linked from the harness's skills folder to
 `~/.pact/skills/<n>`: a symlink, or on Windows a directory junction, which
 needs no extra rights. If neither can be made, the install copies the folder
-and the dry run says so. The install records each link or copy and removes
+and the dry run says so. A harness with `skill-copies` gets a copy on every
+platform: agy 1.2.14 on Windows lists no linked skill folder, and its links
+elsewhere are not probed. The install records each link or copy and removes
 only what it recorded.
 
 ## S8 The guard
@@ -442,7 +458,11 @@ same source as `gate/install-core.mjs`'s `CLEANER_DENY`, `CLEANER_ASK` and
 `STOP_DENY`: each rule an `id`, a decision (`deny` or `ask`), the switch it
 hangs on (`cleaner` or `session-stop-deny`), and the command words it
 matches. The table is rendered from the configuration, so a rule whose switch
-is off is not in it.
+is off is not in it. One rule more, `owner-skill`, asks on a read of the
+`SKILL.md` of `make-it-so`, `finis` or `scry` in a folder named `skills`. It
+is in the table while one of those commands is on and a harness is in whose
+hook can ask before a read: Antigravity's, with `hook-ask` and `skills`.
+With no command rule on, only such a harness gets a hook.
 
 **Claude Code** keeps its native permission rules. The install renders them
 from the table, and they are byte for byte today's (C11). No hook is added to
@@ -453,7 +473,7 @@ wrapper `~/.pact/guard/<harness>.mjs`:
 
 - **The command.** It names its script by absolute path, quoted for the
   platform, since Windows shells don't expand `~` and a hook that can't start
-  lets the call through. On Linux and macOS it runs the wrapper under
+  may let the call through. On Linux and macOS it runs the wrapper under
   `env -u NODE_OPTIONS`. On Windows it is one text for cmd and PowerShell:
   `<Windows>\System32\cmd.exe /d /c call "<launcher>.cmd" ; exit
   $LASTEXITCODE`. PowerShell, which Codex runs hooks under, would report a
@@ -470,10 +490,16 @@ wrapper `~/.pact/guard/<harness>.mjs`:
 - **A Windows home from another platform.** A node that is not Windows's
   refuses (`guard-windows-home`) to write a guard into a home holding
   `AppData`.
-- The wrapper reads the call from stdin in its harness's shape (Codex:
-  `Bash`; Antigravity: `run_command`), passes the command text to `guard.mjs`,
-  and writes its harness's answer. Codex: exit 2 with the reason on stderr,
-  since an exit 2 with an empty stderr lets the call through. Antigravity:
+- The hook matches Codex's `Bash`. In Antigravity it matches `run_command`,
+  and `manage_task` and `send_command_input`, which type into a program left
+  running; and, while `owner-skill` is in the table, `view_file` and
+  `read_file`. The wrapper reads the call from stdin in its harness's shape,
+  passes the command text, the typed text or the file's path to `guard.mjs`,
+  and writes its harness's answer. A `manage_task` action that types nothing
+  gets no answer; a matched call whose text or path the wrapper can't find is
+  denied. Codex's hooks see no typed text (T4's probe).
+- A denial in Codex is exit 2 with the reason on stderr, since an exit 2 with
+  an empty stderr lets the call through; in Antigravity it is
   `decision: "deny"` as JSON on stdout, exit 0.
 - `guard.mjs` matches the command against the table with the tokenizer in
   `.claude/hooks/athanor-guard.mjs`, ported as spec 0001 ports it: quotes,
@@ -488,9 +514,11 @@ wrapper `~/.pact/guard/<harness>.mjs`:
   (`<code>`); run the pact's dry run." `<code>` is an id from a closed list,
   never text from the call or an error message. It never answers allow; a
   call no rule matches gets no answer at all, so the harness's own
-  permission flow goes on. Both harnesses let a call through when the hook
-  can't start, crashes past the wrapper or times out, so the hook entry sets
-  a 15 s timeout and the guard reads only the table and the call.
+  permission flow goes on. Both harnesses let a call through, or say they do,
+  when the hook can't start, crashes past the wrapper or times out, so the
+  hook entry sets a 15 s timeout and the guard reads only the table and the
+  call. agy 1.2.14 on Windows blocked each of those, and a non-zero exit,
+  which the pact doesn't rely on.
 - **Codex's trust step.** A Codex hook runs only once a person trusts it in
   `/hooks`. Codex hashes the hook entry (event, matcher, command, timeout),
   not the script's bytes, so the entry stays fixed and an update to
@@ -681,7 +709,9 @@ only `main` may deploy to, against "no secrets".
   (S15), T4 removes `subagents` from Codex's known description, so Codex
   gets the no-subagents line and each lens runs in a separate session.
 - **Antigravity lenses** run on Gemini tiers only; the planning model there is
-  `pro`.
+  `pro`. Their agent files list their tools (S7); each also gets
+  `manage_task` and `send_message`, and the guard's hook runs on a lens's
+  calls too.
 
 ## S13 Other consumers
 
@@ -745,7 +775,8 @@ never-sync rule names both folders.
 - **Code that runs:** the bootstrap, fetched by `npx` from the repo at a
   release tag, and the clone it makes; both run with the owner's rights
   before any dry run. The guard script and its wrappers run before every
-  shell call in Codex and Antigravity.
+  shell call in Codex and Antigravity, and in Antigravity before typed input
+  and, while a skill is asked on, before each file read.
 - **Merges and installs:** installs now reach `~/.codex`, `~/.gemini` and
   `~/.agents/skills` as well as `~/.claude`, and an own harness's paths.
 - **A write token in CI:** the release job can create tags.
@@ -796,14 +827,18 @@ never-sync rule names both folders.
   and no MCP server in its profile; T4's probe records whether Codex asks
   before a lens's MCP call and what its sandbox holds on native Windows. This
   widens "Review rests on rules": the owner's call, asked before T4 starts.
-- **Antigravity skills can't be kept from the model.** A session there may
-  start `make-it-so` on its own; the skills' first line (S7) is a rule the
-  model keeps, not a control. After `scry`,
+- **An Antigravity session can still start an owner's command.** The skill's
+  own switch keeps it out of what the model sees, and the guard asks before a
+  read tool opens its file, but a shell read, a copy elsewhere or a child
+  `agy` run passes both, and whether the ask holds under auto-proceed is not
+  probed. So a session there may start `make-it-so` on its own; the skills'
+  first line (S7) is a rule the model keeps, not a control. After `scry`,
   `make-it-so` means "yes, 1 to N", open security picks included, and the
   record then shows it as the owner's answer. Or it starts `finis` and ends
   the work. In that harness only, the owner's typed answer stops being a
-  sure sign the owner gave it. T5 probes the `force_ask` hook (S7). What is
-  left fits "A session takes checkpoints alone" only if that class widens to
+  sure sign the owner gave it. Nothing a session starts itself is the owner's
+  word for an install apply or mise trust, which stays a rule. What is left
+  fits "A session takes checkpoints alone" only if that class widens to
   name it: the owner's call, asked before T5 starts. On a no, Antigravity
   leaves the default install list (`defaultInstall: false`) until a probed
   hook holds; it stays detected, and the owner can still name it in the
@@ -817,7 +852,12 @@ never-sync rule names both folders.
   removes it; S14's dry run catches only a rules file.
 - **Guards are speed bumps,** as the deny rules are today: another spelling
   gets past them, and in Codex so does text typed into a running shell, which
-  runs no hook (T4's probe).
+  runs no hook (T4's probe). Antigravity's hook meets typed text through
+  `manage_task`; text sent a few characters at a time passes it, and
+  `send_command_input`'s arguments are not probed.
+- **Antigravity's shells keep secret-named variables** (T5's probe), and no
+  setting that drops them was found: don't start an Antigravity session with
+  secrets in its environment. The owner's call.
 
 **The class and the scope.** "What you install and CI run" widens to name the
 bootstrap and the release app's key, and "Merges and installs" names
@@ -845,7 +885,7 @@ model must stay within its word budget.
   harnesses; links are junctions.
 - **macOS and Linux** in CI (`gate-macos`, `gate`), with symlinks.
 - **Codex CLI** at the version T4 records, **Antigravity** at the version T5
-  records.
+  records: its CLI, agy 1.2.14, headless on Windows.
 
 ## S18 Acceptance claims
 
@@ -875,7 +915,8 @@ model must stay within its word budget.
   place of the roles; a `light` role with no light model gets the executor
   model. Each Codex agent file turns off apps, plugins, memories and the
   permission-request tool. An Antigravity lens whose mapped tools come out
-  empty or lose a read tool refuses (`agent-tools`).
+  empty or lose a read tool refuses (`agent-tools`), and an Antigravity agent
+  has a shell only where its source has one.
 - **C6** A rules file over a harness's cap refuses (`rules-cap`); above half
   of a shared cap, the dry run warns.
 - **C7** A capability block renders only into a harness that has the
@@ -898,13 +939,16 @@ model must stay within its word budget.
 
 - **C11** Claude Code's permission rules are byte for byte today's, for each
   switch setting.
-- **C12** For each rule in the table, the Codex and the Antigravity wrapper,
+- **C12** For each command rule in the table, the Codex and the Antigravity
+  wrapper,
   run through the rendered entry's exact command text, each deny the
   matching command across the tokenizer cases, in their own deny shape, and
   answer nothing for a command no rule matches. The command names an
   absolute path and clears `NODE_OPTIONS`; this runs on `gate-windows` too,
   under cmd and PowerShell, where a `node.cmd` planted in the working folder
-  never runs, and a launcher whose wrapper can't run denies.
+  never runs, and a launcher whose wrapper can't run denies. Antigravity's
+  wrapper judges typed input the same way, and answers `force_ask` to either
+  read tool on an owner's skill file.
 - **C13** An `ask` rule answers `force_ask` in Antigravity and is denied in
   Codex with S8's line.
 - **C14** A planted error in the guard, a missing table, a malformed call and
@@ -927,7 +971,8 @@ model must stay within its word budget.
   (`unrecorded-target`); an unrecorded agent or skill is listed as yours and
   left as is. A harness dropped from the list has its recorded files removed.
 - **C19** A link is a junction on Windows and a symlink elsewhere, falling
-  back to a copy with a dry-run line; only recorded links are removed.
+  back to a copy with a dry-run line; a harness with `skill-copies` gets
+  copies; only recorded links and copies are removed.
 - **C20** The cloud generator's output changes only in the `~/.pact` paths.
 - **C31** After an apply with an empty install list, `install.json` lists
   nothing and every recorded target is gone; `docs/install.md`'s rollback
