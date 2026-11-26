@@ -67,9 +67,6 @@ export const GUARD_RULES = Object.freeze([
   deny('daemon-stop', 'session-stop-deny', 'claude daemon stop'),
   deny('session-respawn', 'session-stop-deny', 'claude respawn'),
 ]);
-// The skills that stand for the owner's answer, asked on where a harness can ask before a file is read (S7). It
-// matches a read's path, never a command, so no permission rule is made of it.
-export const OWNER_SKILL_RULE = rule('owner-skill', 'ask', 'owner-skills', 'skills', ['make-it-so', 'finis', 'scry']);
 const permissionRules = (on, decision) => {
   const patterns = GUARD_RULES.filter(r => r.switch === on && r.decision === decision).map(r => (r.words ? `${r.words.join(' ')} *` : `*${r.contains.join('*')}*`));
   return Object.freeze([...patterns.map(p => `Bash(${p})`), ...patterns.map(p => `PowerShell(${p})`)]);
@@ -1639,17 +1636,7 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
 // ------------------------------------------------------------ the guard's hook entry (spec 0007 S8)
 
 /** The rules the switches leave on: `on` names the switches that are. */
-export const guardRules = on => [...GUARD_RULES, OWNER_SKILL_RULE].filter(r => on.includes(r.switch));
-
-/**
- * The harnesses that get the owner-skill ask: those whose hook can meet a read
- * and answer it with a question, and that take a skill the rule names, with
- * the commands in `on`.
- */
-export const ownerSkillReaders = (harnesses, on) => harnesses.filter(h => {
-  const parts = builtParts(h);
-  return parts.guard && parts.skills && GUARD_SHAPES[h.hooks.format].reads !== null && h.capabilities.includes('hook-ask') && on.some(c => OWNER_SKILL_RULE.skills.includes(c));
-});
+export const guardRules = on => GUARD_RULES.filter(r => on.includes(r.switch));
 
 /** rules.json's text for those rules. */
 export const guardTableText = rules => `${JSON.stringify({ rules }, null, 2)}\n`;
@@ -1727,19 +1714,18 @@ export function guardCommand({ script, platform, systemRoot }) {
 }
 
 // Where each harness keeps its PreToolUse list, and what the pact's group there holds: `matcher` the tools that
-// run or type a command, `reads` the tools that read a file, matched too while the harness gets a rule on a read.
-// Codex's hook meets no read. Antigravity's manage_task types into a program left running; send_command_input is a
+// run or type a command. Antigravity's manage_task types into a program left running; send_command_input is a
 // second name for that which agy 1.2.14 registers and gives no agent.
 const GUARD_SHAPES = Object.freeze({
-  codex: Object.freeze({ path: Object.freeze(['hooks', 'PreToolUse']), matcher: '^Bash$', reads: null, more: Object.freeze([['statusMessage', 'pact-guard']]) }),
-  antigravity: Object.freeze({ path: Object.freeze(['pact-guard', 'PreToolUse']), matcher: 'run_command|manage_task|send_command_input', reads: 'view_file|read_file', more: Object.freeze([]) }),
+  codex: Object.freeze({ path: Object.freeze(['hooks', 'PreToolUse']), matcher: '^Bash$', more: Object.freeze([['statusMessage', 'pact-guard']]) }),
+  antigravity: Object.freeze({ path: Object.freeze(['pact-guard', 'PreToolUse']), matcher: 'run_command|manage_task|send_command_input', more: Object.freeze([]) }),
 });
 
 /** The pact's matcher group for a format, as settings maps: one hook, its command and a 15 s timeout. */
-export function guardGroup(format, command, { reads = false } = {}) {
+export function guardGroup(format, command) {
   const shape = GUARD_SHAPES[format];
   const hook = new Map([['type', 'command'], ['command', command], ['timeout', new Num('15')], ...shape.more]);
-  return new Map([['matcher', reads && shape.reads ? `${shape.matcher}|${shape.reads}` : shape.matcher], ['hooks', [hook]]]);
+  return new Map([['matcher', shape.matcher], ['hooks', [hook]]]);
 }
 
 /** A recorded entry's value, a group, as settings maps; null when it is not one. */
@@ -1808,7 +1794,7 @@ export function guardMerge(live, { drop = [], want = [] }) {
 
 /**
  * The guard hooks of this install, one plan per hooks file: the files of the
- * harnesses that are in (`want`: { harness, path, format, command, reads }), and
+ * harnesses that are in (`want`: { harness, path, format, command }), and
  * those the record lists a guard hook in.
  */
 export function guardPlans(recordEntries, want) {
@@ -1824,7 +1810,7 @@ export function guardPlans(recordEntries, want) {
     f.recorded.push(e);
     f.drop.push({ format, group: recordedGroup(e.value) });
   }
-  for (const w of want) at(w.path).want.push({ harness: w.harness, format: w.format, group: guardGroup(w.format, w.command, { reads: w.reads }) });
+  for (const w of want) at(w.path).want.push({ harness: w.harness, format: w.format, group: guardGroup(w.format, w.command) });
   return [...files.values()];
 }
 

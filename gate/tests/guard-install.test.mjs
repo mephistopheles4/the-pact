@@ -24,7 +24,6 @@ const config = (h, doc) => put(h, '.pact/config.json', { schema: 1, ...doc });
 const ON = { tools: ['cleaner'], commands: [] };
 const OFF = { tools: [], commands: [] };
 const COMMAND_MATCHER = 'run_command|manage_task|send_command_input';
-const READ_MATCHER = `${COMMAND_MATCHER}|view_file|read_file`;
 const MINE = { matcher: '^Bash$', hooks: [{ type: 'command', command: 'echo mine', timeout: 5 }] };
 const MY_GROUP = { PreToolUse: [{ matcher: 'run_command', hooks: [{ command: 'echo mine' }] }] };
 const record = h => json(h, '.pact/install.json');
@@ -143,43 +142,26 @@ test('C16: a hooks file the record doesn\'t list is merged, not refused; one tha
   assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
 });
 
-test('C12: with a skill that stands for the owner\'s answer installed, Antigravity alone gets the ask, rules off included; with none, no guard', t => {
+test('C12: a skill that stands for the owner's answer installs no guard, and no hook of the cleaner's meets a read tool', t => {
   const repo = makeRepo(t);
   const h = three(t);
-  const before = readFileSync(at(h, CODEX), 'utf8');
+  const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
   config(h, { tools: [], commands: ['finis'] });
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): owner-skill \(ask\)\r?$/m, dry.out);
-  assert.doesNotMatch(dry.stdout, TRUST, dry.out);
-  passed(applyBound(repo, h));
-  assert.equal(readFileSync(at(h, CODEX), 'utf8'), before);
-  assert.deepEqual(guardFiles(h), GUARD_FILES.filter(f => f !== 'codex.cmd'), 'no launcher for a harness with no hook');
-  const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
-  assert.equal(entry().matcher, READ_MATCHER);
-  assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
-  const read = asAntigravity(entry().hooks[0].command, { toolCall: { name: 'read_file', args: { Path: at(h, '.gemini/config/skills/finis/SKILL.md') } } });
-  assert.equal(JSON.parse(read.stdout).decision, 'force_ask', `${read.stdout}${read.stderr}`);
-
-  // /scriptorium stands for no answer: nothing to ask on.
-  config(h, OFF);
+  assert.doesNotMatch(dry.stdout, /Guard rules/, dry.out);
   passed(applyBound(repo, h));
   assert.equal(entry(), undefined);
   assert.deepEqual(guardFiles(h), []);
 
-  // With the cleaner on beside such a skill, the table holds both, and Antigravity's hook alone meets reads.
+  // With the cleaner on beside such a skill, the table holds the cleaner's rules alone, and no hook meets a read.
   config(h, { tools: ['cleaner'], commands: ['finis'] });
   const both = install(repo, h);
   passed(both);
-  assert.match(both.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): worktree-remove \(deny\), .*owner-skill \(ask\)\r?$/m, both.out);
-  passed(applyBound(repo, h));
-  assert.equal(entry().matcher, READ_MATCHER);
-  assert.deepEqual(json(h, CODEX).hooks.PreToolUse.map(g => g.matcher), ['^Bash$', '^Bash$']);
-
-  // With the cleaner on and no such skill, the read tools are left alone.
-  config(h, ON);
+  assert.doesNotMatch(both.stdout, /owner-skill/, both.out);
   passed(applyBound(repo, h));
   assert.equal(entry().matcher, COMMAND_MATCHER);
+  assert.equal(json(h, '.pact/guard/rules.json').rules.some(r => r.skills), false);
 });
 
 test('with no rule on, no guard file or hook is written', t => {

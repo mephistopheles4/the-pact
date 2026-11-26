@@ -17,7 +17,6 @@ import { tempDir, writeTree } from './tree.mjs';
 const WIN = process.platform === 'win32';
 const guard = await import(pathToFileURL(join(REPO, 'claude', 'guard', 'guard.mjs')).href);
 const ALL = core.guardRules(['cleaner', 'session-stop-deny']);
-const ASKING = core.guardRules(['cleaner', 'session-stop-deny', 'owner-skills']);
 
 // ------------------------------------------------------------ the rule table
 
@@ -53,7 +52,6 @@ test('bad case: a table of any other shape is a table failure', () => {
     { ...good, words: undefined },
     { ...good, contains: ['x'] },
     { id: 'a', decision: 'ask', contains: [1] },
-    { ...good, decision: 'ask', skills: ['finis'] },
     { id: 'a', decision: 'ask', skills: [] },
     { id: 'a', decision: 'ask', skills: ['../finis'] },
     { id: 'a', decision: 'ask', skills: 'finis' },
@@ -154,49 +152,6 @@ test('a long adversarial command is judged well inside the hook\'s timeout', () 
   const started = Date.now();
   for (const unit of ['mise x ', 'git * ', 'git ', '<< a ', '@\' ', '(', '"', 'a; ', 'env -u ', 'x && ']) guard.judge(unit.repeat(Math.floor(guard.COMMAND_MAX / unit.length)), ALL);
   assert.ok(Date.now() - started < 12_000, `${Date.now() - started} ms for ten commands of the largest size`);
-});
-
-// ------------------------------------------------------------ reads of an owner-typed skill
-
-test('C12: the table asks on a read of each skill that stands for the owner\'s answer, and only while its switch is on', () => {
-  assert.deepEqual(ASKING.filter(r => r.skills), [{ id: 'owner-skill', decision: 'ask', switch: 'owner-skills', skills: ['make-it-so', 'finis', 'scry'] }]);
-  assert.deepEqual(core.guardRules(['owner-skills']), [core.OWNER_SKILL_RULE]);
-  assert.deepEqual(ALL.filter(r => r.skills), []);
-});
-
-test('C12: a skill file is met by its path in either spelling, and nothing else is', () => {
-  const asked = { decision: 'ask', id: 'owner-skill' };
-  for (const p of [
-    '/home/u/.gemini/config/skills/make-it-so/SKILL.md',
-    '/home/u/.pact/skills/finis/SKILL.md',
-    'C:\\Users\\a b\\.gemini\\config\\skills\\scry\\SKILL.md',
-    'c:\\users\\u\\.pact\\SKILLS\\Finis\\skill.MD',
-    '/home/u/.pact/skills/./finis//SKILL.md',
-    '/home/u/.pact/skills/x/../finis/SKILL.md',
-    'skills/scry/SKILL.md',
-    // Each is cut to the same file: more than Windows itself would open.
-    'C:\\h\\.pact\\skills\\finis\\SKILL.md::$DATA',
-    'C:\\h\\.pact\\skills::$INDEX_ALLOCATION\\finis\\SKILL.md',
-    '/home/u/.pact/skills/finis./SKILL.md',
-    '/home/u/.pact/skills /finis /SKILL.md. ',
-    'C:\\h\\.pact\\skills\\finis\\SKILL.md\\. ',
-    'C:\\h\\.pact\\skills\\finis\\SKILL.md\\x\\.. ',
-  ]) assert.deepEqual(guard.judgeRead(p, ASKING), asked, p);
-  for (const p of ['/home/u/.pact/skills/scriptorium/SKILL.md', '/home/u/.pact/skills/finis/notes.md', '/home/u/my-skills/finis/SKILL.md', '/home/u/.pact/skills/finis-more/SKILL.md', '/home/u/finis/SKILL.md', '']) assert.equal(guard.judgeRead(p, ASKING), null, p);
-  assert.equal(guard.judgeRead('/home/u/.pact/skills/finis/SKILL.md', ALL), null, 'the switch off');
-  // A command is never read as a path, nor a path rule as a command.
-  assert.equal(guard.judge('cat /home/u/.pact/skills/finis/SKILL.md', ASKING), null);
-});
-
-// ------------------------------------------------------------ the hook command
-
-test('C12: only a harness that takes a skill the rule names, behind a hook that can ask before a read, gets the ask', () => {
-  const anti = { id: 'antigravity', skills: { dir: '.gemini/config/skills' }, hooks: { file: '.gemini/config/hooks.json', format: 'antigravity' }, capabilities: ['hook-ask'] };
-  assert.deepEqual(core.ownerSkillReaders([anti], ['finis']), [anti]);
-  assert.deepEqual(core.ownerSkillReaders([anti], ['scriptorium']), [], 'no skill the rule names');
-  for (const other of [{ ...anti, capabilities: [] }, { ...anti, skills: null }, { ...anti, hooks: { ...anti.hooks, format: 'codex' } }, { ...anti, hooks: null }]) {
-    assert.deepEqual(core.ownerSkillReaders([other], ['finis']), [], JSON.stringify(other));
-  }
 });
 
 test('the hook command names its script by full path: the wrapper with NODE_OPTIONS cleared, and on Windows the launcher through cmd.exe', () => {
@@ -346,7 +301,7 @@ for (const format of core.GUARD_FORMATS) {
 }
 
 test('C12: antigravity judges a line typed into a running program as it judges a command', t => {
-  const at = installed(t, ASKING);
+  const at = installed(t, ALL);
   const run = call => runHook(at, 'antigravity', call);
   denied(run(typed('git worktree remove w\n')), 'antigravity', blocks('worktree-remove'));
   denied(run(typed('ls\ngit branch -D old\n')), 'antigravity', blocks('branch-force-d'));
@@ -357,30 +312,14 @@ test('C12: antigravity judges a line typed into a running program as it judges a
   for (const Action of ['list', 'status', 'kill']) assert.deepEqual(run(tool('manage_task', { Action, TaskId: 't', Input: 'git worktree remove w' })), SILENT, Action);
 });
 
-test('C12: antigravity asks before either read tool opens an owner-typed skill, and answers nothing for another file', t => {
-  const at = installed(t, ASKING);
-  const run = call => runHook(at, 'antigravity', call);
-  const says = `The pact's guard asks the owner before this file is read (rule owner-skill).`;
-  const skill = join(at.home, '.pact', 'skills', 'make-it-so', 'SKILL.md');
-  denied(run(tool('view_file', { AbsolutePath: skill, StartLine: 1 })), 'antigravity', says, 'force_ask');
-  denied(run(tool('read_file', { Path: skill })), 'antigravity', says, 'force_ask');
-  // Whichever of the two names carries it, an empty one beside it included.
-  for (const call of [tool('view_file', { AbsolutePath: '', Path: skill }), tool('read_file', { Path: skill, AbsolutePath: join(at.home, 'notes.md') }), tool('view_file', { AbsolutePath: skill, Path: join(at.home, 'notes.md') }), tool('view_file', { AbsolutePath: join(at.home, 'notes.md'), Path: skill })]) {
-    denied(run(call), 'antigravity', says, 'force_ask');
-  }
-  for (const call of [tool('view_file', { AbsolutePath: join(at.home, 'notes.md') }), tool('read_file', { Path: join(at.home, '.pact', 'skills', 'scriptorium', 'SKILL.md') })]) assert.deepEqual(run(call), SILENT, JSON.stringify(call));
-  // Codex's hook never sees a read, and its wrapper reads a table with the rule in it.
-  denied(runHook(at, 'codex', CALLS.codex(ONE['worktree-remove'])), 'codex', blocks('worktree-remove'));
-});
-
-test('bad case: antigravity denies a typed line or a read it cannot judge', t => {
-  const at = installed(t, ASKING);
-  for (const call of [tool('manage_task', {}), tool('manage_task', { Action: 1 }), tool('manage_task', { Action: 'Send_Input', Input: 'ls' }), tool('manage_task', { Action: 'write', TaskId: 't' }), tool('manage_task', { Action: 'send_input' }), tool('manage_task', { Action: 'send_input', Input: ['x'] }), tool('view_file', {}), tool('read_file', { Path: 7 }), tool('view_file', { AbsolutePath: '/x', Path: 7 }), tool('send_command_input', { CommandId: 'c' }), tool('write_to_file', { TargetFile: 'x' })]) {
+test('bad case: antigravity denies a typed line it cannot judge, and a read tool it no longer meets', t => {
+  const at = installed(t, ALL);
+  for (const call of [tool('manage_task', {}), tool('manage_task', { Action: 1 }), tool('manage_task', { Action: 'Send_Input', Input: 'ls' }), tool('manage_task', { Action: 'write', TaskId: 't' }), tool('manage_task', { Action: 'send_input' }), tool('manage_task', { Action: 'send_input', Input: ['x'] }), tool('view_file', { AbsolutePath: '/x' }), tool('read_file', { Path: '/x' }), tool('send_command_input', { CommandId: 'c' }), tool('write_to_file', { TargetFile: 'x' })]) {
     denied(runHook(at, 'antigravity', call), 'antigravity', failure('call'));
   }
   denied(runHook(at, 'antigravity', typed('x'.repeat(guard.COMMAND_MAX + 1))), 'antigravity', failure('size'));
   rmSync(join(at.dir, 'rules.json'));
-  for (const call of [typed('ls\n'), tool('read_file', { Path: '/x' })]) denied(runHook(at, 'antigravity', call), 'antigravity', failure('table'));
+  denied(runHook(at, 'antigravity', typed('ls\n')), 'antigravity', failure('table'));
 });
 
 test('C12: on Windows a node or cmd planted in the working folder never runs', { skip: !WIN && 'cmd.exe\'s current-folder lookup is Windows\'s' }, t => {
