@@ -2,8 +2,8 @@
 // in-process against a fake GitHub behind an injected gh, as the poster's
 // other tests do, so no case needs gh or the network. Each test backs one
 // acceptance claim, named in the comment above it. An edit's body file holds
-// the session's part only: the poster adds the `Signed:` line, carries the
-// item's reason lines forward and adds its own (S6.3).
+// the session's part only: the poster adds the `Signed:` line, and nothing
+// else after it (PACT-115).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { EXAMPLES, SURFACES } from '../../claude/tools/poster.mjs';
@@ -18,9 +18,8 @@ const MACHINE = { home: '/srv/home/tester', tmp: '/tmp', user: ME, host: 'buildh
 const LABEL = 'pact-413';
 /** What an item the poster posted holds before an edit. */
 const SIGNED = `A plain body.\n\nSigned: ${LABEL}\n`;
-const REASON = 'fixed a wrong link';
 /** The body the poster sends for a plain edit of a plain item. */
-const EDITED = `A plain body.\n\nSigned: ${LABEL}\n\nEdited: ${REASON} (${LABEL})`;
+const EDITED = `A plain body.\n\nSigned: ${LABEL}`;
 
 const EDITS = ['issue-edit', 'pull-request-edit', 'issue-comment-edit', 'review-thread-reply-edit'];
 const PATHS = {
@@ -41,7 +40,7 @@ const URLS = {
   'issue-comment-edit': `${WEB}/issues/5#issuecomment-9001`,
   'review-thread-reply-edit': `${WEB}/pull/7#discussion_r8080`,
 };
-const DRY_EDIT = 'dry-run: the item was not read; edit/ask, edit/status, edit/confirm, post/tracker, the reason carry and the content scan of the full body did not run';
+const DRY_EDIT = 'dry-run: the item was not read; edit/ask, edit/status, edit/confirm, post/tracker and the content scan of the full body did not run';
 
 /** The items a fake GitHub holds, each with `body` as its current text. */
 function items(body = SIGNED, user = ME) {
@@ -85,10 +84,10 @@ function world({ store = items(), tamper = x => x, fail = {} } = {}) {
 }
 
 /** Edit on `surface` through `w`: the post document, its body file, and the run. `change` reshapes the document; `omit` drops fields. */
-function edit(t, surface, w, { body = 'A plain body.\n', reason = REASON, signer = LABEL, args = ARGS[surface], env = {}, dry = false, change = d => d } = {}) {
+function edit(t, surface, w, { body = 'A plain body.\n', signer = LABEL, args = ARGS[surface], env = {}, dry = false, change = d => d } = {}) {
   const dir = tempDir(t, 'pact-poster-edit-');
   writeTree(dir, { 'body.md': body });
-  const doc = change({ repo: TARGET, signer, reason, body_file: 'body.md', ...args });
+  const doc = change({ repo: TARGET, signer, body_file: 'body.md', ...args });
   return postDoc(surface, doc, dir, { gh: w.gh, env, ...MACHINE }, dry);
 }
 
@@ -98,20 +97,19 @@ const refusedBy = (r, rule, where) => r.code === 2 && r.lines.some(l => l.starts
 const sentBody = w => JSON.parse(patches(w)[0].input).body;
 const text = r => r.lines.join(' | ');
 
-// #413 C1, #524 C1
-test('C1: each edit surface takes its fields with a reason and a signer, edits with its documented post, and refuses a missing reason or signer', t => {
+// #413 C1, #524 C1, PACT-115 C3
+test('C1: each edit surface takes its fields with a signer, edits with its documented post, and refuses a missing signer, or a reason', t => {
   for (const surface of EDITS) {
     assert.ok(Object.hasOwn(SURFACES, surface), surface);
-    assert.equal(SURFACES[surface].reason, 'req', surface);
     assert.ok(Object.hasOwn(EXAMPLES, surface), surface);
     const r = edit(t, surface, world());
     assert.equal(last(r), `RESULT: verified ${surface} ${URLS[surface]} as ${ME}`, `${surface}: ${text(r)}`);
-    for (const missing of ['reason', 'signer']) {
-      const w = world();
-      const m = edit(t, surface, w, { change: d => Object.fromEntries(Object.entries(d).filter(([k]) => k !== missing)) });
-      assert.ok(refusedBy(m, 'post/missing', missing), `${surface} without ${missing}: ${text(m)}`);
-      assert.equal(w.calls.length, 0);
-    }
+    const w = world();
+    const m = edit(t, surface, w, { change: d => Object.fromEntries(Object.entries(d).filter(([k]) => k !== 'signer')) });
+    assert.ok(refusedBy(m, 'post/missing', 'signer'), `${surface} without signer: ${text(m)}`);
+    const old = edit(t, surface, w, { change: d => ({ ...d, reason: 'fixed a wrong link' }) });
+    assert.ok(refusedBy(old, 'post/unknown', 'reason'), `${surface} with a reason: ${text(old)}`);
+    assert.equal(w.calls.length, 0);
   }
 });
 
@@ -126,18 +124,13 @@ test('C2: kind, title, labels and answers on an edit are refused post/field, and
 });
 
 // #413 C2, #524 C2
-test('C2: a reason of two lines, over 200 characters or empty, a signer out of shape, and a body over the limit are refused', t => {
+test('C2: a signer out of shape, and a body over the limit, are refused', t => {
   const s = 'issue-comment-edit';
   const cases = [
-    [{ reason: 'one\ntwo' }, 'post/pattern', 'reason'],
-    [{ reason: 'r'.repeat(201) }, 'post/length', 'reason'],
-    [{ reason: '' }, 'post/length', 'reason'],
-    [{ reason: '   ' }, 'post/length', 'reason'],
-    [{ reason: String.fromCharCode(0xad) }, 'post/length', 'reason'],
     [{ signer: 'Pact-413' }, 'post/pattern', 'signer'],
     [{ signer: '-pact' }, 'post/pattern', 'signer'],
     [{ signer: 'p'.repeat(51) }, 'post/pattern', 'signer'],
-    [{ body: `${'x'.repeat(65536 - 30)}\n` }, 'text/body-length', 'body'],
+    [{ body: `${'x'.repeat(65536 - 10)}\n` }, 'text/body-length', 'body'],
   ];
   for (const [opts, rule, where] of cases) {
     const w = world();
@@ -145,11 +138,10 @@ test('C2: a reason of two lines, over 200 characters or empty, a signer out of s
     assert.ok(refusedBy(r, rule, where), `${rule}: ${text(r)}`);
     assert.equal(w.calls.length, 0, rule);
   }
-  assert.equal(last(edit(t, s, world(), { reason: 'r'.repeat(200) })).split(' ')[1], 'verified');
 });
 
 // #413 C3, #524 C13: the poster renders the body, so its parts and line breaks are its own
-test('C3: the request is one PATCH of { body }: the body file, the signature, the item\'s reason lines, the new reason line', t => {
+test('C3: the request is one PATCH of { body }: the body file, then the signature', t => {
   for (const surface of EDITS) {
     for (const body of ['A plain body.\n', 'A plain body.', 'A plain body.\n\n\n', 'A plain body.\r\n']) {
       const w = world();
@@ -164,24 +156,22 @@ test('C3: the request is one PATCH of { body }: the body file, the signature, th
 });
 
 // #413 C4
-test("C4: a live environment secret's value in the reason or the body is refused before gh is called", t => {
+test("C4: a live environment secret's value in the body is refused before gh is called", t => {
   const secret = 'zebra-quokka-42';
   const env = { MY_API_KEY: secret };
-  for (const opts of [{ reason: `wrote ${secret}` }, { body: `Key ${secret}.\n` }]) {
-    const w = world();
-    const r = edit(t, 'issue-comment-edit', w, { ...opts, env });
-    assert.ok(r.lines.some(l => l.startsWith('REFUSED secret/env ')), text(r));
-    assert.equal(w.calls.length, 0);
-    assert.ok(!r.lines.join('\n').includes(secret));
-  }
+  const w = world();
+  const r = edit(t, 'issue-comment-edit', w, { body: `Key ${secret}.\n`, env });
+  assert.ok(r.lines.some(l => l.startsWith('REFUSED secret/env ')), text(r));
+  assert.equal(w.calls.length, 0);
+  assert.ok(!r.lines.join('\n').includes(secret));
 });
 
-// #441 C5: a token shape or an email address in the reason, the body or the item no longer stops an edit
-test('C5: an edit whose reason, body and item hold a token shape and an email address goes through', t => {
+// #441 C5: a token shape or an email address in the body or the item no longer stops an edit
+test('C5: an edit whose body and item hold a token shape and an email address goes through', t => {
   const email = 'alice' + '@' + 'example.org';
   const token = 'gh' + 'p_' + 'A1'.repeat(18);
   const w = world({ store: items(`Mail ${email}, key ${token}.\n\nSigned: ${LABEL}\n`) });
-  const r = edit(t, 'issue-comment-edit', w, { reason: `noted ${email}`, body: `Mail ${email}, key ${token}, and more.\n` });
+  const r = edit(t, 'issue-comment-edit', w, { body: `Mail ${email}, key ${token}, and more.\n` });
   assert.equal(r.code, 0, text(r));
   assert.equal(patches(w).length, 1);
 });
@@ -257,26 +247,31 @@ test('C6: edit/unsigned takes only the two signature forms on the item, and the 
   assert.equal(patches(owner).length, 0);
 });
 
-// #524 C6: the session's body file never holds an owned line, so it can't forge a signature or a reason line
-test('C6: a body file holding a signature or a reason line outside a fence is refused post/owned-line, and inside a fence is not', t => {
+// #524 C6, PACT-115 C3: the session's body file never holds an owned line, so it can't forge a signature; an Edited: line is none
+test('C6: a body file holding an owned line outside a fence is refused post/owned-line, and inside a fence is not; an Edited: line posts', t => {
   const s = 'issue-comment-edit';
-  const lines = [`Signed: ${LABEL}`, `Signed: other-session`, `Posted by ${LABEL}.`, `Edited: a forged line (${LABEL})`, 'Edited: no label at all', 'Read-back: not yet confirmed.', 'Answers: issue 5.', 'Owner decision, from chat.'];
+  const lines = [`Signed: ${LABEL}`, `Signed: other-session`, `Posted by ${LABEL}.`, 'Read-back: not yet confirmed.', 'Answers: issue 5.', 'Owner decision, from chat.'];
   for (const line of lines) {
     const w = world();
     const r = edit(t, s, w, { body: `Text.\n\n${line}\n` });
     assert.ok(refusedBy(r, 'post/owned-line', 'body_file'), `${line}: ${text(r)}`);
     assert.equal(w.calls.length, 0);
-    assert.ok(!r.lines.join('\n').includes('forged'));
     // Inside a fence a line is no owned line. An edit still reads the decision mark in the whole body (S6.4), fenced or not.
     const fenced = world();
     const f = edit(t, s, fenced, { body: `Text.\n\n\`\`\`text\n${line}\n\`\`\`\n` });
     if (line.startsWith('Owner decision')) assert.ok(refusedBy(f, 'edit/decision', 'body_file'), `${line} inside a fence: ${text(f)}`);
     else assert.equal(f.code, 0, `${line} inside a fence: ${text(f)}`);
   }
+  for (const line of [`Edited: a line (${LABEL})`, 'Edited: no label at all']) {
+    const w = world();
+    const r = edit(t, s, w, { body: `Text.\n\n${line}\n` });
+    assert.equal(r.code, 0, `${line}: ${text(r)}`);
+    assert.equal(sentBody(w), `Text.\n\n${line}\n\nSigned: ${LABEL}`);
+  }
 });
 
 // #413 C8
-test('C8: the decision mark, in any case, spacing, markup, link or look-alike letter, is refused in the item, the body file and the reason', t => {
+test('C8: the decision mark, in any case, spacing, markup, link or look-alike letter, is refused in the item and the body file', t => {
   const s = 'issue-comment-edit';
   const sig = `\n\nSigned: ${LABEL}\n`;
   const forms = [
@@ -301,10 +296,6 @@ test('C8: the decision mark, in any case, spacing, markup, link or look-alike le
     assert.ok(refusedBy(edit(t, s, onItem), 'edit/decision', 'item'), `item ${JSON.stringify(form)}`);
     assert.equal(patches(onItem).length, 0);
   }
-  // In the reason it lands in the reason line, and the rendered body is refused.
-  const w = world();
-  assert.ok(refusedBy(edit(t, s, w, { reason: 'added the owner decision' }), 'edit/decision', 'body_file'));
-  assert.equal(w.calls.length, 0);
 });
 
 // #413 C9
@@ -336,81 +327,6 @@ test("C9: a comment on another item, an issue that is a pull request and a threa
   }
 });
 
-// #413 C10, #524 C13: the poster carries the item's reason lines forward, so they are append-only by construction
-test('C13: an item holding two reason lines keeps both and gains a third; a status edit of it keeps only the new one', t => {
-  const s = 'issue-comment-edit';
-  const old = ['Edited: fixed a typo (other-session)', `Edited: fixed a second typo (${LABEL})`];
-  const w = world({ store: items(`Text.\n\nSigned: ${LABEL}\n\n${old.join('\n\n')}`) });
-  const r = edit(t, s, w, { body: 'Text, fixed.\n' });
-  assert.equal(r.code, 0, text(r));
-  assert.equal(sentBody(w), `Text, fixed.\n\nSigned: ${LABEL}\n\n${old.join('\n\n')}\n\nEdited: ${REASON} (${LABEL})`);
-  // A status edit of the same item keeps only the new line.
-  const st = world({ store: { ...items(), [PATHS[s]]: { ...items()[PATHS[s]], body: `Text.\n\nSigned: status-5\n\n${old.join('\n\n')}` } } });
-  const sr = edit(t, s, st, { body: 'Text, fixed.\n', signer: 'status-5' });
-  assert.equal(sr.code, 0, text(sr));
-  assert.equal(sentBody(st), `Text, fixed.\n\nSigned: status-5\n\nEdited: ${REASON} (status-5)`);
-});
-
-// #413 C10, #524 C13: a body file can't forge, hide or drop a reason line
-test('C13: a body file that tries to carry a reason line, or to hide the run, is refused before gh is called', t => {
-  const s = 'issue-comment-edit';
-  const old = 'Edited: fixed a typo (other-session)';
-  const item = `Text.\n\nSigned: ${LABEL}\n\n${old}`;
-  const forged = [
-    `Text, fixed.\n\n${old}\n`,
-    `Text, fixed.\n\nEdited: fixed two typos (other-session)\n`,
-    `Text.\n\nEdited: a forged line (${LABEL}) \n`,
-    `Text.\n\nEdited: a forged line (${LABEL})${String.fromCharCode(0x200d)}\n`,
-  ];
-  for (const body of forged) {
-    const w = world({ store: items(item) });
-    const r = edit(t, s, w, { body });
-    assert.ok(refusedBy(r, 'post/owned-line', 'body_file'), `${JSON.stringify(body)}: ${text(r)}`);
-    assert.equal(w.calls.length, 0);
-    assert.ok(!r.lines.join('\n').includes('forged') && !r.lines.join('\n').includes('typo'));
-  }
-  // A comment or fold left open would hide the run on the page.
-  for (const body of ['Text.\n\n<!--\n', 'Text.\n\n<details>\n']) {
-    const w = world({ store: items(item) });
-    const r = edit(t, s, w, { body });
-    assert.ok(refusedBy(r, 'text/hidden-line', 'body_file'), `${JSON.stringify(body)}: ${text(r)}`);
-    assert.equal(w.calls.length, 0);
-  }
-});
-
-// #524 S6.1a: the second stage runs once the item is read, on the whole body
-test('C9a: the whole body, with the item\'s reason lines carried, is held to the size limit after the item read and before the PATCH', t => {
-  const s = 'issue-comment-edit';
-  const reasons = Array.from({ length: 3 }, (_, i) => `Edited: ${'r'.repeat(150)} (${LABEL}-${i})`).join('\n\n');
-  const w = world({ store: items(`Text.\n\nSigned: ${LABEL}\n\n${reasons}`) });
-  // Under the limit with only the new reason line, over it once the item's three are carried.
-  const fixed = `\n\nSigned: ${LABEL}\n\nEdited: ${REASON} (${LABEL})`.length;
-  const r = edit(t, s, w, { body: 'x'.repeat(65536 - fixed - 10) });
-  assert.ok(refusedBy(r, 'text/body-length', 'body'), text(r));
-  assert.equal(patches(w).length, 0);
-  assert.deepEqual(w.calls.map(c => c.args.at(-1)).filter(a => a !== '-'), ['user', `repos/${TARGET}`, PATHS[s]]);
-  // The same body, with no reason lines to carry, goes through.
-  const ok = world();
-  assert.equal(edit(t, s, ok, { body: 'x'.repeat(65536 - fixed - 10) }).code, 0);
-});
-
-// #524 S6.1a stage 2: the content scan runs once on the whole body, which only the item read can build
-test('C9a: a live edit whose full render trips the content scan is refused after the item read, and no PATCH is sent', t => {
-  const s = 'issue-comment-edit';
-  // The secret starts in the body file and ends in the item's carried reason line, so neither alone holds it.
-  const secret = `zzzq\n\nSigned: ${LABEL}\n\nEdited: first (other-session)`;
-  const env = { MY_API_TOKEN: secret };
-  const w = world({ store: items(`Text.\n\nSigned: ${LABEL}\n\nEdited: first (other-session)`) });
-  const r = edit(t, s, w, { body: 'New zzzq\n', env });
-  assert.ok(refusedBy(r, 'secret/env', 'body'), text(r));
-  assert.equal(patches(w).length, 0);
-  assert.ok(w.calls.some(c => c.args.includes(PATHS[s])), 'the item was read first');
-  assert.ok(!r.lines.join('\n').includes('zzzq'));
-  // Stage one, alone, passes it: the body file by itself holds no secret.
-  const dry = edit(t, s, world(), { body: 'New zzzq\n', env, dry: true });
-  assert.equal(dry.code, 0, text(dry));
-});
-
 // #413 C11
 test('C11: mismatch, unverified, failed and unavailable, each with its NEXT line', t => {
   const s = 'issue-comment-edit';
@@ -431,7 +347,7 @@ test('C11: mismatch, unverified, failed and unavailable, each with its NEXT line
   assert.deepEqual(unverified.lines.slice(-2), ['NEXT: the edit landed. Never send it again. Tell the owner, with the link below.', `RESULT: unverified ${url}`]);
   const failed = edit(t, s, world({ fail: { 'PATCH before': 'HTTP 502: Bad Gateway' } }));
   assert.equal(failed.code, 3);
-  assert.deepEqual(failed.lines.slice(-2), [`NEXT: the edit may have landed. Look at ${url} for its reason line before anything else. If it is there, never send it again: tell the owner its link. If it isn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`, 'RESULT: failed']);
+  assert.deepEqual(failed.lines.slice(-2), [`NEXT: the edit may have landed. Compare the body at ${url} with the body you sent before anything else. If they match, never send it again: tell the owner its link. If they don't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`, 'RESULT: failed']);
   for (const w of [world({ fail: { [`GET ${PATHS[s]} before`]: 'HTTP 502: Bad Gateway' } }), world({ store: { ...items(), [PATHS[s]]: { id: 9001, body: SIGNED, user: 'not an object', issue_url: `${API}/issues/5` } } })]) {
     const r2 = edit(t, s, w);
     assert.equal(r2.code, 4, text(r2));
@@ -455,54 +371,11 @@ test('C12: a dry run prints the PATCH and sizes, runs the body checks, says what
   assert.ok(refusedBy(owned, 'post/owned-line', 'body_file'), text(owned));
 });
 
-// #503: the status comment, signed status-<n>, keeps only its newest reason line.
+// #503: the status comment, signed status-<n>. An item may still hold old Edited: lines, plain text now.
 const STATUS = 'status-5';
 const OLD_REASONS = 'Edited: after Design round 1 (pact-a)\n\nEdited: after Design round 2 (pact-b)';
 const STATUS_ITEM = `## Status: 0 for you, after Design round 2\n\nSigned: ${STATUS}\n\n${OLD_REASONS}`;
 const STATUS_BODY = '## Status: 1 for you, after Test round 1\n';
-
-// #503 C1, C1a
-test('#503 C1: a status edit lands with exactly one Edited line, on an issue and on a pull request', t => {
-  const w = world({ store: items(STATUS_ITEM) });
-  const r = edit(t, 'issue-comment-edit', w, { body: STATUS_BODY, signer: STATUS, reason: 'after Test round 1' });
-  assert.equal(last(r), `RESULT: verified issue-comment-edit ${URLS['issue-comment-edit']} as ${ME}`, text(r));
-  assert.equal(sentBody(w), `${STATUS_BODY}\nSigned: ${STATUS}\n\nEdited: after Test round 1 (${STATUS})`);
-  // C1a: a status comment in a pull request's conversation, the issue the pull request's number.
-  const onPr = '## Status\n\nSigned: status-7\n\nEdited: after Test round 1 (pact-a)';
-  const store = { ...items(), [`repos/${TARGET}/issues/comments/9003`]: { id: 9003, body: onPr, user: { login: ME }, issue_url: `${API}/issues/7` } };
-  const p = world({ store });
-  const pr = edit(t, 'issue-comment-edit', p, { body: '## Status\n', signer: 'status-7', args: { issue: 7, comment: 9003 } });
-  assert.equal(pr.code, 0, text(pr));
-  assert.equal(sentBody(p), '## Status\n\nSigned: status-7\n\nEdited: fixed a wrong link (status-7)');
-});
-
-// #503 C2, #524 C13
-test('#503 C2: a status edit whose body file keeps the old reason lines, or holds any reason-shaped line, is refused with nothing sent', t => {
-  const bodies = [`${STATUS_BODY}\n${OLD_REASONS}\n`, `${STATUS_BODY}\nEdited: after Design round 2 (pact-b)\n`, `Edited: a forged line (${STATUS})\n\n${STATUS_BODY}`];
-  for (const body of bodies) {
-    const w = world({ store: items(STATUS_ITEM) });
-    const r = edit(t, 'issue-comment-edit', w, { body, signer: STATUS });
-    assert.ok(refusedBy(r, 'post/owned-line', 'body_file'), `${JSON.stringify(body)}: ${text(r)}`);
-    assert.equal(patches(w).length, 0);
-  }
-});
-
-// #503 C3: only the status comment of the edited issue drops its reason lines
-test('#503 C3: a status label for another number, with a leading zero, or on another surface carries the item\'s reason lines like any edit', t => {
-  const cases = [
-    ['issue-comment-edit', 'status-6'],
-    ['issue-comment-edit', 'status-05'],
-    ['review-thread-reply-edit', 'status-7'],
-    ['issue-edit', 'status-5'],
-  ];
-  for (const [surface, label] of cases) {
-    const item = `Text.\n\nSigned: ${label}\n\nEdited: fixed a typo (pact-a)`;
-    const w = world({ store: items(item) });
-    const r = edit(t, surface, w, { body: 'Text, fixed.\n', signer: label });
-    assert.equal(r.code, 0, `${surface} ${label}: ${text(r)}`);
-    assert.equal(sentBody(w), `Text, fixed.\n\nSigned: ${label}\n\nEdited: fixed a typo (pact-a)\n\nEdited: ${REASON} (${label})`, `${surface} ${label}`);
-  }
-});
 
 // #503 C4
 test('#503 C4: on a status edit, the author, target, signature, decision and plain-sight checks still refuse', t => {

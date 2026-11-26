@@ -128,7 +128,7 @@ test('C2: a wrong type for each field is refused post/type at its path', t => {
     ['pull-request', BASE['pull-request'], { draft: 'yes' }, 'draft'],
   ];
   for (const [surface, doc, change, where] of wrong) refuses(run(t, surface, { ...doc, ...change }), 'post/type', where);
-  refuses(run(t, 'issue-edit', { repo: TARGET, issue: 5, signer: 'build-524', reason: 5, body_file: 'body.md' }), 'post/type', 'reason');
+  refuses(run(t, 'issue-edit', { repo: TARGET, issue: 5, signer: 'build-524', reason: 5, body_file: 'body.md' }), 'post/unknown', 'reason');
   refuses(run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, source: 'tracker', comment: '5' }] }), 'post/type', 'quote[0].comment');
 });
 
@@ -201,7 +201,7 @@ test('C2: a post file that is not JSON, or whose top level is not an object, is 
 
 // #524 C2: fields that exist but are refused on a surface
 test('C2: a field that exists but is refused on a surface is refused post/field', t => {
-  refuses(run(t, 'issue-comment', { ...NOTE, reason: 'fixed' }), 'post/field', 'reason');
+  refuses(run(t, 'issue-comment', { ...NOTE, reason: 'fixed' }), 'post/unknown', 'reason');
   refuses(run(t, 'pull-request', { ...BASE['pull-request'], labels: ['bug'] }), 'post/field', 'labels');
   refuses(run(t, 'issue-comment', { ...NOTE, title: 'A title' }), 'post/field', 'title');
   const twice = run(t, 'issue', { ...ISSUE, answers: 'issue 5' });
@@ -375,7 +375,6 @@ test('C4: an owned line, a heading or a fence in the read-back is refused post/o
     '<h2>Read-back</h2>',
     'Signed: pact-524',
     'Posted by pact-524.',
-    'Edited: a reason (pact-524)',
     'Answers: issue 5.',
     "Said in this session's chat, 2026-11-11.",
     'Relayed by backlog-lead from its chat, 2026-11-10.',
@@ -403,8 +402,8 @@ test('C4: an owned line, a heading or a fence in the read-back is refused post/o
     assert.equal(r.code, 2);
     assert.ok(has(r, 'post/owned-line', 'intent.corrected'), out(r));
   }
-  // Plain lines pass, however many.
-  assert.equal(run(t, 'issue', { ...ISSUE, intent: { ...INTENT, text: 'Line one.\n\nLine two, which mentions a read-back in passing.' } }).code, 0);
+  // Plain lines pass, however many, an Edited: line among them (PACT-115 C3).
+  assert.equal(run(t, 'issue', { ...ISSUE, intent: { ...INTENT, text: 'Line one.\n\nEdited: a reason (pact-524)\n\nLine two, which mentions a read-back in passing.' } }).code, 0);
 });
 
 // #524 C4: nothing before the signature may hide it (P7, P19)
@@ -622,8 +621,6 @@ test('C6: a body file holding an owned line outside a fence is refused post/owne
   const lines = [
     'Signed: pact-524',
     'Posted by pact-524.',
-    'Edited: a reason (pact-524)',
-    'Edited: shaped like one',
     'Owner decision, from chat.',
     'Relayed owner words, not a decision mark.',
     'Read-back: confirmed.',
@@ -640,6 +637,8 @@ test('C6: a body file holding an owned line outside a fence is refused post/owne
     refuses(r, 'post/owned-line', 'body_file');
     assert.equal(run(t, 'issue-comment', NOTE, { body: `Text.\n\n\`\`\`text\n${line}\n\`\`\`\n` }).code, 0, `${line} inside a fence`);
   }
+  // An Edited: line is the session's own text now (PACT-115 C3).
+  for (const line of ['Edited: a reason (pact-524)', 'Edited: shaped like one']) assert.equal(run(t, 'issue-comment', NOTE, { body: `Text.\n\n${line}\n` }).code, 0, line);
   // Ordinary headings and prose that only mention these are fine.
   assert.equal(run(t, 'issue-comment', NOTE, { body: '## A heading\n\nThe signature reads Signed: in prose, and a read-back is mentioned.\n' }).code, 0);
 });

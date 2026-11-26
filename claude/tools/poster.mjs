@@ -110,10 +110,10 @@ export const SURFACES = Object.freeze({
   'issue-comment': { ...CREATE_FIELDS, issue: REQ, answers: OPT },
   'pull-request-review': { ...CREATE_FIELDS, pr: REQ },
   'review-thread-reply': { ...CREATE_FIELDS, pr: REQ, comment: REQ },
-  'issue-edit': { issue: REQ, reason: REQ, ...EDIT_ASK },
-  'pull-request-edit': { pr: REQ, reason: REQ, ...EDIT_ASK },
-  'issue-comment-edit': { issue: REQ, comment: REQ, reason: REQ, ...EDIT_ASK },
-  'review-thread-reply-edit': { pr: REQ, comment: REQ, reason: REQ, ...EDIT_ASK },
+  'issue-edit': { issue: REQ, ...EDIT_ASK },
+  'pull-request-edit': { pr: REQ, ...EDIT_ASK },
+  'issue-comment-edit': { issue: REQ, comment: REQ, ...EDIT_ASK },
+  'review-thread-reply-edit': { pr: REQ, comment: REQ, ...EDIT_ASK },
 });
 
 /** The fields a surface takes: the common ones and its own. */
@@ -156,7 +156,7 @@ const LABEL_RE = /^[A-Za-z0-9 :._-]{1,50}$/;
 const LABEL_SOURCE = '[a-z0-9][a-z0-9-]{0,49}';
 // The one upper-case shape a signer takes (#580): `pr-<KEY>-<n>`, the key a team's, the number the item's. No other upper-case label opens.
 const KEYED_SOURCE = 'pr-[A-Z][A-Z0-9]{1,9}-[1-9][0-9]{0,15}';
-/** A signer as a signature or reason line holds it, without anchors or capturing groups. */
+/** A signer as a signature line holds it, without anchors or capturing groups. */
 const SIGNER_SOURCE = `(?:${LABEL_SOURCE}|${KEYED_SOURCE})`;
 const SIGNED_RE = new RegExp(`^${SIGNER_SOURCE}$`);
 const VIA_RE = new RegExp(`^${LABEL_SOURCE}$`);
@@ -165,7 +165,6 @@ const ANSWERS_RE = /^(?:issue|pull request|comment) [1-9][0-9]{0,15}$/;
 const BODY_FILE_RE = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/;
 const WHEN_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const TITLE_RE_SOURCE = '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$';
-const ONE_LINE_RE_SOURCE = '^[^\\r\\n\\u2028\\u2029]*$';
 
 /** An owner and a name, or null. */
 export function parseRepo(s) {
@@ -313,7 +312,6 @@ export const SCHEMA = Object.freeze({
     intent_none: { type: 'string', minLength: 1, maxLength: 200, pattern: '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$' },
     start_none: { type: 'string', minLength: 1, maxLength: 200, pattern: '^\\S(?:[^\\r\\n\\u2028\\u2029]*\\S)?$' },
     body_file: { type: 'string', pattern: BODY_FILE_RE.source },
-    reason: { type: 'string', minLength: 1, maxLength: 200, pattern: ONE_LINE_RE_SOURCE },
   },
 });
 
@@ -344,10 +342,10 @@ export const EXAMPLES = Object.freeze({
   'issue-comment': { repo: 'you/your-repo', kind: 'note', issue: 12, as: 'you', signer: 'build-12', body_file: 'comment.md' },
   'pull-request-review': { repo: 'you/your-repo', kind: 'review', pr: 34, signer: 'review-34', body_file: 'review.md' },
   'review-thread-reply': { repo: 'you/your-repo', kind: 'reply', pr: 34, comment: 5678, signer: 'build-34', body_file: 'reply.md' },
-  'issue-edit': { repo: 'you/your-repo', issue: 12, signer: 'build-12', reason: 'fixed a wrong link', body_file: 'body.md' },
-  'pull-request-edit': { repo: 'you/your-repo', pr: 34, signer: 'pr-34', reason: 'fixed a wrong link', body_file: 'body.md' },
-  'issue-comment-edit': { repo: 'you/your-repo', issue: 12, comment: 4321, signer: 'build-12', reason: 'fixed a wrong link', body_file: 'comment.md' },
-  'review-thread-reply-edit': { repo: 'you/your-repo', pr: 34, comment: 8765, signer: 'build-34', reason: 'fixed a wrong link', body_file: 'reply.md' },
+  'issue-edit': { repo: 'you/your-repo', issue: 12, signer: 'build-12', body_file: 'body.md' },
+  'pull-request-edit': { repo: 'you/your-repo', pr: 34, signer: 'pr-34', body_file: 'body.md' },
+  'issue-comment-edit': { repo: 'you/your-repo', issue: 12, comment: 4321, signer: 'build-12', body_file: 'comment.md' },
+  'review-thread-reply-edit': { repo: 'you/your-repo', pr: 34, comment: 8765, signer: 'build-34', body_file: 'reply.md' },
 });
 
 // ---------------------------------------------------------------- the command line
@@ -525,7 +523,6 @@ const allChat = quote => quote.every(q => q.source === 'chat');
 
 /** The lines a field may not hold (S3.3, S5.3): each is read as the page shows it. */
 const FIXED_START = [
-  /^edited:/,
   /^read-back:/,
   /^answers:/,
   /^corrected read-back:/,
@@ -808,7 +805,7 @@ function askSegments(p, blankQuotes = false) {
 /**
  * The body the poster sends, built from fixed parts, one blank line between
  * each (S5.1): the decision mark and `Answers:` line, the ask block, the
- * intent block, the session's body file, `Signed:`, and the reason lines.
+ * intent block, the session's body file, and `Signed:`.
  * With `blankQuotes`, each quote line is empty, so a check that skips the
  * owner's words reads the same lines at the same positions.
  */
@@ -816,12 +813,8 @@ export function renderBody(p, blankQuotes = false) {
   const parts = askSegments(p, blankQuotes).map(s => s.text);
   parts.push(p.sessionPart.replace(/(?:\r?\n)+$/, ''));
   parts.push(`Signed: ${p.signer}`);
-  for (const line of p.reasons ?? []) parts.push(line);
   return parts.join('\n\n');
 }
-
-/** The reason line an edit adds. */
-const reasonLine = (reason, label) => `Edited: ${reason} (${label})`;
 
 /**
  * What the command line asks to post, checked: the post file read strictly
@@ -857,7 +850,6 @@ export function buildPlan(parsed, now = new Date(), heard = false) {
   if (typeof doc.base === 'string' && !isBranch(doc.base) && !refusals.some(x => x.where === 'base')) refusals.push({ rule: 'post/pattern', where: 'base' });
   const repo = typeof doc.repo === 'string' ? parseRepo(doc.repo) : null;
   if (typeof doc.repo === 'string' && !repo && !refusals.some(x => x.where === 'repo')) refusals.push({ rule: 'post/pattern', where: 'repo' });
-  if (typeof doc.reason === 'string' && doc.reason.replace(/\p{Cf}/gu, '').trim() === '' && !refusals.some(x => x.where === 'reason')) refusals.push({ rule: 'post/length', where: 'reason' });
   if (typeof doc.head === 'string' && repo && !refusals.some(x => x.where === 'head')) {
     const colon = doc.head.indexOf(':');
     if (colon >= 0 && !isLogin(doc.head.slice(0, colon))) refusals.push({ rule: 'post/pattern', where: 'head' });
@@ -884,7 +876,6 @@ export function buildPlan(parsed, now = new Date(), heard = false) {
   if (doc.intent_none !== undefined) plan.intentNone = doc.intent_none;
   if (doc.start_none !== undefined) plan.startNone = doc.start_none;
   plan.signer = doc.signer;
-  if (doc.reason !== undefined) plan.reason = doc.reason;
 
   // The body file sits beside the post file and is read as strictly.
   const body = readText(join(dirname(file), bodyName));
@@ -904,11 +895,10 @@ export function buildPlan(parsed, now = new Date(), heard = false) {
   }
 
   plan.sessionPart = body.text;
-  plan.reasons = isEdit(surface) ? [reasonLine(plan.reason, plan.signer)] : [];
   plan.body = renderBody(plan);
   if (chars(plan.body) > BODY_MAX) return { plan, refusals: [{ rule: 'text/body-length', where: 'body' }] };
   // Nothing before the signature may hide it on the page (P19); the named fields were told above.
-  if (!isEdit(surface) && !plan.late.some(x => x.rule === 'text/hidden-line') && hidesAhead(plan.body.slice(0, plan.body.lastIndexOf('\n\nSigned: ')))) plan.late.push({ rule: 'text/hidden-line', where: 'body' });
+  if (!plan.late.some(x => x.rule === 'text/hidden-line') && hidesAhead(plan.body.slice(0, plan.body.lastIndexOf('\n\nSigned: ')))) plan.late.push({ rule: 'text/hidden-line', where: 'body' });
   return { plan, refusals };
 }
 
@@ -1619,10 +1609,6 @@ function parseJson(s) {
 
 // ---------------------------------------------------------------- the edit checks (#413)
 
-/** A reason line, whatever its label, as `linesOf` splits it. */
-const REASON_LINE_RE = new RegExp(`^Edited: .+ \\(${SIGNER_SOURCE}\\)$`);
-/** A line that reads as a reason line on the page, whatever it hides: format characters out, trimmed. */
-const REASON_SHAPE_RE = /^Edited:/;
 /** The two signature lines, whole: `Signed: <label>` and `Posted by <label>.` */
 const SIGNATURE_RE = new RegExp(`^(?:Signed: (${SIGNER_SOURCE})|Posted by (${SIGNER_SOURCE})\\.)$`);
 const HEADING_RE = /^ {0,3}#{1,6}(?:[ \t]|$)/;
@@ -1743,34 +1729,6 @@ export function signatures(body) {
   });
 }
 
-/** The reason lines at a body's end, in order: the run of reason lines and blank lines it ends with. */
-export function trailingReasons(body) {
-  const lines = linesOf(body);
-  const out = [];
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    if (lines[i].trim() === '') continue;
-    if (!REASON_LINE_RE.test(lines[i])) break;
-    out.unshift(lines[i]);
-  }
-  return out;
-}
-
-/**
- * Whether the session's body keeps its reason lines in plain sight: every line
- * outside a fence that reads as a reason line sits in the trailing run, and
- * nothing before the run opens an HTML comment or a fold it doesn't close,
- * which would hide the run on the page.
- */
-function reasonsInSight(body) {
-  const run = trailingReasons(body).length;
-  const shaped = unfenced(linesOf(body)).filter(l => REASON_SHAPE_RE.test(l.replace(/\p{Cf}/gu, '').trim())).length;
-  if (shaped !== run) return false;
-  const lines = linesOf(body);
-  let end = lines.length;
-  for (let seen = 0; end > 0 && seen < run; end -= 1) if (REASON_LINE_RE.test(lines[end - 1])) seen += 1;
-  return !hidesAhead(lines.slice(0, end).join('\n'));
-}
-
 /** The views of a text the edit checks read: as written without format characters, its normalised copies (`copies`, #394), and each of those folded. */
 function views(text) {
   const normalised = copies(text);
@@ -1796,18 +1754,9 @@ function bodyRules(body, label, where) {
   return out;
 }
 
-/**
- * Whether an edit is a status edit (#503): `issue-comment-edit` signed exactly
- * `status-<n>`, n the `--issue` value. A status edit drops the item's reason
- * lines, so its body carries none and the poster adds the newest.
- */
-export const isStatusEdit = plan => plan.surface === 'issue-comment-edit' && typeof plan.issue === 'string' && plan.signer === `status-${plan.issue}`;
-
 /** The checks on the body as far as the post file builds it, before gh is called (S6.1a, stage one). */
 export function editBodyChecks(plan) {
-  const out = bodyRules(plan.body, plan.signer, 'body_file');
-  if (!reasonsInSight(plan.body)) out.push({ rule: 'edit/reasons', where: 'body_file' });
-  return out;
+  return bodyRules(plan.body, plan.signer, 'body_file');
 }
 
 /**
@@ -1838,11 +1787,10 @@ export function editItemChecks(plan, item, login) {
   if (plan.surface === 'issue-edit' && item.pull_request !== undefined && item.pull_request !== null) target = false;
   if (!target) refusals.push({ rule: 'edit/target', where: 'item' });
   // Another account's item is read no further, so its text never reaches the readers (#394 C27); an own item in the wrong place is still read, so a body rule it breaks is still told.
-  if (item.user.login !== login) return { unusable: false, refusals, carried: [] };
+  if (item.user.login !== login) return { unusable: false, refusals };
   const body = item.body ?? '';
   refusals.push(...bodyRules(body, plan.signer, 'item'));
-  // The poster carries the item's reason lines forward; a status edit keeps none of them (#503).
-  return { unusable: false, refusals, carried: isStatusEdit(plan) ? [] : trailingReasons(body), body };
+  return { unusable: false, refusals, body };
 }
 
 // ---------------------------------------------------------------- ask items (S6.1, S6.2)
@@ -1994,8 +1942,6 @@ function askEdit(plan, ask, who, io, ctx) {
   if (a.move) {
     const d = confirmChecks(plan, ask, who, io, ctx);
     if (d.label === undefined) return d;
-    // The item keeps its own signer; the reason says who heard the owner (S6.2b). A decision an app wrote says it was heard in chat (#599, S8).
-    plan.reason = d.heard ? `${plan.reason}, confirmed, as heard in chat by ${d.label}` : `${plan.reason}, heard by ${d.label}`;
   }
   if ((plan.quote ?? []).some(q => q.source === 'tracker')) {
     const t = trackerChecks(plan, who.owner, io, ctx);
@@ -2004,19 +1950,11 @@ function askEdit(plan, ask, who, io, ctx) {
   return {};
 }
 
-/**
- * The checks on the whole body an edit will send, once the item is read and
- * its reason lines carried (S6.1a, S6.3): its size, its signature, a decision
- * mark, and its reason lines, which must be the item's run and the new line, in
- * plain sight.
- */
-export function editFinalChecks(plan, body, carried) {
+/** The checks on the whole body an edit will send, once the item is read (S6.1a, S6.3): its size, its signature and a decision mark. */
+export function editFinalChecks(plan, body) {
   const out = [];
   if (chars(body) > BODY_MAX) out.push({ rule: 'text/body-length', where: 'body' });
   out.push(...bodyRules(body, plan.signer, 'body_file'));
-  const run = trailingReasons(body);
-  const want = [...carried, reasonLine(plan.reason, plan.signer)];
-  if (!reasonsInSight(body) || run.length !== want.length || run.some((l, i) => l !== want[i])) out.push({ rule: 'edit/reasons', where: 'body_file' });
   return out;
 }
 
@@ -2037,7 +1975,7 @@ const LANDED_MISMATCH = landedNext('the link below and the fields named above');
 const editLanded = form => `NEXT: the edit landed. Never send it again. Tell the owner, with ${form}.`;
 const EDIT_LANDED_LINK = editLanded('the link below');
 const EDIT_LANDED_MISMATCH = editLanded('the link below and the fields named above');
-const editFailedNext = url => `NEXT: the edit may have landed. Look at ${url} for its reason line before anything else. If it is there, never send it again: tell the owner its link. If it isn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`;
+const editFailedNext = url => `NEXT: the edit may have landed. Compare the body at ${url} with the body you sent before anything else. If they match, never send it again: tell the owner its link. If they don't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`;
 
 // ---------------------------------------------------------------- one post
 
@@ -2204,13 +2142,12 @@ function editItem(plan, p, args, who, io, ctx, setPhase) {
   if (ask.lines) return { code: 4, lines: ask.lines };
   if (ask.refusals?.length) return refused(ask.refusals);
 
-  // The second stage (S6.1a): the whole body, with the item's reason lines carried forward, is built and checked before the PATCH.
-  plan.reasons = [...c.carried, reasonLine(plan.reason, plan.signer)];
+  // The second stage (S6.1a): the whole body, with the item's mark and answers, is built and checked before the PATCH.
   plan.body = renderBody(plan);
   p.request = { body: plan.body };
   const final = [
     ...scan([{ field: 'body', text: plan.body }], { ...ctx, surface: plan.surface }),
-    ...editFinalChecks(plan, plan.body, c.carried),
+    ...editFinalChecks(plan, plan.body),
   ];
   if (final.length) return refused(final);
 
@@ -2227,7 +2164,7 @@ function editItem(plan, p, args, who, io, ctx, setPhase) {
 }
 
 const DRY_TRACKER = 'dry-run: no tracker comment was read; post/tracker did not run';
-const DRY_EDIT = 'dry-run: the item was not read; edit/ask, edit/status, edit/confirm, post/tracker, the reason carry and the content scan of the full body did not run';
+const DRY_EDIT = 'dry-run: the item was not read; edit/ask, edit/status, edit/confirm, post/tracker and the content scan of the full body did not run';
 
 /**
  * The tracker comments a quote cites, read before the post goes (S3.2): each
@@ -2269,7 +2206,6 @@ export const NEXT_FOR = Object.freeze({
   'edit/target': "NEXT: the item isn't where the post says. Check the issue, pull request and comment numbers against the item's page and post again with the right ones. An issue number that is a pull request's, or a thread's first comment, can't be edited here.",
   'edit/unsigned': 'NEXT: the item and the new body must each carry exactly one `Signed: <signer>` line for this post\'s signer. Edit only an item you signed with that signer. For an item posted unsigned, post a new comment, or ask the owner to type the fix on GitHub.',
   'edit/decision': 'NEXT: a body holding the words "owner decision" is never edited, even a quote of them. Post a new comment instead.',
-  'edit/reasons': "NEXT: the poster adds the Edited: line and carries the item's own forward. Take every Edited: line, and any comment or fold that hides one, out of body_file, then post again.",
   'edit/ask': "NEXT: an ask item's quote and intent must be the item's own, word for word. Rebuild them from the posted item, never from a kept file, or post a new comment instead.",
   'edit/status': "NEXT: a read-back moves only from pending to confirmed or corrected, and the move names the owner's decision comment in intent.comment. To leave it, send the item's own status, comment and corrected text unchanged.",
   'edit/confirm': "NEXT: intent.comment must be this login's own decision comment on this item's issue or pull request, an ask item the owner confirmed in chat that names this item in Answers:. Post that decision first, then edit.",
@@ -2300,7 +2236,7 @@ export const NEXT_FOR = Object.freeze({
   'post/status': "NEXT: a new post's read-back can't be `corrected`, and is `confirmed` only when there is a quote and every quote is from chat; a decision from chat is posted `confirmed`, never `pending`. Fix `intent.status` and run again.",
   'post/when': "NEXT: a passage's `when` is a real date as `YYYY-MM-DD`, with no time of day, and no later than tomorrow in UTC.",
   'post/tracker': "NEXT: a `tracker` passage quotes this login's own comment in this repo, word for word, with at least 20 characters outside its `[left out]` spans, no touching spans and at most three. Fix the passage, or give its source as chat or relayed.",
-  'post/owned-line': "NEXT: take the poster's own line (a signature, an `Edited:` line, a decision mark or a heading of the ask) out of the named field; the poster writes them. The read-back fields take no heading or fence either.",
+  'post/owned-line': "NEXT: take the poster's own line (a signature, a decision mark or a heading of the ask) out of the named field; the poster writes them. The read-back fields take no heading or fence either.",
   'file/unreadable': "NEXT: the named file can't be read. Check its name and that you may read it; a body file sits in the post file's folder. Then run again.",
   'file/link': 'NEXT: a post file or body file may not be a link. Copy its text into a regular file and name that.',
   'file/not-regular': 'NEXT: the named file must be a regular file, not a folder or device, and must not change while it is read. Name a plain file.',
@@ -2353,7 +2289,6 @@ function prepare(argv, io, app) {
     if (plan.intentSkip !== undefined) fields.push({ field: 'intent_skip', text: plan.intentSkip });
     if (plan.intentNone !== undefined) fields.push({ field: 'intent_none', text: plan.intentNone });
     if (plan.startNone !== undefined) fields.push({ field: 'start_none', text: plan.startNone });
-    if (plan.reason !== undefined) fields.push({ field: 'reason', text: plan.reason });
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env };
     // In app mode a post goes out `as` the app's bot login and no other (#599, S8).
