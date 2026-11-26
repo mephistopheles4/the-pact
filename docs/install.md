@@ -23,6 +23,7 @@ Claude Code session on your machine.
 
 - [Before you install](#before-you-install)
 - [Where the pact installs](#where-the-pact-installs)
+  - [Skill links](#skill-links)
 - [Before the first install into `~/.pact`](#before-the-first-install-into-pact)
 - [1. Check the prerequisites](#1-check-the-prerequisites)
 - [2. Clone the repo](#2-clone-the-repo)
@@ -72,9 +73,9 @@ moves `~/.pact`.
 A **harness** is a program the rules install into. The pact knows three, in
 [`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
 `codex` and `antigravity`. The install writes each one's rules, and the agents
-of Claude Code and Codex; Antigravity gets none yet. Commands reach Codex and
-Antigravity as skills in `~/.pact/skills`, not yet linked into either.
-[The guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
+of Claude Code and Codex; Antigravity gets none yet.
+[Skill links](#skill-links) give Codex and Antigravity the commands, and
+[the guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
 
 - **Detection.** A known harness is found when its `detect` folder exists
   (`~/.claude`, `~/.codex`, `~/.gemini/config`).
@@ -91,6 +92,18 @@ Antigravity as skills in `~/.pact/skills`, not yet linked into either.
   fields of the known ones (spec 0007, S5). A description the pact can't take
   refuses (`harness-id`, `harness-format`, `harness-path`,
   `harness-shape`, `harness-field`).
+
+### Skill links
+
+Codex and Antigravity get each command that is on as a skill. The pact keeps the
+skill in `~/.pact/skills/<name>`, and links `<name>` in the harness's skills
+folder (`~/.agents/skills`, `~/.gemini/config/skills`) to it: a directory
+junction on Windows, a symlink elsewhere. The dry run lists each link it makes
+or removes. Where no link can be made, it warns, and the apply copies the
+folder's files instead. A folder of yours with a skill's name is left as it is,
+listed under `Yours, left as is:`. A link the pact made that you have since
+replaced is drift. The install removes only the links and copies its record
+lists.
 
 ## Before the first install into `~/.pact`
 
@@ -921,8 +934,8 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
    failure:
    - each path is relative to your home folder, with forward slashes and no `..`,
      and names its harness;
-   - each path is under `.pact/` or a harness's own rules file, agents or
-     commands folder, or is its hooks file (`~/.codex/hooks.json`,
+   - each path is under `.pact/` or a harness's own rules file, agents,
+     commands or skills folder, or is its hooks file (`~/.codex/hooks.json`,
      `~/.gemini/config/hooks.json`, or the one your own harness names); none
      is under `.pact/blocks/`, `.pact/presets/`,
      `.pact/backups/`, `.pact/handoffs/`, `.pact/config.json`,
@@ -931,16 +944,24 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
      listed;
    - each `was: file` copy's SHA-256 matches its entry, by `sha256sum` or
      `shasum -a 256`, or `Get-FileHash` in PowerShell (compare ignoring case);
+   - each `was: link` entry is a skill's name in a skills folder, and its
+     `target` is `.pact/skills/` and that name;
    - each `was: absent` path, other than `settings.json` and
      `install.json`, is listed in your current
-     `~/.pact/install.json` (a hooks file under its `entries`), so a planted
+     `~/.pact/install.json` (a hooks file under its `entries`, a skill link under
+     its `links`), so a planted
      entry can't have you delete a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
    `~/<path>`. Keep `settings.json`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
    and macOS.
-5. **Delete each `was: absent` path** that is there.
+5. **Delete each `was: absent` path** that is there. A skill link goes as a
+   link, never through it: `rm <path>` on Linux and macOS,
+   `cmd /c rmdir "<path>"` on Windows, with no `-r` or `/s`. Then make each
+   `was: link` entry again: `ln -s "$HOME/<target>" "$HOME/<path>"`, or
+   `New-Item -ItemType Junction -Path "$HOME\<path>" -Target "$HOME\<target>"`
+   in PowerShell.
 6. **Run the dry run** to check, and read it before you start any session: it
    shows no drift, its `Last install:` line names the commit in the name of the
    next-older backup, the apply before the oldest one you undid (after undoing

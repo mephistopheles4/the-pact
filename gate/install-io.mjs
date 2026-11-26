@@ -4,7 +4,7 @@
 // writes. It makes no decision; gate/install-core.mjs does. Nothing here runs
 // on import, and no error's text leaves here unhandled by the runner.
 import { createHash } from 'node:crypto';
-import { chmodSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmdirSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import * as core from './install-core.mjs';
 import { FOLD_CASE, realOrResolved } from './paths.mjs';
@@ -212,6 +212,55 @@ export function openToOthers(p) {
   }
 }
 
+/** A link's target as a path to compare: no `\\?\` prefix and no closing separator, which Windows may add to a junction's. */
+const linkText = p => fold(resolve(p.replace(/^\\\\\?\\/, '')));
+
+/** What is at a skill folder's path, read without following it: 'absent', 'ours' (a link to `target`) or 'other'. */
+export function linkState(p, target) {
+  try {
+    if (!lstatSync(p).isSymbolicLink()) return 'other';
+    return linkText(resolve(dirname(p), readlinkSync(p))) === linkText(target) ? 'ours' : 'other';
+  } catch (e) {
+    return e && e.code === 'ENOENT' ? 'absent' : 'other';
+  }
+}
+
+/** A link at `path` to the folder `target`: a symlink, or on Windows a directory junction, which needs no extra rights. It never replaces anything. */
+export function makeLink(target, path) {
+  mkdirSync(dirname(path), { recursive: true });
+  symlinkSync(target, path, process.platform === 'win32' ? 'junction' : 'dir');
+}
+
+/** Removes a link and nothing it points at. */
+export function removeLink(p) {
+  try {
+    unlinkSync(p);
+  } catch {
+    rmdirSync(p); // a Windows junction that will not unlink
+  }
+}
+
+/** Whether a link can be made at all, tried inside the install's own work folder. */
+export function canLink(work) {
+  const probe = join(work, 'link-probe');
+  try {
+    makeLink(join(work, 'stage'), probe);
+    removeLink(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Removes a folder only when it is empty. */
+export function removeIfEmpty(p) {
+  try {
+    rmdirSync(p);
+  } catch (e) {
+    if (!e || !['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(e.code)) throw e;
+  }
+}
+
 export const removeFile = p => unlinkSync(p);
 export const exists = p => existsSync(p);
 
@@ -350,7 +399,7 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
     const listed = [];
     for (const e of [...entries].sort((a, b) => (a.path < b.path ? -1 : 1))) {
       if (e.was !== 'file') {
-        listed.push({ path: e.path, harness: e.harness, was: 'absent' });
+        listed.push({ path: e.path, harness: e.harness, was: e.was, ...(e.was === 'link' ? { target: e.target } : {}) });
         continue;
       }
       const bytes = ops.read(at(e.path));

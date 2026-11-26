@@ -396,7 +396,7 @@ const asList = v => (v === null || v === undefined ? [] : Array.isArray(v) ? v :
 const psString = v => (v === null || v === undefined ? '' : typeof v === 'boolean' ? (v ? 'True' : 'False') : typeof v === 'object' ? JSON.stringify(v) : String(v));
 
 const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
-const TARGET_KEYS = Object.freeze(['rules', 'agents', 'commands', 'settings']);
+const TARGET_KEYS = Object.freeze(['rules', 'agents', 'commands', 'skills', 'settings']);
 /** A record's target, held to what a description's path may be: plain, outside the neutral home and every secret store, a rules file .md and a settings file .json. */
 const targetOk = (kind, v) => typeof v === 'string' && isCanonical(v) && v.split('/')[0].toLowerCase() !== NEUTRAL_REL && !isSecretStore(v) && (kind !== 'rules' || /\.md$/i.test(v)) && (kind !== 'settings' || /\.json$/i.test(v));
 
@@ -437,12 +437,16 @@ export function parseRecord(text) {
   // Every settings entry the install wrote: where, which key, its value and the value's hash.
   const entries = ci(doc, 'entries') ?? [];
   if (!Array.isArray(entries) || !entries.every(e => isPlainObject(e) && ['harness', 'path', 'key', 'sha256'].every(k => typeof e[k] === 'string') && Object.hasOwn(e, 'value'))) refuse('record-not-pact', 'the install record\'s entries are not a list of settings entries; fix or remove it.');
+  // Every skill link the install made: the harness, the link and the folder it points at.
+  const links = ci(doc, 'links') ?? [];
+  if (!Array.isArray(links) || !links.every(l => isPlainObject(l) && ['harness', 'path', 'target'].every(k => typeof l[k] === 'string'))) refuse('record-not-pact', 'the install record\'s links are not a list of skill links; fix or remove it.');
   const valuesAt = key => entries.filter(e => e.key === key && typeof e.value === 'string').map(e => e.value);
   // The two env keys the identity switch set (#603), and the auto-compact window (#482): each only in the form the install writes.
   const identityEnv = Object.fromEntries(IDENTITY_ENV_KEYS.flatMap(k => valuesAt(`env.${k}`).slice(0, 1).map(v => [k, v])));
   const recordedWindow = entries.find(e => e.key === 'autoCompactWindow')?.value;
   return {
     harnesses: harnesses.map(h => ({ ...h })),
+    links: links.map(l => ({ harness: l.harness, path: l.path, target: l.target })),
     entries: entries.map(e => ({ harness: e.harness, path: e.path, key: e.key, value: e.value, sha256: e.sha256 })),
     cleanerDeny: valuesAt('permissions.deny'),
     identityEnv,
@@ -462,13 +466,14 @@ export function parseRecord(text) {
  * harnesses with their paths, config, every file with its harness and hash,
  * every settings entry, and the gate. `files` is path to { harness, sha256 }.
  */
-export function recordText({ commit, digest, harnesses, userHash, blockHashes, files, entries, gateNow }) {
+export function recordText({ commit, digest, harnesses, userHash, blockHashes, files, links = [], entries, gateNow }) {
   const doc = {
     commit,
     digest: digest ?? null,
     harnesses,
     config: [...(userHash ? [{ kind: 'user', sha256: userHash }] : []), ...[...blockHashes].map(([path, sha256]) => ({ kind: 'block', path, sha256 }))],
     files: [...files].map(([path, f]) => ({ harness: f.harness, path, sha256: f.sha256 })),
+    ...(links.length ? { links } : {}),
     entries,
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
   };
@@ -952,7 +957,7 @@ export function builtParts(h, tables = TOOL_TABLES) {
 /** Where a harness's files go, as the record keeps it: only the parts this pact writes. */
 export function targetsOf(h) {
   const p = builtParts(h);
-  return { id: h.id, ...(p.rules ? { rules: h.rules.path } : {}), ...(p.agents ? { agents: h.agents.dir } : {}), ...(p.commands ? { commands: h.commands.dir } : {}), ...(p.settings ? { settings: h.hooks.file } : {}) };
+  return { id: h.id, ...(p.rules ? { rules: h.rules.path } : {}), ...(p.agents ? { agents: h.agents.dir } : {}), ...(p.commands ? { commands: h.commands.dir } : {}), ...(p.skills ? { skills: h.skills.dir } : {}), ...(p.settings ? { settings: h.hooks.file } : {}) };
 }
 
 /** Seam A's --harness value for the harnesses that are in: `none`, or each id with the parts it takes; `guard` only while the rule table holds a rule. */
@@ -2085,6 +2090,9 @@ export function skipReason(rel, throughLink, merged = []) {
 
 const oneMd = (rel, dir) => Boolean(dir) && rel.startsWith(`${dir}/`) && /^[^/]+\.md$/.test(rel.slice(dir.length + 1));
 
+/** A file of a skill folder the install copied where it could not link one (spec 0007 S7). */
+const skillCopy = (rel, dir) => Boolean(dir) && rel.startsWith(`${dir}/`) && /^[a-z0-9][a-z0-9-]*\/(?:SKILL\.md|agents\/openai\.yaml)$/.test(rel.slice(dir.length + 1));
+
 /**
  * Whether the install may act on `rel` for `harness`: the neutral home for the
  * pact's own files, and otherwise only a harness's rules file or a .md file
@@ -2096,7 +2104,7 @@ export function inTargets(rel, harness, targets) {
   if (typeof rel !== 'string') return false;
   const neutral = rel.toLowerCase().startsWith(`${NEUTRAL_REL}/`);
   if (harness === PACT_ID) return neutral;
-  return !neutral && targets.some(t => t.id === harness && (rel === t.rules || oneMd(rel, t.agents) || oneMd(rel, t.commands)));
+  return !neutral && targets.some(t => t.id === harness && (rel === t.rules || oneMd(rel, t.agents) || oneMd(rel, t.commands) || skillCopy(rel, t.skills)));
 }
 
 /** The live destinations of the copy set (S6, L1): each must be safe, and no two may fold to one name. */
@@ -2116,6 +2124,110 @@ export function installDestinations(checked, throughLink, merged = []) {
   }
   return { repoFiles, sourceOf, harnessOf };
 }
+
+// ------------------------------------------------------------ the skill links (spec 0007 S7, S9)
+
+/** Each skill folder the harnesses are to hold: one per path, for the first harness that reads it. */
+export function skillsWanted(harnesses, names) {
+  const out = new Map();
+  for (const h of harnesses) {
+    if (!builtParts(h).skills) continue;
+    for (const name of names) {
+      const path = `${h.skills.dir}/${name}`;
+      if (!out.has(path.toLowerCase())) out.set(path.toLowerCase(), { harness: h.id, path, target: `${SKILLS_DEST}${name}` });
+    }
+  }
+  return [...out.values()];
+}
+
+/** Why a link, recorded or wanted, is not one the install may act on, or null: a skill's name directly in its harness's skills folder, pointing at that skill, through no linked folder. */
+function linkReason(l, targets, throughLink, merged) {
+  const cut = l.path.lastIndexOf('/');
+  const dir = l.path.slice(0, cut);
+  const name = l.path.slice(cut + 1);
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(name) || l.target !== `${SKILLS_DEST}${name}`) return 'unsafe path';
+  if (!targets.some(t => t.id === l.harness && t.skills === dir)) return "path outside its harness's folders";
+  // The path itself may be the link, so the link test stops at the folder that holds it.
+  return skipReason(l.path, () => throughLink(dir), merged);
+}
+
+/**
+ * What the skill folders need. `state(path, target)` is the live answer:
+ * 'absent', 'ours' (a link to the target) or 'other'. `add` is linked, `copy`
+ * copied (no link can be made, or the record already lists a copy), `keep`
+ * linked already, `remove` a recorded link no harness takes, `yours` a path the
+ * record doesn't list, left as is, `drift` a recorded link that became
+ * something else, and `blocked` a wanted path the install may not act on, for
+ * checkLinks. A recorded link that is gone is made again.
+ */
+export function linkPlan({ wanted, record, targets, state, canLink, throughLink, merged = [] }) {
+  const out = { add: [], copy: [], keep: [], remove: [], yours: [], drift: [], blocked: [], warnings: [] };
+  const files = record ? record.files : [];
+  const copied = path => files.some(f => f.path?.toLowerCase().startsWith(`${path.toLowerCase()}/`));
+  const recorded = new Map();
+  for (const l of record ? record.links : []) {
+    const why = linkReason(l, targets, throughLink, merged);
+    if (why) out.warnings.push(`${why} in the install record, skipped: ${l.path}`);
+    else recorded.set(l.path.toLowerCase(), l);
+  }
+  const changed = l => out.drift.push({ harness: l.harness, line: `${l.path} (the pact's skill link changed since the install)` });
+  const taken = new Set();
+  for (const w of wanted) {
+    const why = linkReason(w, targets, throughLink, merged);
+    if (why) {
+      out.blocked.push({ path: w.path, why });
+      continue;
+    }
+    const key = w.path.toLowerCase();
+    taken.add(key);
+    const now = state(w.path, w.target);
+    if (recorded.has(key) && now !== 'absent') {
+      if (now === 'ours') out.keep.push(w);
+      else changed(w);
+    } else if (copied(w.path)) out.copy.push(w);
+    else if (now !== 'absent') out.yours.push(w);
+    else (canLink ? out.add : out.copy).push(w);
+  }
+  for (const [key, l] of recorded) {
+    if (taken.has(key)) continue;
+    const now = state(l.path, l.target);
+    if (now === 'ours') out.remove.push(l);
+    else if (now !== 'absent') changed(l);
+  }
+  return out;
+}
+
+/** The first skill folder the install may not act on refuses, as a file's destination does. */
+export function checkLinks({ blocked }) {
+  if (blocked.length) refuse('dest-skip', `${blocked[0].why} for a skill folder: ${formatPlain(blocked[0].path)}.`);
+}
+
+/** A copied skill's files as destinations: each file the neutral home gets for it, installed into its folder as well. */
+export const copyDestinations = (copy, destinations) => copy.flatMap(w => destinations
+  .filter(([, d]) => d.dest.startsWith(`${w.target}/`))
+  .map(([rel, d]) => [rel, { dest: `${w.path}${d.dest.slice(w.target.length)}`, sha256: d.sha256, harness: w.harness }]));
+
+/** The folders a deleted skill copy may leave empty, deepest first. */
+export function skillFolders(deleted, targets) {
+  const out = new Set();
+  for (const rel of deleted) {
+    for (const { skills } of targets) {
+      if (!skillCopy(rel, skills)) continue;
+      const parts = rel.split('/');
+      const root = skills.split('/').length + 1;
+      for (let n = parts.length - 1; n >= root; n--) out.add(parts.slice(0, n).join('/'));
+    }
+  }
+  return [...out].sort((a, b) => b.split('/').length - a.split('/').length);
+}
+
+/** The dry run's lines for one harness's links. */
+export const linkLines = (plan, harness) => [
+  ...plan.add.filter(l => l.harness === harness).map(l => `  link ${l.path} -> ${l.target}`),
+  ...plan.remove.filter(l => l.harness === harness).map(l => `  unlink ${l.path}`),
+];
+
+export const NO_LINK_LINE = 'WARN: a skill link cannot be made on this machine, so each new skill folder is copied instead.';
 
 /** The old builder agents' paths in Claude Code's agents folder, which a first install deletes (#262). */
 export const retiredPaths = targets => targets.filter(t => t.id === 'claude' && t.agents).flatMap(t => RETIRED.map(r => `${t.agents}/${r.slice('agents/'.length)}`));
@@ -2375,7 +2487,7 @@ const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
  * the bytes the merge read, or null when it creates the file); the record
  * (`record`: its hash, or null when there is none).
  */
-export function backupEntries({ copy, add, live, settings = [], record, harnessOf = () => PACT_ID }) {
+export function backupEntries({ copy, add, live, settings = [], record, harnessOf = () => PACT_ID, links = { add: [], remove: [] } }) {
   const out = [];
   for (const rel of copy) {
     const s = live(rel);
@@ -2383,6 +2495,8 @@ export function backupEntries({ copy, add, live, settings = [], record, harnessO
     out.push({ path: rel, harness: harnessOf(rel), was: 'file', sha256: s.sha256 });
   }
   for (const rel of add) out.push({ path: rel, harness: harnessOf(rel), was: 'absent' });
+  for (const l of links.add) out.push({ path: l.path, harness: l.harness, was: 'absent' });
+  for (const l of links.remove) out.push({ path: l.path, harness: l.harness, was: 'link', target: l.target });
   const one = (path, harness, sha) => (sha === null ? { path, harness, was: 'absent' } : { path, harness, was: 'file', sha256: sha });
   for (const f of settings) out.push(one(f.path, f.harness, f.sha256));
   out.push(one(RECORD_REL, PACT_ID, record));
@@ -2391,7 +2505,7 @@ export function backupEntries({ copy, add, live, settings = [], record, harnessO
 
 /** The manifest, written last into a backup: two-space JSON, keys in a fixed order, entries sorted by path. */
 export function manifestText({ commit, created, entries }) {
-  const listed = [...entries].sort(byPath).map(e => (e.was === 'file' ? { path: e.path, harness: e.harness, was: 'file', sha256: e.sha256, bytes: e.bytes } : { path: e.path, harness: e.harness, was: 'absent' }));
+  const listed = [...entries].sort(byPath).map(e => (e.was === 'file' ? { path: e.path, harness: e.harness, was: 'file', sha256: e.sha256, bytes: e.bytes } : { path: e.path, harness: e.harness, was: e.was, ...(e.was === 'link' ? { target: e.target } : {}) }));
   return `${JSON.stringify({ format: BACKUP_FORMAT, commit, created, entries: listed }, null, 2)}\n`;
 }
 
