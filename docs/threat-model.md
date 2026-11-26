@@ -171,24 +171,24 @@ Codex and Antigravity, and there before typed input; and the release job's token
   made, or while the owner edits or disables them. A session holding the
   owner's git or `gh` credentials counts as the owner there and can make a
   stable tag: accepted under Who counts as you (S2 item 75). Actions pinned to a full commit SHA in
-  all five workflows; Dependabot's weekly action updates with a 14-day cooldown;
+  all four workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot
   security updates. They hold for what the pins and queries cover; an update
   is a pull request, read like any change.
-- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all five
+- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all four
   workflows to no `pull_request_target`, to no secret and no deployment
-  environment, and to a read-only token but for an exact allow-list each on `codeql.yml`, the two Claude files
-  and `release.yml`:
+  environment, and to a read-only token but for an exact allow-list each on
+  `codeql.yml`, `claude.yml` and `release.yml`:
   `security-events: write` in one CodeQL job, skipped for Dependabot;
-  `id-token: write` in each Claude job, with no key in the repo;
+  `id-token: write` and caps in the Claude job, no key in the repo;
   `contents: write` in the one release job, with no checkout, the only use of `workflow_run`, which tags only this repo's `main` tip after `gate` passes a
   push there, as a release candidate, while `PACT_RELEASES` is `on`; a stable
   tag comes only from the repository admin, by the owner's
   `node gate/release-promote.mjs`, run under their own account and naming a
   candidate on `main`. The
-  Console's federation rule bounds who gets an Anthropic token; each job's guard,
+  Console's federation rule bounds who gets an Anthropic token; the job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the
-  Claude jobs' write token. It
+  Claude job's write token. It
   refuses `#`-line expressions, `secrets` and deployment environments; a read split across lines, or an oddly spelled job
   token, can pass. It holds only while the test itself is unchanged; a change to it is read
   like any change. The bootstrap takes only an exact release tag, stable unless asked, and checks the
@@ -221,13 +221,13 @@ setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
 with the owner's rights, and a crafted model could exploit a parser bug; a
-Claude run that an allowed actor, or a session with an app key, starts
-reads anyone's text and spends Anthropic tokens; it can steer what Claude
-writes through the app's token, short of `main`; an allowed bot's comment that
-merely contains `@claude` starts one; the rule pins no ref or workflow, so any
-workflow on any branch of the owner's repos that an allowed actor starts can
-mint an Anthropic token (the service account's scope is the owner's to
-confirm); the review plugin is fetched unpinned. Pinned design-system code: each re-pin is reviewed
+Claude run an allowed actor starts reads anyone's text, which can steer it
+and the Claude app token it can read up to a merge on `main`, or
+leak that token or an Anthropic token publicly, past its caps (both accepted); a pull
+request's edited `claude.yml` runs on a review comment with its own steps,
+the repo's secrets and an Anthropic token, but no app token; until the owner
+pins and scopes the rule, any workflow of the owner's can mint one; spec 0006
+W5 has the rest. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs

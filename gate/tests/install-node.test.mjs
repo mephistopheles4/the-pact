@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { applyBound, commitAll, git, home, install, listTree, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
+import { applyBound, commitAll, git, home, install, listTree, makeRepo, nodeEnv, passed, refused, sharedInstall, sharedRepo, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
 import { runCore } from './gate-run.mjs';
 import { tempDir } from './tree.mjs';
 import { forClaude, skipUnlessLinuxCi } from './text.mjs';
@@ -22,7 +22,7 @@ const workFolders = dir => readdirSync(dir).filter(n => n.startsWith('pact-insta
 const lastLine = s => s.trimEnd().split('\n').at(-1);
 
 test('node: a dry run on a clean tree passes, shows the pin, the check, the gate and the apply line, and writes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const r = install(repo, h);
   passed(r);
@@ -53,9 +53,8 @@ test('node: an inherited NODE_OPTIONS preload runs in the bootstrap, the one pro
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: --apply installs the files byte for byte, writes the record and the guard, and the next dry run has nothing to do', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  passed(applyBound(repo, h));
+  const { repo, home: h, r } = sharedInstall();
+  passed(r);
   const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.equal(record.commit, git(repo, 'rev-parse', 'HEAD').trim());
   // #482: the default install records the window it set (C1).
@@ -78,7 +77,7 @@ test('node: --apply installs the files byte for byte, writes the record and the 
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: --apply keeps the live settings: an exact large number, the owner\'s rules and the file mode (#177)', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const sf = join(h, '.claude', 'settings.json');
   writeFileSync(sf, '{"big": 12345678901234567890.10, "permissions": {"allow": ["Read"]}}\n');
@@ -92,7 +91,7 @@ test('node: --apply keeps the live settings: an exact large number, the owner\'s
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: an installed file that is a hard link loses only its own name; the other file keeps its bytes', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const outside = join(tempDir(t, 'pact-outside-'), 'victim.md');
   writeFileSync(outside, 'victim\n');
@@ -162,7 +161,7 @@ test('node: the dirty count never runs a clean filter, which git status would', 
 });
 
 test('node: a git redirect refuses before anything is staged', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   refused(install(repo, h, { env: { GIT_DIR: join(repo, '.git') } }), /^REFUSED: GIT_DIR is set/m);
 });
@@ -181,7 +180,7 @@ test('node: a partial clone refuses, and a credential in a remote address is nev
 });
 
 test('node: --apply needs --commit, and a commit other than HEAD refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   refused(install(repo, h, { extra: ['--apply'] }), /^REFUSED: --apply needs --commit/m);
   refused(install(repo, h, { apply: 'f'.repeat(40) }), /^REFUSED: the commit given with --commit is not the commit HEAD names now/m);
@@ -263,7 +262,7 @@ test('node: a bootstrap that writes no reachable list is refused by the runner',
 });
 
 test('node: the runner started from the working tree refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const runner = join(repo, 'gate', 'install-run.mjs');
   for (const args of [[], [join(repo, 'pact-install-x'), 'a'.repeat(40), '0', '--']]) {
     const r = spawnNodeInstall([runner, ...args], { cwd: repo, encoding: 'utf8', env: nodeEnv() });
@@ -274,7 +273,7 @@ test('node: the runner started from the working tree refuses', t => {
 });
 
 test('node: other pact-install folders in the temp folder are counted, never removed', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const tmp = tempDir(t, 'pact-tmp-');
   mkdirSync(join(tmp, 'pact-install-left'));
   const r = install(repo, home(t), { env: { TEMP: tmp, TMP: tmp, TMPDIR: tmp } });
@@ -290,7 +289,7 @@ const userConfig = (h, n = 90) => {
 const renderedHash = r => /^ {2}rendered rules file: sha256 ([0-9a-f]{64})$/m.exec(r.stdout)?.[1];
 
 test('node: a configuration binds --apply to the rendered hash, and the record names its digest', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   userConfig(h);
   const dry = install(repo, h);
@@ -311,7 +310,7 @@ test('node: a configuration binds --apply to the rendered hash, and the record n
 });
 
 test('node: --review-folder writes the rendered rules and the diff once every check passes, and installs nothing on a dry run', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   userConfig(h);
   const rev = join(tempDir(t, 'pact-rev-'), 'review');
@@ -326,7 +325,7 @@ test('node: --review-folder writes the rendered rules and the diff once every ch
 });
 
 test('node: a configuration blocks folder that is a link refuses before the renderer runs', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, '.pact'));
   try {
@@ -352,7 +351,7 @@ const junctionOrSkip = (t, target, path) => {
 };
 
 test('node: a pact folder that is a link refuses before the renderer reads the user configuration', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const elsewhere = tempDir(t, 'pact-else-');
   writeFileSync(join(elsewhere, 'config.json'), '{"schema": 1, "settings": {"usage-pause": 90}}\n');
@@ -363,7 +362,7 @@ test('node: a pact folder that is a link refuses before the renderer reads the u
 });
 
 test('node: a link inside the configuration blocks folder refuses before the renderer runs', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, '.pact', 'blocks', '.hidden'), { recursive: true });
   if (!junctionOrSkip(t, tempDir(t, 'pact-else-'), join(h, '.pact', 'blocks', '.hidden', 'deep'))) return;
@@ -374,7 +373,7 @@ test('node: a configuration blocks folder that cannot be read refuses', t => {
   if (WIN) return t.skip('a folder this account cannot read can only be made on Unix');
   // #311: a root account on Linux CI fails here rather than skip.
   if (process.getuid?.() === 0) return skipUnlessLinuxCi(t, 'a folder this account cannot read can only be made as a user other than root');
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const locked = join(h, '.pact', 'blocks', 'locked');
   mkdirSync(locked, { recursive: true });
@@ -398,7 +397,7 @@ test('node: a commit with no runner refuses', t => {
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: a temp file an earlier install left refuses --apply before any write, naming it', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(join(h, '.claude', 'settings.json.pact-tmp'), '{}\n');
   refused(applyBound(repo, h), /^REFUSED: a temp file the install writes through is already there: \.claude\/settings\.json\.pact-tmp\. .* Nothing was changed\.$/m);
@@ -408,7 +407,7 @@ test('node: a temp file an earlier install left refuses --apply before any write
 // Nothing outside the typed command can turn on --apply (S6, A2 and A3):
 // environment variables named like its options leave a dry run a dry run.
 test('node: environment variables named like the options never turn on --apply', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const commit = git(repo, 'rev-parse', 'HEAD').trim();
   const r = install(repo, h, { env: { APPLY: '1', PACT_APPLY: '1', npm_config_apply: 'true', npm_config_commit: commit, INSTALL_ARGS: `--apply --commit ${commit}` } });

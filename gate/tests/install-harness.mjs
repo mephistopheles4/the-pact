@@ -3,12 +3,11 @@
 // ~/.pact or ~/.claude.
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
-import { afterEach, beforeEach } from 'node:test';
 import { COPY_DIRS, COPY_FILES, COPY_SKIP } from './copy-list.mjs';
 import { REPO } from './text.mjs';
-import { tempDir } from './tree.mjs';
+import { longTmp, tempDir } from './tree.mjs';
 
 export const WIN = process.platform === 'win32';
 
@@ -57,7 +56,10 @@ export function commitAll(root, msg = 'test') {
  * an agent-file change doesn't pick every install test.
  */
 export function makeRepo(t, mutate) {
-  const root = tempDir(t, 'pact-repo-');
+  return buildRepo(tempDir(t, 'pact-repo-'), mutate);
+}
+
+function buildRepo(root, mutate) {
   // The install drops gate/tests before any check, so the copy leaves it out.
   const skip = new Set(COPY_SKIP.map(rel => join(REPO, ...rel.split('/'))));
   for (const d of COPY_DIRS) {
@@ -78,49 +80,56 @@ export function makeRepo(t, mutate) {
   return root;
 }
 
-// The purity guard (#140, T6): a file that imports this harness is in the
-// install tier, so each of its tests must run the install script or skip
-// itself. Each file runs in its own process, and its tests run one at a time,
-// so one count serves the file. The count is per top-level test: a subtest's
-// installs count toward the test it runs in, and a subtest is not checked on
-// its own, so a subtest that reads its parent's install passes. makeRepo and
-// git are not installs. A top-level test that calls t.skip() stays a skip:
-// the hook records the call and never throws for it, since node 24.21 reports
-// a skipped test as failed when this hook throws (20.20 and 24.14 kept the
-// skip). A subtest's skip excuses nothing. A test is top-level when its full
-// name is its own name; a count of hook calls won't do, because node runs no
-// afterEach for a skipped subtest (#166). The guard's own tests pin all this
-// (ADR 0033).
-let installs = 0;
-let skipped = false;
-const topLevel = t => t.fullName === t.name;
-beforeEach(t => {
-  if (!topLevel(t)) return;
-  installs = 0;
-  skipped = false;
-  const skip = t.skip.bind(t);
-  t.skip = (...args) => {
-    skipped = true;
-    return skip(...args);
-  };
-});
-afterEach(t => {
-  if (topLevel(t) && installs === 0 && !skipped) {
-    throw new Error(`purity guard: "${t.name}" is in an install-tier file but neither ran the install script nor skipped itself; move it to a file that never installs`);
-  }
-});
-/** Runs node with `args`, one of which must name the Node install script; counts as an install (#153). */
+/** Runs node with `args`, one of which must name the Node install script (#153). */
 export function spawnNodeInstall(args, options) {
   if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstall: no argument names the Node install script, so this is not an install');
-  installs++;
   return spawnSync(process.execPath, args, options);
 }
 
 /** spawnNodeInstall's async form, for a test that signals or waits on a running install. */
 export function spawnNodeInstallAsync(args, options) {
   if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstallAsync: no argument names the Node install script, so this is not an install');
-  installs++;
   return spawn(process.execPath, args, options);
+}
+
+// One repo and one applied install per test file (PACT-114), made on first use
+// and removed when the file's process exits. Each file runs in its own process
+// and its tests run one at a time, so a test that only reads them can share
+// them. A test that changes the repo or the home makes its own with makeRepo
+// and home: the shared ones must stay as made.
+let sharedRoot = null;
+let sharedRepoDir = null;
+let sharedApplied = null;
+
+function sharedFolder() {
+  if (sharedRoot === null) {
+    sharedRoot = mkdtempSync(join(longTmp(), 'pact-shared-'));
+    process.on('exit', () => rmSync(sharedRoot, { recursive: true, force: true }));
+  }
+  return sharedRoot;
+}
+
+/** The file's one unmodified repo, as makeRepo(t) builds it. Never change it. */
+export function sharedRepo() {
+  if (sharedRepoDir === null) {
+    const root = join(sharedFolder(), 'repo');
+    mkdirSync(root);
+    sharedRepoDir = buildRepo(root);
+  }
+  return sharedRepoDir;
+}
+
+/** The file's one passing applyBound of sharedRepo() into a home holding an empty .claude: { repo, home, r }. Never change it. */
+export function sharedInstall() {
+  if (sharedApplied === null) {
+    const repo = sharedRepo();
+    const h = join(sharedFolder(), 'home');
+    mkdirSync(join(h, '.claude'), { recursive: true });
+    const r = applyBound(repo, h);
+    passed(r);
+    sharedApplied = Object.freeze({ repo, home: h, r });
+  }
+  return sharedApplied;
 }
 
 /** The environment a Node install runs with in a test: this one, minus NODE_OPTIONS, with PATH set. */

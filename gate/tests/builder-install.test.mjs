@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { PAGE_REL } from '../../builder/build.mjs';
 import { REPO } from './text.mjs';
-import { applyBound, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { applyBound, home, install, listTree, refused, sharedRepo } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');
@@ -60,7 +60,7 @@ function dryRunHash(r) {
 
 /** Install `state`'s files through the dry run and -Apply with the hash handed back; returns the installed rules text. */
 function installSaved(t, state) {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const files = saveInto(h, state);
   assert.deepEqual(L.problems(state).filter(p => p.level === 'error'), []);
@@ -133,7 +133,7 @@ test('a configuration the page saves with your own move text, a removed move and
 });
 
 test('bad case: text the page flags is refused by the install too, since the page is not a trust boundary', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const s = L.initialState();
   s.parts.moves[2].text = 'Also read\u200b this first.';
@@ -178,7 +178,7 @@ test('S13: a shipped preset\'s saved configuration holds no settings key for che
   for (const id of ['level-1-beginner', 'level-3-full']) {
     const s = takeShipped(id);
     assert.equal(s.checkpointStops, undefined, 'the page state holds no such switch');
-    const repo = makeRepo(t);
+    const repo = sharedRepo();
     const h = home(t);
     const files = saveInto(h, s);
     assert.equal(JSON.parse(files[0].text).settings, undefined, 'the page writes no settings');
@@ -196,7 +196,7 @@ test('S13: a shipped preset\'s saved configuration holds no settings key for che
 test('S13: a configuration that still sets checkpoint-stops dry-runs to the retired-key WARN and the NOTE, and installs with no "Checkpoints wait" line', t => {
   const words = { true: 'checkpoints no longer wait', false: 'false changes nothing' };
   for (const value of ['true', 'false']) {
-    const repo = makeRepo(t);
+    const repo = sharedRepo();
     const h = home(t);
     mkdirSync(join(h, '.pact'), { recursive: true });
     writeFileSync(join(h, '.pact', 'config.json'), `{"schema": 1, "settings": {"checkpoint-stops": ${value}}}\n`);
@@ -215,7 +215,7 @@ test('S13: a configuration that still sets checkpoint-stops dry-runs to the reti
 
 // #564 C1, C4a, S11.2: with no user file the default renders, with the NOTE and the kept safeguards, and no wait line.
 test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint-stops line, and the installed rules file holds no "Checkpoints wait" line', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
@@ -253,7 +253,7 @@ test('S13: the default configuration\'s dry run shows the NOTE and no checkpoint
 
 // #564 C4, S7.2b: a project file that sets the key, either value, dry-runs to the project WARN; false is no longer refused.
 test('S13: a project with checkpoint-stops true or false dry-runs to the project WARN, and one holding only the key says to remove the file', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const root = tempDir(t, 'pact-proj-');
   const homeDir = join(root, 'home');
   mkdirSync(join(homeDir, '.claude'), { recursive: true });

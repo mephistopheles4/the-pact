@@ -1267,8 +1267,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 - **C27** `docs/threat-model.md` names the bootstrap, the release job's
   token and the tag rulesets, `~/.pact`
   and the harness folders in their classes, both harnesses' controls with
-  when each doesn't hold, the scope line, and each owner answer; the
-  doc-budget test passes.
+  when each doesn't hold, the scope line, and each owner answer. The word
+  budgets went with PACT-114 (decision 197), so no count holds it.
 
 **End to end (T9)**
 

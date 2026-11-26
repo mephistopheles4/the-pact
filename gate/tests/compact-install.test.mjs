@@ -7,11 +7,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { EVENTS, config, files, live, pactGroup, script, windowCfg, writeLive } from './compact-harness.mjs';
-import { applyBound, home, install, makeRepo } from './install-harness.mjs';
+import { applyBound, home, install, sharedRepo } from './install-harness.mjs';
 
 // C1
 test('#482 C1: with no configuration, or one that leaves the key unset, the install writes the default window, the five groups and the script', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const a = home(t);
   const b = home(t);
   config(b, {});
@@ -29,7 +29,7 @@ test('#482 C1: with no configuration, or one that leaves the key unset, the inst
 
 // C2
 test('#482 C2: a set window reaches autoCompactWindow and every hook argument; the owner\'s hooks survive in place; a second install updates in place', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const ownerBefore = { hooks: [{ type: 'command', command: 'echo', args: ['before'] }] };
   const ownerAfter = { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo', args: ['after'] }] };

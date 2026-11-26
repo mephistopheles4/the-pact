@@ -215,32 +215,32 @@ before every Bash and PowerShell call, with a 15 s timeout.
   `runCore` from [`gate/tests/gate-run.mjs`](../../gate/tests/gate-run.mjs), or
   `renderStage` and `runSeamA`, which use it. Keep a case a child run when it
   varies the environment, plants a copy of the module, or runs under a test
-  preload. A test file or helper never imports a fault fixture, the import
-  trap, or any other code under `gate/tests/fixtures/`;
+  preload. A test file or helper never imports a fault fixture, the contained
+  driver, or any other code under `gate/tests/fixtures/`;
   hand a fixture to a child as its `--import` or main script.
 - **A case runs the install** only when the install script itself decides it,
   or for a happy path.
 - **Each test file holds one layer:** install cases, or cases that never
-  install. The install harness fails a test in an install-tier file that
-  neither runs the install script nor calls `t.skip()`, naming it.
-  A subtest's installs count toward the test it runs in.
-  A test that runs the script without `install()` goes through the harness's
-  `spawnNodeInstall`, so it counts. A test that only reads the script's code
-  belongs in a file that never installs, and imports `install-core.mjs` or
-  reads the file.
+  install. A test that only reads the script's code belongs in a file that
+  never installs, and imports `install-core.mjs` or reads the file.
+- **Share the install where a test only reads it.** The harness's
+  `sharedRepo()` is the file's one unmodified repo, and `sharedInstall()` its
+  one passing apply of that repo into an empty home, `{ repo, home, r }`, each
+  made on first use. A test that only reads them, or dry-runs on them, takes
+  them; a test that changes the repo or the home, or installs with options,
+  makes its own with `makeRepo` and `home`. A home can't be copied: the
+  installed `settings.json` holds the home's own path.
 - **Import helpers by what they touch,** and take only what the
   test uses. `text.mjs` touches nothing; `tree.mjs` touches the files a test
   names; `gate-files.mjs` reads the gate's own files; `payload.mjs` reads the
   payload, agents included; `gate-run.mjs` runs gate modules; and
   `install-harness.mjs` runs the install. A test that imports `payload.mjs`
   is picked for every agent-file change, so import it only to read the
-  payload. A helper touches no file and starts no process when imported; the
-  import guard checks every helper.
+  payload. A helper touches no file and starts no process when imported.
 - **Cutting an install case.** Cut an end-to-end install case only when an
   in-process row already checks its decision, and name that row on the issue.
   Keep at least one end-to-end case that drives each of the
-  install runner's checks (in `gate/install-run.mjs`) to refuse. Never cut a
-  case that checks a refused install wrote nothing.
+  install runner's checks (in `gate/install-run.mjs`) to refuse.
 - **A test names what it backs.** The rules in this bullet and the three below
   apply to a test a change adds or edits; they are not a sweep of
   the tests already there. Each such test names one of:
@@ -263,8 +263,8 @@ before every Bash and PowerShell call, with a 15 s timeout.
   test of its own. A gate check's bad case is not covered by this: a refusal
   test catches the check itself vanishing, and a vanished check passes
   everything in silence. The rule in ["Reviewing a change here"](../../AGENTS.md#reviewing-a-change-here) in
-  `AGENTS.md`, that each check a change adds or tightens needs a bad case it is seen to catch,
-  stands unchanged.
+  `AGENTS.md`, that each family of checks a change adds or tightens needs one
+  bad case it is seen to catch, stands unchanged.
 - **Minus-one.** A test whose caught broken versions another test already
   catches, on the same function and the same class of input, is a cut
   candidate. Cut one only in a file the change is already editing. List each
@@ -280,7 +280,6 @@ before every Bash and PowerShell call, with a 15 s timeout.
   claims and the invariants it names need.
 - **What is never a cut candidate.** The two bullets on silent failures and
   on minus-one never reach these:
-  - the last bad case for a gate check;
   - an install case: ADR 0047 and "Cutting an install case" govern those cuts;
   - a test that guards the settings guard;
   - any test in `gate/tests/cloud-sessions.test.mjs`, which guards a

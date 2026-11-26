@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { config, files, live, windowCfg, withoutNotice, writeLive } from './compact-harness.mjs';
-import { applyBound, home, install, makeRepo } from './install-harness.mjs';
+import { applyBound, home, install, makeRepo, sharedRepo } from './install-harness.mjs';
 
 // C3: Off against a repo with no hooks feature at all (the payload as it was: no script, an overlay without the hooks block), installed with the same Off.
 // The base commit itself is not in a shallow CI checkout, so the feature-less payload stands for it.
@@ -14,7 +14,7 @@ for (const [name, ownerLive] of [
   ['a live file with owner hooks, one on an event of its own and an empty list', { hooks: { PostToolUse: [{ hooks: [{ type: 'command', command: 'echo', args: ['mine'] }] }, { hooks: [{ type: 'command', command: 'node', args: ['/elsewhere/compact-handoff.mjs', '400000'], timeout: 15 }] }], Notification: [] } }],
 ]) {
   test(`#482 C3: Off installs what the pact installed without the feature, and on then off restores it (${name})`, t => {
-    const repo = makeRepo(t);
+    const repo = sharedRepo();
     const base = makeRepo(t, root => {
       const p = join(root, 'claude', 'settings.overlay.json');
       const o = JSON.parse(readFileSync(p, 'utf8'));
@@ -57,7 +57,7 @@ for (const [name, ownerLive] of [
 
 // C4
 test('#482 C4: a window off the range or its step, and a value that is no number, are refused at render and at install', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   for (const bad of [99999, 50000, 1000001, 1100000, 410001, 400000.5, -1, '400000', true, null]) {
     const h = home(t);
     config(h, windowCfg(bad));
@@ -75,7 +75,7 @@ test('#482 C4: a window off the range or its step, and a value that is no number
 
 // C11
 test('#482 C11: the dry run warns once per event for a hook the pact did not install, and names the window only when the configuration sets it', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const owner = { hooks: [{ type: 'command', command: 'echo' }] };
   writeLive(h, { hooks: { Stop: [owner, owner], PostToolUse: [owner] } });

@@ -6,8 +6,8 @@
 // install script is in builder-install.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { cpSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
@@ -2177,10 +2177,9 @@ function kitHome(t) {
   const kit = join(home, '.pact', 'builder');
   for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'claude/commands', 'claude/review.md', 'claude/settings.overlay.json', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
   cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
-  const env = { ...process.env };
+  // PACT-114: the kit's page goes to <home>/.pact by default, so every home the child could read is this temp one.
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: join(home, '.claude'), HOME: home, USERPROFILE: home };
   delete env.NODE_OPTIONS;
-  delete env.CLAUDE_CONFIG_DIR;
-  Object.assign(env, { HOME: home, USERPROFILE: home });
   const cli = args => spawnSync(process.execPath, [join(kit, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env, cwd: dirname(home) });
   return { home, kit, presets: join(home, '.pact', 'presets'), cli };
 }
@@ -2193,7 +2192,10 @@ function ownPage(t, k, f) {
   const r = k.cli(['--builder', f]);
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const wrote = /^WROTE (.+)$/m.exec(r.stdout)[1];
-  t.after(() => rmSync(dirname(wrote), { recursive: true, force: true }));
+  // PACT-114: the page must land in this test's temp home, and only that file is removed.
+  const rel = relative(realpathSync.native(k.home), realpathSync.native(wrote));
+  assert.ok(rel !== '' && !rel.startsWith('..') && !isAbsolute(rel), `the page was written outside the test's temp home: ${wrote}`);
+  t.after(() => rmSync(wrote, { force: true }));
   return { r, text: readFileSync(wrote, 'utf8') };
 }
 

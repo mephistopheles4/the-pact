@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo, refused, wrapCheck } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, refused, sharedRepo, wrapCheck } from './install-harness.mjs';
 import { plantModule, plantNoDefault } from './gate-files.mjs';
 import { REPO, applyDiff, editPart, forClaude, withoutOpenMarks } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -80,7 +80,7 @@ function configBlock(r) {
 
 // #261 C14
 test('a configuration that adds a move installs: the edit is a warning in the dry run and named in the notice', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const c = movesEdit();
   configure(h, c.config, c.blocks);
@@ -125,7 +125,7 @@ test('a configuration that adds a move installs: the edit is a warning in the dr
 
 // #262 S8: the security-defaults line, before every other warning in the dry run.
 test('an edit to each part Scriptorium builds shows the security-defaults line first, naming the four parts and no block file', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const blocks = {
     't.md': '| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small | none | Opus, low |\n',
@@ -146,7 +146,7 @@ test('an edit to each part Scriptorium builds shows the security-defaults line f
 
 // #261 C14
 test('bad case: a block changed between the dry run and -Apply refuses, by the rendered hash', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const c = movesEdit();
   configure(h, c.config, c.blocks);
@@ -160,7 +160,7 @@ test('bad case: a block changed between the dry run and -Apply refuses, by the r
 
 // edit-mark: the fixed stop-and-ask block is no open part.
 test('bad case: an edit to the fixed block refuses through the install, and -Apply writes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "stop-and-escalate", "op": "remove"}]}\n');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
@@ -173,7 +173,7 @@ test('bad case: an edit to the fixed block refuses through the install, and -App
 
 // #261 C14
 test('-ReviewFolder on a configured dry run writes the rendered rules and the diff, and changes nothing else', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const c = movesEdit();
   configure(h, c.config, c.blocks);
@@ -195,7 +195,7 @@ test('-ReviewFolder on a configured dry run writes the rendered rules and the di
 
 // #183: with no configuration of your own, the review shows the pact's default, and its diff from the pact's own text.
 test('-ReviewFolder with no configuration writes the default\'s rules and the diff that gives them from the pact\'s own text', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { extra: ['--review-folder', folder] });
@@ -209,7 +209,7 @@ test('-ReviewFolder with no configuration writes the default\'s rules and the di
 
 // #261 C14
 test('-ReviewFolder with -Apply writes the review, then installs', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const c = movesEdit();
   configure(h, c.config, c.blocks);
@@ -229,7 +229,7 @@ for (const [label, at, skip, says = /the review folder is in or under /] of [
   ['a .claude folder spelled with a trailing dot', (h, t) => join(tempDir(t), '.claude.', 'review'), process.platform !== 'win32' && 'only Windows drops a trailing dot (not run)', /the review folder's parent folder does not exist/],
 ]) {
   test(`bad case: -ReviewFolder ${label} refuses, and nothing is written there`, { skip: skip ?? false }, t => {
-    const repo = makeRepo(t);
+    const repo = sharedRepo();
     const h = home(t);
     const folder = at(h, t);
     // The .claude parent exists (spelled without the dot); the review folder does not.
@@ -243,7 +243,7 @@ for (const [label, at, skip, says = /the review folder is in or under /] of [
 }
 
 test('bad case: -ReviewFolder naming a folder that is not empty refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const folder = tempDir(t);
   writeFileSync(join(folder, 'mine.txt'), 'x\n');
   const r = install(repo, home(t), { extra: ['--review-folder', folder] });
@@ -253,7 +253,7 @@ test('bad case: -ReviewFolder naming a folder that is not empty refuses', t => {
 });
 
 test('bad case: a relative -ReviewFolder refuses before anything runs', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const r = install(repo, home(t), { extra: ['--review-folder', 'review'] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: --review-folder must be a full path/m, r.out);
@@ -262,7 +262,7 @@ test('bad case: a relative -ReviewFolder refuses before anything runs', t => {
 });
 
 test('the review output is written only after every check passes: a refused configuration writes none', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "moves", "op": "add-after", "file": "b.md"}]}\n', { 'b.md': 'See\u200b this.\n' });
   const folder = join(tempDir(t), 'review');
@@ -288,7 +288,7 @@ test('the review output is written only after every check passes: seam A refusin
 
 // #261 C14
 test('the review output is written only after every check passes: a wrong hash on -Apply writes none', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const c = movesEdit();
   configure(h, c.config, c.blocks);
@@ -299,7 +299,7 @@ test('the review output is written only after every check passes: a wrong hash o
 
 // #261 C14
 test('the review output is written only after every check passes: -Apply with no hash for a configuration writes none', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const c = movesEdit();
   configure(h, c.config, c.blocks);
@@ -371,7 +371,7 @@ for (const [label, withConfig, from, to, why] of [
 // ------------------------------------------------------------ a stray word never becomes the review folder
 
 test('bad case: a stray full path after the named options refuses, and is never taken as the review folder', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const stray = join(tempDir(t), 'stray');
   const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
@@ -387,7 +387,7 @@ test('bad case: a stray full path after the named options refuses, and is never 
 
 // #262: the shipped example move installs, and lands in the rules file.
 test('the shipped example block that adds a move installs and passes seam A', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const block = readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'moves-leave-it-better.md'));
   configure(h, '{"schema": 1, "edits": [{"mark": "moves", "op": "add-after", "file": "moves-leave-it-better.md"}]}\n', { 'moves-leave-it-better.md': block });
@@ -420,7 +420,7 @@ const OLD_QUALITIES_BLOCK = '| Quality | Measure | Lens |\n| --- | --- | --- |\n
 // #287 C4, C7, C9 (seam 3) and the applied home happy path: a cost-limits edit shows the security-defaults line, installs the
 // edited rows into the rules file, and is bound by the rendered hash the dry run printed.
 test('a home cost-limits edit shows the security-defaults line and installs bound by its rendered hash', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const config = Buffer.from(`${JSON.stringify({ schema: 1, settings: { 'usage-pause': 90 }, edits: [{ mark: 'cost-limits', op: 'replace', file: 'team/cost.md' }] })}\n`);
   const blocks = { 'team/cost.md': Buffer.from(COST_BLOCK) };
@@ -449,7 +449,7 @@ test('a home cost-limits edit shows the security-defaults line and installs boun
 
 // #287 C7, C8 (seam 3): a configuration from before the change, with a Qualities edit that has no Enough column, still installs; the dry run notes it.
 test('a pre-#278 Qualities edit still renders and installs, and its dry run notes that the cost rows limit the review itself', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, `${JSON.stringify({ schema: 1, edits: [{ mark: 'qualities', op: 'replace', file: 'q.md' }] })}\n`, { 'q.md': OLD_QUALITIES_BLOCK });
   const dry = install(repo, h);

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, home, install, makeRepo, total } from './install-harness.mjs';
+import { applyBound, home, install, sharedRepo, total } from './install-harness.mjs';
 import { forClaude } from './text.mjs';
 
 const MINE = '---\nname: scout\ndescription: My own scout.\nmodel: haiku\n---\n\nFind things, briefly.\n';
@@ -19,7 +19,7 @@ const apply = (repo, h) => {
 
 // #262: a pact agent edited in place is the person's from then on, and stays theirs until they delete it.
 test('a pact agent edited in place is yours: no drift, left as is, dropped from the record, and the pact\'s comes back once you delete it', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   apply(repo, h);
   writeFileSync(join(h, '.claude', 'agents', 'scout.md'), MINE);
@@ -43,7 +43,7 @@ test('a pact agent edited in place is yours: no drift, left as is, dropped from 
 
 // #262: a first install never lays a pact agent over one of the person's with the same name.
 test('a first install leaves your agent that shares a pact agent\'s name, and does not record it', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, '.claude', 'agents'), { recursive: true });
   writeFileSync(join(h, '.claude', 'agents', 'scout.md'), MINE);

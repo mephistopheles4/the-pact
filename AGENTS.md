@@ -62,16 +62,16 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   `node docs/img/build.mjs`.
 - After a heading change in a doc over 100 lines, or a doc crossing 100
   lines either way, run `node docs/toc.mjs`, which rewrites its table of
-  contents; `gate/tests/toc.test.mjs` fails while one is missing, stale, or
-  left in a doc no longer covered.
+  contents.
 - A PR that changes `docs/toc.mjs` names, in its body, each repo in
   `docs/reference.md`'s vendoring list as behind.
 
 ## Reviewing a change here
 
-- Each check a change adds or tightens in the gate's code (`gate/` but its
-  tests, `.github/workflows/`, `.github/dependabot.yml`) needs a bad case it
-  is seen to catch. Deleting or loosening a check, or changing a built-in
+- Each family of checks a change adds or tightens in the gate's code (`gate/`
+  but its tests, `.github/workflows/`, `.github/dependabot.yml`) needs one bad
+  case it is seen to catch, not one per check: a family is the checks one
+  function or one allow-list makes. Deleting or loosening a check, or changing a built-in
   default that bounds anything, is a spec change, and so is loosening the
   cleaner's checks or the pact's deny rules. The QA pair reads every change to
   the gate's tests, the test runner and its helpers included, at Test; such a
@@ -113,15 +113,14 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   covers (Claude Code, the threat model, the poster, the cleaner, the gate,
   hooks). A rule nobody can write one for is a duplicate and goes. A rule the
   threat model names as a control never counts as covered by it, since the
-  threat model relies on it. The rules file and
-  each agent stay within their word budgets in
-  `gate/tests/rule-budget.test.mjs`; raising one is a spec change.
-- **The agent-facing docs say what holds now:** the docs
-  `gate/tests/doc-budget.test.mjs` lists; a new doc a session must read joins
-  that list. How a rule came to be (issue and ADR cites as history, "since",
+  threat model relies on it.
+- **The agent-facing docs say what holds now:** this file, `CONTEXT.md`, the
+  docs under `docs/agents/`, and `docs/README.md`, `reference.md`,
+  `rule-reasons.md`, `install.md`, `cleaner.md`, `poster.md`,
+  `poster-app.md` and `agent-identity.md`; a new doc a session must read is
+  added here. How a rule came to be (issue and ADR cites as history, "since",
   "was retired", dated trails) goes on the issue, or in an ADR or a dated log
-  when one is owed, not in them. Each stays within
-  its word budget there; raising one is a spec change.
+  when one is owed, not in them.
 
 ## The tracker
 

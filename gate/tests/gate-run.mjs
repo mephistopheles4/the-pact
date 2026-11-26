@@ -1,8 +1,7 @@
 // The in-process runner (#140, T10): runs a gate module's core in this
 // process, through its check(argv), and returns what a child run of the
 // module's wrapper gives: the exit code, stdout and stderr. The test helpers'
-// gate-module runners call it, and so does the parity guard, which proves the
-// two ways give the same lines (parity.test.mjs). A case stays a child run
+// gate-module runners call it. A case stays a child run
 // when it varies the environment, runs a planted copy of a module, or runs
 // under a test preload; runWrapper starts one as the install does.
 //
@@ -172,7 +171,7 @@ export function renderStage(root, claudeHome) {
   const out = mkdtempSync(join(tmp, 'pact-render-'));
   const empty = claudeHome ? null : mkdtempSync(join(tmp, 'pact-render-home-'));
   try {
-    // In-process through the renderer's core (#140, T10); parity.test.mjs proves it prints what the wrapper does.
+    // In-process through the renderer's core (#140, T10).
     const r = runCore('render', [md, out, claudeHome ?? empty]);
     if (r.code !== 0 || lastLine(r.stdout) !== 'RESULT: pass') throw new Error(`the renderer refused the stage:\n${r.out}`);
     writeFileSync(md, readFileSync(join(out, 'CLAUDE.md')));

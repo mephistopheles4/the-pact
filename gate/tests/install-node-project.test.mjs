@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { install, makeRepo, passed, refused, WIN, wrapCheck } from './install-harness.mjs';
+import { install, makeRepo, passed, refused, sharedRepo, WIN, wrapCheck } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 
 function layout(t) {
@@ -28,7 +28,7 @@ const untouched = homeDir => {
 };
 
 test('node project: a dry run shows the Project block and prints an apply line with --project-folder and the hash, and writes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, proj } = layout(t);
   const r = install(repo, homeDir, { extra: ['--project-folder', proj] });
   passed(r);
@@ -43,7 +43,7 @@ test('node project: a dry run shows the Project block and prints an apply line w
 });
 
 test('node project: --apply with the hash writes the rules file and its record, verifies both, and the next dry run says unchanged', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, proj } = layout(t);
   const hash = projectHash(install(repo, homeDir, { extra: ['--project-folder', proj] }));
   const r = install(repo, homeDir, { apply: true, extra: ['--project-folder', proj, '--rendered-hash', hash] });
@@ -70,7 +70,7 @@ test('node project: --apply refuses with no hash, with another hash, and on a di
 });
 
 test('node project: a rules folder that is a link refuses, and nothing is written through it', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, proj } = layout(t);
   const elsewhere = tempDir(t, 'pact-nproj-else-');
   try {
@@ -97,7 +97,7 @@ test('node project: a link that appears after the project module checked is refu
 });
 
 test('node project: a project dry run counts the work folders a hard stop left', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, proj } = layout(t);
   const tmp = tempDir(t, 'pact-tmp-');
   mkdirSync(join(tmp, 'pact-install-left'));
