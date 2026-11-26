@@ -425,7 +425,7 @@ test('the page carries what builder/build.mjs builds from the repo now: the part
 /** A throwaway root holding the files builder/build.mjs reads, with `mutate` applied. */
 function buildRoot(t, mutate) {
   const root = tempDir(t, 'pact-builder-root-');
-  for (const d of ['claude', 'examples', 'familiars', join('docs', 'brand'), join('builder', 'presets')]) cpSync(join(REPO, d), join(root, d), { recursive: true });
+  for (const d of ['claude', 'examples', 'familiars', 'harnesses', join('docs', 'brand'), join('builder', 'presets')]) cpSync(join(REPO, d), join(root, d), { recursive: true });
   // The renderer and what it reads: build.mjs runs it for the agents' classes.
   cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: s => !s.includes(`${join('gate', 'tests')}`) });
   mutate(root);
