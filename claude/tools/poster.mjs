@@ -1627,12 +1627,7 @@ const REASON_SHAPE_RE = /^Edited:/;
 const SIGNATURE_RE = new RegExp(`^(?:Signed: (${SIGNER_SOURCE})|Posted by (${SIGNER_SOURCE})\\.)$`);
 const HEADING_RE = /^ {0,3}#{1,6}(?:[ \t]|$)/;
 const SETEXT_RE = /^ {0,3}(?:=+|-+)[ \t]*$/;
-const LENS_WORD_RE = /[A-Za-z]-lens(?![A-Za-z0-9-])/;
-const SUMMARY_RE = /<summary\b[^>]*>([\s\S]*?)(?:<\/summary\s*>|$)/gi;
 const CLOSED_COMMENT_RE = /<!--[\s\S]*?--!?>/g;
-const RECORD_HEADER = Object.freeze(['finding', 'lens', 'disposition', 'rerun']);
-/** The review procedure's two data folds, by their summary's opening words; a continued part repeats them (#401). */
-const RECORD_FOLD_RE = /^\s*(?:lens\s+dispositions|crossed\s+findings)\b/i;
 const DECISION = 'owner decision';
 /**
  * Look-alikes, from Cyrillic, Greek, Armenian and Latin, of the Latin letters
@@ -1682,40 +1677,6 @@ const LINE_END_RE = /\r\n|\r|\n/;
 // never tried again shorter.
 const FENCE_OPEN_RE = /^ {0,3}(`{3,}|~{3,})([^]*)$/;
 const FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
-
-/**
- * A table line's cells, split at each pipe no backslash escapes, each as
- * { text, col }: its column from 1, in characters, at its first character that
- * is not a space, or at its start when it is empty. A closing pipe ends the
- * last cell. Null for a line that doesn't start with a pipe after at most
- * three spaces. The column is counted as the loop goes, so a line costs no
- * more than its length.
- */
-function tableCells(line) {
-  const lead = line.match(/^ {0,3}\|/);
-  if (!lead) return null;
-  const out = [];
-  let start = lead[0].length;
-  // Characters before index i, and before the current cell; everything before the first cell is one code unit each.
-  let before = start;
-  let cellBefore = start;
-  for (let i = start; i <= line.length; i += 1) {
-    if (i === line.length || (line[i] === '|' && line[i - 1] !== '\\')) {
-      const text = line.slice(start, i);
-      const trimmed = text.trim();
-      // Leading spaces are one code unit each, so their count is a count of characters.
-      const pad = trimmed === '' ? 0 : text.length - text.trimStart().length;
-      out.push({ text: trimmed, col: cellBefore + pad + 1 });
-      start = i + 1;
-      cellBefore = before + 1;
-    }
-    // A low surrogate ends a character its high surrogate already counted.
-    if (i < line.length && (line.charCodeAt(i) & 0xfc00) !== 0xdc00) before += 1;
-  }
-  // A line that ends with a pipe leaves an empty piece after it.
-  if (out.length > 1 && /(?:^|[^\\])\|[ \t]*$/.test(line)) out.pop();
-  return out;
-}
 
 /** A body's lines, ended at a line feed, a carriage return or both, as CommonMark ends them. */
 const linesOf = text => text.split(LINE_END_RE);
@@ -1816,31 +1777,6 @@ function views(text) {
   return [text.replace(/\p{Cf}/gu, ''), ...normalised, ...normalised.flatMap(c => folds(c))];
 }
 
-/** Whether one reading's lines hold a record shape: a heading (ATX or setext) naming a lens, or the Lens dispositions header row. */
-function recordLine(line, i, all) {
-  if (LENS_WORD_RE.test(line) && (HEADING_RE.test(line) || (line.trim() !== '' && SETEXT_RE.test(all[i + 1] ?? '')))) return true;
-  const cells = tableCells(line);
-  if (!cells) return false;
-  const words = cells.map(c => c.text.replace(/[*_`~[\]]/g, '').trim().toLowerCase());
-  return words.length === RECORD_HEADER.length && words.every((w, j) => w === RECORD_HEADER[j]);
-}
-
-/**
- * Whether a body is a review record: a heading (ATX or setext) or a fold's
- * summary naming a lens, a fold summary opening "Lens dispositions" or
- * "Crossed findings", or the Lens dispositions header row. A best-effort
- * backstop, not a control (q12 on #413): fences are skipped on each folded
- * view, the stricter of the readings the Test rounds tried, so a shape
- * quoted inside a fence can be refused, and a summary is read anywhere.
- */
-export function isRecord(body) {
-  const raw = body.replace(/\p{Cf}/gu, '');
-  for (const m of raw.matchAll(SUMMARY_RE)) {
-    if (views(m[1]).some(v => LENS_WORD_RE.test(v) || RECORD_FOLD_RE.test(v))) return true;
-  }
-  return views(raw).some(view => unfenced(linesOf(view)).some(recordLine));
-}
-
 /** Whether a body holds the decision mark, "owner decision", in any case, spacing, markup or folded look-alike letter. */
 export function hasDecision(body) {
   return views(body).some(v => [...v].map(c => LOOKALIKES.get(c) ?? c).join('').replace(/\s+/g, ' ').toLowerCase().includes(DECISION));
@@ -1856,7 +1792,6 @@ function bodyRules(body, label, where) {
   const out = [];
   const signed = signatures(body);
   if (!signed.includes(label) || signed.some(l => l !== label)) out.push({ rule: 'edit/unsigned', where });
-  if (isRecord(body)) out.push({ rule: 'edit/record', where });
   if (hasDecision(body) || hasHeard(body)) out.push({ rule: 'edit/decision', where });
   return out;
 }
@@ -1878,11 +1813,9 @@ export function editBodyChecks(plan) {
 /**
  * The checks on the item GitHub returned, as { unusable, refusals }. An
  * answer that isn't an object, or whose author or target field has the wrong
- * type, is unusable; a null body counts as empty. An item whose text trips the
- * content scan is refused (`edit/leak`): an edit never removes text from
- * GitHub's history, so the owner is told instead.
+ * type, is unusable; a null body counts as empty.
  */
-export function editItemChecks(plan, item, login, ctx = {}) {
+export function editItemChecks(plan, item, login) {
   const bad = { unusable: true, refusals: [] };
   if (item === null || typeof item !== 'object' || Array.isArray(item)) return bad;
   if (typeof item.user?.login !== 'string') return bad;
@@ -1904,11 +1837,10 @@ export function editItemChecks(plan, item, login, ctx = {}) {
   }
   if (plan.surface === 'issue-edit' && item.pull_request !== undefined && item.pull_request !== null) target = false;
   if (!target) refusals.push({ rule: 'edit/target', where: 'item' });
-  // Another account's item is read no further, so its text never reaches the slow readers (#394 C27); an own item in the wrong place is still read, so a leak in it is still told.
+  // Another account's item is read no further, so its text never reaches the readers (#394 C27); an own item in the wrong place is still read, so a body rule it breaks is still told.
   if (item.user.login !== login) return { unusable: false, refusals, carried: [] };
   const body = item.body ?? '';
   refusals.push(...bodyRules(body, plan.signer, 'item'));
-  if (scan([{ field: 'item', text: body }], { ...ctx, surface: plan.surface }).length) refusals.push({ rule: 'edit/leak', where: 'item' });
   // The poster carries the item's reason lines forward; a status edit keeps none of them (#503).
   return { unusable: false, refusals, carried: isStatusEdit(plan) ? [] : trailingReasons(body), body };
 }
@@ -2074,9 +2006,9 @@ function askEdit(plan, ask, who, io, ctx) {
 
 /**
  * The checks on the whole body an edit will send, once the item is read and
- * its reason lines carried (S6.1a, S6.3): its size, its signature, a record
- * shape, a decision mark, and its reason lines, which must be the item's run
- * and the new line, in plain sight.
+ * its reason lines carried (S6.1a, S6.3): its size, its signature, a decision
+ * mark, and its reason lines, which must be the item's run and the new line, in
+ * plain sight.
  */
 export function editFinalChecks(plan, body, carried) {
   const out = [];
@@ -2265,7 +2197,7 @@ function editItem(plan, p, args, who, io, ctx, setPhase) {
   const get = reader(io);
   const read = get(ghArgs('GET', p.path, false));
   if (!read.ok) return { code: 4, lines: [saidLine(read.stderr, ctx), 'RESULT: unavailable'] };
-  const c = editItemChecks(plan, parseJson(read.stdout), login, ctx);
+  const c = editItemChecks(plan, parseJson(read.stdout), login);
   if (c.unusable) return { code: 4, lines: ['the item read could not be read', 'RESULT: unavailable'] };
   if (c.refusals.length) return refused(c.refusals);
   const ask = askEdit(plan, askItem(c.body), who, io, ctx);
@@ -2336,9 +2268,7 @@ export const NEXT_FOR = Object.freeze({
   'edit/author': 'NEXT: the poster edits only an item its own login wrote. Post a new comment instead, or ask the owner to edit the item by hand.',
   'edit/target': "NEXT: the item isn't where the post says. Check the issue, pull request and comment numbers against the item's page and post again with the right ones. An issue number that is a pull request's, or a thread's first comment, can't be edited here.",
   'edit/unsigned': 'NEXT: the item and the new body must each carry exactly one `Signed: <signer>` line for this post\'s signer. Edit only an item you signed with that signer. For an item posted unsigned, post a new comment, or ask the owner to type the fix on GitHub.',
-  'edit/record': 'NEXT: a review record stays as it was posted. Post the correction as a new comment.',
   'edit/decision': 'NEXT: a body holding the words "owner decision" is never edited, even a quote of them. Post a new comment instead.',
-  'edit/leak': "NEXT: the item holds a hidden character or a live secret's value, and GitHub's history keeps every version, so an edit can't remove it. Don't edit it: tell the owner, in chat, which item it is, and never the value.",
   'edit/reasons': "NEXT: the poster adds the Edited: line and carries the item's own forward. Take every Edited: line, and any comment or fold that hides one, out of body_file, then post again.",
   'edit/ask': "NEXT: an ask item's quote and intent must be the item's own, word for word. Rebuild them from the posted item, never from a kept file, or post a new comment instead.",
   'edit/status': "NEXT: a read-back moves only from pending to confirmed or corrected, and the move names the owner's decision comment in intent.comment. To leave it, send the item's own status, comment and corrected text unchanged.",

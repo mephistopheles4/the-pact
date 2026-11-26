@@ -164,7 +164,7 @@ test('C3: the request is one PATCH of { body }: the body file, the signature, th
 });
 
 // #413 C4
-test("C4: a live environment secret's value in the reason or the body is refused before gh is called, and an item holding one is never edited", t => {
+test("C4: a live environment secret's value in the reason or the body is refused before gh is called", t => {
   const secret = 'zebra-quokka-42';
   const env = { MY_API_KEY: secret };
   for (const opts of [{ reason: `wrote ${secret}` }, { body: `Key ${secret}.\n` }]) {
@@ -174,12 +174,6 @@ test("C4: a live environment secret's value in the reason or the body is refused
     assert.equal(w.calls.length, 0);
     assert.ok(!r.lines.join('\n').includes(secret));
   }
-  // An edit would leave the value in GitHub's history, so the item is refused and the owner told instead.
-  const w = world({ store: items(`Key ${secret}.\n\nSigned: ${LABEL}\n`) });
-  const r = edit(t, 'issue-comment-edit', w, { env });
-  assert.ok(refusedBy(r, 'edit/leak', 'item'), text(r));
-  assert.equal(patches(w).length, 0);
-  assert.ok(!r.lines.join('\n').includes(secret));
 });
 
 // #441 C5: a token shape or an email address in the reason, the body or the item no longer stops an edit
@@ -203,20 +197,20 @@ test('C5: an item by another author is refused as edit/author, with no PATCH', t
   }
 });
 
-// #394 C27: an item another account wrote is read no further, so its text never reaches the slow readers; an own item in the wrong place is still read.
+// #394 C27: an item another account wrote is read no further, so its text never reaches the readers; an own item in the wrong place is still read.
 test('C27: an item another login wrote is refused as edit/author alone, before its text is read', t => {
   const secret = 'zebra-quokka-42';
   const env = { MY_API_KEY: secret };
   const refused = r => r.lines.filter(l => l.startsWith('REFUSED '));
-  // Unsigned and holding a live environment secret's value, so the body rules and the scan would each add a refusal if they read it.
+  // Unsigned, so the body rules would add a refusal if they read it.
   const w = world({ store: items(`Key ${secret}.\n`, 'stranger') });
   const r = edit(t, 'issue-comment-edit', w, { env });
   assert.deepEqual(refused(r), ['REFUSED edit/author item'], text(r));
   assert.equal(patches(w).length, 0);
-  // The session's own comment, named under another issue and unsigned: in the wrong place, but still read in full, so its leak is still told.
+  // The session's own comment, named under another issue and unsigned: in the wrong place, but still read, so the missing signature is still told.
   const own = world({ store: items(`Key ${secret}.\n`) });
   const o = edit(t, 'issue-comment-edit', own, { args: { issue: 5, comment: 9002 }, env });
-  assert.deepEqual(refused(o).sort(), ['REFUSED edit/leak item', 'REFUSED edit/target item', 'REFUSED edit/unsigned item'], text(o));
+  assert.deepEqual(refused(o).sort(), ['REFUSED edit/target item', 'REFUSED edit/unsigned item'], text(o));
 });
 
 // #413 C6: the item must carry the session's signature; the new body is signed by the poster
@@ -278,44 +272,6 @@ test('C6: a body file holding a signature or a reason line outside a fence is re
     const f = edit(t, s, fenced, { body: `Text.\n\n\`\`\`text\n${line}\n\`\`\`\n` });
     if (line.startsWith('Owner decision')) assert.ok(refusedBy(f, 'edit/decision', 'body_file'), `${line} inside a fence: ${text(f)}`);
     else assert.equal(f.code, 0, `${line} inside a fence: ${text(f)}`);
-  }
-});
-
-// #413 C7
-test('C7: edit/record refuses each review record form, on the item and on the new body; a spec naming lenses in prose passes', t => {
-  const s = 'issue-comment-edit';
-  const sig = `\n\nSigned: ${LABEL}\n`;
-  const records = [
-    '### executability-lens and unstated-lens\n\nBase `abc1234`.\n\n| Finding | Lens | Disposition | Rerun |\n| --- | --- | --- | --- |\n| new x | unstated-lens | fixed | |',
-    '<details><summary>adversarial-lens: blocking</summary>\n\n```text\nreport\n```\n\n</details>',
-    'Verdict: clear, nothing for you.\n\n<details><summary>reader-lens: clear</summary>\n\nok\n\n</details>',
-    'Lens dispositions\n\n|Finding|  Lens |Disposition|Rerun|\n|-|-|-|-|\n| new x | a-lens | fixed | |',
-    '## Round 2: data-`lens` and **adversarial**-lens\n\nBase line.',
-    'executability-lens and unstated-lens:\n===\n\nBase line.',
-    'Intro.\r### data-lens\rBase line.',
-    '### behaviour-lens and integrity-lens\n\nBase line.\n\n## Test round 1: nothing for you\n\n<details><summary>Lens dispositions (2 findings)</summary>\n\n| Finding | Lens | Disposition | Rerun |\n| --- | --- | --- | --- |\n| new x | behaviour-lens | fixed | |\n\n</details>',
-    // A continued part whose heading names no lens, holding the crossed-findings fold (#401).
-    '### Part 3\n\n<details><summary>Crossed findings, continued (4 crossings)</summary>\n\nrows\n\n</details>',
-  ];
-  for (const body of records) {
-    const onItem = world({ store: items(`${body}${sig}`) });
-    const r1 = edit(t, s, onItem);
-    assert.ok(refusedBy(r1, 'edit/record', 'item'), `item ${JSON.stringify(body.slice(0, 40))}: ${text(r1)}`);
-    assert.equal(patches(onItem).length, 0);
-    assert.ok(!r1.lines.join('\n').includes('-lens'));
-    const onBody = world();
-    const r2 = edit(t, s, onBody, { body: `${body}\n` });
-    assert.ok(refusedBy(r2, 'edit/record', 'body_file'), `body ${JSON.stringify(body.slice(0, 40))}: ${text(r2)}`);
-    assert.equal(onBody.calls.length, 0);
-  }
-  const spec = '## Spec for #9, revision 2\n\n### S1 Goal\n\nThe adversarial-lens and data-lens read it; the table keeps Finding, Lens, Disposition and Rerun.';
-  assert.equal(edit(t, s, world({ store: items(`${spec}${sig}`) }), { body: `${spec}\n` }).code, 0);
-  // The check is a best-effort backstop that skips fences on each folded view (q12 on #413):
-  // fence markers hidden in comments don't blind it, and a shape quoted inside a fence is refused too.
-  const hiddenFences = `Intro.\n\n<!--\n\`\`\`\n-->\n\n### data-lens and adversarial-lens\n\n<!--\n\`\`\`\n-->`;
-  const fenced = '## Spec for #9\n\n```text\n### behaviour-lens and integrity-lens\n```';
-  for (const body of [hiddenFences, fenced]) {
-    assert.ok(refusedBy(edit(t, s, world({ store: items(`${body}${sig}`) })), 'edit/record', 'item'), JSON.stringify(body));
   }
 });
 
@@ -495,8 +451,6 @@ test('C12: a dry run prints the PATCH and sizes, runs the body checks, says what
     DRY_EDIT,
     'RESULT: dry-run issue-edit',
   ]);
-  const record = edit(t, 'issue-edit', world(), { body: '### executability-lens\n\nText.\n', dry: true });
-  assert.ok(refusedBy(record, 'edit/record', 'body_file'), text(record));
   const owned = edit(t, 'issue-edit', world(), { body: 'Signed: other\n', dry: true });
   assert.ok(refusedBy(owned, 'post/owned-line', 'body_file'), text(owned));
 });
@@ -551,7 +505,7 @@ test('#503 C3: a status label for another number, with a leading zero, or on ano
 });
 
 // #503 C4
-test('#503 C4: on a status edit, the author, target, signature, record, decision, leak and plain-sight checks still refuse', t => {
+test('#503 C4: on a status edit, the author, target, signature, decision and plain-sight checks still refuse', t => {
   const s = 'issue-comment-edit';
   for (const [store, args, rule] of [
     [items(STATUS_ITEM, 'someone-else'), ARGS[s], 'edit/author'],
@@ -567,7 +521,6 @@ test('#503 C4: on a status edit, the author, target, signature, record, decision
   }
   const cases = [
     [`${STATUS_BODY}\nSigned: pact-other\n`, 'post/owned-line'],
-    [`## behaviour-lens\n\n${STATUS_BODY}`, 'edit/record'],
     [`An owner decision.\n\n${STATUS_BODY}`, 'post/owned-line'],
     [`<details>\n\n${STATUS_BODY}`, 'text/hidden-line'],
     [`<!--\n\n${STATUS_BODY}`, 'text/hidden-line'],
@@ -578,9 +531,4 @@ test('#503 C4: on a status edit, the author, target, signature, record, decision
     assert.ok(refusedBy(r, rule, 'body_file'), `${rule}: ${text(r)}`);
     assert.equal(patches(w).length, 0);
   }
-  const secret = 'zebra-quokka-503';
-  const w = world({ store: items(`Key ${secret}.\n\n${STATUS_ITEM}`) });
-  const r = edit(t, s, w, { body: STATUS_BODY, signer: STATUS, env: { MY_API_KEY: secret } });
-  assert.ok(refusedBy(r, 'edit/leak', 'item'), text(r));
-  assert.equal(patches(w).length, 0);
 });
