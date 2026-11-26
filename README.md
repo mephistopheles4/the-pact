@@ -124,7 +124,7 @@ Run the install script from the repo root with Node 24 or later. With no switch 
 node gate/install.mjs
 ```
 
-The pact's own files go into `~/.pact`, and the rules, agents and commands into `~/.claude`. Where it finds Codex or Antigravity, the install writes their rules, and Codex's agents, and links the commands into their skills folders. On Windows neither has a guard yet; elsewhere the install adds the guard's hook while a rule is on.
+The pact's own files go into `~/.pact`, and the rules, agents and commands into `~/.claude`. Where it finds Codex or Antigravity, the install writes their rules, and Codex's agents, and links the commands into their skills folders. While a rule is on, the install also adds the guard's hook to each.
 
 The full how-to, with the command for each shell, is in [docs/install.md](docs/install.md).
 

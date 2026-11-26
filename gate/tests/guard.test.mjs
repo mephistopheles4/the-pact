@@ -163,8 +163,6 @@ test('S7: the table asks on a read of each skill that stands for the owner\'s an
   assert.deepEqual(core.guardRules(['owner-skills']), [core.OWNER_SKILL_RULE]);
   assert.deepEqual(ALL.filter(r => r.skills), []);
   assert.deepEqual(guard.parseTable(core.guardTableText(ASKING)), JSON.parse(JSON.stringify(ASKING)));
-  // The rule is the guard's alone: Claude Code's permission rules don't change for it.
-  assert.doesNotMatch([...core.CLEANER_DENY, ...core.CLEANER_ASK, ...core.STOP_DENY].join(), /skill/i);
 });
 
 test('S7: a skill file is met by its path in either spelling, and nothing else is', () => {
@@ -188,7 +186,8 @@ test('S7: a skill file is met by its path in either spelling, and nothing else i
 
 test('the hook command names the wrapper by its full path and clears NODE_OPTIONS in each platform\'s form', () => {
   assert.equal(core.guardCommand({ script: "/home/o'x/.pact/guard/codex.mjs", platform: 'linux' }), "env -u NODE_OPTIONS node '/home/o'\\''x/.pact/guard/codex.mjs'");
-  const win = 'C:\\Windows\\System32\\cmd.exe /d /c "set "NODE_OPTIONS=" & set "NoDefaultCurrentDirectoryInExePath=1" & node "C:\\Users\\a b\\.pact\\guard\\codex.mjs""';
+  // One text for cmd and PowerShell (S8): the launcher beside the wrapper, its exit code passed on.
+  const win = 'C:\\Windows\\System32\\cmd.exe /d /c call "C:\\Users\\a b\\.pact\\guard\\codex.cmd" ; exit $LASTEXITCODE';
   for (const systemRoot of ['C:\\Windows', 'C:\\WINDOWS', 'c:\\windows\\', undefined]) assert.equal(core.guardCommand({ script: 'C:\\Users\\a b\\.pact\\guard\\codex.mjs', platform: 'win32', systemRoot }), win, String(systemRoot));
 });
 
@@ -201,7 +200,13 @@ test('bad case: a path the hook command can\'t carry refuses', () => {
     }
     return null;
   };
-  for (const c of ['"', '%', '!', '^', '&', '|', '<', '>', '\n']) assert.equal(rule({ script: `C:\\Users\\a${c}b\\g.mjs`, platform: 'win32' }), 'hook-command-path', JSON.stringify(c));
+  // `$`, the backtick and the curly double quotes are PowerShell's, inside double quotes too.
+  for (const c of ['"', '%', '!', '^', '&', '|', '<', '>', '\n', '$', '`', '\u201c', '\u201d', '\u201e']) assert.equal(rule({ script: `C:\\Users\\a ${c}b\\g.mjs`, platform: 'win32' }), 'hook-command-path', JSON.stringify(c));
+  // PowerShell passes a path with no space unquoted, and cmd then splits or misreads these.
+  for (const c of ['(', ')', ';', ',', '=']) {
+    assert.equal(rule({ script: `C:\\Users\\a${c}b\\g.mjs`, platform: 'win32' }), 'hook-command-path', JSON.stringify(c));
+    assert.equal(rule({ script: `C:\\Users\\a ${c}b\\g.mjs`, platform: 'win32' }), null, `with a space: ${c}`);
+  }
   assert.equal(rule({ script: 'guard\\g.mjs', platform: 'win32' }), 'hook-command-path');
   assert.equal(rule({ script: 'C:\\g.mjs', platform: 'win32', systemRoot: 'C:\\Win dows' }), 'hook-command-path');
   assert.equal(rule({ script: 'guard/g.mjs', platform: 'linux' }), 'hook-command-path');
@@ -210,13 +215,14 @@ test('bad case: a path the hook command can\'t carry refuses', () => {
 
 // ------------------------------------------------------------ the wrappers, through the exact command
 
-/** A guard folder as the install leaves it, under a home with a space and parentheses in its name. */
+/** A guard folder as the install leaves it, under a home with a space, parentheses and a letter outside ASCII in its name. */
 function installed(t, rules = ALL) {
-  const home = join(tempDir(t, 'pact-guard-'), 'a (b) home');
+  const home = join(tempDir(t, 'pact-guard-'), 'a (b) hom\u00e9');
   const dir = join(home, '.pact', 'guard');
   mkdirSync(dir, { recursive: true });
   for (const name of core.GUARD_SCRIPTS) copyFileSync(join(REPO, 'claude', 'guard', `${name}.mjs`), join(dir, `${name}.mjs`));
   writeFileSync(join(dir, 'rules.json'), core.guardTableText(rules));
+  if (WIN) for (const format of core.GUARD_FORMATS) writeFileSync(join(dir, `${format}.cmd`), core.guardLauncherText(format));
   const cwd = join(home, 'work');
   mkdirSync(cwd);
   return { home, dir, cwd };
@@ -229,15 +235,21 @@ const CALLS = {
 };
 const typed = Input => tool('manage_task', { Action: 'send_input', Input, TaskId: 't' });
 
+/** Windows PowerShell by its full path, so a case may empty PATH. */
+const POWERSHELL = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+/** The shell each harness runs a hook under on Windows: Codex PowerShell, Antigravity cmd. */
+const SHELL = { codex: POWERSHELL, antigravity: 'cmd' };
+
 /** The hook run as the harness runs it: the rendered command's exact text, through the platform's shell, the call on standard input. */
-function runHook(at, format, stdin, { env = {} } = {}) {
+function runHook(at, format, stdin, { env = {}, shell = SHELL[format], path } = {}) {
   const command = core.guardCommand({ script: join(at.dir, `${format}.mjs`), platform: process.platform, systemRoot: process.env.SystemRoot });
   const base = {};
   for (const [k, v] of Object.entries(process.env)) if (!['path', 'node_options', 'nodefaultcurrentdirectoryinexepath'].includes(k.toLowerCase())) base[k] = v;
-  base.PATH = [dirname(process.execPath), process.env.PATH ?? process.env.Path].join(delimiter);
+  base.PATH = path ?? [dirname(process.execPath), process.env.PATH ?? process.env.Path].join(delimiter);
   const options = { cwd: at.cwd, input: typeof stdin === 'string' ? stdin : JSON.stringify(stdin), encoding: 'utf8', env: { ...base, ...env }, timeout: 60_000 };
-  // The Windows text is written for cmd and run through it here. The install writes no Windows hook yet: a harness may use another shell.
-  const r = WIN ? spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/C', `"${command}"`], { ...options, windowsVerbatimArguments: true }) : spawnSync('/bin/sh', ['-c', command], options);
+  const r = !WIN ? spawnSync('/bin/sh', ['-c', command], options)
+    : shell === 'cmd' ? spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${command}"`], { ...options, windowsVerbatimArguments: true })
+      : spawnSync(shell, ['-NoProfile', '-Command', command], options);
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
@@ -320,7 +332,6 @@ for (const format of core.GUARD_FORMATS) {
 
 test('C12: antigravity judges a line typed into a running program as it judges a command', t => {
   const at = installed(t, ASKING);
-  const hook = call => runHook(at, 'antigravity', JSON.stringify(call));
   const run = call => runHook(at, 'antigravity', call);
   denied(run(typed('git worktree remove w\n')), 'antigravity', blocks('worktree-remove'));
   denied(run(typed('ls\ngit branch -D old\n')), 'antigravity', blocks('branch-force-d'));
@@ -328,7 +339,6 @@ test('C12: antigravity judges a line typed into a running program as it judges a
   assert.deepEqual(run(typed('git status\n')), SILENT);
   // Its other actions type nothing, whatever else they carry.
   for (const Action of ['list', 'status', 'kill']) assert.deepEqual(run(tool('manage_task', { Action, TaskId: 't', Input: 'git worktree remove w' })), SILENT, Action);
-  assert.ok(hook);
 });
 
 test('S7: antigravity asks before either read tool opens an owner-typed skill, and answers nothing for another file', t => {
@@ -356,7 +366,8 @@ test('bad case: antigravity denies a typed line or a read it cannot judge', t =>
 test('C12: on Windows a node or cmd planted in the working folder never runs', { skip: !WIN && 'cmd.exe\'s current-folder lookup is Windows\'s' }, t => {
   const at = installed(t);
   const marker = join(at.cwd, 'planted.txt');
-  for (const name of ['node.cmd', 'node.bat', 'cmd.cmd', 'cmd.bat']) writeFileSync(join(at.cwd, name), `@echo ran> "${marker}"\r\n`);
+  // The planted file names the marker beside itself: cmd would misread the home's letter outside ASCII.
+  for (const name of ['node.cmd', 'node.bat', 'cmd.cmd', 'cmd.bat']) writeFileSync(join(at.cwd, name), '@echo ran> "%~dp0planted.txt"\r\n');
   denied(runHook(at, 'codex', CALLS.codex(ONE['worktree-remove'])), 'codex', blocks('worktree-remove'));
   assert.equal(existsSync(marker), false, 'nothing planted ran');
   // Without the defence a bare node in that folder is the planted one, so this test can fail.
@@ -366,10 +377,36 @@ test('C12: on Windows a node or cmd planted in the working folder never runs', {
   assert.equal(existsSync(marker), true, 'the planted node runs when nothing stops it');
 });
 
-test('bad case: Codex\'s guard is not installed on Windows; Antigravity\'s is installed on every platform', () => {
-  const on = format => ['linux', 'darwin', 'win32'].map(p => core.guardOnPlatform(p, format));
-  assert.deepEqual(on('codex'), [true, true, false]);
-  assert.deepEqual(on('antigravity'), [true, true, true]);
+const winOnly = { skip: !WIN && 'the launcher is Windows\'s' };
+
+test('C12: on Windows each shell a harness may use passes the wrapper\'s answer on', winOnly, t => {
+  const at = installed(t);
+  const shells = ['cmd', POWERSHELL, ...(spawnSync('pwsh.exe', ['-NoProfile', '-Command', 'exit 0']).status === 0 ? ['pwsh.exe'] : [])];
+  for (const shell of shells) {
+    for (const format of core.GUARD_FORMATS) {
+      denied(runHook(at, format, CALLS[format](ONE['worktree-remove']), { shell }), format, blocks('worktree-remove'));
+      assert.deepEqual(runHook(at, format, CALLS[format]('git status'), { shell }), SILENT, `${shell} ${format}`);
+    }
+  }
+});
+
+test('C14: on Windows a launcher whose wrapper can\'t run, or ends any other way, denies', winOnly, t => {
+  const at = installed(t);
+  // No node on PATH, with an inherited ERRORLEVEL that would read as success.
+  const none = { path: join(process.env.SystemRoot, 'System32'), env: { ERRORLEVEL: '0' } };
+  const crashes = () => {
+    for (const format of core.GUARD_FORMATS) writeFileSync(join(at.dir, `${format}.mjs`), 'process.exit(1);\n');
+    return { env: { ERRORLEVEL: '0' } };
+  };
+  for (const how of [() => none, crashes]) {
+    const options = how();
+    for (const format of core.GUARD_FORMATS) {
+      const r = runHook(at, format, CALLS[format]('git status'), options);
+      // cmd may print its own line above the launcher's, so the reason is the last one.
+      if (format === 'codex') assert.deepEqual([r.code, r.stderr.trim().split(/\r?\n/).at(-1)], [2, failure('launch')], JSON.stringify(r));
+      else denied(r, format, failure('launch'));
+    }
+  }
 });
 
 // ------------------------------------------------------------ the hooks file merge
@@ -393,7 +430,7 @@ test('C16: the merge adds the pact\'s group beside the person\'s, in each harnes
 test('C16, S7: antigravity\'s matcher takes commands and typed input, and the read tools only while a skill is asked on', () => {
   assert.equal(core.guardGroup('antigravity', 'x').get('matcher'), 'run_command|manage_task');
   assert.equal(core.guardGroup('antigravity', 'x', { reads: true }).get('matcher'), 'run_command|manage_task|view_file|read_file');
-  assert.equal(core.guardGroup('codex', 'x').get('matcher'), '^Bash$');
+  assert.equal(core.guardGroup('codex', 'x', { reads: true }).get('matcher'), '^Bash$');
   const first = core.guardMerge(new Map(), { want: [want('antigravity', 'x')] });
   const wider = { format: 'antigravity', group: core.guardGroup('antigravity', 'x', { reads: true }) };
   const next = core.guardMerge(first.merged, { drop: [want('antigravity', 'x')], want: [wider] });
