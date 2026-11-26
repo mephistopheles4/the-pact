@@ -106,8 +106,44 @@ test('C10: the tree check holds no quote, so either shell passes it on unchanged
   }
 });
 
+test('C10: bad case: the tree check starts no fetch, which runs a program the repo’s config names', t => {
+  const root = tempDir(t, 'pact-tree-fetch-');
+  const repo = join(root, 'repo');
+  for (const dir of ['kept', 'gone']) mkdirSync(join(repo, dir), { recursive: true });
+  git(repo, 'init', '-q');
+  for (const dir of ['kept', 'gone']) writeFileSync(join(repo, dir, 'file.txt'), `${dir}\n`);
+  git(repo, 'add', '.');
+  git(repo, 'commit', '-q', '-m', 'start');
+  // An index holding a folder as one entry, whose tree object is missing from a partial clone.
+  git(repo, 'sparse-checkout', 'init', '--cone', '--sparse-index');
+  git(repo, 'sparse-checkout', 'set', 'kept');
+  const tree = spawnSync('git', ['rev-parse', 'HEAD:gone'], { cwd: repo, env: env(), encoding: 'utf8' }).stdout.trim();
+  rmSync(join(repo, '.git', 'objects', tree.slice(0, 2), tree.slice(2)), { force: true });
+  const marker = join(root, 'fetch-ran');
+  const hook = join(root, 'mark.cjs');
+  writeFileSync(hook, `require('fs').writeFileSync(${JSON.stringify(marker)}, 'x');\n`);
+  for (const [key, value] of [['core.repositoryformatversion', '1'], ['extensions.partialClone', 'origin'], ['remote.origin.url', repo], ['remote.origin.promisor', 'true'], ['remote.origin.uploadpack', `node "${hook.replaceAll('\\', '/')}"`]]) git(repo, 'config', key, value);
+  const quiet = () => {
+    const r = run(repo);
+    assert.ok(!existsSync(marker), 'the command ran the program the fetch names');
+    return r;
+  };
+  const listed = quiet();
+  assert.equal(listed.status, 0, listed.stderr);
+  // Told to list the folder's files instead, git leaves them out and goes on: the run fails.
+  git(repo, 'config', '--worktree', 'index.sparse', 'false');
+  assert.notEqual(quiet().status, 0, 'an index listed short fails the run');
+  // Control: a plain listing fetches, and runs it.
+  spawnSync('git', ['ls-files', '--stage'], { cwd: repo, env: env() });
+  assert.ok(existsSync(marker), 'control: git ls-files runs the program');
+});
+
 test('C10: bad case: the tree check’s record differs after each change an agent could make', t => {
   const { root, main, linked } = repos(t);
+  // The session compares the last line alone, so that line must differ too.
+  const last = text => text.trimEnd().split('\n').at(-1);
+  // No hash is cut short: someone who writes a file before the pass could match a short one.
+  for (const line of record(main).trimEnd().split('\n')) assert.match(line, /^[0-9a-f]{64} /);
   for (const dir of [main, linked]) {
     const tag = dir === main ? 'main' : 'linked';
     const shared = join(main, '.git');
@@ -142,7 +178,7 @@ test('C10: bad case: the tree check’s record differs after each change an agen
     for (const [what, change] of Object.entries(changes)) {
       const before = record(dir);
       change();
-      assert.notEqual(record(dir), before, `${tag}: ${what}`);
+      assert.notEqual(last(record(dir)), last(before), `${tag}: ${what}`);
     }
     // A hook in the folder git's config names instead.
     const elsewhere = join(root, `hooks-${tag}`);
@@ -150,6 +186,6 @@ test('C10: bad case: the tree check’s record differs after each change an agen
     git(dir, 'config', 'core.hooksPath', elsewhere);
     const before = record(dir);
     writeFileSync(join(elsewhere, 'pre-commit'), 'x\n');
-    assert.notEqual(record(dir), before, `${tag}: a hook in the folder core.hooksPath names`);
+    assert.notEqual(last(record(dir)), last(before), `${tag}: a hook in the folder core.hooksPath names`);
   }
 });

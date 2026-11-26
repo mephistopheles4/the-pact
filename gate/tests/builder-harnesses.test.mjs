@@ -22,7 +22,7 @@ const plain = v => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
 /** The page's own functions, run with no document; what they return is cloned into this realm. */
 function logic(page = PAGE) {
-  const names = ['PACT', 'initialState', 'buildFiles', 'keepFolderKeys', 'harnessList', 'setHarnessIn', 'setHarnessModel', 'addHarness', 'removeHarness', 'receives', 'problems'];
+  const names = ['PACT', 'initialState', 'buildFiles', 'keepFolderKeys', 'harnessList', 'setHarnessIn', 'setHarnessModel', 'addHarness', 'removeHarness', 'receives', 'problems', 'touchedAgents'];
   const got = vm.runInContext(`${scriptOf(page)}\n;({ ${names.join(', ')} });`, vm.createContext({ TextEncoder }));
   // A state stays the page realm's object, so each setter changes it in place.
   return Object.fromEntries(Object.entries(got).map(([k, v]) => [k, typeof v !== 'function' ? plain(v) : k === 'initialState' ? v : (...a) => plain(v(...a))]));
@@ -121,7 +121,7 @@ test('C24: a save keeps the folder’s agent settings the page did not change, f
   const untouched = L.keepFolderKeys(L.buildFiles(s), existing, s.harnesses);
   assert.deepEqual(JSON.parse(untouched.files[0].text).agents, JSON.parse(existing).agents);
   s.agents.scout.effort = 'low';
-  const changed = L.keepFolderKeys(L.buildFiles(s), existing, s.harnesses);
+  const changed = L.keepFolderKeys(L.buildFiles(s), existing, s.harnesses, L.touchedAgents(s));
   assert.deepEqual(JSON.parse(changed.files[0].text).agents, { scout: { model: 'my-model', effort: 'low' }, 'data-lens': { effort: 'low' } });
 });
 
@@ -296,6 +296,24 @@ test('C24: the page at its fixed path lists the harnesses the dry run would see,
   const claude = P.receives(s, 'claude').files.map(f => f.path);
   assert.deepEqual(claude.filter(p => p.includes('/commands/')), ['~/.claude/commands/finis.md', '~/.claude/commands/scriptorium.md']);
   assert.match(P.receives(s, 'claude').files[0].text, /Remove worktrees only through the cleaner/);
+});
+
+test('C24: the page at its fixed path starts each agent at the folder’s setting, and one set back to the pact’s own leaves the save', t => {
+  const config = JSON.stringify({ schema: 1, agents: { scout: { model: 'my-model', effort: 'high' }, 'data-lens': { effort: 'low' } } });
+  const m = machine(t, { '.claude/keep': '', '.pact/config.json': config });
+  const r = m.cli(['--builder', EXAMPLE]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const P = logic(readFileSync(join(m.home, '.pact', 'scriptorium.html'), 'utf8'));
+  const s = P.initialState();
+  assert.deepEqual(plain(s.agents.scout), { model: 'my-model', effort: 'high' });
+  const saved = () => P.keepFolderKeys(P.buildFiles(s), config, s.harnesses, P.touchedAgents(s));
+  const agents = () => JSON.parse(saved().files[0].text).agents;
+  assert.deepEqual(agents(), JSON.parse(config).agents);
+  const { model, effort } = P.PACT.agents.find(a => a.name === 'scout');
+  Object.assign(s.agents.scout, { model, effort });
+  assert.deepEqual(agents(), { 'data-lens': { effort: 'low' } });
+  // What the page shows each harness receives follows the same save.
+  assert.match(P.receives(s, 'claude').files.find(f => f.path.endsWith('/scout.md')).text, /^model: haiku$/m);
 });
 
 test('C24: a harness the record lists stays in the page\'s rows after its folder is gone', t => {

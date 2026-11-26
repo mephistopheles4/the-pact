@@ -263,9 +263,10 @@ export function renderHarnesses({ rules, agents, commands, harnesses, tables = T
       const own = Object.values(h.models ?? {}).map(m => m?.toLowerCase());
       for (const m of new Set(found)) if (!own.includes(m.toLowerCase())) warnings.push(`\`${path}\` names model \`${m}\`, which ${h.name} may not have`);
     };
-    if (!h.models) warn('it names no models, so its rules hold no models line and its agents no model');
+    if (!h.models) warn(`it names no models, so its rules hold no models line${h.agentModels ? '.' : ' and its agents no model'}`);
     // A configured name can hold a provider account or project, so it is never printed here.
-    else if (h.own || h.overrides.includes('models') || h.overrides.includes('agentModels')) warn('its rules hold your configuration’s model names as written; sessions read that file and may quote it.');
+    else if (h.own || h.overrides.includes('models')) warn('its rules hold your configuration’s model names as written; sessions read that file and may quote it.');
+    if (h.agentModels && (h.own || h.overrides.includes('agentModels'))) warn('its agent files hold your configuration’s model names as written; sessions read those files and may quote them.');
 
     for (const k of Object.keys(h.agentModels ?? {})) if (k !== '*' && !agents.has(k)) warn(`agentModels names ${k}, which is no agent of the pact`);
 

@@ -85,6 +85,13 @@ test('C29: a models line that comes from the configuration warns that sessions m
   ]);
 });
 
+test('C29: a model per agent from the configuration warns that the agent files hold it, naming no model', () => {
+  const warned = render([{ ...ANTI, overrides: ['agentModels'], agentModels: { scout: 'acct-model' } }, h('mine', { own: true, models: null, agentModels: { '*': 'acct-model' } })]).warnings;
+  const held = 'its agent files hold your configuration’s model names as written; sessions read those files and may quote them.';
+  assert.deepEqual(warned.filter(l => /may quote|names no models/.test(l)), [`antigravity: ${held}`, 'mine: it names no models, so its rules hold no models line.', `mine: ${held}`]);
+  assert.doesNotMatch(warned.join('\n'), /acct-model/);
+});
+
 test('a conditional block that does not close, holds another, or names no capability the pact knows, refuses', () => {
   refuses(() => render([CLAUDE], { rules: '<!-- pact:if cleaner -->\nx\n' }), 'render-block');
   refuses(() => render([CLAUDE], { rules: '<!-- pact:end -->\n' }), 'render-block');

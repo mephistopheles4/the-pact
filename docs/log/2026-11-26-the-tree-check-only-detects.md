@@ -13,6 +13,10 @@
 
 The security lens and the check of the claims found ways past the first command, all closed: a program or version pin in the tree could pick the `node` that ran it, so it now starts from the home folder; a linked worktree's own refs, a hooks folder set elsewhere, half-done merges and rebases, and a file name that isn't text went unrecorded. The record now ends in one hash of itself.
 
+## A further security read
+
+The command's own git listing could fetch a missing object in a partial clone, which runs programs the repo's config names; it now fetches nothing. No fingerprint is cut short, and only the record's last line is compared. The index is recorded as its entries, so its cached trees are left out: wording narrowed here and in the threat model, for the owner to rule with the detect-only change.
+
 ## Left open
 
 - The command reads every file, so it takes longer in a large tree.
