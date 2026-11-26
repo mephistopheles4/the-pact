@@ -200,7 +200,7 @@ Codex and Antigravity, and there before typed input and some reads; and the rele
   sha256, checked before keeping); fixed redirect hosts, `https:` only; its
   archive readers, writing only pinned names; a pin-time Mach-O check (thin
   arm64, no flags); a fixed working folder and environment (on macOS, also
-  `TMPDIR`, a per-user 0700 folder); listener token, `Host` and `Origin` checks; an answer check
+  `TMPDIR`, a per-user 0700 folder); listener `Host` and `Origin` checks, against web pages, with no token, so any program on the machine may call it; an answer check
   passing only numbers and the caller's keys. Held by rule alone: 14-day-old
   pins (the Hub's date, which a git push sets) and the security pair's read
   of each pin PR
@@ -251,17 +251,13 @@ head; Claude Code's prompts and classifier and the ruleset's checks stop one.
 
 Also accepted. Review rests on rules: a
 read-only lens takes the base on trust; the table check doesn't pair a state
-word with a disposition; a lens launched as a teammate, against the procedure,
-can pass what it read to, or write tasks for, the owner's other sessions and
-the shared task list; a product's leaked secret is no security finding by
-itself; a Codex lens is read-only by instruction alone, keeps the shell and the
-parent's sandbox, approvals and MCP servers (which run outside the sandbox),
-so it can write or send through them and read what the owner's account
-can, keys and tokens included, its agent file turning off only apps, plugins,
-memories and the permission-request tool; an Antigravity lens also gets
-`send_message` and `manage_task`, whatever its file lists, the latter
-refused its session's program in a probe; `review.md`'s tree check only detects a change to the work tree or git's config, hooks,
-`info`, `HEAD`, refs, index entries and half-done merges, and restores nothing, not git's objects or the index's cached trees, a write elsewhere, a read, a send, or a later write by a process the lens left running; nor does it stop a lens that writes as the owner from forging the second run, through a program the session finds by name.
+word with a disposition; a product's leaked secret is no security finding by
+itself; a Codex or Antigravity lens is read-only by instruction alone, and
+can read and send what the owner's account can, keys included: accepted under
+the trusted machine, with outside text held as data and no network block; what
+a steered one sends out fits Text steers a session; `review.md`'s tree
+check catches a lens's mistakes, not a hostile lens: it only detects a change to the work tree or git's config, hooks,
+`info`, `HEAD`, refs, index entries and half-done merges, and restores nothing, not git's objects or the index's cached trees, a write elsewhere, a read, a send, or a later write by a process the lens left running. A lens that forges the second run is the machine's, and accepted.
 The pact gets loosened: a project install tightens Claude Code alone, not Codex
 or Antigravity, and a hand-made or old copy loads beside the pact until a person removes it.
 
@@ -356,7 +352,11 @@ sandbox, a service a project deploys, and that service's users' devices are not
 the machine. What starts and ends on the machine is no finding: other local
 accounts, unencrypted copies (the install's backups, kept-local reports,
 hand-off notes), a program already running as the owner that nothing in scope
-started, supplied or steered, and loss of work with no attacker. In a cloud
+started, supplied or steered, and loss of work with no attacker. The
+programs, processes and agents the owner starts there, sessions and lenses
+included, are trusted: the pact guards against their mistakes, not their
+turning hostile, and a check against a mistake needn't hold against an
+attacker. In a cloud
 session these copies sit in Anthropic's sandbox: out of scope,
 though code that reached it from outside stays in scope. What the machine makes from outside input stays outside input. The machine's antivirus, account
 isolation and disk encryption hold it. Also out: the owner's own edits and
@@ -380,7 +380,7 @@ Each "Also accepted" line above details what the class it names covers; it is no
 - **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, bootstrap and release app key, a trusted mise config, a program a clone supplies by bare name, the pinned llama.cpp build and decision model, and the gate's unscanned test files run with the owner's rights or a write token.
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
-- **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
+- **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, and work that publishes or handles credentials can run below the thorough tier.
 - **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, except on the owner's private issue tracker (`docs/agents/issue-tracker.md`), and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
 - **Who counts as you.** Every session posts as the owner, or as a pinned agent app and can still write as the owner by the routes above; an app's key holder counts as the owner for code. A lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
 
@@ -405,4 +405,4 @@ quadrantChart
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. Claude Code's protected paths name `.claude`, not `~/.pact`: a write anywhere under it, the pact's hook script, tools, guard, git config, review procedure, skills, configuration, install record and backups included, gets no protected-path check, and no ask rule covers it. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. Not yet the owner's: PACT-105's class widenings and placements, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).

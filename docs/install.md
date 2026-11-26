@@ -94,10 +94,8 @@ A **harness** is a program the rules install into. The pact knows three, in
   the three its rules name, and `agentModels`, a model per agent, `*` for the
   rest, laid over the known ones. Antigravity's agents take their model from
   `agentModels`, unless an agent's file or setting names a model outright.
-- **Efforts.** `tierEfforts` sets plan/build efforts by tier key
-  (lowercase-hyphenated name; `null` drops the known key); `efforts` lists
-  `<effort>` models' efforts. Refusals: `harness-shape`, `tier-effort`,
-  `agent-effort`.
+- **Efforts.** `efforts` lists `<effort>` models' efforts. Refusals:
+  `harness-shape`, `agent-effort`.
 - **Your own harness** goes under `harnesses.own`, as a description with the
   fields of the known ones (spec 0007, S5). A description the pact can't take
   refuses (`harness-id`, `harness-format`, `harness-path`,
@@ -272,8 +270,7 @@ With no option, the script writes nothing in your home folder. It
 still runs code from your clone, with your rights: the install script and the
 pact's check. So run it only on a clone you trust. It refuses if
 `NODE_OPTIONS` is set, because a preload could change what the checks see.
-It checks the committed files and prints what an install would do. The output
-names your home folder, so mask your username before you share it. Read these
+It checks the committed files and prints what an install would do. Read these
 parts:
 
 - **`Install from commit …`.** The commit it would install. Compare it with
@@ -500,10 +497,6 @@ parts:
   your temp folder. It may hold your configuration text. Delete those
   `pact-install-*` folders by hand; the script never deletes them, because
   one could belong to an install still running.
-
-The dry run names your home folder and your Node's path, which hold your
-user name, and the names of your own settings. Post its verdict and counts on
-a tracker, never its raw output.
 
 A dry run asks nothing first, and it runs `gate/install.mjs` as it stands
 in your working folder, uncommitted edits included. So on a branch that
@@ -950,7 +943,7 @@ refuses. What an old enough pact refuses:
 - in a project's configuration, the `costLimits` key (`project-key`) and the
   `enough` and `enoughCosts` fields (`project-qualities`); in a builder file,
   the `costLimits` key and an Enough on a quality row;
-- `tierEfforts` and `efforts` in a `harnesses.own` entry.
+- `efforts` in a `harnesses.own` entry.
 
 One thing an older pact does not refuse: an Enough column in a Qualities
 block. A pact from before the Enough column installs that text as written, and

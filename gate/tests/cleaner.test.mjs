@@ -520,33 +520,6 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
     for (const t of ['/x', 'rel/x']) assert.equal(plain(t, 'linux'), true, t);
   });
 
-  await t.test('C11a: a sessions folder that is a link makes the run unavailable, and no path prints', st => {
-    const f = makeRepo(st);
-    mkdirSync(join(f.home, '.claude'), { recursive: true });
-    if (!plantLink(SHARE, join(f.home, '.claude', 'sessions'), 'dir')) return st.skip('no link rights on this host');
-    const r = f.run(['show']);
-    assert.equal(r.code, 4, r.out);
-    assert.equal(r.lines.at(-1), 'RESULT: unavailable');
-    assert.equal(r.lines.at(-2), 'the cleaner is unavailable: the sessions check failed');
-    assert.doesNotMatch(r.out, /nohost\.invalid/);
-    noPath(f, r.out);
-  });
-
-  await t.test('C11b: a status file that is a link makes the run unavailable, and no path prints', st => {
-    const f = makeRepo(st);
-    const used = f.add('used');
-    const sessions = join(f.home, '.claude', 'sessions');
-    mkdirSync(sessions, { recursive: true });
-    const real = join(tempDir(st, 'pact-cleaner-status-'), 'real.json');
-    writeFileSync(real, JSON.stringify({ cwd: join(used, 'sub') }));
-    if (!plantLink(real, join(sessions, '4242.json'), 'file')) return st.skip('no link rights on this host');
-    const r = f.run(['show']);
-    assert.equal(r.code, 4, r.out);
-    assert.equal(r.lines.at(-1), 'RESULT: unavailable');
-    assert.equal(r.lines.at(-2), 'the cleaner is unavailable: the sessions check failed');
-    noPath(f, r.out);
-  });
-
   // #442 C15: only on CI's gate-windows, never on the owner's host: an lstat on a junction whose target is a network path in NT form.
   if (process.platform === 'win32' && process.env.CI) {
     await t.test('C15: lstat on a junction set to \\??\\UNC\\nohost.invalid throws (any code, printed; gate-windows saw ENOENT), consistent with following the target', st => {
@@ -810,30 +783,6 @@ test('a folder still there after git said it removed it: the branch is not tried
   assert.match(r.out, /^worktree stuck: left\n {2}the folder stays: remove it by hand\n {2}it holds a link: remove the link itself first, never with a recursive delete\n {2}the branch stays: stuck$/m, r.out);
   assert.ok(!rec.calls.some(c => c.args.includes('branch')), 'the branch is not tried');
   assert.equal(r.lines.at(-1), 'RESULT: removed 0 left 1 changed 0');
-
-  // A file planted in the run's hooks folder before the removal call leaves the worktree untouched.
-  const g = makeRepo(t);
-  g.add('h');
-  const plant = recording((file, args) => {
-    const hooksArg = args.find(a => a.startsWith('core.hooksPath='));
-    if (args.includes('status')) writeFileSync(join(hooksArg.slice('core.hooksPath='.length), 'post-checkout'), 'x');
-    return null;
-  });
-  const hr = g.run(['remove', '--yes', tagsOf(g.run(['show']).out).join(',')], { spawn: plant.spawn });
-  assert.match(hr.out, /^worktree h: left, the run's hooks folder changed$/m, hr.out);
-  assert.ok(!plant.calls.some(c => c.args.includes('remove')), 'no removal call');
-  assert.ok(existsSync(g.wt('h')));
-
-  // Planted between the worktree's removal and the branch's: the branch is not tried.
-  const late = recording((file, args, opts) => {
-    if (!args.includes('remove')) return null;
-    const r = spawnSync(file, args, opts);
-    writeFileSync(join(args.find(a => a.startsWith('core.hooksPath=')).slice('core.hooksPath='.length), 'post-checkout'), 'x');
-    return r;
-  });
-  const lr = g.run(['remove', '--yes', tagsOf(g.run(['show']).out).join(',')], { spawn: late.spawn });
-  assert.match(lr.out, /^worktree h: left, the folder is gone\n {2}the branch stays: h$/m, lr.out);
-  assert.ok(!late.calls.some(c => c.args.includes('branch')), 'the branch is not tried');
 });
 
 // #438 C12
@@ -2050,33 +1999,6 @@ test('#523 C16: a refused forced removal puts the lock back, runs no branch -d, 
   ]);
   assert.equal(lockOf(f, 'busy'), 'claude session busy (pid 4321)');
   assert.equal(refuse.calls.filter(c => c.args.includes('branch')).length, 0);
-});
-
-// #523 C25 (the security pair's finding on the window after the last read)
-test('#523 C25: a worktree folder swapped for a link after the last read is left: nothing forced, the lock put back, the target untouched', t => {
-  const f = makeRepo(t);
-  const w = f.add('busy');
-  writeFileSync(join(w, 'new.txt'), 'x');
-  sessionLock(f, 'busy');
-  const outside = tempDir(t, 'pact-cleaner-outside-');
-  writeFileSync(join(outside, 'precious.txt'), 'keep');
-  const o = otagOf(f.run(['show']).out, 'busy');
-  let swapped = true;
-  // The unlock call is the last git call before the removal: swap the folder there.
-  const rec = recording((file, args) => {
-    if (args.includes('worktree') && args.includes('unlock')) {
-      renameSync(w, `${w}-moved`);
-      swapped = plantLink(outside, w, linkKind);
-    }
-    return null;
-  });
-  const rm = f.run(['remove', '--override', `busy=${o}`], { spawn: rec.spawn });
-  if (!swapped) return;
-  assert.equal(rm.code, 1, rm.out);
-  assert.match(rm.out, /^worktree busy: left, it changed since the read$/m, rm.out);
-  assert.equal(rec.calls.filter(c => c.args.includes('--force') || c.args.includes('remove')).length, 0, 'no removal call ran');
-  assert.ok(existsSync(join(outside, 'precious.txt')));
-  assert.equal(lockOf(f, 'busy'), 'claude session busy (pid 4321)', 'the lock is put back');
 });
 
 // #523 C17

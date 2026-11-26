@@ -248,10 +248,47 @@ round's comment on the issue lists each finding.
     tree check runs exactly as printed, and reads the folder from its last
     argument, after end-to-end sessions piped the script to `node` (S12).
 61. The same pick: a `codex-toml` agent file says to search and read with
-    shell commands that only read files, never `git`, after an end-to-end `scout` refused for lack of
+    shell commands that only read files, after an end-to-end `scout` refused for lack of
     the tools its instructions name (S7).
 62. Trade-off: `docs/rule-reasons.md`'s budget rises to 1,250, on the
     owner's word-cap rule (PACT-110).
+
+**The owner's picks on a trusted machine, relayed by the lead (its decisions
+152, 163, 164 and 165), a control loosened, flagged:**
+
+63. Security: the owner's machine is trusted. Programs, processes and agents
+    the owner starts there, sessions and lenses included, are guarded against
+    their mistakes, never against their turning hostile. The owner: "Whatever
+    I start running on my machine, whether it's a process or an agent, we
+    shouldn't be fighting it ... when we protect against mistakes, we don't
+    need to be as robust as protecting against attackers." Guards against
+    outside text, outsiders' code, a clone's files and programs, downloads,
+    the network and release tags stay. The audit table on the issue lists each
+    cut.
+64. Security: the tree check (S12) catches a lens's mistakes, not a hostile
+    lens. Its second run may be read from anywhere, and a lens that forges it
+    is the machine's, accepted; this closes the open medium of the lead's
+    decision 152.
+65. Security: the install keeps its temp-then-replace write and every check on
+    what comes from the clone, and loses its race, swap, re-hash, file-mode and
+    preload checks (S9). Clef's supervisor takes no token: any program on the
+    machine may call it, and `Host` and `Origin` still keep web pages out (spec
+    0002). The cleaner loses its swap and hooks re-checks, the poster its read
+    re-check, and the hand-off folder its owner-only mode. `gh-app`'s refusals
+    of `auth`, `extension`, `alias`, `config` and a leading flag stay: they keep
+    the bot's token out of the owner's own `gh` login and settings (decision
+    165).
+66. No rule keeps the owner's user name or home path out of a post, and none
+    replaces it. "Never post a secret" stays.
+67. Spec 0008's `tierEfforts` is deleted (decision 163): a stage names only the
+    planning or executor model, and Test stays on the executor model.
+68. Security, the lead's decision 166: a Codex lens that can read and send
+    keys, PR 676's high, is closed as accepted under the trusted machine:
+    outside text stays data (whose text counts), and no network block is
+    added (S15, Codex lenses).
+69. A known test limit: the Codex end-to-end run reads the real `~/.agents`,
+    since Codex finds that folder through the Windows profile, not
+    `USERPROFILE`. It isn't isolated, and no fix is planned (C26).
 
 ## S3 Terms
 
@@ -342,10 +379,6 @@ configuration. Each has:
 - `agentModels`: a model per agent, by its name, with `*` for every agent it
   doesn't name; optional. No value holds `<effort>`. A key naming no pact
   agent gives a dry-run `WARN`.
-- `tierEfforts`: an effort per tier cell; optional. Each key is a tier's name
-  in the tiers table, lower case, each run of spaces one hyphen
-  (`[a-z0-9]+(-[a-z0-9]+)*`); each value holds `plan`, `build` or both, each
-  one of the five efforts.
 - `efforts`: the efforts the harness takes, a non-empty list from the five
   (`low`, `medium`, `high`, `xhigh`, `max`), each once, in that order;
   optional, all five when absent.
@@ -371,7 +404,6 @@ The known descriptions:
 | `hooks` | `~/.claude/settings.json`, `claude` | `~/.codex/hooks.json`, `codex` | `~/.gemini/config/hooks.json`, `antigravity` |
 | `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-sol`, none | `gemini-4-neon-<effort>`, `gemini-4-hydrogen-<effort>`, `flash` |
 | `agentModels` | none | none | `*`: `flash`; `adversarial-lens` and `data-lens`: `pro` |
-| `tierEfforts` | none | `standard`: `build` `medium` | none |
 | `efforts` | none | none | `low`, `medium`, `high`, `xhigh` |
 | `capabilities` | `subagents`, `tool-limits`, `cleaner`, `archive`, `native-rules` | `subagents`, `hook-trust`, `explicit-skills` | `subagents`, `tool-limits`, `hook-ask`, `explicit-skills`, `skill-copies` |
 
@@ -393,8 +425,7 @@ The known descriptions:
   id, field by field, under the same checks, with a `WARN` naming each. Its
   `agentModels` goes over the known one name by name, and its `models` leave
   it as it is: an Antigravity agent file takes a tier and never a session's
-  model. Its `tierEfforts` goes over the known one key by key, where a key set
-  to `null` drops the known one; its `efforts` replaces the known list whole.
+  model. Its `efforts` replaces the known list whole.
 
 ## S6 Models: roles and mapping
 
@@ -432,18 +463,6 @@ The known descriptions:
   (`agent-effort`). A tiers or workflow table cell whose role maps to such a
   model, at an effort outside `efforts`, gives a dry-run `WARN` naming the
   tier, the stage and the effort, never the model.
-- **Tier efforts.** A `tierEfforts` key rewrites only the effort word of its
-  tier's `Plan` or `Build` cell in the tiers table (the first whose header
-  starts `| Tier |` and holds `Plan` and `Build`), and of the cell in that
-  tier's column on the same-named row of the workflow table (the first whose
-  header starts `| Stage |`). The workflow table's
-  sensitive-route column, and the sensitive route's paragraph, are never
-  rewritten. A
-  workflow table or row that isn't there is skipped. An own key that finds no
-  tiers table, no row of its tier, or a cell that isn't `<model>, <effort>`
-  refuses (`tier-effort`). A known key that finds nothing gives a dry-run
-  `WARN`, and the rules render without it. [0008](0008-per-harness-models-and-efforts.md)
-  D5 has the rest.
 - **The builder.** Its Models list becomes three dropdown roles plus the
   person's own names. The default configuration and presets switch to roles.
   Each harness row in Scriptorium sets that harness's three models (S11).
@@ -774,10 +793,9 @@ the app instead (S2 item 49).
   models, each a dropdown of that harness's known models plus a free entry.
   An "Add a harness" row takes an own harness's fields (S5). Antigravity's
   model dropdowns also offer `pro`, `flash` and `flash_lite`.
-- **Agent models and tier efforts** ([spec 0008](0008-per-harness-models-and-efforts.md)
-  D6). A row per pact agent and a column per harness set `agentModels`; a row
-  per tier sets `tierEfforts`. A change writes one key of the harness's own
-  entry, and a renamed or dropped tier takes its key along.
+- **Agent models** ([spec 0008](0008-per-harness-models-and-efforts.md)
+  D6). A row per pact agent and a column per harness set `agentModels`. A
+  change writes one key of the harness's own entry.
 - **Across harnesses.** A read-only column per known and own harness: its
   models line, each tier's cells and each agent's model and effort. `node
   builder/build.mjs --overview <file>` writes this alone, from the home
@@ -808,8 +826,8 @@ the app instead (S2 item 49).
 - **The tree check.** `review.md`, one shared file, gains one step under
   Running a lens. In a harness whose agents can't be held to their tools
   (Codex today), where the rules file also sends `scout` to it, the session
-  runs one command before each lens and each `scout` pass, and keeps what it
-  prints in its own output, never in a file a lens can write. It runs the
+  runs one command before each lens and each `scout` pass. It catches a
+  lens's mistakes, not a hostile lens (S2 item 64). It runs the
   command exactly as printed, never cut out, piped or edited. It starts it
   from the home folder and gives it the work tree's top folder, so no
   program or version pin in the tree picks the `node` that runs it. The command
@@ -831,10 +849,9 @@ the app instead (S2 item 49).
   read, or a name that isn't text, fails the run.
 
   After the pass the session stops any process the agent left running, runs the
-  same command again, as it ran it before and never read again from a file (an
-  agent that can write that file would write its own check), before any other
-  git, and compares: the same last line means no change. On any difference, a failed run, or a command or first record it no
-  longer holds, it stops: it runs no git in that tree, changes nothing, counts the
+  same command again before any other git, and compares: the same last line
+  means no change. On any difference or a failed run, it stops: it runs no git
+  in that tree, changes nothing, counts the
   pass inconclusive and reports to the owner which lines differ. It keeps no
   copy and restores nothing.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
@@ -1106,8 +1123,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   with S7's line everywhere. `finis` without `archive` ends with S7's line
   and archives nothing. `scriptorium` names no one harness's folders.
 - **C10** `review.md` holds S12's tree check, around each lens and `scout`
-  pass: one command, run as printed from outside the tree before and after (the
-  second run never read again from a file), taking the folder as its last
+  pass: one command, run as printed from outside the tree before and after,
+  taking the folder as its last
   argument, whose record
   covers every file and git's config, hooks, `info`, `HEAD`, refs, index
   entries and half-done merges and rebases, stays the same across a `git
@@ -1214,7 +1231,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   Antigravity rules name no Claude model, and the dry run warns of no own
   model name. On the owner's no to a widening: Codex runs a lens in a
   separate session, and Antigravity is installed only when the list names
-  it.
+  it. A known test limit: Codex reads the real `~/.agents` here, whatever
+  `USERPROFILE` says, so the run isn't isolated from it (S2 item 69).
 
 ## S19 Rollback
 
