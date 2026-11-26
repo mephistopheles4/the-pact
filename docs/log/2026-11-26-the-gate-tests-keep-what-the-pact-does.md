@@ -17,7 +17,7 @@ The owner then asked for an audit, saying that 3,000 tests is not very fast (dec
 ## For the owner to confirm
 
 - **What was in `~/.pact`.** Nothing on `main` names that folder, and the fast tier left its canary in place, so its loss is unexplained.
-- **Five check families now have no bad case:** the workflow lockdown, the folder check, the CodeQL and Claude allow-lists, and the premise test. The project check's "the real home comes from the OS" rule has none either. The new rule asks for one when a family is next tightened.
+- **Five check families now have no bad case:** the workflow lockdown, the folder check, the CodeQL and Claude allow-lists, and the premise test. The project check's "the real home comes from the OS" rule has none either. Neither do the test runner, `gate/tests/run.mjs` (its pass line, exit code and skip lists), nor the athanor hook that refuses a host run of the gate's tests, since their tests went with the machinery. The new rule asks for one when a family is next tightened.
 - **`docs/toc.mjs`'s header still cites the cut test.** It was left alone, since a change there makes every vendoring repo behind.
 
 **Rolling back:** revert the merge. The fix stands on its own, so keep its commit if only the cuts go back.
