@@ -1,6 +1,6 @@
 # Running and writing the gate's tests
 
-Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change or cut a gate test. `AGENTS.md`'s "Running the gate's tests" gives the commands, the athanor default and what counts as a pass; this adds the rest.
+Read this before you pick a tier beyond what `AGENTS.md` gives, wait on CI, or write, change or cut a gate test. `AGENTS.md`'s "Running the gate's tests" gives the commands, the athanor default and what counts as a pass; this adds the rest.
 
 <!-- toc -->
 
@@ -59,6 +59,12 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   and opens a draft PR before Test. The Test record names each run's commit as
   GitHub shows it, which must be the head it cites. No local `full` at Test is
   kept as evidence, and a `changed` run never is.
+- **Waiting on CI:** check once every few minutes. If you watch instead, use
+  `gh pr checks <n> --watch --interval 60` or
+  `gh run watch <run-id> --interval 60`, never the default interval. Before
+  CI-heavy work, such as repeated CI rounds or several sessions waiting at
+  once, run `gh api rate_limit --jq .resources.core`; with `remaining` below
+  500, start no watch and no CI-heavy work until its `reset` time.
 - **A cancelled run on `main`** is re-run before an install or a rollback
   reads its result. No run of the gate workflow cancels another on `main`,
   but a run of another workflow that named the same concurrency group could.

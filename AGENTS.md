@@ -39,6 +39,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   draft PR before Test. The
   Test record cites each run link and each run's commit, which is the head.
   A `changed` run is never Test evidence.
+- Before you wait on CI, read how:
+  [gate tests](docs/agents/gate-tests.md#running-the-gates-tests).
 - Read a change under Read closely before pushing.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.
