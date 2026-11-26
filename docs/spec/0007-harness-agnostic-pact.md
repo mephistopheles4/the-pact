@@ -656,17 +656,20 @@ only `main` may deploy to, against "no secrets".
     fsmonitor and every filter off, with a hash of each listed path's
     content.
 
-  After the lens it checks each copy against its hash first, and again right
-  before it puts anything back from it; where one differs it puts nothing back
-  from the copies and brings it to the owner. Else it compares the git folders
-  with the copies and puts them back, then runs the same records again. Any
-  change marks the lens inconclusive. The session puts back only what changed
-  during the lens: a moved ref goes back to its earlier value first; then any
-  new link or junction is removed, and a path clean before is restored with git
-  from that `HEAD`, or deleted if it is new, each as itself and never through a
-  link or junction. A path already changed before the lens is left as it is and
-  named, so the owner's own work is never thrown away. The copies are deleted
-  afterwards. The change and the restore are a flagged checkpoint.
+  After the lens it first stops any process the lens left running and removes
+  any new link or junction, in the git folders too. It checks each copy against
+  its hash, and again right before it puts anything back from it; where one
+  differs it puts nothing back from the copies and brings it to the owner. Else
+  it compares the git folders with the copies and puts them back, checks them
+  against the same hashes, bringing any difference to the owner, then runs the
+  same records again. Any change, a removed link included, marks the lens
+  inconclusive. The session puts back only what changed during the lens: a
+  moved ref goes back to its earlier value first; then a path clean before is
+  restored with git from that `HEAD`, or deleted if it is new. Each path is
+  removed, put back or restored as itself, never through a link or junction. A
+  path already changed before the lens is left as it is and named, so the
+  owner's own work is never thrown away. The copies are deleted afterwards. The
+  change and the restore are a flagged checkpoint.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
   (S15), T4 removes `subagents` from Codex's known description, so Codex
   gets the no-subagents line and each lens runs in a separate session.

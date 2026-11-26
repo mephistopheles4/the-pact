@@ -45,17 +45,19 @@ lenses to offer, and when.
     `-c core.fsmonitor=false`, and each filter's `clean` and `process` empty
     and `required` false.
 
-  After it, check each copy against its hash first, and again right before you
-  put anything back from it; if one differs, put nothing back from the copies
-  and bring it to me. Else compare git's folders with the copies and put them
-  back, then take the same records again. Any change marks the lens
-  inconclusive. Put back only what changed during the lens: a moved ref goes
-  back to its earlier value first; then remove any new link or junction, and
-  restore a path clean before with git from the earlier `HEAD`, or delete it if
-  it is new, each as itself and never through a link or junction. A path already
-  changed before the lens stays as it is, and you name it, so my own work is
-  never thrown away. Delete the copies. The change and the restore are a
-  checkpoint, flagged.
+  After it, first stop any process the lens left running, and remove any new
+  link or junction, in git's folders too. Check each copy against its hash, and
+  again right before you put anything back from it; if one differs, put nothing
+  back from the copies and bring it to me. Else compare git's folders with the
+  copies and put them back, check them against the same hashes, and bring any
+  difference to me; then take the same records again. Any change, a removed
+  link included, marks the lens inconclusive. Put back only what changed during
+  the lens: a moved ref goes back to its earlier value first; then restore a
+  path clean before with git from the earlier `HEAD`, or delete it if it is
+  new. Remove, put back and restore each path as itself, never through a link or
+  junction. A path already changed before the lens stays as it is, and you name
+  it, so my own work is never thrown away. Delete the copies. The change and the
+  restore are a checkpoint, flagged.
 
 ## The report template
 
