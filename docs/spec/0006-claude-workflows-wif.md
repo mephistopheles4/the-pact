@@ -1,6 +1,6 @@
 # Spec: the Claude workflows, through Workload Identity Federation — V2
 
-Status: V2 revision 3, draft on the PACT-113 branch, on the sensitive route:
+Status: V2 revision 4, draft on the PACT-113 branch, on the sensitive route:
 the security pair reads it and the diff. V1 (PACT-101) let the two files in;
 V2 makes the review run on request only and adds the controls PACT-103's
 round 2 listed. The spec counts once it is on `main`.
@@ -32,10 +32,10 @@ pull request, cost money on each, and posted nothing. V2:
 - bounds each run's turns, model, spend and overlap;
 - runs Claude in `dontAsk` mode with an exact tool list and deny rules in
   both files;
-- writes to GitHub through an app of the owner's own that holds only Issues
-  and Pull requests write and Contents read, so no run can push or merge, and
-  takes this repo off the Claude GitHub app; a mention answers in its comment
-  and no longer commits;
+- writes to GitHub through an app of the owner's own that holds only
+  Contents, Issues and Pull requests write, with no Workflows, Actions or
+  hooks permission, and takes this repo off the Claude GitHub app; a mention
+  still commits, and the review's token holds no Contents write;
 - posts the review only through the action's masking comment tools, from a
   procedure kept in the repo, on a runner whose outbound traffic is held to a
   list of hosts;
@@ -106,7 +106,7 @@ changes the gate.
    cache sit) and `/tmp`, and on `ps`, `env` and `printenv`, back it. These
    are speed bumps, as the threat model says of deny rules: the app token
    stays in the shell's environment, where a read-only command such as
-   `echo` reaches it, so W2.7 gives the token nothing worth stealing. The gate
+   `echo` reaches it (W5 names what that token can do). The gate
    also refuses a `permissions` key in `.claude/settings.json`, which the run
    loads from the base branch and which could widen the list or turn the two
    blocks off: project settings outrank the user settings the action writes.
@@ -114,9 +114,9 @@ changes the gate.
    Claude GitHub app holds Workflows, Actions and hooks write besides what the
    action needs, and GitHub lets no installation accept less. The owner's
    agent apps don't fit either: each holds `workflows: write`, and their keys
-   sit with sessions. So the owner creates one new app with Issues and Pull
-   requests write and Contents read (Metadata read), no webhook, installed on
-   this repo only, and takes this repo off the Claude GitHub app (W9): while that
+   sit with sessions. So the owner creates one new app with Contents, Issues
+   and Pull requests write (Metadata read), no webhook, installed on this
+   repo only, and takes this repo off the Claude GitHub app (W9): while that
    app stays installed, a run's OIDC request credentials could be traded for
    its token. Each job uses the GitHub environment `claude`, whose deployment
    branches are `main` only, and which holds the app's private key as the
@@ -124,14 +124,12 @@ changes the gate.
    `CLAUDE_APP_CLIENT_ID`. A step pinned to `actions/create-github-app-token`
    mints an installation token, narrowed per file (W4), and hands it to the
    action as `github_token`; the action then skips its own exchange for the
-   Claude app's token. Merging a pull request and pushing need Contents
-   write, which neither the app nor any token holds, so a stolen token or key
-   can comment, delete comments, edit, close, approve and retarget pull
-   requests, and merge one existing branch into another through
-   update-branch, all short of `main`. The cost: a
-   mention can no longer commit (W7). The mention's token holds Issues write;
-   the review's adds Pull requests write for inline comments. The token is
-   masked, and revoked when the job ends. Both
+   Claude app's token. The mention's token holds Contents and Issues write,
+   so a mention can commit and push its own `claude/` branch; the owner keeps
+   that, holding the identity gate (W2.3, W2.5) as enough (W7). Pushing and
+   merging need Contents write, so the review's token, Contents read with
+   Issues and Pull requests write, can do neither. The token is masked, and
+   revoked when the job ends. Both
    files' events run from `main`, so the environment admits them; a workflow
    pushed to another branch gets neither the key nor, by W2.2, an Anthropic
    token. With no Workflows permission, the app's token cannot push a
@@ -152,7 +150,7 @@ changes the gate.
    comments (`mcp__github_inline_comment__create_inline_comment`). Both run
    each body through the action's `redactSecrets`, which masks GitHub,
    Anthropic, AWS and Slack token shapes and JWTs. The git wrappers tag mode
-   adds are denied in both files, so no run commits or pushes.
+   adds are denied in the review, so it cannot commit or push.
 10. **Outbound traffic is held to a list.** Both jobs run on
     `ubuntu-24.04-firewall`, GitHub's egress-firewall runner, with
     `.github/egress-firewall.yaml` in `mode: enforce`. The runner reads the
@@ -252,7 +250,7 @@ style of the CodeQL allow-list's.
 | Environment | `claude` | `claude` |
 | Concurrency | group `claude-${{ github.event.issue.number }}`, `cancel-in-progress: false` | group `claude-review-${{ github.event.issue.number }}`, `cancel-in-progress: false` |
 | Job permissions | `contents`, `pull-requests`, `issues`, `actions`: read; `id-token: write` | `contents`, `pull-requests`, `issues`: read; `id-token: write` |
-| App token (`permission-*`) | `contents: read`; `issues: write` | `contents: read`; `issues`, `pull-requests`: `write` |
+| App token (`permission-*`) | `contents`, `issues`: `write` | `contents: read`; `issues`, `pull-requests`: `write` |
 | Action inputs | the three federation IDs, `allowed_bots`, `github_token`, `settings`, `claude_args` | the three federation IDs, `allowed_bots`, `github_token`, `track_progress`, `prompt`, `settings`, `claude_args` |
 
 The app-token step's inputs: `client-id: ${{ vars.CLAUDE_APP_CLIENT_ID }}`,
@@ -280,19 +278,21 @@ github.event.issue.pull_request && (startsWith(github.event.comment.body, '@clau
 The pinned CLI is newer than both keys need.
 
 **The deny list** both files share, `DENY`:
-`Read(//proc/**),Read(//home/runner/work/_temp/**),Read(//tmp/**),Bash(ps:*),Bash(env:*),Bash(printenv:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rm:*)`.
+`Read(//proc/**),Read(//home/runner/work/_temp/**),Read(//tmp/**),Bash(ps:*),Bash(env:*),Bash(printenv:*)`.
+The review adds `NO_GIT_WRITE`:
+`Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rm:*)`.
 No rule names the home folder: the checkout sits inside it, and a Read deny
 there would also deny reading and editing the checkout.
 
 **`claude_args`,** each held exactly:
 
 - `claude.yml`: `--permission-mode dontAsk --allowedTools
-  "Bash(git status),Bash(git diff),Bash(git log --oneline -20)"
+  "Edit(./**),Write(./**),Bash(git status),Bash(git diff),Bash(git log --oneline -20)"
   --disallowedTools "<DENY>"
   --model claude-sonnet-5-5 --max-turns 60 --max-budget-usd 5`.
 - `claude-code-review.yml`: `--permission-mode dontAsk --allowedTools
   "mcp__github_inline_comment__create_inline_comment,Bash(git diff refs/remotes/origin/main...HEAD),Bash(git diff --stat refs/remotes/origin/main...HEAD)"
-  --disallowedTools "<DENY>"
+  --disallowedTools "<DENY>,<NO_GIT_WRITE>"
   --model claude-opus-5-5 --max-turns 40 --max-budget-usd 5`.
 
 The base is the full ref, `refs/remotes/origin/main`: a branch or tag named
@@ -301,12 +301,14 @@ The base is the full ref, `refs/remotes/origin/main`: a branch or tag named
 **The effective tools.** Tag mode adds its own to each list: `Glob`, `Grep`,
 `LS`, `Read`, `mcp__github_comment__update_claude_comment`, the three
 `mcp__github_ci__` tools (started only on a pull request with `actions:
-read`, so only in `claude.yml`), and the four git wrapper scripts, which
-`DENY` stops. So a mention reads the checkout, runs read-only commands there
-(Claude Code's built-in read-only set, which includes read-only forms of git,
-runs in every mode whatever the list says), and answers in its tracking
-comment; it edits nothing it could push. A review does the same, runs the two
-`git diff` commands and posts inline comments.
+read`, so only in `claude.yml`), and the four git wrapper scripts. So a
+mention reads the checkout, runs read-only commands there (Claude Code's
+built-in read-only set, which includes read-only forms of git, runs in every
+mode whatever the list says), edits and writes inside it, commits and pushes
+its own `claude/` branch through the wrappers, and updates its tracking
+comment. A review reads the same, runs the two `git diff` commands, updates
+its tracking comment and posts inline comments; `NO_GIT_WRITE` stops the
+wrappers.
 
 **The review's prompt:** `Review this pull request. Follow
 .claude/ci/review.md exactly. It comes from the base branch.` The procedure
@@ -347,12 +349,16 @@ Controls paragraph drops "no secrets", "no key in the repo" and "Anthropic's
 workflow validation". Its residual lines become:
 
 - a run that an allowed actor starts reads issue, comment and pull request
-  text from anyone, and that text can steer what Claude posts through the
-  app's token; no token holds Contents write, so a run, or anyone holding
-  its token, can comment, delete comments, edit, close, approve and retarget
-  pull requests, and merge one existing branch into another through
-  update-branch, but cannot push, merge or reach `main`; a session pulling a
-  branch with the app's commit on it treats it as outsiders' code;
+  text from anyone, and that text can steer a commit or a merge on `main`,
+  which needs no approval: the mention's token holds Contents write, and a
+  steered run can read it from its own environment, so the run, or anyone
+  it hands the token to while the job lasts, can push to any branch but
+  `main` and merge any pull request whose checks pass. The owner accepts
+  this, holding the identity gate as enough, and no guard is added for it.
+  The review's token holds no Contents write; it can comment, edit, close,
+  approve and retarget pull requests and merge one branch into another
+  through update-branch, short of `main`. A session pulling a branch with
+  the app's commit on it treats it as outsiders' code;
 - a steered run can read the app token from its own environment, and what
   the read limits miss, and post it through the masked tools in a shape
   `redactSecrets` does not know; an update to the tracking comment keeps its
@@ -368,7 +374,9 @@ workflow validation". Its residual lines become:
   readable by any code that runs in either job, which includes hooks the
   action restores from a pull request's base branch: whoever can change
   `main`, or the base of a pull request someone mentions Claude on, can read
-  it. It buys only what the app holds: no Contents write. Its
+  it. It buys what the app holds, Contents write included, until the key is
+  deleted, so it can do what a leaked mention token can, with no time
+  limit. Its
   leak response: uninstall the app, which ends every live token, then delete
   the key on the app's page and make a new one;
 - the egress runner is a technical preview, and GitHub's default hosts stay
@@ -381,9 +389,9 @@ missing ref pin go once C12 shows the narrowed rule.
 
 How a session decides to ask (asking Jev is the session's work; the ask
 itself is W2.4's). Inline comment classification (it needs an API key, and
-is skipped under federation, so every inline comment posts). Mentions that
-commit: a later spec can give them a separate, narrower path. A
-per-collaborator service account. Other repos. Claude
+is skipped under federation, so every inline comment posts). Commit
+authorship: mention commits keep the action's default author while the new
+app pushes them. A per-collaborator service account. Other repos. Claude
 Approvals and the managed Code Review, which need a Claude Team or Enterprise
 plan.
 
@@ -399,13 +407,17 @@ plan.
   total. The driver is the owner's: not always in the loop.
 - **A stored key against the Claude app's breadth.** V1 held no secret.
   V2's app key is one, held to `main` by the environment, in exchange for an
-  app that cannot push, merge, or touch workflows, hooks or Actions. Removing the environment's secret and the step returns
+  app that cannot touch workflows, hooks or Actions. Removing the
+  environment's secret and the step returns
   to the Claude app. This is a new boundary: the owner's checkpoint.
 - **Mentions that commit against a token worth stealing.** A steered run can
-  read its own token, and `main` needs no approval, so a token with Contents
-  write could merge any pull request whose checks pass. V2 takes Contents
-  write away: `@claude` answers and no longer commits. Cheaper to reverse
-  than a merge to `main`: a spec change gives it back.
+  read its own token, and `main` needs no approval, so the mention's
+  Contents write lets text a run reads steer a commit or a merge on `main`.
+  The owner keeps mentions committing, to ask Claude to do work in the
+  cloud, and holds the identity gate (the owner, members, collaborators and
+  the three apps start a run) as enough. Accepted; no guard is added.
+  Dropping Contents write from the mention's token closes it, at the cost of
+  that work.
 - **Code owner review on `main`.** Requiring it would make every change to
   the Claude controls wait for the owner, and would block a pull request the
   owner's own account opens on those paths, since an author can't approve
@@ -439,7 +451,7 @@ Before merge:
 - C6. The owner's checklist is on the issue, and W9's before-merge steps are
   done: the environment's branch policy, read back through the API, lists
   only `main`; this repo has no Claude GitHub app installation; the new
-  app's page shows exactly Issues write, Pull requests write, Contents read
+  app's page shows exactly Contents write, Issues write, Pull requests write
   and Metadata read, and its installation lists this repo only.
 
 After merge:
@@ -456,8 +468,8 @@ After merge:
 - C10. An `@claude` comment from the owner on an issue gets an answer in its
   tracking comment that quotes a file from the checkout. Asked to read
   `/etc/hostname`, and then to run `cat /etc/hostname`, it reports both
-  refused, and the result line counts the permission denials. Asked to make an edit, it says it can't, and no branch
-  appears.
+  refused, and the result line counts the permission denials. Asked to make
+  an edit, it lands as a commit on a `claude/` branch.
 - C11. The run summary's egress log shows the policy loaded in enforce mode,
   and no blocked host the run needed.
 - C12. The Console's authentication history shows each exchange matched the
@@ -468,8 +480,8 @@ After merge:
 Kept on the issue as a comment the session posts before Test, in this order,
 each step with its test. It names where each secret lives, never a value.
 
-1. Before merge: create the app (W2.7: Issues and Pull requests write,
-   Contents read) and install it on this repo only;
+1. Before merge: create the app (W2.7: Contents, Issues and Pull requests
+   write) and install it on this repo only;
    create the `claude` environment with deployment branches `main` only, then
    add the key and client ID; delete the downloaded key file. Inert until V2
    is on `main`.
