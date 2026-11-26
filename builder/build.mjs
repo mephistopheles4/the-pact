@@ -54,7 +54,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CONFIG_REL, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain } from '../gate/install-core.mjs';
+import { CONFIG_REL, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain, parseRecord } from '../gate/install-core.mjs';
 import { KNOWN_REL, chooseHarnesses, configHarnesses, parseKnown, resolveHarnesses } from '../gate/harnesses.mjs';
 import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
@@ -123,7 +123,7 @@ const partsCode = () => readFileSync(PARTS_FILE, 'utf8').replace(/^(?:\/\/.*\n)+
  * gate/harness-render.mjs, each wrapped in its own function so its names stay
  * its own, with its header comment, imports and every "export " taken off. What
  * they import from the install core is handed in ahead of them, taken from that
- * module itself. The page has no Buffer, so its byte count stands in for it.
+ * module itself. The page has no Buffer, so the page's own byte count stands in for Buffer.byteLength.
  */
 function renderCode(root) {
   const read = rel => readFileSync(join(root, ...rel.split('/')), 'utf8').replaceAll('\r\n', '\n');
@@ -405,8 +405,9 @@ export function machineData(home = homedir(), root = join(dirname(fileURLToPath(
   const recordText = readOr(RECORD_REL);
   if (recordText !== null) {
     try {
-      recorded = [...new Set(JSON.parse(recordText).harnesses.map(h => String(h.id)))];
-    } catch {
+      recorded = [...new Set(parseRecord(recordText).harnesses.map(h => h.id))];
+    } catch (e) {
+      if (!(e instanceof Refusal)) throw e;
       findings.push(`harnesses: ${RECORD_REL} could not be read as an install record; its harnesses are not listed`);
     }
   }
@@ -1040,7 +1041,7 @@ function main(argv) {
     process.exitCode = 1;
     return;
   }
-  // Only the page at its fixed path is the person's own, so only it reads their pact folder.
+  // Only the page at its fixed path is the person's own, so only writing it reads their pact folder.
   const machine = fixed ? machineData(homedir(), root) : null;
   for (const m of machine?.findings ?? []) process.stdout.write(`FINDING ${m}\n`);
   const html = buildPage(root, readFileSync(page, 'utf8'), opts.builder, own.presets, machine?.data ?? null);

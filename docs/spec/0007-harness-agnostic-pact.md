@@ -204,6 +204,11 @@ round's comment on the issue lists each finding.
     9,500 with T3's text and 9,550 with T7's) and `docs/reference.md` (2,300
     to 2,400, then 2,450 with T7's) rise, and nothing is cut to make room, on
     the owner's rule; PACT-110 cleans up.
+51. Trade-off: the builder kit gains `gate/install-core.mjs`,
+    `gate/harnesses.mjs`, `gate/harness-render.mjs` and
+    `harnesses/known.json`, so the page chooses and renders harnesses as the
+    install does (T7, S11). Three more gate files then install. The owner
+    hasn't answered it.
 
 ## S3 Terms
 

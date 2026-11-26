@@ -174,9 +174,9 @@ how every session in every repo behaves. So:
   With no `--out`, `build.mjs --builder <file>` writes the page to
   `~/.pact/scriptorium.html`,
   through a temporary file renamed over the last page; it refuses a link or
-  a folder at that path, and the install never touches the file. Only that page
-  reads the config's harnesses, commands and tools, the record's harness ids
-  and the detect folders; the bootstrap's builder choice writes it before any
+  a folder at that path, and the install never touches the file. Only to write that
+  page does it read the config's harnesses, commands and tools, the record's
+  harness ids and the detect folders; the bootstrap's builder choice writes it before any
   install. With `--out`,
   such a page belongs outside any repo: `build.mjs` refuses to write one
   inside this clone or any git work tree, the kit, `~/.pact`, the Claude home

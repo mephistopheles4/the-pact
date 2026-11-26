@@ -143,7 +143,7 @@ function cloneRelease(git, home, url, { tag, commit }) {
 async function askTerminal() {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
-    return await rl.question('1) Install the default configuration\n2) Open Scriptorium first and install what you build\nChoose 1 or 2: ');
+    return await rl.question('1) Install the default configuration\n2) Build your own configuration in Scriptorium first (installs nothing)\nChoose 1 or 2: ');
   } finally {
     rl.close();
   }
@@ -190,7 +190,7 @@ export async function main({
       const file = existsSync(own) ? own : join(clone, 'examples', 'pact-config', 'builder.json');
       const forHome = opts.home === null ? run : { ...run, HOME: home, USERPROFILE: home };
       if (!pass([join(clone, 'builder', 'build.mjs'), '--builder', file], forHome)) return 1;
-      say('Nothing is installed yet. Open the page named above in a browser, save from it into your .pact folder, then run this command again and choose 1, or pass --default: it installs what you saved.');
+      say('Nothing is installed yet. Open the page named above in a browser, save from it into your .pact folder, then run this command again, with the same --home if you gave one, and choose 1 or pass --default: it shows the dry run of what you saved.');
       return 0;
     }
     // The default is only the dry run's input: the install keeps an existing ~/.pact/config.json and uses it.

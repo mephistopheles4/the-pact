@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-pKSctOfRiOFcGmuLrmwOlr91RvTgfkeqod+1VQOHe5A='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-bAyKTNoFoMrLKrYYKijn7A+0QBt2DFsnxDaX9S6O6js='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -6679,7 +6679,7 @@ function initialState() {
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
   // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
   // #183 T4a: skills holds the skill sources, named for the cloud setup to fetch, as the builder file gives them; a save writes them into config.json.
-  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, identity: PACT.identitySwitch.def, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, harnesses: { install: null, models: {}, add: {}, remove: [] }, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
+  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, stopDeny: PACT.stopSwitch.def, identity: PACT.identitySwitch.def, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, harnesses: { take: {}, models: {}, add: {}, remove: [] }, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
 }
 
 /** The model and effort an agent file's frontmatter sets, each falling back to `def`'s. */
@@ -6820,7 +6820,7 @@ function buildFiles(state) {
   if (Array.isArray(state.commands)) config.commands = OPT_COMMANDS.map(c => c.name).filter(n => state.commands.includes(n));
   // The pact tools the person set (#280), in the installer's order; off unless listed.
   if (Array.isArray(state.tools)) config.tools = OPT_TOOLS.map(c => c.name).filter(n => state.tools.includes(n));
-  // Harnesses (spec 0007 S11): nothing is written until the person changes one; then the pact folder's own are written with the changes.
+  // Harnesses (spec 0007 S11): nothing is written until the person changes one; then the changes are written over what the page knew of the pact folder.
   if (harnessesChanged(state.harnesses)) {
     const harnesses = harnessesWith(PACT.machine?.harnesses, state.harnesses);
     if (harnesses) config.harnesses = harnesses;
@@ -6899,7 +6899,8 @@ function topKeys(text) {
 
 /**
  * The files a save writes over `existing`, the text of the config.json already
- * in the folder, or null when there is none (#203). Until the person sets
+ * in the folder, or null when there is none (#203), keeping its commands,
+ * tools and harnesses. Until the person sets
  * the commands on the page (S10), a commands list already there is kept as it
  * stands; without this, a save would drop it and the next install would
  * delete the commands. A tools list is kept the same way (#280). A list set
@@ -6907,7 +6908,7 @@ function topKeys(text) {
  * too, with `changes`, what the page changed of them, applied over them.
  * A file that isn't JSON is never replaced. Returns { files } or { refuse }.
  */
-function keepCommands(files, existing, changes) {
+function keepFolderKeys(files, existing, changes) {
   if (existing === null) return { files };
   let doc;
   try {
@@ -6921,14 +6922,13 @@ function keepCommands(files, existing, changes) {
   const changed = Boolean(changes) && harnessesChanged(changes);
   const kept = lists.filter(k => Object.hasOwn(doc, k) && !Object.hasOwn(built, k));
   if (!changed && Object.hasOwn(doc, 'harnesses')) kept.push('harnesses');
-  const merged = changed && Object.hasOwn(doc, 'harnesses');
-  if (!kept.length && !merged) return { files };
+  if (!kept.length && !changed) return { files };
   // The installer refuses a key given twice, case folded; JSON.parse would keep the last one.
   const keys = topKeys(existing).map(k => k.toLowerCase());
   if (new Set(keys).size !== keys.length) return { refuse: 'The folder already holds a config.json that gives a key twice, which the installer refuses, so nothing was written. Fix that file, then save again.' };
   const config = JSON.parse(files[0].text);
   for (const k of kept) config[k] = doc[k];
-  if (merged) {
+  if (changed) {
     const harnesses = harnessesWith(doc.harnesses, changes);
     if (harnesses) config.harnesses = harnesses;
     else delete config.harnesses;
@@ -6938,17 +6938,17 @@ function keepCommands(files, existing, changes) {
 
 /**
  * Read the config.json already in the picked folder `dir`, a directory
- * handle, and pass it through keepCommands. No file there is not a problem;
+ * handle, and pass it through keepFolderKeys. No file there is not a problem;
  * a file that can't be read refuses, so nothing is written.
  */
-async function keepCommandsIn(dir, files, changes) {
+async function keepFolderKeysIn(dir, files, changes) {
   let existing = null;
   try {
     existing = await (await (await dir.getFileHandle('config.json')).getFile()).text();
   } catch (e) {
     if (!e || e.name !== 'NotFoundError') return { refuse: 'The folder\'s config.json could not be read, so nothing was written.' };
   }
-  return keepCommands(files, existing, changes);
+  return keepFolderKeys(files, existing, changes);
 }
 
 // ------------------------------------------------------------ harnesses (spec 0007 S11)
@@ -6960,8 +6960,11 @@ const NOTICE_SHOWN = '**Configuration in effect.** [The install names your confi
 
 /** Whether the person changed any harness on the page. */
 function harnessesChanged(c) {
-  return c.install !== null || c.remove.length > 0 || Object.keys(c.models).length > 0 || Object.keys(c.add).length > 0;
+  return c.remove.length > 0 || [c.take, c.models, c.add].some(o => Object.keys(o).length > 0);
 }
+
+/** The rows before anything is changed here: the machine's, else every known harness. */
+const startingRows = () => (PACT.machine ? PACT.machine.rows : PACT.harness.known.map(k => ({ id: k.id, in: k.defaultInstall !== false, detected: null })));
 
 /** A configuration's harnesses key, `base` or undefined, with the page's `changes` applied: the key to write, or undefined for none. */
 function harnessesWith(base, changes) {
@@ -6974,13 +6977,26 @@ function harnessesWith(base, changes) {
     else own[at] = entry;
   };
   for (const entry of Object.values(changes.add)) put(copy(entry));
-  for (const [id, models] of Object.entries(changes.models)) {
+  for (const [id, changed] of Object.entries(changes.models)) {
     const entry = own.find(e => e.id === id) || { id };
+    const known = PACT.harness.known.find(k => k.id === id);
+    // An entry's models replace the whole set, so the roles not changed come from the entry, else the pact's.
+    const models = { ...(entry.models || (known && known.models)), ...changed };
     // An empty light model is no light model: the executor's is used.
-    entry.models = Object.fromEntries(ROLES.filter(r => r !== 'light' || models[r]).map(r => [r, models[r]]));
+    if (!models.light) delete models.light;
+    entry.models = models;
     put(entry);
   }
-  const install = changes.install || (base && base.install) || null;
+  let install = (base && base.install) || null;
+  if (Object.keys(changes.take).length) {
+    // With no list there, the list starts as what takes an install with none.
+    const list = new Set(install || startingRows().filter(r => r.in).map(r => r.id));
+    for (const [id, on] of Object.entries(changes.take)) {
+      if (on) list.add(id);
+      else list.delete(id);
+    }
+    install = [...list];
+  }
   const out = { ...(install ? { install: [...install] } : {}), ...(own.length ? { own } : {}) };
   return Object.keys(out).length ? out : undefined;
 }
@@ -6991,7 +7007,7 @@ const resolved = own => harnessLib.resolveHarnesses({ known: PACT.harness.known,
 /** Every harness described by the pact folder's own entries and those added here, without the page's model choices. */
 function describedHarnesses(state) {
   const c = state.harnesses;
-  return resolved(harnessesWith(PACT.machine?.harnesses, { ...c, install: null, models: {} })?.own);
+  return resolved(harnessesWith(PACT.machine?.harnesses, { ...c, take: {}, models: {} })?.own);
 }
 
 const modelsOf = h => Object.fromEntries(ROLES.map(r => [r, (h.models && h.models[r]) || '']));
@@ -7005,32 +7021,28 @@ const modelsOf = h => Object.fromEntries(ROLES.map(r => [r, (h.models && h.model
 function harnessList(state) {
   const c = state.harnesses;
   const all = describedHarnesses(state);
-  const base = PACT.machine ? PACT.machine.rows : PACT.harness.known.map(k => ({ id: k.id, in: k.defaultInstall !== false, detected: null }));
-  const rows = base.filter(r => !c.remove.includes(r.id) && all.some(h => h.id === r.id));
+  const rows = startingRows().filter(r => !c.remove.includes(r.id) && all.some(h => h.id === r.id));
   for (const id of Object.keys(c.add)) if (!rows.some(r => r.id === id)) rows.push({ id, in: false, detected: null });
   return rows.map(r => {
     const h = all.find(x => x.id === r.id);
-    return { id: r.id, name: h.name, own: h.own, in: c.install ? c.install.includes(r.id) : r.in, detected: r.detected, models: c.models[r.id] ? { ...c.models[r.id] } : modelsOf(h) };
+    return { id: r.id, name: h.name, own: h.own, in: c.take[r.id] ?? r.in, detected: r.detected, models: { ...modelsOf(h), ...c.models[r.id] } };
   });
 }
 
 const takenIds = state => harnessList(state).filter(r => r.in).map(r => r.id);
 
-/** Put a harness in the install list or take it out: from then on the list on the page is the list. */
+/** Put a harness in the install list or take it out. */
 function setHarnessIn(state, id, on) {
-  const taken = new Set(takenIds(state));
-  if (on) taken.add(id);
-  else taken.delete(id);
-  state.harnesses.install = harnessList(state).map(r => r.id).filter(x => taken.has(x));
+  state.harnesses.take[id] = on;
 }
 
-/** Set one of a harness's three models; set back to what it had, nothing is saved. */
+/** Set one of a harness's three models; set back to what it had, that change is dropped. */
 function setHarnessModel(state, id, role, value) {
-  const row = harnessList(state).find(r => r.id === id);
-  const next = { ...row.models, [role]: value };
   const had = modelsOf(describedHarnesses(state).find(h => h.id === id));
-  if (ROLES.every(r => next[r] === had[r])) delete state.harnesses.models[id];
-  else state.harnesses.models[id] = next;
+  const changed = { ...state.harnesses.models[id], [role]: value };
+  if (value === had[role]) delete changed[role];
+  if (Object.keys(changed).length) state.harnesses.models[id] = changed;
+  else delete state.harnesses.models[id];
 }
 
 /** Add a person's own harness, as config.json describes it: null, or why the installer would refuse it. */
@@ -7038,32 +7050,36 @@ function addHarness(state, entry) {
   const all = describedHarnesses(state);
   if (all.some(h => h.id === entry.id)) return `a harness with the id ${entry.id} is already here`;
   try {
-    resolved([...(harnessesWith(PACT.machine?.harnesses, { ...state.harnesses, install: null, models: {} })?.own || []), entry]);
+    resolved([...(harnessesWith(PACT.machine?.harnesses, { ...state.harnesses, take: {}, models: {} })?.own || []), entry]);
   } catch (e) {
     if (!(e instanceof harnessLib.Refusal)) throw e;
     return e.why;
   }
-  const taken = takenIds(state);
-  state.harnesses.remove = state.harnesses.remove.filter(id => id !== entry.id);
   state.harnesses.add[entry.id] = JSON.parse(JSON.stringify(entry));
-  state.harnesses.install = [...taken, entry.id];
+  state.harnesses.take[entry.id] = true;
   return null;
 }
 
-/** Remove a person's own harness: its entry goes, and it leaves the install list. */
+/** Remove a person's own harness: its entry goes, and it leaves the install list. One only added here is just forgotten. */
 function removeHarness(state, id) {
-  const taken = takenIds(state).filter(x => x !== id);
   const c = state.harnesses;
-  if (Object.hasOwn(c.add, id)) delete c.add[id];
-  else c.remove.push(id);
   delete c.models[id];
-  c.install = taken;
+  if (Object.hasOwn(c.add, id)) {
+    delete c.add[id];
+    if (!c.remove.includes(id)) {
+      delete c.take[id];
+      return;
+    }
+  } else c.remove.push(id);
+  c.take[id] = false;
 }
 
 /** What the page finds wrong in the models set here: [{ where, level, text }]. */
 function harnessProblems(state) {
   const out = [];
-  for (const [id, models] of Object.entries(state.harnesses.models)) {
+  const rows = Object.keys(state.harnesses.models).length ? harnessList(state) : [];
+  for (const id of Object.keys(state.harnesses.models)) {
+    const models = rows.find(r => r.id === id).models;
     for (const role of ROLES) {
       if (role === 'light' && !models[role]) continue;
       if (!/^\S{1,128}$/.test(models[role])) out.push({ where: id, level: 'error', text: `the ${role} model must be one word of at most 128 characters` });
@@ -7077,7 +7093,7 @@ function savedConfig(state) {
   const files = buildFiles(state);
   const m = PACT.machine;
   const there = m && Object.fromEntries(Object.entries({ commands: m.commands, tools: m.tools, harnesses: Object.keys(m.harnesses).length ? m.harnesses : null }).filter(([, v]) => v));
-  const kept = there ? keepCommands(files, JSON.stringify(there), state.harnesses) : { files };
+  const kept = there ? keepFolderKeys(files, JSON.stringify(there), state.harnesses) : { files };
   return { config: JSON.parse(kept.files[0].text), files };
 }
 
@@ -7165,7 +7181,7 @@ function receives(state, id) {
 }
 
 // Shown wherever the config.json download button is, with or without a folder picker.
-const DOWNLOAD_NOTE = 'Unless you set the commands under Settings, a downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands. Unless you set the tools under Settings, a downloaded config.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools. Unless you change a harness under Harnesses, it holds no harnesses key either: if yours has one, copy that entry across, or the next install picks its harnesses without it.';
+const DOWNLOAD_NOTE = 'Unless you set the commands under Settings, a downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands. Unless you set the tools under Settings, a downloaded config.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools. A downloaded config.json never reads yours under Harnesses either: its harnesses key, there only when you change a harness, holds your changes over what this page knew, so merge it with yours, or the next install picks its harnesses without your entries.';
 // The pact commands a save may list (#203, S10), in the installer's order, each with what it stands for. /scriptorium is not
 // among them: every install puts it in place with the builder kit.
 const OPT_COMMANDS = Object.freeze([
@@ -8861,7 +8877,7 @@ function boot() {
     renderAgents();
     if (editor) editor.reset();
     renderSettings();
-    renderHarnesses();
+    drawHarnessDialog();
     renderOutput();
   }
 
@@ -9641,10 +9657,10 @@ function boot() {
   const OTHER = '__other__';
 
   /** Redraw after a change, focus staying on the control that made it, or going to the one named `next`, else the title. */
-  function harnessChanged(next) {
+  function redrawHarnesses(next) {
     const named = n => (n && n.getAttribute ? n.getAttribute('aria-label') || (/^(BUTTON|SUMMARY)$/.test(n.tagName) ? n.textContent : '') : '');
     const at = next || named(document.activeElement);
-    renderHarnesses();
+    drawHarnessDialog();
     renderOutput();
     const box = $('harnesses');
     if (!at || typeof box.querySelectorAll !== 'function') return;
@@ -9678,7 +9694,7 @@ function boot() {
         ownModel.delete(key);
         setHarnessModel(state, row.id, role, pick.value);
       }
-      harnessChanged();
+      redrawHarnesses();
     });
     let name = null;
     if (typed) {
@@ -9687,7 +9703,7 @@ function boot() {
       name.addEventListener('change', () => {
         setHarnessModel(state, row.id, role, name.value.trim());
         // Tab leaves the box after this event, so the redraw waits until focus has arrived.
-        setTimeout(harnessChanged, 0);
+        setTimeout(redrawHarnesses, 0);
       });
     }
     return el('div', { class: 'av-field' }, el('span', { class: 'av-field-label', text: MODEL_LABELS[role] }), pick, name);
@@ -9698,7 +9714,7 @@ function boot() {
     take.checked = row.in;
     take.addEventListener('change', () => {
       setHarnessIn(state, row.id, take.checked);
-      harnessChanged();
+      redrawHarnesses();
     });
     const found = row.detected === null ? (row.own ? 'your own' : '') : row.detected ? 'folder found' : 'folder not found';
     const bad = harnessProblems(state).filter(p => p.where === row.id);
@@ -9711,7 +9727,7 @@ function boot() {
         el('span', { class: 'av-annot', text: [found, row.in ? 'in the install' : 'not installed into'].filter(Boolean).join(' · ') }),
         row.own ? el('button', { type: 'button', class: 'row-x', title: 'Remove this harness', 'aria-label': `Remove the harness ${row.name}`, onclick: () => {
           removeHarness(state, row.id);
-          harnessChanged(i ? `Install into ${rows[i - 1].name}` : undefined);
+          redrawHarnesses(i ? `Install into ${rows[i - 1].name}` : undefined);
         } }, '×') : null),
       el('div', { class: 'harness-fields' }, ...ROLES.map(role => modelField(row, role))),
       ...bad.map(p => el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: p.text })),
@@ -9776,7 +9792,7 @@ function boot() {
             for (const k of Object.keys(harnessDraft)) delete harnessDraft[k];
             harnessFormOpen = false;
           }
-          harnessChanged(why ? '' : `Install into ${entry.name}`);
+          redrawHarnesses(why ? '' : `Install into ${entry.name}`);
         }))));
     d.open = harnessFormOpen;
     d.addEventListener('toggle', () => (harnessFormOpen = d.open));
@@ -9789,7 +9805,7 @@ function boot() {
     if (shownHarness === null) return [el('p', { class: 'av-annot', text: 'No harness is listed, so nothing installs.' })];
     const picks = rows.map(r => chip(r.name, r.id === shownHarness, () => {
       shownHarness = r.id;
-      harnessChanged();
+      redrawHarnesses();
     }, r.id === shownHarness ? '' : 'av-tool-chip--ghost', true));
     const got = receives(state, shownHarness);
     const row = rows.find(r => r.id === shownHarness);
@@ -9809,10 +9825,10 @@ function boot() {
     ];
   }
 
-  function renderHarnesses() {
+  function drawHarnessDialog() {
     const rows = harnessList(state);
     const changed = harnessesChanged(state.harnesses);
-    const looked = PACT.machine ? 'Listed as your install\'s dry run would list them when this page was written. Build the page again to look afresh.' : 'This page was written without looking at your machine, so it lists every harness the pact knows. A list you change here is exactly what installs.';
+    const looked = PACT.machine ? 'Listed as your install\'s dry run would list them when this page was written. Build the page again to look afresh.' : 'This page was written without looking at your machine, so it lists every harness the pact knows. A save into your pact folder changes only what you change here.';
     $('harnesses').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
@@ -9825,9 +9841,9 @@ function boot() {
         el('div', { class: 'chips' }, chip('Leave as is', !changed, () => {
           state.harnesses = initialState().harnesses;
           ownModel.clear();
-          harnessChanged();
+          redrawHarnesses();
         }, changed ? 'av-tool-chip--ghost' : '', true)),
-        el('p', { class: 'av-annot', text: changed ? 'Changed here: a save applies these changes to the harnesses in your config.json, and the next install reads them. Leave as is drops them.' : 'Left as is: a save keeps the harnesses already in your config.json.' })),
+        el('p', { class: 'av-annot', text: changed ? 'Changed here: a save into your pact folder applies these changes over the harnesses in your config.json. A downloaded config.json does not read yours. Leave as is drops the changes.' : 'Left as is: a save into your pact folder keeps the harnesses already in your config.json.' })),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' },
         el('h3', { class: 'section-title', text: 'What each harness receives' }),
         el('p', { class: 'av-annot', text: 'The rules, agents, commands and skills as the install would write them from this page. The line naming your configuration is filled in by the install. Settings keys, hooks, tools and the review procedure are not shown.' }),
@@ -9835,7 +9851,7 @@ function boot() {
     ));
   }
   function openHarnesses() {
-    renderHarnesses();
+    drawHarnessDialog();
     showDialog('harnesses');
   }
 
@@ -9890,7 +9906,7 @@ function boot() {
       if (e && e.name === 'AbortError') return setStatus('Save cancelled. Nothing was written.', '');
       return setStatus('The folder could not be opened. Use the download buttons instead.', 'error');
     }
-    const kept = await keepCommandsIn(dir, files, state.harnesses);
+    const kept = await keepFolderKeysIn(dir, files, state.harnesses);
     if (kept.refuse) return setStatus(kept.refuse, 'error');
     files = kept.files;
     // The four parts' keys go into the folder's builder.json, so a rebuilt page reloads them (#262, D9).

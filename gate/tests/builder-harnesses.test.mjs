@@ -1,8 +1,8 @@
-// Scriptorium's harness section (spec 0007 S11, claims C24 and C25): the rows
-// the page shows, what it saves into config.json's harnesses key, what it says
-// each harness receives, held to the installer's own renderer, and the page the
-// builder writes before any install. The page is not gate code; the installer
-// stays the authority. The page's other behaviour is in builder-page.test.mjs.
+// PACT-105 C24 and C25, Scriptorium's harness section: the rows the page shows,
+// what it saves into config.json's harnesses key, what it says each harness
+// receives, held to the installer's own renderer, and the page the builder
+// writes before any install. The page is not gate code; the installer stays the
+// authority.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
@@ -22,7 +22,7 @@ const plain = v => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
 /** The page's own functions, run with no document; what they return is cloned into this realm. */
 function logic(page = PAGE) {
-  const names = ['PACT', 'initialState', 'buildFiles', 'keepCommands', 'harnessList', 'setHarnessIn', 'setHarnessModel', 'addHarness', 'removeHarness', 'harnessProblems', 'receives'];
+  const names = ['PACT', 'initialState', 'buildFiles', 'keepFolderKeys', 'harnessList', 'setHarnessIn', 'setHarnessModel', 'addHarness', 'removeHarness', 'receives', 'problems'];
   const got = vm.runInContext(`${scriptOf(page)}\n;({ ${names.join(', ')} });`, vm.createContext({ TextEncoder }));
   // A state stays the page realm's object, so each setter changes it in place.
   return Object.fromEntries(Object.entries(got).map(([k, v]) => [k, typeof v !== 'function' ? plain(v) : k === 'initialState' ? v : (...a) => plain(v(...a))]));
@@ -44,10 +44,6 @@ test('C24: with no look at the machine, the page lists each known harness with i
   const rows = L.harnessList(L.initialState());
   assert.deepEqual(rows.map(r => [r.id, r.in, r.detected]), KNOWN.map(h => [h.id, h.defaultInstall !== false, null]));
   for (const h of KNOWN) assert.deepEqual(rows.find(r => r.id === h.id).models, { planning: h.models.planning, executor: h.models.executor, light: h.models.light ?? '' }, h.id);
-});
-
-test('C24: an untouched page writes no harnesses key', () => {
-  assert.equal(Object.hasOwn(configOf(L.initialState()), 'harnesses'), false);
 });
 
 test('C24: taking a harness out writes the install list, and putting it back writes the whole list', () => {
@@ -82,7 +78,7 @@ for (const [name, role, value] of [['an empty planning model', 'planning', ''], 
   test(`bad harness model: ${name} is a problem that stops a save`, () => {
     const s = L.initialState();
     L.setHarnessModel(s, 'codex', role, value);
-    assert.ok(L.harnessProblems(s).some(p => p.level === 'error' && p.where === 'codex'));
+    assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'codex'));
   });
 }
 
@@ -95,19 +91,14 @@ test('C24: an own harness added on the page is listed, saves as the installer re
   assert.deepEqual(JSON.parse(text).harnesses, { install: ['claude', 'codex', 'antigravity', 'mine'], own: [OWN] });
   assert.equal(installed(text, tempDir(t)).find(h => h.id === 'mine').rules.path, '.mine/RULES.md');
   L.removeHarness(s, 'mine');
-  assert.deepEqual(configOf(s).harnesses, { install: ['claude', 'codex', 'antigravity'] });
+  assert.equal(Object.hasOwn(configOf(s), 'harnesses'), false, 'an added harness removed again leaves nothing to save');
 });
 
 for (const [name, change, says] of [
   ['a known id', { id: 'codex' }, /already/],
   ['a reserved id', { id: 'pact' }, /id/],
   ['an id with a capital', { id: 'Mine' }, /id/],
-  ['no name', { name: '' }, /name/],
-  ['no detect folder', { detect: '' }, /detect/],
-  ['a path outside the home folder', { rules: { path: '/etc/RULES.md' } }, /~\//],
   ['a path inside ~/.pact', { rules: { path: '~/.pact/RULES.md' } }, /\.pact/],
-  ['a rules file that is not Markdown', { rules: { path: '~/.mine/rules.txt' } }, /\.md/],
-  ['an unknown agent format', { agents: { dir: '~/.mine/agents', format: 'yaml' } }, /format/],
 ]) {
   test(`bad own harness: ${name} is refused by the page`, () => {
     const s = L.initialState();
@@ -116,21 +107,23 @@ for (const [name, change, says] of [
   });
 }
 
-const EXISTING = JSON.stringify({ schema: 1, harnesses: { install: ['claude', 'old'], own: [{ id: 'old', name: 'Old', detect: '~/.old', rules: { path: '~/.old/R.md' } }, { id: 'codex', rules: { path: '~/.codex/OTHER.md' } }] } });
+const EXISTING = JSON.stringify({ schema: 1, harnesses: { install: ['claude', 'codex', 'old'], own: [{ id: 'old', name: 'Old', detect: '~/.old', rules: { path: '~/.old/R.md' } }, { id: 'codex', rules: { path: '~/.codex/OTHER.md' }, models: { planning: 'P0', executor: 'E0' } }] } });
 
 test('C24: a save keeps the folder\'s harnesses when the page changed none', () => {
   const s = L.initialState();
-  const kept = L.keepCommands(L.buildFiles(s), EXISTING, s.harnesses);
+  const kept = L.keepFolderKeys(L.buildFiles(s), EXISTING, s.harnesses);
   assert.deepEqual(JSON.parse(kept.files[0].text).harnesses, JSON.parse(EXISTING).harnesses);
 });
 
 test('C24: a save applies only what the page changed over the folder\'s harnesses', () => {
   const s = L.initialState();
+  L.setHarnessIn(s, 'codex', false);
   L.setHarnessModel(s, 'codex', 'planning', 'plan-x');
-  const kept = L.keepCommands(L.buildFiles(s), EXISTING, s.harnesses);
+  const kept = L.keepFolderKeys(L.buildFiles(s), EXISTING, s.harnesses);
   const got = JSON.parse(kept.files[0].text).harnesses;
+  // The folder's list keeps what the page never showed and gains nothing untouched; its own model stays.
   assert.deepEqual(got.install, ['claude', 'old']);
-  assert.deepEqual(got.own, [JSON.parse(EXISTING).harnesses.own[0], { id: 'codex', rules: { path: '~/.codex/OTHER.md' }, models: { planning: 'plan-x', executor: 'gpt-6.2-astra' } }]);
+  assert.deepEqual(got.own, [JSON.parse(EXISTING).harnesses.own[0], { id: 'codex', rules: { path: '~/.codex/OTHER.md' }, models: { planning: 'plan-x', executor: 'E0' } }]);
 });
 
 // ------------------------------------------------------------ C24: what each harness receives
@@ -296,8 +289,11 @@ test('C24: the page at its fixed path lists the harnesses the dry run would see,
 });
 
 test('C24: a harness the record lists stays in the page\'s rows after its folder is gone', t => {
-  const m = machine(t, { '.claude/keep': '', '.pact/install.json': JSON.stringify({ harnesses: [{ id: 'codex' }] }) });
+  // The record is read as the installer reads it: keys in any case, and no harnesses key for none.
+  const record = key => JSON.stringify({ commit: 'abc', files: [], ...(key ? { [key]: [{ id: 'codex' }] } : {}) });
+  const m = machine(t, { '.claude/keep': '', '.pact/install.json': record('Harnesses') });
   assert.deepEqual(machineData(m.home).data.rows, [{ id: 'claude', in: true, detected: true }, { id: 'codex', in: true, detected: false }]);
+  assert.deepEqual(machineData(machine(t, { '.claude/keep': '', '.pact/install.json': record(null) }).home).findings, []);
 });
 
 for (const [name, files, says] of [

@@ -16,6 +16,9 @@ const WIN = process.platform === 'win32';
 
 const STUB = "import { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.STUB_OUT, JSON.stringify({ argv: process.argv.slice(1), cwd: process.cwd(), path: process.env.PATH ?? process.env.Path, nodeOptions: process.env.NODE_OPTIONS ?? null, home: process.platform === 'win32' ? process.env.USERPROFILE : process.env.HOME }));\nprocess.exitCode = Number(process.env.STUB_EXIT ?? 0);\n";
 
+// The builder's stub records beside the install's, so each is seen to run or not.
+const BUILDER_STUB = STUB.replace('process.env.STUB_OUT,', "process.env.STUB_OUT + '.builder',");
+
 const git = (cwd, ...args) => {
   const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
@@ -30,7 +33,7 @@ function remote(t) {
   mkdirSync(join(dir, 'gate'));
   writeFileSync(join(dir, 'gate', 'install.mjs'), STUB);
   mkdirSync(join(dir, 'builder'));
-  writeFileSync(join(dir, 'builder', 'build.mjs'), STUB);
+  writeFileSync(join(dir, 'builder', 'build.mjs'), BUILDER_STUB);
   let n = 0;
   const release = (name, { annotated = false } = {}) => {
     writeFileSync(join(dir, 'n'), `${(n += 1)}\n`);
@@ -42,14 +45,14 @@ function remote(t) {
   return { dir, url: pathToFileURL(dir).href, release };
 }
 
-/** One bootstrap run in-process: its code, its lines, and what the stub install recorded (null when it never ran). */
+/** One bootstrap run in-process: its code, its lines, and what the stub install and builder recorded (null when one never ran). */
 async function run(t, url, { argv = ['--default'], home = tempDir(t, 'pact-home-'), env, tty = false, answer } = {}) {
   const { main } = await boot();
   const stubOut = join(tempDir(t, 'pact-stub-'), 'ran.json');
   const lines = [];
   const code = await main({ argv: [...argv, '--home', home], env: { ...(env ?? process.env), STUB_OUT: stubOut }, url, tty, ask: async () => answer, say: l => lines.push(l), stdio: 'ignore' });
-  const ran = existsSync(stubOut) ? JSON.parse(readFileSync(stubOut, 'utf8')) : null;
-  return { code, out: lines.join('\n'), ran, home };
+  const read = file => (existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null);
+  return { code, out: lines.join('\n'), ran: read(stubOut), built: read(`${stubOut}.builder`), home };
 }
 
 const source = home => join(home, '.pact', 'source');
@@ -136,10 +139,11 @@ test('bootstrap: the builder choice, asked or flagged, runs the clone\'s builder
     const got = await run(t, r.url, how);
     assert.equal(got.code, 0, got.out);
     const clone = join(source(got.home), sha);
-    assert.deepEqual(got.ran.argv, [join(clone, 'builder', 'build.mjs'), '--builder', join(clone, 'examples', 'pact-config', 'builder.json')]);
+    assert.equal(got.ran, null, 'no install ran');
+    assert.deepEqual(got.built.argv, [join(clone, 'builder', 'build.mjs'), '--builder', join(clone, 'examples', 'pact-config', 'builder.json')]);
     // The builder writes to the home folder it is told of, so --home reaches it as the home folder.
-    assert.equal(got.ran.home, got.home);
-    assert.equal(got.ran.nodeOptions, null);
+    assert.equal(got.built.home, got.home);
+    assert.equal(got.built.nodeOptions, null);
     assert.match(got.out, /Nothing is installed yet/);
   }
 });
@@ -151,7 +155,7 @@ test('bootstrap: the builder choice builds from the person\'s own builder file w
   mkdirSync(join(home, '.pact'));
   writeFileSync(join(home, '.pact', 'builder.json'), '{ "schema": 1 }\n');
   const got = await run(t, r.url, { argv: ['--builder'], home });
-  assert.deepEqual(got.ran.argv.slice(1), ['--builder', join(home, '.pact', 'builder.json')]);
+  assert.deepEqual(got.built.argv.slice(1), ['--builder', join(home, '.pact', 'builder.json')]);
 });
 
 test('bootstrap: a builder that fails ends the run as a failure, with no next step offered', async t => {

@@ -1438,7 +1438,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic(page = PAGE) {
   const script = pageScript(page);
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, fileLabel, presetPicks, takePreset, startPicks, takeNote });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepFolderKeys, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, fileLabel, presetPicks, takePreset, startPicks, takeNote });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT), OPT_COMMANDS: clone(got.OPT_COMMANDS), OPT_TOOLS: clone(got.OPT_TOOLS) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -1458,39 +1458,39 @@ test('a save keeps a commands list already in the folder\'s config.json, and won
   s.parts.moves[0].text = 'I sense the work my own way.';
   const files = L.buildFiles(s);
   assert.equal(files.length, 2, 'a block file to carry through');
-  assert.deepEqual(L.keepCommands(files, null), { files }, 'no file there');
-  assert.deepEqual(L.keepCommands(files, '{"schema":1,"settings":{"usage-pause":80}}'), { files }, 'a file with no commands key');
-  assert.deepEqual(L.keepCommands(files, '[]'), { files }, 'JSON that is not an object holds no list to keep');
-  const kept = L.keepCommands(files, '{"schema":1,"settings":{"usage-pause":80},"commands":["make-it-so","finis"]}');
+  assert.deepEqual(L.keepFolderKeys(files, null), { files }, 'no file there');
+  assert.deepEqual(L.keepFolderKeys(files, '{"schema":1,"settings":{"usage-pause":80}}'), { files }, 'a file with no commands key');
+  assert.deepEqual(L.keepFolderKeys(files, '[]'), { files }, 'JSON that is not an object holds no list to keep');
+  const kept = L.keepFolderKeys(files, '{"schema":1,"settings":{"usage-pause":80},"commands":["make-it-so","finis"]}');
   assert.deepEqual(JSON.parse(kept.files[0].text), { ...JSON.parse(files[0].text), commands: ['make-it-so', 'finis'] });
   assert.equal(kept.files[0].path, 'config.json');
   assert.deepEqual(kept.files.slice(1), files.slice(1), 'block files pass through unchanged');
-  assert.deepEqual(JSON.parse(L.keepCommands(files, '{"commands":[]}').files[0].text).commands, [], 'an empty list is kept too');
-  const twice = L.keepCommands(files, '{"schema":1,"commands":["finis"],"Commands":["make-it-so"]}');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(files, '{"commands":[]}').files[0].text).commands, [], 'an empty list is kept too');
+  const twice = L.keepFolderKeys(files, '{"schema":1,"commands":["finis"],"Commands":["make-it-so"]}');
   assert.equal(twice.files, undefined, 'a key given twice, case folded, writes nothing');
   assert.match(twice.refuse, /gives a key twice/);
-  assert.deepEqual(JSON.parse(L.keepCommands(files, '{"commands":["finis"],"agents":{"commands":{}}}').files[0].text).commands, ['finis'], 'a nested key of the same name is not a repeat');
-  const bad = L.keepCommands(files, '{"schema":1,"commands":["finis"');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(files, '{"commands":["finis"],"agents":{"commands":{}}}').files[0].text).commands, ['finis'], 'a nested key of the same name is not a repeat');
+  const bad = L.keepFolderKeys(files, '{"schema":1,"commands":["finis"');
   assert.equal(bad.files, undefined, 'nothing to write');
   assert.match(bad.refuse, /config\.json/);
 });
 
-test('a save reads the folder\'s config.json through keepCommands: none there, a refusal on a read error, and a kept list (#203, T2)', async () => {
+test('a save reads the folder\'s config.json through keepFolderKeys: none there, a refusal on a read error, and a kept list (#203, T2)', async () => {
   const script = pageScript(PAGE);
   const ctx = vm.createContext({});
-  const { keepCommandsIn, buildFiles, initialState } = vm.runInContext(`${script}\n;({ keepCommandsIn, buildFiles, initialState });`, ctx);
+  const { keepFolderKeysIn, buildFiles, initialState } = vm.runInContext(`${script}\n;({ keepFolderKeysIn, buildFiles, initialState });`, ctx);
   const files = buildFiles(initialState());
   // The picked folder is the pact folder: it holds config.json itself.
   const fail = name => ({ getFileHandle: async () => { throw Object.assign(new Error('x'), { name }); } });
   const holding = text => ({ getFileHandle: async () => ({ getFile: async () => ({ text: async () => text }) }) });
-  const none = await keepCommandsIn(fail('NotFoundError'), files);
+  const none = await keepFolderKeysIn(fail('NotFoundError'), files);
   assert.equal(none.files, files, 'no config.json there: the files go as built');
-  const unreadable = await keepCommandsIn(fail('NotReadableError'), files);
+  const unreadable = await keepFolderKeysIn(fail('NotReadableError'), files);
   assert.equal(unreadable.files, undefined, 'nothing to write');
   assert.match(unreadable.refuse, /could not be read, so nothing was written/);
-  const kept = await keepCommandsIn(holding('{"schema":1,"commands":["finis"]}'), files);
+  const kept = await keepFolderKeysIn(holding('{"schema":1,"commands":["finis"]}'), files);
   assert.deepEqual(JSON.parse(kept.files[0].text).commands, ['finis']);
-  assert.match((await keepCommandsIn(holding('{'), files)).refuse, /not valid JSON/);
+  assert.match((await keepFolderKeysIn(holding('{'), files)).refuse, /not valid JSON/);
 });
 
 // #203 S10: the page writes the commands list once the person sets it, in the installer's order, never /scriptorium; until then a save keeps the folder's.
@@ -1500,11 +1500,11 @@ test('a commands list set on the page is saved in the installer\'s order without
   assert.equal(s.commands, null);
   const config = st => JSON.parse(L.buildFiles(st)[0].text);
   assert.equal(Object.hasOwn(config(s), 'commands'), false, 'left as is, no list');
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, ['finis'], 'left as is keeps the folder\'s');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, ['finis'], 'left as is keeps the folder\'s');
   s.commands = ['finis', 'scriptorium', 'make-it-so'];
   assert.deepEqual(config(s).commands, ['make-it-so', 'finis']);
   s.commands = [];
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, [], 'the page\'s empty list wins');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, [], 'the page\'s empty list wins');
 });
 
 // #262, owner decision after adversarial-lens F1: a shared file's agent files start unticked; its parts start ticked.
@@ -1556,12 +1556,12 @@ test('a tools list set on the page is saved in the installer\'s order, and wins 
   assert.equal(s.tools, null, 'off by default: left as is');
   const config = st => JSON.parse(L.buildFiles(st)[0].text);
   assert.equal(Object.hasOwn(config(s), 'tools'), false, 'left as is, no list');
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, ['poster'], 'left as is keeps the folder\'s');
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"],"tools":["poster"]}').files[0].text), { ...config(s), commands: ['finis'], tools: ['poster'] }, 'both lists kept');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, ['poster'], 'left as is keeps the folder\'s');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"commands":["finis"],"tools":["poster"]}').files[0].text), { ...config(s), commands: ['finis'], tools: ['poster'] }, 'both lists kept');
   s.tools = ['poster'];
   assert.deepEqual(config(s).tools, ['poster']);
   s.tools = [];
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, [], 'the page\'s empty list wins');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, [], 'the page\'s empty list wins');
 });
 
 // #603 C8: the identity switch is written only when on, and it never puts gh-app in the tools list.
@@ -1652,8 +1652,9 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
     };
     return dir;
   };
-  const save = async folder => {
+  const save = async (folder, change = () => {}) => {
     const P = bootPage({ picker: true, folder });
+    change(P);
     P.button(P.ids.actions, 'Export').click();
     P.button(P.ids.output, 'Save to a folder').click();
     for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 0));
@@ -1664,6 +1665,15 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
   assert.deepEqual(JSON.parse(kept['config.json']), { ...DEFAULT_CONFIG, commands: ['finis'] });
   assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
   assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), DEFAULT_CONFIG, 'no file there: the save goes as built');
+  // PACT-105 C24: a harness change made on the page reaches the folder's own key, over what it holds.
+  const untickCodex = P => {
+    P.button(P.ids.actions, 'Harnesses').click();
+    const box = P.find(P.ids.harnesses, n => n.attrs['aria-label'] === 'Install into Codex')[0];
+    box.checked = false;
+    box.listeners.change.forEach(f => f({}));
+  };
+  const harnessed = await save(fakeFolder({ 'config.json': '{"schema":1,"harnesses":{"install":["codex","old"]}}' }), untickCodex);
+  assert.deepEqual(JSON.parse(harnessed['config.json']).harnesses, { install: ['old'] });
 });
 // #482 C9: the auto-compact window, a slider beside the usage limits, on at 400000 by default.
 test('the auto-compact window starts on at 400000, saves nothing at the default, its value when set and 0 when Off, and refuses what the renderer refuses', () => {
