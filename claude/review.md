@@ -33,40 +33,53 @@ lenses to offer, and when.
   findings it raised then, numbered `E1`, `E2` and on.
 - **The tree check,** where the harness can't hold an agent to its tools (Codex
   today), around each lens and each `scout` pass. It only detects a change: it
-  keeps no copy and puts nothing back. Run this one command from the work tree's
-  top folder before the pass, and keep what it prints in your own output, never
-  in a file the agent can write. It covers every file, ignored ones too, and
-  git's config, hooks, `info`, `HEAD`, refs and index.
+  keeps no copy and puts nothing back. Before the pass, run this one command,
+  giving it the work tree's top folder; it starts from your home folder, so no
+  program or version pin in the tree picks the `node` that runs it. Keep what it
+  prints in your own output, never in a file the agent can write. It covers
+  every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
+  index and half-done merges and rebases.
 
   ```sh
+  cd ~
   node -e '
   const fs = require(`fs`), path = require(`path`);
+  process.chdir(process.argv[1]);
   const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`).slice(0, 16);
+  // A name that is not text reads back as another name, so it fails the run.
+  const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };
   const walk = (file, name) => {
-    const s = fs.lstatSync(file, { throwIfNoEntry: false });
-    if (!s) return ``;
-    if (s.isSymbolicLink()) return `${name} link ${fs.readlinkSync(file)}\n`;
-    if (s.isDirectory()) return `${name} dir\n` + fs.readdirSync(file).sort().map(n => walk(path.join(file, n), `${name}/${n}`)).join(``);
-    return `${name} ${s.mode} ${s.isFile() ? sha(fs.readFileSync(file)) : `other`}\n`;
+    const s = fs.lstatSync(file);
+    const id = JSON.stringify(name);
+    if (s.isSymbolicLink()) return `${id} link ${JSON.stringify(named(fs.readlinkSync(file)))}\n`;
+    if (s.isDirectory()) return `${id} dir ${s.mode}\n` + fs.readdirSync(file).sort().map(n => walk(path.join(file, named(n)), `${name}/${n}`)).join(``);
+    return `${id} ${s.mode} ${s.isFile() ? sha(fs.readFileSync(file)) : `other`}\n`;
   };
-  const line = (file, name) => { const text = walk(file, name); if (text) console.log(sha(text), name); };
+  const record = [];
+  const say = (text, name) => { record.push(`${sha(text)} ${JSON.stringify(name)}`); console.log(record.at(-1)); };
+  const line = (file, name) => { if (fs.lstatSync(file, { throwIfNoEntry: false })) say(walk(file, name), name); };
   let own = `.git`;
   const dot = fs.lstatSync(own);
   if (!dot.isDirectory()) line(own, `.git`);
   if (dot.isFile()) own = path.resolve(fs.readFileSync(own, `utf8`).replace(`gitdir:`, ``).trim());
   const pointer = path.join(own, `commondir`);
   const shared = fs.existsSync(pointer) ? path.resolve(own, fs.readFileSync(pointer, `utf8`).trim()) : own;
-  for (const n of [`HEAD`, `commondir`, `config.worktree`]) line(path.join(own, n), `git:${n}`);
+  for (const n of [`HEAD`, `commondir`, `config.worktree`, `ORIG_HEAD`, `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `rebase-merge`, `rebase-apply`, `sequencer`]) line(path.join(own, n), `git:${n}`);
+  if (own !== shared) for (const n of [`refs`, `reftable`]) line(path.join(own, n), `git:own ${n}`);
   for (const n of [`config`, `hooks`, `info`, `refs`, `reftable`, `packed-refs`, `logs/refs/stash`]) line(path.join(shared, n), `git:${n}`);
-  for (const n of fs.readdirSync(`.`).sort()) if (n !== `.git`) line(n, n);
-  const args = [`-C`, process.cwd(), `-c`, `core.fsmonitor=false`, `ls-files`, `--stage`, `-v`];
-  console.log(sha(require(`child_process`).execFileSync(`git`, args, { cwd: path.dirname(process.execPath), maxBuffer: 1 << 29 })), `git:index`);
-  '
+  for (const n of fs.readdirSync(`.`).sort()) if (n !== `.git`) line(named(n), n);
+  // git runs from a folder the tree has no part in, so no program left there stands in for it.
+  const git = (...args) => require(`child_process`).execFileSync(`git`, [`-C`, process.cwd(), `-c`, `core.fsmonitor=false`, ...args], { cwd: process.env.SystemRoot || `/`, maxBuffer: 1 << 29 });
+  line(path.resolve(git(`rev-parse`, `--git-path`, `hooks`).toString().trim()), `git:hooks in use`);
+  say(git(`ls-files`, `--stage`, `-v`), `git:index`);
+  console.log(sha(record.join(`\n`)), `whole record`);
+  ' "<top folder>"
   ```
 
   After the pass, stop any process the agent left running, run the command again
-  before any other git, and compare the two outputs. On any difference, or if a
-  run fails: stop there, run no git in that tree, change nothing, count the pass
+  before any other git, and compare: the same `whole record` line means no
+  change. On any difference, if a run fails, or if you no longer hold the first
+  output: stop there, run no git in that tree, change nothing, count the pass
   inconclusive, and report to me which lines differ.
 
 ## The report template

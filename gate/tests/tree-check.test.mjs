@@ -2,7 +2,8 @@
 // session runs it, before and after an agent no harness holds to its tools.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { childEnv } from './gate-run.mjs';
@@ -11,9 +12,9 @@ import { tempDir } from './tree.mjs';
 
 const REVIEW = readFileSync(join(REPO, 'claude', 'review.md'), 'utf8').replaceAll('\r\n', '\n');
 
-/** The command's script: the one fenced `node -e '…'` block, without its list indent. */
+/** The command's script: the one fenced block that leaves for the home folder and runs `node -e` on the top folder, without its list indent. */
 function script() {
-  const blocks = [...REVIEW.matchAll(/^( *)```sh\n\1node -e '\n([\s\S]*?)\n\1'\n\1```$/gm)];
+  const blocks = [...REVIEW.matchAll(/^( *)```sh\n\1cd ~\n\1node -e '\n([\s\S]*?)\n\1' "<top folder>"\n\1```$/gm)];
   assert.equal(blocks.length, 1, 'review.md holds one fenced node -e command');
   const [, indent, body] = blocks[0];
   return body.split('\n').map(l => l.slice(indent.length)).join('\n');
@@ -26,10 +27,13 @@ function git(cwd, ...args) {
   assert.equal(r.status, 0, `git ${args[0]} failed: ${r.stderr}`);
 }
 
-function run(cwd, over = {}) {
+const head = cwd => spawnSync('git', ['rev-parse', 'HEAD'], { cwd, env: env(), encoding: 'utf8' }).stdout.trim();
+
+/** The command on `tree`, started from a folder outside it. */
+function run(tree, over = {}) {
   const e = { ...env(), ...over };
   for (const k of Object.keys(over)) if (over[k] === undefined) for (const have of Object.keys(e)) if (have.toLowerCase() === k.toLowerCase()) delete e[have];
-  return spawnSync(process.execPath, ['-e', script()], { cwd, env: e, encoding: 'utf8' });
+  return spawnSync(process.execPath, ['-e', script(), tree], { cwd: tmpdir(), env: e, encoding: 'utf8' });
 }
 
 function record(cwd) {
@@ -58,7 +62,7 @@ function repos(t) {
   return { root, main, linked };
 }
 
-test('C10: the tree check is one command that either shell passes on unchanged, repeats itself across a git status, and runs no program git’s config names or the tree holds', t => {
+test('C10: the tree check holds no quote, so either shell passes it on unchanged, repeats itself across a git status, runs no program git’s config names or the tree holds, and fails on what it can’t read', t => {
   assert.doesNotMatch(script(), /['"]/);
   const { root, main, linked } = repos(t);
   const marker = join(root, 'fsmonitor-ran');
@@ -84,24 +88,55 @@ test('C10: the tree check is one command that either shell passes on unchanged, 
   }
   // A folder it can't read as a work tree fails the run, never an empty record.
   assert.notEqual(run(root).status, 0);
+  // So does a name that is not text, which Node reads back as another name: a
+  // lone surrogate on Windows, a byte that is no UTF-8 on Linux (macOS takes neither).
+  if (process.platform !== 'darwin') {
+    const odd = process.platform === 'win32' ? join(linked, '\uD800x') : Buffer.concat([Buffer.from(`${linked}/`), Buffer.from([0xff, 0x41])]);
+    writeFileSync(odd, 'a\n');
+    assert.notEqual(run(linked).status, 0, 'a name that is not text was left out');
+    rmSync(odd);
+  }
+  // And a file or folder that no read opens (root opens both).
+  if (process.platform !== 'win32' && process.getuid() !== 0) {
+    for (const path of [join(linked, 'untracked.txt'), join(linked, 'ignored')]) {
+      chmodSync(path, 0o000);
+      assert.notEqual(run(linked).status, 0, `unreadable: ${path}`);
+      chmodSync(path, 0o755);
+    }
+  }
 });
 
 test('C10: bad case: the tree check’s record differs after each change an agent could make', t => {
-  const { main, linked } = repos(t);
+  const { root, main, linked } = repos(t);
   for (const dir of [main, linked]) {
     const tag = dir === main ? 'main' : 'linked';
+    const shared = join(main, '.git');
+    // This work tree's own git folder.
+    const own = dir === main ? shared : join(shared, 'worktrees', 'linked');
     const changes = {
       'a tracked file’s content': () => writeFileSync(join(dir, 'tracked.txt'), 'two\n'),
       'an untracked file’s content': () => writeFileSync(join(dir, 'untracked.txt'), 'theirs\n'),
       'an ignored file’s content': () => writeFileSync(join(dir, 'ignored', 'cache'), 'b\n'),
       'a new empty folder': () => mkdirSync(join(dir, 'empty')),
-      'a deleted file': () => rmSync(join(dir, 'untracked.txt')),
+      'staged content alone': () => git(dir, 'add', 'tracked.txt'),
       'the index alone': () => git(dir, 'rm', '-q', '--cached', 'tracked.txt'),
       'an assume-unchanged mark': () => git(dir, 'update-index', '--assume-unchanged', '.gitignore'),
       'git’s config': () => git(dir, 'config', `pact.${tag}`, 'x'),
       'a hook': () => writeFileSync(join(main, '.git', 'hooks', `post-checkout-${tag}`), 'x\n'),
       'an info file': () => writeFileSync(join(main, '.git', 'info', 'attributes'), `${tag}\n`),
       'a new ref': () => git(dir, 'update-ref', `refs/heads/planted-${tag}`, 'HEAD'),
+      'a ref of this work tree alone': () => git(dir, 'update-ref', 'refs/worktree/planted', 'HEAD'),
+      'the packed refs': () => writeFileSync(join(shared, 'packed-refs'), `# pack-refs with: peeled \n${head(dir)} refs/tags/planted-${tag}\n`),
+      'the stash log': () => {
+        mkdirSync(join(shared, 'logs', 'refs'), { recursive: true });
+        writeFileSync(join(shared, 'logs', 'refs', 'stash'), `${tag}\n`);
+      },
+      'this work tree’s config': () => writeFileSync(join(own, 'config.worktree'), `# ${tag}\n`),
+      'a rebase to-do list': () => {
+        mkdirSync(join(own, 'rebase-merge'));
+        writeFileSync(join(own, 'rebase-merge', 'git-rebase-todo'), 'exec true\n');
+      },
+      'a merge in progress': () => writeFileSync(join(own, 'MERGE_HEAD'), `${'0'.repeat(40)}\n`),
       'HEAD': () => git(dir, 'symbolic-ref', 'HEAD', `refs/heads/planted-${tag}`),
     };
     for (const [what, change] of Object.entries(changes)) {
@@ -109,5 +144,12 @@ test('C10: bad case: the tree check’s record differs after each change an agen
       change();
       assert.notEqual(record(dir), before, `${tag}: ${what}`);
     }
+    // A hook in the folder git's config names instead.
+    const elsewhere = join(root, `hooks-${tag}`);
+    mkdirSync(elsewhere);
+    git(dir, 'config', 'core.hooksPath', elsewhere);
+    const before = record(dir);
+    writeFileSync(join(elsewhere, 'pre-commit'), 'x\n');
+    assert.notEqual(record(dir), before, `${tag}: a hook in the folder core.hooksPath names`);
   }
 });

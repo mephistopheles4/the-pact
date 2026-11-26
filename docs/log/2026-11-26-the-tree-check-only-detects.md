@@ -9,6 +9,10 @@
 - **Now seen:** every ignored file, which the old check could miss inside a folder too big to hash.
 - A real run had found that under Codex's Windows sandbox, which runs commands as another account, the copy couldn't be kept readable only by the owner. With no copy, that ends.
 
+## Test round 2
+
+The security lens and the check of the claims found ways past the first command, all closed: a program or version pin in the tree could pick the `node` that ran it, so it now starts from the home folder; a linked worktree's own refs, a hooks folder set elsewhere, half-done merges and rebases, and a file name that isn't text went unrecorded. The record now ends in one hash of itself.
+
 ## Left open
 
 - The command reads every file, so it takes longer in a large tree.

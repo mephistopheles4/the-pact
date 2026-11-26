@@ -261,7 +261,7 @@ can, keys and tokens included, its agent file turning off only apps, plugins,
 memories and the permission-request tool; an Antigravity lens also gets
 `send_message` and `manage_task`, whatever its file lists, the latter
 refused its session's program in a probe; `review.md`'s tree check only detects a change to the work tree or git's config, hooks,
-`info`, `HEAD`, refs and index, and restores nothing, not a write elsewhere, a read, a send, or a later write by a process the lens left running.
+`info`, `HEAD`, refs, index and half-done merges, and restores nothing, not git's objects or a write elsewhere, a read, a send, or a later write by a process the lens left running.
 The pact gets loosened: a project install tightens Claude Code alone, not Codex
 or Antigravity, and a hand-made or old copy loads beside the pact until a person removes it.
 
