@@ -47,7 +47,7 @@ const RULES = [
 const LENS = agent(['name: data-lens', 'description: Reads for leaks. Not for "style".', 'tools: [Read, Glob, Grep, WebFetch]', 'model: planning', 'effort: high'], '# data-lens\n\nRead.\n');
 const SCOUT = agent(['name: scout', 'description: Searches.', 'tools: [Read]', 'model: light', 'effort: medium'], '# scout\n');
 // The line every codex-toml agent file opens its instructions with (spec 0007 S7).
-const SHELL_READS = 'You have no Read, Glob or Grep tool here. Where these instructions name one, search and read with shell commands that only read files (`rg`, `ls`, `cat`, `Get-Content`), not `git`: reading that way is not a command to stop at.';
+const SHELL_READS = 'You have no Read, Glob or Grep tool here. Where these instructions name one, search and read with shell commands that only read files (`rg`, `ls`, `cat`, `Get-Content`): reading that way is not a command to stop at.';
 const AGENTS = new Map([['data-lens', LENS], ['scout', SCOUT]]);
 const TABLE = { Read: 'view_file', Glob: 'find_by_name', Grep: 'grep_search' };
 
@@ -261,10 +261,9 @@ const TIERED = [
 ].join('\n');
 const tiered = (harness, rules = TIERED) => render([harness], { rules, agents: new Map(), commands: new Map() });
 const rulesOf = (r, id) => file(r, `rendered/${id}/rules.md`);
-const owns = tierEfforts => h('mine', { tierEfforts, ownTiers: Object.keys(tierEfforts) });
 
 // PACT-111 C4.
-test('with the default configuration, Codex’s Standard Build reads medium in both tables, Claude Code’s high, and every other cell is the same', t => {
+test('with the default configuration, Codex’s tier and workflow tables read the same as Claude Code’s', t => {
   const out = tempDir(t, 'pact-tier-out-');
   const made = runCore('render', [join(REPO, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-tier-home-'), join(REPO, 'builder', 'default-config')]);
   assertPasses(moduleResult(made.code, made.stdout, made.stderr));
@@ -282,46 +281,7 @@ test('with the default configuration, Codex’s Standard Build reads medium in b
       if (codex[i][j] !== cell) changed.push([row[1], header[j], cell, codex[i][j]]);
     });
   });
-  assert.deepEqual(changed, [
-    ['**Standard**', 'Build', 'executor model, high', 'executor model, medium'],
-    ['Build', 'Standard', 'executor model, high', 'executor model, medium'],
-  ]);
-  assert.deepEqual(r.warnings.filter(w => w.includes('tierEfforts')), []);
-});
-
-// No claim of its own (spec 0008 D5): the one test of plan keys, tier names of several words, CRLF rules and the route column.
-test('a plan key moves the tier’s Plan cell and the workflow’s Plan row alone, under a name of several words, with CRLF kept', () => {
-  const rules = TIERED.replaceAll('Standard', 'Big  Job').replaceAll('\n', '\r\n');
-  const out = rulesOf(tiered(owns({ 'big-job': { plan: 'xhigh' } }), rules), 'mine');
-  const want = rules.replace('| a spec | planning model, medium |', '| a spec | planning model, xhigh |').replace('| Plan | planning model, low | planning model, medium |', '| Plan | planning model, low | planning model, xhigh |');
-  assert.equal(out, want);
-  // A tier named as the route's column never rewrites it.
-  const route = TIERED.replace('**Standard**', '**Sensitive route**');
-  const moved = route.replace('| a spec | planning model, medium | executor model, high |', '| a spec | planning model, medium | executor model, low |');
-  assert.equal(rulesOf(tiered(owns({ 'sensitive-route': { build: 'low' } }), route), 'mine'), moved);
-});
-
-// PACT-111 C6.
-test('bad case: an own tier key with no tiers table, no row, or a cell that is no model and effort refuses', () => {
-  const key = { standard: { build: 'low' } };
-  refuses(() => tiered(owns(key), 'no table here\n'), 'tier-effort');
-  refuses(() => tiered(owns(key), TIERED.replace('**Standard**', '**Usual**')), 'tier-effort');
-  refuses(() => tiered(owns(key), TIERED.replace('| planning model, medium | executor model, high |', '| planning model, medium | I decide |')), 'tier-effort');
-  refuses(() => tiered(owns(key), TIERED.replace('| Build | executor model, low | executor model, high |', '| Build | executor model, low | skipped |')), 'tier-effort');
-  // A workflow table, or a row of it, that isn't there is skipped.
-  for (const rules of [TIERED.slice(0, TIERED.indexOf('| Stage |')), TIERED.replace(/^\| Build \|.*\n/m, '')]) {
-    assert.match(rulesOf(tiered(owns(key), rules), 'mine'), /\| a spec \| planning model, medium \| executor model, low \|/);
-  }
-});
-
-// PACT-111 C6.
-test('a known tier key that finds nothing warns, and Codex renders its rules without it', () => {
-  const unchanged = rules => assert.match(rulesOf(tiered(known('codex'), rules), 'codex'), /\| a spec \| planning model, medium \| executor model, high \|/);
-  const renamed = TIERED.replaceAll('Standard', 'Usual');
-  unchanged(renamed);
-  assert.deepEqual(tiered(known('codex'), renamed).warnings.filter(w => w.includes('tierEfforts')), ['codex: its known tierEfforts key standard finds no row of that tier in a tiers table, so the rules are rendered without it']);
-  // One cell it can't read leaves the whole key out, so the two tables agree.
-  unchanged(TIERED.replace('| Build | executor model, low | executor model, high |', '| Build | executor model, low | skipped |'));
+  assert.deepEqual(changed, []);
 });
 
 const SLOTTED = { models: { planning: 'neon-<effort>', executor: 'hydro-<effort>', light: 'tiny' }, efforts: ['low', 'medium', 'high', 'xhigh'] };

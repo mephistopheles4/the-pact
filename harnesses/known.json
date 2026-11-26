@@ -19,7 +19,6 @@
     "skills": { "dir": "~/.agents/skills" },
     "hooks": { "file": "~/.codex/hooks.json", "format": "codex" },
     "models": { "planning": "gpt-6.2-sol", "executor": "gpt-6.2-sol" },
-    "tierEfforts": { "standard": { "build": "medium" } },
     "capabilities": ["subagents", "hook-trust", "explicit-skills"]
   },
   {
