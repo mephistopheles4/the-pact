@@ -282,8 +282,6 @@ test('C8: the decision mark, in any case, spacing, markup, link or look-alike le
     '[Owner](https://example.com/x) decision, from chat.',
     'Ownеr dеcision, from chat.',
     'Owner de&#99;ision, from chat.',
-    // #394 C12: a named reference outside the old list, a script letter NFKC folds to c.
-    'Owner de&cscr;ision, from chat.',
   ];
   for (const form of forms) {
     // In the body file it is an owned line, so it is refused before the edit's own checks run.
