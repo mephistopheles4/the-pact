@@ -262,8 +262,8 @@ const FLAGS = new Set(['--apply']);
 const VALUED = new Set(['--commit', '--rendered-hash', '--home', '--review-folder', '--project-folder', '--release']);
 const PATH_OPTIONS = ['--home', '--review-folder', '--project-folder'];
 const SAFE_PATH = /^[A-Za-z0-9 ._\-:\\/]+$/;
-// A release tag, named exactly v1.<n>.0 or v1.<n>.0-rc.<k> (spec 0007 S10).
-const RELEASE_RE = /^v1\.(0|[1-9]\d{0,8})\.0(?:-rc\.([1-9]\d{0,8}))?$/;
+// A release tag, named exactly v1.<n>.0 (stable), v1.<n>.0-beta.<k> (beta) or the legacy v1.<n>.0-rc.<k> (spec 0009 S2).
+const RELEASE_RE = /^v1\.(0|[1-9]\d{0,8})\.0(?:-(beta|rc)\.([1-9]\d{0,8}))?$/;
 
 /**
  * The command line, strictly (S4): known options only, spelled exactly, each
@@ -301,7 +301,7 @@ export function parseArgs(argv, platform) {
     if (!SAFE_PATH.test(v) || (win && v.indexOf(':', 2) >= 0)) refuse('path-chars', `${opt} holds a character the install does not take in a path: only letters, digits, spaces and . _ - : \\ / are taken. Use a folder whose full path holds only those.`);
   }
   // The bootstrap names the release it cloned, so the record holds it (spec 0007 S9, S10).
-  if (given.has('--release') && !RELEASE_RE.test(given.get('--release'))) refuse('args-release', '--release takes a release tag, such as v1.1.0 or v1.2.0-rc.1.');
+  if (given.has('--release') && !RELEASE_RE.test(given.get('--release'))) refuse('args-release', '--release takes a release tag, such as v1.1.0 or v1.2.0-beta.1.');
   if (given.has('--review-folder') && given.has('--project-folder')) refuse('args-review-project', '--review-folder is for a home install; a project install writes no review output.');
   if (given.has('--apply') && !given.has('--commit')) refuse('args-apply-commit', '--apply needs --commit with the full commit id the dry run printed.');
   return {
@@ -395,13 +395,14 @@ export function behindLine(recordCommit, commit, reachable, release = null, reco
   if (recordCommit === null) return null;
   const last = recordCommit.toLowerCase();
   if (release !== null && recordRelease !== null) {
-    // By number, and a release candidate ranks below its own stable release.
-    const n = tag => {
+    // By number: the minor, then every -rc below every -beta below the stable release, then k.
+    const rank = tag => {
       const m = RELEASE_RE.exec(tag);
-      return [Number(m[1]), m[2] ? Number(m[2]) : Infinity];
+      return [Number(m[1]), { rc: 0, beta: 1 }[m[2]] ?? 2, Number(m[3] ?? 0)];
     };
-    const [a, b] = [n(release), n(recordRelease)];
-    return a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]) ? `WARN: the release ${release} is lower than the last install's ${recordRelease}: this install is behind the last install, and installing rolls the pact back.` : null;
+    const [a, b] = [rank(release), rank(recordRelease)];
+    const i = a.findIndex((v, at) => v !== b[at]);
+    return i >= 0 && a[i] < b[i] ? `WARN: the release ${release} is lower than the last install's ${recordRelease}: this install is behind the last install, and installing rolls the pact back.` : null;
   }
   if (last === commit || reachable.has(last)) return null;
   const named = /^[0-9a-f]{40}$/.test(last) ? ` ${last}` : ', a commit id the install does not read,';
