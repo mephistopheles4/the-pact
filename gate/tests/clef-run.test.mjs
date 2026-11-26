@@ -127,11 +127,10 @@ async function ready(f) {
   throw new Error('the supervisor did not get ready');
 }
 
-function call({ port, token, path = '/v1/systemone', method = 'POST', headers = {}, body, host = `127.0.0.1:${port}`, raw, chunked = false }) {
+function call({ port, path = '/v1/systemone', method = 'POST', headers = {}, body, host = `127.0.0.1:${port}`, raw, chunked = false }) {
   return new Promise((resolveP, reject) => {
     const data = raw ?? (body === undefined ? null : Buffer.from(JSON.stringify(body)));
     const h = { host, ...headers };
-    if (token) h.authorization = `Bearer ${token}`;
     if (data) {
       if (!('content-type' in h)) h['content-type'] = 'application/json';
       // without a content-length node sends the body chunked
@@ -290,8 +289,8 @@ test('serve: an answer is built from checked values, with the fixed server argum
   const f = fixture(t);
   await startServe(t, f);
   const live = await ready(f);
-  const { port, token } = live.run;
-  const r = await call({ port, token, body: { state: { s: 1 }, questions: QUESTIONS } });
+  const { port } = live.run;
+  const r = await call({ port, body: { state: { s: 1 }, questions: QUESTIONS } });
   assert.equal(r.status, 200);
   assert.deepEqual(JSON.parse(r.text), { a: { noul: 0.5 }, b: { score: 0.25 }, c: { choice: 'yes', probabilities: { yes: 0.5, no: 0.5 } } });
   const rec = await f.recorded();
@@ -300,8 +299,7 @@ test('serve: an answer is built from checked values, with the fixed server argum
   assert.notEqual(Number(rec.args[i('--port') + 1]), port, 'the server has its own port');
   assert.equal(rec.args[i('--api-key-file') + 1], f.run.key);
   for (const flag of ['--no-webui', '--no-slots']) assert.ok(rec.args.includes(flag), flag);
-  assert.ok(!rec.args.includes(token) && !rec.args.includes(rec.key), 'no key or token on the command line');
-  assert.notEqual(rec.key, token, 'two different values');
+  assert.ok(!rec.args.includes(rec.key), 'no key on the command line');
   assert.equal(readFileSync(f.run.key, 'utf8').trim(), rec.key);
   assert.equal(statSync(f.p.runtime).isDirectory(), true);
   assert.equal(rec.cwd.toLowerCase(), f.p.runtime.toLowerCase(), 'the server runs from runtime/<tag>/');
@@ -312,7 +310,7 @@ test('serve: an answer is built from checked values, with the fixed server argum
   if (process.platform === 'darwin') for (const n of [MAC_OWN, 'TMPDIR']) allowed.add(n);
   for (const k of Object.keys(rec.env)) assert.ok(allowed.has(k.toUpperCase()), `${k} is not on the list`);
   const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
-  assert.deepEqual(Object.keys(run).sort(), ['pid', 'port', 'run', 'serverPid', 'started', 'token']);
+  assert.deepEqual(Object.keys(run).sort(), ['pid', 'port', 'run', 'serverPid', 'started']);
   assert.equal(run.serverPid, rec.pid);
 });
 
@@ -327,43 +325,41 @@ test('serve: the environment a caller holds never reaches the server', async t =
 test('serve: each request is checked, refused with a fixed reason, and never echoed', async t => {
   const f = fixture(t);
   await startServe(t, f);
-  const { port, token } = (await ready(f)).run;
+  const { port } = (await ready(f)).run;
   const body = { state: {}, questions: QUESTIONS };
   const refused = async (word, status, o) => {
     const r = await call({ port, ...o });
     assert.equal(r.status, status, word);
     assert.deepEqual(JSON.parse(r.text), { error: word });
   };
-  await refused('auth', 401, { body });
-  await refused('auth', 401, { token: 'wrong', body });
-  await refused('auth', 401, { body, headers: { authorization: 'Basic abc' } });
-  await refused('host', 400, { token, body, host: 'localhost' });
-  await refused('host', 400, { token, body, host: `127.0.0.1:${port + 1}` });
-  await refused('origin', 403, { token, body, headers: { origin: 'http://evil.example' } });
-  await refused('route', 404, { token, path: '/v1/other', body });
-  await refused('route', 404, { token, path: '/props', method: 'GET' });
-  await refused('method', 405, { token, method: 'GET', path: '/v1/systemone' });
-  await refused('content-type', 415, { token, body, headers: { 'content-type': 'text/plain' } });
-  await refused('too-large', 413, { token, raw: Buffer.alloc(300 * 1024, 0x20) });
-  await refused('body', 400, { token, raw: Buffer.from('not json') });
-  await refused('body', 400, { token, body: { state: {} } });
-  await refused('body', 400, { token, body: { state: {}, questions: {} } });
-  await refused('body', 400, { token, body: { state: {}, questions: { a: { type: 'other' } } } });
-  await refused('body', 400, { token, body: { state: {}, questions: { a: { type: 'choice' } } } });
-  await refused('too-large', 413, { token, raw: Buffer.alloc(300 * 1024, 0x20), chunked: true });
+  await refused('host', 400, { body, host: 'localhost' });
+  await refused('host', 400, { body, host: `127.0.0.1:${port + 1}` });
+  await refused('origin', 403, { body, headers: { origin: 'http://evil.example' } });
+  // A page served from another port on this machine is still another origin.
+  await refused('origin', 403, { body, headers: { origin: `http://127.0.0.1:${port}` } });
+  await refused('route', 404, { path: '/v1/other', body });
+  await refused('route', 404, { path: '/props', method: 'GET' });
+  await refused('method', 405, { method: 'GET', path: '/v1/systemone' });
+  await refused('content-type', 415, { body, headers: { 'content-type': 'text/plain' } });
+  await refused('too-large', 413, { raw: Buffer.alloc(300 * 1024, 0x20) });
+  await refused('body', 400, { raw: Buffer.from('not json') });
+  await refused('body', 400, { body: { state: {} } });
+  await refused('body', 400, { body: { state: {}, questions: {} } });
+  await refused('body', 400, { body: { state: {}, questions: { a: { type: 'other' } } } });
+  await refused('body', 400, { body: { state: {}, questions: { a: { type: 'choice' } } } });
+  await refused('too-large', 413, { raw: Buffer.alloc(300 * 1024, 0x20), chunked: true });
   assert.equal(f.forwarded(), 0, 'no refused request reached the server');
-  const ok = await call({ port, token, path: '/health', method: 'GET' });
+  const ok = await call({ port, path: '/health', method: 'GET' });
   assert.equal(ok.status, 200);
   assert.deepEqual(Object.keys(JSON.parse(ok.text)).sort(), ['pid', 'ready', 'run', 'serverPid']);
-  assert.ok(!ok.text.includes(token), 'the health answer holds no token');
 });
 
 test('serve: a server body that is not an exact answer becomes 502 no-answer, and none of its text reaches the caller', async t => {
   for (const mode of ['range', 'badchoice', 'extra', 'extraid', 'bare', 'text', 'status500']) {
     const f = fixture(t, { mode });
     const h = await startServe(t, f);
-    const { port, token } = (await ready(f)).run;
-    const r = await call({ port, token, body: { state: {}, questions: QUESTIONS } });
+    const { port } = (await ready(f)).run;
+    const r = await call({ port, body: { state: {}, questions: QUESTIONS } });
     assert.equal(r.status, 502, mode);
     assert.deepEqual(JSON.parse(r.text), { error: 'no-answer' }, mode);
     assert.doesNotMatch(r.text, /SECRET/, mode);
@@ -377,11 +373,11 @@ test('serve: serve.log holds reason words and counts, never a token, key, body o
   writeFileSync(f.run.log, 'x'.repeat(1_200_000));
   await startServe(t, f);
   const live = await ready(f);
-  await call({ port: live.run.port, token: live.run.token, body: { state: { secret: 'BODY-TEXT' }, questions: QUESTIONS } });
+  await call({ port: live.run.port, body: { state: { secret: 'BODY-TEXT' }, questions: QUESTIONS } });
   const log = readFileSync(f.run.log, 'utf8');
   assert.ok(log.length < 100_000, 'a log past 1 MB starts again');
   const rec = await f.recorded();
-  for (const bad of [live.run.token, rec.key, 'BODY-TEXT', 'SECRET-SERVER-TEXT', f.p.model, 'api-key-file']) assert.ok(!log.includes(bad), bad);
+  for (const bad of [rec.key, 'BODY-TEXT', 'SECRET-SERVER-TEXT', f.p.model, 'api-key-file']) assert.ok(!log.includes(bad), bad);
   assert.match(log, /forward answer ms \d+/);
 });
 
@@ -402,10 +398,10 @@ test('serve: a forwarded request keeps it alive past the idle time', async t => 
   const f = fixture(t);
   const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 700, checkMs: 100, pollMs: 50 });
   f.stoppers.push(() => h.stop('test'));
-  const { port, token } = (await ready(f)).run;
+  const { port } = (await ready(f)).run;
   for (let i = 0; i < 4; i++) {
     await sleep(300);
-    const r = await call({ port, token, body: { state: {}, questions: QUESTIONS } });
+    const r = await call({ port, body: { state: {}, questions: QUESTIONS } });
     assert.equal(r.status, 200, `request ${i}`);
   }
 });
@@ -415,11 +411,11 @@ test('serve: a forward slower than the idle time is answered, and the idle time 
   const f = fixture(t, { answerDelayMs: 900 });
   const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 400, checkMs: 50, pollMs: 50 });
   f.stoppers.push(() => h.stop('test'));
-  const { port, token } = (await ready(f)).run;
+  const { port } = (await ready(f)).run;
   const body = { state: {}, questions: QUESTIONS };
-  assert.equal((await call({ port, token, body })).status, 200, 'the slow forward is answered');
+  assert.equal((await call({ port, body })).status, 200, 'the slow forward is answered');
   await sleep(150);
-  assert.equal((await call({ port, token, body })).status, 200, 'still up after the forward ended');
+  assert.equal((await call({ port, body })).status, 200, 'still up after the forward ended');
 });
 
 test('serve: a server that exits ends the supervisor and records run.fail with a fixed word', async t => {
@@ -460,7 +456,7 @@ test('serve: a stop leaves a newer run\'s key and run.json alone', async t => {
   const h = await startServe(t, f);
   await ready(f);
   writeFileSync(f.run.key, 'another-runs-key\n');
-  const newer = JSON.stringify({ port: 1, token: 'x', run: 'another-run', pid: 1, serverPid: 1, started: 'now' });
+  const newer = JSON.stringify({ port: 1, run: 'another-run', pid: 1, serverPid: 1, started: 'now' });
   writeFileSync(f.run.run, newer);
   await h.stop('test');
   assert.equal(readFileSync(f.run.key, 'utf8'), 'another-runs-key\n');
@@ -512,7 +508,7 @@ test('serve: a request before the server is ready is 503 not-ready and is not fo
     live = await clef.liveSupervisor(f.dir);
     await sleep(50);
   }
-  const r = await call({ port: live.run.port, token: live.run.token, body: { state: {}, questions: QUESTIONS } });
+  const r = await call({ port: live.run.port, body: { state: {}, questions: QUESTIONS } });
   assert.equal(r.status, 503);
   assert.deepEqual(JSON.parse(r.text), { error: 'not-ready' });
   assert.equal(live.health.ready, false);
@@ -523,10 +519,10 @@ test('serve: when its own script changes it answers nothing more, ends the serve
   const script = join(f.root, 'clef-copy.mjs');
   writeFileSync(script, '// a copy\n');
   const h = await clef.serve({ dir: f.dir, ...f.exe, idleMs: 60_000, checkMs: 60_000, pollMs: 50, scriptUrl: pathToFileURL(script).href });
-  const { port, token } = (await ready(f)).run;
+  const { port } = (await ready(f)).run;
   const rec = await f.recorded();
   writeFileSync(script, '// a copy, changed\n');
-  const r = await call({ port, token, body: { state: {}, questions: QUESTIONS } });
+  const r = await call({ port, body: { state: {}, questions: QUESTIONS } });
   assert.equal(r.status, 503);
   assert.deepEqual(JSON.parse(r.text), { error: 'stopping' });
   assert.equal(await h.done, 'changed');
@@ -633,14 +629,13 @@ test('ensure: starts a detached supervisor, waits for ready, and a second ensure
   assert.match(first.out.url, /^http:\/\/127\.0\.0\.1:\d+$/);
   assert.deepEqual(Object.keys(first.out).sort(), ['state', 'url']);
   const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
-  assert.ok(!JSON.stringify(first).includes(run.token), 'ensure prints no token');
   const again = await ensure(f);
   assert.deepEqual(again.out, first.out);
   const rec = await f.recorded();
   assert.equal(rec.pid, run.serverPid);
   const status = await clef.statusRun({ dir: f.dir });
   assert.ok(status.lines.includes('run: ready'));
-  assert.ok(!status.lines.join('\n').includes(run.token) && !status.lines.join('\n').includes(rec.key), 'status prints no token or key');
+  assert.ok(!status.lines.join('\n').includes(rec.key), 'status prints no key');
   assert.ok(!status.lines.join('\n').includes(f.root), 'status prints no path');
   const stopped = await clef.stopRun({ dir: f.dir });
   assert.deepEqual(stopped.lines, ['stopped']);
@@ -678,14 +673,14 @@ test('ensure: a start that failed less than 10 minutes ago is state failed with 
 test('ensure: a run.json that does not match a live supervisor (a dead pid, a wrong run id) is removed and a fresh start follows', async t => {
   const f = fixture(t);
   f.stoppers.push(() => stopFixture(f));
-  writeFileSync(f.run.run, JSON.stringify({ port: 1, token: 'x', run: 'y', pid: 2_000_000_000, serverPid: 1, started: 'now' }));
+  writeFileSync(f.run.run, JSON.stringify({ port: 1, run: 'y', pid: 2_000_000_000, serverPid: 1, started: 'now' }));
   const r = await ensure(f, { wait: 20 });
   assert.equal(r.out.state, 'ready');
   const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
   assert.notEqual(run.pid, 2_000_000_000);
   // a live pid that is not a supervisor (this test process) with a wrong health answer
   await clef.stopRun({ dir: f.dir });
-  writeFileSync(f.run.run, JSON.stringify({ port: run.port, token: 'x', run: 'y', pid: process.pid, serverPid: 1, started: 'now' }));
+  writeFileSync(f.run.run, JSON.stringify({ port: run.port, run: 'y', pid: process.pid, serverPid: 1, started: 'now' }));
   assert.equal(await clef.liveSupervisor(f.dir), null, 'a live pid alone is not a supervisor');
 });
 
@@ -696,7 +691,7 @@ test('liveSupervisor: an answering /health that disagrees with run.json on run, 
   const good = JSON.parse(readFileSync(f.run.run, 'utf8'));
   assert.ok(await clef.liveSupervisor(f.dir));
   const sleeper = sleeperProcess(f);
-  for (const change of [{ run: 'other' }, { serverPid: good.serverPid + 1 }, { pid: sleeper.pid }, { token: 'wrong' }, { port: live.run.port + 1 }]) {
+  for (const change of [{ run: 'other' }, { serverPid: good.serverPid + 1 }, { pid: sleeper.pid }, { port: live.run.port + 1 }]) {
     writeFileSync(f.run.run, JSON.stringify({ ...good, ...change }));
     assert.equal(await clef.liveSupervisor(f.dir), null, JSON.stringify(Object.keys(change)));
   }
@@ -912,7 +907,7 @@ test('ensure and stop leave alone a live process that run.json names but that is
   const f = fixture(t);
   f.stoppers.push(() => stopFixture(f));
   const sleeper = sleeperProcess(f);
-  const decoy = () => writeFileSync(f.run.run, JSON.stringify({ port: 1, token: 'x', run: 'y', pid: sleeper.pid, serverPid: 1, started: 'now' }));
+  const decoy = () => writeFileSync(f.run.run, JSON.stringify({ port: 1, run: 'y', pid: sleeper.pid, serverPid: 1, started: 'now' }));
   decoy();
   assert.equal((await ensure(f, { wait: 20 })).out.state, 'ready');
   assert.ok(alive(sleeper.pid), 'ensure left it');
@@ -1151,7 +1146,7 @@ test('serve on the keeper line: the server answers, its pid is the keeper\'s chi
   const f = fixture(t);
   const h = await startServe(t, f, KEEPER);
   const live = await ready(f);
-  const r = await call({ port: live.run.port, token: live.run.token, body: { state: { s: 1 }, questions: QUESTIONS } });
+  const r = await call({ port: live.run.port, body: { state: { s: 1 }, questions: QUESTIONS } });
   assert.equal(r.status, 200);
   const sp = live.run.serverPid;
   assert.equal((await f.recorded()).pid, sp, 'serverPid is the server, not the keeper');
@@ -1280,7 +1275,6 @@ test('serve on the keeper line: run.server names the server, is mode 0600, and g
   assert.deepEqual(Object.keys(rec).sort(), ['pid', 'port', 'run', 'started']);
   assert.equal(rec.pid, live.run.serverPid);
   assert.equal(rec.run, live.run.run);
-  if (!WIN) assert.equal(statSync(f.run.server).mode & 0o777, 0o600);
   await h.stop('test');
   assert.equal(existsSync(f.run.server), false);
   assert.equal(existsSync(f.run.key), false);

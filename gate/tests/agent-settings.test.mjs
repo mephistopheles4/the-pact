@@ -42,8 +42,8 @@ function render(t, config, { agent = AGENT, name = 'integrity-lens', renderer = 
   }
   const h = tempDir(t, 'pact-agents-home-');
   if (!noConfig) {
-    mkdirSync(join(h, 'pact'), { recursive: true });
-    writeFileSync(join(h, 'pact', 'config.json'), typeof config === 'string' ? config : `${JSON.stringify(config)}\n`);
+    mkdirSync(join(h, '.pact'), { recursive: true });
+    writeFileSync(join(h, '.pact', 'config.json'), typeof config === 'string' ? config : `${JSON.stringify(config)}\n`);
   }
   const out = tempDir(t, 'pact-agents-out-');
   const env = { ...process.env };
@@ -262,10 +262,10 @@ test('any Claude Code model and each of the five efforts render, written exactly
 });
 
 test('a lens set to its own values is not an override: no mark, and the AGENT line says default', t => {
-  const r = render(t, cfg({ 'data-lens': { model: 'opus', effort: 'high' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
+  const r = render(t, cfg({ 'data-lens': { model: 'planning', effort: 'high' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
   assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^AGENT data-lens opus high [0-9a-f]{64} security-set default local$/m);
-  assert.match(r.rules, /^Agents set: data-lens \(opus, high effort\)\.$/m);
+  assert.match(r.stdout, /^AGENT data-lens planning high [0-9a-f]{64} security-set default local$/m);
+  assert.match(r.rules, /^Agents set: data-lens \(planning, high effort\)\.$/m);
   assert.doesNotMatch(notice(r.rules), /override/);
 });
 
@@ -274,7 +274,7 @@ test('a security-set lens off its default is listed like any other: no mark in t
   const r = render(t, cfg({ 'data-lens': { model: 'sonnet' }, 'integrity-lens': { effort: 'low' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^AGENT data-lens sonnet high [0-9a-f]{64} security-set override local$/m);
-  assert.match(r.rules, /^Agents set: data-lens \(sonnet, high effort\), integrity-lens \(opus, low effort\)\.$/m);
+  assert.match(r.rules, /^Agents set: data-lens \(sonnet, high effort\), integrity-lens \(planning, low effort\)\.$/m);
   assert.doesNotMatch(r.rules, /not security-tested|beside every report/);
   // The review template's "not verified" keeps its one meaning.
   assert.doesNotMatch(notice(r.rules), /not verified/);

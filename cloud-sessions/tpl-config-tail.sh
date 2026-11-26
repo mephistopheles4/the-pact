@@ -2,7 +2,7 @@
 SETTINGS_OVERLAY='__SETTINGS_OVERLAY__'
 # The auto-compact window the cloud copy sets (#482), from the generator's own copy of the default; the cloud has no Off.
 COMPACT_WINDOW='__COMPACT_WINDOW__'
-COMPACT_SCRIPT="$CLAUDE_HOME/pact/hooks/compact-handoff.mjs"
+COMPACT_SCRIPT="$HOME/.pact/hooks/compact-handoff.mjs"
 
 # Deep-merge an overlay into ~/.claude/settings.json. The overlay wins on
 # ordinary keys; the file wins on plugin keys; permissions.allow, .deny and .ask are

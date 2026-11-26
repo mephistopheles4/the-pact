@@ -2,7 +2,7 @@
 name: integrity-lens
 description: Reviews whether the tests behind a claimed pass can fail, and whether each earns its place. Read-only. Not for whether the code is correct, a spec review, or style.
 tools: [Read, Glob, Grep]
-model: opus
+model: planning
 effort: medium
 ---
 

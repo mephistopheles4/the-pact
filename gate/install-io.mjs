@@ -4,10 +4,10 @@
 // writes. It makes no decision; gate/install-core.mjs does. Nothing here runs
 // on import, and no error's text leaves here unhandled by the runner.
 import { createHash } from 'node:crypto';
-import { chmodSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { chmodSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmdirSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import * as core from './install-core.mjs';
-import { FOLD_CASE } from './paths.mjs';
+import { FOLD_CASE, realOrResolved } from './paths.mjs';
 
 export const sha256 = b => createHash('sha256').update(b).digest('hex');
 export const blobId = b => createHash('sha1').update(`blob ${b.length}\0`).update(b).digest('hex');
@@ -84,6 +84,53 @@ function throughLinkWith(ops, root, rel) {
   return false;
 }
 
+/**
+ * The link test for a path under the home folder (spec 0007 S4, S9): a
+ * harness's top folder may itself be a link, as a person's ~/.claude may be,
+ * and is taken at its real path; the neutral home may not be one.
+ */
+export const throughHomeLink = (home, rel, ops = FS_OPS) => {
+  const [top, ...rest] = rel.split('/');
+  if (!rest.length || top.toLowerCase() === core.NEUTRAL_REL) return throughLinkWith(ops, home, rel);
+  return throughLinkWith(ops, join(home, top), rest.join('/'));
+};
+
+/**
+ * Whether `p`, or a folder that holds it, holds a .git entry: it is inside a
+ * git work tree. `p` may be a file, and a file holds nothing: Unix says so
+ * with ENOTDIR. Any other error counts as an entry, so the check fails closed.
+ */
+export function insideWorkTree(p) {
+  // Start at the nearest part that exists, at its real path, so a linked folder above a file not yet made is followed.
+  let there = resolve(p);
+  while (!existsSync(there) && dirname(there) !== there) there = dirname(there);
+  let dir = realOrResolved(there);
+  for (;;) {
+    if (holdsGit(dir)) return true;
+    const up = dirname(dir);
+    if (up === dir) return false;
+    dir = up;
+  }
+}
+
+const holdsGit = dir => {
+  try {
+    lstatSync(join(dir, '.git'));
+    return true;
+  } catch (e) {
+    return !(e && (e.code === 'ENOENT' || e.code === 'ENOTDIR'));
+  }
+};
+
+/** Whether `p` is a folder, or a link to one. */
+export function isFolder(p) {
+  try {
+    return statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 /** A live path's state, as the plan reads it: whether anything is there, whether it is a file, and its hash. */
 export function liveState(p) {
   let st;
@@ -124,13 +171,13 @@ export const tempName = dest => join(dirname(dest), `${basename(dest)}.pact-tmp`
 /**
  * Writes `bytes` over `dest` through an exclusive temp file in the same
  * folder, then a rename (S6, X4 and X5): a hard link at `dest` loses only its
- * own name. The temp file takes `dest`'s current mode, or `fallbackMode` when
- * there is none. Once created, it is deleted on any failure, the write
+ * own name. The temp file takes `dest`'s current mode, when there is one.
+ * Once created, it is deleted on any failure, the write
  * included; one already there refuses and is left alone.
  */
-export function writeReplacing(dest, bytes, fallbackMode) {
+export function writeReplacing(dest, bytes) {
   mkdirSync(dirname(dest), { recursive: true });
-  let mode = fallbackMode;
+  let mode;
   try {
     mode = statSync(dest).mode & 0o777;
   } catch {}
@@ -155,13 +202,52 @@ export function writeReplacing(dest, bytes, fallbackMode) {
   }
 }
 
-/** Whether an existing file grants any group or other permission bit (Unix only; false elsewhere, or when absent). */
-export function openToOthers(p) {
-  if (process.platform === 'win32') return false;
+/** A link's target as a path to compare: no `\\?\` prefix and no closing separator, which Windows may add to a junction's. */
+const linkText = p => fold(resolve(p.replace(/^\\\\\?\\/, '')));
+
+/** What is at a skill folder's path, read without following it: 'absent', 'ours' (a link to `target`) or 'other'. */
+export function linkState(p, target) {
   try {
-    return (statSync(p).mode & 0o077) !== 0;
+    if (!lstatSync(p).isSymbolicLink()) return 'other';
+    return linkText(resolve(dirname(p), readlinkSync(p))) === linkText(target) ? 'ours' : 'other';
+  } catch (e) {
+    return e && e.code === 'ENOENT' ? 'absent' : 'other';
+  }
+}
+
+/** A link at `path` to the folder `target`: a symlink, or on Windows a directory junction, which needs no extra rights. It never replaces anything. */
+export function makeLink(target, path) {
+  mkdirSync(dirname(path), { recursive: true });
+  symlinkSync(target, path, process.platform === 'win32' ? 'junction' : 'dir');
+}
+
+/** Removes a link and nothing it points at. */
+export function removeLink(p) {
+  try {
+    unlinkSync(p);
+  } catch {
+    rmdirSync(p); // a Windows junction that will not unlink
+  }
+}
+
+/** Whether a link can be made at all, tried inside the install's own work folder. */
+export function canLink(work) {
+  const probe = join(work, 'link-probe');
+  try {
+    makeLink(join(work, 'stage'), probe);
+    removeLink(probe);
+    return true;
   } catch {
     return false;
+  }
+}
+
+/** Removes a folder only when it is empty. */
+export function removeIfEmpty(p) {
+  try {
+    rmdirSync(p);
+  } catch (e) {
+    if (!e || !['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(e.code)) throw e;
   }
 }
 
@@ -181,16 +267,14 @@ export function leftoverWorkFolders(tmp, own) {
 
 /** The file operations the backup and prune steps use; a test passes a set with one that fails. */
 export const FS_OPS = Object.freeze({
-  mkdir: (p, mode) => mkdirSync(p, { mode }),
-  open: (p, flags, mode) => openSync(p, flags, mode),
+  mkdir: p => mkdirSync(p),
+  open: (p, flags) => openSync(p, flags),
   write: (fd, bytes) => writeFileSync(fd, bytes),
   fsync: fd => fsyncSync(fd),
   close: fd => closeSync(fd),
   read: p => readFileSync(p),
   readdir: p => readdirSync(p),
   rename: (from, to) => renameSync(from, to),
-  chmod: (p, mode) => chmodSync(p, mode),
-  stat: p => statSync(p),
   lstat: p => lstatSync(p),
   realpath: p => realpathSync.native(p),
   unlink: p => unlinkSync(p),
@@ -216,9 +300,9 @@ function namesIn(ops, dir) {
   }
 }
 
-/** A new file, made exclusively with mode 0600, written and fsynced; its handle is closed whatever happens. */
+/** A new file, made exclusively, written and fsynced; its handle is closed whatever happens. */
 function writeNew(ops, p, bytes) {
-  const fd = ops.open(p, 'wx', 0o600);
+  const fd = ops.open(p, 'wx');
   try {
     ops.write(fd, bytes);
     ops.fsync(fd);
@@ -230,8 +314,8 @@ function writeNew(ops, p, bytes) {
 /**
  * Removes `rel` under `home` by walking it (#272, S7): each entry read with
  * lstat, a link or reparse point removed without descending into it, a folder
- * whose real path is not its own refused, before its entries are read and
- * again before each is removed, and never a recursive remove. `last` names an
+ * whose real path is not its own refused before its entries are read, and
+ * never a recursive remove. `last` names an
  * entry of the top folder removed after the others.
  */
 function removeTree(ops, home, rel, last) {
@@ -246,12 +330,8 @@ function removeTree(ops, home, rel, last) {
     }
     return;
   }
-  const resolvesElsewhere = () => {
-    if (throughLinkWith(ops, home, rel)) throw new Error('a folder to remove resolves elsewhere');
-  };
-  resolvesElsewhere();
+  if (throughLinkWith(ops, home, rel)) throw new Error('a folder to remove resolves elsewhere');
   for (const n of ops.readdir(p).sort((a, b) => (a === last) - (b === last))) {
-    resolvesElsewhere(); // narrows a race that swaps the folder for a link mid-walk; Node has no folder-relative remove
     removeTree(ops, home, `${rel}/${n}`);
   }
   ops.rmdir(p);
@@ -259,19 +339,17 @@ function removeTree(ops, home, rel, last) {
 
 /**
  * Takes the backup (S7): after every check and before CHECKS DONE, a copy of
- * each `was: 'file'` entry, checked against its hash, and the manifest, built
- * in a staging folder and renamed into place. `entries` come from
+ * each `was: 'file'` entry and the manifest, built in a staging folder and
+ * renamed into place, with the default modes. `entries` come from
  * core.backupEntries; `now` gives the time; `started` runs once the checks
- * that create nothing have passed. On Linux and macOS (`platform`) every
- * folder is 0700 and every file 0600. On any failure it removes only what it
+ * that create nothing have passed. On any failure it removes only what it
  * made and refuses with "Nothing was changed.", or, when that removal fails,
  * with a line naming the staging folder. Returns the backup's name and how
  * many files it copied.
  */
-export function takeBackup(ops, { home, commit, entries, platform, now, started }) {
-  const unix = platform !== 'win32';
+export function takeBackup(ops, { home, commit, entries, now, started }) {
   const at = rel => join(home, ...rel.split('/'));
-  const link = rel => throughLinkWith(ops, home, rel);
+  const link = rel => throughHomeLink(home, rel, ops);
   const B = core.BACKUPS_REL;
   if (notPlainFolder(ops, home)) core.backupStops.link(B);
   const left = namesIn(ops, at(B)).filter(n => n.startsWith('.staging-'));
@@ -285,49 +363,35 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
   started();
   const stagingRel = `${B}/.staging-${name}`;
   const staging = at(stagingRel);
-  const made = []; // the home folder, pact and pact/backups, each only when this run made it
+  const made = []; // the home folder, .pact and .pact/backups, each only when this run made it
   let stagingMade = false;
   try {
-    for (const p of [home, at('pact'), at(B)]) {
+    for (const p of [home, at(core.NEUTRAL_REL), at(B)]) {
       if (presentWith(ops, p)) continue;
-      ops.mkdir(p, 0o700);
+      ops.mkdir(p);
       made.push(p);
     }
-    if (unix) {
-      if (notPlainFolder(ops, home)) core.backupStops.link(B);
-      ops.chmod(at(B), 0o700); // follows a link, so the link test runs right before it
-    }
-    ops.mkdir(staging, 0o700);
+    ops.mkdir(staging);
     stagingMade = true;
-    const written = [at(B), staging, ...made];
     const listed = [];
     for (const e of [...entries].sort((a, b) => (a.path < b.path ? -1 : 1))) {
       if (e.was !== 'file') {
-        listed.push({ path: e.path, was: 'absent' });
+        listed.push({ path: e.path, harness: e.harness, was: e.was, ...(e.was === 'link' ? { target: e.target } : {}) });
         continue;
       }
       const bytes = ops.read(at(e.path));
-      if (sha256(bytes) !== e.sha256) core.backupStops.changed(e.path);
       const segs = e.path.split('/');
       for (let i = 1; i < segs.length; i++) {
         const d = join(staging, ...segs.slice(0, i));
         if (presentWith(ops, d)) continue;
-        ops.mkdir(d, 0o700);
-        written.push(d);
+        ops.mkdir(d);
       }
       const dest = join(staging, ...segs);
       writeNew(ops, dest, bytes);
-      written.push(dest);
-      if (sha256(ops.read(dest)) !== e.sha256) core.backupStops.failed();
-      listed.push({ path: e.path, was: 'file', sha256: e.sha256, bytes: bytes.length });
+      listed.push({ path: e.path, harness: e.harness, was: 'file', sha256: e.sha256, bytes: bytes.length });
     }
     const manifest = join(staging, 'manifest.json');
     writeNew(ops, manifest, Buffer.from(core.manifestText({ commit, created: date.toISOString(), entries: listed })));
-    written.push(manifest);
-    if (unix) for (const p of written) if ((ops.stat(p).mode & 0o077) !== 0) core.backupStops.mode();
-    if (notPlainFolder(ops, home) || link(stagingRel)) core.backupStops.link(stagingRel);
-    // A POSIX rename onto an empty folder succeeds, so the name is checked first.
-    if (presentWith(ops, join(at(B), name))) core.backupStops.nameTaken();
     ops.rename(staging, join(at(B), name));
     return { name, files: listed.filter(e => e.was === 'file').length };
   } catch (e) {
@@ -343,7 +407,7 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
 }
 
 /**
- * Whether pact/backups is anything but a plain folder or absent: a link, a
+ * Whether .pact/backups is anything but a plain folder or absent: a link, a
  * reparse point, a file (#272, S7). The backup refuses then, and the dry run
  * and the prune leave it alone.
  */
@@ -373,7 +437,7 @@ function candidateIn(ops, home, name) {
 }
 
 /**
- * What pact/backups holds (S8, S9): `link`, true for anything but a plain folder or nothing (a file included), the staging folders
+ * What .pact/backups holds (S8, S9): `link`, true for anything but a plain folder or nothing (a file included), the staging folders
  * an earlier apply left, the candidates the prune may act on, and how many
  * other entries it leaves alone.
  */

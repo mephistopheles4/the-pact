@@ -45,20 +45,20 @@ test('seam A passes on the repo payload, and lists every file it would install',
   const installs = r.stdout.split('\n').filter(l => l.startsWith('INSTALL '));
   const dests = installs.map(l => l.split(' ')[3]).sort();
   assert.deepEqual(dests, [
-    'CLAUDE.md',
-    'agents/adversarial-lens.md',
-    'agents/behaviour-lens.md',
-    'agents/conventions-lens.md',
-    'agents/data-lens.md',
-    'agents/executability-lens.md',
-    'agents/integrity-lens.md',
-    'agents/reader-lens.md',
-    'agents/scout.md',
-    'agents/unstated-lens.md',
+    '@claude/agents/adversarial-lens.md',
+    '@claude/agents/behaviour-lens.md',
+    '@claude/agents/conventions-lens.md',
+    '@claude/agents/data-lens.md',
+    '@claude/agents/executability-lens.md',
+    '@claude/agents/integrity-lens.md',
+    '@claude/agents/reader-lens.md',
+    '@claude/agents/scout.md',
+    '@claude/agents/unstated-lens.md',
     // The review procedure file (#261), at its one fixed live path, and the diagram format file beside it.
-    'pact/review-diagrams.md',
-    'pact/review.md',
-  ]);
+    '.pact/review-diagrams.md',
+    '.pact/review.md',
+    '@claude/rules',
+  ].sort());
   for (const l of installs) assert.match(l, /^INSTALL [0-9a-f]{64} \S+ \S+$/);
 });
 
@@ -68,7 +68,7 @@ test('a minimal valid unmigrated agent passes', t => {
 
 test('an install line carries the staged bytes hash', t => {
   const r = expectPass(t, { [A]: plainAgent('probe') });
-  const line = r.stdout.split('\n').find(l => l.endsWith(' agents/probe.md'));
+  const line = r.stdout.split('\n').find(l => l.endsWith(' @claude/agents/probe.md'));
   assert.ok(line, r.out);
   const [, hash, src] = line.split(' ');
   assert.equal(src, 'claude/agents/probe.md');
@@ -112,8 +112,8 @@ test('an agent with any tools, any key or no tools line passes and installs', t 
     'claude/agents/probe.md': plainAgent('probe', ['hooks: x', 'permissionMode: default'], 'tools: [Read, Bash, WebFetch, mcp__any__*]'),
     'claude/agents/bare.md': plainAgent('bare', [], null),
   });
-  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/probe\.md agents\/probe\.md$/m);
-  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/bare\.md agents\/bare\.md$/m);
+  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/probe\.md @claude\/agents\/probe\.md$/m);
+  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/bare\.md @claude\/agents\/bare\.md$/m);
 });
 
 // One live path per file: two agents whose names differ only in case install to one path.
@@ -129,6 +129,21 @@ test('bad case: two agents whose names differ only in case', t => {
   if (folds) return t.skip('this disk folds case, so it cannot hold both files');
   const r = expectFail(t, { 'claude/agents/probe.md': plainAgent('probe'), 'claude/agents/Probe.md': plainAgent('Probe') }, 'name-duplicate');
   assert.ok(failRules(r.stdout).includes('destination-duplicate'), r.out);
+});
+
+// Spec 0007 S7: the install's renders sit under rendered/ in the stage.
+test('a rendered agent beside its source passes: the two share a name by design', t => {
+  expectPass(t, { [A]: plainAgent('probe'), 'rendered/claude/agents/probe.md': plainAgent('probe') });
+});
+
+test('bad case: a rendered file of no known kind, a rendered command or skill that is not the pact\'s, and a rendered agent whose frontmatter fails', t => {
+  // rendered/skills/ is the skills render, never a harness; a harness id is lower case.
+  for (const rel of ['rendered/claude/notes.md', 'rendered/claude/agents/sub/probe.md', 'rendered/skills/rm/SKILL.md', 'rendered/skills/finis/run.sh', 'rendered/skills/rules.md', 'rendered/Mine/rules.md']) expectFail(t, { [rel]: 'x\n' }, 'unclassified');
+  expectFail(t, { 'rendered/claude/agents/a b.md': 'x\n' }, 'path');
+  expectFail(t, { 'rendered/claude/commands/rm.md': 'x\n' }, 'command-file-name');
+  expectFail(t, { 'rendered/claude/agents/probe.md': plainAgent('other') }, 'name-stem');
+  // The rendered skills pass the text scanner like every other installed file.
+  expectFail(t, { 'rendered/skills/finis/SKILL.md': 'x\u202e\n' }, 'invisible');
 });
 
 // Agents install only from claude/agents/; familiars/ holds each agent's contract.
@@ -309,18 +324,18 @@ const RV = 'claude/review.md';
 const review = body => `# Review\n\n${body}\n`;
 
 // #261 C3
-test('the review file installs to pact/review.md and nowhere else', t => {
+test('the review file installs to .pact/review.md and nowhere else', t => {
   const r = expectPass(t, {});
   const lines = r.stdout.split('\n').filter(l => l.includes(' claude/review.md '));
   assert.equal(lines.length, 1, r.out);
-  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review\.md pact\/review\.md$/);
+  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review\.md \.pact\/review\.md$/);
 });
 
-test('the diagram format file installs to pact/review-diagrams.md beside the review file', t => {
+test('the diagram format file installs to .pact/review-diagrams.md beside the review file', t => {
   const r = expectPass(t, { 'claude/review-diagrams.md': review('Draw it.') });
   const lines = r.stdout.split('\n').filter(l => l.includes(' claude/review-diagrams.md '));
   assert.equal(lines.length, 1, r.out);
-  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review-diagrams\.md pact\/review-diagrams\.md$/);
+  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review-diagrams\.md \.pact\/review-diagrams\.md$/);
 });
 
 // review-file

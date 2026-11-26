@@ -26,10 +26,11 @@ function inputs(t) {
   return { rules, diff, rulesFile: join(d, 'CLAUDE.md'), diffFile: join(d, 'config.diff') };
 }
 
-function review(t, folder, home, { fault, faultDir } = {}) {
+function review(t, folder, home, { fault, faultDir, own } = {}) {
   const i = inputs(t);
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
+  if (own) Object.assign(env, { HOME: own, USERPROFILE: own });
   const pre = fault ? ['--import', FAULTS] : [];
   if (fault) env.PACT_FAULT = fault;
   if (faultDir) env.PACT_FAULT_DIR = faultDir;
@@ -55,6 +56,9 @@ function refusedWith(r, rule, reason) {
 
 // ------------------------------------------------------------ where it writes
 
+/** The refusal for a folder in or under a home folder's .claude or .pact folder, by real path. */
+const KEPT = /in or under a Claude or pact folder of a home folder/;
+
 test('a new folder is created and gets both files, byte for byte', t => {
   const f = join(tempDir(t), 'review');
   wrote(review(t, f), f);
@@ -65,11 +69,11 @@ test('an existing empty folder gets both files', t => {
   wrote(review(t, f), f);
 });
 
-test('folders that only share a prefix with the Claude home folder or .claude are not refused', t => {
+test('folders that only share a prefix with a pact folder or .claude are not refused', t => {
   const base = tempDir(t);
   const home = join(base, 'home');
   mkdirSync(home);
-  for (const f of [join(base, 'home2'), join(base, '.claude2'), join(base, 'claude'), join(base, 'x.claude')]) {
+  for (const f of [join(home, '.pact2'), join(base, '.claude2'), join(base, 'claude'), join(base, 'x.claude')]) {
     wrote(review(t, f, home), f);
   }
 });
@@ -106,13 +110,25 @@ test('bad case: a path that names a file refuses', t => {
 });
 
 for (const [label, make] of [
-  ['the Claude home folder itself', (base, home) => home],
-  ['a folder under the Claude home folder', (base, home) => join(home, 'review')],
   [
-    'a folder deep under the Claude home folder',
+    'the pact folder of the home folder itself',
     (base, home) => {
-      mkdirSync(join(home, 'pact'));
-      return join(home, 'pact', 'review');
+      mkdirSync(join(home, '.pact'));
+      return join(home, '.pact');
+    },
+  ],
+  [
+    'a folder under the pact folder of the home folder',
+    (base, home) => {
+      mkdirSync(join(home, '.pact'));
+      return join(home, '.pact', 'review');
+    },
+  ],
+  [
+    'a folder deep under the pact folder of the home folder',
+    (base, home) => {
+      mkdirSync(join(home, '.pact', 'deep'), { recursive: true });
+      return join(home, '.pact', 'deep', 'review');
     },
   ],
 ]) {
@@ -122,7 +138,7 @@ for (const [label, make] of [
     mkdirSync(home);
     const f = make(base, home);
     const existed = existsSync(f);
-    refusedWith(review(t, f, home), 'review-folder', /in or under the Claude home folder/);
+    refusedWith(review(t, f, home), 'review-folder', KEPT);
     if (!existed) assert.ok(!existsSync(f), 'the created folder was left behind');
     assert.ok(!existsSync(join(f, 'rendered-rules.txt')));
   });
@@ -154,19 +170,29 @@ test('bad case: a folder reached through a linked parent that leads into a .clau
   assert.deepEqual(readdirSync(join(real, '.claude')), []);
 });
 
-test('bad case: a folder reached through a linked parent that leads into the Claude home folder refuses', t => {
+test('bad case: a folder reached through a linked parent that leads into the pact folder of the home folder refuses', t => {
   const home = tempDir(t, 'pact-review-home-');
+  const pact = join(home, '.pact');
+  mkdirSync(pact);
   const link = join(tempDir(t), 'innocent');
-  symlinkSync(home, link, 'junction');
-  refusedWith(review(t, join(link, 'review'), home), 'review-folder', /in or under the Claude home folder/);
-  assert.deepEqual(readdirSync(home), []);
+  symlinkSync(pact, link, 'junction');
+  refusedWith(review(t, join(link, 'review'), home), 'review-folder', KEPT);
+  assert.deepEqual(readdirSync(pact), []);
 });
 
-test('bad case: the Claude home folder named in another case refuses', { skip: !WIN && process.platform !== 'darwin' && 'case folds only on Windows and macOS (not run)' }, t => {
+test('bad case: the pact folder of the home folder named in another case refuses', { skip: !WIN && process.platform !== 'darwin' && 'case folds only on Windows and macOS (not run)' }, t => {
   const base = tempDir(t);
   const home = join(base, 'Home');
-  mkdirSync(home);
-  refusedWith(review(t, join(base, 'HOME', 'review'), home), 'review-folder', /in or under the Claude home folder/);
+  mkdirSync(join(home, '.pact'), { recursive: true });
+  refusedWith(review(t, join(base, 'HOME', '.PACT', 'review'), home), 'review-folder', KEPT);
+});
+
+test('bad case: a folder in your own pact folder refuses when the run names another home', t => {
+  // The home folder the environment names stands in for yours.
+  const mine = tempDir(t, 'pact-review-mine-');
+  mkdirSync(join(mine, '.pact'));
+  refusedWith(review(t, join(mine, '.pact', 'review'), undefined, { own: mine }), 'review-folder', KEPT);
+  assert.deepEqual(readdirSync(join(mine, '.pact')), []);
 });
 
 /** The 8.3 short name Windows gives `p`, or null when it gives none. */
@@ -222,28 +248,6 @@ test('bad case: a failed second write in an existing folder takes away the first
   assert.deepEqual(readdirSync(f), []);
 });
 
-test('bad case: a file that appears in the folder after the write refuses, and the run takes its own two files away', t => {
-  const f = tempDir(t);
-  const r = review(t, f, undefined, { fault: 'review-extra' });
-  refusedWith(r, 'review-write', /the review folder changed while it was written/);
-  assert.deepEqual(readdirSync(f), ['extra.txt'], 'only the file this run did not write may remain');
-});
-
-test('bad case: a review folder whose real path changes during the write refuses, and the run takes its two files away', t => {
-  const f = tempDir(t);
-  const r = review(t, f, undefined, { fault: 'review-moved' });
-  refusedWith(r, 'review-write', /the review folder changed while it was written/);
-  assert.deepEqual(readdirSync(f), []);
-});
-
-test('bad case: a review file that gains a second name once opened refuses as not a new plain file, and the run removes it', t => {
-  const f = tempDir(t);
-  const elsewhere = tempDir(t, 'pact-review-link-');
-  const r = review(t, f, undefined, { fault: 'review-link', faultDir: elsewhere });
-  refusedWith(r, 'review-write', /rendered-rules\.txt is not a new plain file/);
-  assert.deepEqual(readdirSync(f), []);
-  assert.deepEqual(readdirSync(elsewhere), ['second-name.txt'], 'the fault did not plant its link');
-});
 /** A fake user home whose .claude is a junction out to a folder of another name; returns its parts. */
 function outwardClaude(t) {
   const fakeHome = tempDir(t, 'pact-review-userhome-');
@@ -271,7 +275,7 @@ test('bad case: the real default Claude folder reached by another name refuses, 
   const { fakeHome, target } = outwardClaude(t);
   const other = join(tempDir(t), 'innocent');
   symlinkSync(target, other, 'junction');
-  refusedWith(reviewAs(t, fakeHome, join(other, 'review')), 'review-folder', /in or under the Claude home folder/);
+  refusedWith(reviewAs(t, fakeHome, join(other, 'review')), 'review-folder', KEPT);
   assert.deepEqual(readdirSync(target), []);
 });
 

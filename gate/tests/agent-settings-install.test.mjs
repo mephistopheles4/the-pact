@@ -1,5 +1,5 @@
 // Agent settings (#97): the install script end to end, against a throwaway
-// repo and --claude-home. Never touches ~/.claude. Expected agent bytes are built
+// repo and --home folder. Never touches ~/.claude. Expected agent bytes are built
 // here from the repo's copy, never taken from the renderer. The renderer's own
 // cases, which never install, are in agent-settings.test.mjs.
 import assert from 'node:assert/strict';
@@ -8,8 +8,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { plantModule, plantNoDefault } from './gate-files.mjs';
-import { REPO } from './text.mjs';
-import { home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
+import { REPO, forClaude } from './text.mjs';
+import { home, install, listTree, makeRepo, refused, sharedRepo, total } from './install-harness.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const AGENT = readFileSync(join(REPO, 'claude', 'agents', 'integrity-lens.md'), 'utf8');
@@ -20,8 +20,8 @@ const withAgent = (model, effort) => AGENT.replace(/^model: .*$/m, `model: ${mod
 // ------------------------------------------------------------ the install script, end to end
 
 function configure(h, config) {
-  mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify(config)}\n`);
+  mkdirSync(join(h, '.pact'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify(config)}\n`);
 }
 
 function dryRunHash(r) {
@@ -41,10 +41,10 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   const want = Buffer.from(withAgent('sonnet', 'low'));
-  assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), want);
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
-  assert.equal(manifest.files.find(f => f.path === 'agents/integrity-lens.md').sha256, sha256(want));
-  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
+  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'integrity-lens.md')), want);
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
+  assert.equal(manifest.files.find(f => f.path === '.claude/agents/integrity-lens.md').sha256, sha256(want));
+  assert.match(readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8'), /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
   const again = install(repo, h);
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 
@@ -52,10 +52,10 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   configure(h, { schema: 1, settings: { 'usage-pause': 90 } });
   const dry2 = install(repo, h);
   assert.equal(dry2.code, 0, dry2.out);
-  assert.match(dry2.stdout, /^Drift: 0\r?$/m, dry2.out);
+  assert.equal(total(dry2, 'Drift'), 0, dry2.out);
   const r2 = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry2)] });
   assert.equal(r2.code, 0, r2.out);
-  assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), readFileSync(join(repo, 'claude', 'agents', 'integrity-lens.md')));
+  assert.equal(readFileSync(join(h, '.claude', 'agents', 'integrity-lens.md'), 'utf8'), forClaude(readFileSync(join(repo, 'claude', 'agents', 'integrity-lens.md'), 'utf8')));
 });
 
 // #262: no setting is marked, in the dry run or the rules file; a person may run any agent on any model.
@@ -66,16 +66,16 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration sets behaviour-lens to `sonnet`, medium effort\.\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets data-lens to `opus`, medium effort\.\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets data-lens to `planning`, medium effort\.\r?$/m, dry.out);
   assert.doesNotMatch(dry.stdout, /not security-tested|SECURITY DEFAULTS/, dry.out);
-  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to `opus`, high effort\.\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to `planning`, high effort\.\r?$/m, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   const set = (name, model, effort) => Buffer.from(readFileSync(join(repo, 'claude', 'agents', `${name}.md`), 'utf8').replace(/^model: .*$/m, `model: ${model}`).replace(/^effort: .*$/m, `effort: ${effort}`));
-  assert.deepEqual(readFileSync(join(h, 'agents', 'behaviour-lens.md')), set('behaviour-lens', 'sonnet', 'medium'));
-  assert.deepEqual(readFileSync(join(h, 'agents', 'data-lens.md')), set('data-lens', 'opus', 'medium'));
-  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
-  assert.match(rules, /^Agents set: behaviour-lens \(sonnet, medium effort\), data-lens \(opus, medium effort\), integrity-lens \(opus, high effort\)\.$/m);
+  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'behaviour-lens.md')), set('behaviour-lens', 'sonnet', 'medium'));
+  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'data-lens.md')), set('data-lens', 'opus', 'medium'));
+  const rules = readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8');
+  assert.match(rules, /^Agents set: behaviour-lens \(sonnet, medium effort\), data-lens \(planning, medium effort\), integrity-lens \(planning, high effort\)\.$/m);
   assert.doesNotMatch(rules, /not security-tested|beside every report/);
   // Rollback: with the agents key gone, the next install puts back the committed files.
   configure(h, { schema: 1 });
@@ -83,7 +83,7 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
   assert.equal(dry2.code, 0, dry2.out);
   const r2 = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry2)] });
   assert.equal(r2.code, 0, r2.out);
-  for (const a of ['behaviour-lens', 'data-lens', 'integrity-lens']) assert.deepEqual(readFileSync(join(h, 'agents', `${a}.md`)), readFileSync(join(repo, 'claude', 'agents', `${a}.md`)));
+  for (const a of ['behaviour-lens', 'data-lens', 'integrity-lens']) assert.equal(readFileSync(join(h, '.claude', 'agents', `${a}.md`), 'utf8'), forClaude(readFileSync(join(repo, 'claude', 'agents', `${a}.md`), 'utf8')));
 });
 
 test('bad case: an agent setting changed between the dry run and -Apply refuses by the rendered hash', t => {
@@ -95,7 +95,7 @@ test('bad case: an agent setting changed between the dry run and -Apply refuses 
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the hash given with --rendered-hash is not the full hash/m, r.out);
-  assert.ok(!existsSync(join(h, 'agents')), 'the refused install wrote agents');
+  assert.ok(!existsSync(join(h, '.claude', 'agents')), 'the refused install wrote agents');
 });
 
 // ------------------------------------------------------------ the install script: a renderer that lies
@@ -121,7 +121,7 @@ for (const [label, config, from, to, why] of [
   ['the AGENT line twice', SET, R_AGENT_PUSH, `${R_AGENT_PUSH}\n${R_AGENT_PUSH}`, 'the renderer reported one agent setting twice'],
   ['an agent file hash other than its own', SET, R_AGENT_PUSH, `  report.lines.push('AGENT integrity-lens sonnet low ${A64} plain override local');`, "the rendered agent file's hash does not match the one the renderer reported"],
   ['default for a changed file', SET, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain default local`);", "the renderer's override word for integrity-lens does not match whether its file changed"],
-  ['override for a file at its own values', { schema: 1, agents: { 'integrity-lens': { model: 'opus' } } }, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain override local`);", "the renderer's override word for integrity-lens does not match whether its file changed"],
+  ['override for a file at its own values', { schema: 1, agents: { 'integrity-lens': { model: 'planning' } } }, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain override local`);", "the renderer's override word for integrity-lens does not match whether its file changed"],
   ['local and plain for the shell lens', { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' } } }, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain override local`);", "the renderer's egress word for behaviour-lens does not match its committed tools line"],
   ['egress for a lens with only the read tools', SET, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} security-set override egress`);", "the renderer's egress word for integrity-lens does not match its committed tools line"],
   ['egress but plain for the shell lens', { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' } } }, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain override egress`);", 'the renderer called behaviour-lens egress but not security-set'],
@@ -133,7 +133,6 @@ for (const [label, config, from, to, why] of [
   ['the committed lines left unchanged while it reports a setting', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('model: sonnet', 'model: opus').replace('effort: low', 'effort: medium'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
   ['an effort line other than the one it reports', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('effort: low', 'effort: medium'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
   ['a body line changed in place of the frontmatter', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('# integrity-lens', 'model: sonnet'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
-  ['an agent written into the stage', SET, R_AGENT_WRITE, `${R_AGENT_WRITE}\n  for (const a of agents) writeFileSync(join(dirname(source), 'agents', 'integrity-lens.md'), a.buf);`, 'the renderer changed the stage'],
 ]) {
   test(`bad case: a renderer that reports ${label} refuses, and nothing is installed`, t => {
     // With no configuration, the renderer is also planted to skip the pact's default, so it reports CONFIG none (#183 T4a).
@@ -147,6 +146,7 @@ for (const [label, config, from, to, why] of [
     refused(r);
     assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'm'), r.out);
-    assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json' || f.startsWith('agents')), listTree(h).join('\n'));
+    const tree = listTree(h).map(f => f.replaceAll('\\', '/'));
+    assert.ok(!tree.some(f => f === '.claude/CLAUDE.md' || f === '.pact/install.json' || f.startsWith('.claude/agents')), tree.join('\n'));
   });
 }

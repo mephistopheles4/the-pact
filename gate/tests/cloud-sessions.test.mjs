@@ -31,7 +31,7 @@ import {
   readCopySet,
   renderNoConfig,
 } from '../../cloud-sessions/gen.mjs';
-import { REPO, withoutOpenMarks } from './text.mjs';
+import { REPO, forClaude, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const PAYLOAD = ['claude', 'familiars', 'AGENTS.md'];
@@ -95,7 +95,7 @@ function baseRoot(t, plant = () => {}) {
 
 // The no-configuration render, computed apart from the renderer, and the
 // committed outputs.
-const RENDER = withoutOpenMarks(repoText('claude/CLAUDE.md'));
+const RENDER = forClaude(withoutOpenMarks(repoText('claude/CLAUDE.md')));
 const committed = () => Object.fromEntries(Object.values(OUTPUTS).map(rel => [rel, repoText(rel)]));
 
 let generated = null;
@@ -124,6 +124,7 @@ test('cloud copy: --check names only the stale output, and untracked or ignored 
   });
   cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: src => !src.includes(`${join('gate', 'tests')}`) });
   cpSync(join(REPO, 'cloud-sessions'), join(root, 'cloud-sessions'), { recursive: true });
+  cpSync(join(REPO, 'harnesses'), join(root, 'harnesses'), { recursive: true });
   // Only the planted files stay out of the index.
   git(root, ['rm', '-q', '--cached', 'familiars/planted-lens.md']);
   git(root, ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'base']);
@@ -203,7 +204,7 @@ test('cloud copy: two payload paths that differ only in case are refused', t => 
 
 test('cloud copy: a render home holding a configuration is refused', t => {
   const home = tempDir(t, 'pact-cloud-home-');
-  writeTree(home, { 'pact/config.json': '{\n  "schema": 1,\n  "settings": {\n    "usage-pause": 90\n  }\n}\n' });
+  writeTree(home, { '.pact/config.json': '{\n  "schema": 1,\n  "settings": {\n    "usage-pause": 90\n  }\n}\n' });
   refuses(() => renderNoConfig(join(REPO, 'claude', 'CLAUDE.md'), { home }), 'cloud/render', /applied a configuration/);
 });
 
@@ -263,7 +264,7 @@ function inputs(change = {}) {
     files: change.files ?? [
       { dest: 'CLAUDE.md', buf: Buffer.from('# Rules\n') },
       { dest: 'agents/a-lens.md', buf: Buffer.from('---\nname: a-lens\n---\n\nBody.\n') },
-      { dest: 'pact/review.md', buf: Buffer.from('# Review\n') },
+      { dest: '.pact/review.md', buf: Buffer.from('# Review\n') },
     ],
     overlay: change.overlay ?? OVERLAY,
     templates,
@@ -431,7 +432,7 @@ test('cloud copy: the command list is pinned, and empty until the cloud channels
   assert.doesNotMatch(repoText(OUTPUTS.setup), /^write_config 'commands\//m, 'no command in the cloud copy');
   assert.equal(commandsArg([]), 'none');
   assert.equal(commandsArg(['make-it-so', 'finis']), 'make-it-so,finis');
-  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\), '--tools', commandsArg\(CLOUD_TOOLS\), '--compact', 'on'\]\)/, 'seam A gets the constants');
+  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\), '--tools', commandsArg\(CLOUD_TOOLS\), '--compact', 'on', '--harness', CLOUD_HARNESS\]\)/, 'seam A gets the constants');
 });
 
 // #280 C1: the published root setup script never installs code that posts as the owner.
@@ -459,16 +460,16 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   const setup = repoText(OUTPUTS.setup);
   const blocks = [...setup.matchAll(new RegExp(`^write_config '([^']+)' <<'${CONFIG_DELIM}'\\n([\\s\\S]*?)^${CONFIG_DELIM}$`, 'gm'))];
   const source = dest =>
-    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'pact/review-diagrams.md' ? 'claude/review-diagrams.md' : dest === 'pact/hooks/compact-handoff.mjs' ? 'claude/hooks/compact-handoff.mjs' : `claude/${dest}`;
+    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === '.pact/review.md' ? 'claude/review.md' : dest === '.pact/review-diagrams.md' ? 'claude/review-diagrams.md' : dest === '.pact/hooks/compact-handoff.mjs' ? 'claude/hooks/compact-handoff.mjs' : `claude/${dest}`;
   // The whole set, from the repo apart from seam A: the rules file, every
   // shipped agent (the lenses and scout, #262 S18) and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
-  // #482: the cloud copy also carries the compact hook, at pact/hooks/.
-  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md', 'pact/review-diagrams.md', 'pact/hooks/compact-handoff.mjs'].sort();
+  // #482: the cloud copy also carries the compact hook, at .pact/hooks/.
+  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), '.pact/review.md', '.pact/review-diagrams.md', '.pact/hooks/compact-handoff.mjs'].sort();
   assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {
-    assert.equal(body, repoText(source(dest)), dest);
+    assert.equal(body, dest.startsWith('agents/') ? forClaude(repoText(source(dest))) : repoText(source(dest)), dest);
     assert.match(setup, new RegExp(`^check_hash ${sha256(body)} '${dest.replace(/[.]/g, '\\.')}'$`, 'm'), dest);
   }
   assert.match(setup, new RegExp(`^EXPECTED_WRITES=${blocks.length + 1}$`, 'm'));
@@ -498,7 +499,7 @@ test('cloud copy: the Result section prints the marker only on a full, hash-matc
   assert.deepEqual(lines.filter(l => /NODE_FAILED=/.test(l)), ['  NODE_FAILED=version']);
   assert.ok(lines.indexOf('if [ -z "${NODE_FAILED:-}" ] && [ "$NODE_SEEN" != "v$NODE_VERSION" ]; then') > nodeAt);
   // HASH_FAILED counts every mismatch, and nothing resets it after the checks.
-  assert.match(tail, /^ {4}echo "HASH MISMATCH: ~\/\.claude\/\$rel"; HASH_FAILED=\$\(\(HASH_FAILED \+ 1\)\)$/m);
+  assert.match(tail, /^ {4}echo "HASH MISMATCH: \$\(config_shown "\$rel"\)"; HASH_FAILED=\$\(\(HASH_FAILED \+ 1\)\)$/m);
   assert.equal(lines.filter(l => /HASH_FAILED=/.test(l)).length, 2);
   // The token line tests for a value and never expands one.
   // #183 T3 C6: the proxy line asks the API with both variables unset.
@@ -608,15 +609,16 @@ test('cloud copy: both generated setup scripts parse under bash -n', { skip: (WI
   assert.notEqual(bad.status, 0);
 });
 
-// #482 C10: the cloud tail's settings merge, run under bash and jq against a temp CLAUDE_HOME.
+// #482 C10: the cloud tail's settings merge, run under bash and jq against a temp HOME and a temp CLAUDE_HOME apart from it.
+const userHome = home => `${home}/user`;
 function runTail(home, tail) {
   const overlay = repoText('claude/settings.overlay.json');
   const body = tail.split('__SETTINGS_OVERLAY__').join(overlay).split('__COMPACT_WINDOW__').join('400000');
-  return spawnSync('bash', ['-c', `CLAUDE_HOME="$1"\nCONFIG_WRITTEN=0\n${body}`, 'tail', home], { encoding: 'utf8', env: childEnv() });
+  return spawnSync('bash', ['-c', `CLAUDE_HOME="$1"\nCONFIG_WRITTEN=0\n${body}`, 'tail', home], { encoding: 'utf8', env: { ...childEnv(), HOME: userHome(home) } });
 }
 const EVENTS = ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart'];
 const cloudGroup = (home, event) => {
-  const group = { hooks: [{ type: 'command', command: 'node', args: [`${home}/pact/hooks/compact-handoff.mjs`, '400000'], timeout: 15 }] };
+  const group = { hooks: [{ type: 'command', command: 'node', args: [`${userHome(home)}/.pact/hooks/compact-handoff.mjs`, '400000'], timeout: 15 }] };
   return event === 'SessionStart' ? { matcher: 'compact', ...group } : group;
 };
 test('#482 C10: the cloud tail writes the hook groups and the window as the install does, keeps an owner hook, and a merge that drops it is seen to fail', { skip: WIN && 'not run: bash and jq are not on a Windows runner by default' }, t => {

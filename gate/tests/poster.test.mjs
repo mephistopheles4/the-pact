@@ -615,7 +615,7 @@ const ISSUE_ARGV = (...labels) => ['issue', '--repo', TARGET, '--title-file', '@
 
 const ALL_SURFACES = ['issue', 'pull-request', 'issue-comment', 'pull-request-review', 'review-thread-reply', 'issue-edit', 'pull-request-edit', 'issue-comment-edit', 'review-thread-reply-edit'];
 const OLD_OPTIONS = ['repo', 'body', 'title-file', 'signed', 'reason', 'issue', 'pr', 'comment', 'head', 'base', 'draft', 'label', 'as'];
-const OLD_NEXT = 'NEXT: the poster takes a JSON post now: <surface> --post <file>. See node poster.mjs schema and the Posting section of ~/.claude/pact/review.md; never post with plain gh.';
+const OLD_NEXT = 'NEXT: the poster takes a JSON post now: <surface> --post <file>. See node poster.mjs schema and the Posting section of ~/.pact/review.md; never post with plain gh.';
 
 /** A poster run on raw arguments, with a gh that fails the test if it is called. */
 const raw = argv => post(argv, { gh: () => assert.fail('a usage fault calls no gh'), env: {}, ...MACHINE });
@@ -784,7 +784,7 @@ test('the named-reference tables are the whole HTML5 table and its legacy names,
 // #246 C7: what passes; the scan is not a word filter
 test('plain words that look like the rules pass the scan', t => {
   const body = [
-    'The repo root holds the rules; the poster writes to /tmp and reads ~/.claude/pact/tools/poster.mjs.',
+    'The repo root holds the rules; the poster writes to /tmp and reads ~/.pact/tools/poster.mjs.',
     'Mail goes to 12345+tester@users.noreply.github.com and Co-Authored-By: Claude <noreply@anthropic.com>.',
     'A session_id field, https://github.com/home/x, http://example.com/a and C# are fine.',
     'A key of seven, sk-short, and the PATH stay out of it.',

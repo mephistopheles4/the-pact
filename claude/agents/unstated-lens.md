@@ -2,7 +2,7 @@
 name: unstated-lens
 description: Compares a spec with the issue's request, or a result with the original intent, and reports the needs with no home, the qualities the change touches that no reviewer that ran covers, and security-sensitive work with no security review. Read-only. Not for whether the spec can be built, what could wait, or whether the claims hold.
 tools: [Read, Glob, Grep]
-model: opus
+model: planning
 effort: medium
 ---
 

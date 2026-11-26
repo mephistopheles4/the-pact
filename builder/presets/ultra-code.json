@@ -7,21 +7,21 @@
       "name": "Quick",
       "fits": "Small, one session, no plan needed",
       "plan": "none",
-      "build": "Opus, low"
+      "build": "planning model, low"
     },
     {
       "id": "standard",
       "name": "Standard",
       "fits": "Needs a short spec",
-      "plan": "Opus, medium",
-      "build": "Sonnet, medium"
+      "plan": "planning model, medium",
+      "build": "executor model, medium"
     },
     {
       "id": "thorough",
       "name": "Thorough",
       "fits": "Too big for one session, or risky; cut into tickets, each its own session",
-      "plan": "Opus, high",
-      "build": "Sonnet, medium"
+      "plan": "planning model, high",
+      "build": "executor model, medium"
     }
   ],
   "workflowGraph": {

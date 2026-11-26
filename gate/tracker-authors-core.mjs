@@ -32,8 +32,8 @@
 //
 // With an agent app pinned (#599, S4 and S9.7), the pinned owner's account is
 // the owner and a pinned app's PR can be insiders' code. An app counts as
-// pinned only when ~/.claude/pact/github.json exists and the switch's helper,
-// ~/.claude/pact/tools/gh-app.mjs, is installed; the command line reads both
+// pinned only when ~/.pact/github.json exists and the switch's helper,
+// ~/.pact/tools/gh-app.mjs, is installed; the command line reads both
 // and hands them to check() as { text, helper }. Without both, nothing here
 // changes. The pin is checked against GitHub's own records on every run, under
 // the owner's own gh login with no token variable in gh's environment.
@@ -158,7 +158,7 @@ const sameKeys = (o, keys) => isObject(o) && Object.keys(o).length === keys.leng
 
 /** The pin file's two facts, read behind a seam: its text (null when absent, '' when unreadable) and whether the switch's helper is installed. */
 export function pinInputFrom({ home, fs }) {
-  const dir = join(home, '.claude', 'pact');
+  const dir = join(home, '.pact');
   let text = null;
   try {
     text = fs.readFileSync(join(dir, 'github.json'), 'utf8');

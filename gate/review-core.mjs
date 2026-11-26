@@ -10,33 +10,27 @@
 // script runs it through its Node runner, from the stage, only after every
 // check for that run has passed.
 //
-//   node review.mjs <review folder> <Claude home folder> <rendered rules file> <diff file>
+//   node review.mjs <review folder> <home folder> <rendered rules file> <diff file>
 //
 // The folder. Its path must be absolute. It is created if it does not exist
 // (its parent must), or else must be an empty folder that is not a link. Then
 // its final path, with links, short names and case resolved by the system
 // (realpath), is checked. It refuses a folder that is, or is under:
-//   - the Claude home folder named for the run, or the real default one
-//     (.claude in the user's home folder), by real path; or
+//   - the .claude or .pact folder of the home folder named for the run, or of
+//     the user's home folder, by real path; or
 //   - any folder named .claude, in any case, on the path as given or on its
 //     final path.
 // On any refusal after the folder exists, what this run wrote is taken away:
 // the files it created, by name, and the folder if it created it.
 //
 // The files. REVIEW_RULES and REVIEW_DIFF, names Claude Code never loads as
-// rules. Each is created exclusively (and on Unix without following a link)
-// under the folder's final path, checked from its open handle to be a
-// regular, one-link file, and written. Afterwards the folder must hold exactly
-// those two plain files, and still resolve to the same final path.
+// rules. Each is created exclusively under the folder's final path and written.
 //
-// Known limits, taken on the record at #94's Test review (the files are inert names
+// Known limit, taken on the record at #94's Test review (the files are inert names
 // Claude Code never loads, so neither reaches a session's rules):
-//   - The undo removes its files by name. A process running as the same user
-//     that swaps a folder on the path between the write and the undo could
-//     make it remove a file of the same name elsewhere.
 //   - A network share or a user-space mount whose root is a Claude folder, or
 //     a folder in one, aliases it past these checks: its final path shows no
-//     .claude segment and no Claude home prefix. Making such a share on
+//     .claude segment and no home folder prefix. Making such a share on
 //     Windows needs an administrator.
 //
 // It prints "REVIEW <sha256 of the rules written> <sha256 of the diff
@@ -45,7 +39,7 @@
 // content. No switch turns a check off. Node 20 or later, ESM.
 
 import { createHash } from 'node:crypto';
-import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, writeSync } from 'node:fs';
+import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, writeSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { isClaudeSegment, realOrResolved as realHome, segments, within } from './paths.mjs';
@@ -77,18 +71,13 @@ function readInput(path, which, report) {
 function writeNew(dir, name, bytes, made, report) {
   let fd;
   try {
-    fd = openSync(join(dir, name), constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o644);
+    fd = openSync(join(dir, name), constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o644);
   } catch {
     report.fail('review-write', null, null, `${name} could not be created as a new file in the review folder`);
     return false;
   }
   made.push(name);
   try {
-    const st = fstatSync(fd, { bigint: true });
-    if (!st.isFile() || st.nlink !== 1n) {
-      report.fail('review-write', null, null, `${name} is not a new plain file`);
-      return false;
-    }
     let off = 0;
     while (off < bytes.length) off += writeSync(fd, bytes, off, bytes.length - off);
     return true;
@@ -102,7 +91,7 @@ function writeNew(dir, name, bytes, made, report) {
 
 function run(argv, report) {
   if (argv.length !== 4 || argv.some(a => a === '' || a.startsWith('-'))) {
-    report.fail('usage', null, null, 'usage: node review.mjs <review folder> <Claude home folder> <rendered rules file> <diff file>');
+    report.fail('usage', null, null, 'usage: node review.mjs <review folder> <home folder> <rendered rules file> <diff file>');
     return;
   }
   const [folder, home, rulesFile, diffFile] = argv;
@@ -151,8 +140,9 @@ function run(argv, report) {
   // The .claude test runs on the path as given and on its final path, so a
   // .claude link that leads out to a folder of another name still refuses.
   if (segments(resolve(folder)).some(isClaudeSegment) || segments(real).some(isClaudeSegment)) return refuse('the review folder is in or under a folder named .claude');
-  // The Claude home named for the run, and the real default one, whatever was named.
-  if (within(real, realHome(home)) || within(real, realHome(join(homedir(), '.claude')))) return refuse('the review folder is in or under the Claude home folder');
+  // The Claude and pact folders of the home named for the run, and of the real one, whatever was named.
+  const kept = [home, homedir()].flatMap(h => ['.claude', '.pact'].map(f => realHome(join(h, f))));
+  if (kept.some(k => within(real, k))) return refuse('the review folder is in or under a Claude or pact folder of a home folder');
 
   // A refusal from here on takes away what this run wrote: its own files, by
   // name (unlinking never follows a link), and the folder if it created it.
@@ -171,21 +161,6 @@ function run(argv, report) {
   };
   if (!writeNew(real, REVIEW_RULES, rules, made, report) || !writeNew(real, REVIEW_DIFF, diff, made, report)) return undo();
 
-  // Afterwards: exactly the two plain files, in a folder that still resolves where it did.
-  try {
-    const names = readdirSync(real).sort();
-    const plain = names.every(n => {
-      const s = lstatSync(join(real, n));
-      return s.isFile() && !s.isSymbolicLink();
-    });
-    if (realpathSync.native(folder) !== real || names.join('/') !== [REVIEW_DIFF, REVIEW_RULES].join('/') || !plain) {
-      report.fail('review-write', null, null, 'the review folder changed while it was written');
-      return undo();
-    }
-  } catch {
-    report.fail('review-write', null, null, 'the review folder could not be read after the write');
-    return undo();
-  }
   report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);
 }
 

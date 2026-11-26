@@ -46,6 +46,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { check as renderCheck } from '../gate/render-core.mjs';
 import { check as seamCheck } from '../gate/seam-a-core.mjs';
+import { renderHarnesses } from '../gate/harness-render.mjs';
+import { parseKnown, resolveHarnesses } from '../gate/harnesses.mjs';
 import { Report, readStrictJson, scanText } from '../gate/shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -274,7 +276,30 @@ export function renderNoConfig(source, { home } = {}) {
   }
 }
 
+// The generator's own harness descriptions, beside the gate code it imports.
+const KNOWN = join(HERE, '..', 'harnesses', 'known.json');
+
+/**
+ * The payload's rules and agents as Claude Code receives them (spec 0007 S7,
+ * S13), written over their own paths in `files`.
+ */
+function renderForClaude(files) {
+  const text = rel => files.get(rel).toString('utf8');
+  const known = parseKnown(guarded('reading the harness descriptions', () => readFileSync(KNOWN, 'utf8'))).filter(h => h.id === 'claude');
+  const claude = resolveHarnesses({ known, home: '/cloud', platform: 'linux', inWorkTree: null });
+  const agents = new Map([...files.keys()].flatMap(rel => {
+    const m = /^claude\/agents\/([^/]+)\.md$/.exec(rel);
+    return m ? [[m[1], text(rel)]] : [];
+  }));
+  const made = guarded('rendering for Claude Code', () => renderHarnesses({ rules: text(RULES_SOURCE), agents, commands: new Map(), harnesses: claude })).files;
+  files.set(RULES_SOURCE, Buffer.from(made.get('rendered/claude/rules.md'), 'utf8'));
+  for (const name of agents.keys()) files.set(`claude/agents/${name}.md`, Buffer.from(made.get(`rendered/claude/agents/${name}.md`), 'utf8'));
+}
+
 // ---------------------------------------------------------------- step 3: seam A
+
+// Cloud sessions are Claude Code only (spec 0007 S13).
+const CLOUD_HARNESS = 'claude:rules+agents+commands';
 
 /**
  * Stage `files` (path -> bytes) in a new folder and run seam A on it. Returns
@@ -289,7 +314,7 @@ function seamA(files) {
       mkdirSync(dirname(p), { recursive: true });
       writeFileSync(p, buf, { flag: 'wx' });
     }
-    const r = seamCheck([stage, '--commands', commandsArg(CLOUD_COMMANDS), '--tools', commandsArg(CLOUD_TOOLS), '--compact', 'on']);
+    const r = seamCheck([stage, '--commands', commandsArg(CLOUD_COMMANDS), '--tools', commandsArg(CLOUD_TOOLS), '--compact', 'on', '--harness', CLOUD_HARNESS]);
     if (r.failed || r.lines[r.lines.length - 1] !== 'RESULT: pass') {
       const rules = [...new Set(r.lines.map(l => /^FAIL ([a-z][a-z0-9-]*):/.exec(l)?.[1]).filter(Boolean))];
       refuse('cloud/seam-a', `seam A refused the stage (${rules.join(', ') || 'no rule named'})`);
@@ -310,7 +335,9 @@ export function readCopySet(lines, files) {
   for (const l of lines) {
     let m = /^INSTALL ([0-9a-f]{64}) (\S+) (\S+)$/.exec(l);
     if (m) {
-      const [, hash, source, dest] = m;
+      const [, hash, source, listed] = m;
+      // A file of the Claude harness lands under ~/.claude, where write_config puts every path outside .pact/.
+      const dest = listed === '@claude/rules' ? 'CLAUDE.md' : listed.replace(/^@claude\//, '');
       const buf = files.get(source);
       if (!buf || sha256(buf) !== hash) refuse('cloud/seam-a', `${source} does not match its INSTALL hash`);
       copy.push({ source, dest, buf });
@@ -325,6 +352,9 @@ export function readCopySet(lines, files) {
     }
   }
   if (copy.length === 0 || settings === null) refuse('cloud/seam-a', 'seam A printed no copy set');
+  // The rules file first, then the agents, then the pact's own files, each in name order.
+  const order = c => c.dest.replace(/^\./, '');
+  copy.sort((a, b) => (order(a) < order(b) ? -1 : order(a) > order(b) ? 1 : 0));
   if (copy[0].dest !== 'CLAUDE.md' || copy[0].source !== RULES_SOURCE) refuse('cloud/seam-a', 'the copy set does not start with the rules file');
   return { copy, overlay: settings };
 }
@@ -540,6 +570,8 @@ export function generate(root, options = {}) {
     }
 
     files.set(RULES_SOURCE, rendered);
+    renderForClaude(files);
+    rendered = files.get(RULES_SOURCE);
     const checked = seamA(files);
 
     const { setup, wrapper, marker } = assemble({

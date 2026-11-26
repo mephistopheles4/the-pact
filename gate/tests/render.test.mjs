@@ -16,7 +16,7 @@ const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
-/** Run the renderer on `src` into a fresh output folder (or `out`), against an empty Claude home folder (or `home`). */
+/** Run the renderer on `src` into a fresh output folder (or `out`), against an empty home folder (or `home`). */
 function render(t, src, { out, args, home } = {}) {
   const dir = out ?? tempDir(t, 'pact-render-out-');
   const env = { ...process.env };
@@ -244,7 +244,7 @@ test('bad case: an output folder that is a link refuses', t => {
   assert.deepEqual(readdirSync(real), []);
 });
 
-// Since slice 3 the Claude home folder is a third argument the install always
+// Since slice 3 the home folder is a third argument the install always
 // passes, so two arguments are a usage failure. Since #183 T4a a fourth names
 // the pact's default configuration folder, so five are too many.
 for (const [label, args] of [
@@ -255,9 +255,9 @@ for (const [label, args] of [
   ['a switch in place of the default configuration folder', ['a', 'b', 'c', '--none']],
   ['a switch in place of the source', ['--skip-checks', 'b', 'c']],
   ['a switch in place of the output folder', ['a', '--no-check', 'c']],
-  ['a switch in place of the Claude home folder', ['a', 'b', '--no-config']],
+  ['a switch in place of the home folder', ['a', 'b', '--no-config']],
   ['an empty argument', ['', 'b', 'c']],
-  ['an empty Claude home folder argument', ['a', 'b', '']],
+  ['an empty home folder argument', ['a', 'b', '']],
 ]) {
   test(`bad case: ${label} is a usage failure; the renderer has no switch`, t => {
     const r = render(t, null, { args });

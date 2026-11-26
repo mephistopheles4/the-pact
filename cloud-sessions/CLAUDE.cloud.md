@@ -24,36 +24,39 @@ the tools and agents.
 **Nudge once.** When a move seems to drop, mention it once, lightly, as an
 offer I can take or leave in a second. Then carry on with what I chose.
 
-## How Claude helps
+## How the agent helps
 
 - **Checkpoints.** What these rules keep for me, bring to me or leave to me is
   a checkpoint: take your own pick, log it as review.md's Posting says,
   flagged, list each in the result, and go on; I review after. Take more care
   the harder a step is to undo. Where a pick touches a secret, say where it
-  is, never its value. Pin a merge to its reviewed head. Claude's own
-  permission prompts and classifier blocks still stop you; these rules add no
-  stop of their own.
-- **Keep the record** in the work's record, as the Posting section of `~/.claude/pact/review.md` says; with no record, in chat.
+  is, never its value. Pin a merge to its reviewed head. Your harness's own
+  permission prompts and blocks still stop you; these rules add no stop of
+  their own.
+- **Keep the record** in the work's record, as the Posting section of `~/.pact/review.md` says; with no record, in chat.
 
 ## How much checking
 
 | Tier | Fits | Plan | Build |
 | --- | --- | --- | --- |
-| **Quick** | Small, one session, no plan needed | none | Opus, low |
-| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |
-| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
+| **Quick** | Small, one session, no plan needed | none | planning model, low |
+| **Standard** | Needs a short spec | planning model, medium | executor model, medium |
+| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | planning model, high | executor model, medium |
+
+Here the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.
 
 Sensitive work gets more checking when I choose it. By default, sensitive
 work is auth, crypto, input validation and data migrations: thorough, planned
-and built on Opus at high, with the security pair, `adversarial-lens` and
-`data-lens`, on the spec and the diff. That is the sensitive route. When the
-work matches that list, or you think it sensitive otherwise, say why in one
-line in your tier proposal and recommend the route; I take it or not. If I
-didn't take the route, offer the security pair once more at Test when the
-change matches the list. Beyond that one offer, sensitivity doesn't stop the
-run. A flag or an offer I haven't answered stays open, in one line, in every
-hand-off and in the result. If you find it later, say so in one line at the
-next hand-off or result, and keep saying it until I answer.
+and built on the planning model at high, with the security pair,
+`adversarial-lens` and `data-lens`, on the spec and the diff. That is the
+sensitive route. When the work matches that list, or you think it sensitive
+otherwise, say why in one line in your tier proposal and recommend the route;
+I take it or not. If I didn't take the route, offer the security pair once
+more at Test when the change matches the list. Beyond that one offer,
+sensitivity doesn't stop the run. A flag or an offer I haven't answered stays
+open, in one line, in every hand-off and in the result. If you find it later,
+say so in one line at the next hand-off or result, and keep saying it until I
+answer.
 
 Your effort is the one set at the start: take it as given, never judge it
 or stop the work over it.
@@ -71,12 +74,12 @@ line. A skill you can't find, say so in one line and go on with the stage.
 
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
-| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
-| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
-| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |
-| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
+| Plan | in the session, no plan | planning model, medium | planning model, high | planning model, high | none | |
+| Design | skipped | planning model, medium | planning model, high | planning model, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
+| Build | planning model, low | executor model, medium | executor model, medium | planning model, high | none | |
+| Test | planning model, low | executor model, medium | executor model, medium | planning model, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
 | Deploy | I decide | I decide | I decide | I decide | none | |
-| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
+| Maintain | in the session, no plan | planning model, medium | planning model, high | planning model, high | none | back to Plan when a new change starts |
 
 ## Lenses
 
@@ -97,7 +100,7 @@ lenses unasked; that never lifts the sensitive flag, the Guards, my decisions
 or the read before posting.
 
 **Before you run a lens or post to the record, read
-`~/.claude/pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
+`~/.pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
 
 ## Qualities
 

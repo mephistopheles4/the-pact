@@ -23,13 +23,13 @@ const OPS = ['replace', 'remove', 'add-after'];
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
-/** A Claude home folder with pact/config.json holding `config` and pact/blocks/<path> holding each block. */
+/** A home folder with .pact/config.json holding `config` and .pact/blocks/<path> holding each block. */
 function homeWith(t, config, blocks = {}) {
   const h = tempDir(t, 'pact-edit-home-');
-  mkdirSync(join(h, 'pact', 'blocks'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), typeof config === 'string' || Buffer.isBuffer(config) ? config : JSON.stringify(config));
+  mkdirSync(join(h, '.pact', 'blocks'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), typeof config === 'string' || Buffer.isBuffer(config) ? config : JSON.stringify(config));
   for (const [rel, text] of Object.entries(blocks)) {
-    const p = join(h, 'pact', 'blocks', ...rel.split('/'));
+    const p = join(h, '.pact', 'blocks', ...rel.split('/'));
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, text);
   }
@@ -176,7 +176,7 @@ test('a replace takes the place of every move, and the digest changes when only 
   const b = render(t, homeWith(t, config, { 'm3.md': 'Second text.\n' }));
   assert.equal(a.code, 0, a.out);
   assert.equal(b.code, 0, b.out);
-  assert.match(a.bytes.toString('utf8'), /^First text\.\n\n## How Claude helps$/m);
+  assert.match(a.bytes.toString('utf8'), /^First text\.\n\n## How the agent helps$/m);
   assert.doesNotMatch(a.bytes.toString('utf8'), /Sense the work/);
   const dA = /^DIGEST (\S+)$/m.exec(a.stdout)[1];
   const dB = /^DIGEST (\S+)$/m.exec(b.stdout)[1];
@@ -260,8 +260,8 @@ for (const op of OPS) {
 // Both tables share a base: a Claude home whose configuration adds one good
 // block after moves, which renders. A row plants one configuration.
 const OK_EDIT = { mark: 'moves', op: 'add-after', file: 'ok.md' };
-const editHome = () => ({ 'pact/config.json': JSON.stringify(cfg([OK_EDIT])), 'pact/blocks/ok.md': 'Text.\n' });
-const withEdits = edits => home => ({ ...home, 'pact/config.json': JSON.stringify(cfg(edits)) });
+const editHome = () => ({ '.pact/config.json': JSON.stringify(cfg([OK_EDIT])), '.pact/blocks/ok.md': 'Text.\n' });
+const withEdits = edits => home => ({ ...home, '.pact/config.json': JSON.stringify(cfg(edits)) });
 const withPath = path => withEdits([{ ...OK_EDIT, file: path }]);
 
 /**
@@ -341,7 +341,7 @@ test('16 edits are not refused by the count: the same list refuses only for a ma
 test('a refusal reports every bad edit, each by its position', t => {
   const r = render(t, homeWith(t, cfg([{ mark: 'stop-and-escalate', op: 'remove' }, { mark: 'moves', op: 'remove' }, { mark: 'nope', op: 'remove' }])));
   refusedWith(r, 'edit-mark', /edit 1: an unknown mark/);
-  assert.match(r.stdout, /^FAIL edit-mark: pact\/config\.json: edit 3: an unknown mark$/m, r.out);
+  assert.match(r.stdout, /^FAIL edit-mark: \.pact\/config\.json: edit 3: an unknown mark$/m, r.out);
 });
 
 // ------------------------------------------------------------ the must-refuse table: block paths, on their text
@@ -396,7 +396,7 @@ test('a refusal reports every bad edit, each by its position', t => {
 
 test('a path refused on its text is refused before any file is opened, even when the file it names is there and good', t => {
   const h = homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: '../outside.md' }]));
-  writeFileSync(join(h, 'pact', 'outside.md'), 'Good text.\n');
+  writeFileSync(join(h, '.pact', 'outside.md'), 'Good text.\n');
   const r = render(t, h, SOURCE, { fault: 'count', faultFile: 'block' });
   refusedWith(r, 'block-path', /a \. or \.\. segment/);
   assert.deepEqual(r.seen, [], 'no block file was opened');
@@ -427,7 +427,7 @@ for (const [label, text, rule, reason] of TEXT_BAD) {
   test(`bad case: a block with ${label} refuses`, t => {
     const r = render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': text }));
     refusedWith(r, rule, reason);
-    assert.match(r.stdout, new RegExp(`^FAIL ${rule}: pact/blocks/b\\.md`, 'm'), 'the refusal names the block file');
+    assert.match(r.stdout, new RegExp(`^FAIL ${rule}: \\.pact/blocks/b\\.md`, 'm'), 'the refusal names the block file');
   });
 }
 
@@ -485,28 +485,28 @@ test('bad case: a block file that does not exist refuses', t => {
 
 test('bad case: a missing blocks folder refuses', t => {
   const h = tempDir(t);
-  mkdirSync(join(h, 'pact'));
-  writeFileSync(join(h, 'pact', 'config.json'), JSON.stringify(edit1));
+  mkdirSync(join(h, '.pact'));
+  writeFileSync(join(h, '.pact', 'config.json'), JSON.stringify(edit1));
   refusedWith(render(t, h), 'block-file', /does not exist/);
 });
 
 test('bad case: a block path that is a folder refuses', t => {
   const h = homeWith(t, edit1);
-  mkdirSync(join(h, 'pact', 'blocks', 'b.md'));
+  mkdirSync(join(h, '.pact', 'blocks', 'b.md'));
   refusedWith(render(t, h), 'block-file', /the block file is not a regular file/);
 });
 
 test('bad case: a blocks folder that is a file refuses', t => {
   const h = tempDir(t);
-  mkdirSync(join(h, 'pact'));
-  writeFileSync(join(h, 'pact', 'config.json'), JSON.stringify(edit1));
-  writeFileSync(join(h, 'pact', 'blocks'), 'x');
+  mkdirSync(join(h, '.pact'));
+  writeFileSync(join(h, '.pact', 'config.json'), JSON.stringify(edit1));
+  writeFileSync(join(h, '.pact', 'blocks'), 'x');
   refusedWith(render(t, h), 'block-file', /the blocks folder is not a folder/);
 });
 
 test('bad case: a block file that is a dangling link refuses', t => {
   const h = homeWith(t, edit1);
-  symlinkSync(join(tempDir(t), 'gone'), join(h, 'pact', 'blocks', 'b.md'), 'junction');
+  symlinkSync(join(tempDir(t), 'gone'), join(h, '.pact', 'blocks', 'b.md'), 'junction');
   refusedWith(render(t, h), 'block-file', /the block file is a link/);
 });
 
@@ -515,7 +515,7 @@ test('bad case: a block file that is a link to a good file refuses', t => {
   writeFileSync(real, 'Good text.\n');
   const h = homeWith(t, edit1);
   try {
-    symlinkSync(real, join(h, 'pact', 'blocks', 'b.md'), 'file');
+    symlinkSync(real, join(h, '.pact', 'blocks', 'b.md'), 'file');
   } catch {
     t.skip('cannot create a file link here (not run)');
     return;
@@ -527,9 +527,9 @@ test('bad case: a blocks folder that is a link to a folder of good blocks refuse
   const elsewhere = tempDir(t);
   writeFileSync(join(elsewhere, 'b.md'), 'Good text.\n');
   const h = tempDir(t);
-  mkdirSync(join(h, 'pact'));
-  writeFileSync(join(h, 'pact', 'config.json'), JSON.stringify(edit1));
-  symlinkSync(elsewhere, join(h, 'pact', 'blocks'), 'junction');
+  mkdirSync(join(h, '.pact'));
+  writeFileSync(join(h, '.pact', 'config.json'), JSON.stringify(edit1));
+  symlinkSync(elsewhere, join(h, '.pact', 'blocks'), 'junction');
   refusedWith(render(t, h), 'block-file', /the blocks folder is a link/);
 });
 
@@ -537,35 +537,12 @@ test('bad case: a block reached through a linked parent folder refuses', t => {
   const elsewhere = tempDir(t);
   writeFileSync(join(elsewhere, 'b.md'), 'Good text.\n');
   const h = homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'team/b.md' }]));
-  symlinkSync(elsewhere, join(h, 'pact', 'blocks', 'team'), 'junction');
+  symlinkSync(elsewhere, join(h, '.pact', 'blocks', 'team'), 'junction');
   refusedWith(render(t, h), 'block-file', /a folder on the block path is a link/);
-});
-
-test('bad case: a block file with a second hard link refuses', t => {
-  const h = homeWith(t, edit1, { 'b.md': 'Good text.\n' });
-  try {
-    linkSync(join(h, 'pact', 'blocks', 'b.md'), join(tempDir(t), 'second.md'));
-  } catch {
-    t.skip('cannot create a hard link here (not run)');
-    return;
-  }
-  refusedWith(render(t, h), 'block-file', /the block file has more than one link/);
-});
-
-test('bad case: a block file swapped for another between its lstat and its open refuses', t => {
-  refusedWith(render(t, homeWith(t, edit1, { 'b.md': 'Good text.\n' }), SOURCE, { fault: 'swap-before-open' }), 'block-file', /the block file changed while it was opened/);
-});
-
-test('bad case: a block file given a second name between its lstat and its open refuses, by the link count', t => {
-  refusedWith(render(t, homeWith(t, edit1, { 'b.md': 'Good text.\n' }), SOURCE, { fault: 'hardlink-before-open' }), 'block-file', /the block file changed while it was opened/);
 });
 
 test('bad case: a block file whose real path is elsewhere refuses', t => {
   refusedWith(render(t, homeWith(t, edit1, { 'b.md': 'Good text.\n' }), SOURCE, { fault: 'realpath-elsewhere' }), 'block-file', /the block file resolves somewhere else/);
-});
-
-test('bad case: a block file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW', { skip: WIN && 'Windows defines no O_NOFOLLOW (not run)' }, t => {
-  refusedWith(render(t, homeWith(t, edit1, { 'b.md': 'Good text.\n' }), SOURCE, { fault: 'link-before-open' }), 'block-file', /the block file could not be opened/);
 });
 
 test('bad case: a read error on the blocks folder other than "does not exist" refuses', t => {

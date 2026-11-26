@@ -3,8 +3,7 @@
 // code. It does everything after staging: pin,
 // render, seam A, the copy set, the plan, settings, review output, apply,
 // record and verify. The four gate checks run in-process, through each core's
-// check(), with ADR 0032's controls kept (S5): this process refuses any
-// preload, each verdict needs both parts, only the checks' own cleaned lines
+// check(), with ADR 0032's controls kept (S5): each verdict needs both parts, only the checks' own cleaned lines
 // are shown, and the bootstrap's clock stops the whole run until CHECKS DONE.
 // Every decision is a function in install-core.mjs; every read and write is
 // in install-io.mjs. No error's own text is ever printed.
@@ -13,6 +12,8 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from './install-core.mjs';
+import * as harness from './harnesses.mjs';
+import { renderHarnesses } from './harness-render.mjs';
 import * as io from './install-io.mjs';
 import { FOLD_CASE } from './paths.mjs';
 
@@ -39,6 +40,68 @@ async function loadCore(file) {
   }
 }
 
+/**
+ * The harnesses this install takes (spec 0007 S5): the commit's known ones and
+ * the user configuration's own.
+ */
+function chooseHarnesses({ stage, staged, home, parsed, record }) {
+  if (!staged.has(harness.KNOWN_REL)) core.stops.harnessKnownMissing();
+  const known = harness.parseKnown(readFileSync(live(stage, harness.KNOWN_REL), 'utf8'));
+  let text = null;
+  if (parsed.config.kind === 'user') {
+    const bytes = io.readOptional(live(home, core.CONFIG_REL));
+    text = bytes === null ? null : bytes.toString('utf8');
+  }
+  const { install, own } = harness.configHarnesses(text);
+  const harnesses = harness.resolveHarnesses({ known, own, home, platform: process.platform, inWorkTree: io.insideWorkTree });
+  const detected = new Set(harnesses.filter(h => io.isFolder(live(home, h.detect))).map(h => h.id));
+  return harness.chooseHarnesses({ harnesses, install, detected, recorded: [...new Set(record ? record.harnesses.map(h => h.id) : [])] });
+}
+
+/** The dry run's harness list: each one in or out, then what the install does not do for it. */
+function harnessLines({ rows, warnings }) {
+  const out = [rows.length ? 'Harnesses:' : 'Harnesses: none found, so nothing installs'];
+  for (const r of rows) out.push(`  ${r.id}${r.harness ? ` (${r.harness.name})` : ''}: ${r.in ? 'in' : 'out'}${r.detected ? '' : ', not found'}`);
+  for (const w of warnings) out.push(`WARN: ${core.formatPlain(w)}`);
+  for (const r of rows) {
+    const h = r.harness;
+    if (h?.own && h.hooks) out.push(`guards unverified for ${h.id}: the pact has not seen this harness run its hook`);
+    if (!r.in) continue;
+    const parts = core.builtParts(h);
+    if (h.agents && !parts.agents) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s agent format yet; no agent is installed into it.`);
+    if (h.hooks && !parts.settings && !parts.guard) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
+  }
+  return out;
+}
+
+/** The staged payload files directly in `dir` with `ext`, as name -> text. */
+function stagedTexts(stage, staged, dir, ext) {
+  const names = [...staged.keys()].flatMap(rel => (rel.startsWith(dir) && rel.endsWith(ext) && !rel.slice(dir.length).includes('/') ? [rel.slice(dir.length, -ext.length)] : [])).sort();
+  return new Map(names.map(n => [n, readFileSync(live(stage, `${dir}${n}${ext}`), 'utf8')]));
+}
+
+/**
+ * Each taken harness's render (spec 0007 S7), written into the stage under
+ * rendered/ and hashed as staged, from the configured rules and agents and the
+ * commit's commands. Returns its warnings and each harness's rules hash.
+ */
+function writeRenders({ stage, staged, taken }) {
+  if (!taken.length) return { warnings: [], rules: [] };
+  const { files, warnings } = renderHarnesses({
+    rules: readFileSync(live(stage, core.RULES_REL), 'utf8'),
+    agents: stagedTexts(stage, staged, 'claude/agents/', '.md'),
+    commands: stagedTexts(stage, staged, 'claude/commands/', '.md'),
+    harnesses: taken,
+  });
+  for (const [rel, text] of files) {
+    const bytes = Buffer.from(text, 'utf8');
+    mkdirSync(dirname(live(stage, rel)), { recursive: true });
+    writeFileSync(live(stage, rel), bytes, { flag: 'wx' });
+    staged.set(rel, io.sha256(bytes));
+  }
+  return { warnings, rules: taken.map(h => ({ id: h.id, sha256: staged.get(`${core.RENDERED_REL}${h.id}/rules.md`) })) };
+}
+
 /** Runs a core in-process: its cleaned lines shown (ROOT lines never), its verdict needing both parts. */
 function runCheck(check, argv, prefix, what) {
   const report = check(argv);
@@ -47,16 +110,7 @@ function runCheck(check, argv, prefix, what) {
   return { report, lines: core.checkVerdict(report, what) };
 }
 
-const stateOf = root => {
-  try {
-    return io.treeState(root);
-  } catch {
-    return core.stops.stageUnreadable();
-  }
-};
-
 async function main() {
-  if (process.env.NODE_OPTIONS !== undefined || process.execArgv.length) core.stops.preload();
   const run = core.parseRunnerArgs(process.argv.slice(2));
   const { work, commit } = run;
   const stage = join(work, 'stage');
@@ -75,8 +129,12 @@ async function main() {
     core.stops.runArgs();
   }
   const opts = core.parseArgs(run.words, process.platform);
-  const home = resolve(opts.claudeHome ?? join(homedir(), '.claude'));
+  const home = resolve(opts.home ?? homedir());
   const project = opts.projectFolder !== null;
+  // A release runs from the bootstrap's clone, which the apply line names by its full path (spec 0007 S10).
+  const releaseFrom = () => (opts.release === null ? null : { release: opts.release, script: join(home, core.NEUTRAL_REL, 'source', commit, 'gate', 'install.mjs') });
+  // A home the caller names must be outside any repository (spec 0007 S4, C30).
+  if (opts.home !== null && io.insideWorkTree(home)) core.stops.homeWorkTree();
 
   // The stage against the commit's tree, from committed code (G7, G9).
   const tree = core.parseTree(readFileSync(join(work, 'tree')));
@@ -91,7 +149,8 @@ async function main() {
   if (reachableBytes === null) core.stops.reachableMissing();
   const reachable = core.parseReachable(reachableBytes, commit);
 
-  const recordFile = join(home, '.pact-install.json');
+  if (io.throughHomeLink(home, core.RECORD_REL)) core.stops.configLink();
+  const recordFile = live(home, core.RECORD_REL);
   const recordBytes = io.readOptional(recordFile);
   const record = core.parseRecord(recordBytes === null ? null : recordBytes.toString('utf8'));
   if (project) {
@@ -106,7 +165,7 @@ async function main() {
 
   // The gate's fingerprints: every staged gate file, the install's own included (G11).
   const gateNow = new Map([...staged].filter(([rel]) => rel.startsWith('gate/')).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
-  gateLines = core.gateBlock(gateNow, record ? record.gate : [], run.selfDiffers);
+  gateLines = core.gateBlock(gateNow, record ? record.gate : []);
 
   // Node is this process: no lookup happens (P2).
   say(`Node: ${process.execPath} (${process.version})`);
@@ -145,18 +204,14 @@ async function main() {
   // The builder kit's rules source (#203 S6): the unrendered rules, copied in the stage before the render, bound to the commit's hash.
   if (staged.has(core.KIT_RULES_REL)) core.stops.rulesSourceInTree();
   copyFileSync(rulesStaged, live(stage, core.KIT_RULES_REL));
-  const sourceHash = io.fileSha256(live(stage, core.KIT_RULES_REL));
-  if (sourceHash !== staged.get(core.RULES_REL)) core.stops.rulesSourceHash();
-  staged.set(core.KIT_RULES_REL, sourceHash);
-  const before = stateOf(stage);
+  staged.set(core.KIT_RULES_REL, staged.get(core.RULES_REL));
   const renderOut = mkdtempSync(join(work, 'render-'));
   // A project install gives the stage its no-file render, against a new empty
-  // folder in place of the Claude home folder; the user file is read later.
+  // folder in place of the home folder; the user file is read later.
   const renderHome = project ? mkdtempSync(join(work, 'nohome-')) : home;
   // A home install with no user file renders the pact's default from the stage (#183 T4a); a project install never does.
   const { lines: renderLines } = runCheck(render, [rulesStaged, renderOut, renderHome, ...(project ? [] : [live(stage, core.DEFAULT_CONFIG_DIR)])], 'render', 'the renderer');
   const parsed = core.parseRenderLines(renderLines, { project, hash: io.sha256 });
-  if (stateOf(stage) !== before) core.stops.renderChangedStage();
   core.checkRenderOutput(io.folderEntries(renderOut), parsed.agentSets.keys());
   const rendered = readFileSync(join(renderOut, 'CLAUDE.md'));
   const rulesHash = io.sha256(rendered);
@@ -177,6 +232,17 @@ async function main() {
 
   // Seam A, in-process, on the staged and rendered copy (S-1 to S-3).
   const seamA = await loadCore('seam-a-core.mjs');
+  // The harnesses: a project install takes none.
+  const choice = project ? { rows: [], warnings: [] } : chooseHarnesses({ stage, staged, home, parsed, record });
+  const taken = choice.rows.filter(r => r.in).map(r => r.harness);
+  const renders = writeRenders({ stage, staged, taken });
+  // One hash over every harness's rules binds the apply (spec 0007 S9); the review folder gets Claude Code's, or the first harness's.
+  const boundHash = core.boundHash(renders.rules, rulesHash, io.sha256);
+  const reviewed = renders.rules.find(r => r.id === 'claude') ?? renders.rules[0] ?? null;
+  const reviewFile = reviewed ? live(stage, `${core.RENDERED_REL}${reviewed.id}/rules.md`) : rulesStaged;
+  const reviewHash = reviewed ? reviewed.sha256 : rulesHash;
+  // The settings merge and the hook are Claude Code's: only with it in.
+  const claude = taken.find(h => core.builtParts(h).settings) ?? null;
   // The commands that install: the renderer's COMMANDS line, and /scriptorium whenever it is in the commit (#262).
   // They reach seam A as its --commands (#203, S8); each side works out the copy set on its own.
   const on = project ? [] : core.commandsOn(parsed.commands, staged.keys());
@@ -184,9 +250,16 @@ async function main() {
   // The tools that install: the renderer's TOOLS line alone, off by default (#280). They reach seam A as its --tools.
   const toolsOn = project ? [] : parsed.tools;
   // The auto-compact window (#482): the renderer's VALUE line, else the default; 0 is off, and a project install is always off. It reaches seam A as --compact.
-  const window = project ? 0 : core.compactWindow(parsed);
-  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off'], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0), staged, commit);
+  const window = claude ? core.compactWindow(parsed) : 0;
+  // The guard (spec 0007 S8): its command rules follow the switches, whichever harnesses are in. Its files and hooks
+  // install while a harness with a guard hook is in and a rule is on.
+  const switches = project ? [] : [...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(core.stopSwitchOn(parsed) ? ['session-stop-deny'] : [])];
+  const rules = core.guardRules(switches);
+  const wired = switches.length ? taken.filter(h => core.builtParts(h).guard) : [];
+  const guardOn = wired.length > 0;
+  if (guardOn) core.checkGuardHome({ platform: process.platform, windowsHome: io.present(join(home, 'AppData')) });
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, guardOn)], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0, taken, guardOn), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const checkedOverlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   // After the hash check, and only then: the hook script's path and the window replace the overlay's two tokens.
@@ -199,19 +272,16 @@ async function main() {
   if (securityLine) say(securityLine);
   const enoughNote = project ? null : core.enoughNoteLine(parsed, rendered.toString('utf8'));
   if (enoughNote) say(enoughNote);
-  const behind = project ? null : core.behindLine(record ? record.commit : null, commit, reachable);
+  const behind = project ? null : core.behindLine(record ? record.commit : null, commit, reachable, opts.release, record ? record.release : null);
   if (behind) say(behind);
 
   // A project install ends here, never reaching the home copy, delete,
   // settings merge or record. The renderer runs again in project mode, the
   // stage hashed around it, to give the project rules file (J3, J4).
   if (project) {
-    projectLinks();
-    const was = stateOf(stage);
     const projectOut = mkdtempSync(join(work, 'project-'));
     const { lines: prLines } = runCheck(render, ['project', projectOut, home, pc.root], 'render', 'the project render');
     const pr = core.parseProjectRenderLines(prLines, io.sha256);
-    if (stateOf(stage) !== was) core.stops.renderChangedStage();
     const projectFile = join(projectOut, 'pact-project.md');
     const entries = io.folderEntries(projectOut);
     core.checkProjectOutput(entries, entries.length === 1 && entries[0].file ? io.fileSha256(projectFile) : null, pr.projectHash);
@@ -229,12 +299,11 @@ async function main() {
     core.checkBinding(opts, pr.projectHash, commit);
     if (!opts.apply) {
       say("Dry run only. After the owner's go-ahead, run:");
-      say(`  ${core.applyLine(opts.paths, commit, pr.projectHash, process.platform)}`);
+      say(`  ${core.applyLine(opts.paths, commit, pr.projectHash, process.platform, releaseFrom())}`);
       say('RESULT: pass');
       return;
     }
-    core.checkApply({ configApplies: true, hashGiven: opts.renderedHash !== null, selfDiffers: run.selfDiffers, drift: false, dirty: run.dirty > 0, settingsObject: true });
-    projectLinks();
+    core.checkApply({ configApplies: true, hashGiven: opts.renderedHash !== null, drift: false, dirty: run.dirty > 0, settingsObject: true });
     const projectWrite = await loadCore('project-core.mjs');
     say('CHECKS DONE');
     writing = 'project';
@@ -243,16 +312,12 @@ async function main() {
     const report = projectWrite(['write', pc.root, home, projectFile, pr.projectHash]);
     for (const l of core.showLines(core.outputLines(report.lines), 'project')) say(l);
     const recordHash = core.parseProjectWrite(report, pr.projectHash);
-    // Verify: each written file plain, then its hash; then the link test again.
+    // Verify: each written file's hash.
     let bad = 0;
     for (const [rel, sha] of [[core.PROJECT_RULES_REL, pr.projectHash], [core.PROJECT_RECORD_REL, recordHash]]) {
-      const ok = !io.throughLink(pc.root, rel) && io.liveState(live(pc.root, rel)).sha256 === sha;
+      const ok = io.liveState(live(pc.root, rel)).sha256 === sha;
       say(`${ok ? 'OK      ' : 'MISMATCH'} ${rel}`);
       if (!ok) bad++;
-    }
-    if (core.PROJECT_ATTR_RELS.some(rel => io.throughLink(pc.root, rel))) {
-      say('MISMATCH a project path is now a link or other reparse point');
-      bad++;
     }
     if (bad) {
       say(`${bad} mismatch(es).`);
@@ -265,40 +330,71 @@ async function main() {
   }
 
   // The plan (L1 to L3). Each live state it reads is kept, so the backup compares its copies with what the plan saw (#272, S7).
-  const linkIn = rel => io.throughLink(home, rel);
-  const { repoFiles, sourceOf } = core.installDestinations(checked, linkIn);
+  const recorded = record ? record.harnesses : [];
+  const targets = [...taken.map(core.targetsOf), ...recorded];
+  const guardRecorded = (record ? record.entries : []).filter(e => core.guardFormatOf(e) !== null);
+  const claudeRecorded = (record ? record.entries : []).filter(e => core.guardFormatOf(e) === null);
+  const mergedFiles = [...choice.rows.flatMap(r => (r.harness?.hooks ? [r.harness.hooks.file] : [])), ...recorded.flatMap(h => (h.settings ? [h.settings] : [])), ...guardRecorded.map(e => e.path), core.CODEX_CONFIG_REL];
+  const linkIn = rel => io.throughHomeLink(home, rel);
+  const destinations = core.resolveDestinations(checked, taken);
+  // rules.json, and on Windows each wrapper's launcher, are the install's own, made here after seam A, which refuses a commit that holds one.
+  if (guardOn) {
+    const make = (rel, dest, text) => {
+      const bytes = Buffer.from(text, 'utf8');
+      mkdirSync(dirname(live(stage, rel)), { recursive: true });
+      writeFileSync(live(stage, rel), bytes);
+      destinations.push([rel, { dest, sha256: io.sha256(bytes), harness: core.PACT_ID }]);
+    };
+    make(core.GUARD_TABLE_REL, core.GUARD_TABLE_DEST, core.guardTableText(rules));
+    if (process.platform === 'win32') for (const format of new Set(wired.map(h => h.hooks.format))) make(core.guardLauncherRel(format), core.guardLauncherDest(format), core.guardLauncherText(format));
+  }
+  // The skill folders (spec 0007 S7): a link each, or the files copied where no link can be made.
+  const wanted = core.skillsWanted(taken, on);
+  const linkable = !wanted.length || io.canLink(work);
+  const links = core.linkPlan({ wanted, record, targets, state: (rel, target) => io.linkState(live(home, rel), live(home, target)), canLink: linkable, throughLink: linkIn, merged: mergedFiles });
+  const neutral = destinations.filter(([, d]) => d.harness === core.PACT_ID);
+  destinations.push(...core.copyDestinations(links.copy, neutral));
+  const { repoFiles, sourceOf, harnessOf } = core.installDestinations(destinations, linkIn, mergedFiles);
   const seen = new Map();
   const liveAt = rel => {
     if (!seen.has(rel)) seen.set(rel, io.liveState(live(home, rel)));
     return seen.get(rel);
   };
-  const p = core.plan(record, repoFiles, liveAt, linkIn);
+  const p = core.plan(record, repoFiles, liveAt, linkIn, targets, mergedFiles);
   // #262: the person's agents are not the pact's to write, check or record.
   for (const rel of p.yours) repoFiles.delete(rel);
+  // The harness each path belongs to: this run's copy set, else the record's, else Claude Code's retired agents.
+  const recordHarness = new Map(record ? record.files.map(e => [e.path, e.harness]) : []);
+  const owner = rel => harnessOf.get(rel) ?? recordHarness.get(rel) ?? 'claude';
   // A pact command never shadowed by a same-named skill, nor a command or tool laid over a file the pact didn't write (#203, S8; #280).
-  core.checkSkillClash(on, rel => io.present(live(home, rel)));
-  core.checkNewPaths(repoFiles, record, liveAt);
+  if (taken.some(h => h.id === 'claude' && core.builtParts(h).commands)) core.checkSkillClash(on, rel => io.present(live(home, rel)));
+  core.checkNewPaths(repoFiles, record, liveAt, taken.flatMap(h => (core.builtParts(h).commands ? [h.commands.dir] : [])));
+  const unrecorded = core.unrecordedRules(taken.flatMap(h => (core.builtParts(h).rules ? [h.rules.path] : [])), record, liveAt);
 
-  // Settings (L4 to L9).
-  const settingsFile = join(home, 'settings.json');
-  const liveBytes = io.readOptional(settingsFile);
+  // Settings (L4 to L9). With Claude Code taken out, the entries the record
+  // lists are removed by the same merge, over an empty overlay.
+  const claudeFile = choice.rows.find(r => r.id === 'claude')?.harness?.hooks?.file ?? null;
+  const removing = !claude && claudeRecorded.length > 0 && claudeFile !== null;
+  const settingsRel = claude ? claude.hooks.file : removing ? claudeFile : null;
+  const settingsFile = settingsRel === null ? null : live(home, settingsRel);
+  const liveBytes = settingsFile === null ? null : io.readOptional(settingsFile);
   const liveSettings = liveBytes === null ? new Map() : core.readSettings(liveBytes.toString('utf8'));
   let merged = null;
+  let plain = { record: [], drop: [] };
   // #438: the cleaner's deny rules come and go with it; settings left untouched keep the record's list.
-  // #439: the stop switch's rules likewise, in a record key of their own; a project install never turns the switch on.
-  const stopOn = project ? false : core.stopSwitchOn(parsed);
+  // #439: the stop switch's rules likewise; a project install never turns the switch on.
+  const stopOn = claude ? core.stopSwitchOn(parsed) : false;
   // #603: the identity switch. On, the claude app must be pinned and its gitconfig must be exactly what setup writes, or the install refuses before any write; off, the check is skipped, so a changed or missing gitconfig never blocks turning it off.
-  const identityOn = project ? false : core.identitySwitchOn(parsed);
+  const identityOn = claude ? core.identitySwitchOn(parsed) : false;
   const refusal = (rule, why) => new core.Refusal(rule, why);
   const identityChecks = () => {
-    const pinText = io.readOptional(join(home, 'pact', 'github.json'));
+    const pinText = io.readOptional(live(home, '.pact/github.json'));
     const app = pinText === null ? null : core.identityPinApp(pinText.toString('utf8'));
-    if (app === null) throw refusal('identity-pin', 'the agent-identity switch is on, but pact/github.json holds no claude app; run gh-app.mjs setup first.');
-    const cfg = io.readOptional(join(home, 'pact', 'gh-app-claude.gitconfig'));
+    if (app === null) throw refusal('identity-pin', 'the agent-identity switch is on, but .pact/github.json holds no claude app; run gh-app.mjs setup first.');
+    const cfg = io.readOptional(live(home, '.pact/gh-app-claude.gitconfig'));
     if (cfg === null) throw refusal('identity-gitconfig-missing', 'the agent-identity switch is on, but the claude app\'s gitconfig is missing; run gh-app.mjs setup first.');
     if (!core.identityNodeOk(process.execPath)) throw refusal('identity-node', 'this Node is not one the agent gitconfig may name (an absolute path to a program called node), so the gitconfig cannot be checked; run the install with a Node that is, then run gh-app.mjs setup under it.');
-    const userHome = dirname(home);
-    const want = core.identityGitconfigText({ userHome, claudeHome: home, nodePath: process.execPath, app, xdg: io.exists(join(userHome, '.config', 'git', 'config')) });
+    const want = core.identityGitconfigText({ userHome: home, nodePath: process.execPath, app, xdg: io.exists(join(home, '.config', 'git', 'config')) });
     const verdict = core.identityGitconfigVerdict(cfg.toString('utf8'), want);
     const line = core.identityGitconfigLine(verdict);
     if (!verdict.ok) throw refusal('identity-gitconfig', line);
@@ -308,70 +404,132 @@ async function main() {
   let identityBlock = [];
   let deny = { add: [], drop: [], record: record ? record.cleanerDeny : [] };
   let stopRecord = record ? record.stopDeny : [];
-  // #523: the cleaner's ask rules, in a record key of their own (cleanerAsk), with the cleaner's switch.
+  // #523: the cleaner's ask rules, with the cleaner's switch.
   let askPlan = { add: [], drop: [], record: record ? record.cleanerAsk : [] };
   let settings;
   let changes = [];
   let notes = [];
   // #482: the hooks and the window, merged by key.
   const compact = { window, script: hookScript, recorded: record ? record.autoCompactWindow : null, platform: process.platform };
-  let compactBlock = [`auto-compact-window: ${window > 0 ? `on, ${window} tokens` : 'off'}`];
+  let compactBlock = claude ? [`auto-compact-window: ${window > 0 ? `on, ${window} tokens` : 'off'}`] : [];
+  const mergeTools = claude ? toolsOn : [];
   if (identityOn) identityBlock = identityChecks();
-  if (liveSettings === null) {
+  if (settingsRel === null) settings = null;
+  else if (liveSettings === null) {
     settings = 'not a strict JSON object: left untouched';
     notes = ['WARN: settings.json is not a strict JSON object (a comment, a trailing comma or another root); the merge leaves it untouched, and nothing in it was checked.'];
     if (identityOn) notes.push("WARN: settings.json is left untouched, so the agent-identity switch's two env keys are not set; git in a session stays your own until they are.");
     // #523: the cleaner on, its ask rules are not added to a file left untouched; say which.
-    if (toolsOn.includes('cleaner')) notes.push(`WARN: settings.json is left untouched, so the cleaner's two ask rules on remove --override are not added: ${core.CLEANER_ASK.map(core.formatPlain).join(', ')}`);
+    if (mergeTools.includes('cleaner')) notes.push(`WARN: settings.json is left untouched, so the cleaner's two ask rules on remove --override are not added: ${core.CLEANER_ASK.map(core.formatPlain).join(', ')}`);
   } else {
-    const cleanerPlan = core.cleanerDenyPlan(liveSettings, toolsOn, record ? record.cleanerDeny : []);
+    const cleanerPlan = core.cleanerDenyPlan(liveSettings, mergeTools, record ? record.cleanerDeny : []);
     const stopPlan = core.stopDenyPlan(liveSettings, stopOn, record ? record.stopDeny : []);
-    // deny.record is the cleaner's record only; the stop switch's is kept in stopRecord.
+    // The record lists every added deny rule once, so cleanerDeny and stopDeny hold the same list and each plan filters it by its own rules.
+    // Here deny.record is the cleaner's own; the stop switch's is kept in stopRecord.
     deny = { ...core.joinDeny(cleanerPlan, stopPlan), record: cleanerPlan.record };
     stopRecord = stopPlan.record;
-    askPlan = core.cleanerAskPlan(liveSettings, toolsOn, record ? record.cleanerAsk : []);
+    askPlan = core.cleanerAskPlan(liveSettings, mergeTools, record ? record.cleanerAsk : []);
     identity = core.identityEnvPlan(liveSettings, identityOn, record ? record.identityEnv : {}, core.identityEnvWanted(home));
     if (identity.conflicts.length) throw refusal('identity-env', `the agent-identity switch is on, but settings.json already sets env ${identity.conflicts.join(' and ')}; take it out first, since the install never overwrites your own env.`);
-    merged = core.mergeSettings(liveSettings, overlay, deny, compact, askPlan, identity);
-    if (liveBytes === null) settings = 'would be created from the overlay';
+    const applied = claude ? overlay : new Map();
+    plain = core.overlayKeysPlan(liveSettings, applied, record ? record.entries.filter(e => e.path === settingsRel) : []);
+    merged = core.mergeSettings(liveSettings, applied, deny, compact, askPlan, identity, plain.drop);
+    if (liveBytes === null) settings = claude ? 'would be created from the overlay' : 'unchanged';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
-      notes = core.liveSettingsLines(liveSettings, overlay, compact);
+      if (claude) notes = core.liveSettingsLines(liveSettings, overlay, compact);
     }
-    changes = core.settingsChanges(liveSettings, overlay, deny, askPlan, identity);
-    compactBlock = core.compactLines(liveSettings, overlay, compact);
+    changes = [...core.settingsChanges(liveSettings, applied, deny, askPlan, identity), ...plain.drop.map(k => `  - ${k}`)];
+    compactBlock = core.compactLines(liveSettings, applied, compact);
   }
-  const settingsWill = settings.startsWith('would');
+  const settingsWill = settings !== null && settings.startsWith('would');
+  // The overlay's two plain keys are never drift: each apply sets them again, with a warning, and the record holds them for take-out.
+  // The entries the record keeps next: those the merged settings hold, or, for a file left untouched, the last ones.
+  const lastEntries = claudeRecorded.filter(e => e.path === settingsRel);
+  const entries = settingsRel === null || liveSettings === null
+    ? claudeRecorded
+    : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: [...deny.record, ...stopRecord], ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record }) : [];
+  const settingsDrift = liveSettings === null ? [] : core.entryDrift(lastEntries.filter(e => !core.OVERLAY_KEYS.includes(e.key)), liveSettings);
+  // The guard's hook, one keyed merge per hooks file (spec 0007 S8).
+  const hooks = core.guardPlans(guardRecorded, wired.map(h => ({ harness: h.id, path: h.hooks.file, format: h.hooks.format, command: core.guardCommand({ script: join(home, ...core.guardScriptRel(h.hooks.format).split('/')), platform: process.platform, systemRoot: process.env.SystemRoot }) })));
+  for (const f of hooks) {
+    const why = f.path.toLowerCase() === settingsRel?.toLowerCase() ? 'the path of settings.json' : core.guardPathReason(f.path, linkIn);
+    if (why) core.stops.hooksPath(f.path, why);
+    f.file = live(home, f.path);
+    const state = io.liveState(f.file);
+    if (state.exists && !state.file) core.stops.hooksNotObject(f.path);
+    f.bytes = state.exists ? io.readOptional(f.file) : null;
+    const current = f.bytes === null ? new Map() : core.readSettings(f.bytes.toString('utf8'));
+    if (current === null) core.stops.hooksNotObject(f.path);
+    Object.assign(f, core.guardMerge(current, f));
+    f.drifted = core.guardDrift(f, current);
+    f.entries = core.guardEntries(f, io.sha256);
+    // The trust step goes to each harness whose entry is new or changed.
+    f.trust = f.added.includes('codex');
+  }
+  core.checkLinks(links);
+  const hooksWill = hooks.filter(f => f.changed);
+  // A one-time cleanup: an older install's record marks the shell policy line it wrote into Codex's config.toml, which is the owner's now.
+  const policyMarked = record?.shellPolicy === true;
+  const policyFile = live(home, core.CODEX_CONFIG_REL);
+  const policyBytes = policyMarked && !linkIn(core.CODEX_CONFIG_REL) && io.liveState(policyFile).file ? io.readOptional(policyFile) : null;
+  const policyNext = policyBytes === null ? undefined : core.withoutShellPolicy(policyBytes);
+  const policyWill = policyNext !== undefined;
+  const drift = [...p.drift, ...links.drift.map(d => d.line), ...settingsDrift, ...hooks.flatMap(f => f.drifted.map(d => d.line))];
   const lastConfig = record ? record.config : new Map();
-  const stale = (record && record.commit.toLowerCase() !== commit) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig);
+  const targetsText = list => JSON.stringify(list);
+  const stale = (record && (record.commit.toLowerCase() !== commit || record.release !== opts.release)) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig) || targetsText(taken.map(core.targetsOf)) !== targetsText(recorded);
   // An agent the record lists that is now yours needs the record rewritten without it.
   const yoursListed = record ? p.yours.some(rel => record.files.some(e => e.path === rel)) : false;
-  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || stale || yoursListed || !record);
+  const linksWill = links.add.length || links.remove.length || (record && record.links.length !== links.keep.length);
+  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || linksWill || settingsWill || hooksWill.length || policyWill || policyMarked || stale || yoursListed || !record);
 
-  for (const [title, items] of [['Drift', p.drift], ['Overwrite', p.overwrite], ['Add', p.add], ['Delete', p.delete], ['Yours, left as is', p.yours]]) {
-    say(`${title}: ${items.length}`);
-    for (const i of items) say(`  ${core.formatPlain(i)}`);
+  // One block per harness, the pact's own files first (spec 0007 S9).
+  for (const l of harnessLines(choice)) say(l);
+  for (const w of renders.warnings) say(`WARN: ${core.formatPlain(w)}`);
+  if (!linkable && links.copy.length) say(core.NO_LINK_LINE);
+  for (const w of links.warnings) say(`WARN: ${core.formatPlain(w)}`);
+  const changed = new Set([...p.overwrite, ...p.add]);
+  const ids = [...new Set([...(repoFiles.size || record ? ['pact'] : []), ...taken.map(h => h.id), ...recorded.map(h => h.id)])];
+  for (const id of ids) {
+    const h = taken.find(t => t.id === id);
+    say(id === 'pact' ? `== pact home (${core.NEUTRAL_REL}) ==` : `== ${id} (${h ? h.name : 'taken out'}) ==`);
+    const mine = rel => owner(rel) === id;
+    const driftHere = [...p.drift.filter(l => mine(l.slice(0, l.indexOf(' (')))), ...links.drift.filter(d => d.harness === id).map(d => d.line), ...(id === 'claude' ? settingsDrift : []), ...hooks.flatMap(f => f.drifted.filter(d => d.harness === id).map(d => d.line))];
+    for (const [title, items] of [['Drift', driftHere], ['Overwrite', p.overwrite.filter(mine)], ['Add', p.add.filter(mine)], ['Delete', p.delete.filter(mine)], ['Yours, left as is', [...p.yours.filter(mine), ...links.yours.filter(l => l.harness === id).map(l => l.path)]]]) {
+      say(`${title}: ${items.length}`);
+      for (const i of items) say(`  ${core.formatPlain(i)}`);
+    }
+    const linking = core.linkLines(links, id);
+    if (linking.length) say(`Links: ${linking.length}`);
+    for (const l of linking) say(`  ${core.formatPlain(l.trim())}`);
+    if (h && core.builtParts(h).agents) for (const l of core.retiredAgentLines(rel => liveAt(rel).exists, p.delete, h.agents.dir)) say(l);
+    say(`Unchanged: ${[...repoFiles.keys()].filter(rel => mine(rel) && !changed.has(rel)).length}`);
+    for (const rel of unrecorded.filter(mine)) say(`WARN: ${core.formatPlain(rel)} already exists and the install record does not list it; --apply refuses until you move it out of the way; after an install from before ~/.pact, follow the one-time removal in docs/install.md.`);
+    if (id === 'claude' && settings !== null) {
+      say(`settings.json: ${settings}`);
+      if (settingsWill) for (const l of changes) say(l);
+      for (const l of compactBlock) say(l);
+      for (const l of identityBlock) say(l);
+      for (const l of notes) say(l);
+    }
+    for (const f of hooks.filter(f => [...f.want, ...f.recorded].some(w => w.harness === id))) for (const l of core.guardLines(f, id)) say(l);
+    if (id === 'codex' && policyWill) say(core.SHELL_POLICY_DRY_LINE);
   }
+  // The line belongs to Codex's block; with Codex no longer taken or recorded there is none, so it stands alone.
+  if (policyWill && !ids.includes('codex')) say(core.SHELL_POLICY_DRY_LINE);
+  if (guardOn) say(`Guard rules (${core.GUARD_TABLE_DEST}): ${rules.map(r => `${r.id} (${r.decision})`).join(', ')}`);
   for (const w of p.warnings) say(`WARN: ${core.formatPlain(w)}`);
-  for (const l of core.retiredAgentLines(rel => liveAt(rel).exists, p.delete)) say(l);
-  say(`Unchanged: ${p.same}`);
-  say(`settings.json: ${settings}`);
-  if (settingsWill) for (const l of changes) say(l);
-  for (const l of compactBlock) say(l);
-  for (const l of identityBlock) say(l);
-  for (const l of notes) say(l);
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
   const settingsCopied = settingsWill && liveBytes !== null;
-  say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
+  say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + hooksWill.filter(f => f.bytes !== null).length + (policyWill ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
   const folder = io.scanBackups(home);
   if (folder.link) say(`WARN: ${core.BACKUPS_REL} is not a plain folder: a link, a file or another reparse point; --apply refuses until it is moved out of the way.`);
   if (folder.staging.length) say(core.stagingLine(folder.staging));
   if (folder.others) say(core.othersLine(folder.others));
-  for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) {
-    if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
-  }
+  const ownFiles = [...(settingsRel === null ? [] : [[settingsRel, settingsFile]]), ...hooks.map(f => [f.path, f.file]), ...(policyWill ? [[core.CODEX_CONFIG_REL, policyFile]] : []), [core.RECORD_REL, recordFile]];
   say('Configuration:');
-  for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
+  for (const l of core.configBlock(parsed, boundHash, record, renders.rules.map(r => r.id).sort())) say(l);
   for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
   for (const l of core.toolsBlock(toolsOn, staged.keys())) say(l);
   for (const l of core.skillsBlock(parsed)) say(l);
@@ -382,70 +540,132 @@ async function main() {
   // The gate block comes last, after the checks' own output, so nothing they print can stand in for it.
   for (const l of gateLines) say(l);
 
-  core.checkBinding(opts, rulesHash, commit);
+  core.checkBinding(opts, boundHash, commit);
   const configApplies = parsed.config.kind !== 'none';
 
   // The review output, once every check for this run has passed (V1, X3).
   const writeReview = async () => {
     if (opts.reviewFolder === null) return;
     const review = await loadCore('review-core.mjs');
-    if (io.fileSha256(rulesStaged) !== rulesHash) core.stops.reviewRulesChanged();
-    const was = stateOf(stage);
-    const report = review([resolve(opts.reviewFolder), home, rulesStaged, diffFile]);
+    const report = review([resolve(opts.reviewFolder), home, reviewFile, diffFile]);
     for (const l of core.showLines(core.outputLines(report.lines), 'review')) say(l);
-    let now = null;
-    try {
-      now = io.treeState(stage);
-    } catch {}
-    if (now !== was) core.stops.reviewChangedStage();
-    core.checkReviewLines(report, rulesHash, parsed.diffHash);
+    core.checkReviewLines(report, reviewHash, parsed.diffHash);
     say('Review output: rendered-rules.txt and config.diff written to the review folder.');
   };
 
   if (!opts.apply) {
     await writeReview();
     say("Dry run only. After the owner's go-ahead, run:");
-    say(`  ${core.applyLine(opts.paths, commit, configApplies ? rulesHash : null, process.platform)}`);
+    say(`  ${core.applyLine(opts.paths, commit, configApplies ? boundHash : null, process.platform, releaseFrom())}`);
     say('RESULT: pass');
     return;
   }
-  core.checkApply({ configApplies, hashGiven: opts.renderedHash !== null, selfDiffers: run.selfDiffers, drift: p.drift.length > 0, dirty: run.dirty > 0, settingsObject: liveSettings !== null });
+  core.checkApply({ configApplies, hashGiven: opts.renderedHash !== null, drift: drift.length > 0, dirty: run.dirty > 0, settingsObject: settingsRel === null || liveSettings !== null, unrecorded });
 
-  // Apply (X2 to X5): every staged byte re-hashed, the review last, then the writes.
-  for (const [rel, sha] of repoFiles) if (io.fileSha256(live(stage, sourceOf.get(rel))) !== sha) core.stops.stageChanged(rel);
+  // Apply (X2 to X5): the review last, then the writes.
   // A temp file a hard stop left would stop the writes midway, so refuse before any (X5).
   for (const rel of [...p.overwrite, ...p.add]) if (io.exists(io.tempName(live(home, rel)))) core.stops.tempLeft(rel);
-  for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) if (io.exists(io.tempName(file))) core.stops.tempLeft(rel);
+  for (const [rel, file] of ownFiles) if (io.exists(io.tempName(file))) core.stops.tempLeft(rel);
   await writeReview();
   // @@TEST-BACKUP-HOOK@@
   // The backup, after every check and before CHECKS DONE, so a backup that fails still changed nothing (#272, S7).
-  const entries = core.backupEntries({ copy: [...p.overwrite, ...p.delete], add: p.add, live: rel => seen.get(rel), settings: settingsWill ? (liveBytes === null ? null : io.sha256(liveBytes)) : undefined, record: recordBytes === null ? null : io.sha256(recordBytes) });
+  const settingsBackup = [
+    ...(settingsWill ? [{ path: settingsRel, harness: 'claude', sha256: liveBytes === null ? null : io.sha256(liveBytes) }] : []),
+    ...hooksWill.map(f => ({ path: f.path, harness: (f.want[0] ?? f.recorded[0]).harness, sha256: f.bytes === null ? null : io.sha256(f.bytes) })),
+    ...(policyWill ? [{ path: core.CODEX_CONFIG_REL, harness: 'codex', sha256: io.sha256(policyBytes) }] : []),
+  ];
+  const toKeep = core.backupEntries({ copy: [...p.overwrite, ...p.delete], add: p.add, live: rel => seen.get(rel), settings: settingsBackup, record: recordBytes === null ? null : io.sha256(recordBytes), harnessOf: owner, links });
   const started = () => {
     backupStarted = true;
     say('BACKUP STARTED');
     // @@TEST-BACKUP-STARTED-HOOK@@
   };
-  const taken = io.takeBackup(io.FS_OPS, { home, commit, entries, platform: process.platform, now: () => new Date(), started });
-  backup = taken.name;
-  say(`backed up ${taken.files} file(s) to ${core.BACKUPS_REL}/${backup}`);
+  const made = io.takeBackup(io.FS_OPS, { home, commit, entries: toKeep, now: () => new Date(), started });
+  backup = made.name;
+  say(`backed up ${made.files} file(s) to ${core.BACKUPS_REL}/${backup}`);
   say('CHECKS DONE');
   writing = true;
   say('Applying.');
   for (const l of gateLines) say(l);
   mkdirSync(home, { recursive: true });
+  // The record is written after each change, so a failed apply leaves it
+  // matching the disk where it stopped (spec 0007 S9): it starts as what is
+  // already true, the last install's files and those that need no write.
+  const files = new Map();
+  for (const e of record ? record.files : []) if (e.path !== null && core.inTargets(e.path, e.harness, targets) && core.skipReason(e.path, linkIn, mergedFiles) === null && !p.yours.includes(e.path) && liveAt(e.path).file) files.set(e.path, { harness: e.harness, sha256: e.sha256 });
+  for (const [rel, sha] of repoFiles) if (!changed.has(rel)) files.set(rel, { harness: owner(rel), sha256: sha });
+  // The links on disk: the last install's that still stand, then each as it is made or removed.
+  const linkOf = l => [l.path, { harness: l.harness, path: l.path, target: l.target }];
+  const linksNow = new Map([...links.keep, ...links.remove].map(linkOf));
+  let entriesNow = claudeRecorded;
+  // Each hooks file's entries: the last install's until it is written, or at once when it needs no write.
+  const hookEntries = new Map(hooks.map(f => [f.path, f.changed ? f.recorded : f.entries]));
+  const writeRecord = () => {
+    const now = taken.map(core.targetsOf);
+    // A harness of the last install stays listed while the record still names a file in its folders.
+    const kept = recorded.filter(old => !now.some(t => targetsText(t) === targetsText(old)) && ([...files].some(([rel, f]) => f.harness === old.id && core.inTargets(rel, old.id, [old]) && !core.inTargets(rel, old.id, now)) || [...linksNow.values()].some(l => l.harness === old.id && !now.some(t => t.id === old.id))));
+    const sorted = new Map([...files].sort(([a], [b]) => (a < b ? -1 : 1)));
+    // The window stays recorded when the settings file is left untouched.
+    io.writeReplacing(recordFile, core.recordText({ commit, release: opts.release, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, links: [...linksNow.values()].sort((a, b) => (a.path < b.path ? -1 : 1)), entries: [...entriesNow, ...[...hookEntries.values()].flat()], gateNow }));
+  };
+  const writeHooks = f => {
+    io.writeReplacing(f.file, core.settingsText(f.merged));
+    hookEntries.set(f.path, f.entries);
+    writeRecord();
+    say(`merged ${f.path}`);
+  };
+  // A hook goes before the files it runs are deleted, and comes after the files it runs are written, so no entry names a missing wrapper.
+  for (const f of hooksWill.filter(f => !f.want.length)) writeHooks(f);
+  const stands = l => io.linkState(live(home, l.path), live(home, l.target)) === 'ours';
+  // A link goes before the files it points at are deleted, and comes after they are written.
+  for (const l of links.remove) {
+    if (stands(l)) io.removeLink(live(home, l.path));
+    linksNow.delete(l.path);
+    writeRecord();
+    say(`unlinked ${l.path}`);
+  }
   for (const rel of p.delete) {
     io.removeFile(live(home, rel));
+    files.delete(rel);
+    writeRecord();
     say(`deleted ${rel}`);
   }
-  for (const rel of [...p.overwrite, ...p.add]) {
-    io.writeReplacing(live(home, rel), readFileSync(live(stage, sourceOf.get(rel))));
+  for (const rel of core.skillFolders(p.delete, targets)) io.removeIfEmpty(live(home, rel));
+  const put = (rel, source, sha256, harnessId) => {
+    io.writeReplacing(live(home, rel), readFileSync(live(stage, source)));
+    files.set(rel, { harness: harnessId, sha256 });
+    writeRecord();
     say(`installed ${rel}`);
+  };
+  for (const rel of changed) put(rel, sourceOf.get(rel), repoFiles.get(rel), owner(rel));
+  const linked = [...links.keep];
+  for (const l of links.add) {
+    try {
+      io.makeLink(live(home, l.target), live(home, l.path));
+    } catch (e) {
+      // The folder is copied only where nothing came to be at its path.
+      if (io.present(live(home, l.path))) throw e;
+      say(`copied ${l.path}: a link could not be made`);
+      for (const [source, d] of core.copyDestinations([l], neutral)) put(d.dest, source, d.sha256, d.harness);
+      continue;
+    }
+    linksNow.set(...linkOf(l));
+    linked.push(l);
+    writeRecord();
+    say(`linked ${l.path} -> ${l.target}`);
   }
   if (settingsWill) {
-    io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
+    io.writeReplacing(settingsFile, core.settingsText(merged));
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, cleanerAsk: askPlan.record, stopDeny: stopRecord, identityEnv: identity.record, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
+  entriesNow = entries;
+  writeRecord();
+  for (const f of hooksWill.filter(f => f.want.length)) writeHooks(f);
+  for (const f of hooks.filter(f => f.trust)) say(core.CODEX_TRUST_LINE);
+  if (policyWill) {
+    io.writeReplacing(policyFile, policyNext);
+    say(core.SHELL_POLICY_APPLY_LINE);
+  }
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;
@@ -462,11 +682,35 @@ async function main() {
       bad++;
     }
   }
-  const after = io.readOptional(settingsFile);
-  if (core.guardHolds(after === null ? null : core.readSettings(after.toString('utf8')))) say('OK       settings.json (auto mode, no retired ask rules)');
-  else {
-    say('MISMATCH settings.json (auto mode is off or a retired ask rule remains)');
-    bad++;
+  for (const l of linked) {
+    if (stands(l)) say(`OK       ${l.path} (link)`);
+    else {
+      say(`MISMATCH ${l.path} (the skill link is not there)`);
+      bad++;
+    }
+  }
+  for (const l of links.remove) {
+    if (io.present(live(home, l.path))) {
+      say(`MISMATCH ${l.path} (should be unlinked)`);
+      bad++;
+    }
+  }
+  for (const f of hooks.filter(f => f.want.length)) {
+    const after = io.readOptional(f.file);
+    const now = after === null ? null : core.readSettings(after.toString('utf8'));
+    if (now !== null && !core.guardDrift({ recorded: f.entries }, now).length) say(`OK       ${f.path} (pact-guard hook)`);
+    else {
+      say(`MISMATCH ${f.path} (the pact-guard hook is not there)`);
+      bad++;
+    }
+  }
+  if (claude) {
+    const after = io.readOptional(settingsFile);
+    if (core.guardHolds(after === null ? null : core.readSettings(after.toString('utf8')))) say('OK       settings.json (auto mode, no retired ask rules)');
+    else {
+      say('MISMATCH settings.json (auto mode is off or a retired ask rule remains)');
+      bad++;
+    }
   }
   if (bad) {
     say(`${bad} mismatch(es). ${core.backupKept(backup)}`);
@@ -483,7 +727,7 @@ try {
   await main();
 } catch (e) {
   for (const l of gateLines) say(l);
-  const left = writing === 'project' ? core.PROJECT_LEFT : `The Claude home folder may hold part of this install.${backup ? ` ${core.backupKept(backup)}` : ''}`;
+  const left = writing === 'project' ? core.PROJECT_LEFT : `The home folder may hold part of this install.${backup ? ` ${core.backupKept(backup)}` : ''}`;
   // Between BACKUP STARTED and CHECKS DONE only the backup's own refusal knows what it removed (#272, S9).
   const staged = backupStarted && !writing;
   if (e instanceof core.Refusal) say(`REFUSED: ${e.why} ${writing ? left : staged && !e.rule.startsWith('backup-') ? core.STAGING_LEFT : e.outcome}`);

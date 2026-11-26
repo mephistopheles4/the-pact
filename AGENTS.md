@@ -8,8 +8,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## Installing
 
-- **Edit the repo copy, never the live file** in `~/.claude/`, and never copy
-  files there by hand.
+- **Edit the repo copy, never the live file** in `~/.claude/` or `~/.pact/`,
+  and never copy files there by hand.
 - **Dry run first,** as [install](docs/agents/install.md) says: show the owner
   the dry run; on drift, or the warning that the checkout is behind the last
   install, stop and ask.
@@ -46,7 +46,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   `changed` record's `pick:` and `unmapped:` lines first. Keep raw reporter
   output outside the repo.
 - **An athanor run** needs athanor at commit `4121c28` or later; an older
-  copy exits 125 asking for a `package.json`: ask the owner to update it, and
+  copy exits 125 over `package.json`: ask the owner to update it, and
   run on the host meanwhile. It passes when athanor exits 0 and the runner's
   result line, the last but one, ends in `pass`. It is never Test evidence.
   [Athanor](docs/agents/gate-tests.md#athanor).

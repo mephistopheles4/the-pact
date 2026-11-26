@@ -1,10 +1,8 @@
 # Install the pact
 
-This how-to installs the pact's rules file, review procedure, agents and
-`/scriptorium` command, with the builder kit it runs and the auto-compact hook,
-into your Claude Code
-home folder (`~/.claude`), and merges its settings into yours. It takes about
-five minutes.
+This how-to installs the pact: its own files into its home folder, `~/.pact`,
+and the rules file, agents and `/scriptorium` command into Claude Code's folder,
+`~/.claude`, with its settings merged into yours. It takes about five minutes.
 
 Read the README's [Who it's for](../README.md#who-its-for) first. The rules
 are written for one person's setup, and installing them changes every
@@ -24,6 +22,10 @@ Claude Code session on your machine.
 <!-- toc -->
 
 - [Before you install](#before-you-install)
+- [Where the pact installs](#where-the-pact-installs)
+  - [Skill links and copies](#skill-links-and-copies)
+  - [Codex's shell environment policy](#codexs-shell-environment-policy)
+- [Before the first install into `~/.pact`](#before-the-first-install-into-pact)
 - [1. Check the prerequisites](#1-check-the-prerequisites)
 - [2. Clone the repo](#2-clone-the-repo)
 - [3. Where the install keeps backups](#3-where-the-install-keeps-backups)
@@ -32,8 +34,11 @@ Claude Code session on your machine.
 - [6. Check in a fresh session](#6-check-in-a-fresh-session)
 - [Install by prompt](#install-by-prompt)
 - [Updating later](#updating-later)
+- [Install from a release](#install-from-a-release)
 - [The session stop switch](#the-session-stop-switch)
 - [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
+- [The guard in Codex and Antigravity](#the-guard-in-codex-and-antigravity)
+- [What Antigravity doesn't do](#what-antigravity-doesnt-do)
 - [Roll back to an older version](#roll-back-to-an-older-version)
 - [Known limits](#known-limits)
 - [Undo an apply](#undo-an-apply)
@@ -58,6 +63,106 @@ holds them:
 still open. Read it before you decide.
 
 Where the dry run asks for "the owner's go-ahead", the owner is you.
+
+## Where the pact installs
+
+`~` is your home folder. `~/.pact` holds the pact's own files: your
+configuration (`config.json`, `blocks/`), the builder file, presets, page and
+kit, the review procedure, the tools, the hook, your pins, the compaction
+hand-offs (`handoffs/`), the install record (`install.json`) and the backups.
+`~/.claude` holds only what Claude Code reads there. No environment variable
+moves `~/.pact`.
+
+A **harness** is a program the rules install into. The pact knows three, in
+[`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
+`codex` and `antigravity`. The install writes each one's rules and agents.
+[Skills](#skill-links-and-copies) give Codex and Antigravity the commands, and
+[the guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
+
+- **Detection.** A known harness is found when its `detect` folder exists
+  (`~/.claude`, `~/.codex`, `~/.gemini/config`).
+- **The install list.** The `harnesses` key of `~/.pact/config.json` names who
+  is installed into, as `"harnesses": {"install": ["claude"]}`. With no list,
+  every found known harness is in, unless its description sets
+  `defaultInstall` to `false`; your own harness is in only when the list names
+  it. A harness the last install recorded stays in when its folder is gone, with
+  a warning.
+- **Taking one out.** Leave it out of the list: the next apply removes every
+  file and settings entry the record holds for it, after backing them up. An
+  empty list removes everything the pact installed.
+- **Models.** An entry under `harnesses.own` with a known id may set `models`,
+  the three its rules name, and `agentModels`, a model per agent, `*` for the
+  rest, laid over the known ones. Antigravity's agents take their model from
+  `agentModels`, unless an agent's file or setting names a model outright.
+- **Efforts.** `efforts` lists `<effort>` models' efforts. Refusals:
+  `harness-shape`, `agent-effort`.
+- **Your own harness** goes under `harnesses.own`, as a description with the
+  fields of the known ones (spec 0007, S5). A description the pact can't take
+  refuses (`harness-id`, `harness-format`, `harness-path`,
+  `harness-shape`, `harness-field`).
+
+### Skill links and copies
+
+Codex and Antigravity get each command that is on as a skill. The pact keeps the
+skill in `~/.pact/skills/<name>`. In Codex's skills folder
+(`~/.agents/skills`) `<name>` is a link to it: a directory junction on
+Windows, a symlink elsewhere. Into Antigravity's
+(`~/.gemini/config/skills`) the apply copies the folder's files, since
+Antigravity lists no linked folder. The dry run lists each link it makes or
+removes. Where no link can be made, it warns, and the apply copies the files
+instead. A folder of yours with a skill's name is left as it is,
+listed under `Yours, left as is:`. A link the pact made that you have since
+replaced is drift. The install removes only the links and copied folders that
+its record lists.
+
+### Codex's shell environment policy
+
+The install leaves `shell_environment_policy` in `~/.codex/config.toml` to
+you, so the shells Codex starts get every variable Codex was started with, as
+agents working in a project need. An earlier install may have put the pact's
+line first in that file, ending
+`# the pact: secret-named variables stay out of the shells Codex starts`.
+While the record marks it, the next apply removes that line alone, with a
+backup; a line you changed stays.
+
+## Before the first install into `~/.pact`
+
+This is for a machine with an install from before `~/.pact`, whose files sit
+under `~/.claude`. The pact migrates nothing, and reads none of the old paths.
+Do it yourself, once, in one sitting, straight before the apply, with no other
+session running:
+
+1. If `agent-identity` is on, set it to `false` in
+   `~/.claude/pact/config.json` and apply with the old install, as
+   [Turning it off](agent-identity.md#turning-it-off) says, so no session pushes
+   through a gitconfig that has moved.
+2. Move `config.json`, `blocks/`, `builder.json` and `builder.json.bak`,
+   `presets/`, `github.json`, `linear.json`, the `gh-app-*.gitconfig` files and
+   `handoff/` (to `handoffs/`) from `~/.claude/pact/` to `~/.pact/`. Delete the
+   old page, `~/.claude/pact/scriptorium.html`: it holds your configuration.
+3. In `~/.claude/settings.json`, take out the pact's entries: each rule the old
+   record, `~/.claude/.pact-install.json`, lists under `cleanerDeny`,
+   `cleanerAsk` and `stopDeny`, the `env` keys under `identityEnv`,
+   `autoCompactWindow`, the hooks that call `pact/hooks/compact-handoff.mjs`,
+   `permissions.defaultMode` and `skipAutoPermissionPrompt` (the next install
+   sets the last two again, and records them). Then delete each file the record
+   lists under `~/.claude`, and the record itself.
+4. Copy any lines of your own in `~/.codex/AGENTS.md` and
+   `~/.gemini/AGENTS.md` into a configuration block.
+5. Rewrite every replaced part of your configuration that names a model in role
+   terms (planning, executor, light), through Scriptorium or by hand.
+6. Move your hand copies of the pact into `~/.pact/backups/hand-copies/`:
+   `~/.gemini/config/plugins/the-pact/`, the whole `~/.codex/AGENTS.md`, and
+   `~/.gemini/AGENTS.md` if it exists. The pact owns those files from here.
+7. Run the dry run. A `WARN:` that a rules file exists and the record does not
+   list it marks a copy step 3 or 6 missed.
+8. After the apply, and any sessions that push with your own credentials, set
+   `agent-identity` to `true` in `~/.pact/config.json`, run
+   `node claude/tools/gh-app.mjs refresh --provider claude` in your clone, once
+   per provider, and apply again.
+
+Backups under `~/.claude/pact/backups/` stay where they are. Never sync, share
+or commit that folder either.
 
 ## 1. Check the prerequisites
 
@@ -85,7 +190,7 @@ So commit any edit you make to the rules before step 4.
 ## 3. Where the install keeps backups
 
 Every `--apply` first copies what it will replace into
-`~/.claude/pact/backups/<name>/`, where `<name>` is the time in UTC and the
+`~/.pact/backups/<name>/`, where `<name>` is the time in UTC and the
 commit the apply installs, such as `20261018T143005123Z-addaa8a`; the backup
 holds your files from before that commit. It copies each file it
 overwrites or deletes, `settings.json` when it merges or writes it, and the
@@ -105,15 +210,9 @@ the agent files it wrote and still holds as it wrote them.
   push out an older backup: copy aside one you mean to keep.
 - **The copies are plain and unencrypted.** Your settings file can hold API
   keys, and a key you rotate stays in the old copies until they are pruned or
-  you delete them. On Linux and macOS the install gives the backups owner-only
-  modes (`700` and `600`); an access-list entry inherited from `~/.claude` on
-  macOS can still widen them, and `ls -le` shows one. On Windows they take the
-  `~/.claude` folder's access list, as the `settings.json` beside them does, so
-  they reach no reader that file doesn't, though they hold its older contents
-  (out of scope: they stay on your machine; see the [threat model](threat-model.md#scope)'s Scope). To see who that list lets in,
-  or to narrow it, open the folder's Properties in Explorer and its Security
-  tab, or run `icacls "$env:USERPROFILE\.claude"` in PowerShell. A list for you
-  alone holds your account, SYSTEM and Administrators.
+  you delete them. They take your system's default modes, and on Windows the
+  `~/.pact` folder's access list (out of scope: they stay on your machine; see
+  the [threat model](threat-model.md#scope)'s Scope).
 - **Never sync, share or commit the backups folder.** Any copy you make
   yourself, a backup copied aside or your own copies from before backups,
   belongs outside the clone and any synced or shared folder, readable only by
@@ -122,7 +221,7 @@ the agent files it wrote and still holds as it wrote them.
   newest apply's, and anything it doesn't recognise as a backup. Each may hold
   a copy of your settings until you delete it. The dry run counts the entries
   it doesn't recognise, and the apply warns of the backups named later.
-- **To delete backups,** delete their folders under `~/.claude/pact/backups/`
+- **To delete backups,** delete their folders under `~/.pact/backups/`
   yourself, or the whole folder once you are sure of the install.
 
 ## 4. Run the dry run and read it
@@ -139,12 +238,9 @@ In a POSIX shell:
 env -u NODE_OPTIONS node gate/install.mjs
 ```
 
-With no option, the script writes nothing in your Claude home folder. It
+With no option, the script writes nothing in your home folder. It
 still runs code from your clone, with your rights: the install script and the
-pact's check. So run it only on a clone you trust. It refuses if
-`NODE_OPTIONS` is set, because a preload could change what the checks see.
-It checks the committed files and prints what an install would do. The output
-names your home folder, so mask your username before you share it. Read these
+pact's check. So run it only on a clone you trust. It checks the committed files and prints what an install would do. Read these
 parts:
 
 - **`Install from commit …`.** The commit it would install. Compare it with
@@ -154,12 +250,21 @@ parts:
 - **`Not checked: what the pact's files say.`** The check covers install
   mechanics only: what each file is, where it goes, and that it is clean
   text. Read the pact's files as you would any skill you install.
-- **`Drift:`.** On a later install, the number of installed files you have
-  edited since the last one. If it isn't 0, stop: `--apply` refuses, and you
+- **`Harnesses:`.** Each harness, in or out, and whether it was found. The
+  parts from `Drift:` to `settings.json:` then come in blocks: `== pact home
+  (.pact) ==` for the pact's own files, then one per harness. Those from
+  `Backup:` on print once. A harness you described with hooks
+  gets `guards unverified for <id>`.
+- **`Drift:`.** On a later install, the number of installed files and
+  settings entries changed since the last one. If it isn't 0, stop: `--apply` refuses, and you
   would lose those edits. On a first install it is 0.
 - **`Overwrite:`, `Add:` and `Delete:`.** The files `--apply` would replace,
-  create and remove. On a first install, `Overwrite` lists your own
-  `~/.claude/CLAUDE.md` if you have one. `Delete` lists only files an earlier pact install put there, or, on a first
+  create and remove. On a first install, a rules file you already have, such as
+  your own `~/.claude/CLAUDE.md`, is listed with a `WARN`, and `--apply`
+  refuses until you move it out of the way: the pact owns the whole file, so put
+  your own text in your configuration. After an install from before `~/.pact`,
+  do [the one-time removal](#before-the-first-install-into-pact) instead.
+  `Delete` lists only files an earlier pact install put there, or, on a first
   install, an agent named `builder`, `spec-builder` or `security-builder`,
   which older pact versions shipped.
 - **`Yours, left as is:`.** Agent files the pact leaves alone: one it didn't
@@ -189,7 +294,9 @@ parts:
   - turns on auto mode (`permissions.defaultMode` set to `auto`) and skips its
     opt-in prompt (`skipAutoPermissionPrompt`). To keep auto mode off, set
     `defaultMode` back after the install. Every later `--apply` sets it to
-    `auto` again, and its dry run warns you first;
+    `auto` again, and its dry run warns you first. Neither key counts as drift,
+    and taking Claude Code out removes each one the install set, unless you have
+    changed its value;
   - takes out the ask rules (`permissions.ask`) an older pact added. The
     pact sets no ask rules, bar one exception: the cleaner's two,
     added only while the cleaner is on. Claude Code guards its own folder and
@@ -205,21 +312,21 @@ parts:
     while `auto-compact-window` is on. Their lines print in the
     `auto-compact-window:` block under this one, with each hook event added,
     updated or removed (see the next section).
-- **`Backup: <n> file(s) to copy into pact/backups/ before the first write`.**
+- **`Backup: <n> file(s) to copy into .pact/backups/ before the first write`.**
   What `--apply` copies first (step 3), ending `(settings.json included)` when
   the merge writes your settings. The dry run doesn't preview the prune: it
   doesn't say which old backups the apply will remove (step 3). Three warnings
   may follow it:
-  - `WARN: pact/backups holds <n> leftover staging folder(s) ...` names what
+  - `WARN: .pact/backups holds <n> leftover staging folder(s) ...` names what
     an apply that stopped mid-backup left. Each may hold a copy of your
     settings: check it and delete it, since `--apply` refuses while one is
     there;
-  - `WARN: pact/backups holds <n> entry(ies) the install does not recognise as
+  - `WARN: .pact/backups holds <n> entry(ies) the install does not recognise as
     backups; ...` counts what the prune leaves as it is;
-  - `WARN: pact/backups is not a plain folder: ...` says a link, a file or
+  - `WARN: .pact/backups is not a plain folder: ...` says a link, a file or
     another reparse point sits where the backups go. `--apply` refuses until
     you move it out of the way.
-- **`Configuration:`.** With no `~/.claude/pact/config.json` of your own,
+- **`Configuration:`.** With no `~/.pact/config.json` of your own,
   the pact's default configuration renders: Level 3 · Full, the builder's
   shipped preset. The block names it with its digest, the rendered hash the
   apply command carries, and a `WARN` line per part it edits. If
@@ -271,15 +378,15 @@ parts:
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis`,
   `/scriptorium` and `/scry`, each `on` or `off`, and `(not in this commit)` for one the
   commit doesn't hold yet. `/scriptorium` reads `on, always: part of the
-  pact, with the builder kit under pact/builder/`: it builds your own
+  pact, with the builder kit under .pact/builder/`: it builds your own
   Scriptorium page, and installs whenever the commit holds it.
   The others are off until you turn them on: list a name in the `commands`
-  key of `~/.claude/pact/config.json`, for example
+  key of `~/.pact/config.json`, for example
   `"commands": ["make-it-so", "finis"]`, or tick it in the builder's
   Settings. Each such command gets a `WARN` line naming the file it installs,
   `commands/<name>.md`. A list that still names `scriptorium` gets a `NOTE`
   asking you to take it out, since an older pact refuses it. The install
-  refuses, naming the path inside your Claude home folder:
+  refuses, naming the path inside your home folder:
   - **A same-named skill.** Anything at `~/.claude/skills/<name>`, a folder, a
     file or a link, for a command that is on. Claude Code would run that
     skill in place of the command. Rename or move it, or take the name out of
@@ -299,21 +406,21 @@ parts:
 - **`Tools:`.** The pact's own tools, the poster and the cleaner, each `on` or
   `off`, and `(not in this commit)` for one the commit doesn't hold. A tool
   is off unless you turn it on: list its name in the `tools` key of
-  `~/.claude/pact/config.json`, as `"tools": ["poster"]`, or tick it under
+  `~/.pact/config.json`, as `"tools": ["poster"]`, or tick it under
   Pact tools in the builder's Settings. A preset or a shared builder file
   never turns one on. Each tool that is on gets a `WARN` line, word for word:
 
   ```text
-    WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.
-    WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.
+    WARN: the user configuration turns on the pact tool poster; it installs to .pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.
+    WARN: the user configuration turns on the pact tool cleaner; it installs to .pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.
   ```
 
-  To turn Clef on, list `"clef"` in `tools`; after the apply, run `node ~/.claude/pact/tools/clef.mjs setup`, then the same with `--yes` ([clef.md](clef.md)).
+  To turn Clef on, list `"clef"` in `tools`; after the apply, run `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes` ([clef.md](clef.md)).
 
   The cleaner on adds eighteen deny rules on raw worktree and branch
   removal commands and on `claude rm` to `settings.json`, each listed under
   `settings.json` as `+ permissions.deny`, and records the ones it added in
-  `.pact-install.json`; turning it off removes only those, also listed. A
+  `install.json`'s `entries`; turning it off removes only those, also listed. A
   rule you wrote yourself stays. [cleaner.md](cleaner.md) lists them, and
   says how to run your own `claude rm`: from a separate terminal, outside
   Claude Code, because whether Claude Code's `!` shell mode honours deny rules
@@ -322,8 +429,8 @@ parts:
   worktree, or after checking the worktree yourself.
 
   It adds two ask rules on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
-  and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added under
-  `cleanerAsk` in `.pact-install.json`; turning the cleaner off removes only those. They make Claude Code
+  and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added in
+  `install.json`'s `entries`; turning the cleaner off removes only those. They make Claude Code
   ask you before a `remove --override` runs, a speed bump and not a boundary: spellings that hide the
   words from the pattern get past it. If `settings.json` is not strict JSON the install leaves it
   untouched, so it adds neither the deny rules nor these, and the dry run and the apply print a `WARN:`
@@ -332,12 +439,11 @@ parts:
   The poster on adds its rule to the rules file, so the rendered hash
   changes; `--review-folder` shows the rule. Taking the name out of the list
   deletes the poster and its rule at the next install. The rule names the
-  poster under the default Claude home folder, so with `--claude-home`
-  elsewhere, leave `tools` empty. Before it posts, the poster checks that
+  poster under `~/.pact`, so with `--home` elsewhere, leave `tools` empty. Before it posts, the poster checks that
   your `gh` login owns the repo, by name and again by GitHub's answer for the
   repo, so a repo you have transferred can't take a post. The install
   refuses:
-  - **Your own file at the tool's path.** A `~/.claude/pact/tools/<name>.mjs`
+  - **Your own file at the tool's path.** A `~/.pact/tools/<name>.mjs`
     the last install's record doesn't list (`unlisted-live`). Move it, or take
     the name out of the list. A live poster changed since the install is drift,
     never yours: the dry run lists it, and `--apply` refuses.
@@ -362,15 +468,11 @@ parts:
   `pact-install-*` folders by hand; the script never deletes them, because
   one could belong to an install still running.
 
-The dry run names your home folder and your Node's path, which hold your
-user name, and the names of your own settings. Post its verdict and counts on
-a tracker, never its raw output.
-
 A dry run asks nothing first, and it runs `gate/install.mjs` as it stands
 in your working folder, uncommitted edits included. So on a branch that
-changes the installer, run it with `--claude-home` pointing at a throwaway
-folder: a bug in the code under edit then stays away from your real Claude
-home, though hostile code could still ignore the option. Nothing prompts
+changes the installer, run it with `--home` pointing at a throwaway
+folder that holds an empty `.claude`: a bug in the code under edit then stays
+away from your real home folder, though hostile code could still ignore the option. Nothing prompts
 before a dry run or an apply.
 
 The last lines print the apply command to run next.
@@ -393,7 +495,7 @@ each one's hash again. A good install ends with:
 
 ```text
 BACKUP STARTED
-backed up <n> file(s) to pact/backups/<name>
+backed up <n> file(s) to .pact/backups/<name>
 Applying.
 ...
 pruned <k> old backup(s)
@@ -403,31 +505,31 @@ RESULT: pass
 ```
 
 The `pruned` lines show only when the apply removed old backups (step 3).
-These `WARN:` lines may follow, with or without them: `WARN: pact/backups holds
-<n> backup(s) named later than this run's; ...`, `WARN: pact/backups holds <n>
+These `WARN:` lines may follow, with or without them: `WARN: .pact/backups holds
+<n> backup(s) named later than this run's; ...`, `WARN: .pact/backups holds <n>
 entry(ies) the install does not recognise as backups; ...` and `WARN: the prune
-of old backups in pact/backups stopped on an error; ...`. Each leaves your
+of old backups in .pact/backups stopped on an error; ...`. Each leaves your
 files as they are, and the install still passes.
 
-It installs these files under `~/.claude`:
+It installs these files in your home folder:
 
-- `CLAUDE.md`, the rules;
-- `agents/`, nine agents: the eight lenses and `scout`;
-- `pact/review.md`, the review procedure the rules file points to before any
-  lens runs, and `pact/review-diagrams.md` beside it, its diagram format. If
+- `.claude/CLAUDE.md`, the rules;
+- `.claude/agents/`, nine agents: the eight lenses and `scout`;
+- `.pact/review.md`, the review procedure the rules file points to before any
+  lens runs, and `.pact/review-diagrams.md` beside it, its diagram format. If
   either file, unlisted in the install record, is already there, the install refuses and changes nothing: move your file out of the way;
-- `commands/scriptorium.md`, always, and `commands/<name>.md` for each other
+- `.claude/commands/scriptorium.md`, always, and `.claude/commands/<name>.md` for each other
   pact command your `commands` list turns on. Taking a name out of the list
   deletes its file at the next install;
-- `pact/tools/poster.mjs`, only while your `tools` list turns the poster on.
+- `.pact/tools/poster.mjs`, only while your `tools` list turns the poster on.
   It posts and edits on GitHub as your `gh` account. Taking it out of the
   list deletes it at the next install;
-- `pact/tools/cleaner.mjs`, only while your `tools` list turns the cleaner
+- `.pact/tools/cleaner.mjs`, only while your `tools` list turns the cleaner
   on, with its deny rules and two ask rules in `settings.json`. Taking it out of the list
   deletes it and the rules it added at the next install;
-- `pact/tools/gh-app.mjs` and two `env` keys in `settings.json`, only while the
+- `.pact/tools/gh-app.mjs` and two `env` keys in `settings.json`, only while the
   `agent-identity` setting is on ([agent-identity](agent-identity.md));
-- `pact/builder/`, the builder kit `/scriptorium` runs: the builder
+- `.pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the
   example builder file, the pact's default configuration
@@ -436,16 +538,17 @@ It installs these files under `~/.claude`:
   overlay, for the page to show, and the rules as they stand before your
   configuration, as `claude/rules.source.md`. It holds no file named
   `CLAUDE.md`. The kit's builder writes a page by default to
-  `pact/scriptorium.html` in your Claude home, never a link or folder; the
-  install leaves that file alone. Given `--out`, it writes only to a new file
-  outside any repo, the Claude home folder and any `.claude` folder;
-- `settings.json`, merged as the dry run showed;
-- `.pact-install.json`, the record the next install compares against;
-- `pact/backups/`, a backup of what each apply replaced (step 3). No install
+  `.pact/scriptorium.html`, never a link or folder; the install leaves that
+  file alone. Given `--out`, it writes only to a new file outside any repo,
+  `~/.pact`, the Claude home folder and any `.claude` or `.pact` folder;
+- `.claude/settings.json`, merged as the dry run showed;
+- `.pact/install.json`, the record the next install compares against, written
+  file by file, so an apply that stops leaves it matching the disk;
+- `.pact/backups/`, a backup of what each apply replaced (step 3). No install
   record lists it, and the install never writes there except to back up and
   prune.
 
-To keep presets of your own, create `~/.claude/pact/presets/` yourself and
+To keep presets of your own, create `~/.pact/presets/` yourself and
 put builder files in it; `/scriptorium`'s page lists them under "Your
 presets". The install never writes, lists or deletes that folder.
 
@@ -522,7 +625,7 @@ would roll the pact back, and the dry run warns about it.
 If the fast-forward refuses, stop and find out why before you install. Read what
 changed before you run anything: the dry run
 runs the new code, and a session opened in the clone loads its project files.
-The `commit` field of `~/.claude/.pact-install.json` names the last
+The `commit` field of `~/.pact/install.json` names the last
 install's commit; the dry run's `Last install:` line shows it too.
 `git diff <that commit> HEAD` shows everything that arrived since, merges
 included. Or check out a commit you have reviewed, at or after the last
@@ -531,14 +634,16 @@ the apply takes its own backup (step 3).
 The dry run compares your live files with the record of the last install, so
 it shows any you have edited since.
 
-If the dry run shows drift, live files changed since the last install, and
-`--apply` refuses. Whether to keep or replace those edits is your decision.
-Move `~/.claude/.pact-install.json` out of the folder: the next dry run reads
-as a first install, with no drift, and lists the files `--apply` will
-overwrite. That apply's backup holds your edited files, and the install keeps
-it until you delete it, as a backup taken with no install record. After the
-apply, bring your edits back by hand from it, or carry them as a
-configuration (see below).
+If the dry run shows drift, installed files or settings entries changed since
+the last install, and `--apply` refuses. Whether to keep or replace those edits
+is your decision. A settings entry you can put back by hand. Otherwise move
+`~/.pact/install.json`, and every file its `files` list names, out of the way
+and keep them: the next dry run reads as a first install, with no drift.
+Moving the record alone is not enough, since a rules file, tool or command left
+in place is then unrecorded and `--apply` refuses. That apply's backup holds
+`settings.json` as it was, and the install keeps it until you delete it, as a
+backup taken with no install record. After the apply, bring your edits back by
+hand from what you moved, or carry them as a configuration (see below).
 
 To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
@@ -550,9 +655,46 @@ qualities and the cost limits; `examples/pact-config/config-parts.json` edits `t
 session line set. For a builder of your own, type `/scriptorium` in any
 session.
 
+## Install from a release
+
+Releases need the owner's switch, and the command is safe only once the
+owner's two tag rulesets exist: only the owner creates a tag but a candidate,
+and no tag is ever updated or deleted. Run it from your home folder, or an empty folder outside every project: npm first reads the settings of a project around it. It replaces the clone and dry run:
+
+```
+npx github:mephistopheles4/the-pact#semver:^1
+```
+
+It takes the highest stable tag, named `v1.<n>.0`, clones it into
+`~/.pact/source/<commit>` (it keeps its last three), checks the clone's head,
+and runs that clone's dry run. Choose the default configuration when it asks,
+or pass `--default`; an existing `~/.pact/config.json` is kept and used.
+To build your own configuration first, choose Scriptorium, or pass
+`--builder`: it runs the clone's builder, on `~/.pact/builder.json` when you
+have one, writes the page to `~/.pact/scriptorium.html`, prints its path and
+installs nothing. Save from the page into `~/.pact`, run the command again and
+choose the default: it uses what you saved. It never applies: read the dry run,
+then type the apply line it prints, which runs from any folder. A release lower than the last one installed is called behind it. npm
+picks which copy of the command runs from the repo's tags, so each tag is code
+you run.
+
+Each passing change on `main` is first a release candidate, `v1.<n>.0-rc.<k>`;
+the owner promotes one to `v1.<n>.0`, from a checkout of `main` under their
+own account, with `node gate/release-promote.mjs v1.<n>.0-rc.<k>`. Add an option after the command to take
+another:
+
+- `--channel beta` takes the newest tag, a release candidate included; a
+  stable `v1.<n>.0` outranks its own candidates. Anyone who can write to the
+  repo can make a candidate, on any commit.
+- `--release <tag>` takes exactly that tag, stable or candidate, such as
+  `--release v1.4.0-rc.2`, and refuses when it isn't there.
+
+A bad value, a major other than 1, or both options together is refused before
+anything is fetched.
+
 ## The session stop switch
 
-`session-stop-deny` in `~/.claude/pact/config.json` is
+`session-stop-deny` in `~/.pact/config.json` is
 `true` or `false`, `false` when unset, and the builder's Settings dialog shows
 it as Session stop. A project configuration may not set it, and a project
 install never adds its rules. It has no part in the rules file; only the
@@ -563,8 +705,8 @@ notice line names it, as `session-stop-deny on` or `off`.
   `claude stop *`, `claude kill *` (Claude Code's alias of stop),
   `claude daemon stop *` (stops the supervisor and, unless `--keep-workers` is passed, the sessions it hosts) and
   `claude respawn *` (restarts a session, or all with `--all`), each as a
-  `Bash(...)` and a `PowerShell(...)` rule. It records the ones it added under
-  `stopDeny` in `.pact-install.json`. Turning it off removes only rules that
+  `Bash(...)` and a `PowerShell(...)` rule. It records the ones it added in
+  `install.json`'s `entries`. Turning it off removes only rules that
   are both recorded and one of those eight, listed as `- permissions.deny`; an
   identical rule you wrote yourself stays. The cloud copy adds none of them.
 - **Who turns it on.** Turn it on if you run Brigade (the session-manager
@@ -599,13 +741,13 @@ window and installs a small hook that carries a session through compaction.
 It needs Claude Code 2.1.318 or later, Node 24 or later (the
 installer's own floor) and `node` on the PATH.
 
-- **The setting.** `auto-compact-window` in `~/.claude/pact/config.json` is
+- **The setting.** `auto-compact-window` in `~/.pact/config.json` is
   a number of tokens, 100000 to 1000000 in steps of 10000, or `0` for off. It
   is on at 400000 when the key is unset, and the builder's Settings dialog
   shows it beside the usage limits. A project configuration may not set it.
   The install writes it to `autoCompactWindow` in `settings.json`; Claude Code
   then compacts a little below it, near 365000 to 370000 for 400000.
-- **What installs when it is on.** `~/.claude/pact/hooks/compact-handoff.mjs`,
+- **What installs when it is on.** `~/.pact/hooks/compact-handoff.mjs`,
   and five hook entries in `settings.json` that call it with `node`: on
   `PostToolUse`, `UserPromptSubmit`, `Stop`, `PreCompact` and `SessionStart`
   (matcher `compact`). Your own hooks, and other tools' hooks, stay as they
@@ -618,7 +760,7 @@ installer's own floor) and `node` on the PATH.
   included, and lists each pact event it adds, updates or removes.
 - **What the hook does.** Past the window minus 80000 tokens, it tells the
   session once per turn, until compaction, as a plain statement, that its
-  hand-off file, `~/.claude/pact/handoff/<session id>.md`, is due an update.
+  hand-off file, `~/.pact/handoffs/<session id>.md`, is due an update.
   It asks the compaction summary to
   name that file, and after compaction puts the file's first 8 KB back into
   context, marked as the session's own notes, data and not instructions. It
@@ -639,15 +781,94 @@ installer's own floor) and `node` on the PATH.
   cloud environment's setup field again and check the first session's setup
   log for the generator's `pact cloud copy <marker>` line.
 - **Hand-offs stay.** The pact never deletes a hand-off or `.turn` file in
-  `~/.claude/pact/handoff/`; clear them yourself when you like. They are
-  notes a session wrote, kept unencrypted in a folder the hook creates for
-  your account alone on Linux and macOS (on Windows the folder takes the
-  Claude home folder's access), and they outlive turning the window off and
-  Claude Code's own transcript clean-up. On macOS an access control list the
-  folder inherits can grant another account access despite the owner-only
-  mode; check with `ls -le`.
+  `~/.pact/handoffs/`; clear them yourself when you like. They are
+  notes a session wrote, kept unencrypted with your system's default modes,
+  and they outlive turning the window off and Claude Code's own transcript
+  clean-up.
+
+## The guard in Codex and Antigravity
+
+Claude Code keeps its permission rules. Codex and Antigravity, and a harness of
+your own whose hooks file takes either one's format, get the same rules from a
+hook the install adds.
+
+- **When.** Only while a rule is on and the install takes such a harness. The
+  command rules follow the cleaner and the session stop switch
+  ([cleaner.md](cleaner.md) lists the commands).
+- **What it writes.** `~/.pact/guard/`: the guard, a wrapper per format, and
+  `rules.json`, the rules that are on. And one `pact-guard` hook, run before a
+  shell command (in Antigravity also before input typed into a running program), in each harness's hooks file (`~/.codex/hooks.json`,
+  `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
+  pact's entry, and the apply backs up each hooks file it changes.
+- **On Windows** the install also writes a launcher beside each wrapper,
+  `~/.pact/guard/<harness>.cmd`, and the hook calls it through `cmd.exe` and
+  passes its exit code on, so one command works under PowerShell, where Codex
+  runs hooks, and under `cmd`. A home path holding `%`, `!`, `^`, `&`, `$`, a
+  backtick or a curly double quote refuses (`hook-command-path`), and so does
+  one with no space that holds `(`, `)`, `;`, `,` or `=`.
+- **A Windows home from Linux or macOS,** such as a WSL install into it,
+  refuses (`guard-windows-home`) while a guard would be written: a home that
+  holds `AppData` is a Windows one, and Windows couldn't run that hook.
+- **Trust it in Codex.** Codex runs a hook only once you trust it: open
+  `/hooks` and trust `pact-guard`, the one from `~/.codex/hooks.json`: another
+  hooks file can use the name. Until then `codex exec` skips it and says
+  nothing. The dry run and the apply say so when the entry
+  is new or changed. An update to the guard or its rules needs no new
+  trust, and trust never checks them.
+- **What it answers.** It refuses a command a rule denies. A rule that asks
+  prompts you in Antigravity and is refused in Codex. Any other command gets no
+  answer, so the harness's own permissions decide. A guard that fails refuses
+  every call its hook matches with `The pact's guard failed (<code>); run the
+  pact's dry run.`
+- **A speed bump, not a gate.** Another spelling gets past it, a command inside
+  `bash -c "..."` included, and so does one typed into a shell that is already
+  running, which Codex runs no hook for; Antigravity's hook reads a typed line,
+  though not one sent a few characters at a time. A hook that can't start or
+  runs past 15 seconds lets the command through. Outside Windows, a missing
+  `node` or a crash the wrapper doesn't catch lets it through too; on Windows
+  the launcher denies both, so there only a missing `cmd.exe` or launcher stops
+  the hook from starting.
+- **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
+  shape, or sits behind a link refuses the dry run. A pact entry changed since
+  the install is drift.
+- **Off.** Turning every rule off, or taking the harness out of the install
+  list, removes the entry, and the files once no harness takes them. Do that and
+  apply before you roll back to a commit without the guard.
+
+## What Antigravity doesn't do
+
+Seen on its command line, agy 1.2.14, on Windows
+([the probe](log/2026-11-25-antigravity.md)):
+
+- **Lenses can't search.** An agent gets fewer tools than its file lists: the
+  searching and web page tools don't arrive, so a lens reads only files it can
+  name. Every agent also gets `send_message` and `manage_task`; a lens's
+  `manage_task` was refused its session's program.
+- **A session can still start your commands,** by reading the skill's file with
+  a shell command. Don't take what it starts as your word for an
+  install apply or mise trust: nothing enforces that.
 
 ## Roll back to an older version
+
+**To a commit that installs into `~/.claude`.** Such an installer knows
+nothing of `~/.pact`. In one sitting, with no other session running:
+
+1. If `clef` is on, stop and remove it ([clef.md](clef.md)). Turn
+   `agent-identity` off and apply.
+2. Set `"harnesses": {"install": []}`, run the dry run and apply, which removes
+   every recorded file and settings entry.
+3. Check that `~/.pact/install.json` lists no file and no entry, and that each
+   file the dry run named is gone.
+4. Take the `harnesses` key out of your configuration, which an older installer
+   refuses. Delete `~/.pact/scriptorium.html`. Move what you moved in the
+   one-time removal back from `~/.pact/` to `~/.claude/pact/` (`handoffs/` to
+   `handoff/`), and your hand copies back from `~/.pact/backups/hand-copies/`.
+5. Do the checks and steps below, applying nothing more at the newer commit
+   (that reinstalls the pact). Then turn `agent-identity` on at the old one.
+
+Done when the older install's dry run shows no drift. The paths in the rest of
+this section are that older layout's: `pact/` and the record,
+`.pact-install.json`, both under `~/.claude`.
 
 An older pact installs with that commit's own installer. Rollback is
 supported only to commits on the published `main` from the Node install's
@@ -697,7 +918,8 @@ refuses. What an old enough pact refuses:
   lists `scriptorium` in `commands` refuses;
 - in a project's configuration, the `costLimits` key (`project-key`) and the
   `enough` and `enoughCosts` fields (`project-qualities`); in a builder file,
-  the `costLimits` key and an Enough on a quality row.
+  the `costLimits` key and an Enough on a quality row;
+- `efforts` in a `harnesses.own` entry.
 
 One thing an older pact does not refuse: an Enough column in a Qualities
 block. A pact from before the Enough column installs that text as written, and
@@ -761,65 +983,104 @@ also repeat the removal by hand in step 5.
 ## Undo an apply
 
 Do this yourself, not through a session: a session that reads a copy of your
-settings holds its keys in its context. The script has no undo command. Each
-backup in `~/.claude/pact/backups/` undoes one apply (step 3):
+settings, or of Codex's `config.toml`, holds any key in it in its context. The
+script has no undo command. Each
+backup in `~/.pact/backups/` undoes one apply (step 3):
 
 1. **Pick the backup,** one whose name an apply you ran printed. To undo more
    than one apply, go newest first, back to the one you want, and do steps 3 to
-   5 for each in turn.
+   6 for each in turn.
 2. **Know what it undoes.** A copy-back puts each listed file back as it was
    before that apply, losing any edit made to it since, including what Claude
-   Code writes to `settings.json`, such as permission rules.
+   Code writes to `settings.json`, such as permission rules, and a hook you
+   added to a hooks file.
 3. **Check its `manifest.json` before you act on it,** and stop on any
    failure:
-   - each path is relative to `~/.claude`, with forward slashes and no `..`;
-   - no path is under `projects/`, `memory/`, `skills/`, `handover/`,
-     `pact/blocks/`, `pact/presets/`, `pact/backups/`, `pact/config.json`,
-     `pact/builder.json` or a `.credentials` file, the paths the install
-     never touches; `settings.json` and `.pact-install.json` may be listed;
+   - each path is relative to your home folder, with forward slashes and no `..`,
+     and names its harness;
+   - each path is under `.pact/` or a harness's own rules file, agents,
+     commands or skills folder, or is `~/.codex/config.toml` or its hooks file
+     (`~/.codex/hooks.json`, `~/.gemini/config/hooks.json`, or the `hooks.file`
+     your own harness names under `harnesses.own` in `~/.pact/config.json`);
+     none is under `.pact/blocks/`, `.pact/presets/`,
+     `.pact/backups/`, `.pact/handoffs/`, `.pact/config.json`,
+     `.pact/builder.json` or a `.credentials` file, the paths the install
+     never touches; `.claude/settings.json` and `.pact/install.json` may be
+     listed;
    - each `was: file` copy's SHA-256 matches its entry, by `sha256sum` or
      `shasum -a 256`, or `Get-FileHash` in PowerShell (compare ignoring case);
+   - each `was: link` entry is a skill's name in a skills folder, and its
+     `target` is `.pact/skills/` and that name;
    - each `was: absent` path, other than `settings.json` and
-     `.pact-install.json`, is listed in your current
-     `~/.claude/.pact-install.json`, so a planted entry can't have you delete
-     a file of your own. Whatever could plant one could also rewrite the
+     `install.json`, is listed in your current
+     `~/.pact/install.json` (a hooks file under its `entries`; Codex's
+     `config.toml` by its `shellPolicy` mark; a skill under its `links` or,
+     where the folder was copied, as files below that path in its `files`), so a
+     planted
+     entry can't have you delete a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
+     A hooks file is listed even if it already held your hooks, so step 5
+     keeps one that holds more than the pact's.
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
-   `~/.claude/<path>`. Keep `settings.json`
+   `~/<path>`. Keep `settings.json`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
-   and macOS.
-5. **Delete each `was: absent` path** that is there.
-6. **Run the dry run** to check, and read it before you start any session: it
+   and macOS. Don't copy Codex's `config.toml` back, which would undo what you or
+   Codex wrote to it since, such as a tighter approval setting: change only the
+   pact's line, to match the backup's copy. Read a hooks file's copy before you
+   copy it back, and stop on a command that neither you nor the pact set.
+5. **Delete each `was: absent` path** that is there. From Codex's,
+   Antigravity's or your own harness's hooks file, take out only the hook whose
+   command runs a script in `~/.pact/guard/`, with any group and key that leaves
+   empty. Delete the file only if nothing but `{}` is left; else stop on a
+   command in it that neither you nor the pact set. A skill link goes as a
+   link, never through it: `rm "$HOME/<path>"` on Linux and macOS,
+   `cmd /c rmdir "$HOME\<path>"` in PowerShell, with the path's slashes turned
+   to backslashes, and no `-r` or `/s`. In a copied skill folder, delete the
+   files your record lists, then the empty folders. Delete Codex's `config.toml`
+   only if the pact's line is all it holds; else delete that line.
+6. **Make each `was: link` entry again:**
+   `ln -s "$HOME/<target>" "$HOME/<path>"`, or
+   `New-Item -ItemType Junction -Path "$HOME\<path>" -Target "$HOME\<target>"`
+   in PowerShell.
+7. **Run the dry run** to check, and read it before you start any session: it
    shows no drift, its `Last install:` line names the commit in the name of the
    next-older backup, the apply before the oldest one you undid (after undoing
    a first install it reads as a first install), and
    no `settings.json` warning names a command-running key you didn't set. Stop
    on one.
 
-**Full uninstall.** Pick the oldest backup that lists `.pact-install.json` as
+**Full uninstall.** Pick the oldest backup that lists `install.json` as
 `absent`, the first by name: your first install's. Run step 3's checks on it
 while your current record is still there; there, a `was: absent` path your
 current record doesn't list passes if it isn't on disk, and one that is on disk
 and unlisted is yours to leave alone. A backup taken after you moved the record
 aside (Updating later) is not your first install's: if every such backup was
-taken that way, or you deleted the first one, follow Installed before backups. Then delete the pact files your
-current record lists: the agents, `pact/review.md`, `pact/review-diagrams.md`, the `pact/builder/`
-folder, each pact command in `commands/`, `/scriptorium` included,
-`pact/tools/poster.mjs` and `pact/tools/cleaner.mjs` if listed,
-`pact/hooks/compact-handoff.mjs` if listed, and `.pact-install.json`. Then do
-steps 4 to 6 with that backup. Step 5's restored `settings.json` takes the
+taken that way, or you deleted the first one, follow Installed before backups.
+Then remove what your current record lists, a guard added by a later apply
+included: every file under `files`, every skill link under `links` (as step 5
+removes one), the pact's hook in each guard hooks file under `entries` (as step
+5 does), Codex's policy line if `shellPolicy` is marked, and
+`.pact/install.json`. Hold each path to step 3's first two checks, and each link
+to a target of `.pact/skills/` and its name, and stop on any other. Delete the
+folders a copied skill leaves empty. Then do
+steps 4 to 6 with that backup. A path under the removed record's `files` (note
+them before you remove it) that the backup doesn't list may have been yours
+before a later apply: where the oldest backup listing it says
+`was: file`, check that copy as step 3 does and copy it back as step 4 does. Then
+do step 7. Step 4's restored `settings.json` takes the
 pact's hook entries and `autoCompactWindow` out with it; had you no backup of
 it, remove the entries that call the deleted script by hand. If you had no `settings.json` before, step 5
 deletes it, with anything Claude Code wrote there since.
 
-**Installed before backups.** If no backup in `pact/backups/` lists
-`.pact-install.json` as `absent`, or each one that does was taken after you
+**Installed before backups.** If no backup in `.pact/backups/` lists
+`install.json` as `absent`, or each one that does was taken after you
 moved the record aside, your first install predates backups. Put
 back your own copies of your rules file, settings and agents. With no copy of
 `settings.json`, edit it instead: remove the keys the dry run listed under
 `settings.json:` and the lines of the `auto-compact-window:` block, or set them
 back, `permissions.defaultMode` above all, and take out the hook entries that
-call `pact/hooks/compact-handoff.mjs` and `autoCompactWindow`. Then
-delete the pact files your record lists, as for a full uninstall.
+call `.pact/hooks/compact-handoff.mjs` and `autoCompactWindow`. Then
+remove what your record lists, as for a full uninstall, but no file you just put
+back.
 
 Start a new session to load the change.

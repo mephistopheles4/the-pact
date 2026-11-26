@@ -31,6 +31,63 @@ lenses to offer, and when.
   teammate, so it gets no messaging or task tool beyond its own tool list.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
+- **The tree check,** where the harness can't hold an agent to its tools (Codex
+  today), around each lens and each `scout` pass. It only detects a change: it
+  keeps no copy and puts nothing back. Before the pass, run this one command
+  exactly as printed, putting only the work tree's top folder in its place: don't
+  cut the script out, pipe it or edit it. It starts from your home folder, so no
+  program or version pin in the tree picks the `node` that runs it. It covers
+  every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
+  index entries and half-done merges and rebases.
+
+  ```sh
+  cd ~
+  node -e '
+  const fs = require(`fs`), path = require(`path`);
+  process.chdir(process.argv.at(-1));
+  const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
+  // A name that is not text reads back as another name, so it fails the run.
+  const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };
+  const walk = (file, name) => {
+    const s = fs.lstatSync(file);
+    const id = JSON.stringify(name);
+    if (s.isSymbolicLink()) return `${id} link ${JSON.stringify(named(fs.readlinkSync(file)))}\n`;
+    if (s.isDirectory()) return `${id} dir ${s.mode}\n` + fs.readdirSync(file).sort().map(n => walk(path.join(file, named(n)), `${name}/${n}`)).join(``);
+    return `${id} ${s.mode} ${s.isFile() ? sha(fs.readFileSync(file)) : `other`}\n`;
+  };
+  const record = [];
+  const say = (text, name) => { record.push(`${sha(text)} ${JSON.stringify(name)}`); console.log(record.at(-1)); };
+  const line = (file, name) => { if (fs.lstatSync(file, { throwIfNoEntry: false })) say(walk(file, name), name); };
+  let own = `.git`;
+  const dot = fs.lstatSync(own);
+  if (!dot.isDirectory()) line(own, `.git`);
+  if (dot.isFile()) own = path.resolve(fs.readFileSync(own, `utf8`).replace(`gitdir:`, ``).trim());
+  const pointer = path.join(own, `commondir`);
+  const shared = fs.existsSync(pointer) ? path.resolve(own, fs.readFileSync(pointer, `utf8`).trim()) : own;
+  for (const n of [`HEAD`, `commondir`, `config.worktree`, `ORIG_HEAD`, `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `rebase-merge`, `rebase-apply`, `sequencer`]) line(path.join(own, n), `git:${n}`);
+  if (own !== shared) for (const n of [`refs`, `reftable`]) line(path.join(own, n), `git:own ${n}`);
+  for (const n of [`config`, `hooks`, `info`, `refs`, `reftable`, `packed-refs`, `logs/refs/stash`]) line(path.join(shared, n), `git:${n}`);
+  for (const n of fs.readdirSync(`.`).sort()) if (n !== `.git`) line(named(n), n);
+  // git runs from a folder the tree has no part in, so no program left there stands in for it,
+  // and fetches nothing: a fetch runs programs the config names.
+  const env = { ...process.env, GIT_NO_LAZY_FETCH: `1`, GIT_ALLOW_PROTOCOL: `none` };
+  const git = (...args) => {
+    const r = require(`child_process`).spawnSync(`git`, [`-C`, process.cwd(), `-c`, `core.fsmonitor=false`, ...args], { cwd: process.env.SystemRoot || `/`, env, maxBuffer: 1 << 29 });
+    // Git can leave entries out, say so and still succeed.
+    if (r.status !== 0 || r.stderr.length) throw new Error(`git: ${r.stderr}`);
+    return r.stdout;
+  };
+  line(path.resolve(git(`rev-parse`, `--git-path`, `hooks`).toString().trim()), `git:hooks in use`);
+  say(git(`ls-files`, `--stage`, `-v`, `--sparse`), `git:index`);
+  console.log(sha(record.join(`\n`)), `whole record`);
+  ' "<top folder>"
+  ```
+
+  After the pass, stop any process the agent left running, run the same command
+  again before any other git, and compare the last line, `<hash> whole record`,
+  alone: the same means no change. On any difference, or if a run fails: stop
+  there, run no git in that tree, change nothing, count the pass inconclusive,
+  and report to me which lines differ.
 
 ## The report template
 
@@ -212,7 +269,8 @@ when no other row answers the sentence.
 
 - **Read before you post.** Read every report and comment for a secret or a
   personal detail before posting it, and every commit before a push others
-  can read.
+  can read. A user or host name, a home path or a settings name is not a
+  personal detail here.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
@@ -268,8 +326,8 @@ when no other row answers the sentence.
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
-  `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
-  shell, or `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file>`
+  `node ~/.pact/tools/poster.mjs <surface> --post <file>` in a POSIX
+  shell, or `node "$HOME/.pact/tools/poster.mjs" <surface> --post <file>`
   in PowerShell; `schema` in place of the surface prints the fields and the
   kinds. Write each post as one JSON file, with its body in a `body_file`
   beside it, both in a scratch folder outside the repo, and run the poster
@@ -308,7 +366,7 @@ when no other row answers the sentence.
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
   can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
-  in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
+  in `~/.pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
   (`<slug>[bot]`). Assigning is the

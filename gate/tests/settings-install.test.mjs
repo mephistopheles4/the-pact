@@ -14,11 +14,11 @@ import { OVERLAY, RETIRED_RULES, overlayWith, shown } from './settings-rules.mjs
 
 /** The live settings file, owner-only as Claude Code writes it, so the dry run's warning about a widened file stays out of these cases. */
 function writeLive(h, doc) {
-  writeFileSync(join(h, 'settings.json'), typeof doc === 'string' ? doc : JSON.stringify(doc, null, 2), { mode: 0o600 });
+  writeFileSync(join(h, '.claude', 'settings.json'), typeof doc === 'string' ? doc : JSON.stringify(doc, null, 2), { mode: 0o600 });
 }
 
 function readLive(h) {
-  return JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
+  return JSON.parse(readFileSync(join(h, '.claude', 'settings.json'), 'utf8'));
 }
 
 // #265 C7: an install into a home whose settings hold every retired rule
@@ -82,8 +82,8 @@ test('a live file the merge cannot read draws a plain warning, and -Apply refuse
   const r = install(repo, h, { apply: true });
   refused(r);
   assert.match(r.stdout, /settings\.json/, r.out);
-  assert.deepEqual(listTree(h), ['settings.json']);
-  assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), '[1]\n');
+  assert.deepEqual(listTree(h), ['.claude', join('.claude', 'settings.json')]);
+  assert.equal(readFileSync(join(h, '.claude', 'settings.json'), 'utf8'), '[1]\n');
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
@@ -128,7 +128,7 @@ test('bad case: a banned key in the committed overlay refuses, and -Apply change
   const r = install(repo, h, { apply: true });
   refused(r);
   assert.match(r.stdout, /^seam-a\| FAIL settings-banned: claude\/settings\.overlay\.json: .*\(statusLine\)$/m, r.out);
-  assert.throws(() => readFileSync(join(h, 'settings.json')));
+  assert.throws(() => readFileSync(join(h, '.claude', 'settings.json')));
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.

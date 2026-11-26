@@ -44,7 +44,7 @@ snapshot() {
     diff -u "$f" "/root/.claude/agents/$(basename "$f")" || echo "DIFFERS: $(basename "$f")"
   done
   echo "### agents written: $(ls /root/.claude/agents | wc -l) (expect $(ls /s/repo/claude/agents/*.md | wc -l))"
-  echo "### diff: written pact/review.md vs claude/review.md (expect empty)"; diff -u /s/repo/claude/review.md /root/.claude/pact/review.md && echo "(identical)"
+  echo "### diff: written .pact/review.md vs claude/review.md (expect empty)"; diff -u /s/repo/claude/review.md /root/.pact/review.md && echo "(identical)"
   echo "### Node wrappers (#183 C5)"; ls /root/.local/bin
   for w in node npm npx; do echo "# $w"; cat "/root/.local/bin/$w"; done
   # npm and npx start with "env node", so they take the PATH a session has.

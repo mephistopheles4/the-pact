@@ -33,8 +33,8 @@ function expectedFile(n) {
 function userHome(t, user) {
   const h = tempDir(t, 'pact-render-home-');
   if (user !== undefined) {
-    mkdirSync(join(h, 'pact'));
-    writeFileSync(join(h, 'pact', 'config.json'), user);
+    mkdirSync(join(h, '.pact'));
+    writeFileSync(join(h, '.pact', 'config.json'), user);
   }
   return h;
 }

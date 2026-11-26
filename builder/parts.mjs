@@ -34,10 +34,14 @@ export const PART_MARKS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflo
 // carries three tiers with no ids; upgradeParts gives them these.
 export const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
 export const TIERS_MAX = 6;
-// A model and its effort, as the tables write them: "Opus, medium". The
-// builder offers them as two dropdowns, the models from the person's Models
-// list, which starts as MODEL_NAMES (#262 S19).
-export const MODEL_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku', 'Fable']);
+// A model and its effort, as the tables write them: "planning model, medium".
+// The builder offers them as two dropdowns, the models from the person's Models
+// list, which starts as MODEL_NAMES (#262 S19): the three roles, which each
+// harness's rules map to its own models (spec 0007 S6). A person adds names of
+// their own, which render as written.
+export const MODEL_NAMES = Object.freeze(['planning model', 'executor model', 'light model']);
+// Claude Code's short names, which an agent file takes in lower case.
+const CLAUDE_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku', 'Fable']);
 export const EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 // A model the person adds takes the renderer's agent model shape (#262): one
 // word, with no space or line break. The renderer keeps its own copy, and a
@@ -45,9 +49,9 @@ export const EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 export const MODEL_RE = /^\S{1,128}$/;
 export const MODELS_CAP = 32;
 
-/** Whether `m` is a model the gate takes: one word of the shape. */
+/** Whether `m` is a model a table cell takes: a role, or one word of the gate's shape. */
 export function modelOk(m) {
-  return typeof m === 'string' && MODEL_RE.test(m);
+  return typeof m === 'string' && (MODEL_NAMES.includes(m) || MODEL_RE.test(m));
 }
 
 /** Whether `v` is "<model>, <effort>", as a tier or the route takes it. */
@@ -56,9 +60,10 @@ export function modelChoiceOk(v) {
   return !!m && modelOk(m[1]) && EFFORTS.includes(m[2]);
 }
 
-/** An agent's model line for a Models-list entry: a built-in name in lower case, anything else as typed. */
+/** An agent's model line for a Models-list entry: a role's one word, a Claude Code short name in lower case, anything else as typed. */
 export function agentModelOf(name) {
-  return MODEL_NAMES.includes(name) ? name.toLowerCase() : name;
+  if (MODEL_NAMES.includes(name)) return name.split(' ')[0];
+  return CLAUDE_NAMES.includes(name) ? name.toLowerCase() : name;
 }
 
 /** The Models list's problems, as text: a list of 1 to MODELS_CAP models of the shape, none twice. */
@@ -100,11 +105,11 @@ export const DEFAULT_PARTS = Object.freeze({
     { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
   ],
   tiers: [
-    { id: 'quick', name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
-    { id: 'standard', name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
-    { id: 'thorough', name: 'Thorough', fits: 'Too big for one session, or risky; cut into tickets, each its own session', plan: 'Opus, high', build: 'Sonnet, medium' },
+    { id: 'quick', name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'planning model, low' },
+    { id: 'standard', name: 'Standard', fits: 'Needs a short spec', plan: 'planning model, medium', build: 'executor model, medium' },
+    { id: 'thorough', name: 'Thorough', fits: 'Too big for one session, or risky; cut into tickets, each its own session', plan: 'planning model, high', build: 'executor model, medium' },
   ],
-  sensitive: { items: ['auth', 'crypto', 'input validation', 'data migrations'], tier: 'thorough', plan: 'Opus, high', build: 'Opus, high' },
+  sensitive: { items: ['auth', 'crypto', 'input validation', 'data migrations'], tier: 'thorough', plan: 'planning model, high', build: 'planning model, high' },
   workflowGraph: {
     stages: [
       { id: 'plan', name: 'Plan', text: 'Kind, size and risk; a tier proposed.', model: 'plan', skipAt: [] },
@@ -274,8 +279,8 @@ const tick = n => `\`${n}\``;
 export function listJoin(xs) {
   return xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
 }
-/** "Opus, high" read as "Opus at high". */
-const modelWords = m => m.replace(', ', ' at ');
+/** "planning model, high" read as "the planning model at high"; "my-model, high" as "my-model at high". */
+const modelWords = m => `${MODEL_NAMES.includes(m.split(', ')[0]) ? 'the ' : ''}${m.replace(', ', ' at ')}`;
 
 /** Prose wrapped at 77 columns, as the rules file is: words kept whole, single spaces. */
 export function wrap(text, width = 77) {
@@ -696,4 +701,62 @@ export function skillsProblems(v) {
   });
   if (count > SKILL_PATHS_MAX) out.push(`skills names more than ${SKILL_PATHS_MAX} paths in all`);
   return out;
+}
+
+// ------------------------------------------------------------ across harnesses (spec 0008 D6)
+// The page's Across-harnesses section and the overview page `build.mjs --overview` writes read the same
+// columns from the installer's renderer, handed in as `lib`, so neither works a value out itself.
+
+/** The model and effort an agent file the renderer wrote names, each null when it names none. */
+export function agentPick(text, format) {
+  const toml = format === 'codex-toml';
+  const head = text.replaceAll('\r\n', '\n').split(toml ? '\ndeveloper_instructions = ' : '\n---\n')[0];
+  const read = (key, re) => {
+    const found = new RegExp(`^${key}${re}`, 'm').exec(head)?.[1];
+    return found === undefined ? null : toml ? JSON.parse(found) : found.trim();
+  };
+  if (toml) return { model: read('model', ' = (".*")$'), effort: read('model_reasoning_effort', ' = (".*")$'), dropped: false };
+  // Antigravity has no effort for an agent, so the renderer drops the line.
+  return { model: read('model', ': (.*)$'), effort: read('effort', ': (.*)$'), dropped: format === 'antigravity-md' };
+}
+
+/**
+ * One harness as `lib.renderHarnesses` writes it from `input` ({ rules, agents, commands }):
+ * { refusal, modelsLine, tiers, agents }. A harness that takes no agent files has `agents` null;
+ * one the installer would refuse has the refusal and nothing else.
+ */
+export function acrossColumn(lib, input, h) {
+  let files;
+  try {
+    files = lib.renderHarnesses({ ...input, harnesses: [h] }).files;
+  } catch (e) {
+    if (!(e instanceof lib.Refusal)) throw e;
+    return { id: h.id, refusal: e.why, modelsLine: null, tiers: [], agents: null };
+  }
+  const rules = files.get(`rendered/${h.id}/rules.md`);
+  const prefix = `rendered/${h.id}/agents/`;
+  const made = [...files].filter(([rel]) => rel.startsWith(prefix)).map(([rel, text]) => [rel.slice(prefix.length).replace(/\.(md|toml)$/, ''), agentPick(text, h.agents.format)]);
+  return {
+    id: h.id,
+    refusal: null,
+    modelsLine: /^Here the planning model is [^\r\n]*/m.exec(rules)?.[0] ?? null,
+    tiers: lib.tierRows(rules),
+    agents: made.length ? Object.fromEntries(made) : null,
+  };
+}
+
+/** The columns as one table's rows, [{ label, cells }]: a cell for each column, and a row for each of the pact's agents in `names`. */
+export function acrossRows(columns, names) {
+  const row = (label, cell) => ({ label, cells: columns.map(c => (c.refusal ? 'the install would stop' : cell(c))) });
+  const tiers = [...new Set(columns.flatMap(c => c.tiers.map(t => t.name)))];
+  const agentText = (c, name) => {
+    const a = c.agents?.[name];
+    if (!a) return 'no agent file';
+    return `${a.model ?? 'no model'}, ${a.dropped ? 'effort dropped' : (a.effort ?? 'no effort')}`;
+  };
+  return [
+    { label: 'Models line', cells: columns.map(c => (c.refusal ? `The install would stop: ${c.refusal}` : (c.modelsLine ?? 'no models line'))) },
+    ...tiers.flatMap(name => [['Plan', 'plan'], ['Build', 'build']].map(([stage, key]) => row(`${name}, ${stage}`, c => c.tiers.find(t => t.name === name)?.[key] ?? 'no such tier'))),
+    ...names.map(name => row(name, c => agentText(c, name))),
+  ];
 }

@@ -36,7 +36,7 @@
 // (claudeHome, assertRealFolders).
 
 import { fork, spawn } from 'node:child_process';
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, rmdirSync, statSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
 import { createServer as createHttpServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest, Agent } from 'node:https';
@@ -1512,14 +1512,14 @@ function httpJson({ port, path, method = 'GET', token, body, timeoutMs = 5000 })
 
 /**
  * The live check (S7). No other process's command line is read and no helper
- * runs. A supervisor is live only when run.json's pid is alive and its /health,
- * asked with the token, returns { run, pid, serverPid } equal to run.json's.
+ * runs. A supervisor is live only when run.json's pid is alive and its /health
+ * returns { run, pid, serverPid } equal to run.json's.
  * Returns { run, health } or null.
  */
 export async function liveSupervisor(dir) {
   const run = readJsonFile(runPaths(dir).run);
-  if (!run || !pidAlive(run.pid) || !Number.isInteger(run.port) || typeof run.token !== 'string') return null;
-  const r = await httpJson({ port: run.port, path: '/health', token: run.token, timeoutMs: 2000 });
+  if (!run || !pidAlive(run.pid) || !Number.isInteger(run.port)) return null;
+  const r = await httpJson({ port: run.port, path: '/health', timeoutMs: 2000 });
   if (!r || r.status !== 200 || !isObj(r.json)) return null;
   const h = r.json;
   return h.run === run.run && h.pid === run.pid && h.serverPid === run.serverPid ? { run, health: h } : null;
@@ -1814,7 +1814,6 @@ function checkedRequest(body) {
   return body;
 }
 
-const tokenEqual = (given, wanted) => timingSafeEqual(createHash('sha256').update(String(given)).digest(), createHash('sha256').update(wanted).digest());
 
 function freePort() {
   return new Promise((resolveP, reject) => {
@@ -1830,8 +1829,8 @@ function freePort() {
 /**
  * The supervisor: `clef serve`, started detached by `ensure`. It binds
  * 127.0.0.1 on a port the OS picks, starts the server on another loopback port
- * with the key in a file, answers only GET /health and POST /v1/systemone to a
- * caller with the token, and returns only a body it built from checked values.
+ * with the key in a file, answers only GET /health and POST /v1/systemone to
+ * any local caller, and returns only a body it built from checked values.
  * It ends the server and itself after `idleMs` with no forwarded request, when
  * its own script changes or goes, on a signal, and when the server exits.
  * Resolves { done, stop } once it is serving; `done` resolves with the reason.
@@ -1851,7 +1850,6 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const own = fingerprint(watchedPath);
   // The keeper is this module's own file, whatever script the supervisor watches (spec 0003: its own script, import.meta.url).
   const scriptPath = fileURLToPath(import.meta.url);
-  const token = randomBytes(32).toString('hex');
   const serverKey = randomBytes(32).toString('hex');
   const runId = randomBytes(16).toString('hex');
   rmSync(rp.run, { force: true });
@@ -2014,8 +2012,6 @@ export async function serve({ dir, platform = process.platform, env = process.en
     const port = httpServer.address().port;
     if (req.headers.host !== `127.0.0.1:${port}`) return reply(res, 400, 'host', true);
     if (req.headers.origin !== undefined) return reply(res, 403, 'origin', true);
-    const auth = req.headers.authorization;
-    if (typeof auth !== 'string' || !auth.startsWith('Bearer ') || !tokenEqual(auth.slice(7), token)) return reply(res, 401, 'auth', true);
     if (req.method === 'GET' && req.url === '/health') {
       const body = JSON.stringify({ run: runId, pid: process.pid, serverPid: serverPidOf(), ready: isReady });
       res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), 'cache-control': 'no-store' });
@@ -2078,9 +2074,9 @@ export async function serve({ dir, platform = process.platform, env = process.en
       httpServer.listen(0, '127.0.0.1', resolveP);
     });
     // Inside the try: a failure here ends the keeper and the server, as one after rp.run does.
-    if (useKeeper) writeFileSync(rp.server, `${JSON.stringify({ run: runId, pid: serverPid, port: serverPort, started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
+    if (useKeeper) writeFileSync(rp.server, `${JSON.stringify({ run: runId, pid: serverPid, port: serverPort, started: new Date(now()).toISOString() })}\n`);
     const port = httpServer.address().port;
-    writeFileSync(rp.run, `${JSON.stringify({ port, token, run: runId, pid: process.pid, serverPid: serverPidOf(), started: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
+    writeFileSync(rp.run, `${JSON.stringify({ port, run: runId, pid: process.pid, serverPid: serverPidOf(), started: new Date(now()).toISOString() })}\n`);
   } catch (e) {
     // The server is already running: end it before the failure goes up, or nothing would.
     writeFail(dir, 'exit', now);
@@ -2130,8 +2126,7 @@ function stateOf(live) {
 }
 
 /**
- * `clef ensure` (S7): one result, { out, code }. It never fetches and never
- * prints a token: the caller reads the token from run.json. States: ready,
+ * `clef ensure` (S7): one result, { out, code }. It never fetches. States: ready,
  * starting, not-set-up (exit 3), failed (exit 4).
  */
 export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill, liveCheck = liveSupervisor, line = lifetimeLine({ platform }), sweep = sweepServer }) {

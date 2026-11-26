@@ -1,5 +1,5 @@
 // Pact commands through the install script (#203, T1), end to end against a
-// throwaway repo and a throwaway --claude-home. Each repo plants its own
+// throwaway repo and a throwaway --home folder. Each repo plants its own
 // claude/commands/finis.md over the shipped one (#203, T2), so a case doesn't
 // depend on the shipped text. One case per new refusal, each
 // checking that a refused install changed nothing. Never touches ~/.claude.
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, WIN, home, install, listTree, makeRepo, passed, refused, wrapCheck } from './install-harness.mjs';
+import { applyBound, WIN, home, install, listTree, makeRepo, passed, refused, wrapCheck, total } from './install-harness.mjs';
 import { plantNoDefault } from './gate-files.mjs';
 
 const FINIS = ['---', 'description: Wrap this session up.', 'disable-model-invocation: true', '---', '', 'Wrap the session up, step by step.', ''].join('\n');
@@ -21,11 +21,11 @@ function repoWithFinis(t, more) {
   });
 }
 
-/** A Claude home folder whose configuration turns on `commands`. */
+/** A home folder whose configuration turns on `commands`. */
 function homeWith(t, commands) {
   const h = home(t);
-  mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, commands })}\n`);
+  mkdirSync(join(h, '.pact'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, commands })}\n`);
   return h;
 }
 
@@ -46,27 +46,28 @@ function refusedUnchanged(repo, h, says) {
 
 // ------------------------------------------------------------ the happy path (C2, C3)
 
-test('a listed command installs to commands/<name>.md, and dropping it from the list deletes it', t => {
+test('a listed command installs to .claude/commands/<name>.md, and dropping it from the list deletes it', t => {
   const repo = repoWithFinis(t);
   const h = homeWith(t, ['finis']);
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: on, always: part of the pact, with the builder kit under pact\/builder\/\r?\n {2}\/scry: off\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}To turn one on, list its name in pact\/config\.json, for example: "commands": \["make-it-so"\]\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact command \/finis; it installs to commands\/finis\.md\.\r?$/m, dry.out);
-  assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}commands\/finis\.md\r?$/m, dry.out);
+  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: on, always: part of the pact, with the builder kit under \.pact\/builder\/\r?\n {2}\/scry: off\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}To turn one on, list its name in \.pact\/config\.json, for example: "commands": \["make-it-so"\]\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact command \/finis; it installs as finis\.md in each harness's commands folder, or as a skill in ~\/\.pact\/skills\.\r?$/m, dry.out);
+  assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}\.claude\/commands\/finis\.md\r?$/m, dry.out);
   passed(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }));
-  assert.equal(readFileSync(join(h, 'commands', 'finis.md'), 'utf8'), FINIS);
-  const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
-  assert.ok(record.files.some(f => f.path === 'commands/finis.md'), 'the record lists the command');
+  assert.equal(readFileSync(join(h, '.claude', 'commands', 'finis.md'), 'utf8'), FINIS);
+  const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
+  assert.ok(record.files.some(f => f.path === '.claude/commands/finis.md'), 'the record lists the command');
 
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, commands: [] })}\n`);
+  writeFileSync(join(h, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, commands: [] })}\n`);
   const dry2 = install(repo, h);
   passed(dry2);
-  assert.match(dry2.stdout, /^Delete: 1\r?\n {2}commands\/finis\.md\r?$/m, dry2.out);
+  assert.match(dry2.stdout, /^Delete: 1\r?\n {2}\.claude\/commands\/finis\.md\r?$/m, dry2.out);
+  assert.equal(total(dry2, 'Delete'), 1, dry2.out);
   assert.match(dry2.stdout, /^ {2}\/finis: off\r?$/m, dry2.out);
   passed(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry2)] }));
-  assert.ok(!existsSync(join(h, 'commands', 'finis.md')), 'the dropped command is deleted');
+  assert.ok(!existsSync(join(h, '.claude', 'commands', 'finis.md')), 'the dropped command is deleted');
 });
 
 // #203 C2; #262: with no list, only /scriptorium installs: the builder is part of the pact.
@@ -76,7 +77,7 @@ test('with no list, no opt-in command installs, only /scriptorium, and the dry r
   const r = applyBound(repo, h);
   passed(r);
   assert.match(r.stdout, /^ {2}\/finis: off\r?$/m, r.out);
-  assert.deepEqual(readdirSync(join(h, 'commands')), ['scriptorium.md'], 'only /scriptorium');
+  assert.deepEqual(readdirSync(join(h, '.claude', 'commands')), ['scriptorium.md'], 'only /scriptorium');
 });
 
 // ------------------------------------------------------------ refusals against the live home folder (S8)
@@ -84,45 +85,45 @@ test('with no list, no opt-in command installs, only /scriptorium, and the dry r
 test('bad case: a live file at a command path the record does not list refuses, and is left alone', t => {
   const repo = repoWithFinis(t);
   const h = homeWith(t, ['finis']);
-  mkdirSync(join(h, 'commands'));
-  writeFileSync(join(h, 'commands', 'finis.md'), 'my own finis\n');
+  mkdirSync(join(h, '.claude', 'commands'));
+  writeFileSync(join(h, '.claude', 'commands', 'finis.md'), 'my own finis\n');
   const dry = install(repo, h);
-  refused(dry, /^REFUSED: commands\/finis\.md already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there\./m);
-  refusedUnchanged(repo, h, /^REFUSED: commands\/finis\.md already exists/m);
-  assert.equal(readFileSync(join(h, 'commands', 'finis.md'), 'utf8'), 'my own finis\n');
+  refused(dry, /^REFUSED: \.claude\/commands\/finis\.md already exists, and the install record does not list it, so the pact did not put it there\./m);
+  refusedUnchanged(repo, h, /^REFUSED: \.claude\/commands\/finis\.md already exists/m);
+  assert.equal(readFileSync(join(h, '.claude', 'commands', 'finis.md'), 'utf8'), 'my own finis\n');
 });
 
 test('bad case: a same-named skill folder refuses, in the dry run and on --apply, naming it home-relative', t => {
   const repo = repoWithFinis(t);
   const h = homeWith(t, ['finis']);
-  mkdirSync(join(h, 'skills', 'finis'), { recursive: true });
-  writeFileSync(join(h, 'skills', 'finis', 'SKILL.md'), 'mine\n');
+  mkdirSync(join(h, '.claude', 'skills', 'finis'), { recursive: true });
+  writeFileSync(join(h, '.claude', 'skills', 'finis', 'SKILL.md'), 'mine\n');
   const dry = install(repo, h);
-  refused(dry, /^REFUSED: skills\/finis exists in the Claude home folder, and Claude Code would run that skill in place of the pact command \/finis\./m);
+  refused(dry, /^REFUSED: \.claude\/skills\/finis exists in your home folder, and Claude Code would run that skill in place of the pact command \/finis\./m);
   assert.ok(!dry.stdout.split('\n').find(l => l.startsWith('REFUSED: ')).includes(h), 'the refusal names no full path');
-  refusedUnchanged(repo, h, /^REFUSED: skills\/finis exists/m);
+  refusedUnchanged(repo, h, /^REFUSED: \.claude\/skills\/finis exists/m);
 });
 
 test('bad case: a same-named skill that is a plain file refuses', t => {
   const repo = repoWithFinis(t);
   const h = homeWith(t, ['finis']);
-  mkdirSync(join(h, 'skills'));
-  writeFileSync(join(h, 'skills', 'finis'), 'mine\n');
-  refusedUnchanged(repo, h, /^REFUSED: skills\/finis exists in the Claude home folder/m);
+  mkdirSync(join(h, '.claude', 'skills'));
+  writeFileSync(join(h, '.claude', 'skills', 'finis'), 'mine\n');
+  refusedUnchanged(repo, h, /^REFUSED: \.claude\/skills\/finis exists in your home folder/m);
 });
 
 test('bad case: a same-named skill that is a dangling link refuses, read without following it', t => {
   const repo = repoWithFinis(t);
   const h = homeWith(t, ['finis']);
-  mkdirSync(join(h, 'skills'));
+  mkdirSync(join(h, '.claude', 'skills'));
   // A junction on Windows needs no privilege; elsewhere a directory symlink, both to a folder that does not exist.
   try {
-    symlinkSync(join(h, 'gone'), join(h, 'skills', 'finis'), WIN ? 'junction' : 'dir');
+    symlinkSync(join(h, 'gone'), join(h, '.claude', 'skills', 'finis'), WIN ? 'junction' : 'dir');
   } catch (e) {
     if (e.code === 'EPERM' || e.code === 'EACCES') return t.skip('this account may not make a link here');
     throw e;
   }
-  refusedUnchanged(repo, h, /^REFUSED: skills\/finis exists in the Claude home folder/m);
+  refusedUnchanged(repo, h, /^REFUSED: \.claude\/skills\/finis exists in your home folder/m);
 });
 
 // ------------------------------------------------------------ refusals of the list (S7, S8)
@@ -131,7 +132,7 @@ test('bad case: a commands value that is not a list of pact commands refuses at 
   const repo = repoWithFinis(t);
   const h = homeWith(t, ['ship-it']);
   const r = refusedUnchanged(repo, h, /^REFUSED: the renderer failed\./m);
-  assert.match(r.stdout, /^render\| FAIL config-commands: pact\/config\.json: commands names a command this pact does not have/m, r.out);
+  assert.match(r.stdout, /^render\| FAIL config-commands: \.pact\/config\.json: commands names a command this pact does not have/m, r.out);
 });
 
 test('bad case: a listed command that is not in this pact refuses at seam A', t => {
@@ -143,7 +144,7 @@ test('bad case: a listed command that is not in this pact refuses at seam A', t 
 
 // ------------------------------------------------------------ the seam between the renderer, seam A and the install (S8)
 
-const RUNNER_ARGS = "[stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off']";
+const RUNNER_ARGS = "[stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, guardOn)]";
 /** Replace the runner's seam A arguments with `to`, in the repo's committed runner. */
 const plantRunnerArgs = to => root => {
   const p = join(root, 'gate', 'install-run.mjs');
@@ -191,13 +192,13 @@ test('bad case: seam A reading another list than the install refuses as a copy-s
 });
 
 test('bad case: an extra copy-set pair refuses', t => {
-  const extra = "const h = process.getBuiltinModule('node:crypto').createHash('sha256').update(fs.readFileSync(argv[0] + '/claude/commands/finis.md')).digest('hex'); r.lines.splice(r.lines.findIndex(l => l.startsWith('SETTINGS ')), 0, 'INSTALL ' + h + ' claude/commands/finis.md commands/extra.md');";
+  const extra = "const h = process.getBuiltinModule('node:crypto').createHash('sha256').update(fs.readFileSync(argv[0] + '/claude/commands/finis.md')).digest('hex'); r.lines.splice(r.lines.findIndex(l => l.startsWith('SETTINGS ')), 0, 'INSTALL ' + h + ' claude/commands/finis.md @claude/commands/extra.md');";
   const repo = repoWithFinis(t, root => wrapCheck(root, 'seam-a-core', { after: extra }));
   refusedUnchanged(repo, homeWith(t, ['finis']), /^REFUSED: the check's copy set does not match the install's own reading/m);
 });
 
 test('bad case: a gate file listed for install outside the builder kit refuses', t => {
-  const plant = "r.lines.splice(r.lines.findIndex(l => l.startsWith('SETTINGS ')), 0, 'INSTALL ' + 'a'.repeat(64) + ' gate/seam-a-core.mjs pact/builder/gate/seam-a-core.mjs');";
+  const plant = "r.lines.splice(r.lines.findIndex(l => l.startsWith('SETTINGS ')), 0, 'INSTALL ' + 'a'.repeat(64) + ' gate/seam-a-core.mjs .pact/builder/gate/seam-a-core.mjs');";
   const repo = repoWithFinis(t, root => wrapCheck(root, 'seam-a-core', { after: plant }));
   refusedUnchanged(repo, homeWith(t, ['finis']), /^REFUSED: the check listed a gate file for install outside the builder kit: gate\/seam-a-core\.mjs\./m);
 });

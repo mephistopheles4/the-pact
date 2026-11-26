@@ -111,8 +111,10 @@ The session took these picks, each logged as a checkpoint:
 5. **The model:** ggml-org `Clef-Flash-GGUF`, `Clef-Flash-Q4_K_M.gguf`, at a
    full commit id, by sha256.
 6. **A supervisor in front of the server.** The tool's own node process. It
-   forwards two routes, checks a per-run token and the `Host` header, owns
-   the idle timer and returns only what S7 lets through.
+   forwards two routes, checks the `Host` header, owns the idle timer and
+   returns only what S7 lets through. It takes no caller token: any program
+   on the owner's machine may call it (spec 0007 S2 item 65, the owner's word:
+   "I actually want Clef to be usable by everything on the machine").
 7. **Backend:** Vulkan when setup finds the Vulkan loader (S6), else CPU;
    `clef setup --cpu` forces CPU.
 8. **Platforms:** Windows x64, run end to end in T4. Linux x64 is built and
@@ -334,8 +336,7 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
 ### Ensure
 
 `node pact/tools/clef.mjs ensure [--wait <seconds>]` prints one JSON line,
-`{"url", "state"}`, and **never a token**. The caller reads the token from
-`run.json`. States:
+`{"url", "state"}`. States:
 
 | State | Means | Exit |
 | --- | --- | --- |
@@ -346,8 +347,8 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
 
 - **Live check.** No other process's command line is read, and no helper
   runs. A supervisor is live only when `run.json`'s `pid` is alive and its
-  `/health`, asked with the token, returns `{run, pid, serverPid}` equal to
-  `run.json`'s (`run` is 16 random bytes, not the token). Any mismatch, or no
+  `/health` returns `{run, pid, serverPid}` equal to
+  `run.json`'s (`run` is 16 random bytes). Any mismatch, or no
   answer, removes `run.json` and starts fresh.
 - **Starting.** `ensure` takes `run.lock` (created exclusive; a lock whose
   pid is gone is stale and removed), starts `clef serve` detached with no
@@ -368,8 +369,7 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
   Linux; and on Linux `LD_LIBRARY_PATH` set to the runtime folder. No
   `GGML_*`, `LLAMA_*`, `HF_*`, `VK_*` or `NODE_*` name passes, so no
   environment setting adds an argument or a library folder.
-- **Tokens.** Two values from `crypto.randomBytes(32)`: the caller token and
-  the server key.
+- **The server key.** One value from `crypto.randomBytes(32)`.
 - **Ports.** The supervisor binds `127.0.0.1` on a port the OS picks. The
   server starts on another OS-picked loopback port with `--host 127.0.0.1`,
   `--api-key-file <clef folder>/run.key` (mode 0600 on Linux and macOS, removed at
@@ -380,11 +380,9 @@ the clef folder belong to the machine (S11), so `ensure` checks only that
 - **Its output.** The server's stdout and stderr are read only to count lines
   and to find the ready line; their text is discarded. No verbose flag is
   passed.
-- **`run.json`** holds `port`, `token`, `run`, `pid`, `serverPid`, `started`
-  (mode 0600 on Linux and macOS; on Windows it inherits the profile folder's ACL).
+- **`run.json`** holds `port`, `run`, `pid`, `serverPid` and `started`.
 - **Routes.** Only `GET /health` and `POST /v1/systemone`. Every request
-  needs `Authorization: Bearer <caller token>` and a `Host` of
-  `127.0.0.1:<port>`. A request with an `Origin` header, a body over 256 KB,
+  needs a `Host` of `127.0.0.1:<port>`. A request with an `Origin` header, a body over 256 KB,
   or a POST whose `content-type` isn't `application/json` is refused. Each
   refusal is a fixed 4xx body naming a reason word, never echoing the
   request.
@@ -453,8 +451,8 @@ against that copy.
 - **Calls.** All three of today's call sites move: `decide` (with
   `--wait 20`), the watch path and the prompt-pin path (both `--wait 0`).
   clef-pilot runs `<setup.json's node> <Claude home>/pact/tools/clef.mjs
-  ensure` through `$.process.run`, and reads the URL and token from
-  `run.json`. Before each call it checks that `clef.mjs` is still installed;
+  ensure` through `$.process.run`, and reads the URL from `run.json`
+  (the supervisor ignores a token it still sends). Before each call it checks that `clef.mjs` is still installed;
   when it isn't, Clef is off: clef-pilot drops its kept URL and token, makes
   no call and runs no `ensure`, and the session's own model decides (S2
   decision 3). Otherwise it reads `run.json` again (a small file read)
@@ -607,7 +605,7 @@ as a control change.
 - **C9** The supervisor binds `127.0.0.1` only. The server starts on loopback
   with the key in a file, never on its command line, with `--no-webui` and
   `--no-slots`.
-- **C10** A request without the caller token, with a wrong `Host`, with an
+- **C10** A request with a wrong `Host`, with an
   `Origin` header, to any route but the two, over 256 KB, or a POST that isn't
   `application/json`, gets a fixed 4xx and is never forwarded.
 - **C11** Two `ensure` calls at once start one supervisor; the loser never

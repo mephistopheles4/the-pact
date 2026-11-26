@@ -10,7 +10,7 @@ included; no class covers a change that weakens a rule or control, adds a
 route for outside text into a session or more reach to one that reads it,
 adds text to files sessions load, or writes a secret into text sessions
 read. The full guide is the review procedure's Threat model section
-([`~/.claude/pact/review.md`](../claude/review.md)).
+([`~/.pact/review.md`](../claude/review.md)).
 
 [`SECURITY.md`](../SECURITY.md) says how to report a hole.
 
@@ -29,6 +29,46 @@ read. The full guide is the review procedure's Threat model section
 
 ## Boundaries
 
+```mermaid
+flowchart LR
+  outside["Strangers, outside PRs, clones, fetched pages, heard speech"]
+  upstream["Plugins, upstream pins, CI dependencies, a design-system pin, a model, the npx bootstrap and the guard"]
+  owner["Changes headed for main, ~/.pact or a harness folder"]
+  session["A steered session: Claude Code, Codex or Antigravity"]
+  readers["Readers of the tracker and other sessions"]
+  providers["OpenAI and Google"]
+
+  subgraph B1["Text into a session"]
+    T1["Text steers a session"]
+    T2["A session takes checkpoints alone"]
+  end
+  subgraph B2["Code that runs"]
+    T3["What you install and CI run"]
+    T4["Pinned design-system code"]
+  end
+  subgraph B3["Merges and installs"]
+    T5["The pact gets loosened"]
+    T6["Review rests on rules"]
+  end
+  subgraph B4["What leaves the machine"]
+    T7["Posts are public"]
+    T8["Who counts as you"]
+  end
+
+  outside --> B1
+  upstream --> B2
+  session --> B3
+  owner --> B3
+  session --> B4
+  B4 --> readers
+  B4 -. "Codex and Antigravity context, out of scope" .-> providers
+
+  style B1 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B2 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B3 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B4 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+```
+
 ### Text into a session
 
 **Crosses:** tracker text (GitHub issues; the owner's pinned private tracker text in a
@@ -44,14 +84,30 @@ someone hands a session to load, and a decision model's answer.
   or under `bypassPermissions`; its classifier in auto mode, which an
   installed mod that approves a call skips; folder trust, which asks once and
   stops holding when the owner trusts the folder. The pact's overlay sets auto
-  mode as the default.
+  mode as the default. Codex's sandbox and approval policy, which don't hold
+  under full access; its approval also doesn't hold under `codex exec`, which
+  runs at `never`, or for an MCP tool its server marks read-only, and on native
+  Windows its `unelevated` sandbox with network off let a raw loopback
+  connection through (probed on 0.159.0); Antigravity's permission settings,
+  which don't hold under auto-proceed.
 - **Harness, installed by the pact.** Deny rules on raw `git worktree remove`,
   `git branch -d`, `-D` and `--delete`, and `claude rm`, and an ask rule on a
   `cleaner.mjs remove --override` call, on only while the cleaner is on (off by default). Eight deny rules on raw `claude stop`, `kill`, `daemon stop`
   and `respawn`, on only while `session-stop-deny` is on (off by default); the
   cleaner's stop yields to it. Deny
   rules are speed bumps: another spelling gets past them. The ask rule is
-  passed by `bypassPermissions`, a mod, or another spelling.
+  passed by `bypassPermissions`, a mod, or another spelling. In Codex and
+  Antigravity a guard hook denies what those rules deny, under the same
+  switches; an ask rule prompts in Antigravity and denies in Codex. The hook
+  denies on an error it catches; a hook that can't start (on Windows, one whose
+  `cmd.exe` or launcher is missing, since the launcher denies a missing `node`)
+  or times out lets the call through, as do a crash past that (off Windows), another spelling and, in
+  Codex, text typed into a running shell, which
+  `features.unified_exec_tty=false` would close, with every interactive
+  terminal session; the pact doesn't set it. In Antigravity it judges text
+  typed into a running program. In Codex it runs only once the owner
+  trusts it in `/hooks`, and trust never sees a change to its script or rules.
+  In a harness the owner describes, nothing verifies it runs.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
   what git keeps. It can't tell whether the owner agreed; a
   rule makes each removal a checkpoint, the session's own logged pick. A removal that gets past the deny rules meets only the
@@ -84,7 +140,14 @@ as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
 acts on its starter's reply, on its start prompt's word, on what its hand-off
 notes say after a compaction, or on a reply it can't tell from its starter's; a
-free hand's design pick can cover what a change stores, logs or sends.
+free hand's design pick can cover what a change stores, logs or sends; an
+Antigravity session can start an owner-typed command itself, past the skill's
+switch by a read tool, a shell read or a child `agy` run, which a first
+line in the command only asks it not to, so the record can show `make-it-so`'s yes,
+open security picks included, that the owner never gave, or can end the work
+with `finis`;
+no rule or control stops that passing for the owner's word on an install
+apply or mise trust.
 
 ### Code that runs
 
@@ -92,24 +155,47 @@ free hand's design pick can cover what a change stores, logs or sends.
 publisher, CI actions and dependencies, mise configs, a program a clone or
 version pin supplies that runs by bare name, the pinned design system inlined
 into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
-setup, run with the owner's rights.
+setup, run with the owner's rights; the pact's `npx` bootstrap and the release
+clone it makes, run before any dry run; the guard, before each shell call in
+Codex and Antigravity, and there before typed input; and the release job's token.
 
 **Controls:**
 
-- **GitHub.** Actions pinned to a full commit SHA in all three
-  workflows; Dependabot's weekly action updates with a 14-day cooldown;
+- **GitHub.** Two tag rulesets: on every tag but `v1.*.0-rc.*`, only the
+  repository admin, the owner, creates one; on every tag, with no bypass,
+  none is updated, deleted or force-pushed. Candidate names stay open, so
+  anyone with write access can make one npm reads as stable, such as
+  `v1.2.3+x.0-rc.1`, or one on an unreviewed commit, which `--channel beta`
+  takes and promotion refuses unless its commit is on `main`: accepted with a
+  change merged to `main`. They don't hold until
+  made, or while the owner edits or disables them. A session holding the
+  owner's git or `gh` credentials counts as the owner there and can make a
+  stable tag: accepted under Who counts as you (S2 item 75). Actions pinned to a full commit SHA in
+  all four workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot
   security updates. They hold for what the pins and queries cover; an update
   is a pull request, read like any change.
-- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all three
-  workflows to a read-only token, no secrets and no `pull_request_target`, and
-  `codeql.yml` and `claude.yml` to an exact allow-list each:
+- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all four
+  workflows to no `pull_request_target`, to no secret and no deployment
+  environment, and to a read-only token but for an exact allow-list each on
+  `codeql.yml`, `claude.yml` and `release.yml`:
   `security-events: write` in one CodeQL job, skipped for Dependabot;
-  `id-token: write` and caps in the Claude job, no key in the repo. The
+  `id-token: write` and caps in the Claude job, no key in the repo;
+  `contents: write` in the one release job, with no checkout, the only use of `workflow_run`, which tags only this repo's `main` tip after `gate` passes a
+  push there, as a release candidate, while `PACT_RELEASES` is `on`; a stable
+  tag comes only from the repository admin, by the owner's
+  `node gate/release-promote.mjs`, run under their own account and naming a
+  candidate on `main`. The
   Console's federation rule bounds who gets an Anthropic token; the job's guard,
-  the action's actor check and Anthropic's workflow validation, who gets the write
-  token. It holds only while the test itself is unchanged; a change to it is read
-  like any change. The Scriptorium page's policy (`builder/build.mjs`) sets
+  the action's actor check and Anthropic's workflow validation, who gets the
+  Claude job's write token. It
+  refuses `#`-line expressions, `secrets` and deployment environments; a read split across lines, or an oddly spelled job
+  token, can pass. It holds only while the test itself is unchanged; a change to it is read
+  like any change. The bootstrap takes only an exact release tag, stable unless asked, and checks the
+  clone's head, which keeps the clone consistent, not intact; npm picks the
+  bootstrap, so tag rulesets decide it. The bootstrap's `git` and the guard
+  hook's `node` are never taken from the working folder. The Scriptorium page's
+  policy (`builder/build.mjs`) sets
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
@@ -117,7 +203,7 @@ setup, run with the owner's rights.
   sha256, checked before keeping); fixed redirect hosts, `https:` only; its
   archive readers, writing only pinned names; a pin-time Mach-O check (thin
   arm64, no flags); a fixed working folder and environment (on macOS, also
-  `TMPDIR`, a per-user 0700 folder); listener token, `Host` and `Origin` checks; an answer check
+  `TMPDIR`, a per-user 0700 folder); listener `Host` and `Origin` checks, against web pages, with no token, so any program on the machine may call it; an answer check
   passing only numbers and the caller's keys. Held by rule alone: 14-day-old
   pins (the Hub's date, which a git push sets) and the security pair's read
   of each pin PR
@@ -128,7 +214,9 @@ setup, run with the owner's rights.
 **Residual classes:** What you install and CI run; Pinned design-system code. A pact
 rule holds back trusting a project's mise config until the owner says so in chat.
 
-Also accepted. What you install and CI run: the cloud
+Also accepted. What you install and CI run: typing the
+`npx` command trusts GitHub and the tag rulesets, and npm may reuse a cached
+copy; the release job's token, `contents: write` while the job runs, and a change merged to `main` that uses it, can create a candidate tag or push a branch no ruleset covers, and before the rulesets exist can also make a stable tag or move or delete a tag; the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
@@ -144,7 +232,9 @@ like any change to this repo.
 
 ### Merges and installs
 
-**Crosses:** changes merged to `main`; the pact installed into `~/.claude`.
+**Crosses:** changes merged to `main`; the pact installed into `~/.pact`,
+`~/.claude`, `~/.codex`, `~/.gemini`, `~/.agents/skills` and a described
+harness's paths.
 
 **Controls:**
 
@@ -164,10 +254,18 @@ head; Claude Code's prompts and classifier and the ruleset's checks stop one.
 
 Also accepted. Review rests on rules: a
 read-only lens takes the base on trust; the table check doesn't pair a state
-word with a disposition; a lens launched as a teammate, against the procedure,
-can pass what it read to, or write tasks for, the owner's other sessions and
-the shared task list; a product's leaked secret is no security finding by
-itself.
+word with a disposition; a product's leaked secret is no security finding by
+itself; a Codex or Antigravity lens is read-only by instruction alone, and
+can read and send what the owner's account can, keys included: accepted under
+the trusted machine, with outside text held as data and no network block; what
+a steered one sends out fits Text steers a session; a Codex lens may read
+with `git`, which runs a program a `.git` folder's config names when that
+folder came from outside, not from a clone the lens made: accepted
+(S2 item 75); `review.md`'s tree
+check catches a lens's mistakes, not a hostile lens: it only detects a change to the work tree or git's config, hooks,
+`info`, `HEAD`, refs, index entries and half-done merges, and restores nothing, not git's objects or the index's cached trees, a write elsewhere, a read, a send, or a later write by a process the lens left running. A lens that forges the second run is accepted under Review rests on rules ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)).
+The pact gets loosened: a project install tightens Claude Code alone, not Codex
+or Antigravity, and a hand-made or old copy loads beside the pact until a person removes it.
 
 ### What leaves the machine
 
@@ -175,7 +273,10 @@ itself.
 cloud or Remote Control sessions, an account whose token a session holds, an
 agent app's installation token, and
 anything else a session sends off the machine: a push, a fetch or search
-(`clef setup --yes`'s requests), a connector call.
+(`clef setup --yes`'s requests), a connector call; and a Codex or Antigravity
+session's context, sent to OpenAI or Google, the rules, pins, private tracker
+text, hand-offs, private code and any secret or personal detail it reads among
+it.
 
 **Controls:**
 
@@ -185,13 +286,19 @@ anything else a session sends off the machine: a push, a fetch or search
   holds with no bypass actor. These limits don't stop a pushed branch from
   running a workflow with that repo's Actions secrets: the app keeps Workflows
   write.
-- **Harness.** Permission prompts and the classifier, as above, for what a
-  session sends by fetch, search or connector call.
+- **Harness.** Permission prompts, the classifier, and Codex's and
+  Antigravity's controls, as above, for what a session sends by fetch, search or
+  connector call.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
-  Its text fields and edit checks catch accidents only and are not a control.
+  Codex's and Antigravity's shells get every variable, secret-named ones
+  included, and the pact sets no policy there: accepted under the trusted
+  machine (spec 0007, S2 items 70 and 73), since agents in a project need its
+  variables; what a steered session sends of them fits Text steers a session
+  and Posts are public.
+  The poster's text fields and edit checks catch accidents only and are not a control.
   With an app pinned it refuses a post as anything but the pinned bot the
   post's `as` names, for posts sent through it.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
@@ -209,7 +316,9 @@ a secret or a personal detail. Also accepted. Posts are public: a lens can
 send a secret out through a post, a builder file keeps what was typed into it,
 and a message to a cloud or Remote Control session leaves the machine when a
 session sends it. Who counts as you: a foreign token or a commit's email can
-read as the owner or as the owner's agent app. A session can still write as
+read as the owner or as the owner's agent app. Codex and Antigravity sessions
+push with the owner's own Git credentials, whatever `agent-identity` says. A
+session can still write as
 the owner by plain `gh` or the harness, a git call that drops the agent
 gitconfig, a global git write that rewrites it (the next dry run refuses a
 rewritten file), an SSH remote or `url.*.insteadOf` rewrite, an askpass
@@ -240,14 +349,19 @@ sandbox, a service a project deploys, and that service's users' devices are not
 the machine. What starts and ends on the machine is no finding: other local
 accounts, unencrypted copies (the install's backups, kept-local reports,
 hand-off notes), a program already running as the owner that nothing in scope
-started, supplied or steered, and loss of work with no attacker. In a cloud
+started, supplied or steered, and loss of work with no attacker. The
+programs, processes and agents the owner starts there, sessions and lenses
+included, are trusted: the pact guards against their mistakes, not their
+turning hostile, unless outside text steered them, which stays in scope; a
+check against a mistake needn't hold against an attacker. In a cloud
 session these copies sit in Anthropic's sandbox: out of scope,
 though code that reached it from outside stays in scope. What the machine makes from outside input stays outside input. The machine's antivirus, account
 isolation and disk encryption hold it. Also out: the owner's own edits and
-account's edit in the browser; Claude Code, Anthropic's models and servers, and
-GitHub; the provider of a synced or backed-up copy, though
+account's edit in the browser; Claude Code with Anthropic's models and servers,
+Codex with OpenAI's, Antigravity with Google's, and GitHub; the provider of a
+synced or backed-up copy, though
 [`install.md`](install.md)'s rule to never sync, share or commit the backups
-folder still holds.
+folders still holds.
 
 **Root of trust:** the owner's GitHub account and the owner's private issue
 tracker account. Whoever controls either counts as the owner, and so do whoever and whatever the owner admits to that tracker.
@@ -260,13 +374,32 @@ Each "Also accepted" line above details what the class it names covers; it is no
 
 - **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, to take a step the rules keep for the owner, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
 - **A session takes checkpoints alone.** A session takes each checkpoint, a call the rules keep for the owner, as its own logged pick, open security picks included, on words from any prompt or replies it can't tell from its starter's; nothing waits but the cleaner's override rule, an install apply and mise trust.
-- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, a trusted mise config, a program a clone supplies by bare name, the pinned llama.cpp build and decision model, and the gate's unscanned test files run with the owner's rights or a write token.
+- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, bootstrap and release job's token, a trusted mise config, a program a clone supplies by bare name, the pinned llama.cpp build and decision model, and the gate's unscanned test files run with the owner's rights or a write token.
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
-- **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, work that publishes or handles credentials can run below the thorough tier, and a lens run as a teammate can pass what it read to other sessions.
+- **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, and work that publishes or handles credentials can run below the thorough tier.
 - **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, except on the owner's private issue tracker (`docs/agents/issue-tracker.md`), and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
-- **Who counts as you.** Every session posts as the owner, or as a pinned agent app and can still write as the owner by the routes above; an app's key holder counts as the owner for code. A lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
+- **Who counts as you.** Every session posts as the owner, or as a pinned agent app and can still write as the owner by the routes above; an app's key holder counts as the owner for code, and a session holding the owner's git or `gh` credentials can make a stable tag (S2 item 75). A lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
+
+```mermaid
+quadrantChart
+  title Residual risk by class, judged not measured
+  x-axis Unlikely --> Likely
+  y-axis Minor --> Severe
+  quadrant-1 Act now
+  quadrant-2 Guard closely
+  quadrant-3 Accept
+  quadrant-4 Watch
+  Text steers a session: [0.56, 0.86]
+  Who counts as you: [0.40, 0.82]
+  Posts are public: [0.80, 0.75]
+  What you install and CI run: [0.22, 0.92]
+  The pact gets loosened: [0.45, 0.76]
+  Review rests on rules: [0.62, 0.64]
+  A session takes checkpoints alone: [0.45, 0.70]
+  Pinned design-system code: [0.12, 0.55]
+```
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones.
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. `~/.pact` is outside Claude Code's protected paths, and no ask rule covers it. Not yet the owner's: PACT-105's other class widenings and placements; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).

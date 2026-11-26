@@ -1,13 +1,13 @@
 // The install's smoke set (#140): its happy path, end to end, against a
-// throwaway git repo built from this tree and a throwaway --claude-home. These
+// throwaway git repo built from this tree and a throwaway --home folder. These
 // cases moved here, unchanged, from install.test.mjs, so a payload change can
 // run them without the whole install tier. Never touches ~/.claude.
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
-import { contractText } from './text.mjs';
+import { applyBound, home, install, listTree, makeRepo, refused, sharedRepo, total } from './install-harness.mjs';
+import { contractText, forClaude } from './text.mjs';
 
 // #261 C7
 test('dry run on a clean tree passes and shows Node, the check and the gate', t => {
@@ -33,15 +33,17 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) {
-    assert.deepEqual(readFileSync(join(h, 'agents', f)), readFileSync(join(repo, 'claude', 'agents', f)), f);
+    assert.equal(readFileSync(join(h, '.claude', 'agents', f), 'utf8'), forClaude(readFileSync(join(repo, 'claude', 'agents', f), 'utf8')), f);
   }
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const gatePaths = manifest.gate.map(g => g.path).sort();
   // Written out, so a stray gate file fails it; the four cores came with #155.
   // The Node install's gate is the gate folder alone (#153, S9). The tracker
-  // author checker (#183, T2) is staged with it and never run by the install.
+  // author checker (#183, T2) and the owner's release command are staged with it and never run by the install.
   assert.deepEqual(gatePaths, [
     'gate/contained.mjs',
+    'gate/harness-render.mjs',
+    'gate/harnesses.mjs',
     'gate/install-core.mjs',
     'gate/install-io.mjs',
     'gate/install-run.mjs',
@@ -49,6 +51,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
     'gate/paths.mjs',
     'gate/project-core.mjs',
     'gate/project.mjs',
+    'gate/release-promote.mjs',
     'gate/render-core.mjs',
     'gate/render.mjs',
     'gate/review-core.mjs',
@@ -62,14 +65,14 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
   // #261 S5: the review file installs byte for byte, and the manifest lists it.
-  assert.deepEqual(readFileSync(join(h, 'pact', 'review.md')), readFileSync(join(repo, 'claude', 'review.md')));
-  assert.ok(manifest.files.some(f => f.path === 'pact/review.md'), JSON.stringify(manifest.files));
-  assert.ok(!existsSync(join(h, 'review.md')), 'the review file is never at the top of the Claude folder');
+  assert.deepEqual(readFileSync(join(h, '.pact', 'review.md')), readFileSync(join(repo, 'claude', 'review.md')));
+  assert.ok(manifest.files.some(f => f.path === '.pact/review.md'), JSON.stringify(manifest.files));
+  assert.ok(!existsSync(join(h, '.claude', 'review.md')), 'the review file is never at the top of the Claude folder');
   // #280 C2: the poster is off by default, so neither its install path nor any other copy of it is in the home folder.
   assert.ok(existsSync(join(repo, 'claude', 'tools', 'poster.mjs')), 'the control: the repo holds the poster');
-  assert.ok(!existsSync(join(h, 'pact', 'tools', 'poster.mjs')) && !listTree(h).some(f => /poster/.test(f)), listTree(h).join('\n'));
-  // scout installs as agents/scout.md from claude/agents/ (#262 S18); no contract ever reaches the home folder (#210, at Test).
-  assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'claude', 'agents', 'scout.md')));
+  assert.ok(!existsSync(join(h, '.pact', 'tools', 'poster.mjs')) && !listTree(h).some(f => /poster/.test(f)), listTree(h).join('\n'));
+  // scout installs as .claude/agents/scout.md from claude/agents/ (#262 S18); no contract ever reaches the home folder (#210, at Test).
+  assert.equal(readFileSync(join(h, '.claude', 'agents', 'scout.md'), 'utf8'), forClaude(readFileSync(join(repo, 'claude', 'agents', 'scout.md'), 'utf8')));
   assert.ok(existsSync(join(repo, 'familiars', 'scout.contract.md')), 'the control: the repo holds a planted contract that could have installed');
   assert.ok(!listTree(h).some(f => /contract/i.test(f)), listTree(h).join('\n'));
   const again = install(repo, h);
@@ -83,12 +86,12 @@ test('bad case: a tampered live review file is drift, and --apply refuses and ch
   const repo = sharedRepo();
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
-  const live = join(h, 'pact', 'review.md');
+  const live = join(h, '.pact', 'review.md');
   writeFileSync(live, `${readFileSync(live, 'utf8')}\n// tampered\n`);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^Drift: 1\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}pact\/review\.md \(changed since the install\)\r?$/m, dry.out);
+  assert.equal(total(dry, 'Drift'), 1, dry.out);
+  assert.match(dry.stdout, /^ {2}\.pact\/review\.md \(changed since the install\)\r?$/m, dry.out);
   refused(applyBound(repo, h));
   assert.match(readFileSync(live, 'utf8'), /tampered/, 'a refused apply changes nothing');
 });
@@ -98,11 +101,11 @@ test('bad case: a deleted live review file is drift, and --apply refuses and cha
   const repo = sharedRepo();
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
-  rmSync(join(h, 'pact', 'review.md'));
+  rmSync(join(h, '.pact', 'review.md'));
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^Drift: 1\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}pact\/review\.md \(deleted since the install\)\r?$/m, dry.out);
+  assert.equal(total(dry, 'Drift'), 1, dry.out);
+  assert.match(dry.stdout, /^ {2}\.pact\/review\.md \(deleted since the install\)\r?$/m, dry.out);
   refused(applyBound(repo, h));
-  assert.ok(!existsSync(join(h, 'pact', 'review.md')), 'a refused apply changes nothing');
+  assert.ok(!existsSync(join(h, '.pact', 'review.md')), 'a refused apply changes nothing');
 });

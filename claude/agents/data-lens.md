@@ -2,7 +2,7 @@
 name: data-lens
 description: Reviews a spec or a diff for where its data can leak. Not for break-ins, buildability, claims or style.
 tools: [Read, Glob, Grep]
-model: opus
+model: planning
 effort: high
 ---
 

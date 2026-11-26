@@ -1,8 +1,8 @@
 # `clef`, the local decision model's runner
 
-`clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. Off by default: put `clef` on the `tools` list and apply the install, and `~/.claude/pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
+`clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. Off by default: put `clef` on the `tools` list and apply the install, and `~/.pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
 
-The design is [spec 0002](spec/0002-clef-runner.md); this page is for the owner and for anyone who turns it on. Every command is `node <Claude home>/pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
+The design is [spec 0002](spec/0002-clef-runner.md); this page is for the owner and for anyone who turns it on. Every command is `node ~/.pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
 
 ## What it fetches, and how much room it needs
 
@@ -37,7 +37,7 @@ A refusal is one line, `REFUSED <word>: <reason>`. Every mode but `ensure` ends 
 
 This interface is V1's. It changes only through a spec change, which adds a `v` field to `run.json`.
 
-**`ensure`** prints `{"url":"http://127.0.0.1:<port>","state":"<state>"}` and never a token. The `url` is there once a supervisor has written `run.json`; `starting` has none on the first call that starts the supervisor (always so with `--wait 0`), and `not-set-up` and `failed` carry `reason` and no `url`. Read `port` from `run.json` when you need it before `ready`.
+**`ensure`** prints `{"url":"http://127.0.0.1:<port>","state":"<state>"}`. The `url` is there once a supervisor has written `run.json`; `starting` has none on the first call that starts the supervisor (always so with `--wait 0`), and `not-set-up` and `failed` carry `reason` and no `url`. Read `port` from `run.json` when you need it before `ready`.
 
 | State | Means | Exit |
 | --- | --- | --- |
@@ -48,9 +48,9 @@ This interface is V1's. It changes only through a spec change, which adds a `v` 
 
 `--wait n` (0 to 60 seconds, default 0) waits for `ready`. A start that fails is recorded in `run.fail`; `stop` clears it.
 
-**The token** is in `<clef folder>/run.json`, with `port`, `run`, `pid`, `serverPid` and `started`. Read it in the calling program when you need it; never print, log, post it or put it on a command line.
+**`run.json`**, in the clef folder, holds `port`, `run`, `pid`, `serverPid` and `started`. Any program on the machine may call the supervisor: it takes no token.
 
-**Two routes**, on `127.0.0.1:<port>` only. Every request needs `Authorization: Bearer <token>` and `Host: 127.0.0.1:<port>`, and no `Origin` header:
+**Two routes**, on `127.0.0.1:<port>` only. Every request needs `Host: 127.0.0.1:<port>` and no `Origin` header, so a web page can't reach it:
 
 - `GET /health` returns `{"run","pid","serverPid","ready"}`.
 - `POST /v1/systemone` with `content-type: application/json` and a body under 256 KB: `{"state": <any JSON>, "questions": {"<id>": {"type": "noul" | "score" | "choice", "instructions": "...", "criteria": {"<key>": "<text>"}}}}`. `criteria` is for `choice` only.
@@ -72,7 +72,7 @@ The supervisor stops itself after 30 minutes with no forwarded request, when the
 
 - **What it needs.** An Apple Silicon Mac on macOS 13.3 or later (the build's floor), with an arm64 Node 24. Expect 16 GB of memory to be the floor; that was set under the earlier `-c 16384 -ub 4096 -b 4096`, and the current arguments are unmeasured on a Mac. Setup picks Metal, and `--cpu` picks CPU. Intel Macs, and an x64 node under Rosetta, are refused with `clef-platform`.
 - **Quarantine.** The tool's own downloads carry no quarantine mark. If macOS still blocks `llama-server` at start ("cannot be opened" or "not verified"), run `clef verify` first. Once it passes, run `xattr -dr com.apple.quarantine <clef folder>/runtime`.
-- **The files.** `run.key`, `run.json` and `run.server` are mode 0600. An access list the folder inherits can still grant another account access: `ls -le` shows one, as [install.md](install.md) says for backups.
+- **The files.** `run.key` is mode 0600.
 - **The keeper.** macOS has no way to end a child when its parent dies. So the supervisor starts a small keeper (`clef keep`, the same script, reached over a channel only the supervisor holds), and the keeper starts the server. When the supervisor dies, the channel closes and the keeper ends the server. `clef keep` run by hand refuses `clef-keep`.
 - **The record.** If the supervisor and the keeper are both killed, the server can outlive them. `run.server` records its pid and port. The next `ensure`, `stop`, `setup --yes` or `remove --yes` ends it, but only once it refuses a request with no key and with a wrong key and then takes the run's key. A record from before the last boot, or one whose port answers otherwise, is removed and nothing is ended.
 - **An orphan still loading.** While a recorded server is still loading, `ensure` says `starting` and starts nothing. `stop` prints `orphan still loading (pid <n>); run stop again` and exits 1. `remove --yes` exits 1 and deletes nothing, setup refuses `clef-orphan`, and `status` prints the pid. Run `clef stop` again once it has loaded. A server that never loads stays until you end that pid yourself or reboot; check first with `ps -p <pid>` that the pid is a `llama-server`, since a pid can be reused.

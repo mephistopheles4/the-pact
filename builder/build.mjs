@@ -4,9 +4,10 @@
 //   node builder/build.mjs                                 rebuild builder/scriptorium.html from the example builder file
 //   node builder/build.mjs --check                         check the example builder file, and that the page is up to date
 //   node builder/build.mjs --builder <file> --check        check a builder file: refusals and findings
-//   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it, to a new file outside any repo and Claude folder
-//   node builder/build.mjs --builder <file>                check it, then write the page to pact/scriptorium.html in the Claude home (CLAUDE_CONFIG_DIR, else ~/.claude), replacing the last one
+//   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it, to a new file outside any repo, Claude folder and pact folder
+//   node builder/build.mjs --builder <file>                check it, then write the page to ~/.pact/scriptorium.html, replacing the last one
 //   node builder/build.mjs --builder <file> --texts        check it, then print each part it changes as the page saves it
+//   node builder/build.mjs --overview <page>               write the setup the install would write now, across harnesses, to a new page (spec 0008 D6)
 //
 // The page runs from disk with no network, so everything it shows is carried
 // inside it, as one JSON object in its script between the pact-data marks.
@@ -50,12 +51,15 @@
 // authority on what the page saves.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { AGENT_EFFORTS, CONFIG_REL, DEFAULT_CONFIG_DIR, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain, parseRecord } from '../gate/install-core.mjs';
+import { KNOWN_REL, chooseHarnesses, configHarnesses, parseKnown, resolveHarnesses } from '../gate/harnesses.mjs';
+import { renderHarnesses, tierRows } from '../gate/harness-render.mjs';
 import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
-import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
+import { DEFAULT_PARTS, PART_MARKS, acrossColumn, acrossRows, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
@@ -86,6 +90,9 @@ const DATA_RE = /\/\* pact-data:begin \*\/[\s\S]*?\/\* pact-data:end \*\//;
 // The parts' compiler and checks, copied in from builder/parts.mjs (#262), so the page and the check share one compiler.
 const PARTS_CODE_RE = /\/\* parts-code:begin \*\/[\s\S]*?\/\* parts-code:end \*\//;
 const PARTS_FILE = join(dirname(fileURLToPath(import.meta.url)), 'parts.mjs');
+// The installer's harness descriptions and renderer, copied in from gate/ (spec
+// 0007 S11), so the page shows what the install would write.
+const RENDER_CODE_RE = /\/\* render-code:begin \*\/[\s\S]*?\/\* render-code:end \*\//;
 // The Scriptorium mark (#275), copied into the page's head as plain markup.
 const MARK_REL = 'docs/brand/scriptorium/scriptorium-mark.svg';
 const MARK_SLOT_RE = /(<span class="brand-mark" aria-hidden="true">)[\s\S]*?(<\/span>)/;
@@ -113,6 +120,51 @@ function markMarkup(root) {
 
 /** builder/parts.mjs as page script: its header comment and every "export " taken off. */
 const partsCode = () => readFileSync(PARTS_FILE, 'utf8').replace(/^(?:\/\/.*\n)+\n/, '').replace(/^export /gm, '');
+/**
+ * The installer's harness code as page script: gate/harnesses.mjs and
+ * gate/harness-render.mjs, each wrapped in its own function so its names stay
+ * its own, with its header comment, imports and every "export " taken off. What
+ * they import from the install core is handed in ahead of them, taken from that
+ * module itself. The page has no Buffer, so the page's own byte count stands in for Buffer.byteLength.
+ */
+function renderCode(root) {
+  const read = rel => readFileSync(join(root, ...rel.split('/')), 'utf8').replaceAll('\r\n', '\n');
+  const core = read('gate/install-core.mjs');
+  // A declaration the core keeps to itself, taken by its text.
+  const own = re => re.exec(core)?.[0] ?? fail(`gate/install-core.mjs no longer declares ${re.source} in the expected form`);
+  const wrapped = (rel, before, names) => {
+    const code = read(rel).replace(/^(?:\/\/.*\n)+\n/, '').replace(/^import .*\n/gm, '').replace(/^export /gm, '').trim();
+    if (/^\s*import\b/m.test(code)) fail(`${rel} imports in a form the page cannot carry`);
+    return [...before, code, `return { ${names} };`].join('\n');
+  };
+  return [
+    'const harnessLib = (() => {',
+    `const RENDERED_REL = ${JSON.stringify(RENDERED_REL)};`,
+    `const TOOL_TABLES = ${JSON.stringify(TOOL_TABLES)};`,
+    `const GUARD_FORMATS = ${JSON.stringify(GUARD_FORMATS)};`,
+    `const AGENT_EFFORTS = ${JSON.stringify(AGENT_EFFORTS)};`,
+    'class Refusal extends Error { constructor(rule, why) { super(why); this.rule = rule; this.why = why; } }',
+    builtParts.toString(),
+    'const described = (() => {',
+    wrapped('gate/harnesses.mjs', [
+      `const ID_RE = ${HARNESS_ID_RE};`,
+      `const NEUTRAL = ${JSON.stringify(NEUTRAL_REL)};`,
+      `const PACT_ID = ${JSON.stringify(PACT_ID)};`,
+      `const formatPlain = ${formatPlain};`,
+      own(/^const windowsName = [\s\S]*?;$/m),
+      own(/^const SECRET_STORES = .*;$/m),
+      'const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));',
+    ], 'CAPABILITIES, EFFORT_SLOT, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses'),
+    '})();',
+    'const rendered = (() => {',
+    wrapped('gate/harness-render.mjs', ['const { CAPABILITIES, EFFORT_SLOT } = described;', 'const Buffer = { byteLength: s => utf8Length(s) };'], 'renderHarnesses, tierRows'),
+    '})();',
+    'return { ...described, ...rendered, Refusal };',
+    '})();',
+    '',
+  ].join('\n');
+}
+
 const SCRIPT_RE = /<script>([\s\S]*?)<\/script\s*>/gi;
 const STYLE_RE = /<style>([\s\S]*?)<\/style\s*>/i;
 
@@ -244,18 +296,18 @@ function parseSource(src) {
 
 const codeSpans = text => [...text.matchAll(/`([^`\n]+)`/g)].map(m => m[1]);
 
-/** The quoted lines of a template in gate/render-core.mjs's text, a setting's number shown as N. */
-function templateLines(renderSrc, re, name) {
+/** The quoted lines of a template in gate/render-core.mjs's text, a setting's number shown as `number`. */
+function templateLines(renderSrc, re, name, number = 'N') {
   const body = re.exec(renderSrc)?.[1];
   if (!body) fail(`gate/render-core.mjs no longer declares ${name} in the expected form`);
-  return [...body.matchAll(/'([^']*)'|`([^`]*)`/g)].map(m => (m[1] ?? m[2]).replaceAll('${n}', 'N'));
+  return [...body.matchAll(/'([^']*)'|`([^`]*)`/g)].map(m => (m[1] ?? m[2]).replaceAll('${n}', number));
 }
 
 /**
  * The rules file as the page shows it: the source without its mark comments.
  * A configurable part keeps its source text between two labels, and a rule
- * that renders only when something is on stands at its place under a label
- * saying what.
+ * that renders only when something is on, or only in some harnesses (spec 0007
+ * S7), stands at its place under a label saying what.
  */
 function rulesText(src, renderSrc) {
   const toolLines = mark => templateLines(renderSrc, new RegExp(`mark: '${mark}',\\s*template: Object\\.freeze\\(\\[([\\s\\S]*?)\\]\\)`), mark);
@@ -267,6 +319,10 @@ function rulesText(src, renderSrc) {
   };
   for (const m of PART_MARKS) before[m] = [m === 'workflow' ? '[Editable on the canvas, apart from its fixed sentences. The page starts from the default configuration, which adds a Skills column:]' : '[Editable on this page, apart from its fixed sentences:]'];
   return src.split('\n').flatMap(line => {
+    const harness = /^<!-- pact:(if|unless) ([a-z-]+) -->$/.exec(line.trim());
+    if (harness) return [`[Only in a harness ${harness[1] === 'if' ? 'with' : 'without'} the ${harness[2]} capability:]`];
+    if (line.trim() === '<!-- pact:end -->') return ['[End of that part.]'];
+    if (line.trim() === '<!-- pact:models -->') return ["[Each harness's own models are named here.]"];
     const m = MARK_RE.exec(line);
     if (!m) return [line];
     if (m[2] === 'begin') return before[m[3]] ?? [];
@@ -286,6 +342,119 @@ function pactText(root, src, renderSrc) {
     cleanerDeny: CLEANER_DENY.join('\n'),
     cleanerAsk: CLEANER_ASK.join('\n'),
     stopDeny: STOP_DENY.join('\n'),
+  };
+}
+
+/** The commit's known harness descriptions, as written. */
+const knownHarnesses = root => parseKnown(readFileSync(join(root, ...KNOWN_REL.split('/')), 'utf8'));
+
+/**
+ * What the page needs to say what each harness receives (spec 0007 S11): the
+ * descriptions, the pact's command files, the rules source and its open marks,
+ * and the lines a configuration adds to it, read from gate/render-core.mjs.
+ */
+function harnessData(root, src, renderSrc) {
+  const tool = mark => templateLines(renderSrc, new RegExp(`mark: '${mark}',\\s*template: Object\\.freeze\\(\\[([\\s\\S]*?)\\]\\)`), mark);
+  // The number's place stays as the template writes it; the page fills it.
+  const setting = name => templateLines(renderSrc, new RegExp(`const ${name} = n => \\[([\\s\\S]*?)\\];`), name, '${n}');
+  const read = rel => readFileSync(join(root, ...rel.split('/')), 'utf8');
+  return {
+    known: knownHarnesses(root),
+    commandNames: [...PACT_COMMANDS],
+    rules: src,
+    open: listFrom(renderSrc, 'OPEN_MARKS'),
+    templates: { 'usage-pause': setting('USAGE_TEMPLATE'), 'usage-pause-session': setting('SESSION_TEMPLATE'), 'tool-poster': tool('tool-poster'), 'tool-cleaner': tool('tool-cleaner') },
+    commands: Object.fromEntries(readdirSync(join(root, 'claude', 'commands')).filter(f => f.endsWith('.md')).sort().map(f => [f.slice(0, -3), read(`claude/commands/${f}`)])),
+  };
+}
+
+/**
+ * What this machine's pact folder says (spec 0007 S11), read only for the page
+ * at its fixed path: the config's harnesses, commands and tools, and the rows
+ * the install dry run would list. Returns { data, findings }; what the
+ * installer would refuse is a finding naming no text from the file, and the
+ * page is written without it.
+ */
+export function machineData(home = homedir(), root = join(dirname(fileURLToPath(import.meta.url)), '..')) {
+  const findings = [];
+  const at = rel => join(home, ...rel.split('/'));
+  const readOr = rel => {
+    try {
+      return readFileSync(at(rel), 'utf8');
+    } catch (e) {
+      if (e.code !== 'ENOENT') findings.push(`harnesses: ${rel} could not be read`);
+      return null;
+    }
+  };
+  const isFolder = rel => {
+    try {
+      return statSync(at(rel)).isDirectory();
+    } catch {
+      return false;
+    }
+  };
+  const known = knownHarnesses(root);
+  let configText = readOr(CONFIG_REL)?.replace(/^\ufeff/, '') ?? null;
+  let config = null;
+  if (configText !== null) {
+    try {
+      config = JSON.parse(configText);
+    } catch {
+      findings.push(`harnesses: ${CONFIG_REL} is not readable JSON; the page starts without it`);
+      configText = null;
+    }
+  }
+  let recorded = [];
+  const recordText = readOr(RECORD_REL);
+  if (recordText !== null) {
+    try {
+      recorded = [...new Set(parseRecord(recordText).harnesses.map(h => h.id))];
+    } catch (e) {
+      if (!(e instanceof Refusal)) throw e;
+      findings.push(`harnesses: ${RECORD_REL} could not be read as an install record; its harnesses are not listed`);
+    }
+  }
+  const rowsFor = ({ install, own }, listed) => {
+    const harnesses = resolveHarnesses({ known, own, home, platform: process.platform, inWorkTree: null });
+    const detected = new Set(harnesses.filter(h => isFolder(h.detect)).map(h => h.id));
+    return chooseHarnesses({ harnesses, install, detected, recorded: listed }).rows;
+  };
+  let described = { install: null, own: [] };
+  let rows;
+  try {
+    described = configHarnesses(configText);
+    rows = rowsFor(described, recorded);
+  } catch (e) {
+    if (!(e instanceof Refusal)) throw e;
+    // The rule id alone: the sentence can hold text from the file.
+    findings.push(`harnesses: the install would refuse the harnesses in ${CONFIG_REL} or ${RECORD_REL} (${e.rule}); the page lists the known ones only`);
+    described = { install: null, own: [] };
+    rows = rowsFor(described, []);
+  }
+  const strings = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string') : null);
+  // A full path under the home folder holds the account's name, and the page cannot resolve it: each goes in as ~/ and a path.
+  const homed = entry => {
+    const h = resolveHarnesses({ known, own: [entry], home, platform: process.platform, inWorkTree: null }).find(x => x.id === entry.id);
+    const out = structuredClone(entry);
+    if (out.detect !== undefined) out.detect = `~/${h.detect}`;
+    for (const [part, key] of [['rules', 'path'], ['agents', 'dir'], ['skills', 'dir'], ['commands', 'dir'], ['hooks', 'file']]) if (out[part]) out[part][key] = `~/${h[part][key]}`;
+    return out;
+  };
+  const own = described.own.map(homed);
+  const object = v => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+  // Each agent's configured model and effort, so the page starts at them and can change them.
+  const agents = object(config?.agents)
+    ? Object.fromEntries(Object.entries(config.agents).filter(([, set]) => object(set)).map(([name, set]) => [name, Object.fromEntries(['model', 'effort'].filter(f => typeof set[f] === 'string').map(f => [f, set[f]]))]))
+    : null;
+  return {
+    data: {
+      harnesses: { ...(described.install ? { install: described.install } : {}), ...(own.length ? { own } : {}) },
+      agents,
+      commands: strings(config?.commands),
+      tools: strings(config?.tools),
+      rows: rows.filter(r => r.harness).map(r => ({ id: r.id, in: r.in, detected: r.detected })),
+    },
+    findings,
   };
 }
 
@@ -350,7 +519,7 @@ export function pactData(root) {
   const stopSwitch = stopSwitchFrom(renderSrc);
   const identitySwitch = identitySwitchFrom(renderSrc);
   const retiredSettings = retiredSettingsFrom(renderSrc);
-  return { always, editable, setting, session, compact, stopSwitch, identitySwitch, retiredSettings, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
+  return { always, editable, setting, session, compact, stopSwitch, identitySwitch, retiredSettings, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc), harness: harnessData(root, src, renderSrc) };
 }
 
 // ------------------------------------------------------------ the builder file
@@ -524,7 +693,7 @@ export function loadBuilder(file, pact) {
 
 /**
  * Run each part a builder file changes through the installer's renderer, as
- * a replace edit, in a throwaway Claude home. Returns one refusal per part the
+ * a replace edit, in a throwaway home folder. Returns one refusal per part the
  * renderer refuses, carrying its FAIL lines.
  */
 export function partsThroughRenderer(root, parts) {
@@ -548,9 +717,9 @@ function renderEdits(root, edits) {
     const home = mkdtempSync(join(tmpdir(), 'scriptorium-check-'));
     const dest = mkdtempSync(join(tmpdir(), 'scriptorium-out-'));
     try {
-      mkdirSync(join(home, 'pact', 'blocks'), { recursive: true });
-      writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: e.mark, op: e.op, file: 'b.md' }] })}\n`);
-      writeFileSync(join(home, 'pact', 'blocks', 'b.md'), `${e.text}\n`);
+      mkdirSync(join(home, '.pact', 'blocks'), { recursive: true });
+      writeFileSync(join(home, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: e.mark, op: e.op, file: 'b.md' }] })}\n`);
+      writeFileSync(join(home, '.pact', 'blocks', 'b.md'), `${e.text}\n`);
       const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesPath(root), dest, home], { encoding: 'utf8', env });
       if (r.status !== 0) {
         const fails = (r.stdout || '').split('\n').filter(l => l.startsWith('FAIL '));
@@ -576,9 +745,9 @@ function agentClassesThroughRenderer(root, agents) {
   const home = mkdtempSync(join(tmpdir(), 'scriptorium-agents-'));
   const dest = mkdtempSync(join(tmpdir(), 'scriptorium-out-'));
   try {
-    mkdirSync(join(home, 'pact'), { recursive: true });
+    mkdirSync(join(home, '.pact'), { recursive: true });
     const set = Object.fromEntries(agents.map(a => [a.name, { model: a.model === 'opus' ? 'sonnet' : 'opus' }]));
-    writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, agents: set })}\n`);
+    writeFileSync(join(home, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, agents: set })}\n`);
     const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesPath(root), dest, home], { encoding: 'utf8', env });
     if (r.status !== 0) fail(`the installer's renderer refuses to set the configurable agents (${(r.stdout || '').split('\n').filter(l => l.startsWith('FAIL ')).join('; ')})`);
     const out = {};
@@ -629,7 +798,7 @@ export function shippedPresets(root, pact, dir = join(root, PRESETS_REL)) {
 export const OWN_PRESETS_MAX = 16;
 const OWN_PRESET_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}\.json$/;
 
-/** `<Claude home>/pact/presets` when `root` is the installed kit, else null: a clone reads no personal folder. */
+/** `~/.pact/presets`, beside the kit, when `root` is the installed kit, else null: a clone reads no personal folder. */
 export function personalPresetsDir(root) {
   return isKit(root) ? join(root, '..', 'presets') : null;
 }
@@ -685,17 +854,19 @@ export function personalPresets(root, pact, dir = personalPresetsDir(root)) {
 }
 
 /** The page `html` with its data object rebuilt from the pact and the builder file, and its policy hashes recomputed. */
-export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_REL), ownPresets = []) {
+export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_REL), ownPresets = [], machine = null) {
   if (!DATA_RE.test(html)) fail('the page has no pact-data marks');
   const pact = pactData(root);
   const { builder, refusals } = loadBuilder(builderFile, pact);
   if (!builder) fail(`the builder file is refused: ${refusals.join('; ')}`);
   const presets = shippedPresets(root, pact);
   // JSON inside a script: "<" is escaped, so no text can close the script or open a comment.
-  const json = JSON.stringify({ ...pact, presets, ownPresets, ...builder }, null, 1).replaceAll('<', ESC_LT);
+  const json = JSON.stringify({ ...pact, presets, ownPresets, ...builder, machine }, null, 1).replaceAll('<', ESC_LT);
   let out = html.replace(DATA_RE, () => `/* pact-data:begin */ ${json} /* pact-data:end */`);
   if (!PARTS_CODE_RE.test(out)) fail('the page has no parts-code marks');
   out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);
+  if (!RENDER_CODE_RE.test(out)) fail('the page has no render-code marks');
+  out = out.replace(RENDER_CODE_RE, () => `/* render-code:begin */\n${renderCode(root)}/* render-code:end */`);
   if (!MARK_SLOT_RE.test(out)) fail('the page has no brand-mark slot');
   out = out.replace(MARK_SLOT_RE, (_, a, b) => `${a}${markMarkup(root)}${b}`);
   // The pins are read from the template `html`, before the data went in: a builder file or preset holding mark text can't make or break a mark.
@@ -721,6 +892,83 @@ export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_R
   return out;
 }
 
+const OVERVIEW_STYLE = 'body{font:14px/1.5 system-ui,sans-serif;margin:16px;background:#fff;color:#111}div{overflow-x:auto}table{border-collapse:collapse}th,td{border:1px solid #999;padding:4px 8px;text-align:left;vertical-align:top}td{min-width:12em;overflow-wrap:anywhere}@media(prefers-color-scheme:dark){body{background:#111;color:#eee}}';
+const escapeHtml = s => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+
+/**
+ * What the install would write for each harness from the configuration under
+ * `home` now (spec 0008 D6): { columns: [{ id, heading, ... }], names } from the
+ * installer's own renderer, or { refusals }, its lines.
+ */
+export function overviewData(root, home = homedir()) {
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const out = mkdtempSync(join(tmpdir(), 'scriptorium-overview-'));
+  try {
+    const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesPath(root), out, home, join(root, ...DEFAULT_CONFIG_DIR.split('/'))], { encoding: 'utf8', env });
+    if (r.status !== 0) {
+      const fails = (r.stdout || '').split('\n').filter(l => l.startsWith('FAIL '));
+      return { refusals: fails.length ? fails : ["the installer's renderer could not run"] };
+    }
+    const texts = dir => new Map(readdirSync(join(root, 'claude', dir)).filter(f => f.endsWith('.md')).sort().map(f => [f.slice(0, -3), readFileSync(join(root, 'claude', dir, f), 'utf8')]));
+    const agents = texts('agents');
+    // An agent the configuration sets is the renderer's own file.
+    for (const name of agents.keys()) {
+      const made = join(out, `agent-${name}.md`);
+      if (existsSync(made)) agents.set(name, readFileSync(made, 'utf8'));
+    }
+    let configText = null;
+    try {
+      configText = readFileSync(join(home, ...CONFIG_REL.split('/')), 'utf8');
+    } catch (e) {
+      if (e.code !== 'ENOENT') return { refusals: [`${CONFIG_REL} could not be read`] };
+    }
+    const known = knownHarnesses(root);
+    let harnesses;
+    try {
+      harnesses = resolveHarnesses({ known, own: configHarnesses(configText).own, home, platform: process.platform, inWorkTree: null });
+    } catch (e) {
+      if (!(e instanceof Refusal)) throw e;
+      // The rule id alone: the sentence can hold text from the file.
+      return { refusals: [`the install would refuse the harnesses in ${CONFIG_REL} (${e.rule})`] };
+    }
+    const input = { rules: readFileSync(join(out, 'CLAUDE.md'), 'utf8'), agents, commands: texts('commands') };
+    const lib = { renderHarnesses, tierRows, Refusal };
+    // A known harness goes by its known name and an own one by its id: a configured name can hold anything.
+    const columns = harnesses.map(h => ({ ...acrossColumn(lib, input, h), heading: known.find(k => k.id === h.id)?.name ?? h.id }));
+    return { columns, names: [...agents.keys()] };
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+}
+
+/** The across-harnesses table as a page of its own: no script, nothing loaded, and no text but models, efforts, and tier, agent and harness names. */
+export function overviewPage({ columns, names }) {
+  const cells = (tag, list) => list.map(c => `<${tag}>${escapeHtml(c)}</${tag}>`).join('');
+  const rows = acrossRows(columns, names).map(r => `<tr><th scope="row">${escapeHtml(r.label)}</th>${cells('td', r.cells)}</tr>`);
+  return [
+    '<!doctype html>',
+    '<html lang="en">',
+    '<head>',
+    '<meta charset="utf-8">',
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-${sha256b64(OVERVIEW_STYLE)}'; base-uri 'none'; form-action 'none'">`,
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    '<title>The pact across harnesses</title>',
+    `<style>${OVERVIEW_STYLE}</style>`,
+    '</head>',
+    '<body>',
+    '<h1>The pact across harnesses</h1>',
+    '<p>What the install would write for each harness from this configuration.</p>',
+    '<div><table>',
+    `<tr><th scope="col">Setting</th>${cells('th', columns.map(c => c.heading))}</tr>`,
+    ...rows,
+    '</table></div>',
+    '</body>',
+    '</html>',
+    '',
+  ].join('\n');
+}
+
 const FOLD = process.platform === 'win32' || process.platform === 'darwin';
 /** A path's canonical form: its folder's real path joined with its name, case-folded where the file system folds case. */
 function canonical(p) {
@@ -737,23 +985,25 @@ function canonical(p) {
 /**
  * Why a page may not be written at `out`, or null. A page carries the person's
  * own parts and lists, so it is never written inside this clone, where a
- * commit would publish it, and never over the builder file. Paths compare in
+ * commit would publish it, and never over the builder file. `builder` is null
+ * for --overview, which has no builder file to compare. Paths compare in
  * canonical form, so a different spelling of the same file is caught.
  * `fixed` is true only for the default path (PACT-96, ADR 0171): no --out was
- * given, so the page goes to pact/scriptorium.html in the Claude home. That one
- * path is let past the Claude-home, .claude-folder and new-file refusals, and
+ * given, so the page goes to ~/.pact/scriptorium.html. That one path is let
+ * past the Claude-folder, pact-folder and new-file refusals, and
  * must be a plain file when it is there: a link, a folder or anything else is
  * refused. Every other refusal holds for it, and every refusal holds for --out.
  */
 export function outProblem(root, out, builder, fixed = false) {
   const o = canonical(out);
-  if (o === canonical(builder)) return 'must not be the builder file';
+  if (builder !== null && o === canonical(builder)) return 'must not be the builder file';
   const r = canonical(join(root, 'x')).slice(0, -1);
   if (o.startsWith(r)) return isKit(root) ? 'must be outside the builder kit' : 'must be outside this clone: a page carries your own parts and lists, so keep it out of any repo';
-  // The Claude home folder, as each of its spellings, and any .claude folder (#203, S6).
-  const homes = [process.env.CLAUDE_CONFIG_DIR, join(homedir(), '.claude'), ...(isKit(root) ? [join(root, '..', '..')] : [])].filter(Boolean).map(h => canonical(join(h, 'x')).slice(0, -1));
+  // The Claude home folder, as each of its spellings, the pact folder, and any
+  // .claude or .pact folder (#203, S6).
+  const homes = [process.env.CLAUDE_CONFIG_DIR, join(homedir(), '.claude'), join(homedir(), '.pact'), ...(isKit(root) ? [join(root, '..')] : [])].filter(Boolean).map(h => canonical(join(h, 'x')).slice(0, -1));
   const sep = r.slice(-1);
-  if (!fixed && (homes.some(h => o.startsWith(h)) || o.split(sep).slice(0, -1).some(seg => seg === '.claude'))) return 'must be outside the Claude home folder and any .claude folder';
+  if (!fixed && (homes.some(h => o.startsWith(h)) || o.split(sep).slice(0, -1).some(seg => seg === '.claude' || seg === '.pact'))) return 'must be outside the Claude home folder and any .claude or .pact folder';
   // A git work tree: the page's folder, or one above it, holds a .git entry. Walked from the real path, so a link into a repo is caught.
   for (let d = dirname(o); ; d = dirname(d)) {
     if (existsSync(join(d, '.git'))) return 'must be outside any git work tree: a page carries your own parts and lists, so keep it out of any repo';
@@ -773,8 +1023,8 @@ export function outProblem(root, out, builder, fixed = false) {
   return null;
 }
 
-/** The fixed path of the page a run with no --out writes: pact/scriptorium.html in the Claude home (PACT-96, ADR 0171). */
-export const defaultOut = () => join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'pact', 'scriptorium.html');
+/** The fixed path of the page a run with no --out writes: ~/.pact/scriptorium.html (PACT-96, ADR 0171). No environment variable moves it. */
+export const defaultOut = () => join(homedir(), '.pact', 'scriptorium.html');
 
 /**
  * Writes `text` at `out`, replacing a page already there: to a temporary file in
@@ -799,11 +1049,30 @@ function printCheck(name, r) {
   process.stdout.write(`RESULT: ${r.refusals.length ? 'refused' : 'pass'} (${name}: ${r.refusals.length} refusal${r.refusals.length === 1 ? '' : 's'}, ${r.findings.length} finding${r.findings.length === 1 ? '' : 's'})\n`);
 }
 
+/** `--overview <file>`: the across-harnesses page for this machine's configuration. It installs nothing. */
+function writeOverview(root, file) {
+  const refuse = why => {
+    process.stdout.write(`REFUSE ${why}\n`);
+    process.exitCode = 1;
+  };
+  const why = outProblem(root, file, null);
+  if (why) return refuse(`--overview ${why}`);
+  const data = overviewData(root);
+  if (data.refusals) return data.refusals.forEach(refuse);
+  try {
+    writeFileSync(resolve(file), overviewPage(data), { flag: 'wx' });
+  } catch (e) {
+    return refuse(`the page could not be written (${e.code || 'error'})`);
+  }
+  process.stdout.write(`WROTE ${resolve(file)}\n`);
+  process.stdout.write('NOTE the page holds your model names and tier names in plain text: you may delete the file when you are done with it\n');
+}
+
 function main(argv) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const page = join(root, PAGE_REL);
   const usage = () => {
-    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> [--check | --out <page> | --texts]\n');
+    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> [--check | --out <page> | --texts] | --overview <page>\n');
     process.exitCode = 2;
   };
   const major = Number(process.versions.node.split('.')[0]);
@@ -812,14 +1081,16 @@ function main(argv) {
     process.exitCode = 1;
     return;
   }
-  const opts = { check: false, builder: null, out: null, texts: false };
+  const opts = { check: false, builder: null, out: null, texts: false, overview: null };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--check') opts.check = true;
     else if (argv[i] === '--texts') opts.texts = true;
     else if (argv[i] === '--builder' && argv[i + 1]) opts.builder = argv[(i += 1)];
     else if (argv[i] === '--out' && argv[i + 1]) opts.out = argv[(i += 1)];
+    else if (argv[i] === '--overview' && argv[i + 1]) opts.overview = argv[(i += 1)];
     else return usage();
   }
+  if (opts.overview !== null) return opts.check || opts.builder || opts.out || opts.texts ? usage() : writeOverview(root, opts.overview);
 
   if (!opts.builder) {
     if (opts.out || opts.texts) return usage();
@@ -850,7 +1121,7 @@ function main(argv) {
   }
 
   if ([opts.check, opts.out, opts.texts].filter(Boolean).length > 1) return usage();
-  // With no --out, the page goes to its fixed path in the Claude home, replacing the last one (PACT-96, ADR 0171).
+  // With no --out, the page goes to its fixed path, replacing the last one (PACT-96, ADR 0171).
   const fixed = !opts.check && !opts.out && !opts.texts;
   if (fixed) opts.out = defaultOut();
   const r = checkBuilder(root, opts.builder);
@@ -878,7 +1149,10 @@ function main(argv) {
     process.exitCode = 1;
     return;
   }
-  const html = buildPage(root, readFileSync(page, 'utf8'), opts.builder, own.presets);
+  // Only the page at its fixed path is the person's own, so only writing it reads their pact folder.
+  const machine = fixed ? machineData(homedir(), root) : null;
+  for (const m of machine?.findings ?? []) process.stdout.write(`FINDING ${m}\n`);
+  const html = buildPage(root, readFileSync(page, 'utf8'), opts.builder, own.presets, machine?.data ?? null);
   try {
     if (fixed) replaceFile(resolve(opts.out), html);
     else writeFileSync(resolve(opts.out), html, { flag: 'wx' });
@@ -889,7 +1163,7 @@ function main(argv) {
   }
   process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
   process.stdout.write(fixed
-    ? 'NOTE the page sits in your Claude folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files: you may delete the file when you are done with it\n'
+    ? 'NOTE the page sits in your pact folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files, your agent and harness settings and which harness folders were found: you may delete the file when you are done with it\n'
     : 'NOTE the page holds your lists, every preset listed from your presets folder and any agent files in plain text: you may delete the file when you are done with it\n');
 }
 

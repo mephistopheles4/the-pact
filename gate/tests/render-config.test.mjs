@@ -22,15 +22,15 @@ const USAGE_75 = "When it is above 75%, it's a";
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const digestOf = bytes => sha256(`user ${sha256(bytes)}\n`).slice(0, 12);
 
-/** A Claude home folder whose pact/config.json holds `content` (text or bytes). */
+/** A home folder whose .pact/config.json holds `content` (text or bytes). */
 function homeWith(t, content) {
   const h = tempDir(t, 'pact-render-home-');
-  mkdirSync(join(h, 'pact'));
-  writeFileSync(join(h, 'pact', 'config.json'), content);
+  mkdirSync(join(h, '.pact'));
+  writeFileSync(join(h, '.pact', 'config.json'), content);
   return h;
 }
 
-/** Run the renderer on `src` against the Claude home folder `home`. */
+/** Run the renderer on `src` against the home folder `home`. */
 function render(t, home, src = SOURCE) {
   const dir = tempDir(t, 'pact-render-out-');
   const env = { ...process.env };
@@ -148,7 +148,7 @@ test('a session value renders the session line after the weekly one, and the not
 });
 
 {
-  const base = () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80}}\n' });
+  const base = () => ({ '.pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80}}\n' });
   const run = (tree, t) => {
     const h = tempDir(t, 'pact-render-home-');
     writeTree(h, tree);
@@ -157,9 +157,9 @@ test('a session value renders the session line after the weekly one, and the not
   };
   const rows = [
     // #142: the same range and checks as the weekly value, refused naming only constants.
-    { id: 'over-the-range', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 101}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number from 0 to 100/, why: 'a value out of range' },
-    { id: 'a-fraction', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80.5}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number/, why: 'a non-integer' },
-    { id: 'a-string', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": "80"}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number/, why: 'a string' },
+    { id: 'over-the-range', plant: () => ({ '.pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 101}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number from 0 to 100/, why: 'a value out of range' },
+    { id: 'a-fraction', plant: () => ({ '.pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80.5}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number/, why: 'a non-integer' },
+    { id: 'a-string', plant: () => ({ '.pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": "80"}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number/, why: 'a string' },
   ];
   test('render session setting: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`render session setting: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -173,7 +173,7 @@ test('a configured render of the real source passes seam A', t => {
   assert.ok(read(join(root, 'claude', 'CLAUDE.md')).includes('When it is above 90%'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none', '--tools', 'none', '--compact', 'off'], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none', '--tools', 'none', '--compact', 'off', '--harness', 'claude:rules+agents+commands'], { encoding: 'utf8', env });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.equal(lastLine(r.stdout), 'RESULT: pass');
 });
@@ -184,7 +184,7 @@ test('a configured render of the real source passes seam A', t => {
 test('no pact folder, an empty pact folder and a missing Claude home folder all mean no configuration', t => {
   const noPact = tempDir(t);
   const emptyPact = tempDir(t);
-  mkdirSync(join(emptyPact, 'pact'));
+  mkdirSync(join(emptyPact, '.pact'));
   const missing = join(tempDir(t), 'none');
   for (const h of [noPact, emptyPact, missing]) {
     const r = render(t, h);
@@ -198,7 +198,7 @@ test('no pact folder, an empty pact folder and a missing Claude home folder all 
 
 test('bad case: a configuration path that is a folder refuses', t => {
   const h = tempDir(t);
-  mkdirSync(join(h, 'pact', 'config.json'), { recursive: true });
+  mkdirSync(join(h, '.pact', 'config.json'), { recursive: true });
   refusedWith(render(t, h), 'config-file', /not a regular file/);
 });
 
@@ -212,25 +212,25 @@ const NOT_ON_WINDOWS = WIN && 'Windows reports a path through a file as not foun
 test('bad case: a Claude home folder that is a file refuses, never read as no configuration', { skip: NOT_ON_WINDOWS }, t => {
   const f = join(tempDir(t), 'home');
   writeFileSync(f, 'x');
-  refusedWith(render(t, f), 'config-file', /the pact folder could not be read/);
+  refusedWith(render(t, f), 'config-file', /the \.pact folder could not be read/);
 });
 
 test('bad case: a Claude home path through a file refuses, never read as no configuration', { skip: NOT_ON_WINDOWS }, t => {
   const f = join(tempDir(t), 'file');
   writeFileSync(f, 'x');
-  refusedWith(render(t, join(f, 'home')), 'config-file', /the Claude home folder could not be read/);
+  refusedWith(render(t, join(f, 'home')), 'config-file', /the home folder could not be read/);
 });
 
 test('bad case: a pact folder that is a file refuses', t => {
   const h = tempDir(t);
-  writeFileSync(join(h, 'pact'), 'x');
-  refusedWith(render(t, h), 'config-file', /the pact folder is not a folder/);
+  writeFileSync(join(h, '.pact'), 'x');
+  refusedWith(render(t, h), 'config-file', /the \.pact folder is not a folder/);
 });
 
 test('bad case: a configuration path that is a dangling link refuses', t => {
   const h = tempDir(t);
-  mkdirSync(join(h, 'pact'));
-  symlinkSync(join(tempDir(t), 'gone'), join(h, 'pact', 'config.json'), 'junction');
+  mkdirSync(join(h, '.pact'));
+  symlinkSync(join(tempDir(t), 'gone'), join(h, '.pact', 'config.json'), 'junction');
   refusedWith(render(t, h), 'config-file', /is a link/);
 });
 
@@ -238,9 +238,9 @@ test('bad case: a configuration file that is a link to a good file refuses', t =
   const real = join(tempDir(t), 'config.json');
   writeFileSync(real, readFileSync(EXAMPLE));
   const h = tempDir(t);
-  mkdirSync(join(h, 'pact'));
+  mkdirSync(join(h, '.pact'));
   try {
-    symlinkSync(real, join(h, 'pact', 'config.json'), 'file');
+    symlinkSync(real, join(h, '.pact', 'config.json'), 'file');
   } catch {
     t.skip('cannot create a file link here (not run)');
     return;
@@ -252,24 +252,13 @@ test('bad case: a pact folder that is a link to a folder holding a good file ref
   const elsewhere = tempDir(t);
   writeFileSync(join(elsewhere, 'config.json'), readFileSync(EXAMPLE));
   const h = tempDir(t);
-  symlinkSync(elsewhere, join(h, 'pact'), 'junction');
-  refusedWith(render(t, h), 'config-file', /the pact folder is a link/);
-});
-
-test('bad case: a configuration file with a second hard link refuses', t => {
-  const h = homeWith(t, readFileSync(EXAMPLE));
-  try {
-    linkSync(join(h, 'pact', 'config.json'), join(tempDir(t), 'second.json'));
-  } catch {
-    t.skip('cannot create a hard link here (not run)');
-    return;
-  }
-  refusedWith(render(t, h), 'config-file', /more than one link/);
+  symlinkSync(elsewhere, join(h, '.pact'), 'junction');
+  refusedWith(render(t, h), 'config-file', /the \.pact folder is a link/);
 });
 
 test('bad case: an unreadable configuration file refuses', t => {
   const h = homeWith(t, readFileSync(EXAMPLE));
-  const p = join(h, 'pact', 'config.json');
+  const p = join(h, '.pact', 'config.json');
   let undo;
   if (WIN) {
     if (spawnSync('icacls', [p, '/deny', '*S-1-1-0:(R)']).status !== 0) {
@@ -321,9 +310,9 @@ const BAD = [
   ['schema as a string', '{"schema": "1"}', 'config-schema', /schema must be 1/],
   ['schema 1.5', '{"schema": 1.5}', 'config-schema', /schema must be 1/],
   ['no schema', '{"settings": {"usage-pause": 90}}', 'config-schema', /schema must be 1/],
-  ['an unknown key', '{"schema": 1, "extra": 1}', 'config-key', /not schema, settings, edits, agents, commands, tools or skills/],
-  ['a key in another case, alone', '{"schema": 1, "Settings": {}}', 'config-key', /not schema, settings, edits, agents, commands, tools or skills/],
-  ['a __proto__ key', '{"schema": 1, "__proto__": {"usage-pause": 1}}', 'config-key', /not schema, settings, edits, agents, commands, tools or skills/],
+  ['an unknown key', '{"schema": 1, "extra": 1}', 'config-key', /not schema, settings, edits, agents, commands, tools, skills or harnesses/],
+  ['a key in another case, alone', '{"schema": 1, "Settings": {}}', 'config-key', /not schema, settings, edits, agents, commands, tools, skills or harnesses/],
+  ['a __proto__ key', '{"schema": 1, "__proto__": {"usage-pause": 1}}', 'config-key', /not schema, settings, edits, agents, commands, tools, skills or harnesses/],
   ['an unknown setting', '{"schema": 1, "settings": {"usage-paws": 90}}', 'config-settings', /not a setting/],
   ['a setting in another case, alone', '{"schema": 1, "settings": {"Usage-Pause": 90}}', 'config-settings', /not a setting/],
   ['a __proto__ setting', '{"schema": 1, "settings": {"__proto__": 90}}', 'config-settings', /not a setting/],
@@ -341,6 +330,10 @@ const BAD = [
   ['a value over the range', '{"schema": 1, "settings": {"usage-pause": 101}}', 'config-value', /from 0 to 100/],
   ['a value under the range', '{"schema": 1, "settings": {"usage-pause": -1}}', 'config-value', /from 0 to 100/],
   ['a value that overflows', '{"schema": 1, "settings": {"usage-pause": 1e400}}', 'config-value', /from 0 to 100/],
+  ['harnesses as a list', '{"schema": 1, "harnesses": []}', 'config-harnesses', /harnesses must be an object/],
+  ['an unknown harnesses key', '{"schema": 1, "harnesses": {"extra": 1}}', 'config-harnesses', /harnesses must be an object/],
+  ['an install id given twice', '{"schema": 1, "harnesses": {"install": ["claude", "claude"]}}', 'config-harnesses', /harnesses must be an object/],
+  ['an own harness that is not an object', '{"schema": 1, "harnesses": {"own": ["mine"]}}', 'config-harnesses', /harnesses must be an object/],
   ['edits as an object', '{"schema": 1, "edits": {}}', 'config-edits', /edits must be a list/],
   ['a byte-order mark', '﻿{"schema": 1}', 'bom', /a byte-order mark/],
   ['a carriage return', '{"schema": 1}\r\n', 'characters', /a carriage return/],
@@ -377,7 +370,7 @@ test('refusals name only the renderer\'s own names: no key, value or path from t
   }
   // Nor the Claude home folder's path, on a refusal about it.
   const h = join(tempDir(t), C);
-  mkdirSync(join(h, 'pact', 'config.json'), { recursive: true });
+  mkdirSync(join(h, '.pact', 'config.json'), { recursive: true });
   const r = render(t, h);
   assert.equal(r.code, 1, r.out);
   assert.ok(!r.out.includes(C), r.out);
@@ -507,29 +500,17 @@ function renderFault(t, home, fault) {
 }
 
 for (const [fault, reason] of [
-  ['lstat-eacces', /the pact folder could not be read/],
+  ['lstat-eacces', /the \.pact folder could not be read/],
   ['lstat-config-eacces', /the user configuration file could not be read/],
-  ['realpath-home-eacces', /the Claude home folder could not be read/],
+  ['realpath-home-eacces', /the home folder could not be read/],
 ]) {
   test(`bad case: a read error other than "does not exist" refuses, never read as no configuration (${fault})`, t => {
     refusedWith(renderFault(t, homeWith(t, GOOD), fault), 'config-file', reason);
   });
 }
 
-test('bad case: a configuration file swapped for another between its lstat and its open refuses', t => {
-  refusedWith(renderFault(t, homeWith(t, GOOD), 'swap-before-open'), 'config-file', /changed while it was opened/);
-});
-
-test('bad case: a configuration file given a second name between its lstat and its open refuses, by the link count', t => {
-  refusedWith(renderFault(t, homeWith(t, GOOD), 'hardlink-before-open'), 'config-file', /changed while it was opened/);
-});
-
 test('bad case: a configuration file whose real path is elsewhere refuses', t => {
   refusedWith(renderFault(t, homeWith(t, GOOD), 'realpath-elsewhere'), 'config-file', /resolves somewhere else/);
-});
-
-test('bad case: a configuration file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW', { skip: WIN && 'Windows defines no O_NOFOLLOW (not run)' }, t => {
-  refusedWith(renderFault(t, homeWith(t, GOOD), 'link-before-open'), 'config-file', /could not be opened/);
 });
 
 test('the configuration file is opened once and read once, and a large file is read no further than the cap', t => {

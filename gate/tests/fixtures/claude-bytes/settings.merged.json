@@ -1,0 +1,109 @@
+{
+  "permissions": {
+    "defaultMode": "auto",
+    "deny": [
+      "Bash(claude rm *)",
+      "Bash(git * branch --delete *)",
+      "Bash(git * branch -D *)",
+      "Bash(git * branch -d *)",
+      "Bash(git * worktree remove *)",
+      "Bash(git branch --delete *)",
+      "Bash(git branch -D *)",
+      "Bash(git branch -d *)",
+      "Bash(git worktree remove *)",
+      "PowerShell(claude rm *)",
+      "PowerShell(git * branch --delete *)",
+      "PowerShell(git * branch -D *)",
+      "PowerShell(git * branch -d *)",
+      "PowerShell(git * worktree remove *)",
+      "PowerShell(git branch --delete *)",
+      "PowerShell(git branch -D *)",
+      "PowerShell(git branch -d *)",
+      "PowerShell(git worktree remove *)"
+    ],
+    "ask": [
+      "Bash(*cleaner.mjs*remove*--override*)",
+      "PowerShell(*cleaner.mjs*remove*--override*)"
+    ]
+  },
+  "skipAutoPermissionPrompt": true,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "<home>\\.claude\\pact\\hooks\\compact-handoff.mjs",
+              "400000"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "<home>\\.claude\\pact\\hooks\\compact-handoff.mjs",
+              "400000"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "<home>\\.claude\\pact\\hooks\\compact-handoff.mjs",
+              "400000"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "<home>\\.claude\\pact\\hooks\\compact-handoff.mjs",
+              "400000"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "<home>\\.claude\\pact\\hooks\\compact-handoff.mjs",
+              "400000"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
+  "autoCompactWindow": 400000
+}

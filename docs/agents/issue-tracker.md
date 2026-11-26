@@ -383,7 +383,7 @@ issue, linked to the parent issue as a GitHub sub-issue.
 
 ## Linear
 
-Holds for a local session in a repo with a pair (the owner's local pin) in `~/.claude/pact/linear.json`, and for every cloud session that touches Linear. The file is written by the owner alone, never in a published default, preset or `cloud-sessions/`: a workspace id, and each repo's `origin` path (owner/repo) with its project id. Only that workspace counts; a session works in its repo's project. With no pair, a local session ignores this section.
+Holds for a local session in a repo with a pair (the owner's local pin) in `~/.pact/linear.json`, and for every cloud session that touches Linear. The file is written by the owner alone, never in a published default, preset or `cloud-sessions/`: a workspace id, and each repo's `origin` path (owner/repo) with its project id. Only that workspace counts; a session works in its repo's project. With no pair, a local session ignores this section.
 
 - **In a local session, everything in that workspace counts,** whoever wrote it: the owner controls who is in it, so no author, editor or label check runs there. It is the owner's private record; secrets and others' weaknesses stay out.
 - **Read and post through the Linear connector,** as the connector's app identity (Famulus), as new comments and issues, never an edit by `id` but the assignee; a status is a new comment each round. Without the connector, post nothing to Linear. The token (`LINEAR_TOKEN`) stays in the owner's user environment; the connector's config holds the reference, never the value. It goes in no repo, record, chat, hand-off, start prompt, command line, file a session reads or cloud environment.

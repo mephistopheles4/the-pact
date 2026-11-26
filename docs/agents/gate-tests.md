@@ -33,7 +33,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
     - **What an agent-file change picks.** The test helpers are split by
       what they touch, so an agent file picks only the tests that
       read agents: those that import `payload.mjs` or read them themselves.
-      Of the install files, that's the smoke set and nine others, 10 of 18.
+      Of the install files, that's the smoke set and thirteen others, 14 of 19.
     - **Some changes still cost about a full suite.** The pact's rules file,
       `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
       deleted or renamed test file, is named by the copy list's entry for the
@@ -94,8 +94,8 @@ runs only, never a host run of `gate/tests/run.mjs`.
   commands.
 - **It needs athanor at commit `4121c28` or later,** the first to read
   `athanor.json`. Its version, `0.1.0`, doesn't tell the builds apart. An
-  older copy stops with exit 125 and asks for an `athanor` key in a
-  `package.json`: leave that file out, and ask the owner to update athanor,
+  older copy stops with exit 125 and asks for an `athanor` key in
+  `package.json`: never add one, and ask the owner to update athanor,
   since an install is the owner's. Run on the host when athanor can't run:
   no Docker, or an older copy.
 - **It passes when athanor exits 0 and the runner's result line ends in
@@ -190,9 +190,9 @@ before every Bash and PowerShell call, with a 15 s timeout.
 
   ```js
   {
-    const base = () => ({ 'pact/config.json': '{"schema": 1}' });
+    const base = () => ({ '.pact/config.json': '{"schema": 1}' });
     const run = (tree, t) => moduleResult(/* the module's exit code and output */);
-    const rows = [{ id: 'unknown-mark', plant: tree => ({ ...tree, 'pact/config.json': '...' }), fails: ['edit-mark'], why: 'a mark the source lacks' }];
+    const rows = [{ id: 'unknown-mark', plant: tree => ({ ...tree, '.pact/config.json': '...' }), fails: ['edit-mark'], why: 'a mark the source lacks' }];
     test('<name>: base passes', async t => assertPasses(await run(base(), t)));
     for (const r of rows) test(`<name>: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
     test('<name>: base passes after the rows', async t => assertPasses(await run(base(), t)));

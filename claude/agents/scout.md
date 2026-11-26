@@ -2,7 +2,7 @@
 name: scout
 description: Read-only search helper for researching a module or tracing what a piece of code leads to, such as where a symbol, usage or setting is, or how something is wired. Not for verdicts, reviews or design calls, edits, commands or fetching pages.
 tools: [Read, Glob, Grep]
-model: haiku
+model: light
 effort: medium
 ---
 

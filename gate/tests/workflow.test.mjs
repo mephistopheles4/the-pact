@@ -7,6 +7,9 @@
 // reads the files' text; it can't see what GitHub does with them, which the
 // S15 CI probe records.
 //
+// The release workflow (spec 0007 S10) alone may run on workflow_run; it is
+// held to an exact allow-list of its own.
+//
 // The CodeQL workflow (#239, #244) may ask for more: it uploads code-scanning
 // results, so its one job holds security-events: write. The Claude
 // workflow (spec 0006) may too: its job holds id-token: write, to trade
@@ -16,7 +19,8 @@
 // only while nothing outside gate/tests/ loads a file inside it; the premise
 // test below checks that. Each check keeps its passing case on the real
 // files; their planted bad cases were cut (PACT-114, decision 197), but for
-// the review workflow's refusal, a check family #686 added.
+// the review workflow's refusal, a check family #686 added, and the release
+// allow-list and the secret, environment and #-line rules PACT-105 added.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -29,6 +33,9 @@ const WORKFLOWS = join(REPO, '.github', 'workflows');
 const WORKFLOW = join(WORKFLOWS, 'gate.yml');
 const CODEQL = join(WORKFLOWS, 'codeql.yml');
 const codeOf = src => src.split('\n').filter(l => !/^\s*#/.test(l)).join('\n');
+// codeOf drops such a line even inside a script block, where GitHub still fills in an expression.
+const HIDDEN = /^\s*#.*\$\{\{/m;
+const HIDES = 'holds an expression on a line that starts with #';
 
 /** Where any workflow file breaks the lockdown every workflow keeps, as plain sentences; empty when it keeps it. */
 function commonProblems(src) {
@@ -37,7 +44,10 @@ function commonProblems(src) {
   if (/pull_request_target|workflow_run/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
   const perms = /^permissions:\n((?:[ \t]+.+\n)+)/m.exec(`${code}\n`);
   if (!perms || perms[1].trim() !== 'contents: read' || (code.match(/^\s*permissions:/gm) ?? []).length !== 1) out.push('asks for more than read access to the contents');
-  if (/\bsecrets\.|\$\{\{\s*github\.token|GITHUB_TOKEN/.test(code)) out.push('reads a secret or the token');
+  // Spec 0007 S10: any form of a secret read, in any case, and no environment, which could hold a secret.
+  if (/\bsecrets\b|\$\{\{\s*github\.token|GITHUB_TOKEN/i.test(code)) out.push('reads a secret or the token');
+  if (/(?:^\s*(?:- )?|[{,]\s*)['"]?environment['"]?\s*:/im.test(code)) out.push('names a deployment environment');
+  if (HIDDEN.test(src)) out.push(HIDES);
   for (const m of code.matchAll(/uses:\s*(\S+)/g)) if (!/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/.test(m[1])) out.push(`uses ${m[1]}, not pinned to a full commit SHA`);
   // #351: every checkout step, not only the first.
   const checkouts = [...`${code}\n`.matchAll(/uses: actions\/checkout@[0-9a-f]{40}[^\n]*\n((?: {8,}.+\n)*)/g)];
@@ -48,10 +58,10 @@ function commonProblems(src) {
 
 // #351 (#348 S4.1): the gate workflow's two jobs, the runner each is pinned to, and its full-tier line; the Windows run checks its skips against a committed list (q2).
 const FULL = 'env -u NODE_OPTIONS node gate/tests/run.mjs full';
-const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"';
-const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\n${DRY_RUN}\n`;
+const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --home "$RUNNER_TEMP/pact-home"';
+const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home/.claude"\n${DRY_RUN}\n`;
 // The Windows step also plants a real Claude folder with a plain subfolder in the runner's home, as the Linux container's image does, so the installer's real-folder guards run (q11).
-const REAL_DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`;
+const REAL_DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home/.claude"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`;
 // Spec 0003 M7: the macOS job also runs the pinned server once (--device none --version) through .github/scripts/clef-smoke.mjs, so a Mac run shows the real server starting.
 const SMOKE = 'env -u NODE_OPTIONS node .github/scripts/clef-smoke.mjs';
 const GATE_JOBS = [
@@ -260,7 +270,8 @@ function codeqlProblems(src, gateSrc) {
   };
   if (/^\s*(?:-\s+)?run:/m.test(code)) out.push('runs a shell command');
   if (/^\s*(?:-\s+)?env:/m.test(code)) out.push('sets environment variables');
-  if (/\bsecrets\.|\$\{\{\s*github\.token|GITHUB_TOKEN/.test(code)) out.push('reads a secret or the token');
+  if (/\bsecrets\b|\$\{\{\s*github\.token|GITHUB_TOKEN/i.test(code)) out.push('reads a secret or the token');
+  if (HIDDEN.test(src)) out.push(HIDES);
   if (/upload-artifact|\bcache\b/.test(code)) out.push('uploads or caches the workspace');
   if (yamlFormUsed(code)) out.push('uses a YAML anchor, alias, merge key or flow mapping');
   let w;
@@ -388,6 +399,7 @@ function claudeProblems(src, gateSrc, which) {
     for (const k of keys) if (!Object.hasOwn(obj, k)) out.push(where + ' lacks ' + k);
   };
   if (/pull_request_target|workflow_run/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
+  if (HIDDEN.test(src)) out.push(HIDES);
   if (/^\s*(?:-\s+)?run:/m.test(code)) out.push('runs a shell command');
   if (/^\s*(?:-\s+)?env:/m.test(code)) out.push('sets environment variables');
   if (/\bsecrets\b|\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/.test(code)) out.push('reads a secret or the token');
@@ -452,6 +464,73 @@ function claudeProblems(src, gateSrc, which) {
   return [...new Set(out)];
 }
 
+// Spec 0007 S10, decision 177: the release workflow, the one file that may run on workflow_run. Its one job's condition, held as written.
+const RELEASE_IF = `github.ref == 'refs/heads/main' &&
+vars.PACT_RELEASES == 'on' &&
+github.event_name == 'workflow_run' &&
+github.event.workflow_run.conclusion == 'success' &&
+github.event.workflow_run.event == 'push' &&
+github.event.workflow_run.head_branch == 'main' &&
+github.event.workflow_run.head_repository.full_name == github.repository
+`;
+// The one trigger: the gate's completion. No manual run, so no input.
+const RELEASE_ON = { workflow_run: { workflows: ['gate'], types: ['completed'] } };
+// The tag step's name and script env: the workflow's own token, and the run's commit.
+const RELEASE_STEP = { name: 'Tag a release candidate', env: { TOKEN: '${{ github.token }}', HEAD_SHA: '${{ github.event.workflow_run.head_sha }}' } };
+
+/**
+ * Where the release workflow breaks its allow-list, as plain sentences; empty
+ * when it keeps it. One job, candidate, tags a release candidate with the
+ * workflow's own token, contents: write on that job alone; it reads no secret,
+ * names no environment, uses no app token and takes no manual run, and checks
+ * nothing out. What its script does is the release job test's.
+ */
+function releaseProblems(src) {
+  const code = codeOf(src);
+  const out = [];
+  const extras = (where, obj, keys) => {
+    if (!isMap(obj)) return out.push(`${where} is not a map`);
+    for (const k of Object.keys(obj)) if (!keys.includes(k)) out.push(extraKey(where, k));
+    for (const k of keys) if (!Object.hasOwn(obj, k)) out.push(`${where} lacks ${k}`);
+  };
+  if (/pull_request_target/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
+  if (HIDDEN.test(src)) out.push(HIDES);
+  // GitHub reads context names in any case: no secret in any form, no environment, no app token.
+  if (/\bsecrets\b/i.test(code)) out.push('reads a secret');
+  if (/(?:^\s*(?:- )?|[{,]\s*)['"]?environment['"]?\s*:/im.test(code)) out.push('names a deployment environment');
+  if (/create-github-app-token|PACT_RELEASE_APP/i.test(code)) out.push('uses a release app or its key');
+  // The workflow's token is read once, in the tag step's TOKEN.
+  if ((code.match(/\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/gi) ?? []).length !== 1) out.push("reads the workflow's token other than once, in the tag step's TOKEN");
+  if (/actions\/checkout/.test(code)) out.push('checks the repo out');
+  if (/upload-artifact|\bcache\b/.test(code)) out.push('uploads or caches the workspace');
+  let w;
+  try {
+    w = readYaml(code);
+  } catch (e) {
+    return [...out, `is not in the YAML the check reads: ${e.message}`];
+  }
+  extras('the file', w, ['name', 'on', 'permissions', 'jobs']);
+  if (w.name !== 'release') out.push('is not named release');
+  if (!sameSet(w.on, RELEASE_ON)) out.push("runs on another trigger than the gate workflow's completion");
+  if (!same(w.permissions, { contents: 'read' })) out.push('asks for more than read access to the contents');
+  if (!isMap(w.jobs) || !same(Object.keys(w.jobs), ['candidate'])) out.push('holds jobs other than candidate');
+  const at = 'the candidate job';
+  const job = isMap(w.jobs?.candidate) ? w.jobs.candidate : {};
+  extras(at, job, ['if', 'runs-on', 'timeout-minutes', 'permissions', 'concurrency', 'steps']);
+  if (job.if !== RELEASE_IF) out.push(`${at} runs without exactly spec 0007's conditions`);
+  if (job['runs-on'] !== 'ubuntu-24.04' || !/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push(`${at} does not run on ubuntu-24.04 with a time limit`);
+  if (!same(job.permissions, { contents: 'write' })) out.push(`${at} does not hold exactly contents: write`);
+  if (!sameSet(job.concurrency, { group: 'release', 'cancel-in-progress': 'false' })) out.push(`${at} does not run in the release concurrency group that never cancels`);
+  const steps = Array.isArray(job.steps) ? job.steps : [];
+  if (steps.length !== 1) out.push(`${at} holds other steps than the tag's`);
+  const [tag] = steps;
+  extras(`${at} step 1`, tag, ['name', 'env', 'shell', 'run']);
+  if (tag?.name !== RELEASE_STEP.name || !sameSet(tag?.env, RELEASE_STEP.env) || tag?.shell !== 'node {0}') out.push(`${at} hands the script another name, environment or shell than its own`);
+  // An expression inside the script would be pasted into the code before it runs.
+  if (typeof tag?.run !== 'string' || tag.run.includes('${{')) out.push(`${at} has no script, or puts an expression into it`);
+  return [...new Set(out)];
+}
+
 // A file allowed a load the check can't read, with why it can't load a test file.
 const UNREAD_LOADS = new Map([['gate/install-run.mjs', "loads a gate module's core from the staged copy, by names the runner holds; the install stages no test file"]]);
 
@@ -496,7 +575,7 @@ function folderProblems(files) {
   const out = [];
   if (!files.has('gate.yml')) out.push('has no gate.yml');
   for (const [name, src] of files) {
-    const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : commonProblems(src);
+    const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : name === 'release.yml' ? releaseProblems(src) : commonProblems(src);
     out.push(...problems.map(p => `${name} ${p}`));
     if (isReviewFile(name)) out.push(`${name} ${REVIEW_GONE}`);
     // #356: the reader splits lines on a line feed alone, so any other break, or a control character but a tab, could hide a key from it.
@@ -548,6 +627,14 @@ test('the CodeQL workflow keeps its allow-list', () => {
   assert.deepEqual(codeqlProblems(readFileSync(CODEQL, 'utf8'), readFileSync(WORKFLOW, 'utf8')), []);
 });
 
+// PACT-105: the CodeQL allow-list's #-line rule catches a secret read hidden in its config.
+test('bad case: the CodeQL allow-list catches a secret read in its config on a line that starts with #', () => {
+  const src = readFileSync(CODEQL, 'utf8').replace(/\r\n/g, '\n');
+  const planted = src.replace('            paths-ignore:', '            # ${{ secrets.X }}\n            paths-ignore:');
+  assert.notEqual(planted, src, 'the plant changed the file');
+  assert.ok(codeqlProblems(planted, readFileSync(WORKFLOW, 'utf8')).includes(HIDES), codeqlProblems(planted, readFileSync(WORKFLOW, 'utf8')).join('\n'));
+});
+
 // Spec 0006 W3, W4: the one Claude workflow is held to its own allow-list.
 const CLAUDE_FILES = ['claude.yml'];
 const claudeSrc = file => readFileSync(join(WORKFLOWS, file), 'utf8');
@@ -555,6 +642,15 @@ const claudeSrc = file => readFileSync(join(WORKFLOWS, file), 'utf8');
 test('the Claude workflow keeps its allow-list', () => {
   const gate = readFileSync(WORKFLOW, 'utf8');
   for (const file of CLAUDE_FILES) assert.deepEqual(claudeProblems(claudeSrc(file), gate, file), [], file);
+});
+
+// PACT-105: the Claude allow-list's #-line rule catches a secret read hidden in the checkout's inputs.
+test('bad case: the Claude allow-list catches a secret read on a line that starts with #', () => {
+  const src = claudeSrc('claude.yml').replace(/\r\n/g, '\n');
+  const planted = src.replace('          persist-credentials: false\n', '          persist-credentials: false\n          # ${{ secrets.X }}\n');
+  assert.notEqual(planted, src, 'the plant changed the file');
+  const got = claudeProblems(planted, readFileSync(WORKFLOW, 'utf8'), 'claude.yml');
+  assert.ok(got.includes(HIDES), got.join('\n'));
 });
 
 // Spec 0006 V2 W3: the review workflow is gone, and a file by its name, in any case or extension, is refused.
@@ -586,6 +682,122 @@ test('the premise test reads no load into a comment, a string or a pattern', () 
   const text = "// import(name) and require(name)\nconst s = 'import(name)';\nconst t = `createRequire(${x})`;\nconst re = /\\bimport\\s*\\(/;\n";
   assert.deepEqual(premiseProblems(new Map([['gate/planted.mjs', text]])), []);
 });
+
+const RELEASE = join(WORKFLOWS, 'release.yml');
+// PACT-105 C23: the release workflow as it is passes its allow-list.
+test('the release workflow keeps its allow-list', () => {
+  assert.deepEqual(releaseProblems(readFileSync(RELEASE, 'utf8')), []);
+});
+
+const C = 'the candidate job';
+const TRIGGERS_SAY = "runs on another trigger than the gate workflow's completion";
+const NO_CONDITION = `${C} runs without exactly spec 0007's conditions`;
+const SECRET = 'reads a secret';
+const ENVIRONMENT = 'names a deployment environment';
+const APP = 'uses a release app or its key';
+const TOKEN_ONCE = "reads the workflow's token other than once, in the tag step's TOKEN";
+const HANDS = `${C} hands the script another name, environment or shell than its own`;
+const NO_WRITE = `${C} does not hold exactly contents: write`;
+const NO_GROUP = `${C} does not run in the release concurrency group that never cancels`;
+const NO_SCRIPT = `${C} has no script, or puts an expression into it`;
+const ONE_JOB = 'holds jobs other than candidate';
+const TOP_READ = 'asks for more than read access to the contents';
+const cut = line => s => s.split('\n').filter(l => !l.includes(line)).join('\n');
+const JOB_WRITE = '    permissions:\n      contents: write\n';
+const APP_STEP = `      - uses: actions/create-github-app-token@${'a'.repeat(40)}\n        id: app\n        with:\n          client-id: x\n          private-key: x\n`;
+const FIRST_RUN = /(\n        run: \|-?\n)/;
+// PACT-105 C23 and decision 177: each rule of the release allow-list catches its plant. Each plant is a change that would give the workflow more power or make its tag easier to forge.
+for (const [label, plant, says] of [
+  ['drops the success condition', cut("github.event.workflow_run.conclusion == 'success'"), NO_CONDITION],
+  ['drops the push condition', cut("github.event.workflow_run.event == 'push'"), NO_CONDITION],
+  ['drops the head branch condition', cut("github.event.workflow_run.head_branch == 'main'"), NO_CONDITION],
+  ['drops the same-repository condition', cut('github.event.workflow_run.head_repository.full_name == github.repository'), NO_CONDITION],
+  ['drops the main ref condition', cut("github.ref == 'refs/heads/main'"), NO_CONDITION],
+  ['drops the releases switch', s => s.replace("      vars.PACT_RELEASES == 'on' &&\n", ''), NO_CONDITION],
+  ['runs on any switch value', s => s.replace("vars.PACT_RELEASES == 'on'", "vars.PACT_RELEASES != 'off'"), NO_CONDITION],
+  ['joins a condition with or', s => s.replace("== 'success' &&", "== 'success' ||"), NO_CONDITION],
+  ['lets a manual run reach the job', s => s.replace("github.event_name == 'workflow_run' &&", "(github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch') &&"), NO_CONDITION],
+  ['lets any event reach the job', s => s.replace("github.event_name == 'workflow_run' &&", "github.event_name != '' &&"), NO_CONDITION],
+  ['drops the concurrency group', s => s.replace('    concurrency:\n      group: release\n      cancel-in-progress: false\n', ''), NO_GROUP],
+  ['gives the job a group of its own', s => s.replace('group: release', 'group: release-candidate'), NO_GROUP],
+  ['cancels a running release', s => s.replace('cancel-in-progress: false', 'cancel-in-progress: true'), NO_GROUP],
+  // Any environment: it could hold a secret or a reviewer rule the workflow does not name.
+  ['names an environment on the job', s => s.replace('    runs-on:', '    environment: release\n    runs-on:'), ENVIRONMENT],
+  ['names an environment in a flow mapping', s => s.replace('    runs-on: ubuntu-24.04', '    runs-on: ubuntu-24.04\n    x: {"environment": release}'), ENVIRONMENT],
+  ['names an environment in capitals', s => s.replace('    runs-on:', '    Environment: release\n    runs-on:'), ENVIRONMENT],
+  // Any secret, in any form and case.
+  ['reads a secret in the tag step', s => s.replace('          HEAD_SHA:', '          OTHER: ${{ secrets.OTHER }}\n          HEAD_SHA:'), SECRET],
+  ['reads a secret by an index', s => s.replace('          HEAD_SHA:', "          OTHER: ${{ secrets['OTHER'] }}\n          HEAD_SHA:"), SECRET],
+  ["reads a secret, in capitals, in a step's name", s => s.replace('name: Tag a release candidate', 'name: ${{ SECRETS.OTHER }}'), SECRET],
+  ['reads a secret in a second job', s => `${s}  second:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo\n        env:\n          X: \${{ secrets.OTHER }}\n`, SECRET],
+  ['hides a secret on a script line that starts with #', s => s.replace(FIRST_RUN, '$1          #${{ SECRETS.OTHER }}\n'), HIDES],
+  // A manual run: a person's input would reach the job.
+  ['adds a manual run', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n'), TRIGGERS_SAY],
+  ['adds a trigger', s => s.replace('\non:\n', '\non:\n  push:\n'), TRIGGERS_SAY],
+  ['listens to another workflow', s => s.replace('workflows: [gate]', 'workflows: [gate, other]'), TRIGGERS_SAY],
+  // Permissions: read at the top, contents: write on the one job and nothing more.
+  ['gives the top level write access', s => s.replace('permissions:\n  contents: read\n', 'permissions:\n  contents: write\n'), TOP_READ],
+  ['gives the top level write-all', s => s.replace('permissions:\n  contents: read\n', 'permissions: write-all\n'), TOP_READ],
+  ['gives the top level a second permission', s => s.replace('permissions:\n  contents: read\n', 'permissions:\n  contents: read\n  id-token: write\n'), TOP_READ],
+  ['drops the top-level permissions', s => s.replace('permissions:\n  contents: read\n\n', ''), TOP_READ],
+  ['gives the job no permissions of its own', s => s.replace(JOB_WRITE, ''), NO_WRITE],
+  ['gives the job read access only', s => s.replace(JOB_WRITE, '    permissions:\n      contents: read\n'), NO_WRITE],
+  ['gives the job a second permission', s => s.replace(JOB_WRITE, `${JOB_WRITE}      pull-requests: write\n`), NO_WRITE],
+  ['gives the job write-all', s => s.replace(JOB_WRITE, '    permissions: write-all\n'), NO_WRITE],
+  // A key the job's allow-list does not name, here a container the steps would run in.
+  ['gives the job a container', s => s.replace('    runs-on:', '    container: x\n    runs-on:'), extraKey(C, 'container')],
+  // One job.
+  ['adds a second job', s => `${s}  second:\n    runs-on: ubuntu-24.04\n`, ONE_JOB],
+  ['drops the one job', s => s.slice(0, s.indexOf('  candidate:\n')), ONE_JOB],
+  // The app token action does not come back, whether or not its output is used.
+  ['brings the app token action back', s => s.replace('    steps:\n', `    steps:\n${APP_STEP}`), APP],
+  ['names the release app key variable', s => s.replace('          HEAD_SHA:', '          KEY: PACT_RELEASE_APP_KEY\n          HEAD_SHA:'), APP],
+  // The tag step's token is the workflow's own, read once.
+  ['hands the script another token', s => s.replace('${{ github.token }}', '${{ steps.app.outputs.token }}'), HANDS],
+  ['hands the script a token from the env context', s => s.replace('${{ github.token }}', '${{ env.TOKEN }}'), HANDS],
+  ['hands the script no token expression', s => s.replace('${{ github.token }}', 'literal'), TOKEN_ONCE],
+  ['hands the script the token twice', s => s.replace('          HEAD_SHA:', '          OTHER: ${{ github.token }}\n          HEAD_SHA:'), TOKEN_ONCE],
+  ['hands the script the token in capitals', s => s.replace('${{ github.token }}', '${{ GITHUB.TOKEN }}'), HANDS],
+  ['reads GITHUB_TOKEN', s => s.replace('          HEAD_SHA:', '          GITHUB_TOKEN: ${{ github.token }}\n          HEAD_SHA:'), TOKEN_ONCE],
+  ["reads the token, in capitals, in a step's name", s => s.replace('name: Tag a release candidate', 'name: ${{ github.Token }}'), TOKEN_ONCE],
+  // The step and its script.
+  ['names the step with an expression', s => s.replace('name: Tag a release candidate', 'name: ${{ env.X }}'), HANDS],
+  ['pastes an expression into the script', s => s.replace('          main().then', '          // ${{ github.event.workflow_run.head_commit.message }}\n          main().then'), NO_SCRIPT],
+  ['adds a step', s => s.replace('    steps:\n', '    steps:\n      - run: echo ok\n'), `${C} holds other steps than the tag's`],
+  ['hands the script an input', s => s.replace('          HEAD_SHA:', '          RC: ${{ inputs.rc }}\n          HEAD_SHA:'), HANDS],
+  ['checks the repo out', s => s.replace('    steps:\n', `    steps:\n      - uses: actions/checkout@${'a'.repeat(40)}\n`), 'checks the repo out'],
+]) {
+  test(`bad case: the release allow-list catches a workflow that ${label}`, () => {
+    const src = readFileSync(RELEASE, 'utf8').replace(/\r\n/g, '\n');
+    const planted = plant(src);
+    assert.notEqual(planted, src, 'the plant changed the file');
+    assert.ok(releaseProblems(planted).includes(says), releaseProblems(planted).join('\n'));
+  });
+}
+
+// PACT-105 C23: the folder check hands the file to its allow-list, and a second file that uses workflow_run still fails.
+test('bad case: the folder check holds the release workflow to its allow-list, and no other file may use workflow_run', () => {
+  const files = realFolder();
+  assert.deepEqual(folderProblems(files), [], 'control: the real folder passes');
+  const broken = new Map([...files, ['release.yml', files.get('release.yml').replace('    runs-on:', '    environment: release\n    runs-on:')]]);
+  assert.ok(folderProblems(broken).includes('release.yml names a deployment environment'), folderProblems(broken).join('\n'));
+  for (const name of ['release-copy.yml', 'Release.yml', 'release.yaml']) {
+    const copied = new Map([...files, [name, files.get('release.yml')]]);
+    assert.ok(folderProblems(copied).includes(`${name} runs on a trigger that holds secrets or a write token`), folderProblems(copied).join('\n'));
+  }
+});
+
+// PACT-105 C23: the tightened common rules, one bad case each: no environment, a secret in any case, no expression on a #-line.
+for (const [label, other, says] of [
+  ['names an environment', OTHER.replace('    steps:', '    environment: release\n    steps:'), 'other.yml names a deployment environment'],
+  ['reads a secret in capitals', OTHER.replace('echo ok', 'echo ${{ SECRETS.X }}'), 'other.yml reads a secret or the token'],
+  ['hides an expression on a script line that starts with #', OTHER.replace('run: echo ok', 'run: |\n          # ${{ github.event.pull_request.title }}\n          echo ok'), `other.yml ${HIDES}`],
+]) {
+  test(`bad case: the folder check catches a second workflow file that ${label}`, () => {
+    const files = new Map([...realFolder(), ['other.yml', other]]);
+    assert.ok(folderProblems(files).includes(says), folderProblems(files).join('\n'));
+  });
+}
 
 test('dependabot keeps the pinned actions current, holding a release back two weeks', () => {
   const src = readFileSync(join(REPO, '.github', 'dependabot.yml'), 'utf8');

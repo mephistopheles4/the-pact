@@ -539,14 +539,17 @@ echo "== Config"
 CLAUDE_HOME="$HOME/.claude"
 CONFIG_WRITTEN=0
 mkdir -p "$CLAUDE_HOME/agents" || echo "WARN: cannot create $CLAUDE_HOME/agents"
-mkdir -p "$CLAUDE_HOME/pact" || echo "WARN: cannot create $CLAUDE_HOME/pact"
+# A written path: .pact/ paths sit under the home folder, the rest under ~/.claude.
+config_file() { case "$1" in .pact/*) printf '%s' "$HOME/$1" ;; *) printf '%s' "$CLAUDE_HOME/$1" ;; esac; }
+config_shown() { case "$1" in .pact/*) printf '~/%s' "$1" ;; *) printf '~/.claude/%s' "$1" ;; esac; }
 
-# write_config <path under ~/.claude>, body on stdin. Script-owned: overwrites.
+# write_config <path>, body on stdin. Script-owned: overwrites.
 write_config() {
-  if cat > "$CLAUDE_HOME/$1"; then
-    CONFIG_WRITTEN=$((CONFIG_WRITTEN + 1)); echo "wrote ~/.claude/$1"
+  local file; file="$(config_file "$1")"
+  if mkdir -p "${file%/*}" && cat > "$file"; then
+    CONFIG_WRITTEN=$((CONFIG_WRITTEN + 1)); echo "wrote $(config_shown "$1")"
   else
-    echo "WARN: could not write ~/.claude/$1"
+    echo "WARN: could not write $(config_shown "$1")"
   fi
 }
 
@@ -577,36 +580,39 @@ the tools and agents.
 **Nudge once.** When a move seems to drop, mention it once, lightly, as an
 offer I can take or leave in a second. Then carry on with what I chose.
 
-## How Claude helps
+## How the agent helps
 
 - **Checkpoints.** What these rules keep for me, bring to me or leave to me is
   a checkpoint: take your own pick, log it as review.md's Posting says,
   flagged, list each in the result, and go on; I review after. Take more care
   the harder a step is to undo. Where a pick touches a secret, say where it
-  is, never its value. Pin a merge to its reviewed head. Claude's own
-  permission prompts and classifier blocks still stop you; these rules add no
-  stop of their own.
-- **Keep the record** in the work's record, as the Posting section of `~/.claude/pact/review.md` says; with no record, in chat.
+  is, never its value. Pin a merge to its reviewed head. Your harness's own
+  permission prompts and blocks still stop you; these rules add no stop of
+  their own.
+- **Keep the record** in the work's record, as the Posting section of `~/.pact/review.md` says; with no record, in chat.
 
 ## How much checking
 
 | Tier | Fits | Plan | Build |
 | --- | --- | --- | --- |
-| **Quick** | Small, one session, no plan needed | none | Opus, low |
-| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |
-| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
+| **Quick** | Small, one session, no plan needed | none | planning model, low |
+| **Standard** | Needs a short spec | planning model, medium | executor model, medium |
+| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | planning model, high | executor model, medium |
+
+Here the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.
 
 Sensitive work gets more checking when I choose it. By default, sensitive
 work is auth, crypto, input validation and data migrations: thorough, planned
-and built on Opus at high, with the security pair, `adversarial-lens` and
-`data-lens`, on the spec and the diff. That is the sensitive route. When the
-work matches that list, or you think it sensitive otherwise, say why in one
-line in your tier proposal and recommend the route; I take it or not. If I
-didn't take the route, offer the security pair once more at Test when the
-change matches the list. Beyond that one offer, sensitivity doesn't stop the
-run. A flag or an offer I haven't answered stays open, in one line, in every
-hand-off and in the result. If you find it later, say so in one line at the
-next hand-off or result, and keep saying it until I answer.
+and built on the planning model at high, with the security pair,
+`adversarial-lens` and `data-lens`, on the spec and the diff. That is the
+sensitive route. When the work matches that list, or you think it sensitive
+otherwise, say why in one line in your tier proposal and recommend the route;
+I take it or not. If I didn't take the route, offer the security pair once
+more at Test when the change matches the list. Beyond that one offer,
+sensitivity doesn't stop the run. A flag or an offer I haven't answered stays
+open, in one line, in every hand-off and in the result. If you find it later,
+say so in one line at the next hand-off or result, and keep saying it until I
+answer.
 
 Your effort is the one set at the start: take it as given, never judge it
 or stop the work over it.
@@ -624,12 +630,12 @@ line. A skill you can't find, say so in one line and go on with the stage.
 
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
-| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
-| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
-| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |
-| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
+| Plan | in the session, no plan | planning model, medium | planning model, high | planning model, high | none | |
+| Design | skipped | planning model, medium | planning model, high | planning model, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
+| Build | planning model, low | executor model, medium | executor model, medium | planning model, high | none | |
+| Test | planning model, low | executor model, medium | executor model, medium | planning model, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
 | Deploy | I decide | I decide | I decide | I decide | none | |
-| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
+| Maintain | in the session, no plan | planning model, medium | planning model, high | planning model, high | none | back to Plan when a new change starts |
 
 ## Lenses
 
@@ -650,7 +656,7 @@ lenses unasked; that never lifts the sensitive flag, the Guards, my decisions
 or the read before posting.
 
 **Before you run a lens or post to the record, read
-`~/.claude/pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
+`~/.pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
 
 ## Qualities
 
@@ -952,7 +958,7 @@ Your question: what need did nobody write down?
 Add to the template you are handed: the red step, then one row per need, with where it is covered or `missing`. Each finding sits on a section or claim, the nearest one for a need with no home.
 __CLAUDE_CONFIG_EOF__
 
-write_config 'pact/hooks/compact-handoff.mjs' <<'__CLAUDE_CONFIG_EOF__'
+write_config '.pact/hooks/compact-handoff.mjs' <<'__CLAUDE_CONFIG_EOF__'
 // compact-handoff.mjs (#482): the pact's hook that carries a session through
 // auto-compaction. Claude Code runs it for five events, with the auto-compact
 // window as its one argument (node compact-handoff.mjs <window>):
@@ -964,8 +970,8 @@ write_config 'pact/hooks/compact-handoff.mjs' <<'__CLAUDE_CONFIG_EOF__'
 //   PreCompact                     ask the summary to name the hand-off file
 //   SessionStart (compact)         put the hand-off file back into context
 //
-// The hand-off lives in <home>/pact/handoff/<session_id>.md, <home> being two
-// folders above this script's own folder (<home>/pact/hooks/). A small
+// The hand-off lives in <pact home>/handoffs/<session_id>.md, <pact home> being
+// the folder above this script's own (<pact home>/hooks/). A small
 // <session_id>.turn file holds `open` or `nudged`. The pact never deletes
 // either. The hook acts only in a main session (a subagent's input carries
 // agent_id), reads at most the last 256 KB of the transcript, makes no network
@@ -1031,15 +1037,14 @@ function main() {
   if (typeof sid !== 'string' || !SESSION_RE.test(sid)) return;
 
   const script = fileURLToPath(import.meta.url);
-  const dir = resolve(dirname(script), '..', '..', 'pact', 'handoff');
+  const dir = resolve(dirname(script), '..', 'handoffs');
   const handoff = join(dir, `${sid}.md`);
   const turn = join(dir, `${sid}.turn`);
   const shown = handoff.replaceAll('\\', '/');
 
   const say = (name, text) => process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } })}\n`);
   const setTurn = word => {
-    // Owner-only on Linux and macOS, as the backups are: the notes can hold what a session knew. Windows ignores the mode.
-    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    mkdirSync(dir, { recursive: true });
     writeFileSync(turn, `${word}\n`);
   };
   const nudge = name => {
@@ -1092,7 +1097,7 @@ try {
 process.exitCode = 0;
 __CLAUDE_CONFIG_EOF__
 
-write_config 'pact/review-diagrams.md' <<'__CLAUDE_CONFIG_EOF__'
+write_config '.pact/review-diagrams.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact's diagram format
 
 How a review diagram is written and coloured; read it beside review.md's Diagrams section.
@@ -1113,7 +1118,7 @@ How a review diagram is written and coloured; read it beside review.md's Diagram
   with no diagram. GitHub and Linear both draw them.
 __CLAUDE_CONFIG_EOF__
 
-write_config 'pact/review.md' <<'__CLAUDE_CONFIG_EOF__'
+write_config '.pact/review.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact's review procedure
 
 How to run a lens and handle its report. The rules file's Workflow says which
@@ -1147,6 +1152,63 @@ lenses to offer, and when.
   teammate, so it gets no messaging or task tool beyond its own tool list.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
+- **The tree check,** where the harness can't hold an agent to its tools (Codex
+  today), around each lens and each `scout` pass. It only detects a change: it
+  keeps no copy and puts nothing back. Before the pass, run this one command
+  exactly as printed, putting only the work tree's top folder in its place: don't
+  cut the script out, pipe it or edit it. It starts from your home folder, so no
+  program or version pin in the tree picks the `node` that runs it. It covers
+  every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
+  index entries and half-done merges and rebases.
+
+  ```sh
+  cd ~
+  node -e '
+  const fs = require(`fs`), path = require(`path`);
+  process.chdir(process.argv.at(-1));
+  const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
+  // A name that is not text reads back as another name, so it fails the run.
+  const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };
+  const walk = (file, name) => {
+    const s = fs.lstatSync(file);
+    const id = JSON.stringify(name);
+    if (s.isSymbolicLink()) return `${id} link ${JSON.stringify(named(fs.readlinkSync(file)))}\n`;
+    if (s.isDirectory()) return `${id} dir ${s.mode}\n` + fs.readdirSync(file).sort().map(n => walk(path.join(file, named(n)), `${name}/${n}`)).join(``);
+    return `${id} ${s.mode} ${s.isFile() ? sha(fs.readFileSync(file)) : `other`}\n`;
+  };
+  const record = [];
+  const say = (text, name) => { record.push(`${sha(text)} ${JSON.stringify(name)}`); console.log(record.at(-1)); };
+  const line = (file, name) => { if (fs.lstatSync(file, { throwIfNoEntry: false })) say(walk(file, name), name); };
+  let own = `.git`;
+  const dot = fs.lstatSync(own);
+  if (!dot.isDirectory()) line(own, `.git`);
+  if (dot.isFile()) own = path.resolve(fs.readFileSync(own, `utf8`).replace(`gitdir:`, ``).trim());
+  const pointer = path.join(own, `commondir`);
+  const shared = fs.existsSync(pointer) ? path.resolve(own, fs.readFileSync(pointer, `utf8`).trim()) : own;
+  for (const n of [`HEAD`, `commondir`, `config.worktree`, `ORIG_HEAD`, `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `rebase-merge`, `rebase-apply`, `sequencer`]) line(path.join(own, n), `git:${n}`);
+  if (own !== shared) for (const n of [`refs`, `reftable`]) line(path.join(own, n), `git:own ${n}`);
+  for (const n of [`config`, `hooks`, `info`, `refs`, `reftable`, `packed-refs`, `logs/refs/stash`]) line(path.join(shared, n), `git:${n}`);
+  for (const n of fs.readdirSync(`.`).sort()) if (n !== `.git`) line(named(n), n);
+  // git runs from a folder the tree has no part in, so no program left there stands in for it,
+  // and fetches nothing: a fetch runs programs the config names.
+  const env = { ...process.env, GIT_NO_LAZY_FETCH: `1`, GIT_ALLOW_PROTOCOL: `none` };
+  const git = (...args) => {
+    const r = require(`child_process`).spawnSync(`git`, [`-C`, process.cwd(), `-c`, `core.fsmonitor=false`, ...args], { cwd: process.env.SystemRoot || `/`, env, maxBuffer: 1 << 29 });
+    // Git can leave entries out, say so and still succeed.
+    if (r.status !== 0 || r.stderr.length) throw new Error(`git: ${r.stderr}`);
+    return r.stdout;
+  };
+  line(path.resolve(git(`rev-parse`, `--git-path`, `hooks`).toString().trim()), `git:hooks in use`);
+  say(git(`ls-files`, `--stage`, `-v`, `--sparse`), `git:index`);
+  console.log(sha(record.join(`\n`)), `whole record`);
+  ' "<top folder>"
+  ```
+
+  After the pass, stop any process the agent left running, run the same command
+  again before any other git, and compare the last line, `<hash> whole record`,
+  alone: the same means no change. On any difference, or if a run fails: stop
+  there, run no git in that tree, change nothing, count the pass inconclusive,
+  and report to me which lines differ.
 
 ## The report template
 
@@ -1328,7 +1390,8 @@ when no other row answers the sentence.
 
 - **Read before you post.** Read every report and comment for a secret or a
   personal detail before posting it, and every commit before a push others
-  can read.
+  can read. A user or host name, a home path or a settings name is not a
+  personal detail here.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
@@ -1384,8 +1447,8 @@ when no other row answers the sentence.
     passage as `[left out]` and tell me in chat what you left out.
 - **The poster.** When your rules file says to post through the poster: on a
   repo your gh login owns, post to GitHub, or edit what you posted, with
-  `node ~/.claude/pact/tools/poster.mjs <surface> --post <file>` in a POSIX
-  shell, or `node "$HOME/.claude/pact/tools/poster.mjs" <surface> --post <file>`
+  `node ~/.pact/tools/poster.mjs <surface> --post <file>` in a POSIX
+  shell, or `node "$HOME/.pact/tools/poster.mjs" <surface> --post <file>`
   in PowerShell; `schema` in place of the surface prints the fields and the
   kinds. Write each post as one JSON file, with its body in a `body_file`
   beside it, both in a scratch folder outside the repo, and run the poster
@@ -1424,7 +1487,7 @@ when no other row answers the sentence.
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
   can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
-  in `~/.claude/pact/github.json`; run `gh-app.mjs status` and count the app
+  in `~/.pact/github.json`; run `gh-app.mjs status` and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
   `gh-app.mjs gh`, and set each post's `as` to the app's bot login
   (`<slug>[bot]`). Assigning is the
@@ -1512,7 +1575,7 @@ SETTINGS_OVERLAY='{
 '
 # The auto-compact window the cloud copy sets (#482), from the generator's own copy of the default; the cloud has no Off.
 COMPACT_WINDOW='400000'
-COMPACT_SCRIPT="$CLAUDE_HOME/pact/hooks/compact-handoff.mjs"
+COMPACT_SCRIPT="$HOME/.pact/hooks/compact-handoff.mjs"
 
 # Deep-merge an overlay into ~/.claude/settings.json. The overlay wins on
 # ordinary keys; the file wins on plugin keys; permissions.allow, .deny and .ask are
@@ -1603,14 +1666,14 @@ echo "$CONFIG_WRITTEN config files written (expected $EXPECTED_WRITES)"
 HASH_FAILED=0
 check_hash() {
   local want="$1" rel="$2" got
-  got="$(sha256sum "$CLAUDE_HOME/$rel" 2>/dev/null | cut -d ' ' -f 1)"
+  got="$(sha256sum "$(config_file "$rel")" 2>/dev/null | cut -d ' ' -f 1)"
   if [ "$got" = "$want" ]; then
-    echo "hash ok: ~/.claude/$rel"
+    echo "hash ok: $(config_shown "$rel")"
   else
-    echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
+    echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash e5f357559863e11c03307687c1592b2f9e08de29277c2dd95c00670111e023df 'CLAUDE.md'
+check_hash c8999d3a226f1405d0db1c0a22f20c7376653a317269f0de0de8512093968823 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1620,9 +1683,9 @@ check_hash ffc248f8c6e59ae1f1c00d311483a0cc8ebd0454b4668feacb0a7c7139be75e2 'age
 check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'agents/reader-lens.md'
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
-check_hash 2085b24d8acdd6c53f637d4a7cb64c4e9b3e8e56b7f39fa9d7f81be404b9d4e5 'pact/hooks/compact-handoff.mjs'
-check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e 'pact/review-diagrams.md'
-check_hash 23d38fce208ca163ced4563667cca3bf7fb14192388fc43ec5aaa122798dfcae 'pact/review.md'
+check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
+check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
+check_hash 6b4c6d59b2582ad789337a4dec7416f058a2b7f3dcc06b7472aaa00c158eed00 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1652,7 +1715,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy f1bdbdb984fd"
+  echo "pact cloud copy 0c4f2bdf1425"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

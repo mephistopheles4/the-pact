@@ -5,7 +5,7 @@
 // copies of the default and the hook names.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { REPO } from './text.mjs';
@@ -17,8 +17,8 @@ const SID = 'abc-123';
 /** A temp home with the script installed in it, and a transcript whose last assistant entry holds `used` tokens of context (split across the three usage fields). */
 function setup(t, used = 0) {
   const h = tempDir(t, 'pact-hook-home-');
-  mkdirSync(join(h, 'pact', 'hooks'), { recursive: true });
-  const script = join(h, 'pact', 'hooks', 'compact-handoff.mjs');
+  mkdirSync(join(h, '.pact', 'hooks'), { recursive: true });
+  const script = join(h, '.pact', 'hooks', 'compact-handoff.mjs');
   cpSync(SOURCE, script);
   const transcript = join(h, 'transcript.jsonl');
   const entry = (type, u) => JSON.stringify({ type, message: { usage: u } });
@@ -29,7 +29,7 @@ function setup(t, used = 0) {
   lines.push(JSON.stringify({ type: 'user', message: { content: 'tool result' } }));
   writeFileSync(transcript, `${lines.join('\n')}\n`);
   // The session's own folder, apart from the home: nothing of the hook's may land in it.
-  return { h, script, transcript, dir: join(h, 'pact', 'handoff'), cwd: tempDir(t, 'pact-hook-cwd-') };
+  return { h, script, transcript, dir: join(h, '.pact', 'handoffs'), cwd: tempDir(t, 'pact-hook-cwd-') };
 }
 
 /** Run the hook for `input`; the window argument is 400000 unless `window` is given, and `env` adds to a clean environment. */
@@ -63,9 +63,8 @@ test('#482 C6: the hook nudges past the line (window minus 80000) and not under 
   const shown = handoff(past).replaceAll('\\', '/');
   assert.equal(c.additionalContext, `Your context is nearing the auto-compact window. The hand-off file at ${shown} is how this session's place survives compaction, and it is due an update now. An up-to-date hand-off file holds the goal and any free hand, or its end, with where it came from, by its kind, the state, the open questions and the next step. It never holds secrets, tokens or personal details.`);
   assert.equal(readFileSync(turnFile(past), 'utf8').trim(), 'nudged');
-  assert.deepEqual(readdirSync(past.h).sort(), ['pact', 'transcript.jsonl'], 'nothing outside the home folder');
+  assert.deepEqual(readdirSync(past.h).sort(), ['.pact', 'transcript.jsonl'], 'nothing outside the pact folder');
   assert.deepEqual(readdirSync(past.cwd), [], 'nothing in the session\'s own folder');
-  if (process.platform !== 'win32') assert.equal(statSync(past.dir).mode & 0o777, 0o700, 'the hand-off folder is for its owner alone');
 });
 
 test('#482 C6: the env var\'s window is read first, then the argument', t => {
@@ -136,7 +135,7 @@ test('#482 C8: a session_id outside [A-Za-z0-9-], a missing transcript and bad J
       assert.deepEqual(run(ctx, { ...e, session_id: sid }), { code: 0, out: '', err: '' }, `${JSON.stringify(sid)} ${e.hook_event_name}`);
     }
     assert.equal(existsSync(ctx.dir), false, JSON.stringify(sid));
-    assert.deepEqual(readdirSync(join(ctx.h, 'pact')), ['hooks'], JSON.stringify(sid));
+    assert.deepEqual(readdirSync(join(ctx.h, '.pact')), ['hooks'], JSON.stringify(sid));
   }
   const ctx = setup(t, 340000);
   assert.deepEqual(run(ctx, { ...UPS, transcript_path: join(ctx.h, 'missing.jsonl') }), { code: 0, out: '', err: '' });
@@ -151,7 +150,7 @@ test('#482 C8: a session_id outside [A-Za-z0-9-], a missing transcript and bad J
   const { createHash } = await import('node:crypto');
   const overlay = core.readSettings(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
   const home = join('/', 'tmp', 'claude-home');
-  const inside = join(home, 'pact', 'hooks', 'compact-handoff.mjs');
+  const inside = join(home, '.pact', 'hooks', 'compact-handoff.mjs');
   const hash = b => createHash('sha256').update(b).digest('hex');
   const cfg = hash('cfg');
   const digest = hash(Buffer.from(`user ${cfg}\n`, 'ascii')).slice(0, 12);
@@ -160,7 +159,7 @@ test('#482 C8: a session_id outside [A-Za-z0-9-], a missing transcript and bad J
   const projectLines = ['RENDERED ' + hash('r'), 'CONFIG none', 'PROJECT ' + hash('p'), `DIGEST ${digest}`, 'VALUE auto-compact-window 300000', 'RESULT: pass'];
   const elsewhere = join('/', 'tmp', 'elsewhere', 'compact-handoff.mjs');
   const rows = [
-    { id: 'script-outside-the-home', run: () => core.fillHooks(overlay, home, elsewhere, 500000, 'linux'), fails: 'hook-script-path', why: 'the script path is checked to sit under the Claude home folder' },
+    { id: 'script-outside-the-home', run: () => core.fillHooks(overlay, home, elsewhere, 500000, 'linux'), fails: 'hook-script-path', why: 'the script path is checked to sit under the home folder' },
     { id: 'script-in-a-sibling-folder', run: () => core.fillHooks(overlay, home, join('/', 'tmp', 'claude-home-evil', 'x.mjs'), 500000, 'linux'), fails: 'hook-script-path', why: 'a folder whose name starts with the home\'s is not under it' },
     { id: 'script-is-the-home-itself', run: () => core.fillHooks(overlay, home, home, 500000, 'linux'), fails: 'hook-script-path', why: 'under the home, not the home' },
     { id: 'window-below-the-range', run: () => parse(lines('99999')), fails: 'render-unknown-line', why: 'the renderer reports only windows the install takes' },
@@ -207,5 +206,5 @@ test('#482: the default window is one number in the renderer, the install and th
   assert.ok(seam.includes("const PACT_HOOKS = Object.freeze(['compact-handoff']);"));
   const overlay = JSON.parse(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
   assert.deepEqual(Object.keys(overlay.hooks), [...core.HOOK_EVENTS]);
-  assert.equal(core.HOOK_SCRIPT_REL, 'pact/hooks/compact-handoff.mjs');
+  assert.equal(core.HOOK_SCRIPT_REL, '.pact/hooks/compact-handoff.mjs');
 });

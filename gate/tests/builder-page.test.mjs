@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { AVIATION_PIN, EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, personalPresets, personalPresetsDir, shippedPresets } from '../../builder/build.mjs';
-import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
+import { DEFAULT_PARTS, MODEL_RE, agentModelOf, modelChoiceOk, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
 import { BUILDER_KIT, CLEANER_ASK, CLEANER_DENY, STOP_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -406,12 +406,14 @@ test('#427 claim 5: no local copy of a replaced component remains', () => {
 
 // ------------------------------------------------------------ where the page lives
 
-// #262: the builder is part of the pact: the page is staged, and installs only into the builder kit, never to the Claude home folder's top.
+// #262: the builder is part of the pact: the page is staged, and installs only into the builder kit, nowhere else.
 test('the page is staged, and installs only into the builder kit', () => {
   // The Node install stages the paths its core's isStaged names (#153, S3, step 7).
   assert.ok(isStaged('claude/CLAUDE.md') && isStaged('gate/seam-a.mjs') && isStaged(PAGE_REL), 'the install stages claude/, gate/ and the builder');
-  assert.deepEqual(expectedCopySet([PAGE_REL], ['scriptorium']), [[PAGE_REL, `pact/builder/${PAGE_REL}`]]);
-  assert.deepEqual(expectedCopySet([PAGE_REL], []), []);
+  // With no harness in, nothing installs, so both cases are read with Claude Code in.
+  const claude = [{ id: 'claude', rules: { path: '.claude/CLAUDE.md' }, agents: { dir: '.claude/agents', format: 'claude-md' }, commands: { dir: '.claude/commands' } }];
+  assert.deepEqual(expectedCopySet([PAGE_REL], ['scriptorium'], [], false, claude), [[PAGE_REL, `.pact/builder/${PAGE_REL}`]]);
+  assert.deepEqual(expectedCopySet([PAGE_REL], [], [], false, claude), []);
 });
 
 // ------------------------------------------------------------ the carried pact text
@@ -423,7 +425,7 @@ test('the page carries what builder/build.mjs builds from the repo now: the part
 /** A throwaway root holding the files builder/build.mjs reads, with `mutate` applied. */
 function buildRoot(t, mutate) {
   const root = tempDir(t, 'pact-builder-root-');
-  for (const d of ['claude', 'examples', 'familiars', join('docs', 'brand'), join('builder', 'presets')]) cpSync(join(REPO, d), join(root, d), { recursive: true });
+  for (const d of ['claude', 'examples', 'familiars', 'harnesses', join('docs', 'brand'), join('builder', 'presets')]) cpSync(join(REPO, d), join(root, d), { recursive: true });
   // The renderer and what it reads: build.mjs runs it for the agents' classes.
   cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: s => !s.includes(`${join('gate', 'tests')}`) });
   mutate(root);
@@ -840,7 +842,7 @@ test('reset puts the usage value, every part and every agent back to where the p
   assert.deepEqual(JSON.parse(JSON.stringify(s)), JSON.parse(JSON.stringify(start)));
   // A reset page saves Level 3 · Full: its workflow edit, no settings, no agents.
   // #183 T4a C4: what a reset page saves is the pact's default configuration, skills included once it has them.
-  assert.deepEqual(JSON.parse(L.buildFiles(s).find(f => f.path === 'pact/config.json').text), DEFAULT_CONFIG);
+  assert.deepEqual(JSON.parse(L.buildFiles(s).find(f => f.path === 'config.json').text), DEFAULT_CONFIG);
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
@@ -917,6 +919,40 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.match(P.ids.output.text, /"mark": "moves",\s*"op": "replace"/);
   assert.match(P.ids.output.text, /I sense the work my own way\./);
   assert.doesNotMatch(P.ids.output.text, /\r/);
+});
+
+// PACT-105 S11, C24: the Harnesses dialog's controls reach the saved configuration and the read-only view.
+test('stub page: Harnesses opens, a harness left out, a model and an added harness reach the save, and each file received is shown', () => {
+  const P = bootPage();
+  P.button(P.ids.actions, 'Harnesses').click();
+  const box = P.ids.harnesses;
+  const labelled = label => P.find(box, n => n.attrs['aria-label'] === label)[0];
+  const fire = (node, event) => node.listeners[event].forEach(f => f({}));
+  assert.match(box.text, /~\/\.claude\/CLAUDE\.md/);
+  const codex = labelled('Install into Codex');
+  codex.checked = false;
+  fire(codex, 'change');
+  const planning = labelled('Claude Code: planning model');
+  planning.value = 'sonnet';
+  fire(planning, 'change');
+  for (const [field, value] of [['id', 'mine'], ['name', 'My harness'], ['detect folder', '~/.mine'], ['rules file', '/etc/RULES.md']]) typeInto(labelled(`New harness: ${field}`), value);
+  P.button(box, 'Add this harness').click();
+  assert.match(box.text, /Not added: .*~\//);
+  typeInto(labelled('New harness: rules file'), '~/.mine/RULES.md');
+  const listless = labelled('New harness: installed without a list');
+  listless.checked = false;
+  fire(listless, 'change');
+  P.button(box, 'Add this harness').click();
+  assert.doesNotMatch(box.text, /Not added/);
+  P.button(box, 'My harness').click();
+  assert.match(box.text, /~\/\.mine\/RULES\.md/);
+  P.button(P.ids.actions, 'Export').click();
+  const saved = P.ids.output.text;
+  assert.match(saved, /"install": \[\s*"claude",\s*"antigravity",\s*"mine"\s*\]/);
+  assert.match(saved, /"planning": "sonnet"/);
+  assert.match(saved, /"path": "~\/\.mine\/RULES\.md"/);
+  assert.match(saved, /"defaultInstall": false/);
+  assert.match(box.text, /Antigravity has no effort setting/);
 });
 
 // PACT-96 S6, C6: cards of different heights; after the first draw and after Arrange, no two cards' boxes overlap.
@@ -1299,7 +1335,7 @@ test('stub page: "The pact" shows the pact\'s text read-only, each file byte for
   // #564: the checkpoint-stops part is gone, so no label stands for it.
   assert.ok(!rules.includes('under Settings:]\n- **Checkpoints wait'));
   const beforePoster = src.split('<!-- pact:begin tool-poster -->')[0].split('\n').filter(l => l.trim() && !l.includes('<!-- pact:')).at(-1);
-  assert.match(rules, new RegExp(`${beforePoster.replace(/[.*+?^$()[\]{}|\\/]/g, '\\$&')}\\n\\[Only while the poster is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[Only while the cleaner is on[^\\n]*\\n- \\*\\*`));
+  assert.match(rules, new RegExp(`${beforePoster.replace(/[.*+?^$()[\]{}|\\/]/g, '\\$&')}\\n\\[Only while the poster is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[Only in a harness with the cleaner capability:\\]\\n\\[Only while the cleaner is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[End of that part\\.\\]`));
   assert.match(rules, /\[Only when you set this line, under Settings:\]\n- \*\*/);
   P.button(P.ids.actions, 'Export').click();
   assert.equal(P.ids.output.text, before);
@@ -1407,7 +1443,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic(page = PAGE) {
   const script = pageScript(page);
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, fileLabel, presetPicks, takePreset, startPicks, takeNote });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepFolderKeys, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, fileLabel, presetPicks, takePreset, startPicks, takeNote });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT), OPT_COMMANDS: clone(got.OPT_COMMANDS), OPT_TOOLS: clone(got.OPT_TOOLS) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -1419,7 +1455,7 @@ const L = pageLogic();
 test('with nothing changed, the page saves a configuration that sets nothing', () => {
   const s = L.initialState();
   assert.deepEqual(L.problems(s), []);
-  assert.deepEqual(JSON.parse(JSON.stringify(L.buildFiles(s))), [{ path: 'pact/config.json', text: '{\n  "schema": 1\n}\n' }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(L.buildFiles(s))), [{ path: 'config.json', text: '{\n  "schema": 1\n}\n' }]);
 });
 
 test('a save keeps a commands list already in the folder\'s config.json, and won\'t replace one it can\'t read (#203, T2)', () => {
@@ -1427,40 +1463,39 @@ test('a save keeps a commands list already in the folder\'s config.json, and won
   s.parts.moves[0].text = 'I sense the work my own way.';
   const files = L.buildFiles(s);
   assert.equal(files.length, 2, 'a block file to carry through');
-  assert.deepEqual(L.keepCommands(files, null), { files }, 'no file there');
-  assert.deepEqual(L.keepCommands(files, '{"schema":1,"settings":{"usage-pause":80}}'), { files }, 'a file with no commands key');
-  assert.deepEqual(L.keepCommands(files, '[]'), { files }, 'JSON that is not an object holds no list to keep');
-  const kept = L.keepCommands(files, '{"schema":1,"settings":{"usage-pause":80},"commands":["make-it-so","finis"]}');
+  assert.deepEqual(L.keepFolderKeys(files, null), { files }, 'no file there');
+  assert.deepEqual(L.keepFolderKeys(files, '{"schema":1,"settings":{"usage-pause":80}}'), { files }, 'a file with no commands key');
+  assert.deepEqual(L.keepFolderKeys(files, '[]'), { files }, 'JSON that is not an object holds no list to keep');
+  const kept = L.keepFolderKeys(files, '{"schema":1,"settings":{"usage-pause":80},"commands":["make-it-so","finis"]}');
   assert.deepEqual(JSON.parse(kept.files[0].text), { ...JSON.parse(files[0].text), commands: ['make-it-so', 'finis'] });
-  assert.equal(kept.files[0].path, 'pact/config.json');
+  assert.equal(kept.files[0].path, 'config.json');
   assert.deepEqual(kept.files.slice(1), files.slice(1), 'block files pass through unchanged');
-  assert.deepEqual(JSON.parse(L.keepCommands(files, '{"commands":[]}').files[0].text).commands, [], 'an empty list is kept too');
-  const twice = L.keepCommands(files, '{"schema":1,"commands":["finis"],"Commands":["make-it-so"]}');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(files, '{"commands":[]}').files[0].text).commands, [], 'an empty list is kept too');
+  const twice = L.keepFolderKeys(files, '{"schema":1,"commands":["finis"],"Commands":["make-it-so"]}');
   assert.equal(twice.files, undefined, 'a key given twice, case folded, writes nothing');
   assert.match(twice.refuse, /gives a key twice/);
-  assert.deepEqual(JSON.parse(L.keepCommands(files, '{"commands":["finis"],"agents":{"commands":{}}}').files[0].text).commands, ['finis'], 'a nested key of the same name is not a repeat');
-  const bad = L.keepCommands(files, '{"schema":1,"commands":["finis"');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(files, '{"commands":["finis"],"agents":{"commands":{}}}').files[0].text).commands, ['finis'], 'a nested key of the same name is not a repeat');
+  const bad = L.keepFolderKeys(files, '{"schema":1,"commands":["finis"');
   assert.equal(bad.files, undefined, 'nothing to write');
   assert.match(bad.refuse, /config\.json/);
 });
 
-test('a save reads the folder\'s config.json through keepCommands: none there, a refusal on a read error, and a kept list (#203, T2)', async () => {
+test('a save reads the folder\'s config.json through keepFolderKeys: none there, a refusal on a read error, and a kept list (#203, T2)', async () => {
   const script = pageScript(PAGE);
   const ctx = vm.createContext({});
-  const { keepCommandsIn, buildFiles, initialState } = vm.runInContext(`${script}\n;({ keepCommandsIn, buildFiles, initialState });`, ctx);
+  const { keepFolderKeysIn, buildFiles, initialState } = vm.runInContext(`${script}\n;({ keepFolderKeysIn, buildFiles, initialState });`, ctx);
   const files = buildFiles(initialState());
-  // The Claude folder: its pact folder holds config.json.
-  const inPact = d => ({ getDirectoryHandle: async () => d });
-  const fail = name => inPact({ getFileHandle: async () => { throw Object.assign(new Error('x'), { name }); } });
-  const holding = text => inPact({ getFileHandle: async () => ({ getFile: async () => ({ text: async () => text }) }) });
-  const none = await keepCommandsIn(fail('NotFoundError'), files);
+  // The picked folder is the pact folder: it holds config.json itself.
+  const fail = name => ({ getFileHandle: async () => { throw Object.assign(new Error('x'), { name }); } });
+  const holding = text => ({ getFileHandle: async () => ({ getFile: async () => ({ text: async () => text }) }) });
+  const none = await keepFolderKeysIn(fail('NotFoundError'), files);
   assert.equal(none.files, files, 'no config.json there: the files go as built');
-  const unreadable = await keepCommandsIn(fail('NotReadableError'), files);
+  const unreadable = await keepFolderKeysIn(fail('NotReadableError'), files);
   assert.equal(unreadable.files, undefined, 'nothing to write');
   assert.match(unreadable.refuse, /could not be read, so nothing was written/);
-  const kept = await keepCommandsIn(holding('{"schema":1,"commands":["finis"]}'), files);
+  const kept = await keepFolderKeysIn(holding('{"schema":1,"commands":["finis"]}'), files);
   assert.deepEqual(JSON.parse(kept.files[0].text).commands, ['finis']);
-  assert.match((await keepCommandsIn(holding('{'), files)).refuse, /not valid JSON/);
+  assert.match((await keepFolderKeysIn(holding('{'), files)).refuse, /not valid JSON/);
 });
 
 // #203 S10: the page writes the commands list once the person sets it, in the installer's order, never /scriptorium; until then a save keeps the folder's.
@@ -1470,11 +1505,11 @@ test('a commands list set on the page is saved in the installer\'s order without
   assert.equal(s.commands, null);
   const config = st => JSON.parse(L.buildFiles(st)[0].text);
   assert.equal(Object.hasOwn(config(s), 'commands'), false, 'left as is, no list');
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, ['finis'], 'left as is keeps the folder\'s');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, ['finis'], 'left as is keeps the folder\'s');
   s.commands = ['finis', 'scriptorium', 'make-it-so'];
   assert.deepEqual(config(s).commands, ['make-it-so', 'finis']);
   s.commands = [];
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, [], 'the page\'s empty list wins');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, [], 'the page\'s empty list wins');
 });
 
 // #262, owner decision after adversarial-lens F1: a shared file's agent files start unticked; its parts start ticked.
@@ -1526,12 +1561,12 @@ test('a tools list set on the page is saved in the installer\'s order, and wins 
   assert.equal(s.tools, null, 'off by default: left as is');
   const config = st => JSON.parse(L.buildFiles(st)[0].text);
   assert.equal(Object.hasOwn(config(s), 'tools'), false, 'left as is, no list');
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, ['poster'], 'left as is keeps the folder\'s');
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"],"tools":["poster"]}').files[0].text), { ...config(s), commands: ['finis'], tools: ['poster'] }, 'both lists kept');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, ['poster'], 'left as is keeps the folder\'s');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"commands":["finis"],"tools":["poster"]}').files[0].text), { ...config(s), commands: ['finis'], tools: ['poster'] }, 'both lists kept');
   s.tools = ['poster'];
   assert.deepEqual(config(s).tools, ['poster']);
   s.tools = [];
-  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, [], 'the page\'s empty list wins');
+  assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, [], 'the page\'s empty list wins');
 });
 
 // #603 C8: the identity switch is written only when on, and it never puts gh-app in the tools list.
@@ -1612,7 +1647,7 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
   const fakeFolder = held => {
     const written = {};
     const dir = {
-      name: 'pact',
+      name: '.pact',
       written,
       async getFileHandle(name, opts = {}) {
         if (!Object.hasOwn(held, name) && !opts.create) throw Object.assign(new Error('x'), { name: 'NotFoundError' });
@@ -1622,8 +1657,9 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
     };
     return dir;
   };
-  const save = async folder => {
+  const save = async (folder, change = () => {}) => {
     const P = bootPage({ picker: true, folder });
+    change(P);
     P.button(P.ids.actions, 'Export').click();
     P.button(P.ids.output, 'Save to a folder').click();
     for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 0));
@@ -1634,6 +1670,15 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
   assert.deepEqual(JSON.parse(kept['config.json']), { ...DEFAULT_CONFIG, commands: ['finis'] });
   assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
   assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), DEFAULT_CONFIG, 'no file there: the save goes as built');
+  // PACT-105 C24: a harness change made on the page reaches the folder's own key, over what it holds.
+  const untickCodex = P => {
+    P.button(P.ids.actions, 'Harnesses').click();
+    const box = P.find(P.ids.harnesses, n => n.attrs['aria-label'] === 'Install into Codex')[0];
+    box.checked = false;
+    box.listeners.change.forEach(f => f({}));
+  };
+  const harnessed = await save(fakeFolder({ 'config.json': '{"schema":1,"harnesses":{"install":["codex","old"]}}' }), untickCodex);
+  assert.deepEqual(JSON.parse(harnessed['config.json']).harnesses, { install: ['old'] });
 });
 // #482 C9: the auto-compact window, a slider beside the usage limits, on at 400000 by default.
 test('the auto-compact window starts on at 400000, saves nothing at the default, its value when set and 0 when Off, and refuses what the renderer refuses', () => {
@@ -1746,7 +1791,11 @@ test('every pact agent takes a model and effort, scout included, and only a chan
 // #262 C16
 test('the Models list feeds the agents and the tiers: a model ID reaches config.json and the tier text exactly as typed', () => {
   const s = L.initialState();
-  assert.deepEqual(s.models, ['Opus', 'Sonnet', 'Haiku', 'Fable']);
+  // Spec 0007 S6: the list starts as the three roles; a role cell reads as a role, and an agent file takes its one word.
+  assert.deepEqual(s.models, ['planning model', 'executor model', 'light model']);
+  assert.deepEqual([...s.models, 'Opus', 'my-model'].map(agentModelOf), ['planning', 'executor', 'light', 'opus', 'my-model']);
+  assert.ok(modelChoiceOk('planning model, low'));
+  assert.ok(!modelChoiceOk('review model, low'), 'only the three roles hold a space');
   s.models.push('claude-opus-5-5');
   s.agents['integrity-lens'].model = 'claude-opus-5-5';
   s.agents['integrity-lens'].effort = 'xhigh';
@@ -1756,7 +1805,7 @@ test('the Models list feeds the agents and the tiers: a model ID reaches config.
   const config = JSON.parse(L.buildFiles(s)[0].text);
   assert.deepEqual(config.agents['integrity-lens'], { model: 'claude-opus-5-5', effort: 'xhigh' });
   assert.deepEqual(config.agents.scout, { model: 'fable' });
-  assert.match(L.buildFiles(s).find(f => f.path === 'pact/blocks/tiers.md').text, /claude-opus-5-5, xhigh/);
+  assert.match(L.buildFiles(s).find(f => f.path === 'blocks/tiers.md').text, /claude-opus-5-5, xhigh/);
   // A model the gate would refuse is the page's error too.
   s.models.push('claude opus');
   assert.ok(L.problems(s).some(p => p.where === 'models' && p.level === 'error'));
@@ -1801,9 +1850,9 @@ test('the page shows each pact agent with its model and effort, as its file sets
 /** Render the real pact with a user file whose one edit adds `block` after the moves; true when the renderer refuses. */
 function rendererRefuses(t, block) {
   const h = tempDir(t, 'pact-builder-home-');
-  mkdirSync(join(h, 'pact', 'blocks'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), '{ "schema": 1, "edits": [ { "mark": "moves", "op": "add-after", "file": "b.md" } ] }\n');
-  writeFileSync(join(h, 'pact', 'blocks', 'b.md'), block);
+  mkdirSync(join(h, '.pact', 'blocks'), { recursive: true });
+  writeFileSync(join(h, '.pact', 'config.json'), '{ "schema": 1, "edits": [ { "mark": "moves", "op": "add-after", "file": "b.md" } ] }\n');
+  writeFileSync(join(h, '.pact', 'blocks', 'b.md'), block);
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   const r = spawnSync(process.execPath, [RENDER, join(REPO, 'claude', 'CLAUDE.md'), tempDir(t, 'pact-builder-out-'), h], { encoding: 'utf8', env });
@@ -1811,11 +1860,11 @@ function rendererRefuses(t, block) {
   return r.status !== 0;
 }
 
-/** Render the real pact with the page's files for `state` in a throwaway home; the renderer's exit code and output. */
+/** Render the real pact with the page's files for `state` in a throwaway home, each where the page says it goes; the renderer's exit code and output. */
 function renderSaved(t, state) {
   const h = tempDir(t, 'pact-builder-home-');
   for (const f of JSON.parse(JSON.stringify(L.buildFiles(state)))) {
-    const p = join(h, ...f.path.split('/'));
+    const p = join(h, f.agent ? '.claude' : '.pact', ...f.path.split('/'));
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, f.text);
   }
@@ -1872,22 +1921,24 @@ test('a shipped preset is carried with only the parts, models and agent files it
   assert.throws(() => shippedPresets(REPO, pactData(REPO), dir), /the preset z-bad\.json is refused: .*1 to 6 tiers/);
 });
 
-// #203 S6, C5, PACT-96 S5: the builder runs as the installed kit, from the rules source, and writes its page by default to the Claude home's fixed path; --out goes only somewhere new, outside any repo or Claude folder.
-test('the builder kit builds a page from a builder file, refuses to rebuild itself, and refuses an output in the kit, the Claude home, a .claude folder, a git work tree or over a file', t => {
-  const home = join(tempDir(t, 'pact-kit-'), 'claude-home');
-  const kit = join(home, 'pact', 'builder');
+// #203 S6, C5, PACT-96 S5: the builder runs as the installed kit, from the rules source, and writes its page by default to the fixed path in the pact folder; --out goes only somewhere new, outside any repo, Claude folder or pact folder.
+test('the builder kit builds a page from a builder file, refuses to rebuild itself, and refuses an output in the kit, the pact folder, the Claude home, a .claude folder, a git work tree or over a file', t => {
+  const home = join(tempDir(t, 'pact-kit-'), 'user-home');
+  const claudeHome = join(tempDir(t, 'pact-kit-claude-'), 'claude-home');
+  mkdirSync(claudeHome);
+  const kit = join(home, '.pact', 'builder');
   // The gate's own kit list, the agents and presets by their folders, so the test runs the kit that installs.
   for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'claude/commands', 'claude/review.md', 'claude/settings.overlay.json', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
   cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  env.CLAUDE_CONFIG_DIR = home;
+  Object.assign(env, { HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: claudeHome });
   const cli = args => spawnSync(process.execPath, [join(kit, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env, cwd: dirname(home) });
   const f = builderFile(t, GOOD, GOOD_BLOCKS);
   const ok = cli(['--builder', f]);
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   const wrote = /^WROTE (.+)$/m.exec(ok.stdout)[1];
-  assert.equal(wrote, join(home, 'pact', 'scriptorium.html'), 'the page is written, by default, at the fixed path in the Claude home');
+  assert.equal(wrote, join(home, '.pact', 'scriptorium.html'), 'the page is written, by default, at the fixed path in the pact folder');
   assert.deepEqual(pageProblems(readFileSync(wrote, 'utf8')), []);
   const existing = join(tempDir(t, 'pact-kit-there-'), 'there.html');
   writeFileSync(existing, 'mine');
@@ -1901,8 +1952,9 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   mkdirSync(dotClaude);
   for (const [out, why] of [
     [join(kit, 'mine.html'), /outside the builder kit/],
-    [join(home, 'mine.html'), /outside the Claude home folder/],
-    [join(dotClaude, 'mine.html'), /any \.claude folder/],
+    [join(home, '.pact', 'mine.html'), /any \.claude or \.pact folder/],
+    [join(claudeHome, 'mine.html'), /outside the Claude home folder/],
+    [join(dotClaude, 'mine.html'), /any \.claude or \.pact folder/],
     [join(repo, 'deep', 'mine.html'), /outside any git work tree/],
     [wrote, /outside the Claude home folder/],
     [existing, /must be a new file/],
@@ -1917,29 +1969,32 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   assert.match(both.stdout + both.stderr, /both claude\/CLAUDE\.md and claude\/rules\.source\.md/);
 });
 
-// PACT-96 S5, C5: with no --out the page goes to the fixed page path in the Claude home and replaces the last one; only that path is let into the home, and only as a plain file.
-test('with no --out the page lands at pact/scriptorium.html in the Claude home, a second run replaces it, and a link there or an --out into the home is refused', t => {
-  const home = join(tempDir(t, 'pact-home-'), 'claude');
+// PACT-96 S5, C5: with no --out the page goes to the fixed page path in the pact folder and replaces the last one; only that path is let into it, and only as a plain file.
+test('with no --out the page lands at .pact/scriptorium.html in the home folder, a second run replaces it, and a link there or an --out into the pact or Claude folder is refused', t => {
+  const home = join(tempDir(t, 'pact-home-'), 'user');
+  const claudeHome = join(tempDir(t, 'pact-home-claude-'), 'claude');
   mkdirSync(home);
-  const env = { ...process.env, CLAUDE_CONFIG_DIR: home };
+  mkdirSync(claudeHome);
+  // CLAUDE_CONFIG_DIR is set, and moves nothing of the page's.
+  const env = { ...process.env, HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: claudeHome };
   delete env.NODE_OPTIONS;
   const cli = args => spawnSync(process.execPath, [join(REPO, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env });
-  const page = join(home, 'pact', 'scriptorium.html');
+  const page = join(home, '.pact', 'scriptorium.html');
   const first = cli(['--builder', builderFile(t, { ...GOOD, title: 'First title' }, GOOD_BLOCKS)]);
   assert.equal(first.status, 0, first.stdout + first.stderr);
   assert.equal(/^WROTE (.+)$/m.exec(first.stdout)[1], page);
   assert.match(readFileSync(page, 'utf8'), /First title/);
-  assert.match(first.stdout, /^NOTE the page sits in your Claude folder, beside your builder file, .*you may delete the file when you are done with it$/m);
+  assert.match(first.stdout, /^NOTE the page sits in your pact folder, beside your builder file, .*you may delete the file when you are done with it$/m);
   assert.doesNotMatch(first.stdout, /delete its folder/);
   // A second run replaces the page, through a temporary file that is gone after.
   const second = cli(['--builder', builderFile(t, { ...GOOD, title: 'Second title' }, GOOD_BLOCKS)]);
   assert.equal(second.status, 0, second.stdout + second.stderr);
   assert.doesNotMatch(readFileSync(page, 'utf8'), /First title/);
   assert.match(readFileSync(page, 'utf8'), /Second title/);
-  assert.deepEqual(readdirSync(join(home, 'pact')), ['scriptorium.html']);
-  // Only the default path is let through: --out into the home is refused, the fixed path itself included.
+  assert.deepEqual(readdirSync(join(home, '.pact')), ['scriptorium.html']);
+  // Only the default path is let through: --out into the pact or Claude folder is refused, the fixed path itself included.
   const f = builderFile(t, GOOD, GOOD_BLOCKS);
-  for (const out of [page, join(home, 'pact', 'other.html'), join(home, 'other.html')]) {
+  for (const out of [page, join(home, '.pact', 'other.html'), join(claudeHome, 'other.html')]) {
     const r = cli(['--builder', f, '--out', out]);
     assert.equal(r.status, 1, `${out}: ${r.stdout}`);
     assert.match(r.stdout, /outside the Claude home folder/);
@@ -1952,7 +2007,8 @@ test('with no --out the page lands at pact/scriptorium.html in the Claude home, 
   assert.equal(linked.status, 1, linked.stdout);
   assert.match(linked.stdout, /REFUSE .*not a plain file/);
   assert.deepEqual(readdirSync(away), []);
-  assert.deepEqual(readdirSync(join(home, 'pact')), ['scriptorium.html']);
+  assert.deepEqual(readdirSync(join(home, '.pact')), ['scriptorium.html']);
+  assert.deepEqual(readdirSync(claudeHome), []);
   // A link to a plain file is refused too, where the platform lets the test make one; the file it points at is left as it was.
   rmSync(page, { recursive: true, force: true });
   const target = join(away, 'target.html');
@@ -2115,17 +2171,17 @@ test('taking a preset replaces only the ticked parts and agent files, and the wo
 
 // ------------------------------------------------------------ #283: a person's own presets
 
-/** The installed kit laid out in a fresh Claude home; `cli` runs its build.mjs. */
+/** The installed kit laid out in a fresh home folder; `cli` runs its build.mjs with that folder as the home. */
 function kitHome(t) {
-  const home = join(tempDir(t, 'pact-own-'), 'claude-home');
-  const kit = join(home, 'pact', 'builder');
+  const home = join(tempDir(t, 'pact-own-'), 'user-home');
+  const kit = join(home, '.pact', 'builder');
   for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'claude/commands', 'claude/review.md', 'claude/settings.overlay.json', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
   cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
-  // PACT-114: the kit's page goes to the Claude home by default, so every home the child could read is this temp one.
-  const env = { ...process.env, CLAUDE_CONFIG_DIR: home, HOME: dirname(home), USERPROFILE: dirname(home) };
+  // PACT-114: the kit's page goes to <home>/.pact by default, so every home the child could read is this temp one.
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: join(home, '.claude'), HOME: home, USERPROFILE: home };
   delete env.NODE_OPTIONS;
   const cli = args => spawnSync(process.execPath, [join(kit, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env, cwd: dirname(home) });
-  return { home, kit, presets: join(home, 'pact', 'presets'), cli };
+  return { home, kit, presets: join(home, '.pact', 'presets'), cli };
 }
 
 const ONE_TIER = [{ id: 'only', name: 'Only', fits: 'All work', plan: 'none', build: 'Sonnet, medium' }];
@@ -2199,7 +2255,7 @@ test('C2: a bad personal preset is left out with a finding on every run, no mess
 // #283 C7
 test('C7: a presets folder that is a file stops nothing: one finding, no presets', t => {
   const k = kitHome(t);
-  mkdirSync(join(k.home, 'pact'), { recursive: true });
+  mkdirSync(join(k.home, '.pact'), { recursive: true });
   writeFileSync(k.presets, 'not a folder');
   const f = builderFile(t, GOOD, GOOD_BLOCKS);
   const one = ['FINDING presets: your presets folder could not be read; no presets were listed'];

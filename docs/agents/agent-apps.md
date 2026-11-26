@@ -1,6 +1,6 @@
 # Agent apps and whose text counts
 
-Holds only while an agent app is pinned. An app is pinned when it has an entry in `~/.claude/pact/github.json` and `gh-app.mjs` is installed in `~/.claude/pact/tools/` ([agent identity](../agent-identity.md) sets it up). A session counts an app as its agent app only when its own `gh-app.mjs status` printed "pin check: pass" for it. Otherwise every app's PR is outsiders' code, and [the issue tracker doc](issue-tracker.md) holds as written. This doc changes the rules below and nothing else; the rule for Linear is unchanged.
+Holds only while an agent app is pinned. An app is pinned when it has an entry in `~/.pact/github.json` and `gh-app.mjs` is installed in `~/.pact/tools/` ([agent identity](../agent-identity.md) sets it up). A session counts an app as its agent app only when its own `gh-app.mjs status` printed "pin check: pass" for it. Otherwise every app's PR is outsiders' code, and [the issue tracker doc](issue-tracker.md) holds as written. This doc changes the rules below and nothing else; the rule for Linear is unchanged.
 
 **Before you use the tracker,** state your read login and the output of `gh-app.mjs status` in your first chat message, in chat only: never in a post, or in a hand-off quoted to the record. If git resolves to the owner's helper while an app is pinned, say that your pushes go as the owner.
 
