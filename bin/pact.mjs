@@ -2,8 +2,10 @@
 // The release bootstrap (spec 0007 S10), which npx fetches and runs:
 //   pact [--default | --builder] [--home <path>]
 // It takes the highest release tag, clones it under ~/.pact/source/<commit>,
-// checks the clone's head, and runs the clone's install as a dry run. It never
-// passes --apply: the owner types the apply line the dry run prints. Node's
+// checks the clone's head, and runs the clone's install as a dry run, or, on
+// the builder choice, only the clone's builder, which writes Scriptorium to
+// ~/.pact/scriptorium.html. It never passes --apply: the owner types the apply
+// line the dry run prints. Node's
 // built-ins and git only. git is found by walking PATH's full entries, never by
 // bare name and never in a package folder npx put on PATH, and runs from the
 // home folder, so a git planted in the folder npx ran from never runs.
@@ -174,15 +176,26 @@ export async function main({
     if (!release) refuse('release-none', 'the repository holds no release tag named v1.<n>.0.');
     say(`Release: ${release.tag} (commit ${release.commit})`);
     const clone = cloneRelease(git, home, url, release);
+    /** Run one of the clone's scripts from the home folder; true when it passes. */
+    const pass = (args, given) => {
+      const r = spawnSync(process.execPath, args, { cwd: home, env: given, stdio, windowsHide: true, shell: false });
+      // With stdio piped, as a test runs it, the script's lines are passed on.
+      if (r.stdout) say(String(r.stdout).trimEnd());
+      return r.status === 0;
+    };
     const choice = opts.choice ?? { 1: 'default', 2: 'builder' }[(await ask()).trim()] ?? noChoice();
-    // Scriptorium's own path before an install is spec 0007 S11's, built with the Scriptorium ticket.
-    if (choice === 'builder') refuse('bootstrap-builder', 'opening Scriptorium first is not built yet; run again with --default.');
+    // Spec 0007 S11: Scriptorium before any install. The builder writes the page under the home folder it runs with.
+    if (choice === 'builder') {
+      const own = join(home, '.pact', 'builder.json');
+      const file = existsSync(own) ? own : join(clone, 'examples', 'pact-config', 'builder.json');
+      const forHome = opts.home === null ? run : { ...run, HOME: home, USERPROFILE: home };
+      if (!pass([join(clone, 'builder', 'build.mjs'), '--builder', file], forHome)) return 1;
+      say('Nothing is installed yet. Open the page named above in a browser, save from it into your .pact folder, then run this command again and choose 1, or pass --default: it installs what you saved.');
+      return 0;
+    }
     // The default is only the dry run's input: the install keeps an existing ~/.pact/config.json and uses it.
     const args = [join(clone, 'gate', 'install.mjs'), '--release', release.tag, ...(opts.home === null ? [] : ['--home', opts.home])];
-    const r = spawnSync(process.execPath, args, { cwd: home, env: run, stdio, windowsHide: true, shell: false });
-    // With stdio piped, as a test runs it, the install's lines are passed on.
-    if (r.stdout) say(String(r.stdout).trimEnd());
-    return r.status === 0 ? 0 : 1;
+    return pass(args, run) ? 0 : 1;
   } catch (e) {
     say(`REFUSED: ${e instanceof Refusal ? `${e.message} [${e.rule}]` : 'the bootstrap failed.'}`);
     say('RESULT: refused');

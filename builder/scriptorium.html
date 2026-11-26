@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-pUYmXUhOA1S0n65cDrfmvixwf7es6xb696n8fXTfEac='; style-src 'sha256-fdt2rp0AGwjAZpJ0BxRJnu/DbCvrCkaV571jcgtWbxI='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-pKSctOfRiOFcGmuLrmwOlr91RvTgfkeqod+1VQOHe5A='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1412,6 +1412,7 @@ dialog.settings .av-field { gap: var(--space-item); }
 /* Harnesses: the three models and the add form's fields sit side by side where there is room. */
 /* The sheet's stack is a wrapping column, so each row takes its width, or its height is measured narrow. */
 #harnesses .av-tool-bar--stack > * { width: 100%; }
+#harnesses .row-x { min-width: 24px; min-height: 24px; }
 .harness-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-row) var(--av-s2); }
 .harness-head { display: flex; flex-wrap: wrap; align-items: center; }
 .harness-caps { flex-wrap: wrap; gap: var(--space-row) var(--av-s2); }
@@ -9639,15 +9640,18 @@ function boot() {
   const MODEL_LABELS = { planning: 'Planning model', executor: 'Executor model', light: 'Light model' };
   const OTHER = '__other__';
 
-  /** Redraw after a change, focus staying on the control that made it. */
-  function harnessChanged() {
-    const at = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('aria-label');
+  /** Redraw after a change, focus staying on the control that made it, or going to the one named `next`, else the title. */
+  function harnessChanged(next) {
+    const named = n => (n && n.getAttribute ? n.getAttribute('aria-label') || (/^(BUTTON|SUMMARY)$/.test(n.tagName) ? n.textContent : '') : '');
+    const at = next || named(document.activeElement);
     renderHarnesses();
     renderOutput();
     const box = $('harnesses');
     if (!at || typeof box.querySelectorAll !== 'function') return;
-    const again = [...box.querySelectorAll('[aria-label]')].find(n => n.getAttribute('aria-label') === at);
-    if (again) again.focus();
+    const to = [...box.querySelectorAll('input, select, button, summary')].find(n => named(n) === at) || box.querySelector('.av-tool-title');
+    if (!to) return;
+    if (to.tagName === 'H2') to.tabIndex = -1;
+    to.focus();
   }
 
   const option = (value, text, selected) => {
@@ -9682,13 +9686,14 @@ function boot() {
       name.value = now;
       name.addEventListener('change', () => {
         setHarnessModel(state, row.id, role, name.value.trim());
-        harnessChanged();
+        // Tab leaves the box after this event, so the redraw waits until focus has arrived.
+        setTimeout(harnessChanged, 0);
       });
     }
     return el('div', { class: 'av-field' }, el('span', { class: 'av-field-label', text: MODEL_LABELS[role] }), pick, name);
   }
 
-  function harnessRow(row) {
+  function harnessRow(row, i, rows) {
     const take = el('input', { type: 'checkbox', 'aria-label': `Install into ${row.name}` });
     take.checked = row.in;
     take.addEventListener('change', () => {
@@ -9706,7 +9711,7 @@ function boot() {
         el('span', { class: 'av-annot', text: [found, row.in ? 'in the install' : 'not installed into'].filter(Boolean).join(' · ') }),
         row.own ? el('button', { type: 'button', class: 'row-x', title: 'Remove this harness', 'aria-label': `Remove the harness ${row.name}`, onclick: () => {
           removeHarness(state, row.id);
-          harnessChanged();
+          harnessChanged(i ? `Install into ${rows[i - 1].name}` : undefined);
         } }, '×') : null),
       el('div', { class: 'harness-fields' }, ...ROLES.map(role => modelField(row, role))),
       ...bad.map(p => el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: p.text })),
@@ -9764,13 +9769,14 @@ function boot() {
         el('div', { class: 'chips harness-caps' }, ...harnessLib.CAPABILITIES.map(capability)),
         harnessWhy ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `Not added: ${harnessWhy}` }) : null,
         el('div', { class: 'chips' }, chip('Add this harness', true, () => {
-          const why = addHarness(state, draftEntry());
+          const entry = draftEntry();
+          const why = addHarness(state, entry);
           harnessWhy = why || '';
           if (!why) {
             for (const k of Object.keys(harnessDraft)) delete harnessDraft[k];
             harnessFormOpen = false;
           }
-          harnessChanged();
+          harnessChanged(why ? '' : `Install into ${entry.name}`);
         }))));
     d.open = harnessFormOpen;
     d.addEventListener('toggle', () => (harnessFormOpen = d.open));

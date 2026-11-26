@@ -174,11 +174,15 @@ how every session in every repo behaves. So:
   With no `--out`, `build.mjs --builder <file>` writes the page to
   `~/.pact/scriptorium.html`,
   through a temporary file renamed over the last page; it refuses a link or
-  a folder at that path, and the install never touches the file. With `--out`,
+  a folder at that path, and the install never touches the file. Only that page
+  reads the config's harnesses, commands and tools, the record's harness ids
+  and the detect folders; the bootstrap's builder choice writes it before any
+  install. With `--out`,
   such a page belongs outside any repo: `build.mjs` refuses to write one
   inside this clone or any git work tree, the kit, `~/.pact`, the Claude home
   folder, any `.claude` or `.pact` folder, or over a file
-  ([ADR 0171](../adr/0171-the-scriptorium-page-has-a-fixed-path-in-the-claude-home.md)).
+  ([ADR 0171](../adr/0171-the-scriptorium-page-has-a-fixed-path-in-the-claude-home.md),
+  [ADR 0174](../adr/0174-the-scriptorium-page-shows-the-harnesses-and-lives-in-the-pact-folder.md)).
 - **Review output.** To read what a configuration does before installing it,
   add `--review-folder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
