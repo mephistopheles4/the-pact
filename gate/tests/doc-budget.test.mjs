@@ -10,8 +10,9 @@ import { test } from 'node:test';
 import { stripToc } from '../../docs/toc.mjs';
 import { REPO } from './text.mjs';
 
-// PACT-105 T5 raised docs/install.md to 9800 for what Antigravity gets, rather
-// than cut text the change doesn't touch (the owner's rule); PACT-110 cleans up.
+// PACT-105 T5 raised docs/install.md to 10050 for what T4's change and
+// Antigravity's text take together, rather than cut text the change doesn't
+// touch (the owner's rule); PACT-110 cleans up.
 const BUDGETS = Object.freeze({
   'AGENTS.md': 1750,
   'CONTEXT.md': 2300,
@@ -25,7 +26,7 @@ const BUDGETS = Object.freeze({
   'docs/agents/work-records.md': 600,
   'docs/agent-identity.md': 900,
   'docs/cleaner.md': 4200,
-  'docs/install.md': 9800,
+  'docs/install.md': 10050,
   'docs/README.md': 300,
   'docs/poster-app.md': 600,
   'docs/poster.md': 8300,

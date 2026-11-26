@@ -85,8 +85,11 @@ someone hands a session to load, and a decision model's answer.
   installed mod that approves a call skips; folder trust, which asks once and
   stops holding when the owner trusts the folder. The pact's overlay sets auto
   mode as the default. Codex's sandbox and approval policy, which don't hold
-  under full access; Antigravity's permission settings, which don't hold under
-  auto-proceed.
+  under full access; its approval also doesn't hold under `codex exec`, which
+  runs at `never`, or for an MCP tool its server marks read-only, and on native
+  Windows its `unelevated` sandbox with network off let a raw loopback
+  connection through (probed on 0.159.0); Antigravity's permission settings,
+  which don't hold under auto-proceed.
 - **Harness, installed by the pact.** Deny rules on raw `git worktree remove`,
   `git branch -d`, `-D` and `--delete`, and `claude rm`, and an ask rule on a
   `cleaner.mjs remove --override` call, on only while the cleaner is on (off by default). Eight deny rules on raw `claude stop`, `kill`, `daemon stop`
@@ -98,10 +101,12 @@ someone hands a session to load, and a decision model's answer.
   switches; an ask rule prompts in Antigravity and denies in Codex. The hook
   denies on an error it catches; a hook that can't start or times out lets the
   call through, as do a crash past that (off Windows), another spelling and, in
-  Codex, text typed into a running shell. In Antigravity it judges text
+  Codex, text typed into a running shell, which
+  `features.unified_exec_tty=false` would close, with every interactive
+  terminal session; the pact doesn't set it. In Antigravity it judges text
   typed into a running program, and asks before a read tool opens the skill
-  file of `make-it-so`, `finis` or `scry`; a shell, another
-  tool or path spelling passes that. In Codex it runs only once the owner
+  file of `make-it-so`, `finis` or `scry`; a shell, another tool or path
+  spelling passes that. In Codex it runs only once the owner
   trusts it in `/hooks`, and trust never sees a change to its script or rules.
   In a harness the owner describes, nothing verifies it runs.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
@@ -282,14 +287,18 @@ it.
 - **Harness.** Permission prompts, the classifier, and Codex's and
   Antigravity's controls, as above, for what a session sends by fetch, search or
   connector call.
+- **Harness, installed by the pact.** A line in Codex's config keeps variables
+  named like KEY, SECRET or TOKEN out of the shells Codex starts (probed on
+  0.159.0). A trusted project's config or a `-c` flag sets it back, a config
+  with its own policy is left as it is, hooks see every variable, and other
+  names, such as `DB_PASSWORD` or `GITHUB_PAT`, stay in every command's reach.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
-  Under a Codex set to drop secret-named variables, it sees fewer secrets; by
-  default (probed on 0.159.0) Codex's shells keep them, for any command to read.
-  So do Antigravity's (agy 1.2.14; no setting found): don't start one with
-  secrets in its environment.
+  In a Codex shell it can't see a variable that line drops. Antigravity's
+  shells keep secret-named variables (agy 1.2.14; no setting found): don't
+  start one with secrets in its environment.
   The poster's text fields and edit checks catch accidents only and are not a control.
   With an app pinned it refuses a post as anything but the pinned bot the
   post's `as` names, for posts sent through it.

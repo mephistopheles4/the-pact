@@ -24,6 +24,7 @@ Claude Code session on your machine.
 - [Before you install](#before-you-install)
 - [Where the pact installs](#where-the-pact-installs)
   - [Skill links](#skill-links)
+  - [Codex's shell environment policy](#codexs-shell-environment-policy)
 - [Before the first install into `~/.pact`](#before-the-first-install-into-pact)
 - [1. Check the prerequisites](#1-check-the-prerequisites)
 - [2. Clone the repo](#2-clone-the-repo)
@@ -106,6 +107,31 @@ instead. A folder of yours with a skill's name is left as it is,
 listed under `Yours, left as is:`. A link the pact made that you have since
 replaced is drift. The install removes only the links and copies its record
 lists.
+
+### Codex's shell environment policy
+
+Codex hands the shells it starts every variable it was started with. While
+Codex is in the install, the apply puts one line first in
+`~/.codex/config.toml`:
+
+```toml
+shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts
+```
+
+Variables with `KEY`, `SECRET` or `TOKEN` in their name, in any case, then stay
+out of those shells, a lens's included. A command that reads one there, such as
+`gh` reading `GH_TOKEN`, no longer finds it.
+
+- **What still gets through.** Other names, such as `DB_PASSWORD`,
+  `AWS_CREDENTIALS`, `CONNECTION_STRING` and `GITHUB_PAT`. Hooks see every
+  variable. A trusted project's `.codex/config.toml`, or a `-c` flag, can set
+  it back.
+- **Your own policy** is left as it is, with a `WARN:`, when the file names
+  `shell_environment_policy` outside a comment. Set
+  `ignore_default_excludes = false` there for the same effect.
+- **Later.** A deleted line is added again, and your own policy in its place is
+  yours. The pact's line changed, moved under a table, or beside a policy of
+  your own is drift. Taking Codex out of the install removes the line.
 
 ## Before the first install into `~/.pact`
 
@@ -946,7 +972,8 @@ also repeat the removal by hand in step 5.
 ## Undo an apply
 
 Do this yourself, not through a session: a session that reads a copy of your
-settings holds its keys in its context. The script has no undo command. Each
+settings, or of Codex's `config.toml`, holds any key in it in its context. The
+script has no undo command. Each
 backup in `~/.pact/backups/` undoes one apply (step 3):
 
 1. **Pick the backup,** one whose name an apply you ran printed. To undo more
@@ -960,9 +987,9 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
    - each path is relative to your home folder, with forward slashes and no `..`,
      and names its harness;
    - each path is under `.pact/` or a harness's own rules file, agents,
-     commands or skills folder, or is its hooks file (`~/.codex/hooks.json`,
-     `~/.gemini/config/hooks.json`, or the one your own harness names); none
-     is under `.pact/blocks/`, `.pact/presets/`,
+     commands or skills folder, or is `~/.codex/config.toml` or its hooks file
+     (`~/.codex/hooks.json`, `~/.gemini/config/hooks.json`, or the one your own
+     harness names); none is under `.pact/blocks/`, `.pact/presets/`,
      `.pact/backups/`, `.pact/handoffs/`, `.pact/config.json`,
      `.pact/builder.json` or a `.credentials` file, the paths the install
      never touches; `.claude/settings.json` and `.pact/install.json` may be
@@ -973,17 +1000,22 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
      `target` is `.pact/skills/` and that name;
    - each `was: absent` path, other than `settings.json` and
      `install.json`, is listed in your current
-     `~/.pact/install.json` (a hooks file under its `entries`, a skill link under
-     its `links`), so a planted
+     `~/.pact/install.json` (a hooks file under its `entries`; Codex's
+     `config.toml` by its `shellPolicy` mark; a skill under its `links` or,
+     where the folder was copied, as files below that path in its `files`), so a
+     planted
      entry can't have you delete a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
-   `~/<path>`. Keep `settings.json`
+   `~/<path>`. Keep `settings.json` and `config.toml`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
    and macOS.
 5. **Delete each `was: absent` path** that is there. A skill link goes as a
    link, never through it: `rm <path>` on Linux and macOS,
-   `cmd /c rmdir "<path>"` on Windows, with no `-r` or `/s`. Then make each
+   `cmd /c rmdir "$HOME\<path>"` in PowerShell, with the path's slashes turned
+   to backslashes, and no `-r` or `/s`. In a copied skill folder, delete the
+   files your record lists, then the empty folders. If Codex has written to its
+   `config.toml` since, delete only the pact's line. Then make each
    `was: link` entry again: `ln -s "$HOME/<target>" "$HOME/<path>"`, or
    `New-Item -ItemType Junction -Path "$HOME\<path>" -Target "$HOME\<target>"`
    in PowerShell.

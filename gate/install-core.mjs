@@ -447,12 +447,16 @@ export function parseRecord(text) {
   // Every skill link the install made: the harness, the link and the folder it points at.
   const links = ci(doc, 'links') ?? [];
   if (!Array.isArray(links) || !links.every(l => isPlainObject(l) && ['harness', 'path', 'target'].every(k => typeof l[k] === 'string'))) refuse('record-not-pact', 'the install record\'s links are not a list of skill links; fix or remove it.');
+  // Whether the install wrote the shell policy line into Codex's config.
+  const shellPolicy = ci(doc, 'shellpolicy') ?? false;
+  if (shellPolicy !== false && shellPolicy !== true) refuse('record-not-pact', 'the install record\'s shell policy mark is not true; fix or remove it.');
   const valuesAt = key => entries.filter(e => e.key === key && typeof e.value === 'string').map(e => e.value);
   // The two env keys the identity switch set (#603), and the auto-compact window (#482): each only in the form the install writes.
   const identityEnv = Object.fromEntries(IDENTITY_ENV_KEYS.flatMap(k => valuesAt(`env.${k}`).slice(0, 1).map(v => [k, v])));
   const recordedWindow = entries.find(e => e.key === 'autoCompactWindow')?.value;
   return {
     harnesses: harnesses.map(h => ({ ...h })),
+    shellPolicy,
     links: links.map(l => ({ harness: l.harness, path: l.path, target: l.target })),
     entries: entries.map(e => ({ harness: e.harness, path: e.path, key: e.key, value: e.value, sha256: e.sha256 })),
     cleanerDeny: valuesAt('permissions.deny'),
@@ -473,7 +477,7 @@ export function parseRecord(text) {
  * harnesses with their paths, config, every file with its harness and hash,
  * every settings entry, and the gate. `files` is path to { harness, sha256 }.
  */
-export function recordText({ commit, digest, harnesses, userHash, blockHashes, files, links = [], entries, gateNow }) {
+export function recordText({ commit, digest, harnesses, userHash, blockHashes, files, links = [], entries, shellPolicy = false, gateNow }) {
   const doc = {
     commit,
     digest: digest ?? null,
@@ -482,6 +486,7 @@ export function recordText({ commit, digest, harnesses, userHash, blockHashes, f
     files: [...files].map(([path, f]) => ({ harness: f.harness, path, sha256: f.sha256 })),
     ...(links.length ? { links } : {}),
     entries,
+    ...(shellPolicy ? { shellPolicy } : {}),
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
   };
   return `${JSON.stringify(doc, null, 2)}\n`;
@@ -2292,6 +2297,63 @@ export const linkLines = (plan, harness) => [
 
 export const NO_LINK_LINE = 'WARN: a skill link cannot be made on this machine, so each new skill folder is copied instead.';
 
+// ------------------------------------------------------------ Codex's shell environment policy (spec 0007 S13)
+
+export const CODEX_CONFIG_REL = '.codex/config.toml';
+const SHELL_POLICY_KEY = 'shell_environment_policy';
+const SHELL_POLICY_MARK = '# the pact: secret-named variables stay out of the shells Codex starts';
+export const SHELL_POLICY_LINE = `${SHELL_POLICY_KEY}.ignore_default_excludes = false ${SHELL_POLICY_MARK}`;
+
+/**
+ * What Codex's config.toml needs. `bytes` is the file's, or null when there is
+ * none; `wanted` is whether this run takes Codex, `recorded` whether the last
+ * install's record holds the line. `status` is 'add', 'keep', 'remove',
+ * 'yours' (the file sets the policy itself: left as is), 'drift' (the pact's
+ * line changed) or 'none'; `next` is the file's new text where it changes.
+ * The file is read as lines, not parsed as TOML: any line outside a comment
+ * that names the policy counts as the person's own.
+ */
+export function shellPolicyPlan({ bytes, wanted, recorded }) {
+  if (!wanted && !recorded) return { status: 'none' };
+  let text = '';
+  if (bytes !== null) {
+    try {
+      text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    } catch {
+      stops.configNotText();
+    }
+  }
+  const bom = text.startsWith('﻿') ? '﻿' : '';
+  const body = text.slice(bom.length);
+  const lines = body.split('\n').map(l => l.replace(/\r$/, ''));
+  const at = lines.indexOf(SHELL_POLICY_LINE);
+  if (!wanted) {
+    // Only a recorded install gets here, so a marked line that no longer matches was changed since.
+    if (at < 0 && lines.some(l => l.includes(SHELL_POLICY_MARK))) return { status: 'drift' };
+    if (at < 0) return { status: 'none' };
+    return { status: 'remove', next: bom + body.split(/(?<=\n)/).filter((_, i) => i !== at).join('') };
+  }
+  const named = lines.some((l, i) => i !== at && !l.trimStart().startsWith('#') && l.includes(SHELL_POLICY_KEY));
+  const table = lines.findIndex(l => l.trimStart().startsWith('['));
+  // Under a table header the line would be that table's key, which Codex ignores.
+  if (at >= 0 && (table < 0 || at < table) && !named) return { status: 'keep' };
+  if (recorded && lines.some(l => l.includes(SHELL_POLICY_MARK))) return { status: 'drift' };
+  if (named || at >= 0) return { status: 'yours' };
+  const eol = body.includes('\r\n') ? '\r\n' : '\n';
+  // A dotted key before the first table header is valid TOML wherever the rest of the file stands.
+  return { status: 'add', next: `${bom}${SHELL_POLICY_LINE}${eol}${body}` };
+}
+
+export const SHELL_POLICY_DRIFT = `${CODEX_CONFIG_REL} (the pact's shell policy line changed since the install)`;
+
+/** The dry run's lines for the policy, in Codex's block. */
+export const shellPolicyLines = ({ status }) => ({
+  add: [`Codex shell policy: would be added to ${CODEX_CONFIG_REL}, so variables named like KEY, SECRET or TOKEN stay out of the shells Codex starts`],
+  keep: ['Codex shell policy: in place'],
+  remove: [`Codex shell policy: would be removed from ${CODEX_CONFIG_REL}`],
+  yours: [`WARN: Codex shell policy: ${CODEX_CONFIG_REL} sets ${SHELL_POLICY_KEY} itself, so the pact leaves it. Variables named like KEY, SECRET or TOKEN stay out of the shells Codex starts only if yours sets ignore_default_excludes = false.`],
+}[status] ?? []);
+
 /** The old builder agents' paths in Claude Code's agents folder, which a first install deletes (#262). */
 export const retiredPaths = targets => targets.filter(t => t.id === 'claude' && t.agents).flatMap(t => RETIRED.map(r => `${t.agents}/${r.slice('agents/'.length)}`));
 
@@ -2526,6 +2588,8 @@ export const stops = Object.freeze({
   reviewFailed: () => refuse('review-failed', 'the review output was not written, or not as this run rendered it.', REVIEW_LEFT),
   hooksNotObject: rel => refuse('hooks-not-object', `${formatPlain(rel)} is not a strict JSON object, so the pact's guard hook cannot be merged into it; fix the file first.`),
   hooksPath: (rel, why) => refuse('hooks-path', `${why} for a hooks file: ${formatPlain(rel)}.`),
+  configLinked: () => refuse('config-linked', `${CODEX_CONFIG_REL} is behind a link, so the install does not write the pact's shell policy line into it.`),
+  configNotText: () => refuse('config-not-text', `${CODEX_CONFIG_REL} is not a UTF-8 text file, so the pact's shell policy line cannot be added; fix the file first.`),
   tempLeft: rel => refuse('temp-left', `a temp file the install writes through is already there: ${formatPlain(rel)}.pact-tmp. An earlier install stopped mid-write, and the file may hold a copy of your settings; check it, delete it, and run the install again.`),
 });
 

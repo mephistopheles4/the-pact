@@ -399,9 +399,10 @@ const winOnly = { skip: !WIN && 'the launcher is Windows\'s' };
 
 test('C12: on Windows each shell a harness may use passes the wrapper\'s answer on', winOnly, t => {
   const at = installed(t);
-  const shells = ['cmd', POWERSHELL, ...(spawnSync('pwsh.exe', ['-NoProfile', '-Command', 'exit 0']).status === 0 ? ['pwsh.exe'] : [])];
-  for (const shell of shells) {
-    for (const format of core.GUARD_FORMATS) {
+  assert.equal(spawnSync('pwsh.exe', ['-NoProfile', '-Command', 'exit 0']).status, 0, 'this test needs PowerShell 7 (pwsh.exe) on PATH');
+  // The other tests run each format under its harness's own shell; here, every other one.
+  for (const format of core.GUARD_FORMATS) {
+    for (const shell of ['cmd', POWERSHELL, 'pwsh.exe'].filter(s => s !== SHELL[format])) {
       denied(runHook(at, format, CALLS[format](ONE['worktree-remove']), { shell }), format, blocks('worktree-remove'));
       assert.deepEqual(runHook(at, format, CALLS[format]('git status'), { shell }), SILENT, `${shell} ${format}`);
     }
@@ -419,7 +420,8 @@ test('C14: on Windows a launcher whose wrapper can\'t run, or ends any other way
   for (const how of [() => none, crashes]) {
     const options = how();
     for (const format of core.GUARD_FORMATS) {
-      const r = runHook(at, format, CALLS[format]('git status'), options);
+      const r = runHook(at, format, CALLS[format]('git status SECRET_TOKEN_abc123'), options);
+      assert.doesNotMatch(`${r.stdout}${r.stderr}`, /SECRET_TOKEN_abc123/, 'nothing of the call is shown');
       // cmd may print its own line above the launcher's, so the reason is the last one.
       if (format === 'codex') assert.deepEqual([r.code, r.stderr.trim().split(/\r?\n/).at(-1)], [2, failure('launch')], JSON.stringify(r));
       else denied(r, format, failure('launch'));
