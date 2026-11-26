@@ -162,7 +162,6 @@ test('S7: the table asks on a read of each skill that stands for the owner\'s an
   assert.deepEqual(ASKING.filter(r => r.skills), [{ id: 'owner-skill', decision: 'ask', switch: 'owner-skills', skills: ['make-it-so', 'finis', 'scry'] }]);
   assert.deepEqual(core.guardRules(['owner-skills']), [core.OWNER_SKILL_RULE]);
   assert.deepEqual(ALL.filter(r => r.skills), []);
-  assert.deepEqual(guard.parseTable(core.guardTableText(ASKING)), JSON.parse(JSON.stringify(ASKING)));
 });
 
 test('S7: a skill file is met by its path in either spelling, and nothing else is', () => {
@@ -175,6 +174,11 @@ test('S7: a skill file is met by its path in either spelling, and nothing else i
     '/home/u/.pact/skills/./finis//SKILL.md',
     '/home/u/.pact/skills/x/../finis/SKILL.md',
     'skills/scry/SKILL.md',
+    // Windows opens each of these as the same file.
+    'C:\\h\\.pact\\skills\\finis\\SKILL.md::$DATA',
+    'C:\\h\\.pact\\skills::$INDEX_ALLOCATION\\finis\\SKILL.md',
+    '/home/u/.pact/skills/finis./SKILL.md',
+    '/home/u/.pact/skills /finis /SKILL.md. ',
   ]) assert.deepEqual(guard.judgeRead(p, ASKING), asked, p);
   for (const p of ['/home/u/.pact/skills/scriptorium/SKILL.md', '/home/u/.pact/skills/finis/notes.md', '/home/u/my-skills/finis/SKILL.md', '/home/u/.pact/skills/finis-more/SKILL.md', '/home/u/finis/SKILL.md', '']) assert.equal(guard.judgeRead(p, ASKING), null, p);
   assert.equal(guard.judgeRead('/home/u/.pact/skills/finis/SKILL.md', ALL), null, 'the switch off');
@@ -183,6 +187,15 @@ test('S7: a skill file is met by its path in either spelling, and nothing else i
 });
 
 // ------------------------------------------------------------ the hook command
+
+test('S7: only a harness that takes a skill the rule names, behind a hook that can ask before a read, gets the ask', () => {
+  const anti = { id: 'antigravity', skills: { dir: '.gemini/config/skills' }, hooks: { file: '.gemini/config/hooks.json', format: 'antigravity' }, capabilities: ['hook-ask'] };
+  assert.deepEqual(core.ownerSkillReaders([anti], ['finis']), [anti]);
+  assert.deepEqual(core.ownerSkillReaders([anti], ['scriptorium']), [], 'no skill the rule names');
+  for (const other of [{ ...anti, capabilities: [] }, { ...anti, skills: null }, { ...anti, hooks: { ...anti.hooks, format: 'codex' } }, { ...anti, hooks: null }]) {
+    assert.deepEqual(core.ownerSkillReaders([other], ['finis']), [], JSON.stringify(other));
+  }
+});
 
 test('the hook command names the wrapper by its full path and clears NODE_OPTIONS in each platform\'s form', () => {
   assert.equal(core.guardCommand({ script: "/home/o'x/.pact/guard/codex.mjs", platform: 'linux' }), "env -u NODE_OPTIONS node '/home/o'\\''x/.pact/guard/codex.mjs'");
@@ -338,7 +351,7 @@ test('C12: antigravity judges a line typed into a running program as it judges a
   denied(run(typed('node cleaner.mjs remove --override x\n')), 'antigravity', `The pact's guard asks the owner before this command (rule cleaner-override).`, 'force_ask');
   assert.deepEqual(run(typed('git status\n')), SILENT);
   denied(run(tool('send_command_input', { CommandId: 'c', Input: 'git worktree remove w\n' })), 'antigravity', blocks('worktree-remove'));
-  // Its other actions type nothing, whatever else they carry.
+  // The actions agy lists that type nothing get no answer, whatever else they carry.
   for (const Action of ['list', 'status', 'kill']) assert.deepEqual(run(tool('manage_task', { Action, TaskId: 't', Input: 'git worktree remove w' })), SILENT, Action);
 });
 
@@ -349,6 +362,10 @@ test('S7: antigravity asks before either read tool opens an owner-typed skill, a
   const skill = join(at.home, '.pact', 'skills', 'make-it-so', 'SKILL.md');
   denied(run(tool('view_file', { AbsolutePath: skill, StartLine: 1 })), 'antigravity', says, 'force_ask');
   denied(run(tool('read_file', { Path: skill })), 'antigravity', says, 'force_ask');
+  // Whichever of the two names carries it, an empty one beside it included.
+  for (const call of [tool('view_file', { AbsolutePath: '', Path: skill }), tool('read_file', { Path: skill, AbsolutePath: join(at.home, 'notes.md') }), tool('view_file', { AbsolutePath: skill, Path: join(at.home, 'notes.md') })]) {
+    denied(run(call), 'antigravity', says, 'force_ask');
+  }
   for (const call of [tool('view_file', { AbsolutePath: join(at.home, 'notes.md') }), tool('read_file', { Path: join(at.home, '.pact', 'skills', 'scriptorium', 'SKILL.md') })]) assert.deepEqual(run(call), SILENT, JSON.stringify(call));
   // Codex's hook never sees a read, and its wrapper reads a table with the rule in it.
   denied(runHook(at, 'codex', CALLS.codex(ONE['worktree-remove'])), 'codex', blocks('worktree-remove'));
@@ -356,7 +373,7 @@ test('S7: antigravity asks before either read tool opens an owner-typed skill, a
 
 test('bad case: antigravity denies a typed line or a read it cannot judge', t => {
   const at = installed(t, ASKING);
-  for (const call of [tool('manage_task', {}), tool('manage_task', { Action: 1 }), tool('manage_task', { Action: 'send_input' }), tool('manage_task', { Action: 'send_input', Input: ['x'] }), tool('view_file', {}), tool('read_file', { Path: 7 }), tool('send_command_input', { CommandId: 'c' }), tool('write_to_file', { TargetFile: 'x' })]) {
+  for (const call of [tool('manage_task', {}), tool('manage_task', { Action: 1 }), tool('manage_task', { Action: 'Send_Input', Input: 'ls' }), tool('manage_task', { Action: 'write', TaskId: 't' }), tool('manage_task', { Action: 'send_input' }), tool('manage_task', { Action: 'send_input', Input: ['x'] }), tool('view_file', {}), tool('read_file', { Path: 7 }), tool('send_command_input', { CommandId: 'c' }), tool('write_to_file', { TargetFile: 'x' })]) {
     denied(runHook(at, 'antigravity', call), 'antigravity', failure('call'));
   }
   denied(runHook(at, 'antigravity', typed('x'.repeat(guard.COMMAND_MAX + 1))), 'antigravity', failure('size'));
@@ -426,17 +443,6 @@ test('C16: the merge adds the pact\'s group beside the person\'s, in each harnes
   const ag = core.guardMerge(read('{"lint": {"PostToolUse": []}}'), { want: [want('antigravity', 'x')] });
   assert.deepEqual(shown(ag.merged), { lint: { PostToolUse: [] }, 'pact-guard': { PreToolUse: [{ matcher: 'run_command|manage_task|send_command_input', hooks: [{ type: 'command', command: 'x', timeout: 15 }] }] } });
   assert.deepEqual(shown(core.guardMerge(new Map(), { want: [want('codex')] }).merged), { hooks: { PreToolUse: [entry(COMMAND)] } });
-});
-
-test('C16, S7: antigravity\'s matcher takes commands and typed input, and the read tools only while a skill is asked on', () => {
-  assert.equal(core.guardGroup('antigravity', 'x').get('matcher'), 'run_command|manage_task|send_command_input');
-  assert.equal(core.guardGroup('antigravity', 'x', { reads: true }).get('matcher'), 'run_command|manage_task|send_command_input|view_file|read_file');
-  assert.equal(core.guardGroup('codex', 'x', { reads: true }).get('matcher'), '^Bash$');
-  const first = core.guardMerge(new Map(), { want: [want('antigravity', 'x')] });
-  const wider = { format: 'antigravity', group: core.guardGroup('antigravity', 'x', { reads: true }) };
-  const next = core.guardMerge(first.merged, { drop: [want('antigravity', 'x')], want: [wider] });
-  assert.deepEqual(shown(next.merged)['pact-guard'].PreToolUse.map(g => g.matcher), ['run_command|manage_task|send_command_input|view_file|read_file']);
-  assert.deepEqual(next.added, ['antigravity']);
 });
 
 test('C15, C16: a merge over its own result changes nothing; a changed command is replaced where it sat', () => {

@@ -154,7 +154,7 @@ test('S7: with a skill that stands for the owner\'s answer installed, Antigravit
   assert.doesNotMatch(dry.stdout, TRUST, dry.out);
   passed(applyBound(repo, h));
   assert.equal(readFileSync(at(h, CODEX), 'utf8'), before);
-  assert.deepEqual(guardFiles(h).filter(f => f.startsWith('codex.cmd')), [], 'no launcher for a harness with no hook');
+  assert.deepEqual(guardFiles(h), GUARD_FILES.filter(f => f !== 'codex.cmd'), 'no launcher for a harness with no hook');
   const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
   assert.equal(entry().matcher, READ_MATCHER);
   assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
@@ -166,6 +166,15 @@ test('S7: with a skill that stands for the owner\'s answer installed, Antigravit
   passed(applyBound(repo, h));
   assert.equal(entry(), undefined);
   assert.deepEqual(guardFiles(h), []);
+
+  // With the cleaner on beside such a skill, the table holds both, and Antigravity's hook alone meets reads.
+  config(h, { tools: ['cleaner'], commands: ['finis'] });
+  const both = install(repo, h);
+  passed(both);
+  assert.match(both.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): worktree-remove \(deny\), .*owner-skill \(ask\)\r?$/m, both.out);
+  passed(applyBound(repo, h));
+  assert.equal(entry().matcher, READ_MATCHER);
+  assert.deepEqual(json(h, CODEX).hooks.PreToolUse.map(g => g.matcher), ['^Bash$', '^Bash$']);
 
   // With the cleaner on and no such skill, the read tools are left alone.
   config(h, ON);

@@ -268,12 +268,24 @@ export function judge(command, rules) {
   return firstMet(rules, rule => !rule.skills && segments.some(s => (rule.words ? wordsMatch(s.tokens, s.at, rule.words) : containsMatch(s.text, rule.contains))));
 }
 
-/** A path's parts in lower case, with either separator, and `.` and `..` resolved. */
+/** A name without the dots and spaces Windows drops from its end; a loop, so a long name costs no backtracking. */
+function trimmed(name) {
+  let end = name.length;
+  while (end > 0 && (name[end - 1] === '.' || name[end - 1] === ' ')) end -= 1;
+  return name.slice(0, end);
+}
+
+/**
+ * A path's parts in lower case, with either separator, `.` and `..` resolved,
+ * and each name cut as Windows reads it: no stream after a colon, no dot or
+ * space at its end.
+ */
 function pathParts(path) {
   const parts = [];
-  for (const part of path.toLowerCase().split(/[\\/]+/)) {
+  for (const named of path.toLowerCase().split(/[\\/]+/)) {
+    const part = named.split(':', 1)[0];
     if (part === '..') parts.pop();
-    else if (part !== '' && part !== '.') parts.push(part);
+    else if (part !== '' && part !== '.') parts.push(trimmed(part));
   }
   return parts;
 }

@@ -786,8 +786,8 @@ hook the install adds.
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
   `bash -c "..."` included, and so does one typed into a shell that is already
   running, which Codex runs no hook for; Antigravity's hook reads a typed line,
-  though not one sent a few characters at a time. A skill file read through a
-  shell command passes too. A hook that can't start or runs past
+  though not one sent a few characters at a time. A shell, another tool or another spelling passes the ask
+  on a skill file. A hook that can't start or runs past
   15 seconds lets the command through, and so does a crash outside what the
   wrapper catches, except on Windows, where the launcher denies.
 - **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
@@ -804,13 +804,13 @@ Seen on its command line, agy 1.2.14, on Windows
 
 - **Lenses can't search.** An agent gets fewer tools than its file lists: the
   searching and web page tools don't arrive, so a lens reads only files it can
-  name. Every agent also gets `manage_task` and `send_message`.
-- **Its shells see your secrets.** A command gets every environment variable,
-  ones named like a key, token or password included, and no setting to drop them
-  was found. Don't start it with secrets in its environment.
+  name. Every agent also gets `send_message` and `manage_task`; a lens's
+  was refused its session's program.
+- **Its shells see your secrets.** A command saw planted token, key and
+  password variables, and no setting to drop them was found. Don't start it with secrets in its environment.
 - **A session can still start your commands,** by reading the skill's file with
-  a shell command. What it starts is never your word for an install apply or
-  mise trust.
+  a shell command. Don't take what it starts as your word for an
+  install apply or mise trust: nothing enforces that.
 
 ## Roll back to an older version
 

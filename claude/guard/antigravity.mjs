@@ -31,17 +31,24 @@ for (const event of ['uncaughtException', 'unhandledRejection']) {
   });
 }
 
+// The actions of manage_task, as agy 1.2.14 lists them, that type nothing.
+const TYPES_NOTHING = ['list', 'status', 'kill'];
+
 /**
  * What the guard judges in a call: { command } to run or to type, { path } to
  * read, {} for a call that does neither, or null for one it doesn't know.
  */
 function judged(name, args) {
   if (name === 'run_command') return { command: args.CommandLine };
-  // A task's input is typed into the program it left running; its other actions type nothing.
-  if (name === 'manage_task' && typeof args.Action === 'string') return args.Action === 'send_input' ? { command: args.Input } : {};
+  // A task's input is typed into the program it left running. An action the guard doesn't know is not known.
+  if (name === 'manage_task') {
+    if (args.Action === 'send_input') return { command: args.Input };
+    return TYPES_NOTHING.includes(args.Action) ? {} : null;
+  }
   if (name === 'send_command_input') return { command: args.Input };
-  // The documented tool names its file AbsolutePath; the CLI's own names it Path.
-  if (name === 'view_file' || name === 'read_file') return { path: args.AbsolutePath ?? args.Path };
+  // The documented view_file names its file AbsolutePath and the CLI's read_file Path; an empty one gives way.
+  if (name === 'view_file') return { path: args.AbsolutePath || args.Path };
+  if (name === 'read_file') return { path: args.Path || args.AbsolutePath };
   return null;
 }
 

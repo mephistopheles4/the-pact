@@ -405,7 +405,7 @@ differ per harness only because a tool can't do otherwise:
   and a subagent gets fewer tools than its file lists, never a shell it
   doesn't list. `find_by_name`, `grep_search` and `read_url_content` did not
   arrive, so a lens there can't search, and every subagent also gets
-  `manage_task` and `send_message`
+  `send_message` and `manage_task`, which reaches its own tasks alone
   ([T5's record](../log/2026-11-25-antigravity.md)).
 
 **Commands as skills.** The four commands are one universal set: every
@@ -463,6 +463,8 @@ is off is not in it. One rule more, `owner-skill`, asks on a read of the
 is in the table while one of those commands is on and a harness is in whose
 hook can ask before a read: Antigravity's, with `hook-ask` and `skills`.
 With no command rule on, only such a harness gets a hook.
+  The path is met in any case and with either separator, each name read without
+  a stream after a colon or a dot or space at its end, as Windows reads it.
 
 **Claude Code** keeps its native permission rules. The install renders them
 from the table, and they are byte for byte today's (C11). No hook is added to
@@ -495,9 +497,9 @@ wrapper `~/.pact/guard/<harness>.mjs`:
   running; and, while `owner-skill` is in the table, `view_file` and
   `read_file`. The wrapper reads the call from stdin in its harness's shape,
   passes the command text, the typed text or the file's path to `guard.mjs`,
-  and writes its harness's answer. A `manage_task` action that types nothing
-  gets no answer; a matched call whose text or path the wrapper can't find is
-  denied. Codex's hooks see no typed text (T4's probe).
+  and writes its harness's answer. The `manage_task` actions agy lists as
+  typing nothing (`list`, `status`, `kill`) get no answer; another action,
+  or a matched call whose text or path the wrapper can't find, is denied. Codex's hooks see no typed text (T4's probe).
 - A denial in Codex is exit 2 with the reason on stderr, since an exit 2 with
   an empty stderr lets the call through; in Antigravity it is
   `decision: "deny"` as JSON on stdout, exit 0.
@@ -711,7 +713,8 @@ only `main` may deploy to, against "no secrets".
 - **Antigravity lenses** run on Gemini tiers only; the planning model there is
   `pro`. Their agent files list their tools (S7); each also gets
   `manage_task` and `send_message`, and the guard's hook runs on a lens's
-  calls too.
+  calls too. A lens's `manage_task` was refused a program the session had left
+  running (T5's probe).
 
 ## S13 Other consumers
 
@@ -830,14 +833,16 @@ never-sync rule names both folders.
 - **An Antigravity session can still start an owner's command.** The skill's
   own switch keeps it out of what the model sees, and the guard asks before a
   read tool opens its file, but a shell read, a copy elsewhere or a child
-  `agy` run passes both, and whether the ask holds under auto-proceed is not
-  probed. So a session there may start `make-it-so` on its own; the skills'
+  `agy` run passes both; another read tool, an 8.3 name, a relative path or a
+  link to the folder passes the ask; and whether the ask holds under
+  auto-proceed is not probed. So a session there may start `make-it-so` on its own; the skills'
   first line (S7) is a rule the model keeps, not a control. After `scry`,
   `make-it-so` means "yes, 1 to N", open security picks included, and the
   record then shows it as the owner's answer. Or it starts `finis` and ends
   the work. In that harness only, the owner's typed answer stops being a
-  sure sign the owner gave it. Nothing a session starts itself is the owner's
-  word for an install apply or mise trust, which stays a rule. What is left
+  sure sign the owner gave it. This spec's answer is that nothing a session
+  starts itself is the owner's word for an install apply or mise trust; no rule
+  a session loads says so, and nothing enforces it. What is left
   fits "A session takes checkpoints alone" only if that class widens to
   name it: the owner's call, asked before T5 starts. On a no, Antigravity
   leaves the default install list (`defaultInstall: false`) until a probed
@@ -864,8 +869,10 @@ bootstrap and the release app's key, and "Merges and installs" names
 `~/.pact` and the harness folders. Scope gains Codex with OpenAI's models and
 servers, and Antigravity with Google's, out of scope as Anthropic's are. The
 harness controls name both harnesses' controls and when each doesn't hold.
-Widening a class and changing the scope are the owner's calls. The threat
-model must stay within its word budget.
+Widening a class and changing the scope are the owner's calls. The threat model must stay within its word budget:
+3,900 words of prose, item 47's 3,750 raised by T4 and by T5 on the owner's
+word-cap rule. T5 raised `docs/install.md`'s budget to 9,800 on the same
+rule.
 
 ## S16 Trade-offs
 
