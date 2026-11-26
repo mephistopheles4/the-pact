@@ -2088,15 +2088,18 @@ export function skipReason(rel, throughLink, merged = []) {
   return null;
 }
 
-const oneMd = (rel, dir) => Boolean(dir) && rel.startsWith(`${dir}/`) && /^[^/]+\.md$/.test(rel.slice(dir.length + 1));
+const oneFile = (rel, dir, ext) => Boolean(dir) && rel.startsWith(`${dir}/`) && ext.test(rel.slice(dir.length + 1));
+const commandFile = (rel, dir) => oneFile(rel, dir, /^[^/]+\.md$/);
+/** An agent file, in either format a harness reads: Markdown, or Codex's TOML. */
+const agentFile = (rel, dir) => oneFile(rel, dir, /^[^/]+\.(?:md|toml)$/);
 
 /** A file of a skill folder the install copied where it could not link one (spec 0007 S7). */
 const skillCopy = (rel, dir) => Boolean(dir) && rel.startsWith(`${dir}/`) && /^[a-z0-9][a-z0-9-]*\/(?:SKILL\.md|agents\/openai\.yaml)$/.test(rel.slice(dir.length + 1));
 
 /**
  * Whether the install may act on `rel` for `harness`: the neutral home for the
- * pact's own files, and otherwise only a harness's rules file or a .md file
- * directly in its agents or commands folder. `targets` holds the target sets of
+ * pact's own files, and otherwise only a harness's rules file, an agent or
+ * command file directly in its folder, or a copied skill's file. `targets` holds the target sets of
  * this run's harnesses and of the record's, so a harness taken out, or moved,
  * can still be cleared.
  */
@@ -2104,7 +2107,7 @@ export function inTargets(rel, harness, targets) {
   if (typeof rel !== 'string') return false;
   const neutral = rel.toLowerCase().startsWith(`${NEUTRAL_REL}/`);
   if (harness === PACT_ID) return neutral;
-  return !neutral && targets.some(t => t.id === harness && (rel === t.rules || oneMd(rel, t.agents) || oneMd(rel, t.commands) || skillCopy(rel, t.skills)));
+  return !neutral && targets.some(t => t.id === harness && (rel === t.rules || agentFile(rel, t.agents) || commandFile(rel, t.commands) || skillCopy(rel, t.skills)));
 }
 
 /** The live destinations of the copy set (S6, L1): each must be safe, and no two may fold to one name. */
@@ -2246,7 +2249,7 @@ export function plan(record, repoFiles, live, throughLink, targets = [], merged 
   const warnings = [];
   // #262: an agent file the pact didn't write, or changed since it wrote it, is the person's: never overwritten, deleted or recorded.
   const yours = [];
-  const isAgent = rel => targets.some(t => oneMd(rel, t.agents));
+  const isAgent = rel => targets.some(t => agentFile(rel, t.agents));
   let same = 0;
   if (record) {
     const entries = [];
