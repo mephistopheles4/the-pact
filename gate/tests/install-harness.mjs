@@ -145,7 +145,7 @@ export function install(repo, home, { apply = false, path, env = {}, extra = [],
 
 /** The full rendered hash a dry run's Configuration block shows. */
 export function renderedHash(r) {
-  const m = /^ {2}rendered rules file: sha256 ([0-9a-f]{64})\r?$/m.exec(r.stdout);
+  const m = /^ {2}rendered rules (?:file|of [a-z0-9, -]+, one hash over them all): sha256 ([0-9a-f]{64})\r?$/m.exec(r.stdout);
   assert.ok(m, r.out);
   return m[1];
 }

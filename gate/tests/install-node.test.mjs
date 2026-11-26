@@ -301,7 +301,7 @@ test('node: a configuration binds --apply to the rendered hash, and the record n
   assert.ok(dry.stdout.split('\n').find(l => l.includes(' --apply ')).endsWith(`--rendered-hash ${hash}`), dry.out);
   refused(install(repo, h, { apply: true }), /needs the full rendered hash the dry run showed/);
   userConfig(h, 80);
-  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }), /is not the full hash of the rules file this run rendered/);
+  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }), /is not the full hash of the rules this run rendered/);
   userConfig(h, 90);
   passed(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }));
   const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));

@@ -63,7 +63,7 @@ test('node project: --apply refuses with no hash, with another hash, and on a di
   const { homeDir, proj } = layout(t);
   const hash = projectHash(install(repo, homeDir, { extra: ['--project-folder', proj] }));
   refused(install(repo, homeDir, { apply: true, extra: ['--project-folder', proj] }), /needs the full rendered hash/);
-  refused(install(repo, homeDir, { apply: true, extra: ['--project-folder', proj, '--rendered-hash', 'b'.repeat(64)] }), /is not the full hash of the rules file this run rendered/);
+  refused(install(repo, homeDir, { apply: true, extra: ['--project-folder', proj, '--rendered-hash', 'b'.repeat(64)] }), /is not the full hash of the rules this run rendered/);
   writeFileSync(join(repo, 'stray'), 'x');
   refused(install(repo, homeDir, { apply: true, extra: ['--project-folder', proj, '--rendered-hash', hash] }), /the working tree is not clean/);
   assert.deepEqual(readdirSync(join(proj, '.claude')), ['pact-config.json']);

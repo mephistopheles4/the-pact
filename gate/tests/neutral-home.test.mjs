@@ -184,7 +184,9 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
 
   // The bound hash covers every harness's rules, so one harness's change alone refuses an old apply.
   const bound = r => /--rendered-hash ([0-9a-f]{64})/.exec(r.stdout)[1];
-  const was = bound(install(repo, h));
+  const first = install(repo, h);
+  assert.match(first.stdout, new RegExp(`^  rendered rules of antigravity, claude, codex, one hash over them all: sha256 ${bound(first)}$`, 'm'));
+  const was = bound(first);
   edit(repo, 'harnesses/known.json', '"planning": "gpt-6.2-sol"', '"planning": "gpt-7"');
   commitAll(repo);
   assert.notEqual(bound(install(repo, h)), was);

@@ -2244,8 +2244,10 @@ export function enoughNoteLine(parsed, rules) {
   return "NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits limit the review itself rather than any quality's lenses; add an Enough column to the qualities you want them to hold back.";
 }
 
-/** The Configuration block, built from the renderer's parsed lines alone. */
-export function configBlock(parsed, rulesHash, record) {
+/** The Configuration block, built from the renderer's parsed lines and the ids of the harnesses the hash covers. */
+export function configBlock(parsed, rulesHash, record, ids = []) {
+  // With two harnesses or more the hash is boundHash, which matches no one file.
+  const hashLine = ids.length > 1 ? `  rendered rules of ${ids.join(', ')}, one hash over them all: sha256 ${rulesHash}` : `  rendered rules file: sha256 ${rulesHash}`;
   const last = record ? record.config : new Map();
   const now = configNow(parsed);
   const since = key => (!record ? 'no install recorded' : !last.has(key) ? 'new since the last install' : last.get(key) === now.get(key) ? 'unchanged since the last install' : 'CHANGED since the last install');
@@ -2260,7 +2262,7 @@ export function configBlock(parsed, rulesHash, record) {
     out.push(`  configuration: the pact's default, ${DEFAULT_CONFIG_NAME} (${parsed.digest}): you have no ${CONFIG_REL}`);
     // A person's own configuration that has gone is said, not only replaced.
     if (last.has('user')) out.push(`  the last install had your own configuration; ${CONFIG_REL} is gone now, so the pact's default renders in its place`);
-    out.push(`  rendered rules file: sha256 ${rulesHash}`);
+    out.push(hashLine);
     for (const [k, v] of parsed.values) out.push(`  WARN: the pact's default configuration sets ${k} to ${v}.`);
     for (const [k, v] of parsed.retiredSettings) out.push(retiredSettingWarn(k, v, "the pact's default configuration", false));
     out.push(`  ${CHECKPOINTS_NOTE}`);
@@ -2273,7 +2275,7 @@ export function configBlock(parsed, rulesHash, record) {
   const removed = [...last.keys()].filter(k => k.startsWith('block ') && !now.has(k)).length;
   if (removed) out.push(`  ${removed} block file(s) the last install read are no longer used`);
   out.push(`  configuration digest: ${parsed.digest}`);
-  out.push(`  rendered rules file: sha256 ${rulesHash}`);
+  out.push(hashLine);
   for (const [k, v] of parsed.values) out.push(k === 'usage-pause' && v === 'off' ? '  WARN: the user configuration turns usage-pause off.' : `  WARN: the user configuration sets ${k} to ${v}.`);
   for (const [k, v] of parsed.retiredSettings) out.push(retiredSettingWarn(k, v, 'the user configuration', false));
   out.push(`  ${CHECKPOINTS_NOTE}`);
@@ -2308,7 +2310,7 @@ export function skillsBlock(parsed) {
 export function checkBinding(opts, rulesHash, commit) {
   // `rulesHash` is the home install's bound hash (boundHash), or a project's rules file hash.
   if (opts.renderedHash !== null && opts.renderedHash !== rulesHash) {
-    refuse('hash-mismatch', 'the hash given with --rendered-hash is not the full hash of the rules file this run rendered: the configuration or the commit changed since the dry run, or the hash was cut short or mistyped.');
+    refuse('hash-mismatch', 'the hash given with --rendered-hash is not the full hash of the rules this run rendered: the configuration or the commit changed since the dry run, or the hash was cut short or mistyped.');
   }
   if (opts.commit !== null && opts.commit !== commit) refuse('commit-mismatch', 'the commit given with --commit is not the commit HEAD names now: the clone changed since the dry run, or the id was cut short or mistyped.');
 }

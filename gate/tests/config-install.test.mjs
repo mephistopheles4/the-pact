@@ -301,7 +301,7 @@ test('after an install of the pact\'s default, the dry run says so, and a new fi
 });
 
 // The -Apply binding's bad cases. Each refuses with nothing of the install written.
-const BINDING = 'the hash given with --rendered-hash is not the full hash of the rules file this run rendered';
+const BINDING = 'the hash given with --rendered-hash is not the full hash of the rules this run rendered';
 const NEEDS_HASH = 'a configuration applies, so --apply needs the full rendered hash the dry run showed';
 
 test('bad case: -Apply with a wrong hash refuses', t => {

@@ -24,8 +24,8 @@ const ROUTE = [
 ];
 const MODELS = [
   ['Plans', 'Planning model'],
-  ['Builds', 'Executor model'],
-  ['Sensitive route', 'Planning, high effort'],
+  ['Builds', 'Executor from standard'],
+  ['Sensitive route', 'Planning model, high'],
 ];
 
 const CONTENT_W = RIGHT - LEFT;

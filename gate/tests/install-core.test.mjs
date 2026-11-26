@@ -424,6 +424,17 @@ test('the renderer lines: the pact\'s default parses with its skill paths, and t
   assert.deepEqual(core.skillsBlock(core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 })), []);
 });
 
+// Spec 0007 S9: the bound hash of two or more harnesses is no one file's, and its line says so.
+test('the configuration block: the hash line names the harnesses it covers once there are two, and one rules file otherwise', () => {
+  const parse = text => core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
+  const asDefault = text => text.replace(`CONFIG user ${U}`, `CONFIG default ${U}`).replace(`DIGEST ${D}`, `DIGEST ${digestOf(`default ${U}\nblock a.md ${H('e')}\n`)}`);
+  const hashLines = b => b.filter(l => l.includes(H('9')));
+  for (const text of [renderBase().in, asDefault(renderBase().in)]) {
+    assert.deepEqual(hashLines(core.configBlock(parse(text), H('9'), null, ['claude'])), [`  rendered rules file: sha256 ${H('9')}`]);
+    assert.deepEqual(hashLines(core.configBlock(parse(text), H('9'), null, ['antigravity', 'claude'])), [`  rendered rules of antigravity, claude, one hash over them all: sha256 ${H('9')}`]);
+  }
+});
+
 // #262 C4 (#142): the session limit's value line reaches both parses, home and project.
 test('the renderer lines: a usage-pause-session value parses beside the weekly one, in a home and a project render', () => {
   const home = core.parseRenderLines(renderBase().in.replace('VALUE usage-pause 90', 'VALUE usage-pause 90\nVALUE usage-pause-session 80').split('\n'), { project: false, hash: sha256 });

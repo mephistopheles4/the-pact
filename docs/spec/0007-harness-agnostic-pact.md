@@ -540,7 +540,9 @@ The installer is today's, generalised from one home to many harnesses:
 - **A harness taken out** of the install list has every recorded file, link
   and entry removed by the next apply, from its backup-first copy.
 - **Seam A** keeps its job, the payload's copy set, with a `--harness` list in
-  place of the one Claude home. The cloud generator passes `claude` only.
+  place of the one Claude home. The cloud generator passes `claude` only. A
+  rendered agent may share its name with its source, and two installs collide
+  on a destination only within one harness.
 - **From a checkout** the owner runs `node gate/install.mjs` as today, with
   `--home` in place of `--claude-home` (S4).
 
@@ -647,24 +649,24 @@ only `main` may deploy to, against "no secrets".
     `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since
     in a linked worktree `.git` is a file;
   - copies those outside the work tree, readable only by the owner, keeping a
-    hash of each copy, and the records below, in the session's own output,
-    never in a file a lens can write;
+    hash of each copy, its file names included, and the records below, in the
+    session's own output, never in a file a lens can write;
   - records `HEAD`, a hash of every ref and of the stash list, and
     `status --porcelain --ignored=matching --untracked-files=all` run with
     fsmonitor and every filter off, with a hash of each listed path's
     content.
 
-  After the lens it first checks each copy against its hash, and where one
-  differs it puts nothing back from the copies and brings it to the owner. Else
-  it compares the git folders with the copies and puts them back, then runs the
-  same records again. Any change marks the lens
-  inconclusive. The session puts back only what changed during the lens: a
-  moved ref goes back to its earlier value first; then a path clean before
-  is restored from that `HEAD`, or deleted if it is new, as itself and never
-  through a link or junction. A path already
-  changed before the lens is left as it is and named, so the owner's own
-  work is never thrown away. The copies are deleted afterwards. The change
-  and the restore are a flagged checkpoint.
+  After the lens it checks each copy against its hash first, and again right
+  before it puts anything back from it; where one differs it puts nothing back
+  from the copies and brings it to the owner. Else it compares the git folders
+  with the copies and puts them back, then runs the same records again. Any
+  change marks the lens inconclusive. The session puts back only what changed
+  during the lens: a moved ref goes back to its earlier value first; then any
+  new link or junction is removed, and a path clean before is restored with git
+  from that `HEAD`, or deleted if it is new, each as itself and never through a
+  link or junction. A path already changed before the lens is left as it is and
+  named, so the owner's own work is never thrown away. The copies are deleted
+  afterwards. The change and the restore are a flagged checkpoint.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
   (S15), T4 removes `subagents` from Codex's known description, so Codex
   gets the no-subagents line and each lens runs in a separate session.

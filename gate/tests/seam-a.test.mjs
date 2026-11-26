@@ -142,6 +142,8 @@ test('bad case: a rendered file of no known kind, a rendered command or skill th
   expectFail(t, { 'rendered/claude/agents/a b.md': 'x\n' }, 'path');
   expectFail(t, { 'rendered/claude/commands/rm.md': 'x\n' }, 'command-file-name');
   expectFail(t, { 'rendered/claude/agents/probe.md': plainAgent('other') }, 'name-stem');
+  // The rendered skills pass the text scanner like every other installed file.
+  expectFail(t, { 'rendered/skills/finis/SKILL.md': 'x\u202e\n' }, 'invisible');
 });
 
 // Agents install only from claude/agents/; familiars/ holds each agent's contract.

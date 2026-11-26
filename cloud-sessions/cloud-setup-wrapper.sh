@@ -1161,23 +1161,25 @@ lenses to offer, and when.
     `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since in
     a linked worktree `.git` is a file;
   - copy those outside the work tree, readable only by the owner, and keep a
-    hash of each copy, and the records below, in your own output, never in a
-    file a lens can write;
+    hash of each copy, its file names included, and the records below, in your
+    own output, never in a file a lens can write;
   - record `HEAD`, a hash of every ref and of the stash list, and
     `status --porcelain --ignored=matching --untracked-files=all`, with a hash
     of each listed path's content. Run git with fsmonitor and every filter off:
     `-c core.fsmonitor=false`, and each filter's `clean` and `process` empty
     and `required` false.
 
-  After it, first check each copy against its hash; if one differs, put nothing
-  back from the copies and bring it to me. Else compare git's folders with the
-  copies and put them back, then take the same records again. Any change marks
-  the lens inconclusive. Put back only what changed during the lens: a moved ref
-  goes back to its earlier value first; then a path clean before is restored
-  from the earlier `HEAD`, or deleted if it is new, as itself and never through
-  a link or junction. A path already changed before the lens stays as it is, and
-  you name it, so my own work is never thrown away. Delete the copies. The
-  change and the restore are a checkpoint, flagged.
+  After it, check each copy against its hash first, and again right before you
+  put anything back from it; if one differs, put nothing back from the copies
+  and bring it to me. Else compare git's folders with the copies and put them
+  back, then take the same records again. Any change marks the lens
+  inconclusive. Put back only what changed during the lens: a moved ref goes
+  back to its earlier value first; then remove any new link or junction, and
+  restore a path clean before with git from the earlier `HEAD`, or delete it if
+  it is new, each as itself and never through a link or junction. A path already
+  changed before the lens stays as it is, and you name it, so my own work is
+  never thrown away. Delete the copies. The change and the restore are a
+  checkpoint, flagged.
 
 ## The report template
 
@@ -1653,7 +1655,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash f51a0241a323a03e7e65ca4a3104525f3dc665500f143a83a75bf77e67dfd6b7 '.pact/review.md'
+check_hash 2a4938d35e185601a38b70bf2893fe9421fbd42d81aef007d8469333f9a0c30a '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1683,7 +1685,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy af870a151dd3"
+  echo "pact cloud copy f31813f6d29b"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

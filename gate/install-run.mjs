@@ -529,7 +529,7 @@ async function main() {
     if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
   }
   say('Configuration:');
-  for (const l of core.configBlock(parsed, boundHash, record)) say(l);
+  for (const l of core.configBlock(parsed, boundHash, record, renders.rules.map(r => r.id).sort())) say(l);
   for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
   for (const l of core.toolsBlock(toolsOn, staged.keys())) say(l);
   for (const l of core.skillsBlock(parsed)) say(l);
