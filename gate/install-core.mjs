@@ -442,7 +442,7 @@ export function parseRecord(text) {
   if (!Array.isArray(links) || !links.every(l => isPlainObject(l) && ['harness', 'path', 'target'].every(k => typeof l[k] === 'string'))) refuse('record-not-pact', 'the install record\'s links are not a list of skill links; fix or remove it.');
   // Whether the install wrote the shell policy line into Codex's config.
   const shellPolicy = ci(doc, 'shellpolicy') ?? false;
-  if (shellPolicy !== false && shellPolicy !== true) refuse('record-not-pact', 'the install record\'s shell policy mark is not true; fix or remove it.');
+  if (shellPolicy !== false && shellPolicy !== true) refuse('record-not-pact', 'the install record\'s shell policy mark is neither true nor false; fix or remove it.');
   const valuesAt = key => entries.filter(e => e.key === key && typeof e.value === 'string').map(e => e.value);
   // The two env keys the identity switch set (#603), and the auto-compact window (#482): each only in the form the install writes.
   const identityEnv = Object.fromEntries(IDENTITY_ENV_KEYS.flatMap(k => valuesAt(`env.${k}`).slice(0, 1).map(v => [k, v])));

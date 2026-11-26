@@ -125,18 +125,51 @@ test('bad case: a record link the install may not act on is warned about and ski
   assert.deepEqual(readdirSync(at(behind, '.agents/elsewhere')), []);
 });
 
-/** A repo whose one function that makes a link fails first, where `when` holds. */
-const noLinks = (t, when) => makeRepo(t, root => {
+/** A repo whose installer function opening with `head` runs `first` before its own body. */
+const planted = (t, head, first) => makeRepo(t, root => {
   const p = join(root, 'gate', 'install-io.mjs');
   const s = readFileSync(p, 'utf8');
-  const head = 'export function makeLink(target, path) {';
   assert.equal(s.split(head).length, 2);
-  writeFileSync(p, s.replace(head, `${head}\n  if (${when}) throw Object.assign(new Error('planted'), { code: 'EPERM' });`));
+  writeFileSync(p, s.replace(head, `${head}\n  ${first}`));
+});
+const MAKE = 'export function makeLink(target, path) {';
+const FAIL = "throw Object.assign(new Error('planted'), { code: 'EPERM' });";
+// The install's trial link, in its work folder, is left to succeed.
+const OWN = "!path.includes('link-probe')";
+
+/** A repo whose one function that makes a link fails first, where `when` holds. */
+const noLinks = (t, when) => planted(t, MAKE, `if (${when}) ${FAIL}`);
+
+test('bad case: an apply that leaves a skill link unmade, or a removed one standing, reports a mismatch', t => {
+  const unmade = planted(t, MAKE, `if (${OWN}) return;`);
+  const h = codexHome(t);
+  config(h, ['finis']);
+  const r = applyBound(unmade, h);
+  assert.notEqual(r.status, 0, r.out);
+  assert.match(r.stdout, /^MISMATCH \.agents\/skills\/finis \(the skill link is not there\)\r?$/m, r.out);
+
+  const standing = planted(t, 'export function removeLink(p) {', 'return;');
+  const kept = codexHome(t);
+  config(kept, ['finis']);
+  passed(applyBound(standing, kept));
+  config(kept, []);
+  const off = applyBound(standing, kept);
+  assert.notEqual(off.status, 0, off.out);
+  assert.match(off.stdout, /^MISMATCH \.agents\/skills\/finis \(should be unlinked\)\r?$/m, off.out);
+});
+
+test('bad case: a link that fails after something came to be at its path is not copied over', t => {
+  const repo = planted(t, MAKE, `if (${OWN}) { mkdirSync(path, { recursive: true }); ${FAIL} }`);
+  const h = codexHome(t);
+  config(h, ['finis']);
+  const r = applyBound(repo, h);
+  assert.notEqual(r.status, 0, r.out);
+  assert.doesNotMatch(r.stdout, /^copied /m, r.out);
+  assert.ok(!existsSync(at(h, `${SKILLS}/finis/SKILL.md`)));
 });
 
 test('C19: a link that fails only at its own place is copied by the apply, which says so', t => {
-  // The install's trial link, in its work folder, still succeeds.
-  const repo = noLinks(t, "!path.includes('link-probe')");
+  const repo = noLinks(t, OWN);
   const h = codexHome(t);
   config(h, ['finis']);
   const r = applyBound(repo, h);

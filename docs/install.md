@@ -103,8 +103,8 @@ junction on Windows, a symlink elsewhere. The dry run lists each link it makes
 or removes. Where no link can be made, it warns, and the apply copies the
 folder's files instead. A folder of yours with a skill's name is left as it is,
 listed under `Yours, left as is:`. A link the pact made that you have since
-replaced is drift. The install removes only the links and copies its record
-lists.
+replaced is drift. The install removes only the links and copied folders that
+its record lists.
 
 ### Codex's shell environment policy
 
@@ -118,8 +118,14 @@ shell_environment_policy.ignore_default_excludes = false # the pact: secret-name
 
 Variables with `KEY`, `SECRET` or `TOKEN` in their name, in any case, then stay
 out of those shells, a lens's included. A command that reads one there, such as
-`gh` reading `GH_TOKEN`, no longer finds it.
+`gh` reading `GH_TOKEN`, no longer finds it; `gh` then uses its stored login,
+if it has one.
 
+- **Where a value stays readable.** The line only drops the name from the
+  environment Codex hands its shells. The value is still wherever you set it: a
+  shell profile, which a login shell reads again, a saved Windows user variable,
+  a `.env` file or a credential store. And the poster, run from a Codex shell,
+  can no longer refuse a post that holds it. This was probed on Windows only.
 - **What still gets through.** Other names, such as `DB_PASSWORD`,
   `AWS_CREDENTIALS`, `CONNECTION_STRING` and `GITHUB_PAT`. Hooks see every
   variable. A trusted project's `.codex/config.toml`, or a `-c` flag, can set
@@ -811,8 +817,10 @@ hook the install adds.
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
   `bash -c "..."` included, and so does one typed into a shell that is already
   running, which Codex runs no hook for. A hook that can't start or runs past
-  15 seconds lets the command through, and so does a crash outside what the
-  wrapper catches, except on Windows, where the launcher denies.
+  15 seconds lets the command through. Outside Windows, a missing `node` or a
+  crash the wrapper doesn't catch lets it through too; on Windows the launcher
+  denies both, so there only a missing `cmd.exe` or launcher stops the hook from
+  starting.
 - **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
   shape, or sits behind a link refuses the dry run. A pact entry changed since
   the install is drift.
@@ -960,10 +968,11 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
 
 1. **Pick the backup,** one whose name an apply you ran printed. To undo more
    than one apply, go newest first, back to the one you want, and do steps 3 to
-   5 for each in turn.
+   6 for each in turn.
 2. **Know what it undoes.** A copy-back puts each listed file back as it was
    before that apply, losing any edit made to it since, including what Claude
-   Code writes to `settings.json`, such as permission rules.
+   Code writes to `settings.json`, such as permission rules, and what you or
+   Codex wrote to its `config.toml`, such as a tighter approval setting.
 3. **Check its `manifest.json` before you act on it,** and stop on any
    failure:
    - each path is relative to your home folder, with forward slashes and no `..`,
@@ -991,17 +1000,19 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
    `~/<path>`. Keep `settings.json` and `config.toml`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
-   and macOS.
+   and macOS. If Codex's `config.toml` has changed since that apply, don't copy
+   it back: change only the pact's line, to match the backup's copy.
 5. **Delete each `was: absent` path** that is there. A skill link goes as a
-   link, never through it: `rm <path>` on Linux and macOS,
+   link, never through it: `rm "$HOME/<path>"` on Linux and macOS,
    `cmd /c rmdir "$HOME\<path>"` in PowerShell, with the path's slashes turned
    to backslashes, and no `-r` or `/s`. In a copied skill folder, delete the
    files your record lists, then the empty folders. If Codex has written to its
-   `config.toml` since, delete only the pact's line. Then make each
-   `was: link` entry again: `ln -s "$HOME/<target>" "$HOME/<path>"`, or
+   `config.toml` since, delete only the pact's line.
+6. **Make each `was: link` entry again:**
+   `ln -s "$HOME/<target>" "$HOME/<path>"`, or
    `New-Item -ItemType Junction -Path "$HOME\<path>" -Target "$HOME\<target>"`
    in PowerShell.
-6. **Run the dry run** to check, and read it before you start any session: it
+7. **Run the dry run** to check, and read it before you start any session: it
    shows no drift, its `Last install:` line names the commit in the name of the
    next-older backup, the apply before the oldest one you undid (after undoing
    a first install it reads as a first install), and
@@ -1019,7 +1030,7 @@ current record lists: the agents, `.pact/review.md`, `.pact/review-diagrams.md`,
 folder, each pact command in `.claude/commands/`, `/scriptorium` included,
 `.pact/tools/poster.mjs` and `.pact/tools/cleaner.mjs` if listed,
 `.pact/hooks/compact-handoff.mjs` if listed, and `.pact/install.json`. Then do
-steps 4 to 6 with that backup. Step 5's restored `settings.json` takes the
+steps 4 to 7 with that backup. Step 5's restored `settings.json` takes the
 pact's hook entries and `autoCompactWindow` out with it; had you no backup of
 it, remove the entries that call the deleted script by hand. If you had no `settings.json` before, step 5
 deletes it, with anything Claude Code wrote there since.

@@ -99,8 +99,9 @@ someone hands a session to load, and a decision model's answer.
   passed by `bypassPermissions`, a mod, or another spelling. In Codex and
   Antigravity a guard hook denies what those rules deny, under the same
   switches; an ask rule prompts in Antigravity and denies in Codex. The hook
-  denies on an error it catches; a hook that can't start or times out lets the
-  call through, as do a crash past that (off Windows), another spelling and, in
+  denies on an error it catches; a hook that can't start (on Windows, one whose
+  `cmd.exe` or launcher is missing, since the launcher denies a missing `node`)
+  or times out lets the call through, as do a crash past that (off Windows), another spelling and, in
   Codex, text typed into a running shell, which
   `features.unified_exec_tty=false` would close, with every interactive
   terminal session; the pact doesn't set it. In Codex it runs only once the owner
@@ -280,14 +281,18 @@ it.
   connector call.
 - **Harness, installed by the pact.** A line in Codex's config keeps variables
   named like KEY, SECRET or TOKEN out of the shells Codex starts (probed on
-  0.159.0). A trusted project's config or a `-c` flag sets it back, a config
+  Windows only, 0.159.0). A trusted project's config or a `-c` flag sets it back, a config
   with its own policy is left as it is, hooks see every variable, and other
   names, such as `DB_PASSWORD` or `GITHUB_PAT`, stay in every command's reach.
+  A dropped value stays readable where it was set, such as a shell profile,
+  which a login shell reads again, a saved Windows user variable, a `.env` file
+  or a credential store.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
-  In a Codex shell it can't see a variable that line drops.
+  In a Codex shell it can't see a variable that line drops, so it no longer
+  refuses a post holding that value, read from where it was set.
   Its text fields and edit checks catch accidents only and are not a control.
   With an app pinned it refuses a post as anything but the pinned bot the
   post's `as` names, for posts sent through it.

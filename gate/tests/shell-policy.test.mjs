@@ -76,7 +76,7 @@ test('bad case: a config with its own shell environment policy is left as is, wi
   }
 });
 
-test('C33: a deleted line is added again; one replaced by your own policy is yours; the line changed or moved under a table beside it is drift', t => {
+test('C33: a deleted line is added again; one replaced by your own policy is yours; the line changed, moved under a table, or beside a policy of your own is drift', t => {
   const repo = makeRepo(t);
   const h = codexHome(t);
   passed(applyBound(repo, h));
@@ -109,7 +109,7 @@ test('C33: a deleted line is added again; one replaced by your own policy is you
   assert.equal(record(h).shellPolicy, undefined);
 });
 
-test('bad case: a Codex config that is not UTF-8, or not a plain file, refuses; so does a record whose shell policy mark is not true', t => {
+test('bad case: a Codex config that is not UTF-8, or not a plain file, refuses; so does a record whose shell policy mark is neither true nor false', t => {
   const repo = makeRepo(t);
   const binary = codexHome(t);
   writeFileSync(at(binary, CONFIG), Buffer.from([0x6d, 0x3d, 0xff, 0xfe, 0x0a]));
@@ -128,7 +128,7 @@ test('bad case: a Codex config that is not UTF-8, or not a plain file, refuses; 
   const h = codexHome(t);
   passed(applyBound(repo, h));
   put(h, '.pact/install.json', JSON.stringify({ ...record(h), shellPolicy: 'yes' }));
-  refused(install(repo, h), /shell policy mark is not true/);
+  refused(install(repo, h), /shell policy mark is neither true nor false/);
 });
 
 test('bad case: an apply that leaves the line out of the Codex config reports a mismatch', t => {

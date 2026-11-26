@@ -181,12 +181,14 @@ round's comment on the issue lists each finding.
     C26 checks that no Claude model is named outside Claude Code (S14,
     S18).
 
-**The lead's pick at T8, flagged:**
+**The lead's picks at T8 and T4, flagged:**
 
-47. The threat model's word cap rises from 3,050 to 3,950, since S15's text,
+47. The threat model's word cap rises from 3,050 to 4,000, since S15's text,
     the release app's (the lead's pick at T6, S2 item 49) and T4's probe
     findings didn't fit it, and no text is cut
-    (`gate/tests/threat-model-cap.test.mjs`, ADR 0173).
+    (`gate/tests/threat-model-cap.test.mjs`, ADR 0173). By the same rule, T4
+    raises `docs/install.md`'s budget from 9,350 to 10,050 for its skill links,
+    guard and shell policy (`gate/tests/doc-budget.test.mjs`, PACT-110).
 48. The threat model's two charts come back, as the owner asked, and the
     word count leaves mermaid blocks out, since the charts were dropped twice
     to fit it. Prose past the cap still fails (the same test, ADR 0173).
@@ -700,7 +702,9 @@ only `main` may deploy to, against "no secrets".
   `shell_environment_policy.ignore_default_excludes = false` first in
   `~/.codex/config.toml`, which drops those names from the shells Codex starts.
   The record marks it, a config that names the policy itself is left with a
-  warning, and a Codex taken out loses the line (C33).
+  warning, and a Codex taken out loses the line (C33). It was probed on
+  Windows only, and it drops names from the environment alone: a value stays
+  readable where it was set (S15).
 - **The poster** refuses a post holding a live secret found in its own
   environment. In a Codex shell it can't see a variable the policy drops
   (S15).
@@ -819,12 +823,18 @@ never-sync rule names both folders.
   hook holds; it stays detected, and the owner can still name it in the
   list.
 - **The poster in Codex** doesn't refuse a post holding a secret the shell
-  policy drops, since it can't see it (S13). It is a control that works
-  without the session's cooperation, so its weakening is the owner's call.
+  policy drops, since it can't see it (S13), not even one read from where it
+  was set. It is a control that works without the session's cooperation, so its
+  weakening is the owner's call.
 - **Secrets in Codex's environment.** A secret under a name without KEY,
   SECRET or TOKEN, such as `DB_PASSWORD` or `GITHUB_PAT`, reaches every
   command, hooks see every variable, and a config that sets its own policy is
-  left as it is (S13).
+  left as it is (S13). A dropped value stays readable where it was set: a shell
+  profile, which a login shell reads again, a saved Windows user variable, a
+  `.env` file or a credential store. Codex's documentation says it allows login
+  shells by default; `allow_login_shell = false` would stop the profile route,
+  at the cost of any tool that relies on one, and the install doesn't set it.
+  Neither was probed.
 - **Project installs** tighten a repo in Claude Code alone (S13).
 - **An old copy** left behind loads beside the new pact until a person
   removes it; S14's dry run catches only a rules file.
@@ -1072,10 +1082,11 @@ reads this spec and each ticket's diff.
 | Widening "Review rests on rules" for Codex lenses, and the network-off option (S15) | the owner's call; on a no, S12's fallback | before T4 starts |
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
-| The threat-model cap at 3,950 (S2 item 47) | the lead's flagged pick, for review | any time |
+| The threat-model cap at 4,000 (S2 item 47) | the lead's flagged pick, for review | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
-| The poster's narrower coverage in Codex, which the install's shell policy makes (S13) | the owner's call | at T4's probe |
+| The poster's narrower coverage in Codex, which the install's shell policy makes: it no longer refuses a value the policy drops, though a command can still read it where it was set (S13, S15) | the owner's call | at T4's probe |
 | Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |
+| Login shells in Codex: leave them on, or set `allow_login_shell = false` (S15) | the owner's call, security | any time |
 | Codex lenses' approval and network-off limits, and leftover processes (S15) | the owner's call, security | with the lenses widening |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
 | The tag ruleset on every tag | the owner's own act | before T6 merges |
