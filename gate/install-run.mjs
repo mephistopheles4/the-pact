@@ -265,9 +265,13 @@ async function main() {
   const toolsOn = project ? [] : parsed.tools;
   // The auto-compact window (#482): the renderer's VALUE line, else the default; 0 is off, and a project install is always off. It reaches seam A as --compact.
   const window = claude ? core.compactWindow(parsed) : 0;
-  // The guard (spec 0007 S8): its rules follow the switches, whichever harnesses are in; its files and hooks install while a harness with a guard hook is in and a rule is on.
-  const rules = project ? [] : core.guardRules([...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(core.stopSwitchOn(parsed) ? ['session-stop-deny'] : [])]);
-  const wired = rules.length ? taken.filter(h => core.builtParts(h).guard) : [];
+  // The guard (spec 0007 S8): its command rules follow the switches, whichever harnesses are in, and the ask on an
+  // owner-typed skill follows the commands and the harnesses that can ask on a read. Its files and hooks install
+  // while a harness with a guard hook is in and a rule is on that its hook can meet.
+  const switches = project ? [] : [...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(core.stopSwitchOn(parsed) ? ['session-stop-deny'] : [])];
+  const readers = core.ownerSkillReaders(taken, on);
+  const rules = core.guardRules([...switches, ...(readers.length ? ['owner-skills'] : [])]);
+  const wired = switches.length ? taken.filter(h => core.builtParts(h).guard) : readers;
   const guardOn = wired.length > 0;
   if (guardOn) core.checkGuardHome({ platform: process.platform, windowsHome: io.present(join(home, 'AppData')) });
   const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, guardOn)], 'seam-a', 'the check');
@@ -471,7 +475,7 @@ async function main() {
     : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: [...deny.record, ...stopRecord], ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record }) : [];
   const settingsDrift = liveSettings === null ? [] : core.entryDrift(lastEntries.filter(e => !core.OVERLAY_KEYS.includes(e.key)), liveSettings);
   // The guard's hook, one keyed merge per hooks file (spec 0007 S8).
-  const hooks = core.guardPlans(guardRecorded, wired.map(h => ({ harness: h.id, path: h.hooks.file, format: h.hooks.format, command: core.guardCommand({ script: join(home, ...core.guardScriptRel(h.hooks.format).split('/')), platform: process.platform, systemRoot: process.env.SystemRoot }) })));
+  const hooks = core.guardPlans(guardRecorded, wired.map(h => ({ harness: h.id, path: h.hooks.file, format: h.hooks.format, reads: readers.includes(h), command: core.guardCommand({ script: join(home, ...core.guardScriptRel(h.hooks.format).split('/')), platform: process.platform, systemRoot: process.env.SystemRoot }) })));
   for (const f of hooks) {
     const why = f.path.toLowerCase() === settingsRel?.toLowerCase() ? 'the path of settings.json' : core.guardPathReason(f.path, linkIn);
     if (why) core.stops.hooksPath(f.path, why);

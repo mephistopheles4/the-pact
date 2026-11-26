@@ -23,8 +23,8 @@ const config = (h, doc) => put(h, '.pact/config.json', { schema: 1, ...doc });
 // No command, so no skill is asked on: the table holds the switches' rules alone.
 const ON = { tools: ['cleaner'], commands: [] };
 const OFF = { tools: [], commands: [] };
-const COMMAND_MATCHER = 'run_command|manage_task';
-const READ_MATCHER = 'run_command|manage_task|view_file|read_file';
+const COMMAND_MATCHER = 'run_command|manage_task|send_command_input';
+const READ_MATCHER = `${COMMAND_MATCHER}|view_file|read_file`;
 const MINE = { matcher: '^Bash$', hooks: [{ type: 'command', command: 'echo mine', timeout: 5 }] };
 const MY_GROUP = { PreToolUse: [{ matcher: 'run_command', hooks: [{ command: 'echo mine' }] }] };
 const record = h => json(h, '.pact/install.json');
@@ -281,9 +281,10 @@ test('bad case: a hooks file that is settings.json, or sits behind a link, refus
   refused(install(repo, shared), /the path of settings\.json for a hooks file/);
   const linked = home(t);
   mkdirSync(join(linked, 'elsewhere'));
-  mkdirSync(join(linked, '.gemini'));
-  symlinkSync(join(linked, 'elsewhere'), join(linked, '.gemini', 'config'), 'junction');
-  config(linked, ON);
-  refused(install(repo, linked), /path through a link for a hooks file: \.gemini\/config\/hooks\.json/);
+  mkdirSync(join(linked, '.gemini', 'config'), { recursive: true });
+  // The hooks file alone sits behind the link: an agent behind it would refuse first.
+  symlinkSync(join(linked, 'elsewhere'), join(linked, '.gemini', 'hooks-link'), 'junction');
+  config(linked, { ...ON, harnesses: { own: [{ id: 'antigravity', hooks: { file: '~/.gemini/hooks-link/hooks.json', format: 'antigravity' } }] } });
+  refused(install(repo, linked), /path through a link for a hooks file: \.gemini\/hooks-link\/hooks\.json/);
   assert.deepEqual(readdirSync(join(linked, 'elsewhere')), []);
 });

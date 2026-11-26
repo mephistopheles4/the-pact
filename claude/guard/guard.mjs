@@ -1,8 +1,9 @@
 // The pact's shared guard (spec 0007 S8). A harness's PreToolUse hook runs a
-// thin wrapper beside this file before each shell call; the wrapper hands the
-// call's command text here, and this answers it against rules.json, the rule
-// table the install writes next to it. It reads the command as data: it runs
-// nothing, writes nothing, sends nothing and reads only the table.
+// thin wrapper beside this file before the calls it matches; the wrapper hands
+// the call's command text, or the path of a file about to be read, here, and
+// this answers it against rules.json, the rule table the install writes next to
+// it. It reads both as data: it runs nothing, writes nothing, sends nothing and
+// reads only the table.
 //
 // Every failure is thrown as a GuardFailure with a code from the wrappers'
 // closed list, so a wrapper can answer deny with fixed text. Nothing from the
@@ -224,6 +225,12 @@ function containsMatch(text, parts) {
 
 const ID_RE = /^[a-z0-9-]{1,64}$/;
 const isWords = v => Array.isArray(v) && v.length > 0 && v.every(w => typeof w === 'string' && w !== '');
+// What a rule matches, one kind each: a command's words, parts of its text, or the skills whose file a read opens.
+const SHAPES = {
+  words: v => isWords(v) && v[0] !== '*' && v.at(-1) !== '*',
+  contains: isWords,
+  skills: v => isWords(v) && v.every(name => ID_RE.test(name)),
+};
 
 /** The rule table's text as its rules; anything but exactly the install's shape is a `table` failure. */
 export function parseTable(text) {
@@ -235,12 +242,20 @@ export function parseTable(text) {
   }
   if (!doc || typeof doc !== 'object' || !Array.isArray(doc.rules)) fail('table');
   for (const r of doc.rules) {
-    const ok = r && typeof r === 'object' && typeof r.id === 'string' && ID_RE.test(r.id) && (r.decision === 'deny' || r.decision === 'ask')
-      && (Object.hasOwn(r, 'words') !== Object.hasOwn(r, 'contains'))
-      && (Object.hasOwn(r, 'words') ? isWords(r.words) && r.words[0] !== '*' && r.words.at(-1) !== '*' : isWords(r.contains));
-    if (!ok) fail('table');
+    const ok = r && typeof r === 'object' && typeof r.id === 'string' && ID_RE.test(r.id) && (r.decision === 'deny' || r.decision === 'ask');
+    const kinds = ok ? Object.keys(SHAPES).filter(k => Object.hasOwn(r, k)) : [];
+    if (kinds.length !== 1 || !SHAPES[kinds[0]](r[kinds[0]])) fail('table');
   }
   return doc.rules;
+}
+
+/** The first rule `met` accepts, as { decision, id }, or null. A deny anywhere beats an ask. */
+function firstMet(rules, met) {
+  for (const decision of ['deny', 'ask']) {
+    const rule = rules.find(r => r.decision === decision && met(r));
+    if (rule) return { decision, id: rule.id };
+  }
+  return null;
 }
 
 /**
@@ -250,24 +265,41 @@ export function parseTable(text) {
  */
 export function judge(command, rules) {
   const segments = [...segmentsOf(command, true), ...segmentsOf(command, false)].map(tokens => ({ tokens, at: programAt(tokens), text: tokens.join(' ') }));
-  for (const decision of ['deny', 'ask']) {
-    for (const rule of rules) {
-      if (rule.decision !== decision) continue;
-      if (segments.some(s => (rule.words ? wordsMatch(s.tokens, s.at, rule.words) : containsMatch(s.text, rule.contains)))) return { decision, id: rule.id };
-    }
-  }
-  return null;
+  return firstMet(rules, rule => !rule.skills && segments.some(s => (rule.words ? wordsMatch(s.tokens, s.at, rule.words) : containsMatch(s.text, rule.contains))));
 }
 
-/** The answer to one command, against the table beside this file: null, or { decision, id }. */
-export function answer(command, tableFile = new URL('./rules.json', import.meta.url)) {
-  if (typeof command !== 'string') fail('call');
-  if (command.length > COMMAND_MAX) fail('size');
-  let text;
+/** A path's parts in lower case, with either separator, and `.` and `..` resolved. */
+function pathParts(path) {
+  const parts = [];
+  for (const part of path.toLowerCase().split(/[\\/]+/)) {
+    if (part === '..') parts.pop();
+    else if (part !== '' && part !== '.') parts.push(part);
+  }
+  return parts;
+}
+
+/** The rule a read of `path` meets, or null: the SKILL.md of a skill the rule names, in a folder named skills. */
+export function judgeRead(path, rules) {
+  const [folder, skill, file] = pathParts(path).slice(-3);
+  if (folder !== 'skills' || file !== 'skill.md') return null;
+  return firstMet(rules, rule => rule.skills?.includes(skill));
+}
+
+/** `judged` against the table beside this file, once the call's text is one the guard reads. */
+function against(text, judged, tableFile) {
+  if (typeof text !== 'string') fail('call');
+  if (text.length > COMMAND_MAX) fail('size');
+  let table;
   try {
-    text = readFileSync(tableFile, 'utf8');
+    table = readFileSync(tableFile, 'utf8');
   } catch {
     fail('table');
   }
-  return judge(command, parseTable(text));
+  return judged(text, parseTable(table));
 }
+
+const TABLE = new URL('./rules.json', import.meta.url);
+/** The answer to one command: null, or { decision, id }. */
+export const answer = (command, tableFile = TABLE) => against(command, judge, tableFile);
+/** The answer to one read of a file: null, or { decision, id }. */
+export const answerRead = (path, tableFile = TABLE) => against(path, judgeRead, tableFile);

@@ -1,9 +1,11 @@
 // Antigravity's wrapper for the pact's shared guard (spec 0007 S8). The
-// PreToolUse hook runs it before each shell call, the call as JSON on standard
-// input. An answer is a JSON decision on standard output with exit 0: `deny`,
-// or `force_ask`, which asks the person whatever they allowed before. A call
-// no rule matches gets no answer at all. Antigravity lets a call through on a
-// non-zero exit, so every path exits 0.
+// PreToolUse hook runs it, the call as JSON on standard input, before a command
+// runs, before a line is typed into a program left running, and, while the
+// table asks on a skill, before a file is read. An answer is a JSON decision on
+// standard output with exit 0: `deny`, or `force_ask`, which asks the person
+// whatever they allowed before. A call no rule matches gets no answer at all.
+// Antigravity's documentation says a non-zero exit lets the call through, so
+// every path exits 0.
 //
 // It fails closed: whatever goes wrong once it runs, the answer is `deny`.
 // Every reason is fixed text, a rule's id or a code from FAILURES; nothing
@@ -29,6 +31,25 @@ for (const event of ['uncaughtException', 'unhandledRejection']) {
   });
 }
 
+/**
+ * What the guard judges in a call: { command } to run or to type, { path } to
+ * read, {} for a call that does neither, or null for one it doesn't know.
+ */
+function judged(name, args) {
+  if (name === 'run_command') return { command: args.CommandLine };
+  // A task's input is typed into the program it left running; its other actions type nothing.
+  if (name === 'manage_task' && typeof args.Action === 'string') return args.Action === 'send_input' ? { command: args.Input } : {};
+  if (name === 'send_command_input') return { command: args.Input };
+  // The documented tool names its file AbsolutePath; the CLI's own names it Path.
+  if (name === 'view_file' || name === 'read_file') return { path: args.AbsolutePath ?? args.Path };
+  return null;
+}
+
+const SAYS = {
+  command: { deny: 'blocks this command', ask: 'asks the owner before this command' },
+  path: { deny: 'blocks this read', ask: 'asks the owner before this file is read' },
+};
+
 let code = 'input';
 try {
   // Read to the end even when it is too long, so the harness's write never fails.
@@ -43,14 +64,16 @@ try {
     const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     code = 'call';
     const call = input?.toolCall;
-    if (call?.name !== 'run_command' || typeof call.args?.CommandLine !== 'string') failed('call');
-    else {
+    const what = call?.args ? judged(call.name, call.args) : null;
+    const kind = what && Object.keys(what)[0];
+    if (what === null || (kind && typeof what[kind] !== 'string')) failed('call');
+    else if (kind) {
       code = 'guard';
       const guard = await import('./guard.mjs');
       code = 'internal';
-      const met = guard.answer(call.args.CommandLine);
-      if (met?.decision === 'deny') say('deny', `The pact's guard blocks this command (rule ${met.id}).`);
-      else if (met?.decision === 'ask') say('force_ask', `The pact's guard asks the owner before this command (rule ${met.id}).`);
+      const met = kind === 'path' ? guard.answerRead(what.path) : guard.answer(what.command);
+      if (met?.decision === 'deny') say('deny', `The pact's guard ${SAYS[kind].deny} (rule ${met.id}).`);
+      else if (met?.decision === 'ask') say('force_ask', `The pact's guard ${SAYS[kind].ask} (rule ${met.id}).`);
       else if (met !== null) failed('internal');
     }
   }

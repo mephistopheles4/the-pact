@@ -337,6 +337,7 @@ test('C12: antigravity judges a line typed into a running program as it judges a
   denied(run(typed('ls\ngit branch -D old\n')), 'antigravity', blocks('branch-force-d'));
   denied(run(typed('node cleaner.mjs remove --override x\n')), 'antigravity', `The pact's guard asks the owner before this command (rule cleaner-override).`, 'force_ask');
   assert.deepEqual(run(typed('git status\n')), SILENT);
+  denied(run(tool('send_command_input', { CommandId: 'c', Input: 'git worktree remove w\n' })), 'antigravity', blocks('worktree-remove'));
   // Its other actions type nothing, whatever else they carry.
   for (const Action of ['list', 'status', 'kill']) assert.deepEqual(run(tool('manage_task', { Action, TaskId: 't', Input: 'git worktree remove w' })), SILENT, Action);
 });
@@ -355,7 +356,7 @@ test('S7: antigravity asks before either read tool opens an owner-typed skill, a
 
 test('bad case: antigravity denies a typed line or a read it cannot judge', t => {
   const at = installed(t, ASKING);
-  for (const call of [tool('manage_task', {}), tool('manage_task', { Action: 1 }), tool('manage_task', { Action: 'send_input' }), tool('manage_task', { Action: 'send_input', Input: ['x'] }), tool('view_file', {}), tool('read_file', { Path: 7 }), tool('write_to_file', { TargetFile: 'x' })]) {
+  for (const call of [tool('manage_task', {}), tool('manage_task', { Action: 1 }), tool('manage_task', { Action: 'send_input' }), tool('manage_task', { Action: 'send_input', Input: ['x'] }), tool('view_file', {}), tool('read_file', { Path: 7 }), tool('send_command_input', { CommandId: 'c' }), tool('write_to_file', { TargetFile: 'x' })]) {
     denied(runHook(at, 'antigravity', call), 'antigravity', failure('call'));
   }
   denied(runHook(at, 'antigravity', typed('x'.repeat(guard.COMMAND_MAX + 1))), 'antigravity', failure('size'));
@@ -423,18 +424,18 @@ test('C16: the merge adds the pact\'s group beside the person\'s, in each harnes
   assert.deepEqual(shown(codex.merged), { description: 'd', hooks: { PreToolUse: [OWNER, entry(COMMAND)], Stop: [OWNER] } });
   assert.deepEqual([codex.changed, codex.added], [true, ['codex']]);
   const ag = core.guardMerge(read('{"lint": {"PostToolUse": []}}'), { want: [want('antigravity', 'x')] });
-  assert.deepEqual(shown(ag.merged), { lint: { PostToolUse: [] }, 'pact-guard': { PreToolUse: [{ matcher: 'run_command|manage_task', hooks: [{ type: 'command', command: 'x', timeout: 15 }] }] } });
+  assert.deepEqual(shown(ag.merged), { lint: { PostToolUse: [] }, 'pact-guard': { PreToolUse: [{ matcher: 'run_command|manage_task|send_command_input', hooks: [{ type: 'command', command: 'x', timeout: 15 }] }] } });
   assert.deepEqual(shown(core.guardMerge(new Map(), { want: [want('codex')] }).merged), { hooks: { PreToolUse: [entry(COMMAND)] } });
 });
 
 test('C16, S7: antigravity\'s matcher takes commands and typed input, and the read tools only while a skill is asked on', () => {
-  assert.equal(core.guardGroup('antigravity', 'x').get('matcher'), 'run_command|manage_task');
-  assert.equal(core.guardGroup('antigravity', 'x', { reads: true }).get('matcher'), 'run_command|manage_task|view_file|read_file');
+  assert.equal(core.guardGroup('antigravity', 'x').get('matcher'), 'run_command|manage_task|send_command_input');
+  assert.equal(core.guardGroup('antigravity', 'x', { reads: true }).get('matcher'), 'run_command|manage_task|send_command_input|view_file|read_file');
   assert.equal(core.guardGroup('codex', 'x', { reads: true }).get('matcher'), '^Bash$');
   const first = core.guardMerge(new Map(), { want: [want('antigravity', 'x')] });
   const wider = { format: 'antigravity', group: core.guardGroup('antigravity', 'x', { reads: true }) };
   const next = core.guardMerge(first.merged, { drop: [want('antigravity', 'x')], want: [wider] });
-  assert.deepEqual(shown(next.merged)['pact-guard'].PreToolUse.map(g => g.matcher), ['run_command|manage_task|view_file|read_file']);
+  assert.deepEqual(shown(next.merged)['pact-guard'].PreToolUse.map(g => g.matcher), ['run_command|manage_task|send_command_input|view_file|read_file']);
   assert.deepEqual(next.added, ['antigravity']);
 });
 
