@@ -1,6 +1,6 @@
 # Spec: the Claude workflows, through Workload Identity Federation — V2
 
-Status: V2 revision 6 (Test round 1's fixes), draft on the PACT-113 branch, on the sensitive route:
+Status: V2 revision 7 (Test round 2's wording), draft on the PACT-113 branch, on the sensitive route:
 the security pair reads it and the diff. V1 (PACT-101) let two workflows in;
 V2, at the owner's word, keeps one, `claude.yml`, run on request only, with
 caps. The spec counts once it is on `main`.
@@ -65,8 +65,9 @@ and adds a dated log, since it changes the gate.
 4. **Claude's own GitHub app stays the writer.** The action trades the same
    OIDC token for the Claude GitHub app's installation token, and Anthropic's
    exchange checks that the workflow file matches the one on the default
-   branch, so a branch's edited copy gets no write token. The job's own
-   `GITHUB_TOKEN` stays read-only. No new app, key or environment.
+   branch, so a branch's edited copy gets no Claude app token (W5 says what
+   it does get). `main`'s copy keeps the job's `GITHUB_TOKEN` read-only. No
+   new app, key or environment.
 5. **The action's defaults hold the tools.** Tag mode, which the action picks
    for a mention, gives Claude its file tools, edits in the checkout, its
    commit and push wrappers, the tracking comment and, on a pull request,
@@ -77,7 +78,8 @@ and adds a dated log, since it changes the gate.
    title and body, opened through `gh pr create`, pass no mask (W5).
 6. **Caps per run.** `claude_args` sets `--model claude-sonnet-5-5` (one model
    for answers, reviews and code, at the owner's word; the action takes the
-   model from the workflow only, so a comment cannot pick another), `--max-turns 60` and
+   model from `main`'s workflow only, so a comment cannot pick another; W5
+   covers an edited review-event copy), `--max-turns 60` and
    `--max-budget-usd 5`; the job has a 30-minute time limit and a
    `concurrency` group per issue or pull request number that never cancels a
    run in progress. GitHub keeps one pending run per group, so a third ask
@@ -167,7 +169,9 @@ become:
   (unmasked, and reachable by its ID after the branch goes), a comment in a
   shape `redactSecrets` does not know, or a pull request's title or body,
   which pass no mask. Whoever reads it can then use the app token,
-  Workflows write included, until the job ends, and spend Anthropic tokens
+  Workflows write included, until the job ends, or for up to an hour, until
+  it expires, if the action's best-effort revoke fails (accepted by the
+  owner, PACT-113, after Test round 2), and spend Anthropic tokens
   past the run's caps, bounded only by the workspace's monthly limit. This
   reaches past the identity gate; the owner accepts it and keeps
   `gh pr create` (PACT-113, after Test round 1). The tracking comment's edit
@@ -181,8 +185,14 @@ become:
   one, and the rule grants it an Anthropic token, bounded only by the
   workspace's monthly limit; Anthropic's workflow validation refuses it the
   Claude app token. A steered run can plant such a copy, and any review on
-  that pull request then starts it. A fork's copy gets no OIDC token and no
-  secrets, by GitHub's rule (unverified for the review events; C8 checks);
+  that pull request then starts it. Any workflow a steered run plants on a
+  branch with a review trigger, not only `claude.yml`, runs the same way on
+  any GitHub user's review of that pull request, after the run has ended
+  (accepted by the owner, PACT-113, after Test round 2); only an allowed reviewer's
+  run of `claude.yml` gets an Anthropic token. A fork's copy gets no secrets
+  and a read-only `GITHUB_TOKEN`, by GitHub's documented rule for the review
+  events, and the action refuses a fork's review event before it mints any
+  token;
 - the repo holds one Actions secret, `ANTHROPIC_API_KEY`, from the app's
   setup, which nothing uses under federation and any workflow on a branch
   can read; the owner deletes it (W8's checklist);
@@ -248,7 +258,8 @@ After merge:
 - C7. A push to a pull request and opening one start no run.
 - C8. The Console's authentication history shows each exchange matched the
   pinned rule, including a review-event run's workflow ref, and a review on
-  a fork's pull request shows no exchange.
+  a fork's pull request shows the action's fork refusal and no exchange (a
+  check of the action, not of GitHub's rule).
 
 The owner's checklist, kept on the issue: confirm why runs fail today; the
 CI workspace with a monthly limit, the service account in it, the rule

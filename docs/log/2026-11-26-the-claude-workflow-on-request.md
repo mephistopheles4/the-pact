@@ -16,6 +16,7 @@
 - **The Console steps** are on PACT-113 as a checklist: the CI workspace with a monthly limit and the `workspace:inference` scope, and the rule's pins (the repository ID, the four event names, and `claude.yml` on `main` or, for the two review events, on a pull request's merge ref). The pins can go in before merge; they stop the old review's runs at once.
 - **One GitHub step.** Delete the unused `ANTHROPIC_API_KEY` Actions secret, which any workflow on a branch can read. The Claude GitHub app stays on all the owner's repositories; the action's security doc says a run's token is scoped to the one repository it runs in.
 - **Accepted after Test round 1:** a steered run can leak its tokens to anyone, past the identity gate and the caps (a pull request body passes no mask); `gh pr create` stays.
+- **Accepted after Test round 2:** a workflow a steered run plants on a branch with a review trigger, under any name, runs on anyone's review of that pull request after the run ends, with the repo's secrets and a write `GITHUB_TOKEN` if it asks; and a leaked app token can last up to an hour if the action's best-effort revoke fails.
 - **No `execution_file`.** The repo is public and the file holds a run's whole transcript, unredacted, so it is never uploaded. Each run's cost and turns print in its job log.
 - **The model:** Sonnet for every run, at the owner's word; the action takes it from the workflow, not from a comment.
 - **The session's pick:** the merge-ref arm of the workflow pin, which C8 confirms from the first review-event run.
