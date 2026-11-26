@@ -69,6 +69,8 @@ test('bad case: each wrong own entry refuses under its rule', () => {
     ['harness-id', [{ ...OWN, id: 'Mine' }]],
     ['harness-id', [{ ...OWN, id: `a${'b'.repeat(32)}` }]],
     ['harness-id', [{ ...OWN, id: 'pact' }]],
+    // rendered/skills/ is the shared skills render (spec 0007 S7).
+    ['harness-id', [{ ...OWN, id: 'skills' }]],
     ['harness-id', [OWN, OWN]],
     ['harness-format', [{ ...OWN, agents: { dir: '~/.mine/agents', format: 'yaml' } }]],
     ['harness-format', [{ ...OWN, hooks: { file: '~/.mine/hooks.json', format: 'other' } }]],

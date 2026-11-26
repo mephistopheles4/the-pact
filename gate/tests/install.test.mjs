@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { applyBound, basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, WIN, wrapCheck, total } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { runCore } from './gate-run.mjs';
-import { READ_ONLY, agent, plainAgent, withoutOpenMarks } from './text.mjs';
+import { READ_ONLY, agent, forClaude, plainAgent, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 // The throwaway-repo builder, install runner and the small helpers are the harness's.
@@ -329,19 +329,21 @@ function rulesOf(t, repo) {
   const out = tempDir(t, 'pact-render-');
   const r = runCore('render', [join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]);
   assert.equal(r.failed, false, r.lines.join('\n'));
-  const rendered = readFileSync(join(out, 'CLAUDE.md'));
-  assert.notDeepEqual(rendered, Buffer.from(withoutOpenMarks(source.toString('utf8'))), 'the default changes nothing, so this test would pass for the wrong reason');
-  return { source, rendered };
+  // The renderer's own output, which its RENDERED line names, and what Claude Code receives from it.
+  const configured = readFileSync(join(out, 'CLAUDE.md'));
+  const rendered = Buffer.from(forClaude(configured.toString('utf8')));
+  assert.notDeepEqual(rendered, Buffer.from(forClaude(withoutOpenMarks(source.toString('utf8')))), 'the default changes nothing, so this test would pass for the wrong reason');
+  return { source, configured, rendered };
 }
 
 // #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('--apply installs the default render as the rules file, and the record holds its hash', t => {
   const repo = makeRepo(t);
-  const { source, rendered } = rulesOf(t, repo);
+  const { source, configured, rendered } = rulesOf(t, repo);
   const h = home(t);
   const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(rendered)}$`, 'm'), r.out);
+  assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(configured)}$`, 'm'), r.out);
   assert.match(r.stdout, /^render\| CONFIG default [0-9a-f]{64}$/m, r.out);
   assert.match(r.stdout, /^OK {7}\.claude\/CLAUDE\.md$/m, r.out);
   assert.deepEqual(readFileSync(join(h, '.claude', 'CLAUDE.md')), rendered);
@@ -373,7 +375,7 @@ test('bad case: the rules file changed in the stage after the check refuses --ap
     source = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
     // After seam A has hashed the rendered file, it puts the unrendered source back.
     plantSeamAOnce(root, "import { lstatSync, readFileSync, readdirSync } from 'node:fs';", "import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';");
-    plantSeamAOnce(root, '// @@TEST-SETTINGS-HOOK@@', `writeFileSync(join(root, 'claude', 'CLAUDE.md'), ${JSON.stringify(source)});`);
+    plantSeamAOnce(root, '// @@TEST-SETTINGS-HOOK@@', `writeFileSync(join(root, 'rendered', 'claude', 'rules.md'), ${JSON.stringify(source)});`);
   });
   rulesOf(t, repo);
   const h = home(t);
@@ -433,14 +435,14 @@ test('bad case: a renderer that changes a staged file refuses', t => {
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('the renderer and the rules file come from the commit: working-tree-only edits to them are not what runs', t => {
   const repo = makeRepo(t);
-  const { rendered } = rulesOf(t, repo);
+  const { configured } = rulesOf(t, repo);
   writeFileSync(join(repo, 'gate', 'render.mjs'), "process.stdout.write('RESULT: fail\\n');\nprocess.exit(1);\n");
   const md = join(repo, 'claude', 'CLAUDE.md');
   writeFileSync(md, `${readFileSync(md, 'utf8')}CANARYworktree\n`);
   const r = install(repo, home(t));
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
-  assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(rendered)}$`, 'm'), r.out);
+  assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(configured)}$`, 'm'), r.out);
   assert.match(r.stdout, /uncommitted edits are not checked/, r.out);
 });
 

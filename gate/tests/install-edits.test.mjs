@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo, refused, wrapCheck } from './install-harness.mjs';
 import { plantModule, plantNoDefault } from './gate-files.mjs';
-import { REPO, applyDiff, editPart, withoutOpenMarks } from './text.mjs';
+import { REPO, applyDiff, editPart, forClaude, withoutOpenMarks } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -58,7 +58,7 @@ function expectedRules(repo, c) {
     `**Configuration in effect.** This file was rendered with the configuration \`${digestOf(c)}\`.`,
     'Values set: usage-pause 90. Parts edited: moves (add-after).',
   ]);
-  return Buffer.from(withoutOpenMarks(s));
+  return Buffer.from(forClaude(withoutOpenMarks(s)));
 }
 
 function dryRunHash(r) {
@@ -186,7 +186,8 @@ test('-ReviewFolder on a configured dry run writes the rendered rules and the di
   assert.deepEqual(readdirSync(folder).sort(), ['config.diff', 'rendered-rules.txt']);
   assert.deepEqual(readFileSync(join(folder, 'rendered-rules.txt')), want);
   const none = withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8'));
-  assert.equal(applyDiff(none, readFileSync(join(folder, 'config.diff'), 'utf8')), want.toString('utf8'));
+  // The diff is the configuration's, from the pact's own text; the rules shown are Claude Code's render of that.
+  assert.equal(forClaude(applyDiff(none, readFileSync(join(folder, 'config.diff'), 'utf8'))), want.toString('utf8'));
   assert.deepEqual(listTree(h), before, 'the dry run wrote under the home folder');
   // The printed apply line shows the owner's own options back (S12); no other line names the folder.
   assert.ok(r.stdout.split('\n').filter(l => l.includes(folder)).every(l => l.includes(' --apply --commit ')), 'the folder path was printed outside the apply line');
@@ -202,7 +203,7 @@ test('-ReviewFolder with no configuration writes the default\'s rules and the di
   const diff = readFileSync(join(folder, 'config.diff'), 'utf8');
   assert.ok(diff.length > 0, 'the default changes nothing');
   const rules = readFileSync(join(folder, 'rendered-rules.txt'), 'utf8');
-  assert.equal(applyDiff(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')), diff), rules);
+  assert.equal(forClaude(applyDiff(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')), diff)), rules);
   assert.match(rules, /rendered with the pact's default configuration/);
 });
 
@@ -413,7 +414,7 @@ test('bad case: a review module that reports other hashes than this run rendered
 
 test('bad case: a staged rules file changed after the check refuses the review output before it is written', t => {
   // A seam A that passes, then changes the staged rules file as it returns.
-  const repo = makeRepo(t, root => wrapCheck(root, 'seam-a-core', { after: "fs.appendFileSync(argv[0] + '/claude/CLAUDE.md', 'x\\n');" }));
+  const repo = makeRepo(t, root => wrapCheck(root, 'seam-a-core', { after: "fs.appendFileSync(argv[0] + '/rendered/claude/rules.md', 'x\\n');" }));
   const folder = join(tempDir(t), 'review');
   const r = install(repo, home(t), { extra: ['--review-folder', folder] });
   refused(r);
@@ -475,7 +476,7 @@ test('a home cost-limits edit shows the security-defaults line and installs boun
   let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8').replace('When it is above 75%,', 'When it is above 90%,');
   s = editPart(s, 'cost-limits', () => COST_BLOCK.slice(0, -1).split('\n'));
   s = editPart(s, 'config-notice', () => ['', `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`, 'Values set: usage-pause 90. Parts edited: cost-limits (replace).']);
-  const want = Buffer.from(withoutOpenMarks(s));
+  const want = Buffer.from(forClaude(withoutOpenMarks(s)));
 
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);

@@ -7,7 +7,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { applyBound, home, install, listTree, makeRepo, refused, total } from './install-harness.mjs';
-import { contractText } from './text.mjs';
+import { contractText, forClaude } from './text.mjs';
 
 // #261 C7
 test('dry run on a clean tree passes and shows Node, the check and the gate', t => {
@@ -33,7 +33,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) {
-    assert.deepEqual(readFileSync(join(h, '.claude', 'agents', f)), readFileSync(join(repo, 'claude', 'agents', f)), f);
+    assert.equal(readFileSync(join(h, '.claude', 'agents', f), 'utf8'), forClaude(readFileSync(join(repo, 'claude', 'agents', f), 'utf8')), f);
   }
   const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   const gatePaths = manifest.gate.map(g => g.path).sort();
@@ -42,6 +42,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   // author checker (#183, T2) is staged with it and never run by the install.
   assert.deepEqual(gatePaths, [
     'gate/contained.mjs',
+    'gate/harness-render.mjs',
     'gate/harnesses.mjs',
     'gate/install-core.mjs',
     'gate/install-io.mjs',
@@ -70,7 +71,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   assert.ok(existsSync(join(repo, 'claude', 'tools', 'poster.mjs')), 'the control: the repo holds the poster');
   assert.ok(!existsSync(join(h, '.pact', 'tools', 'poster.mjs')) && !listTree(h).some(f => /poster/.test(f)), listTree(h).join('\n'));
   // scout installs as .claude/agents/scout.md from claude/agents/ (#262 S18); no contract ever reaches the home folder (#210, at Test).
-  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'scout.md')), readFileSync(join(repo, 'claude', 'agents', 'scout.md')));
+  assert.equal(readFileSync(join(h, '.claude', 'agents', 'scout.md'), 'utf8'), forClaude(readFileSync(join(repo, 'claude', 'agents', 'scout.md'), 'utf8')));
   assert.ok(existsSync(join(repo, 'familiars', 'scout.contract.md')), 'the control: the repo holds a planted contract that could have installed');
   assert.ok(!listTree(h).some(f => /contract/i.test(f)), listTree(h).join('\n'));
   const again = install(repo, h);

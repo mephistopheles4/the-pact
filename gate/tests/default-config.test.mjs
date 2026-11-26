@@ -113,9 +113,9 @@ test('the preset passes the builder check, holds no skills key, and the default 
 // PACT-96 S1, C1: the owner's tiers and sensitive list, input validation off the default config's list, and the commands in the workflow's words.
 test('the default config\'s text sets the tiers, takes input validation off the sensitive list and names impeccable\'s commands', () => {
   const block = name => readFileSync(join(REPO, DEFAULT_DIR_REL, 'blocks', `${name}.md`), 'utf8');
-  assert.match(block('tiers'), /\| \*\*Standard\*\* \| Needs a short spec \| Opus, medium \| Sonnet, high \|/);
-  assert.match(block('tiers'), /\| \*\*Quick\*\* \| [^|]+ \| Opus, low \| Sonnet, medium \|/);
-  assert.match(block('sensitive').replace(/\s+/g, ' '), /sensitive work is auth, crypto and data migrations: thorough, planned on Opus at high and built on Sonnet at high/);
+  assert.match(block('tiers'), /\| \*\*Standard\*\* \| Needs a short spec \| planning model, medium \| executor model, high \|/);
+  assert.match(block('tiers'), /\| \*\*Quick\*\* \| [^|]+ \| planning model, low \| executor model, medium \|/);
+  assert.match(block('sensitive').replace(/\s+/g, ' '), /sensitive work is auth, crypto and data migrations: thorough, planned on the planning model at high and built on the executor model at high/);
   assert.doesNotMatch(block('sensitive'), /input validation/);
   const workflow = block('workflow');
   for (const c of ['shape', 'audit', 'critique', 'document']) assert.ok(workflow.includes(`\`impeccable:impeccable\`'s \`${c}\` command: `), c);

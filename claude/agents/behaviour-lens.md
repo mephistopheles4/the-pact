@@ -2,7 +2,7 @@
 name: behaviour-lens
 description: Runs a finished change and checks each numbered claim against what the spec and the issue asked for. Not for whether tests can fail, a spec review, style, or a security review as such.
 tools: [Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*]
-model: opus
+model: planning
 effort: medium
 ---
 

@@ -7,14 +7,14 @@
       "name": "Light",
       "fits": "Small, one session, no plan needed",
       "plan": "none",
-      "build": "Opus, low"
+      "build": "planning model, low"
     },
     {
       "id": "full",
       "name": "Full",
       "fits": "Needs a plan, or too big for one session",
-      "plan": "Opus, medium",
-      "build": "Sonnet, medium"
+      "plan": "planning model, medium",
+      "build": "executor model, medium"
     }
   ],
   "workflowGraph": {

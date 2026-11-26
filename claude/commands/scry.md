@@ -5,6 +5,8 @@ disable-model-invocation: true
 
 # /scry
 
+Act only if the person's latest message names this command; otherwise say so and stop.
+
 What is waiting for me? I read your answer on a phone and reply to it by
 number, so write each item to be understood alone. Answer in this shape,
 nothing else. Use no decision ids, session ids, tab names or tool names.

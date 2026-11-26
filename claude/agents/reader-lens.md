@@ -2,7 +2,7 @@
 name: reader-lens
 description: Proofreads the code and text a change adds, and reports each place a tell would make the next reader misread or stall. Read-only. Not for the repo's written rules, whether it works, security, or taste.
 tools: [Read, Glob, Grep]
-model: opus
+model: planning
 effort: medium
 ---
 

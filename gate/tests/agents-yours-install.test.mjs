@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { applyBound, home, install, makeRepo, total } from './install-harness.mjs';
+import { forClaude } from './text.mjs';
 
 const MINE = '---\nname: scout\ndescription: My own scout.\nmodel: haiku\n---\n\nFind things, briefly.\n';
 const recorded = h => JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8')).files.map(f => f.path);
@@ -36,7 +37,7 @@ test('a pact agent edited in place is yours: no drift, left as is, dropped from 
   // Deleted: the pact's comes back, recorded again.
   rmSync(join(h, '.claude', 'agents', 'scout.md'));
   apply(repo, h);
-  assert.deepEqual(readFileSync(join(h, '.claude', 'agents', 'scout.md')), readFileSync(join(repo, 'claude', 'agents', 'scout.md')));
+  assert.equal(readFileSync(join(h, '.claude', 'agents', 'scout.md'), 'utf8'), forClaude(readFileSync(join(repo, 'claude', 'agents', 'scout.md'), 'utf8')));
   assert.ok(recorded(h).includes('.claude/agents/scout.md'));
 });
 

@@ -31,7 +31,7 @@ import {
   readCopySet,
   renderNoConfig,
 } from '../../cloud-sessions/gen.mjs';
-import { REPO, withoutOpenMarks } from './text.mjs';
+import { REPO, forClaude, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const PAYLOAD = ['claude', 'familiars', 'AGENTS.md'];
@@ -95,7 +95,7 @@ function baseRoot(t, plant = () => {}) {
 
 // The no-configuration render, computed apart from the renderer, and the
 // committed outputs.
-const RENDER = withoutOpenMarks(repoText('claude/CLAUDE.md'));
+const RENDER = forClaude(withoutOpenMarks(repoText('claude/CLAUDE.md')));
 const committed = () => Object.fromEntries(Object.values(OUTPUTS).map(rel => [rel, repoText(rel)]));
 
 let generated = null;
@@ -124,6 +124,7 @@ test('cloud copy: --check names only the stale output, and untracked or ignored 
   });
   cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: src => !src.includes(`${join('gate', 'tests')}`) });
   cpSync(join(REPO, 'cloud-sessions'), join(root, 'cloud-sessions'), { recursive: true });
+  cpSync(join(REPO, 'harnesses'), join(root, 'harnesses'), { recursive: true });
   // Only the planted files stay out of the index.
   git(root, ['rm', '-q', '--cached', 'familiars/planted-lens.md']);
   git(root, ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'base']);
@@ -468,7 +469,7 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {
-    assert.equal(body, repoText(source(dest)), dest);
+    assert.equal(body, dest.startsWith('agents/') ? forClaude(repoText(source(dest))) : repoText(source(dest)), dest);
     assert.match(setup, new RegExp(`^check_hash ${sha256(body)} '${dest.replace(/[.]/g, '\\.')}'$`, 'm'), dest);
   }
   assert.match(setup, new RegExp(`^EXPECTED_WRITES=${blocks.length + 1}$`, 'm'));

@@ -2,7 +2,7 @@
 name: executability-lens
 description: Reviews a spec before sign-off for whether a builder could start from it alone, whether it would run, and whether it keeps the owner's safeguards. Read-only. Not for unwritten needs, security itself, style, or a built result.
 tools: [Read, Glob, Grep]
-model: opus
+model: planning
 effort: medium
 ---
 

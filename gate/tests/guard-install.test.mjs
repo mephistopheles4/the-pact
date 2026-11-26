@@ -46,7 +46,6 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
   const h = three(t);
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^WARN: codex: .*; only its guard hook is installed\.\r?$/m, dry.out);
   assert.match(dry.stdout, TRUST, dry.out);
   assert.match(dry.stdout, /^\.codex\/hooks\.json: would be merged\r?\n {2}pact-guard hook: added\r?$/m, dry.out);
   assert.match(dry.stdout, /^\.gemini\/config\/hooks\.json: would be merged\r?$/m, dry.out);
@@ -139,7 +138,7 @@ test('with no rule on, no guard file or hook is written', t => {
   const r = applyBound(repo, h);
   passed(r);
   assert.doesNotMatch(r.stdout, TRUST, r.out);
-  assert.match(r.stdout, /^WARN: codex: .*; nothing is installed into it\.\r?$/m, r.out);
+  assert.doesNotMatch(r.stdout, notYet('codex'), r.out);
   assert.equal(readFileSync(at(h, CODEX), 'utf8'), before);
   assert.deepEqual(guardFiles(h), []);
 });

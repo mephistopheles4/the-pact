@@ -71,10 +71,10 @@ moves `~/.pact`.
 
 A **harness** is a program the rules install into. The pact knows three, in
 [`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
-`codex` and `antigravity`. Today it builds Claude Code's format alone: for
-another, the dry run warns that the pact does not build its format yet, and
-writes nothing into it but [the guard](#the-guard-in-codex-and-antigravity)'s
-hook, while a rule is on.
+`codex` and `antigravity`. The install writes each one's rules, and the agents
+of Claude Code and Codex; Antigravity gets none yet. Commands reach Codex and
+Antigravity as skills in `~/.pact/skills`, not yet linked into either.
+[The guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
 
 - **Detection.** A known harness is found when its `detect` folder exists
   (`~/.claude`, `~/.codex`, `~/.gemini/config`).
@@ -128,8 +128,9 @@ session running:
    `node claude/tools/gh-app.mjs refresh --provider claude` in your clone, once
    per provider, and apply again.
 
-Skip steps 4 and 6 while the dry run says the pact does not build a harness's
-format yet: your copy is then the only pact that harness reads.
+While the dry run says the pact does not build Antigravity's agent format,
+moving `~/.gemini/config/plugins/the-pact/` leaves Antigravity without the
+pact's agents.
 
 Backups under `~/.claude/pact/backups/` stay where they are. Never sync, share
 or commit that folder either.
