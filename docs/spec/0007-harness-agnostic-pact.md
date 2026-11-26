@@ -188,8 +188,9 @@ round's comment on the issue lists each finding.
     findings of T4 and T5 didn't fit it, and no text is cut
     (`gate/tests/threat-model-cap.test.mjs`, ADR 0173). By the same rule, T4
     and T5 raise `docs/install.md`'s budget past item 50's to 10,350, for T4's
-    skill links, guard and shell policy and T5's Antigravity text beside T6's
-    (`gate/tests/doc-budget.test.mjs`, PACT-110).
+    skill links, guard and shell policy and T5's Antigravity text beside T6's,
+    and T5, merging T6's text, raises `docs/reference.md`'s past item 50's to
+    2,450 (`gate/tests/doc-budget.test.mjs`, PACT-110).
 48. The threat model's two charts come back, as the owner asked, and the
     word count leaves mermaid blocks out, since the charts were dropped twice
     to fit it. Prose past the cap still fails (the same test, ADR 0173).
@@ -1179,6 +1180,8 @@ reads this spec and each ticket's diff.
 | Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |
 | Login shells in Codex: leave them on, or set `allow_login_shell = false` (S15) | the owner's call, security | any time |
 | Codex lenses' approval and network-off limits, and leftover processes (S15) | the owner's call, security | with the lenses widening |
+| `send_message` and `manage_task` for every Antigravity lens (S7, S12) | the owner's call, security | with the lenses widening |
+| Secret-named variables in Antigravity's shells (S15) | the owner's call, security | any time |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
 | Two tag rulesets on every tag (S10): creating, the release app its one bypass once it exists; updating and deleting, no bypass | the owner's own act | before T6 merges |
 | The release app as that bypass, and its key's reach (S2 item 49, S15) | the owner's call | before T9 |

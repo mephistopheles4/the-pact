@@ -37,4 +37,4 @@ Antigravity's command line, agy 1.2.14, on Windows 11, headless (`agy -p`), on G
 
 ## Record
 
-On PACT-105: [the plan](https://linear.app/mephistopheles4/issue/PACT-105#comment-86512a8b) and [Test round 1](https://linear.app/mephistopheles4/issue/PACT-105#comment-186e8f41). The probe's record is this log.
+On PACT-105, by comment id: the plan (86512a8b), Test round 1 (186e8f41) and Test round 2 (18f1a474). The probe's record is this log.
