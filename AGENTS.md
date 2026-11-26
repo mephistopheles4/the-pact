@@ -46,7 +46,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   `changed` record's `pick:` and `unmapped:` lines first. Keep raw reporter
   output outside the repo.
 - **An athanor run** needs athanor at commit `4121c28` or later; an older
-  copy exits 125 asking for a `package.json`: ask the owner to update it, and
+  copy exits 125 over `package.json`: ask the owner to update it, and
   run on the host meanwhile. It passes when athanor exits 0 and the runner's
   result line, the last but one, ends in `pass`. It is never Test evidence.
   [Athanor](docs/agents/gate-tests.md#athanor).
