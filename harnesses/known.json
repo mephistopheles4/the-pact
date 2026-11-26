@@ -30,6 +30,6 @@
     "skills": { "dir": "~/.gemini/config/skills" },
     "hooks": { "file": "~/.gemini/config/hooks.json", "format": "antigravity" },
     "models": { "planning": "pro", "executor": "flash", "light": "flash" },
-    "capabilities": ["subagents", "tool-limits", "hook-ask"]
+    "capabilities": ["subagents", "tool-limits", "hook-ask", "explicit-skills"]
   }
 ]

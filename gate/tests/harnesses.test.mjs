@@ -46,7 +46,7 @@ test('known.json describes claude, codex and antigravity as spec 0007 S5 tables 
   const anti = byId(list, 'antigravity');
   assert.deepEqual([anti.detect, anti.rules, anti.agents, anti.skills, anti.hooks], ['.gemini/config', { path: '.gemini/AGENTS.md', cap: 24000, sharedCap: null }, { dir: '.gemini/config/agents', format: 'antigravity-md' }, { dir: '.gemini/config/skills' }, { file: '.gemini/config/hooks.json', format: 'antigravity' }]);
   assert.deepEqual(anti.models, { planning: 'pro', executor: 'flash', light: 'flash' });
-  assert.deepEqual(anti.capabilities, ['subagents', 'tool-limits', 'hook-ask']);
+  assert.deepEqual(anti.capabilities, ['subagents', 'tool-limits', 'hook-ask', 'explicit-skills']);
 });
 
 test('an own harness is described from the pact\'s formats, its paths turned home-relative', () => {

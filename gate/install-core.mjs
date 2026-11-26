@@ -111,8 +111,12 @@ export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-ru
 export const RULES_REL = 'claude/CLAUDE.md';
 // Where the install writes each harness's render in the stage (spec 0007 S7); isStaged takes no commit's file there.
 export const RENDERED_REL = 'rendered/';
-// Each agent format's names for the pact's tools (spec 0007 S7). Antigravity's is empty until a probe fills it, so no agent installs there.
-export const TOOL_TABLES = Object.freeze({ 'antigravity-md': Object.freeze({}) });
+// Each agent format's names for the pact's tools (spec 0007 S7); a tool with no name here is dropped from the agent.
+// Antigravity's are its documented names, each accepted by agy 1.2.14. A probe found it gives a subagent fewer
+// tools than its file lists, never more (docs/antigravity.md).
+export const TOOL_TABLES = Object.freeze({
+  'antigravity-md': Object.freeze({ Read: 'view_file', Glob: 'find_by_name', Grep: 'grep_search', Bash: 'run_command', WebFetch: 'read_url_content', WebSearch: 'search_web' }),
+});
 export const OVERLAY_REL = 'claude/settings.overlay.json';
 // The review procedure file (#261): staged here, installed to one fixed live path.
 export const REVIEW_REL = 'claude/review.md';

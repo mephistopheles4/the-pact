@@ -2,9 +2,11 @@
 // render in gate/harness-render.mjs. neutral-home.test.mjs runs it in a real
 // install.
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderHarnesses } from '../harness-render.mjs';
-import { agent } from './text.mjs';
+import { REPO, agent } from './text.mjs';
 
 const h = (id, over = {}) => ({
   id,
@@ -137,8 +139,37 @@ test('C5: an antigravity agent whose tools come out empty or lose a read tool re
 });
 
 test('an antigravity harness takes no agents while the pact has no tool names for it', () => {
-  const r = render([ANTI], { tables: undefined });
+  const r = render([ANTI], { tables: { 'antigravity-md': {} } });
   assert.deepEqual([...r.files.keys()].filter(k => k.startsWith('rendered/antigravity/agents/')), []);
+});
+
+test("C5: the pact's own table gives each of its six tool names Antigravity's name for it", () => {
+  const all = agent(['name: all', 'description: All.', 'tools: [Read, Glob, Grep, Bash, WebFetch, WebSearch, PowerShell]', 'model: executor'], '# all\n');
+  const r = render([ANTI], { agents: new Map([['all', all]]), tables: undefined });
+  assert.match(file(r, 'rendered/antigravity/agents/all.md'), /^tools: \[view_file, find_by_name, grep_search, run_command, read_url_content, search_web\]$/m);
+  assert.deepEqual(r.warnings.filter(l => l.includes('loses')), ['antigravity: all loses the tool PowerShell, which the pact has no name for there']);
+});
+
+// A shell is a tool an agent has only when its source lists one: the table never turns a reader into a runner.
+test("C5: each of the pact's agents renders for Antigravity, with a shell only where its source has one", () => {
+  const sources = new Map(readdirSync(join(REPO, 'claude', 'agents')).map(f => [f.slice(0, -3), readFileSync(join(REPO, 'claude', 'agents', f), 'utf8').replaceAll('\r\n', '\n')]));
+  const r = render([ANTI], { agents: sources, tables: undefined });
+  assert.ok(sources.size >= 9, `${sources.size} agents`);
+  for (const [name, source] of sources) {
+    const out = file(r, `rendered/antigravity/agents/${name}.md`);
+    const tools = /^tools: \[(.*)\]$/m.exec(out)[1].split(', ');
+    for (const read of ['view_file', 'find_by_name', 'grep_search']) assert.ok(tools.includes(read), `${name} ${read}`);
+    assert.equal(tools.includes('run_command'), /^tools:.*\bBash\b/m.test(source), name);
+    assert.match(out, /^model: (?:pro|flash)$/m, name);
+  }
+});
+
+test("C9: a skill keeps its command's own disable-model-invocation where a harness can hold it, and gains it nowhere", () => {
+  const open = new Map([['scry', COMMANDS.get('scry').replace('disable-model-invocation: true\n', '')]]);
+  const skill = r => file(r, 'rendered/skills/scry/SKILL.md');
+  assert.match(skill(render([CODEX])), /^---\nname: scry\ndescription: The scry answer\.\ndisable-model-invocation: true\n---\n/);
+  assert.doesNotMatch(skill(render([CODEX], { commands: open })), /disable-model-invocation/);
+  assert.doesNotMatch(skill(render([ANTI])), /disable-model-invocation/);
 });
 
 test('C9: commands stay commands where there is a commands folder, with the blocks resolved', () => {
@@ -149,7 +180,7 @@ test('C9: commands stay commands where there is a commands folder, with the bloc
 
 test('C9: every command becomes a skill where there is a skills folder, kept from the model where a harness allows', () => {
   const r = render([CODEX, ANTI]);
-  assert.equal(file(r, 'rendered/skills/finis/SKILL.md'), '---\nname: finis\ndescription: The finis answer.\n---\n\n# /finis\n\nCheck.\nNothing is outstanding; close this session.\n');
+  assert.equal(file(r, 'rendered/skills/finis/SKILL.md'), '---\nname: finis\ndescription: The finis answer.\ndisable-model-invocation: true\n---\n\n# /finis\n\nCheck.\nNothing is outstanding; close this session.\n');
   for (const name of COMMANDS.keys()) assert.equal(file(r, `rendered/skills/${name}/agents/openai.yaml`), 'policy:\n  allow_implicit_invocation: false\n');
   assert.deepEqual([...render([ANTI]).files.keys()].filter(k => k.endsWith('openai.yaml')), []);
   assert.deepEqual([...r.files.keys()].filter(k => k.includes('/commands/')), []);

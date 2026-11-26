@@ -158,8 +158,7 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   passed(dry);
   assert.match(dry.stdout, /^WARN: `\.codex\/agents\/scout\.toml` names model `my-model`, which Codex may not have\r?$/m, dry.out);
   assert.doesNotMatch(dry.stdout, /`\.claude\/[^`]*` names model/);
-  // Antigravity takes no agent until the pact has its tool names.
-  assert.match(dry.stdout, /^WARN: antigravity: the pact does not build Antigravity's agent format yet/m, dry.out);
+  assert.doesNotMatch(dry.stdout, /does not build Antigravity/);
   passed(applyBound(repo, h));
 
   const rules = read(h, '.codex/AGENTS.md');
@@ -167,10 +166,10 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   assert.doesNotMatch(rules, /\b(?:Opus|Sonnet|Haiku)\b|<!-- pact:(?:if|unless|end -->|models)/);
   assert.match(read(h, '.gemini/AGENTS.md'), /the planning model is `pro`, the executor model `flash`/);
   assert.match(read(h, '.codex/agents/data-lens.toml'), /^model = "gpt-6\.2-sol"$/m);
-  assert.ok(!existsSync(at(h, '.gemini/config/agents')));
+  assert.match(lf(read(h, '.gemini/config/agents/data-lens.md')), /^model: pro\ntools: \[view_file, find_by_name, grep_search/m);
   // C9: the skill opens with S7's line, ends with the no-archive line, and its steps archive nothing.
   const finis = lf(read(h, '.pact/skills/finis/SKILL.md'));
-  assert.match(finis, /^---\nname: finis\n[\s\S]*?\n# \/finis\n\nAct only if the person's latest message names this command; otherwise say so and stop\.\n/);
+  assert.match(finis, /^---\nname: finis\n(?:.*\n)disable-model-invocation: true\n---\n[\s\S]*?\n# \/finis\n\nAct only if the person's latest message names this command; otherwise say so and stop\.\n/);
   assert.match(finis, /Nothing is outstanding;\s+close this session\."\n$/);
   assert.doesNotMatch(finis.slice(finis.indexOf('\n# /finis\n')), /archive/i);
   assert.equal(read(h, '.pact/skills/finis/agents/openai.yaml'), 'policy:\n  allow_implicit_invocation: false\n');
@@ -178,7 +177,7 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   assert.ok(!existsSync(at(h, '.pact/skills/scry')));
   assert.match(read(h, '.claude/commands/finis.md'), /archive the\s+session/);
   const files = record(h).files;
-  for (const [id, path] of [['codex', '.codex/AGENTS.md'], ['codex', '.codex/agents/scout.toml'], ['antigravity', '.gemini/AGENTS.md'], ['pact', '.pact/skills/finis/SKILL.md']]) {
+  for (const [id, path] of [['codex', '.codex/AGENTS.md'], ['codex', '.codex/agents/scout.toml'], ['antigravity', '.gemini/AGENTS.md'], ['antigravity', '.gemini/config/agents/scout.md'], ['pact', '.pact/skills/finis/SKILL.md']]) {
     assert.ok(files.some(f => f.harness === id && f.path === path), `${id} ${path}`);
   }
 
