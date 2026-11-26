@@ -269,8 +269,8 @@ const FLAGS = new Set(['--apply']);
 const VALUED = new Set(['--commit', '--rendered-hash', '--home', '--review-folder', '--project-folder', '--release']);
 const PATH_OPTIONS = ['--home', '--review-folder', '--project-folder'];
 const SAFE_PATH = /^[A-Za-z0-9 ._\-:\\/]+$/;
-// A release tag, named exactly v1.<n>.0 (spec 0007 S10).
-const RELEASE_RE = /^v1\.(0|[1-9]\d{0,8})\.0$/;
+// A release tag, named exactly v1.<n>.0 or v1.<n>.0-rc.<k> (spec 0007 S10).
+const RELEASE_RE = /^v1\.(0|[1-9]\d{0,8})\.0(?:-rc\.([1-9]\d{0,8}))?$/;
 
 /**
  * The command line, strictly (S4): known options only, spelled exactly, each
@@ -308,7 +308,7 @@ export function parseArgs(argv, platform) {
     if (!SAFE_PATH.test(v) || (win && v.indexOf(':', 2) >= 0)) refuse('path-chars', `${opt} holds a character the install does not take in a path: only letters, digits, spaces and . _ - : \\ / are taken. Use a folder whose full path holds only those.`);
   }
   // The bootstrap names the release it cloned, so the record holds it (spec 0007 S9, S10).
-  if (given.has('--release') && !RELEASE_RE.test(given.get('--release'))) refuse('args-release', '--release takes a release tag, such as v1.1.0.');
+  if (given.has('--release') && !RELEASE_RE.test(given.get('--release'))) refuse('args-release', '--release takes a release tag, such as v1.1.0 or v1.2.0-rc.1.');
   if (given.has('--review-folder') && given.has('--project-folder')) refuse('args-review-project', '--review-folder is for a home install; a project install writes no review output.');
   if (given.has('--apply') && !given.has('--commit')) refuse('args-apply-commit', '--apply needs --commit with the full commit id the dry run printed.');
   return {
@@ -402,8 +402,13 @@ export function behindLine(recordCommit, commit, reachable, release = null, reco
   if (recordCommit === null) return null;
   const last = recordCommit.toLowerCase();
   if (release !== null && recordRelease !== null) {
-    const n = tag => Number(RELEASE_RE.exec(tag)[1]);
-    return n(release) < n(recordRelease) ? `WARN: the release ${release} is lower than the last install's ${recordRelease}: this install is behind the last install, and installing rolls the pact back.` : null;
+    // By number, and a release candidate ranks below its own stable release.
+    const n = tag => {
+      const m = RELEASE_RE.exec(tag);
+      return [Number(m[1]), m[2] ? Number(m[2]) : Infinity];
+    };
+    const [a, b] = [n(release), n(recordRelease)];
+    return a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]) ? `WARN: the release ${release} is lower than the last install's ${recordRelease}: this install is behind the last install, and installing rolls the pact back.` : null;
   }
   if (last === commit || reachable.has(last)) return null;
   const named = /^[0-9a-f]{40}$/.test(last) ? ` ${last}` : ', a commit id the install does not read,';
@@ -471,7 +476,7 @@ export function parseRecord(text) {
   // Every skill link the install made: the harness, the link and the folder it points at.
   const links = ci(doc, 'links') ?? [];
   if (!Array.isArray(links) || !links.every(l => isPlainObject(l) && ['harness', 'path', 'target'].every(k => typeof l[k] === 'string'))) refuse('record-not-pact', 'the install record\'s links are not a list of skill links; fix or remove it.');
-  // Whether the install wrote the shell policy line into Codex's config.
+  // An older install's mark that it wrote the shell policy line into Codex's config: read, never written again.
   const shellPolicy = ci(doc, 'shellpolicy') ?? false;
   if (shellPolicy !== false && shellPolicy !== true) refuse('record-not-pact', 'the install record\'s shell policy mark is neither true nor false; fix or remove it.');
   const valuesAt = key => entries.filter(e => e.key === key && typeof e.value === 'string').map(e => e.value);
@@ -502,7 +507,7 @@ export function parseRecord(text) {
  * harnesses with their paths, config, every file with its harness and hash,
  * every settings entry, and the gate. `files` is path to { harness, sha256 }.
  */
-export function recordText({ commit, release = null, digest, harnesses, userHash, blockHashes, files, links = [], entries, shellPolicy = false, gateNow }) {
+export function recordText({ commit, release = null, digest, harnesses, userHash, blockHashes, files, links = [], entries, gateNow }) {
   const doc = {
     commit,
     // The source of the last apply: a release tag, or none for a checkout commit.
@@ -513,7 +518,6 @@ export function recordText({ commit, release = null, digest, harnesses, userHash
     files: [...files].map(([path, f]) => ({ harness: f.harness, path, sha256: f.sha256 })),
     ...(links.length ? { links } : {}),
     entries,
-    ...(shellPolicy ? { shellPolicy } : {}),
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
   };
   return `${JSON.stringify(doc, null, 2)}\n`;
@@ -2326,59 +2330,27 @@ export const NO_LINK_LINE = 'WARN: a skill link cannot be made on this machine, 
 // ------------------------------------------------------------ Codex's shell environment policy (spec 0007 S13)
 
 export const CODEX_CONFIG_REL = '.codex/config.toml';
-const SHELL_POLICY_KEY = 'shell_environment_policy';
-const SHELL_POLICY_MARK = '# the pact: secret-named variables stay out of the shells Codex starts';
-export const SHELL_POLICY_LINE = `${SHELL_POLICY_KEY}.ignore_default_excludes = false ${SHELL_POLICY_MARK}`;
+const SHELL_POLICY_LINE = 'shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts';
 
 /**
- * What Codex's config.toml needs. `bytes` is the file's, or null when there is
- * none; `wanted` is whether this run takes Codex, `recorded` whether the last
- * install's record holds the line. `status` is 'add', 'keep', 'remove',
- * 'yours' (the file sets the policy itself: left as is), 'drift' (the pact's
- * line changed) or 'none'; `next` is the file's new text where it changes.
- * The file is read as lines, not parsed as TOML: any line outside a comment
- * that names the policy counts as the person's own.
+ * A one-time cleanup: Codex's shell environment policy is the owner's now, but
+ * an older install wrote one line of it. Given the config.toml bytes of an
+ * install whose record marks that line, the file's new text without exactly
+ * that line, or undefined when the line is not there (or the file is not
+ * UTF-8): then the file is left alone.
  */
-export function shellPolicyPlan({ bytes, wanted, recorded }) {
-  if (!wanted && !recorded) return { status: 'none' };
-  let text = '';
-  if (bytes !== null) {
-    try {
-      text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-    } catch {
-      stops.configNotText();
-    }
+export function withoutShellPolicy(bytes) {
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    return undefined;
   }
   const bom = text.startsWith('\uFEFF') ? '\uFEFF' : '';
-  const body = text.slice(bom.length);
-  const lines = body.split('\n').map(l => l.replace(/\r$/, ''));
-  const at = lines.indexOf(SHELL_POLICY_LINE);
-  if (!wanted) {
-    // Only a recorded install gets here, so a marked line that no longer matches was changed since.
-    if (at < 0 && lines.some(l => l.includes(SHELL_POLICY_MARK))) return { status: 'drift' };
-    if (at < 0) return { status: 'none' };
-    return { status: 'remove', next: bom + body.split(/(?<=\n)/).filter((_, i) => i !== at).join('') };
-  }
-  const named = lines.some((l, i) => i !== at && !l.trimStart().startsWith('#') && l.includes(SHELL_POLICY_KEY));
-  const table = lines.findIndex(l => l.trimStart().startsWith('['));
-  // Under a table header the line would be that table's key, which Codex ignores.
-  if (at >= 0 && (table < 0 || at < table) && !named) return { status: 'keep' };
-  if (recorded && lines.some(l => l.includes(SHELL_POLICY_MARK))) return { status: 'drift' };
-  if (named || at >= 0) return { status: 'yours' };
-  const eol = body.includes('\r\n') ? '\r\n' : '\n';
-  // A dotted key before the first table header is valid TOML wherever the rest of the file stands.
-  return { status: 'add', next: `${bom}${SHELL_POLICY_LINE}${eol}${body}` };
+  const lines = text.slice(bom.length).split(/(?<=\n)/);
+  const at = lines.findIndex(l => l.replace(/\r?\n$/, '') === SHELL_POLICY_LINE);
+  return at < 0 ? undefined : bom + lines.filter((_, i) => i !== at).join('');
 }
-
-export const SHELL_POLICY_DRIFT = `${CODEX_CONFIG_REL} (the pact's shell policy line changed since the install)`;
-
-/** The dry run's lines for the policy, in Codex's block. */
-export const shellPolicyLines = ({ status }) => ({
-  add: [`Codex shell policy: would be added to ${CODEX_CONFIG_REL}, so variables named like KEY, SECRET or TOKEN stay out of the shells Codex starts`],
-  keep: ['Codex shell policy: in place'],
-  remove: [`Codex shell policy: would be removed from ${CODEX_CONFIG_REL}`],
-  yours: [`WARN: Codex shell policy: ${CODEX_CONFIG_REL} sets ${SHELL_POLICY_KEY} itself, so the pact leaves it. Variables named like KEY, SECRET or TOKEN stay out of the shells Codex starts only if yours sets ignore_default_excludes = false.`],
-}[status] ?? []);
 
 /** The old builder agents' paths in Claude Code's agents folder, which a first install deletes (#262). */
 export const retiredPaths = targets => targets.filter(t => t.id === 'claude' && t.agents).flatMap(t => RETIRED.map(r => `${t.agents}/${r.slice('agents/'.length)}`));
@@ -2605,8 +2577,6 @@ export const stops = Object.freeze({
   reviewFailed: () => refuse('review-failed', 'the review output was not written, or not as this run rendered it.', REVIEW_LEFT),
   hooksNotObject: rel => refuse('hooks-not-object', `${formatPlain(rel)} is not a strict JSON object, so the pact's guard hook cannot be merged into it; fix the file first.`),
   hooksPath: (rel, why) => refuse('hooks-path', `${why} for a hooks file: ${formatPlain(rel)}.`),
-  configLinked: () => refuse('config-linked', `${CODEX_CONFIG_REL} is behind a link, so the install does not write the pact's shell policy line into it.`),
-  configNotText: () => refuse('config-not-text', `${CODEX_CONFIG_REL} is not a UTF-8 text file, so the pact's shell policy line cannot be added; fix the file first.`),
   tempLeft: rel => refuse('temp-left', `a temp file the install writes through is already there: ${formatPlain(rel)}.pact-tmp. An earlier install stopped mid-write, and the file may hold a copy of your settings; check it, delete it, and run the install again.`),
 });
 

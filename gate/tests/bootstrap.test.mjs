@@ -239,3 +239,101 @@ test('bootstrap: run through a link to it, as a package\'s bin is, it still runs
   assert.equal(r.status, 1, r.stderr);
   assert.match(r.stdout, /\[bootstrap-args\]/);
 });
+
+// PACT-105 decision 167: release candidates, the stable default, the beta channel and an exact tag.
+const tagOf = out => /^Release: (\S+) /m.exec(out)?.[1] ?? null;
+
+test('bootstrap: by default it takes the highest stable release and never a release candidate', async t => {
+  const r = remote(t);
+  const stable = r.release('v1.2.0');
+  r.release('v1.3.0-rc.1');
+  r.release('v1.3.0-rc.2');
+  const got = await run(t, r.url);
+  assert.equal(got.code, 0, got.out);
+  assert.equal(tagOf(got.out), 'v1.2.0');
+  assert.deepEqual(clones(got.home), [stable]);
+  // Bad case: with only candidates the default finds no release rather than taking one.
+  const only = remote(t);
+  only.release('v1.1.0-rc.1');
+  const none = await run(t, only.url);
+  assert.match(none.out, /\[release-none\]/);
+  assert.equal(none.ran, null);
+  assert.equal(existsSync(join(none.home, '.pact')), false);
+});
+
+test('bootstrap: --channel beta takes the newest release, by number, and a stable release outranks its own candidates', async t => {
+  const r = remote(t);
+  r.release('v1.2.0');
+  r.release('v1.3.0-rc.2');
+  const rc10 = r.release('v1.3.0-rc.10', { annotated: true });
+  const beta = ['--default', '--channel', 'beta'];
+  const first = await run(t, r.url, { argv: beta });
+  assert.equal(tagOf(first.out), 'v1.3.0-rc.10');
+  assert.deepEqual(clones(first.home), [rc10]);
+  const stable = r.release('v1.3.0');
+  const second = await run(t, r.url, { argv: beta });
+  assert.equal(tagOf(second.out), 'v1.3.0');
+  assert.deepEqual(clones(second.home), [stable]);
+  // Bad case: a newer candidate beats an older stable on beta, and the stable channel still ignores it.
+  r.release('v1.4.0-rc.1');
+  assert.equal(tagOf((await run(t, r.url, { argv: beta })).out), 'v1.4.0-rc.1');
+  assert.equal(tagOf((await run(t, r.url, { argv: ['--default', '--channel', 'stable'] })).out), 'v1.3.0');
+});
+
+test('bootstrap: --release installs exactly the tag named, stable or candidate, and never a higher one', async t => {
+  const r = remote(t);
+  const old = r.release('v1.2.0');
+  const rc = r.release('v1.3.0-rc.1');
+  r.release('v1.4.0');
+  const exact = await run(t, r.url, { argv: ['--default', '--release', 'v1.2.0'] });
+  assert.equal(tagOf(exact.out), 'v1.2.0');
+  assert.deepEqual(exact.ran.argv.slice(1, 3), ['--release', 'v1.2.0']);
+  assert.deepEqual(clones(exact.home), [old]);
+  const cand = await run(t, r.url, { argv: ['--default', '--release', 'v1.3.0-rc.1'] });
+  assert.equal(tagOf(cand.out), 'v1.3.0-rc.1');
+  assert.deepEqual(cand.ran.argv.slice(1, 3), ['--release', 'v1.3.0-rc.1']);
+  assert.deepEqual(clones(cand.home), [rc]);
+  // Bad case: a tag that does not exist is refused, though higher releases exist, and nothing is written.
+  for (const missing of ['v1.9.0', 'v1.3.0-rc.2', 'v1.3.0']) {
+    const got = await run(t, r.url, { argv: ['--default', '--release', missing] });
+    assert.equal(got.code, 1, missing);
+    assert.match(got.out, /\[release-none\]/, missing);
+    assert.equal(got.ran, null);
+    assert.equal(existsSync(join(got.home, '.pact')), false);
+  }
+});
+
+test('bootstrap: refuses a bad channel, a bad or major tag, both together, or a repeat, before it fetches or writes anything', async t => {
+  for (const argv of [
+    ['--default', '--channel', 'gamma'],
+    ['--default', '--channel'],
+    ['--default', '--channel', 'beta', '--channel', 'beta'],
+    ['--default', '--release', 'v2.0.0'],
+    ['--default', '--release', 'v2.1.0-rc.1'],
+    ['--default', '--release', 'v1.2'],
+    ['--default', '--release', 'v1.2.1'],
+    ['--default', '--release', 'v1.2.0-rc1'],
+    ['--default', '--release', 'v1.2.0-rc.0'],
+    ['--default', '--release', 'main'],
+    ['--default', '--release'],
+    ['--default', '--channel', 'beta', '--release', 'v1.1.0'],
+    ['--default', '--release', 'v1.1.0', '--release', 'v1.1.0'],
+  ]) {
+    const got = await run(t, 'file:///nowhere-at-all', { argv });
+    assert.equal(got.code, 1, argv.join(' '));
+    assert.match(got.out, /\[bootstrap-args\]/, argv.join(' '));
+    assert.equal(got.ran, null);
+    assert.equal(existsSync(join(got.home, '.pact')), false);
+  }
+});
+
+test('bootstrap: a major release is never taken, by default, on the beta channel or by name', async t => {
+  const r = remote(t);
+  const one = r.release('v1.1.0');
+  r.release('v2.0.0');
+  r.release('v2.1.0-rc.1');
+  const beta = await run(t, r.url, { argv: ['--default', '--channel', 'beta'] });
+  assert.equal(tagOf(beta.out), 'v1.1.0');
+  assert.deepEqual(clones(beta.home), [one]);
+  assert.match((await run(t, r.url, { argv: ['--default', '--release', 'v2.0.0'] })).out, /\[bootstrap-args\]/);
+});

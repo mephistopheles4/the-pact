@@ -181,14 +181,16 @@ Codex and Antigravity, and there before typed input and some reads; and the rele
   `id-token: write` in each Claude job, with no key in the repo;
   in the one release job, whose own token only reads, an app token asked for
   `contents: write` alone, with no checkout, the only use of `workflow_run`, which tags only this repo's `main` tip after `gate` passes a
-  push there, while `PACT_RELEASES` is `on`. The
+  push there, as a release candidate, while `PACT_RELEASES` is `on`; a stable
+  tag comes only from a `workflow_dispatch` on `main` naming a candidate,
+  which anyone with write access can start. The
   Console's federation rule bounds who gets an Anthropic token; each job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the
   Claude jobs' write token. It
   refuses `#`-line expressions, and outside `release.yml` `secrets` and
   deployment environments; a read split across lines, or an oddly spelled job
   token, can pass. It holds only while the test itself is unchanged; a change to it is read
-  like any change. The bootstrap takes only an exact release tag and checks the
+  like any change. The bootstrap takes only an exact release tag, stable unless asked, and checks the
   clone's head, which keeps the clone consistent, not intact; npm picks the
   bootstrap, so tag rulesets decide it. The bootstrap's `git` and the guard
   hook's `node` are never taken from the working folder. The Scriptorium page's
@@ -283,24 +285,13 @@ it.
 - **Harness.** Permission prompts, the classifier, and Codex's and
   Antigravity's controls, as above, for what a session sends by fetch, search or
   connector call.
-- **Harness, installed by the pact.** A line in Codex's config keeps variables
-  named like KEY, SECRET or TOKEN out of the shells Codex starts (probed on
-  Windows only, 0.159.0). A trusted project's config or a `-c` flag sets it back, a config
-  with its own policy is left as it is, hooks see every variable, and other
-  names, such as `DB_PASSWORD` or `GITHUB_PAT`, stay in every command's reach.
-  A dropped value stays readable where it was set, such as a shell profile,
-  which a login shell reads again, a saved Windows user variable, a `.env` file
-  or a credential store. Codex allows login shells by default, and the pact
-  doesn't set that; neither the login-shell route nor the saved-variable one was
-  probed.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
-  In a Codex shell it can't see a variable that line drops, so it no longer
-  refuses a post holding that value, read from where it was set. Antigravity's
-  shells keep secret-named variables (agy 1.2.14; no setting found): don't
-  start one with secrets in its environment.
+  Codex's and Antigravity's shells get every variable, secret-named ones
+  included, and the pact sets no policy there: accepted under the trusted
+  machine, since agents in a project need its variables.
   The poster's text fields and edit checks catch accidents only and are not a control.
   With an app pinned it refuses a post as anything but the pinned bot the
   post's `as` names, for posts sent through it.

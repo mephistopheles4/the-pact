@@ -299,3 +299,51 @@ test('bad case: a hooks file that is settings.json, or sits behind a link, refus
   refused(install(repo, linked), /path through a link for a hooks file: \.gemini\/hooks-link\/hooks\.json/);
   assert.deepEqual(readdirSync(join(linked, 'elsewhere')), []);
 });
+
+// The shell policy is the owner's: the install only removes the one line an older install wrote, and only when its record marks it.
+const POLICY = '.codex/config.toml';
+const POLICY_LINE = 'shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts';
+/** A home that took Codex once, then a record that marks the line and a config.toml with `text`. */
+function markedHome(t, repo, text) {
+  const h = home(t);
+  mkdirSync(at(h, '.codex'));
+  config(h, { ...OFF, harnesses: { install: ['codex'] } });
+  passed(applyBound(repo, h));
+  put(h, '.pact/install.json', { ...record(h), shellPolicy: true });
+  put(h, POLICY, text);
+  return h;
+}
+
+test('shell policy: a recorded pact line is removed, the rest of config.toml is kept byte for byte and backed up, and the new record drops the mark', t => {
+  const repo = makeRepo(t);
+  const mine = '# mine\r\nmodel = "m"\r\n\r\n[history]\r\npersistence = "none"\r\n';
+  const h = markedHome(t, repo, `${POLICY_LINE}\r\n${mine}`);
+  passed(applyBound(repo, h));
+  assert.equal(readFileSync(at(h, POLICY), 'utf8'), mine);
+  assert.ok(!('shellPolicy' in record(h)));
+  const saved = readdirSync(at(h, '.pact/backups')).map(b => at(h, `.pact/backups/${b}/${POLICY}`)).filter(f => existsSync(f));
+  assert.deepEqual(saved.map(f => readFileSync(f, 'utf8')), [`${POLICY_LINE}\r\n${mine}`]);
+});
+
+test('bad case: a recorded but edited pact line is left alone, with no drift stop and no warning', t => {
+  const repo = makeRepo(t);
+  const edited = `${POLICY_LINE.replace('= false', '= true')}\n[shell_environment_policy]\ninherit = "all"\n`;
+  const h = markedHome(t, repo, edited);
+  const r = applyBound(repo, h);
+  passed(r);
+  assert.doesNotMatch(r.stdout, /shell policy|WARN: Codex/i, r.out);
+  assert.equal(readFileSync(at(h, POLICY), 'utf8'), edited);
+});
+
+test('shell policy: taking Codex with no mark in the record writes nothing to config.toml, prints no shell policy line, and records no shellPolicy key', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  mkdirSync(at(h, '.codex'));
+  config(h, { ...OFF, harnesses: { install: ['codex'] } });
+  const dry = install(repo, h);
+  passed(dry);
+  assert.doesNotMatch(dry.stdout, /shell policy/i, dry.out);
+  passed(applyBound(repo, h));
+  assert.ok(!existsSync(at(h, POLICY)));
+  assert.ok(!('shellPolicy' in record(h)));
+});

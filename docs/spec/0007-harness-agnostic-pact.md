@@ -114,8 +114,9 @@ copies are out of use, kept in a backup (S14, C26).
     session's pick, flagged).
 26. Codex's hook trust step is named in the dry run and the apply (S8).
 27. Each harness's rules cap is checked at render (S7).
-28. Packaging: an `npx` bootstrap that clones the newest release tag, and a
-    release workflow that tags passing commits on `main` (S10). Its write
+28. Packaging: an `npx` bootstrap that clones the newest stable release tag,
+    and a release workflow that tags passing commits on `main` as release
+    candidates (S10, item 71). Its write
     token is flagged big.
 29. The ticket cut in S20.
 
@@ -289,6 +290,19 @@ round's comment on the issue lists each finding.
 69. A known test limit: the Codex end-to-end run reads the real `~/.agents`,
     since Codex finds that folder through the Windows profile, not
     `USERPROFILE`. It isn't isolated, and no fix is planned (C26).
+70. Security, the lead's decision 168, the owner: "I agree. Cut it off."
+    Agents in a project need its environment variables, so the install no
+    longer writes Codex's `shell_environment_policy` line or its warning; the
+    setting is the owner's. PR 676's items 4, 5 and 11 are accepted under the
+    trusted machine, with no poster key scan in its place (S13, C33).
+71. The lead's decision 167, the owner: "I don't want people to immediately
+    get the changes I'm doing. Perhaps something like release candidates or
+    beta versions." And: "we don't really need to do any rules for pinning.
+    Anyone could always specify a specific version or even a release
+    candidate." Each green push to `main` tags a candidate; the bootstrap
+    takes stable by default, `--channel beta` or `--release <tag>` on request;
+    the owner promotes a candidate by a `workflow_dispatch` (the lead's pick,
+    flagged); majors stay out of the job (S10, C22, C34).
 
 ## S3 Terms
 
@@ -314,9 +328,11 @@ These join `CONTEXT.md` in T1.
   rules as data, from which every harness's guards are made (S8).
 - **The guard:** `~/.pact/guard/guard.mjs`, the one script that answers a
   shell call against the rule table, and its thin wrapper per harness.
-- **Release tag:** a tag named exactly `v1.<n>.0`, which the release job
-  puts on `main`'s tip once `gate.yml` passed on the push (S10). The highest
-  `<n>` is the current release.
+- **Release tag:** a tag named exactly `v1.<n>.0`, a stable release, or
+  `v1.<n>.0-rc.<k>`, a release candidate. The release job puts a candidate on
+  `main`'s tip once `gate.yml` passed on the push, and a stable tag on a
+  candidate's commit only when the owner runs it by hand (S10). The highest
+  stable `<n>` is the current release.
 
 ## S4 The neutral home
 
@@ -731,8 +747,13 @@ with `NoDefaultCurrentDirectoryInExePath=1`, so a `git` in the folder `npx`
 ran from never runs:
 
 1. Runs `git ls-remote --tags https://github.com/mephistopheles4/the-pact.git`,
-   with no shell, keeps only tags named exactly `v1.<n>.0`, takes the highest
-   `<n>` and its commit, and prints the tag it took.
+   with no shell, keeps only release tags, and takes one with its commit:
+   by default the highest stable `v1.<n>.0`; with `--channel beta` the newest
+   tag, by `<n>` then `<k>`, a stable outranking its own candidates; with
+   `--release <tag>` exactly that tag, refusing (`release-none`) when it is
+   missing, never a higher one. A bad value, a major other than 1, or both
+   options refuses (`bootstrap-args`) before any fetch. It prints the tag it
+   took.
 2. Clones that tag with `--depth 1 --branch <tag>` into
    `~/.pact/source/<sha>`, unless that folder already holds it, and checks
    that its `HEAD` is that commit. On any difference it refuses
@@ -751,18 +772,28 @@ It keeps the last three clones and deletes older ones it made.
 
 **The release workflow,** `.github/workflows/release.yml`:
 
-- triggered by `workflow_run` of `gate` completing. The job's `if` requires
-  `conclusion == 'success'`, `event == 'push'`, `head_branch == 'main'`,
-  `head_repository.full_name == github.repository`,
-  `github.ref == 'refs/heads/main'`, and the repository variable
-  `PACT_RELEASES` set to `on`, which the owner sets in T9;
+- triggered by `workflow_run` of `gate` completing, or by `workflow_dispatch`
+  with one required input, `rc`, which reaches the script only through `env`.
+  The job's `if` requires `github.ref == 'refs/heads/main'` and the
+  repository variable `PACT_RELEASES` set to `on`, which the owner sets in
+  T9, and for `workflow_run` also `conclusion == 'success'`,
+  `event == 'push'`, `head_branch == 'main'` and
+  `head_repository.full_name == github.repository`;
 - one job in the `release` environment, which only `main` may deploy to. Its
   own token only reads; its one secret is the release app's key,
   `PACT_RELEASE_APP_KEY`; actions are pinned by SHA; no checkout;
 - reads `main`'s tip through the API and tags only when `head_sha` is that
-  tip, so a re-run of an old gate run tags nothing. The number is one past
-  the highest existing `v1.<n>.0`, or 1 when none exists, never the run
-  number, so a renamed workflow can't restart it;
+  tip, so a re-run of an old gate run tags nothing. On a push it tags
+  `v1.<n>.0-rc.<k>`: `<n>` one past the highest stable `v1.<n>.0`, or 1 when
+  none exists, `<k>` one past the highest candidate of that `<n>`, never the
+  run number, so a renamed workflow can't restart it. A push never makes a
+  stable tag or a major;
+- by hand, the owner promotes a candidate:
+  `gh workflow run release.yml --ref main -f rc=v1.<n>.0-rc.<k>` tags that
+  candidate's commit `v1.<n>.0`. It fails with no tag when the input isn't a
+  candidate's name, the candidate is missing, `v1.<n>.0` exists, or `<n>`
+  isn't the next minor (C34). Anyone with write access can start it; the
+  `release` environment bounds it;
 - runs in a `release` concurrency group that never cancels, and reads the tip
   again just before it creates the tag, so two close runs can't put the
   higher number on the older commit;
@@ -875,18 +906,12 @@ the app instead (S2 item 49).
   `agent-identity` binds Claude Code sessions only: Codex and Antigravity
   sessions push with the owner's own Git credentials, which the docs and
   the threat model say (C27).
-- **Codex's shell environment policy.** T4's probe found that Codex 0.159.0,
-  left at its defaults, hands its shells every variable, ones named like KEY,
-  SECRET or TOKEN included. While Codex is taken, the install puts
-  `shell_environment_policy.ignore_default_excludes = false` first in
-  `~/.codex/config.toml`, which drops those names from the shells Codex starts.
-  The record marks it, a config that names the policy itself is left with a
-  warning, and a Codex taken out loses the line (C33). It was probed on
-  Windows only, and it drops names from the environment alone: a value stays
-  readable where it was set (S15).
+- **Codex's shell environment policy** is the owner's: the install writes
+  none, so Codex's shells get every variable, as agents in a project need
+  (S2 item 70). An apply whose record marks the line an earlier install wrote
+  removes that line alone, backed up, and leaves a changed one (C33).
 - **The poster** refuses a post holding a live secret found in its own
-  environment. In a Codex shell it can't see a variable the policy drops
-  (S15).
+  environment (S15).
 - **Docs.** `docs/install.md`, `docs/agents/install.md`,
   `docs/agents/issue-tracker.md`, `docs/agents/agent-apps.md`,
   `docs/reference.md` and the README name `~/.pact`, the `npx` command and
@@ -964,8 +989,6 @@ never-sync rule names both folders.
   auto-proceed;
 - Codex's trust step: a precondition for the guard to run, not a control on
   a change to the script or the table;
-- Codex's shell environment policy (S13), which a trusted project's config or
-  a `-c` flag sets back;
 - the hook command's and the bootstrap's guard against a `node` or `git` in
   the working folder (S8, S10).
 
@@ -1173,10 +1196,9 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 - **C19** A link is a junction on Windows and a symlink elsewhere, falling
   back to a copy with a dry-run line; a harness with `skill-copies` gets
   copies; only recorded links and copies are removed.
-- **C33** While Codex is taken, one apply puts S13's shell policy line first in
-  `.codex/config.toml`, backs the file up and records it; a config that names
-  the policy itself is warned about and left; a recorded line changed or moved
-  under a table is drift; a Codex taken out loses only that line.
+- **C33** An apply never writes a shell policy into `.codex/config.toml`; one
+  whose record marks the line an earlier install wrote removes that line alone,
+  backed up, leaves a changed one with no stop, and records no mark.
 - **C20** The cloud generator's output changes only in the `~/.pact` paths.
 - **C31** After an apply with an empty install list, `install.json` lists
   nothing and every recorded target is gone; `docs/install.md`'s rollback
@@ -1186,11 +1208,17 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 
 - **C21** `package.json` has one `bin`, no dependencies and no install
   scripts; the gate test fails on each.
-- **C22** The bootstrap takes the highest tag named exactly `v1.<n>.0`,
-  ignores every other name, and prints the tag; it refuses when the clone's
+- **C22** The bootstrap takes the highest stable tag, `v1.<n>.0`, by
+  default, the newest candidate or stable with `--channel beta`, and exactly
+  the tag `--release` names, never a higher one; it ignores every other name,
+  refuses a bad option, a major or both options, and prints the tag; it refuses when the clone's
   head isn't the tag's commit, and deletes the clone; it never runs
   `--apply`; the apply line it leads to runs from another folder; a fake
   `git` in the folder it runs from never runs.
+- **C34** A push to `main` tags only `v1.<n>.0-rc.<k>`, never a stable tag
+  or a major; a dispatch naming a candidate tags its commit `v1.<n>.0`, and
+  refuses a bad name, a missing candidate, a released minor or one past the
+  next, with no tag.
 - **C23** `workflow.test.mjs` passes the release job only with a job token that
   only reads, no secret but the release app's key, the `release` environment,
   an app token asked for `contents: write` alone, SHA-pinned actions, no
@@ -1310,10 +1338,9 @@ reads this spec and each ticket's diff.
 | The threat-model cap at 4,200 and `docs/install.md`'s budget (S2 items 47 and 52) | the lead's flagged pick, for review | any time |
 | The tree check around `scout` and the open `~/.pact` gap (S2 items 53 and 55; item 56 drops item 53's undo) | the lead's flagged picks, for review | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
-| The poster's narrower coverage in Codex, which the install's shell policy makes: it no longer refuses a value the policy drops, though a command can still read it where it was set (S13, S15) | the owner's call | at T4's probe |
 | Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |
 | Login shells in Codex: leave them on, or set `allow_login_shell = false` (S15) | the owner's call, security | any time |
-| Codex lenses' approval and network-off limits, and leftover processes (S15) | the owner's call, security | with the lenses widening |
+| Codex lenses' approval and network-off limits, and leftover processes (S15) | accepted, the trusted machine (S2 item 68) | closed |
 | `send_message` and `manage_task` for every Antigravity lens (S7, S12) | the owner's call, security | with the lenses widening |
 | Secret-named variables in Antigravity's shells (S15) | the owner's call, security | any time |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |

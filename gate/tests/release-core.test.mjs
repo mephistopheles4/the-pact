@@ -15,10 +15,11 @@ const refusal = fn => {
   return null;
 };
 
-test('release: the option takes only a tag named exactly v1.<n>.0', () => {
+test('release: the option takes only a tag named exactly v1.<n>.0 or v1.<n>.0-rc.<k>', () => {
   assert.equal(core.parseArgs(['--release', 'v1.12.0'], 'linux').release, 'v1.12.0');
+  assert.equal(core.parseArgs(['--release', 'v1.12.0-rc.3'], 'linux').release, 'v1.12.0-rc.3');
   assert.equal(core.parseArgs([], 'linux').release, null);
-  for (const bad of ['v1.12', 'v2.1.0', 'v1.012.0', 'v1.1.1', 'v1.1.0-rc1', "v1.1.0' x", '1.1.0']) assert.equal(refusal(() => core.parseArgs(['--release', bad], 'linux')), 'args-release', bad);
+  for (const bad of ['v1.12', 'v2.1.0', 'v1.012.0', 'v1.1.1', 'v1.1.0-rc1', 'v1.1.0-rc.0', 'v1.1.0-rc.01', 'v1.1.0-rc.1-x', 'v2.1.0-rc.1', "v1.1.0' x", '1.1.0']) assert.equal(refusal(() => core.parseArgs(['--release', bad], 'linux')), 'args-release', bad);
 });
 
 test('release: the apply line names the clone\'s own script by its full path, quoted for the shell, with the release', () => {
@@ -33,6 +34,7 @@ test('release: the apply line names the clone\'s own script by its full path, qu
 test('release: the record holds the release of the last apply, and none after a checkout', () => {
   const base = { commit: ID('a'), digest: null, harnesses: [], userHash: null, blockHashes: new Map(), files: new Map(), entries: [], gateNow: new Map() };
   assert.equal(core.parseRecord(core.recordText({ ...base, release: 'v1.4.0' })).release, 'v1.4.0');
+  assert.equal(core.parseRecord(core.recordText({ ...base, release: 'v1.4.0-rc.2' })).release, 'v1.4.0-rc.2');
   assert.equal(core.parseRecord(core.recordText(base)).release, null);
   assert.equal(Object.hasOwn(JSON.parse(core.recordText(base)), 'release'), false);
   assert.equal(core.parseRecord(core.recordText({ ...base, release: 'anything\u001b[2J' })).release, null);
@@ -42,6 +44,13 @@ const behind = (last, now) => core.behindLine(last.commit ?? null, ID('a'), new 
 
 test('release: a release lower than the recorded one warns "behind the last install", by number', () => {
   assert.match(behind({ commit: ID('b'), release: 'v1.10.0' }, 'v1.9.0'), /^WARN: .*v1\.9\.0.*v1\.10\.0.*behind the last install/);
+});
+
+test('release: a lower release candidate warns, and a stable release outranks its own candidates', () => {
+  assert.match(behind({ commit: ID('b'), release: 'v1.10.0-rc.2' }, 'v1.10.0-rc.1'), /behind the last install/);
+  assert.match(behind({ commit: ID('b'), release: 'v1.10.0' }, 'v1.10.0-rc.9'), /behind the last install/);
+  assert.equal(behind({ commit: ID('b'), release: 'v1.10.0-rc.9' }, 'v1.10.0'), null);
+  assert.equal(behind({ commit: ID('b'), release: 'v1.10.0-rc.2' }, 'v1.10.0-rc.10'), null);
 });
 
 test('release: a higher or equal release does not warn, though a shallow clone holds no history', () => {

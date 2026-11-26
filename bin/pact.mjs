@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // The release bootstrap (spec 0007 S10), which npx fetches and runs:
-//   pact [--default | --builder] [--home <path>]
-// It takes the highest release tag, clones it under ~/.pact/source/<commit>,
+//   pact [--default | --builder] [--home <path>] [--channel beta | --release <tag>]
+// It takes the highest stable release tag, or with --channel beta the newest
+// tag, a release candidate included, or with --release exactly the tag named,
+// clones it under ~/.pact/source/<commit>,
 // checks the clone's head, and runs the clone's install as a dry run, or, on
 // the builder choice, only the clone's builder, which writes Scriptorium to
 // ~/.pact/scriptorium.html. It never passes --apply: the owner types the apply
@@ -19,8 +21,9 @@ import { fileURLToPath } from 'node:url';
 const REPO_URL = 'https://github.com/mephistopheles4/the-pact.git';
 const KEEP_CLONES = 3;
 const LIMIT_MS = 300000;
-// A release tag is named exactly v1.<n>.0; a peeled line gives an annotated tag's commit.
-const TAG_LINE = /^([0-9a-f]{40})\trefs\/tags\/(v1\.(0|[1-9]\d{0,8})\.0)(\^\{\})?$/;
+// A release tag is named exactly v1.<n>.0 or v1.<n>.0-rc.<k>; a peeled line gives an annotated tag's commit.
+const TAG = /^v1\.(0|[1-9]\d{0,8})\.0(?:-rc\.([1-9]\d{0,8}))?$/;
+const TAG_LINE = /^([0-9a-f]{40})\trefs\/tags\/(v1\.(?:0|[1-9]\d{0,8})\.0(?:-rc\.[1-9]\d{0,8})?)(\^\{\})?$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const WIN = process.platform === 'win32';
 
@@ -35,13 +38,17 @@ const refuse = (rule, why) => {
 };
 
 function parseArgs(argv) {
-  const out = { choice: null, home: null };
+  const out = { choice: null, home: null, channel: null, release: null };
+  const usage = () => refuse('bootstrap-args', 'the command takes --default or --builder, --home <path>, and one of --channel stable|beta or --release v1.<n>.0[-rc.<k>], each once. It never applies: run the apply line the dry run prints.');
   for (let i = 0; i < argv.length; i += 1) {
     const w = argv[i];
     if ((w === '--default' || w === '--builder') && out.choice === null) out.choice = w.slice(2);
     else if (w === '--home' && out.home === null && i + 1 < argv.length) out.home = argv[(i += 1)];
-    else refuse('bootstrap-args', 'the command takes --default or --builder, and --home <path>, each once. It never applies: run the apply line the dry run prints.');
+    else if (w === '--channel' && out.channel === null && i + 1 < argv.length && ['stable', 'beta'].includes(argv[i + 1])) out.channel = argv[(i += 1)];
+    else if (w === '--release' && out.release === null && i + 1 < argv.length && TAG.test(argv[i + 1])) out.release = argv[(i += 1)];
+    else usage();
   }
+  if (out.channel !== null && out.release !== null) usage();
   return out;
 }
 
@@ -76,16 +83,27 @@ function findGit(path) {
   return refuse('bootstrap-git', 'no git found on PATH.');
 }
 
-/** The highest release among `ls-remote --tags` lines, as { tag, commit }, or null. */
-function highestRelease(listing) {
-  let best = null;
+/**
+ * The release the options pick among `ls-remote --tags` lines, as { tag, commit },
+ * or null. A named tag is that tag alone. Otherwise the highest by number, a
+ * stable release above its own candidates, a candidate only on the beta channel.
+ */
+function pickRelease(listing, { channel, release }) {
+  const found = new Map();
   for (const line of listing.split('\n')) {
     const m = TAG_LINE.exec(line.replace(/\r$/, ''));
-    if (!m) continue;
-    const n = Number(m[3]);
-    if (!best || n > best.n || (n === best.n && m[4])) best = { n, tag: m[2], commit: m[1] };
+    // A peeled line, which follows its tag's own, gives the commit an annotated tag names.
+    if (m && (m[3] || !found.has(m[2]))) found.set(m[2], m[1]);
   }
-  return best;
+  if (release !== null) return found.has(release) ? { tag: release, commit: found.get(release) } : null;
+  let best = null;
+  for (const [tag, commit] of found) {
+    const [, n, k] = TAG.exec(tag);
+    if (k && channel !== 'beta') continue;
+    const rank = [Number(n), k ? Number(k) : Infinity];
+    if (!best || rank[0] > best.rank[0] || (rank[0] === best.rank[0] && rank[1] > best.rank[1])) best = { rank, tag, commit };
+  }
+  return best && { tag: best.tag, commit: best.commit };
 }
 
 /** The clones this bootstrap made, oldest first, as the list beside them holds them. */
@@ -171,8 +189,8 @@ export async function main({
     if (opts.home !== null && git(['rev-parse', '--is-inside-work-tree']).stdout?.trim() === 'true') refuse('home-work-tree', '--home is inside a git work tree; give a folder outside any repository.');
     const listed = git(['ls-remote', '--tags', url]);
     if (listed.status !== 0) refuse('release-list', "the pact's release tags could not be read.");
-    const release = highestRelease(listed.stdout);
-    if (!release) refuse('release-none', 'the repository holds no release tag named v1.<n>.0.');
+    const release = pickRelease(listed.stdout, opts);
+    if (!release) refuse('release-none', opts.release === null ? `the repository holds no ${opts.channel === 'beta' ? 'release tag' : 'stable release tag'} named v1.<n>.0${opts.channel === 'beta' ? ' or v1.<n>.0-rc.<k>' : ''}.` : `the repository holds no release tag ${opts.release}.`);
     say(`Release: ${release.tag} (commit ${release.commit})`);
     const clone = cloneRelease(git, home, url, release);
     /** Run one of the clone's scripts from the home folder; true when it passes. */

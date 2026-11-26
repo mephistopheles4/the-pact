@@ -471,31 +471,20 @@ async function main() {
   }
   core.checkLinks(links);
   const hooksWill = hooks.filter(f => f.changed);
-  // Codex's shell environment policy, one line in its config.toml (spec 0007 S13).
-  const codexTaken = taken.some(h => h.id === 'codex');
-  const policyRecorded = record?.shellPolicy === true;
+  // A one-time cleanup: an older install's record marks the shell policy line it wrote into Codex's config.toml, which is the owner's now.
+  const policyMarked = record?.shellPolicy === true;
   const policyFile = live(home, core.CODEX_CONFIG_REL);
-  let policyBytes = null;
-  if (codexTaken || policyRecorded) {
-    if (linkIn(core.CODEX_CONFIG_REL)) core.stops.configLinked();
-    const state = io.liveState(policyFile);
-    if (state.exists && !state.file) core.stops.configNotText();
-    policyBytes = state.exists ? io.readOptional(policyFile) : null;
-  }
-  const policy = core.shellPolicyPlan({ bytes: policyBytes, wanted: codexTaken, recorded: policyRecorded });
-  const policyWill = policy.next !== undefined;
-  // What the record says after this run: the pact's line is in the file.
-  const policyAfter = policy.status === 'add' || policy.status === 'keep';
-  const policyDrift = policy.status === 'drift' ? [core.SHELL_POLICY_DRIFT] : [];
-  const drift = [...p.drift, ...links.drift.map(d => d.line), ...settingsDrift, ...hooks.flatMap(f => f.drifted.map(d => d.line)), ...policyDrift];
+  const policyBytes = policyMarked && !linkIn(core.CODEX_CONFIG_REL) && io.liveState(policyFile).file ? io.readOptional(policyFile) : null;
+  const policyNext = policyBytes === null ? undefined : core.withoutShellPolicy(policyBytes);
+  const policyWill = policyNext !== undefined;
+  const drift = [...p.drift, ...links.drift.map(d => d.line), ...settingsDrift, ...hooks.flatMap(f => f.drifted.map(d => d.line))];
   const lastConfig = record ? record.config : new Map();
   const targetsText = list => JSON.stringify(list);
-  const policyChanged = policyRecorded !== policyAfter && policy.status !== 'drift';
   const stale = (record && (record.commit.toLowerCase() !== commit || record.release !== opts.release)) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig) || targetsText(taken.map(core.targetsOf)) !== targetsText(recorded);
   // An agent the record lists that is now yours needs the record rewritten without it.
   const yoursListed = record ? p.yours.some(rel => record.files.some(e => e.path === rel)) : false;
   const linksWill = links.add.length || links.remove.length || (record && record.links.length !== links.keep.length);
-  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || linksWill || settingsWill || hooksWill.length || policyWill || policyChanged || stale || yoursListed || !record);
+  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || linksWill || settingsWill || hooksWill.length || policyWill || policyMarked || stale || yoursListed || !record);
 
   // One block per harness, the pact's own files first (spec 0007 S9).
   for (const l of harnessLines(choice)) say(l);
@@ -508,7 +497,7 @@ async function main() {
     const h = taken.find(t => t.id === id);
     say(id === 'pact' ? `== pact home (${core.NEUTRAL_REL}) ==` : `== ${id} (${h ? h.name : 'taken out'}) ==`);
     const mine = rel => owner(rel) === id;
-    const driftHere = [...p.drift.filter(l => mine(l.slice(0, l.indexOf(' (')))), ...links.drift.filter(d => d.harness === id).map(d => d.line), ...(id === 'claude' ? settingsDrift : []), ...hooks.flatMap(f => f.drifted.filter(d => d.harness === id).map(d => d.line)), ...(id === 'codex' ? policyDrift : [])];
+    const driftHere = [...p.drift.filter(l => mine(l.slice(0, l.indexOf(' (')))), ...links.drift.filter(d => d.harness === id).map(d => d.line), ...(id === 'claude' ? settingsDrift : []), ...hooks.flatMap(f => f.drifted.filter(d => d.harness === id).map(d => d.line))];
     for (const [title, items] of [['Drift', driftHere], ['Overwrite', p.overwrite.filter(mine)], ['Add', p.add.filter(mine)], ['Delete', p.delete.filter(mine)], ['Yours, left as is', [...p.yours.filter(mine), ...links.yours.filter(l => l.harness === id).map(l => l.path)]]]) {
       say(`${title}: ${items.length}`);
       for (const i of items) say(`  ${core.formatPlain(i)}`);
@@ -527,13 +516,12 @@ async function main() {
       for (const l of notes) say(l);
     }
     for (const f of hooks.filter(f => [...f.want, ...f.recorded].some(w => w.harness === id))) for (const l of core.guardLines(f, id)) say(l);
-    if (id === 'codex') for (const l of core.shellPolicyLines(policy)) say(l);
   }
   if (guardOn) say(`Guard rules (${core.GUARD_TABLE_DEST}): ${rules.map(r => `${r.id} (${r.decision})`).join(', ')}`);
   for (const w of p.warnings) say(`WARN: ${core.formatPlain(w)}`);
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
   const settingsCopied = settingsWill && liveBytes !== null;
-  say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + hooksWill.filter(f => f.bytes !== null).length + (policyWill && policyBytes !== null ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
+  say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + hooksWill.filter(f => f.bytes !== null).length + (policyWill ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
   const folder = io.scanBackups(home);
   if (folder.link) say(`WARN: ${core.BACKUPS_REL} is not a plain folder: a link, a file or another reparse point; --apply refuses until it is moved out of the way.`);
   if (folder.staging.length) say(core.stagingLine(folder.staging));
@@ -583,7 +571,7 @@ async function main() {
   const settingsBackup = [
     ...(settingsWill ? [{ path: settingsRel, harness: 'claude', sha256: liveBytes === null ? null : io.sha256(liveBytes) }] : []),
     ...hooksWill.map(f => ({ path: f.path, harness: (f.want[0] ?? f.recorded[0]).harness, sha256: f.bytes === null ? null : io.sha256(f.bytes) })),
-    ...(policyWill ? [{ path: core.CODEX_CONFIG_REL, harness: 'codex', sha256: policyBytes === null ? null : io.sha256(policyBytes) }] : []),
+    ...(policyWill ? [{ path: core.CODEX_CONFIG_REL, harness: 'codex', sha256: io.sha256(policyBytes) }] : []),
   ];
   const toKeep = core.backupEntries({ copy: [...p.overwrite, ...p.delete], add: p.add, live: rel => seen.get(rel), settings: settingsBackup, record: recordBytes === null ? null : io.sha256(recordBytes), harnessOf: owner, links });
   const started = () => {
@@ -611,15 +599,13 @@ async function main() {
   let entriesNow = claudeRecorded;
   // Each hooks file's entries: the last install's until it is written, or at once when it needs no write.
   const hookEntries = new Map(hooks.map(f => [f.path, f.changed ? f.recorded : f.entries]));
-  // The shell policy mark: the last install's until its line is written, or at once when nothing needs writing.
-  let policyNow = policyWill ? policyRecorded : policyAfter;
   const writeRecord = () => {
     const now = taken.map(core.targetsOf);
     // A harness of the last install stays listed while the record still names a file in its folders.
     const kept = recorded.filter(old => !now.some(t => targetsText(t) === targetsText(old)) && ([...files].some(([rel, f]) => f.harness === old.id && core.inTargets(rel, old.id, [old]) && !core.inTargets(rel, old.id, now)) || [...linksNow.values()].some(l => l.harness === old.id && !now.some(t => t.id === old.id))));
     const sorted = new Map([...files].sort(([a], [b]) => (a < b ? -1 : 1)));
     // The window stays recorded when the settings file is left untouched.
-    io.writeReplacing(recordFile, core.recordText({ commit, release: opts.release, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, links: [...linksNow.values()].sort((a, b) => (a.path < b.path ? -1 : 1)), entries: [...entriesNow, ...[...hookEntries.values()].flat()], shellPolicy: policyNow, gateNow }));
+    io.writeReplacing(recordFile, core.recordText({ commit, release: opts.release, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, links: [...linksNow.values()].sort((a, b) => (a.path < b.path ? -1 : 1)), entries: [...entriesNow, ...[...hookEntries.values()].flat()], gateNow }));
   };
   const writeHooks = f => {
     io.writeReplacing(f.file, core.settingsText(f.merged));
@@ -676,9 +662,7 @@ async function main() {
   for (const f of hooksWill.filter(f => f.want.length)) writeHooks(f);
   for (const f of hooks.filter(f => f.trust)) say(core.CODEX_TRUST_LINE);
   if (policyWill) {
-    io.writeReplacing(policyFile, policy.next);
-    policyNow = policyAfter;
-    writeRecord();
+    io.writeReplacing(policyFile, policyNext);
     say(`merged ${core.CODEX_CONFIG_REL}`);
   }
 
@@ -707,13 +691,6 @@ async function main() {
   for (const l of links.remove) {
     if (io.present(live(home, l.path))) {
       say(`MISMATCH ${l.path} (should be unlinked)`);
-      bad++;
-    }
-  }
-  if (policyAfter) {
-    if (core.shellPolicyPlan({ bytes: io.readOptional(policyFile), wanted: true, recorded: true }).status === 'keep') say(`OK       ${core.CODEX_CONFIG_REL} (shell policy)`);
-    else {
-      say(`MISMATCH ${core.CODEX_CONFIG_REL} (the shell policy is not there)`);
       bad++;
     }
   }

@@ -117,36 +117,13 @@ its record lists.
 
 ### Codex's shell environment policy
 
-Codex hands the shells it starts every variable it was started with. While
-Codex is in the install, the apply puts one line first in
-`~/.codex/config.toml`:
-
-```toml
-shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts
-```
-
-Variables with `KEY`, `SECRET` or `TOKEN` in their name, in any case, then stay
-out of those shells, a lens's included (probed on Windows only). A command that reads one there, such as
-`gh` reading `GH_TOKEN`, no longer finds it; `gh` then uses its stored login,
-if it has one.
-
-- **Where a value stays readable.** The line only drops the name from the
-  environment Codex hands its shells. The value is still wherever you set it: a
-  shell profile, a saved Windows user variable, a `.env` file or a credential
-  store. A variable your profile sets comes back in a command Codex runs in a
-  login shell, which it allows by default. Neither that nor a saved Windows user
-  variable was probed. And the poster, run from a Codex shell, can no longer
-  refuse a post that holds a dropped value.
-- **What still gets through.** Other names, such as `DB_PASSWORD`,
-  `AWS_CREDENTIALS`, `CONNECTION_STRING` and `GITHUB_PAT`. Hooks see every
-  variable. A trusted project's `.codex/config.toml`, or a `-c` flag, can set
-  it back.
-- **Your own policy** is left as it is, with a `WARN:`, when the file names
-  `shell_environment_policy` outside a comment. Set
-  `ignore_default_excludes = false` there for the same effect.
-- **Later.** A deleted line is added again, and your own policy in its place is
-  yours. The pact's line changed, moved under a table, or beside a policy of
-  your own is drift. Taking Codex out of the install removes the line.
+The install leaves `shell_environment_policy` in `~/.codex/config.toml` to
+you, so the shells Codex starts get every variable Codex was started with, as
+agents working in a project need. An earlier install may have put the pact's
+line first in that file, ending
+`# the pact: secret-named variables stay out of the shells Codex starts`.
+While the record marks it, the next apply removes that line alone, with a
+backup; a line you changed stays.
 
 ## Before the first install into `~/.pact`
 
@@ -687,7 +664,7 @@ cover every tag. Run it from your home folder, or an empty folder outside every 
 npx github:mephistopheles4/the-pact#semver:^1
 ```
 
-It takes the highest tag named `v1.<n>.0`, clones it into
+It takes the highest stable tag, named `v1.<n>.0`, clones it into
 `~/.pact/source/<commit>` (it keeps its last three), checks the clone's head,
 and runs that clone's dry run. Choose the default configuration when it asks,
 or pass `--default`; an existing `~/.pact/config.json` is kept and used.
@@ -699,6 +676,18 @@ choose the default: it uses what you saved. It never applies: read the dry run,
 then type the apply line it prints, which runs from any folder. A release lower than the last one installed is called behind it. npm
 picks which copy of the command runs from the repo's tags, so each tag is code
 you run.
+
+Each passing change on `main` is first a release candidate, `v1.<n>.0-rc.<k>`;
+the owner promotes one to `v1.<n>.0`. Add an option after the command to take
+another:
+
+- `--channel beta` takes the newest tag, a release candidate included; a
+  stable `v1.<n>.0` outranks its own candidates.
+- `--release <tag>` takes exactly that tag, stable or candidate, such as
+  `--release v1.4.0-rc.2`, and refuses when it isn't there.
+
+A bad value, a major other than 1, or both options together is refused before
+anything is fetched.
 
 ## The session stop switch
 
