@@ -18,7 +18,7 @@
     "agents": { "dir": "~/.codex/agents", "format": "codex-toml" },
     "skills": { "dir": "~/.agents/skills" },
     "hooks": { "file": "~/.codex/hooks.json", "format": "codex" },
-    "models": { "planning": "gpt-6.2-sol", "executor": "gpt-6.2-astra" },
+    "models": { "planning": "gpt-6.2-sol", "executor": "gpt-6.2-sol" },
     "capabilities": ["subagents", "hook-trust", "explicit-skills"]
   },
   {

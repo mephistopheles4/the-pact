@@ -151,7 +151,10 @@ From the repo at `374670e`:
 - **Models.** `model` and `model_reasoning_effort` in `config.toml` or an
   agent file. Profiles are now separate `<name>.config.toml` files; since
   0.134.0 `[profiles.x]` tables are no longer read. Current names include
-  `gpt-6.2-sol` and `gpt-6.2-astra`. [config reference][cx-config],
+  `gpt-6.2-sol`, for everyday work at fewer credits per token, and
+  `gpt-6.2-astra`, for demanding work; the pact maps both its Codex roles to
+  Sol, the owner's pick. On a ChatGPT sign-in, CLI 0.159.0 refused both names
+  and 0.172.0 ran both (seen 2026-11-25). [config reference][cx-config],
   [models][cx-models]
 - **Plugins.** A `plugin.json` can bundle skills, MCP config and hooks (hooks
   only for plugins installed by hand in the desktop app); the docs don't say

@@ -165,7 +165,7 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   passed(applyBound(repo, h));
 
   const rules = read(h, '.codex/AGENTS.md');
-  assert.match(rules, /^Here the planning model is `gpt-6\.2-sol`, the executor model `gpt-6\.2-astra` and the light model `gpt-6\.2-astra`\.$/m);
+  assert.match(rules, /^Here the planning model is `gpt-6\.2-sol`, the executor model `gpt-6\.2-sol` and the light model `gpt-6\.2-sol`\.$/m);
   assert.doesNotMatch(rules, /\b(?:Opus|Sonnet|Haiku)\b|<!-- pact:(?:if|unless|end -->|models)/);
   assert.match(read(h, '.gemini/AGENTS.md'), /the planning model is `pro`, the executor model `flash`/);
   assert.match(read(h, '.codex/agents/data-lens.toml'), /^model = "gpt-6\.2-sol"$/m);

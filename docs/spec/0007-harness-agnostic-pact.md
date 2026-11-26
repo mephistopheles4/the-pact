@@ -330,7 +330,7 @@ The known descriptions:
 | `skills` | none | `~/.agents/skills` | `~/.gemini/config/skills` |
 | `commands` | `~/.claude/commands` | none | none |
 | `hooks` | `~/.claude/settings.json`, `claude` | `~/.codex/hooks.json`, `codex` | `~/.gemini/config/hooks.json`, `antigravity` |
-| `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-astra`, none | `pro`, `flash`, `flash` |
+| `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-sol`, none | `pro`, `flash`, `flash` |
 | `capabilities` | `subagents`, `tool-limits`, `cleaner`, `archive`, `native-rules` | `subagents`, `hook-trust`, `explicit-skills` | `subagents`, `tool-limits`, `hook-ask`, `explicit-skills`, `skill-copies` |
 
 - **Detection.** The dry run lists each known harness whose `detect` folder
