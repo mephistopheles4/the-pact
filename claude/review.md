@@ -45,8 +45,7 @@ lenses to offer, and when.
   node -e '
   const fs = require(`fs`), path = require(`path`);
   process.chdir(process.argv[1]);
-  const full = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
-  const sha = data => full(data).slice(0, 16);
+  const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
   // A name that is not text reads back as another name, so it fails the run.
   const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };
   const walk = (file, name) => {
@@ -54,7 +53,7 @@ lenses to offer, and when.
     const id = JSON.stringify(name);
     if (s.isSymbolicLink()) return `${id} link ${JSON.stringify(named(fs.readlinkSync(file)))}\n`;
     if (s.isDirectory()) return `${id} dir ${s.mode}\n` + fs.readdirSync(file).sort().map(n => walk(path.join(file, named(n)), `${name}/${n}`)).join(``);
-    return `${id} ${s.mode} ${s.isFile() ? full(fs.readFileSync(file)) : `other`}\n`;
+    return `${id} ${s.mode} ${s.isFile() ? sha(fs.readFileSync(file)) : `other`}\n`;
   };
   const record = [];
   const say = (text, name) => { record.push(`${sha(text)} ${JSON.stringify(name)}`); console.log(record.at(-1)); };

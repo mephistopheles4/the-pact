@@ -140,6 +140,10 @@ test('C10: bad case: the tree check starts no fetch, which runs a program the re
 
 test('C10: bad case: the tree check’s record differs after each change an agent could make', t => {
   const { root, main, linked } = repos(t);
+  // The session compares the last line alone, so that line must differ too.
+  const last = text => text.trimEnd().split('\n').at(-1);
+  // No hash is cut short: someone who writes a file before the pass could match a short one.
+  for (const line of record(main).trimEnd().split('\n')) assert.match(line, /^[0-9a-f]{64} /);
   for (const dir of [main, linked]) {
     const tag = dir === main ? 'main' : 'linked';
     const shared = join(main, '.git');
@@ -171,8 +175,6 @@ test('C10: bad case: the tree check’s record differs after each change an agen
       'a merge in progress': () => writeFileSync(join(own, 'MERGE_HEAD'), `${'0'.repeat(40)}\n`),
       'HEAD': () => git(dir, 'symbolic-ref', 'HEAD', `refs/heads/planted-${tag}`),
     };
-    // The session compares the last line alone, so that line must differ too.
-    const last = text => text.trimEnd().split('\n').at(-1);
     for (const [what, change] of Object.entries(changes)) {
       const before = record(dir);
       change();
@@ -184,6 +186,6 @@ test('C10: bad case: the tree check’s record differs after each change an agen
     git(dir, 'config', 'core.hooksPath', elsewhere);
     const before = record(dir);
     writeFileSync(join(elsewhere, 'pre-commit'), 'x\n');
-    assert.notEqual(record(dir), before, `${tag}: a hook in the folder core.hooksPath names`);
+    assert.notEqual(last(record(dir)), last(before), `${tag}: a hook in the folder core.hooksPath names`);
   }
 });

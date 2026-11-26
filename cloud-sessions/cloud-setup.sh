@@ -1167,8 +1167,7 @@ lenses to offer, and when.
   node -e '
   const fs = require(`fs`), path = require(`path`);
   process.chdir(process.argv[1]);
-  const full = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
-  const sha = data => full(data).slice(0, 16);
+  const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
   // A name that is not text reads back as another name, so it fails the run.
   const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };
   const walk = (file, name) => {
@@ -1176,7 +1175,7 @@ lenses to offer, and when.
     const id = JSON.stringify(name);
     if (s.isSymbolicLink()) return `${id} link ${JSON.stringify(named(fs.readlinkSync(file)))}\n`;
     if (s.isDirectory()) return `${id} dir ${s.mode}\n` + fs.readdirSync(file).sort().map(n => walk(path.join(file, named(n)), `${name}/${n}`)).join(``);
-    return `${id} ${s.mode} ${s.isFile() ? full(fs.readFileSync(file)) : `other`}\n`;
+    return `${id} ${s.mode} ${s.isFile() ? sha(fs.readFileSync(file)) : `other`}\n`;
   };
   const record = [];
   const say = (text, name) => { record.push(`${sha(text)} ${JSON.stringify(name)}`); console.log(record.at(-1)); };
@@ -1686,7 +1685,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash bcaa571b22449935db8992077b1a6040fa0666d7b610aa9d4dae2ee77a7e09f0 '.pact/review.md'
+check_hash c399f564ae56f91338dec487b6fb111423eda38282c88775234447e5a3668af9 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1716,7 +1715,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy fc8efc3af395"
+  echo "pact cloud copy 143be5668880"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

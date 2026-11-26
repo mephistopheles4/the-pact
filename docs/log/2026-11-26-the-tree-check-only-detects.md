@@ -15,7 +15,7 @@ The security lens and the check of the claims found ways past the first command,
 
 ## A further security read
 
-The command's own git listing could fetch a missing object in a partial clone, which runs programs the repo's config names; it now fetches nothing. Each file's fingerprint is kept whole, and only the record's last line is compared. The index is recorded as its entries, so its cached trees are left out: wording narrowed here and in the threat model, for the owner to rule with the detect-only change.
+The command's own git listing could fetch a missing object in a partial clone, which runs programs the repo's config names; it now fetches nothing. No fingerprint is cut short, and only the record's last line is compared. The index is recorded as its entries, so its cached trees are left out: wording narrowed here and in the threat model, for the owner to rule with the detect-only change.
 
 ## Left open
 
