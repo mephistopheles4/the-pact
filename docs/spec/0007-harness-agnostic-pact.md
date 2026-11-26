@@ -242,6 +242,8 @@ round's comment on the issue lists each finding.
 58. The lead's pick, flagged for the owner (its decision 139): a per-harness
     tier effort, and the page setting each harness's agent models and efforts,
     move to a ticket of their own, merged before this work's pull request.
+59. Trade-off: `docs/install.md`'s budget rises to 10,700, on the owner's
+    word-cap rule (PACT-110).
 
 ## S3 Terms
 
@@ -761,13 +763,16 @@ the app instead (S2 item 49).
   prints one hash for each top-level entry of the work tree, ignored files
   included, for git's `HEAD`, `config`, `config.worktree`, `commondir`,
   `hooks`, the hooks folder git's config names, `info`, refs (a linked
-  worktree's own too), stash log, index and the files of a half-done merge or
+  worktree's own too), stash log, index entries and the files of a half-done merge or
   rebase, and last one hash of the whole record. It finds git's folders from
   `.git` itself, since in a linked worktree it is a file. It records a link or
   junction as its target, never following it. It runs git only to name the
   hooks folder and list the index, last, with fsmonitor off and from the
   system folder (`/` elsewhere than Windows), so neither a program a lens named
-  in git's config nor a `git.exe` it left in the tree runs. A file it can't
+  in git's config nor a `git.exe` it left in the tree runs. That git fetches
+  nothing (no lazy fetch, no protocol allowed), since a partial clone's fetch
+  runs programs the config names; a sparse index is listed as it stands, and
+  anything git writes to its error stream fails the run. A file it can't
   read, or a name that isn't text, fails the run.
 
   After the pass the session stops any process the agent left running, runs the
@@ -914,8 +919,8 @@ never-sync rule names both folders.
   what the owner's account can: the agent app's key in Credential Manager,
   `~/.codex/auth.json`, `gh`'s token and `~/.pact`. The tree check (S12)
   sees a change to the work tree's files, ignored ones included, and to git's
-  config, hooks, `info`, `HEAD`, refs, index and half-done merges and
-  rebases. It undoes none, so uncommitted work a lens changed stays changed. It
+  config, hooks, `info`, `HEAD`, refs, index entries and half-done merges and
+  rebases, not the index's cached trees, which the next commit reuses. It undoes none, so uncommitted work a lens changed stays changed. It
   doesn't see a write elsewhere, git's objects, a submodule's git folder and
   another worktree's included, or a read or a send. MCP servers come from the parent and run
   outside the sandbox, so the
@@ -1045,8 +1050,9 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   and archives nothing. `scriptorium` names no one harness's folders.
 - **C10** `review.md` holds S12's tree check, around each lens and `scout`
   pass: one command, run from outside the tree before and after, whose record
-  covers every file and git's config, hooks, `info`, `HEAD`, refs, index and
-  half-done merges and rebases, stays the same across a `git status`, runs no
+  covers every file and git's config, hooks, `info`, `HEAD`, refs, index
+  entries and half-done merges and rebases, stays the same across a `git
+  status`, runs no
   program git's config names or the tree holds, and fails rather than record
   less. Any difference stops the session, which restores nothing and reports
   it.

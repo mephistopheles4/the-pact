@@ -93,7 +93,7 @@ A **harness** is a program the rules install into. The pact knows three, in
 - **Models.** An entry under `harnesses.own` with a known id may set `models`,
   the three its rules name, and `agentModels`, a model per agent, `*` for the
   rest, laid over the known ones. Antigravity's agents take their model from
-  these alone.
+  `agentModels`, unless an agent's file or setting names a model outright.
 - **Your own harness** goes under `harnesses.own`, as a description with the
   fields of the known ones (spec 0007, S5). A description the pact can't take
   refuses (`harness-id`, `harness-format`, `harness-path`,

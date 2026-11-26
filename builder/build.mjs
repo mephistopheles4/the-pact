@@ -438,9 +438,15 @@ export function machineData(home = homedir(), root = join(dirname(fileURLToPath(
     return out;
   };
   const own = described.own.map(homed);
+  const object = v => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+  // Each agent's configured model and effort, so the page starts at them and can change them.
+  const agents = object(config?.agents)
+    ? Object.fromEntries(Object.entries(config.agents).filter(([, set]) => object(set)).map(([name, set]) => [name, Object.fromEntries(['model', 'effort'].filter(f => typeof set[f] === 'string').map(f => [f, set[f]]))]))
+    : null;
   return {
     data: {
       harnesses: { ...(described.install ? { install: described.install } : {}), ...(own.length ? { own } : {}) },
+      agents,
       commands: strings(config?.commands),
       tools: strings(config?.tools),
       rows: rows.filter(r => r.harness).map(r => ({ id: r.id, in: r.in, detected: r.detected })),
@@ -1055,7 +1061,7 @@ function main(argv) {
   }
   process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
   process.stdout.write(fixed
-    ? 'NOTE the page sits in your pact folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files, your harness settings and which harness folders were found: you may delete the file when you are done with it\n'
+    ? 'NOTE the page sits in your pact folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files, your agent and harness settings and which harness folders were found: you may delete the file when you are done with it\n'
     : 'NOTE the page holds your lists, every preset listed from your presets folder and any agent files in plain text: you may delete the file when you are done with it\n');
 }
 

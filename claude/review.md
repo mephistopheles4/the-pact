@@ -38,14 +38,15 @@ lenses to offer, and when.
   program or version pin in the tree picks the `node` that runs it. Keep what it
   prints in your own output, never in a file the agent can write. It covers
   every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
-  index and half-done merges and rebases.
+  index entries and half-done merges and rebases.
 
   ```sh
   cd ~
   node -e '
   const fs = require(`fs`), path = require(`path`);
   process.chdir(process.argv[1]);
-  const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`).slice(0, 16);
+  const full = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
+  const sha = data => full(data).slice(0, 16);
   // A name that is not text reads back as another name, so it fails the run.
   const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };
   const walk = (file, name) => {
@@ -53,7 +54,7 @@ lenses to offer, and when.
     const id = JSON.stringify(name);
     if (s.isSymbolicLink()) return `${id} link ${JSON.stringify(named(fs.readlinkSync(file)))}\n`;
     if (s.isDirectory()) return `${id} dir ${s.mode}\n` + fs.readdirSync(file).sort().map(n => walk(path.join(file, named(n)), `${name}/${n}`)).join(``);
-    return `${id} ${s.mode} ${s.isFile() ? sha(fs.readFileSync(file)) : `other`}\n`;
+    return `${id} ${s.mode} ${s.isFile() ? full(fs.readFileSync(file)) : `other`}\n`;
   };
   const record = [];
   const say = (text, name) => { record.push(`${sha(text)} ${JSON.stringify(name)}`); console.log(record.at(-1)); };
@@ -68,19 +69,26 @@ lenses to offer, and when.
   if (own !== shared) for (const n of [`refs`, `reftable`]) line(path.join(own, n), `git:own ${n}`);
   for (const n of [`config`, `hooks`, `info`, `refs`, `reftable`, `packed-refs`, `logs/refs/stash`]) line(path.join(shared, n), `git:${n}`);
   for (const n of fs.readdirSync(`.`).sort()) if (n !== `.git`) line(named(n), n);
-  // git runs from a folder the tree has no part in, so no program left there stands in for it.
-  const git = (...args) => require(`child_process`).execFileSync(`git`, [`-C`, process.cwd(), `-c`, `core.fsmonitor=false`, ...args], { cwd: process.env.SystemRoot || `/`, maxBuffer: 1 << 29 });
+  // git runs from a folder the tree has no part in, so no program left there stands in for it,
+  // and fetches nothing: a fetch runs programs the config names.
+  const env = { ...process.env, GIT_NO_LAZY_FETCH: `1`, GIT_ALLOW_PROTOCOL: `none` };
+  const git = (...args) => {
+    const r = require(`child_process`).spawnSync(`git`, [`-C`, process.cwd(), `-c`, `core.fsmonitor=false`, ...args], { cwd: process.env.SystemRoot || `/`, env, maxBuffer: 1 << 29 });
+    // Git can leave entries out, say so and still succeed.
+    if (r.status !== 0 || r.stderr.length) throw new Error(`git: ${r.stderr}`);
+    return r.stdout;
+  };
   line(path.resolve(git(`rev-parse`, `--git-path`, `hooks`).toString().trim()), `git:hooks in use`);
-  say(git(`ls-files`, `--stage`, `-v`), `git:index`);
+  say(git(`ls-files`, `--stage`, `-v`, `--sparse`), `git:index`);
   console.log(sha(record.join(`\n`)), `whole record`);
   ' "<top folder>"
   ```
 
   After the pass, stop any process the agent left running, run the command again
-  before any other git, and compare: the same `whole record` line means no
-  change. On any difference, if a run fails, or if you no longer hold the first
-  output: stop there, run no git in that tree, change nothing, count the pass
-  inconclusive, and report to me which lines differ.
+  before any other git, and compare the last line, `<hash> whole record`, alone:
+  the same means no change. On any difference, if a run fails, or if you no
+  longer hold the first output: stop there, run no git in that tree, change
+  nothing, count the pass inconclusive, and report to me which lines differ.
 
 ## The report template
 
