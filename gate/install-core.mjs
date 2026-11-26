@@ -67,6 +67,9 @@ export const GUARD_RULES = Object.freeze([
   deny('daemon-stop', 'session-stop-deny', 'claude daemon stop'),
   deny('session-respawn', 'session-stop-deny', 'claude respawn'),
 ]);
+// The skills that stand for the owner's answer, asked on where a harness can ask before a file is read (S7). It
+// matches a read's path, never a command, so no permission rule is made of it.
+export const OWNER_SKILL_RULE = rule('owner-skill', 'ask', 'owner-skills', 'skills', ['make-it-so', 'finis', 'scry']);
 const permissionRules = (on, decision) => {
   const patterns = GUARD_RULES.filter(r => r.switch === on && r.decision === decision).map(r => (r.words ? `${r.words.join(' ')} *` : `*${r.contains.join('*')}*`));
   return Object.freeze([...patterns.map(p => `Bash(${p})`), ...patterns.map(p => `PowerShell(${p})`)]);
@@ -111,8 +114,12 @@ export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-ru
 export const RULES_REL = 'claude/CLAUDE.md';
 // Where the install writes each harness's render in the stage (spec 0007 S7); isStaged takes no commit's file there.
 export const RENDERED_REL = 'rendered/';
-// Each agent format's names for the pact's tools (spec 0007 S7). Antigravity's is empty until a probe fills it, so no agent installs there.
-export const TOOL_TABLES = Object.freeze({ 'antigravity-md': Object.freeze({}) });
+// Each agent format's names for the pact's tools (spec 0007 S7); a tool with no name here is dropped from the agent.
+// Antigravity's are its documented names, each accepted by agy 1.2.14, whose probe found a subagent gets fewer of
+// them than its file lists, and no shell it doesn't list (docs/log/2026-11-25-antigravity.md).
+export const TOOL_TABLES = Object.freeze({
+  'antigravity-md': Object.freeze({ Read: 'view_file', Glob: 'find_by_name', Grep: 'grep_search', Bash: 'run_command', WebFetch: 'read_url_content', WebSearch: 'search_web' }),
+});
 export const OVERLAY_REL = 'claude/settings.overlay.json';
 // The review procedure file (#261): staged here, installed to one fixed live path.
 export const REVIEW_REL = 'claude/review.md';
@@ -1629,7 +1636,17 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
 // ------------------------------------------------------------ the guard's hook entry (spec 0007 S8)
 
 /** The rules the switches leave on: `on` names the switches that are. */
-export const guardRules = on => GUARD_RULES.filter(r => on.includes(r.switch));
+export const guardRules = on => [...GUARD_RULES, OWNER_SKILL_RULE].filter(r => on.includes(r.switch));
+
+/**
+ * The harnesses that get the owner-skill ask: those whose hook can meet a read
+ * and answer it with a question, and that take a skill the rule names, with
+ * the commands in `on`.
+ */
+export const ownerSkillReaders = (harnesses, on) => harnesses.filter(h => {
+  const parts = builtParts(h);
+  return parts.guard && parts.skills && GUARD_SHAPES[h.hooks.format].reads !== null && h.capabilities.includes('hook-ask') && on.some(c => OWNER_SKILL_RULE.skills.includes(c));
+});
 
 /** rules.json's text for those rules. */
 export const guardTableText = rules => `${JSON.stringify({ rules }, null, 2)}\n`;
@@ -1656,7 +1673,7 @@ const LAUNCH_FAILED = "The pact's guard failed (launch); run the pact's dry run.
 const LAUNCH_ANSWERS = Object.freeze({
   // Codex blocks on exit 2 with a reason, so 2 passes through.
   codex: ['if %ERRORLEVEL% EQU 2 exit /b 2', `echo ${LAUNCH_FAILED}>&2`, 'exit /b 2'],
-  // Antigravity lets a call through on a non-zero exit, so the denial is its JSON answer.
+  // Antigravity's documentation says a non-zero exit lets the call through, so the denial is its JSON answer.
   antigravity: [`echo {"decision":"deny","reason":"${LAUNCH_FAILED}"}`, 'exit /b 0'],
 });
 
@@ -1706,17 +1723,20 @@ export function guardCommand({ script, platform, systemRoot }) {
   return `env -u NODE_OPTIONS node '${script.replaceAll("'", `'\\''`)}'`;
 }
 
-// Where each harness keeps its PreToolUse list, and what the pact's group there holds.
+// Where each harness keeps its PreToolUse list, and what the pact's group there holds: `matcher` the tools that
+// run or type a command, `reads` the tools that read a file, matched too while the harness gets a rule on a read.
+// Codex's hook meets no read. Antigravity's manage_task types into a program left running; send_command_input is a
+// second name for that which agy 1.2.14 registers and gives no agent.
 const GUARD_SHAPES = Object.freeze({
-  codex: Object.freeze({ path: Object.freeze(['hooks', 'PreToolUse']), matcher: '^Bash$', more: Object.freeze([['statusMessage', 'pact-guard']]) }),
-  antigravity: Object.freeze({ path: Object.freeze(['pact-guard', 'PreToolUse']), matcher: 'run_command', more: Object.freeze([]) }),
+  codex: Object.freeze({ path: Object.freeze(['hooks', 'PreToolUse']), matcher: '^Bash$', reads: null, more: Object.freeze([['statusMessage', 'pact-guard']]) }),
+  antigravity: Object.freeze({ path: Object.freeze(['pact-guard', 'PreToolUse']), matcher: 'run_command|manage_task|send_command_input', reads: 'view_file|read_file', more: Object.freeze([]) }),
 });
 
 /** The pact's matcher group for a format, as settings maps: one hook, its command and a 15 s timeout. */
-export function guardGroup(format, command) {
-  const { matcher, more } = GUARD_SHAPES[format];
-  const hook = new Map([['type', 'command'], ['command', command], ['timeout', new Num('15')], ...more]);
-  return new Map([['matcher', matcher], ['hooks', [hook]]]);
+export function guardGroup(format, command, { reads = false } = {}) {
+  const shape = GUARD_SHAPES[format];
+  const hook = new Map([['type', 'command'], ['command', command], ['timeout', new Num('15')], ...shape.more]);
+  return new Map([['matcher', reads && shape.reads ? `${shape.matcher}|${shape.reads}` : shape.matcher], ['hooks', [hook]]]);
 }
 
 /** A recorded entry's value, a group, as settings maps; null when it is not one. */
@@ -1785,7 +1805,7 @@ export function guardMerge(live, { drop = [], want = [] }) {
 
 /**
  * The guard hooks of this install, one plan per hooks file: the files of the
- * harnesses that are in (`want`: { harness, path, format, command }), and
+ * harnesses that are in (`want`: { harness, path, format, command, reads }), and
  * those the record lists a guard hook in.
  */
 export function guardPlans(recordEntries, want) {
@@ -1801,7 +1821,7 @@ export function guardPlans(recordEntries, want) {
     f.recorded.push(e);
     f.drop.push({ format, group: recordedGroup(e.value) });
   }
-  for (const w of want) at(w.path).want.push({ harness: w.harness, format: w.format, group: guardGroup(w.format, w.command) });
+  for (const w of want) at(w.path).want.push({ harness: w.harness, format: w.format, group: guardGroup(w.format, w.command, { reads: w.reads }) });
   return [...files.values()];
 }
 
@@ -2199,14 +2219,16 @@ export function installDestinations(checked, throughLink, merged = []) {
 
 // ------------------------------------------------------------ the skill links (spec 0007 S7, S9)
 
-/** Each skill folder the harnesses are to hold: one per path, for the first harness that reads it. */
+/** Each skill folder the harnesses are to hold: one per path, for the first harness that reads it, a copy when any that reads it takes copies. */
 export function skillsWanted(harnesses, names) {
   const out = new Map();
   for (const h of harnesses) {
     if (!builtParts(h).skills) continue;
     for (const name of names) {
       const path = `${h.skills.dir}/${name}`;
-      if (!out.has(path.toLowerCase())) out.set(path.toLowerCase(), { harness: h.id, path, target: `${SKILLS_DEST}${name}` });
+      const key = path.toLowerCase();
+      if (!out.has(key)) out.set(key, { harness: h.id, path, target: `${SKILLS_DEST}${name}` });
+      if (h.capabilities.includes('skill-copies')) out.get(key).copy = true;
     }
   }
   return [...out.values()];
@@ -2226,7 +2248,8 @@ function linkReason(l, targets, throughLink, merged) {
 /**
  * What the skill folders need. `state(path, target)` is the live answer:
  * 'absent', 'ours' (a link to the target) or 'other'. `add` is linked, `copy`
- * copied (no link can be made, or the record already lists a copy), `keep`
+ * copied (the harness takes copies, no link can be made, or the record already
+ * lists one), `keep`
  * linked already, `remove` a recorded link no harness takes, `yours` a path the
  * record doesn't list, left as is, `drift` a recorded link that became
  * something else, and `blocked` a wanted path the install may not act on, for
@@ -2258,7 +2281,7 @@ export function linkPlan({ wanted, record, targets, state, canLink, throughLink,
       else changed(w);
     } else if (copied(w.path)) out.copy.push(w);
     else if (now !== 'absent') out.yours.push(w);
-    else (canLink ? out.add : out.copy).push(w);
+    else (canLink && !w.copy ? out.add : out.copy).push(w);
   }
   for (const [key, l] of recorded) {
     if (taken.has(key)) continue;

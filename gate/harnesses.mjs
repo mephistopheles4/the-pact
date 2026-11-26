@@ -11,7 +11,7 @@ import { HARNESS_ID_RE as ID_RE, NEUTRAL_REL as NEUTRAL, PACT_ID, Refusal, forma
 export const KNOWN_REL = 'harnesses/known.json';
 export const AGENT_FORMATS = Object.freeze(['claude-md', 'codex-toml', 'antigravity-md']);
 export const HOOK_FORMATS = Object.freeze(['claude', 'codex', 'antigravity']);
-export const CAPABILITIES = Object.freeze(['subagents', 'tool-limits', 'cleaner', 'archive', 'native-rules', 'hook-ask', 'hook-trust', 'explicit-skills']);
+export const CAPABILITIES = Object.freeze(['subagents', 'tool-limits', 'cleaner', 'archive', 'native-rules', 'hook-ask', 'hook-trust', 'explicit-skills', 'skill-copies']);
 // One path segment below the home folder: a plain name, a leading dot allowed, never . or .., none ending in a dot.
 const SEGMENT_RE = /^\.?[A-Za-z0-9_-](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
 const MODEL_RE = /^\S{1,128}$/;

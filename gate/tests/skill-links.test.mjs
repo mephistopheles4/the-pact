@@ -203,3 +203,26 @@ test('C19: where a link cannot be made, the dry run says so and the install copi
   passed(applyBound(repo, h));
   assert.equal(kind(h, `${SKILLS}/finis`), 'absent', 'no empty folder is left');
 });
+
+// agy 1.2.14 lists no skill whose folder is a link (docs/log/2026-11-25-antigravity.md), so Antigravity's are copied.
+test('C19: a harness that does not discover a linked skill gets copies, beside another harness\'s links, and they come out again', t => {
+  const repo = makeRepo(t);
+  const h = codexHome(t);
+  mkdirSync(at(h, '.gemini/config'), { recursive: true });
+  config(h, ['finis'], ['codex', 'antigravity']);
+  const dry = install(repo, h);
+  passed(dry);
+  assert.doesNotMatch(dry.stdout, /^WARN: a skill link cannot be made|^ {2}link \.gemini\//m, dry.out);
+  passed(applyBound(repo, h));
+  const AG = '.gemini/config/skills';
+  assert.deepEqual([kind(h, `${SKILLS}/finis`), kind(h, `${AG}/finis`)], ['link', 'folder']);
+  assert.equal(read(h, `${AG}/finis/SKILL.md`), read(h, '.pact/skills/finis/SKILL.md'));
+  assert.ok(record(h).files.some(f => f.path === `${AG}/finis/SKILL.md` && f.harness === 'antigravity'));
+  assert.deepEqual(links(h).map(l => l[0]), ['codex', 'codex']);
+  const again = install(repo, h);
+  passed(again);
+  assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
+  config(h, ['finis'], ['codex']);
+  passed(applyBound(repo, h));
+  assert.equal(kind(h, `${AG}/finis`), 'absent');
+});

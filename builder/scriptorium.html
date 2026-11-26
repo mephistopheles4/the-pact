@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-yE1/AA5jwCQyNx1YdhXn8Dqjj1G4TAjMBHE4PzilJkg='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-Fmm6NIb+EIKwbiQgx7pZ4aoSh8UQWy91D0ARzAzh954='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -3474,7 +3474,9 @@ const PACT = /* pact-data:begin */ {
     "capabilities": [
      "subagents",
      "tool-limits",
-     "hook-ask"
+     "hook-ask",
+     "explicit-skills",
+     "skill-copies"
     ]
    }
   ],
@@ -6214,7 +6216,7 @@ function skillsProblems(v) {
 /* render-code:begin */
 const harnessLib = (() => {
 const RENDERED_REL = "rendered/";
-const TOOL_TABLES = {"antigravity-md":{}};
+const TOOL_TABLES = {"antigravity-md":{"Read":"view_file","Glob":"find_by_name","Grep":"grep_search","Bash":"run_command","WebFetch":"read_url_content","WebSearch":"search_web"}};
 const GUARD_FORMATS = ["codex","antigravity"];
 class Refusal extends Error { constructor(rule, why) { super(why); this.rule = rule; this.why = why; } }
 function builtParts(h, tables = TOOL_TABLES) {
@@ -6238,7 +6240,7 @@ const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));
 const KNOWN_REL = 'harnesses/known.json';
 const AGENT_FORMATS = Object.freeze(['claude-md', 'codex-toml', 'antigravity-md']);
 const HOOK_FORMATS = Object.freeze(['claude', 'codex', 'antigravity']);
-const CAPABILITIES = Object.freeze(['subagents', 'tool-limits', 'cleaner', 'archive', 'native-rules', 'hook-ask', 'hook-trust', 'explicit-skills']);
+const CAPABILITIES = Object.freeze(['subagents', 'tool-limits', 'cleaner', 'archive', 'native-rules', 'hook-ask', 'hook-trust', 'explicit-skills', 'skill-copies']);
 // One path segment below the home folder: a plain name, a leading dot allowed, never . or .., none ending in a dot.
 const SEGMENT_RE = /^\.?[A-Za-z0-9_-](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
 const MODEL_RE = /^\S{1,128}$/;
@@ -6558,7 +6560,9 @@ function skills(commands, readers, files) {
   for (const [name, text] of commands) {
     const { values, rest } = frontmatter(blocks(text.replaceAll('\r\n', '\n'), keep, `the command ${name}`), `the command ${name}`);
     const dir = `${RENDERED_REL}skills/${name}`;
-    files.set(`${dir}/SKILL.md`, `---\nname: ${name}\ndescription: ${values.get('description') ?? ''}\n---\n${rest}`);
+    // The command's own switch, which keeps a skill from Antigravity's model; it is added to no command that lacks it.
+    const held = explicit && values.get('disable-model-invocation') === 'true' ? '\ndisable-model-invocation: true' : '';
+    files.set(`${dir}/SKILL.md`, `---\nname: ${name}\ndescription: ${values.get('description') ?? ''}${held}\n---\n${rest}`);
     if (explicit) files.set(`${dir}/agents/openai.yaml`, SKILL_POLICY);
   }
 }

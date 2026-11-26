@@ -123,7 +123,9 @@ function skills(commands, readers, files) {
   for (const [name, text] of commands) {
     const { values, rest } = frontmatter(blocks(text.replaceAll('\r\n', '\n'), keep, `the command ${name}`), `the command ${name}`);
     const dir = `${RENDERED_REL}skills/${name}`;
-    files.set(`${dir}/SKILL.md`, `---\nname: ${name}\ndescription: ${values.get('description') ?? ''}\n---\n${rest}`);
+    // The command's own switch, which keeps a skill from Antigravity's model; it is added to no command that lacks it.
+    const held = explicit && values.get('disable-model-invocation') === 'true' ? '\ndisable-model-invocation: true' : '';
+    files.set(`${dir}/SKILL.md`, `---\nname: ${name}\ndescription: ${values.get('description') ?? ''}${held}\n---\n${rest}`);
     if (explicit) files.set(`${dir}/agents/openai.yaml`, SKILL_POLICY);
   }
 }

@@ -1,9 +1,11 @@
 // Antigravity's wrapper for the pact's shared guard (spec 0007 S8). The
-// PreToolUse hook runs it before each shell call, the call as JSON on standard
-// input. An answer is a JSON decision on standard output with exit 0: `deny`,
-// or `force_ask`, which asks the person whatever they allowed before. A call
-// no rule matches gets no answer at all. Antigravity lets a call through on a
-// non-zero exit, so every path exits 0.
+// PreToolUse hook runs it, the call as JSON on standard input, before a command
+// runs, before a line is typed into a program left running, and, while the
+// table asks on a skill, before a file is read. An answer is a JSON decision on
+// standard output with exit 0: `deny`, or `force_ask`, which asks the person
+// whatever they allowed before. A call no rule matches gets no answer at all.
+// Antigravity's documentation says a non-zero exit lets the call through, so
+// every path exits 0.
 //
 // It fails closed: whatever goes wrong once it runs, the answer is `deny`.
 // Every reason is fixed text, a rule's id or a code from FAILURES; nothing
@@ -29,6 +31,31 @@ for (const event of ['uncaughtException', 'unhandledRejection']) {
   });
 }
 
+// The actions of manage_task, as agy 1.2.14 lists them, that type nothing.
+const TYPES_NOTHING = ['list', 'status', 'kill'];
+
+/**
+ * What the guard judges in a call: { command } to run or to type, { paths } to
+ * read, {} for a call that does neither, or null for one it doesn't know.
+ */
+function judged(name, args) {
+  if (name === 'run_command') return { command: args.CommandLine };
+  // A task's input is typed into the program it left running. An action the guard doesn't know is denied.
+  if (name === 'manage_task') {
+    if (args.Action === 'send_input') return { command: args.Input };
+    return TYPES_NOTHING.includes(args.Action) ? {} : null;
+  }
+  if (name === 'send_command_input') return { command: args.Input };
+  // The documented view_file names its file AbsolutePath and the CLI's read_file Path. Either tool may carry both, so each one filled is judged.
+  if (name === 'view_file' || name === 'read_file') return { paths: [args.AbsolutePath, args.Path].filter(p => p !== undefined && p !== '') };
+  return null;
+}
+
+const SAYS = {
+  command: { deny: 'blocks this command', ask: 'asks the owner before this command' },
+  paths: { deny: 'blocks this read', ask: 'asks the owner before this file is read' },
+};
+
 let code = 'input';
 try {
   // Read to the end even when it is too long, so the harness's write never fails.
@@ -43,15 +70,19 @@ try {
     const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     code = 'call';
     const call = input?.toolCall;
-    if (call?.name !== 'run_command' || typeof call.args?.CommandLine !== 'string') failed('call');
-    else {
+    const what = call?.args ? judged(call.name, call.args) : null;
+    const kind = what && Object.keys(what)[0];
+    // Only the paths come as a list; a command that arrives as one is not text.
+    const texts = kind === 'paths' ? what.paths : kind ? [what[kind]] : [];
+    if (what === null || (kind && (!texts.length || texts.some(t => typeof t !== 'string')))) failed('call');
+    else if (kind) {
       code = 'guard';
       const guard = await import('./guard.mjs');
       code = 'internal';
-      const met = guard.answer(call.args.CommandLine);
-      if (met?.decision === 'deny') say('deny', `The pact's guard blocks this command (rule ${met.id}).`);
-      else if (met?.decision === 'ask') say('force_ask', `The pact's guard asks the owner before this command (rule ${met.id}).`);
-      else if (met !== null) failed('internal');
+      const answers = texts.map(t => (kind === 'paths' ? guard.answerRead(t) : guard.answer(t)));
+      const met = answers.find(a => a?.decision === 'deny') ?? answers.find(a => a?.decision === 'ask');
+      if (met) say(met.decision === 'deny' ? 'deny' : 'force_ask', `The pact's guard ${SAYS[kind][met.decision]} (rule ${met.id}).`);
+      else if (answers.some(a => a !== null)) failed('internal');
     }
   }
 } catch (e) {

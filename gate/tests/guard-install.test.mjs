@@ -20,7 +20,11 @@ const put = (h, rel, doc) => {
   writeFileSync(at(h, rel), typeof doc === 'string' ? doc : `${JSON.stringify(doc, null, 2)}\n`);
 };
 const config = (h, doc) => put(h, '.pact/config.json', { schema: 1, ...doc });
-const ON = { tools: ['cleaner'] };
+// No command, so no skill is asked on: the table holds the switches' rules alone.
+const ON = { tools: ['cleaner'], commands: [] };
+const OFF = { tools: [], commands: [] };
+const COMMAND_MATCHER = 'run_command|manage_task|send_command_input';
+const READ_MATCHER = `${COMMAND_MATCHER}|view_file|read_file`;
 const MINE = { matcher: '^Bash$', hooks: [{ type: 'command', command: 'echo mine', timeout: 5 }] };
 const MY_GROUP = { PreToolUse: [{ matcher: 'run_command', hooks: [{ command: 'echo mine' }] }] };
 const record = h => json(h, '.pact/install.json');
@@ -32,6 +36,10 @@ const GUARD_FILES = [...(WIN ? ['antigravity.cmd', 'codex.cmd'] : []), 'antigrav
 const asCodex = (command, input) => (WIN
   ? spawnSync('powershell.exe', ['-NoProfile', '-Command', command], { input, encoding: 'utf8' })
   : spawnSync('/bin/sh', ['-c', command], { input, encoding: 'utf8', env: { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}` } }));
+/** The hook's command run as Antigravity runs it here. */
+const asAntigravity = (command, call) => (WIN
+  ? spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${command}"`], { input: JSON.stringify(call), encoding: 'utf8', windowsVerbatimArguments: true })
+  : spawnSync('/bin/sh', ['-c', command], { input: JSON.stringify(call), encoding: 'utf8', env: { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}` } }));
 const guardFiles = h => (existsSync(at(h, '.pact/guard')) ? readdirSync(at(h, '.pact/guard')).sort() : []);
 
 /** A home with Claude Code, Codex and Antigravity found in it, the person's own hooks in the last two, and the cleaner on. */
@@ -66,7 +74,7 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
   assert.deepEqual([pact.matcher, pact.hooks[0].timeout, pact.hooks[0].statusMessage], ['^Bash$', 15, 'pact-guard']);
   const ag = json(h, AG);
   assert.deepEqual(ag.mine, MY_GROUP);
-  assert.deepEqual(ag['pact-guard'].PreToolUse.map(g => [g.matcher, g.hooks.length, g.hooks[0].timeout]), [['run_command', 1, 15]]);
+  assert.deepEqual(ag['pact-guard'].PreToolUse.map(g => [g.matcher, g.hooks.length, g.hooks[0].timeout]), [[COMMAND_MATCHER, 1, 15]]);
 
   assert.deepEqual(guardEntries(h).map(e => [e.harness, e.path, e.key, e.value]).sort(), [['antigravity', AG, 'guard.antigravity', ag['pact-guard'].PreToolUse[0]], ['codex', CODEX, 'guard.codex', pact]], 'only the pact\'s entries are recorded');
 
@@ -76,6 +84,9 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
   const run = asCodex(command, input);
   assert.equal(run.status, 2, `${run.stdout}${run.stderr}`);
   assert.match(run.stderr, /rule worktree-remove/);
+  const typed = asAntigravity(ag['pact-guard'].PreToolUse[0].hooks[0].command, { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'git worktree remove w\n' } } });
+  assert.equal(typed.status, 0, `${typed.stdout}${typed.stderr}`);
+  assert.deepEqual(JSON.parse(typed.stdout), { decision: 'deny', reason: "The pact's guard blocks this command (rule worktree-remove)." });
 
   const again = install(repo, h);
   passed(again);
@@ -99,7 +110,7 @@ test('C16: the apply backs up each hooks file it changes, and with every rule of
   passed(first);
   const name = /backed up \d+ file\(s\) to \.pact\/backups\/(\S+)/.exec(first.stdout)[1];
   assert.equal(readFileSync(at(h, `.pact/backups/${name}/.codex/hooks.json`), 'utf8'), before);
-  config(h, { tools: [] });
+  config(h, OFF);
   const dry = install(repo, h);
   passed(dry);
   assert.match(dry.stdout, /^ {2}pact-guard hook: removed\r?$/m, dry.out);
@@ -132,10 +143,49 @@ test('C16: a hooks file the record doesn\'t list is merged, not refused; one tha
   assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
 });
 
+test('S7: with a skill that stands for the owner\'s answer installed, Antigravity alone gets the ask, rules off included; with none, no guard', t => {
+  const repo = makeRepo(t);
+  const h = three(t);
+  const before = readFileSync(at(h, CODEX), 'utf8');
+  config(h, { tools: [], commands: ['finis'] });
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(dry.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): owner-skill \(ask\)\r?$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, TRUST, dry.out);
+  passed(applyBound(repo, h));
+  assert.equal(readFileSync(at(h, CODEX), 'utf8'), before);
+  assert.deepEqual(guardFiles(h), GUARD_FILES.filter(f => f !== 'codex.cmd'), 'no launcher for a harness with no hook');
+  const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
+  assert.equal(entry().matcher, READ_MATCHER);
+  assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
+  const read = asAntigravity(entry().hooks[0].command, { toolCall: { name: 'read_file', args: { Path: at(h, '.gemini/config/skills/finis/SKILL.md') } } });
+  assert.equal(JSON.parse(read.stdout).decision, 'force_ask', `${read.stdout}${read.stderr}`);
+
+  // /scriptorium stands for no answer: nothing to ask on.
+  config(h, OFF);
+  passed(applyBound(repo, h));
+  assert.equal(entry(), undefined);
+  assert.deepEqual(guardFiles(h), []);
+
+  // With the cleaner on beside such a skill, the table holds both, and Antigravity's hook alone meets reads.
+  config(h, { tools: ['cleaner'], commands: ['finis'] });
+  const both = install(repo, h);
+  passed(both);
+  assert.match(both.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): worktree-remove \(deny\), .*owner-skill \(ask\)\r?$/m, both.out);
+  passed(applyBound(repo, h));
+  assert.equal(entry().matcher, READ_MATCHER);
+  assert.deepEqual(json(h, CODEX).hooks.PreToolUse.map(g => g.matcher), ['^Bash$', '^Bash$']);
+
+  // With the cleaner on and no such skill, the read tools are left alone.
+  config(h, ON);
+  passed(applyBound(repo, h));
+  assert.equal(entry().matcher, COMMAND_MATCHER);
+});
+
 test('with no rule on, no guard file or hook is written', t => {
   const repo = makeRepo(t);
   const h = three(t);
-  config(h, { tools: [] });
+  config(h, OFF);
   const before = readFileSync(at(h, CODEX), 'utf8');
   const r = applyBound(repo, h);
   passed(r);
@@ -159,7 +209,7 @@ test('bad case: a node that is not Windows\'s refuses to write a guard into a Wi
   assert.equal(readFileSync(at(h, CODEX), 'utf8'), before);
   assert.deepEqual(guardFiles(h), []);
   // With every rule off there is no hook to write, so the install goes on.
-  config(h, { tools: [] });
+  config(h, OFF);
   passed(install(repo, h));
 });
 
@@ -240,9 +290,10 @@ test('bad case: a hooks file that is settings.json, or sits behind a link, refus
   refused(install(repo, shared), /the path of settings\.json for a hooks file/);
   const linked = home(t);
   mkdirSync(join(linked, 'elsewhere'));
-  mkdirSync(join(linked, '.gemini'));
-  symlinkSync(join(linked, 'elsewhere'), join(linked, '.gemini', 'config'), 'junction');
-  config(linked, ON);
-  refused(install(repo, linked), /path through a link for a hooks file: \.gemini\/config\/hooks\.json/);
+  mkdirSync(join(linked, '.gemini', 'config'), { recursive: true });
+  // The hooks file alone sits behind the link: an agent behind it would refuse first.
+  symlinkSync(join(linked, 'elsewhere'), join(linked, '.gemini', 'hooks-link'), 'junction');
+  config(linked, { ...ON, harnesses: { own: [{ id: 'antigravity', hooks: { file: '~/.gemini/hooks-link/hooks.json', format: 'antigravity' } }] } });
+  refused(install(repo, linked), /path through a link for a hooks file: \.gemini\/hooks-link\/hooks\.json/);
   assert.deepEqual(readdirSync(join(linked, 'elsewhere')), []);
 });
