@@ -20,34 +20,28 @@
 // or decision carries the owner's `quote` and the session's `intent`, so a
 // reader can check the read-back against the owner's words. The poster builds
 // the body from fixed parts: the ask and intent blocks, the session's body from
-// the file the post names (`body_file`, in the post file's own folder), the
-// `Signed:` line and, on an edit, the reason lines. The post's text fields are
-// unverified: they catch accidents, and are not a control.
+// the file the post names (`body_file`, in the post file's own folder) and the
+// `Signed:` line. The post's text fields are unverified: they catch accidents,
+// and are not a control.
 //
-// An edit reads the item first and refuses one its login didn't write, one
-// not signed with the post's signer, a review record, a decision mark, an item
-// holding a leak the scan finds, and a body that drops, forges or hides an
-// earlier reason line. It carries the item's reason lines forward and adds
-// `Edited: <reason> (<signer>)`. An item that opens with the owner's ask and the
+// An edit reads the item first and refuses one its login didn't write, one the
+// post doesn't name, one not signed with the post's signer, and one holding a
+// decision mark. It sends the same parts as a create post and carries nothing
+// forward from the item's body but its mark and `Answers:` line; GitHub's edit
+// history shows what changed. An item that opens with the owner's ask and the
 // read-back is an ask item (#524): its edit carries `quote` and `intent`, which
 // must be the item's own (edit/ask), and may move the read-back from pending to
 // confirmed or corrected by citing the decision comment that heard the owner
-// (edit/status, edit/confirm). A status edit (`issue-comment-edit` signed
-// `status-<n>`, n the issue) is the one exception: it carries none, so only the
-// newest is kept (#503).
+// (edit/status, edit/confirm).
 //
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every field and file, and scans the
 // exact text it would send for a live environment secret's value and hidden
-// text; it refuses no token shape, email address, path or session id (#326,
-// #364, #366, #441).
-// Then it checks the shape of any Lens dispositions table in the body against
-// the review procedure's template (#280, T2), and refuses a body whose prose is
-// hard-wrapped, whose link has no scheme (#317, text/hard-wrap and
-// link/relative) or that leaves a fence open (#401, fence/unclosed); it never
-// rewrites a body. The owner's quote is skipped by the prose check. Before it
-// posts, it checks that the repo's owner is the gh login, by name and again by
-// what GitHub returns for the repo (owner/repo, owner/github), and reads each
+// text, as written and as two normalised copies; it refuses no token shape,
+// email address, path or session id (#326, #364, #366, #441). It checks nothing
+// else about the body's shape, and never rewrites it. Before it posts, it
+// checks that the repo's owner is the gh login, by name and again by what
+// GitHub returns for the repo (owner/repo, owner/github), and reads each
 // tracker comment a quote cites (post/tracker). The scans are a backstop for
 // accidents, not a guard against a session that sets out to get past them.
 //
