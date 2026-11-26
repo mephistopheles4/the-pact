@@ -165,7 +165,9 @@ Codex and Antigravity, and there before typed input; and the release job's token
   repository admin, the owner, creates one; on every tag, with no bypass,
   none is updated, deleted or force-pushed. Candidate names stay open, so
   anyone with write access can make one npm reads as stable, such as
-  `v1.2.3+x.0-rc.1`: accepted with a change merged to `main`. They don't hold until
+  `v1.2.3+x.0-rc.1`, or one on an unreviewed commit, which `--channel beta`
+  takes and promotion refuses unless its commit is on `main`: accepted with a
+  change merged to `main`. They don't hold until
   made, or while the owner edits or disables them. A session holding the
   owner's git or `gh` credentials counts as the owner there and can make a
   stable tag: accepted under Who counts as you (S2 item 75). Actions pinned to a full commit SHA in
@@ -181,8 +183,9 @@ Codex and Antigravity, and there before typed input; and the release job's token
   `id-token: write` in each Claude job, with no key in the repo;
   `contents: write` in the one release job, with no checkout, the only use of `workflow_run`, which tags only this repo's `main` tip after `gate` passes a
   push there, as a release candidate, while `PACT_RELEASES` is `on`; a stable
-  tag comes only from the owner's `node gate/release-promote.mjs`, run under
-  their own account and naming a candidate. The
+  tag comes only from the repository admin, by the owner's
+  `node gate/release-promote.mjs`, run under their own account and naming a
+  candidate on `main`. The
   Console's federation rule bounds who gets an Anthropic token; each job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the
   Claude jobs' write token. It

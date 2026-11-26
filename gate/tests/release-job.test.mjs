@@ -33,8 +33,9 @@ function script() {
  * object's id to the commit it names. Returns the code, the output, every tag
  * the script created and the tokens it sent.
  */
-async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha('a'), token = 'test-token', fail = null, job = 'candidate', rc = '' } = {}) {
+async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha('a'), token = 'test-token', fail = null, job = 'candidate', rc = '', compare = 'ahead' } = {}) {
   const created = [];
+  const requests = [];
   const sent = new Set();
   let reads = 0;
   const server = createServer((req, res) => {
@@ -43,12 +44,16 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
     req.on('end', () => {
       sent.add(req.headers.authorization);
       const path = req.url.replace('/repos/o/r/', '');
+      requests.push(`${req.method} ${path}`);
       const answer = (status, doc) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(doc));
       if (fail && path.startsWith(fail)) return answer(500, {});
       if (req.method === 'GET' && path === 'git/ref/heads/main') return answer(200, { object: { type: 'commit', sha: tips[Math.min(reads++, tips.length - 1)] } });
       if (req.method === 'GET' && path === 'git/matching-refs/tags/v1.') return answer(200, Object.entries(refs).map(([name, object]) => ({ ref: `refs/tags/${name}`, object })));
+      // The comparison of a candidate's commit with main answers the status the test gives.
+      if (req.method === 'GET' && /^compare\/[0-9a-f]{40}\.\.\.main$/.test(path)) return answer(200, { status: compare });
       const tag = /^git\/tags\/([0-9a-f]{40})$/.exec(path);
-      if (req.method === 'GET' && tag) return answer(200, { object: { type: 'commit', sha: tags[tag[1]] } });
+      // A tag object names a commit, given as its id, or another tag, given as { type: 'tag', sha }.
+      if (req.method === 'GET' && tag) return answer(200, { object: typeof tags[tag[1]] === 'string' ? { type: 'commit', sha: tags[tag[1]] } : tags[tag[1]] });
       if (req.method === 'POST' && path === 'git/refs') {
         created.push(JSON.parse(body));
         return answer(201, {});
@@ -77,7 +82,7 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
   let out = '';
   for (const s of [child.stdout, child.stderr]) s.on('data', d => (out += d));
   const code = await new Promise(done => child.on('close', done));
-  return { code, out, created, sent: [...sent] };
+  return { code, out, created, sent: [...sent], requests };
 }
 
 const commit = c => ({ type: 'commit', sha: sha(c) });
@@ -145,21 +150,33 @@ test('promote command: tags the named candidate\'s commit with its stable releas
   assert.deepEqual(got.sent, ['Bearer test-token']);
   const annotated = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: sha('d') } });
   assert.deepEqual(annotated.created, [{ ref: 'refs/tags/v1.2.0', sha: sha('d') }], annotated.out);
+  // A tag of a tag is followed to its commit.
+  const nested = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('f') }, [sha('f')]: sha('a') } });
+  assert.deepEqual(nested.created, [{ ref: 'refs/tags/v1.2.0', sha: sha('a') }], nested.out);
+  // Bad case: a chain of tags that reaches no commit within five levels tags nothing.
+  const loop = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('e') } } });
+  assert.equal(loop.code, 1, loop.out);
+  assert.deepEqual(loop.created, []);
+  // Another candidate that leads nowhere doesn't stop the one named.
+  const planted = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.9': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('e') } } });
+  assert.equal(planted.code, 0, planted.out);
+  assert.equal(planted.created.length, 1);
   // With no stable release yet, the first minor is the next.
   assert.deepEqual((await promote(t, 'v1.1.0-rc.1', { refs: { 'v1.1.0-rc.1': commit('c') } })).created, [{ ref: 'refs/tags/v1.1.0', sha: sha('c') }]);
 });
 
 test('promote command: refuses, and tags nothing, a missing token, an input that is not a candidate tag, a candidate that does not exist, a minor already released or one that is not the next', async t => {
   const refs = { 'v1.1.0': commit('b'), 'v1.2.0': commit('b'), 'v1.2.0-rc.1': commit('c'), 'v1.3.0-rc.1': commit('c'), 'v1.5.0-rc.1': commit('d') };
-  for (const [what, rc, more] of [
-    ['an empty token', 'v1.3.0-rc.1', { token: '' }],
-    ['a stable tag', 'v1.3.0'],
-    ['a major candidate', 'v2.3.0-rc.1'],
-    ['a zero candidate number', 'v1.3.0-rc.0'],
-    ['the old candidate spelling', 'v1.3.0-rc1'],
-    ['trailing text', 'v1.3.0-rc.1 '],
-    ['a branch name', 'main'],
-    ['nothing', ''],
+  // The fourth field marks a row refused before any request reaches the server.
+  for (const [what, rc, more, quiet] of [
+    ['an empty token', 'v1.3.0-rc.1', { token: '' }, true],
+    ['a stable tag', 'v1.3.0', undefined, true],
+    ['a major candidate', 'v2.3.0-rc.1', undefined, true],
+    ['a zero candidate number', 'v1.3.0-rc.0', undefined, true],
+    ['the old candidate spelling', 'v1.3.0-rc1', undefined, true],
+    ['trailing text', 'v1.3.0-rc.1 ', undefined, true],
+    ['a branch name', 'main', undefined, true],
+    ['nothing', '', undefined, true],
     ['a candidate that does not exist', 'v1.3.0-rc.2'],
     ['a minor already released', 'v1.2.0-rc.1'],
     ['a minor past the next', 'v1.5.0-rc.1'],
@@ -169,10 +186,25 @@ test('promote command: refuses, and tags nothing, a missing token, an input that
     assert.deepEqual(got.created, [], what);
     assert.equal(got.out.trim().split('\n').length, 1, `${what}: one line`);
     assert.doesNotMatch(got.out, /test-token/);
-    if (more) assert.deepEqual(got.sent, [], `${what}: no request was made`);
+    if (quiet) assert.deepEqual(got.sent, [], `${what}: no request was made`);
   }
   // Control: the next minor's candidate passes against the same tags.
   assert.deepEqual((await promote(t, 'v1.3.0-rc.1', { refs })).created, [{ ref: 'refs/tags/v1.3.0', sha: sha('c') }]);
+});
+
+test('promote command: tags a commit that is main\'s own, and refuses one main does not hold, with no ref request', async t => {
+  const refs = { 'v1.1.0-rc.1': commit('c') };
+  const same = await promote(t, 'v1.1.0-rc.1', { refs, compare: 'identical' });
+  assert.deepEqual(same.created, [{ ref: 'refs/tags/v1.1.0', sha: sha('c') }], same.out);
+  assert.ok(same.requests.includes(`GET compare/${sha('c')}...main`), same.requests.join('\n'));
+  // Bad cases: a commit that has left main's history, or that main is still behind.
+  for (const status of ['diverged', 'behind']) {
+    const got = await promote(t, 'v1.1.0-rc.1', { refs, compare: status });
+    assert.equal(got.code, 1, `${status}: ${got.out}`);
+    assert.equal(got.out.trim(), "v1.1.0-rc.1's commit is not on main.", status);
+    assert.deepEqual(got.created, [], status);
+    assert.ok(!got.requests.includes('POST git/refs'), `${status}: ${got.requests.join('\n')}`);
+  }
 });
 
 test('promote command: a run that cannot read the tags fails and tags nothing', async t => {
@@ -182,13 +214,23 @@ test('promote command: a run that cannot read the tags fails and tags nothing', 
 });
 
 test('promote command: the token is GH_TOKEN when set, else what gh auth token prints, and an empty one or a failing gh is refused', () => {
+  const asked = [];
   const gh = out => (program, args) => {
-    assert.deepEqual([program, ...args], ['gh', 'auth', 'token']);
+    asked.push([program, ...args]);
     if (out instanceof Error) throw out;
     return out;
   };
   assert.equal(tokenFor({ GH_TOKEN: 'given' }, gh(new Error('must not run gh'))), 'given');
+  assert.deepEqual(asked, [], 'a given token never runs gh');
+  // gh is asked for the host the requests go to: github.com by default, else the API URL's host.
   assert.equal(tokenFor({}, gh('from-gh\n')), 'from-gh');
+  assert.deepEqual(asked, [['gh', 'auth', 'token', '--hostname', 'github.com']]);
+  asked.length = 0;
+  assert.equal(tokenFor({ GITHUB_API_URL: 'https://api.github.com' }, gh('from-gh\n')), 'from-gh');
+  assert.deepEqual(asked, [['gh', 'auth', 'token', '--hostname', 'github.com']]);
+  asked.length = 0;
+  assert.equal(tokenFor({ GITHUB_API_URL: 'https://ghe.example.com/api/v3' }, gh('from-ghe\n')), 'from-ghe');
+  assert.deepEqual(asked, [['gh', 'auth', 'token', '--hostname', 'ghe.example.com']]);
   // Bad cases: set but empty is not "unset", so gh's token is never swapped in; nor is an empty gh answer or a failed gh run accepted.
   assert.throws(() => tokenFor({ GH_TOKEN: '' }, gh('from-gh\n')), /No token/);
   assert.throws(() => tokenFor({}, gh('\n')), /No token/);

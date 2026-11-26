@@ -269,7 +269,8 @@ when no other row answers the sentence.
 
 - **Read before you post.** Read every report and comment for a secret or a
   personal detail before posting it, and every commit before a push others
-  can read.
+  can read. A user or host name, a home path or a settings name is not a
+  personal detail here.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it

@@ -684,7 +684,8 @@ own account, with `node gate/release-promote.mjs v1.<n>.0-rc.<k>`. Add an option
 another:
 
 - `--channel beta` takes the newest tag, a release candidate included; a
-  stable `v1.<n>.0` outranks its own candidates.
+  stable `v1.<n>.0` outranks its own candidates. Anyone who can write to the
+  repo can make a candidate, on any commit.
 - `--release <tag>` takes exactly that tag, stable or candidate, such as
   `--release v1.4.0-rc.2`, and refuses when it isn't there.
 

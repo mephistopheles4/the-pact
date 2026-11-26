@@ -1,6 +1,6 @@
 # The trusted machine
 
-**2026-11-26.** The owner, by voice, relayed by the lead session: "I would like to make an audit for the over-engineered things that we built in order to protect against the machine and the processes and agents running on them. So we could cut them all." PACT-105, spec 0007 S2 items 63 to 75, [ADR 0175](../adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md). It loosens controls.
+**2026-11-26.** The owner, by voice, relayed by the lead session: "I would like to make an audit for the over-engineered things that we built in order to protect against the machine and the processes and agents running on them. So we could cut them all." PACT-105, spec 0007 S2 items 63 to 76, [ADR 0175](../adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md). It loosens controls.
 
 ## What changed
 
@@ -14,6 +14,7 @@
 - **`tierEfforts`** (spec 0008) is deleted (decision 163).
 - **Codex's shell policy is the owner's** (decision 168): the install writes none, and removes the line an earlier install recorded, once, backed up.
 - **Releases start as candidates** (decisions 167, 177 and 186): a green push to `main` tags `v1.<n>.0-rc.<k>` with the release job's own token, with no app, key or environment; the owner promotes one to `v1.<n>.0` with `node gate/release-promote.mjs`, under their own account; two tag rulesets, the owner's, let only the owner create a tag but a candidate and stop any tag moving; and the bootstrap takes stable by default, the newest with `--channel beta`, or exactly the tag `--release` names.
+- **Promotion refuses a candidate off `main`** (decision 194): any writer can name a candidate, so the owner's command checks its commit is on `main` first.
 - **The Antigravity guard asks nothing before a read** (decision 176): the skill-read ask and its rule went.
 - **Accepted by the owner** (decision 181): a session holding the owner's credentials can make a stable tag, and a Codex lens may read with `git`.
 - **A Codex lens that can read and send keys** (PR 676's high) is accepted under the trusted machine (decision 166).

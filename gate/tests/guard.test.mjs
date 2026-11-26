@@ -52,9 +52,6 @@ test('bad case: a table of any other shape is a table failure', () => {
     { ...good, words: undefined },
     { ...good, contains: ['x'] },
     { id: 'a', decision: 'ask', contains: [1] },
-    { id: 'a', decision: 'ask', skills: [] },
-    { id: 'a', decision: 'ask', skills: ['../finis'] },
-    { id: 'a', decision: 'ask', skills: 'finis' },
   ].map(r => JSON.stringify({ rules: [r] }))];
   for (const text of bad) assert.throws(() => guard.parseTable(text), { code: 'table' }, text);
 });

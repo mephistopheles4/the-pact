@@ -54,4 +54,4 @@ This file is never installed.
 
 ## What no read looks for
 
-No read before a post looks for a path on this machine ([ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). A user or host name, inside a path or on its own, is not a personal detail for the read before posting ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)). A rewrite of that read adds no path item.
+No read before a post looks for a path on this machine ([ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). A user or host name, inside a path or on its own, a home path or a settings name is not a personal detail for the read before a post or a commit (spec 0007 S2 item 66) ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)). A rewrite of that read adds no path item.

@@ -19,8 +19,11 @@ const RELEASE_REF = /^refs\/tags\/(v1\.(0|[1-9]\d{0,8})\.0(?:-rc\.([1-9]\d{0,8})
 export function tokenFor(env, run = execFileSync) {
   let token = env.GH_TOKEN;
   if (token === undefined) {
+    // gh's token for the host the requests go to: github.com for the default API URL, else the URL's host.
+    const url = env.GITHUB_API_URL || 'https://api.github.com';
+    const host = url === 'https://api.github.com' ? 'github.com' : new URL(url).host;
     try {
-      token = run('gh', ['auth', 'token'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+      token = run('gh', ['auth', 'token', '--hostname', host], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     } catch {
       throw new Error('No token: set GH_TOKEN, or sign in with gh auth login.');
     }
@@ -51,7 +54,14 @@ export async function promote(rc, env = process.env, run = execFileSync) {
   for (const { ref, object } of await call('git/matching-refs/tags/v1.')) {
     const m = RELEASE_REF.exec(ref);
     if (!m) continue;
-    const target = object.type === 'tag' ? (await call(`git/tags/${object.sha}`)).object : object;
+    // An annotated tag may name another tag; follow at most five, and refuse if no commit is reached.
+    let target = object;
+    for (let level = 0; target.type === 'tag' && level < 5; level++) target = (await call(`git/tags/${target.sha}`)).object;
+    if (target.type === 'tag') {
+      // Candidate names are open, so another candidate that leads nowhere is skipped, not a stop.
+      if (m[3] && m[1] !== rc) continue;
+      throw new Error(`${m[1]} does not lead to a commit within five tags.`);
+    }
     done.push({ tag: m[1], n: Number(m[2]), k: m[3] ? Number(m[3]) : null, sha: target.sha });
   }
   // An existing candidate of the next minor becomes that minor's stable release.
@@ -61,6 +71,9 @@ export async function promote(rc, env = process.env, run = execFileSync) {
   if (done.some(r => r.tag === tag)) throw new Error(`${tag} already exists.`);
   const next = Math.max(0, ...done.filter(r => r.k === null).map(r => r.n)) + 1;
   if (found.n !== next) throw new Error(`${tag} is not the next minor, v1.${next}.0.`);
+  // Only a commit on main is released: compare names it ahead or identical only when main holds it.
+  const { status } = await call(`compare/${found.sha}...main`);
+  if (status !== 'ahead' && status !== 'identical') throw new Error(`${rc}'s commit is not on main.`);
   await call('git/refs', { ref: `refs/tags/${tag}`, sha: found.sha });
   return `Tagged ${tag} on ${found.sha}, the commit of ${rc}.`;
 }

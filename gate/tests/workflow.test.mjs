@@ -723,7 +723,7 @@ for (const [label, plant, says] of [
 
 const OTHER = "name: other\non:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  lint:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo ok\n";
 for (const [label, other, says] of [
-  // PACT-105 C23: no other workflow reaches the release app's key.
+  // PACT-105 C23: no other workflow names a deployment environment or reads a secret.
   ['names the release environment', OTHER.replace('    steps:', '    environment: release\n    steps:'), 'other.yml names a deployment environment'],
   ['names an environment in a flow mapping', OTHER.replace('    runs-on: ubuntu-24.04', '    runs-on: ubuntu-24.04\n    x: {"environment": release}'), 'other.yml names a deployment environment'],
   ['reads a secret in bracket form', OTHER.replace('echo ok', "echo ${{ secrets['X'] }}"), 'other.yml reads a secret or the token'],
@@ -1198,8 +1198,6 @@ const TOP_READ = 'asks for more than read access to the contents';
 const cut = line => s => s.split('\n').filter(l => !l.includes(line)).join('\n');
 const JOB_WRITE = '    permissions:\n      contents: write\n';
 const APP_STEP = `      - uses: actions/create-github-app-token@${'a'.repeat(40)}\n        id: app\n        with:\n          client-id: x\n          private-key: x\n`;
-// The job as a second job under another name.
-const copyJob = name => s => `${s}${s.slice(s.indexOf('  candidate:\n')).replace('  candidate:\n', `  ${name}:\n`)}`;
 const FIRST_RUN = /(\n        run: \|-?\n)/;
 // PACT-105 C23 and decision 177: each rule of the release allow-list catches its plant. Each plant is a change that would give the workflow more power or make its tag easier to forge.
 for (const [label, plant, says] of [
@@ -1218,19 +1216,16 @@ for (const [label, plant, says] of [
   ['cancels a running release', s => s.replace('cancel-in-progress: false', 'cancel-in-progress: true'), NO_GROUP],
   // Any environment: it could hold a secret or a reviewer rule the workflow does not name.
   ['names an environment on the job', s => s.replace('    runs-on:', '    environment: release\n    runs-on:'), ENVIRONMENT],
-  ['names the release-candidate environment', s => s.replace('    runs-on:', '    environment: release-candidate\n    runs-on:'), ENVIRONMENT],
   ['names an environment in a flow mapping', s => s.replace('    runs-on: ubuntu-24.04', '    runs-on: ubuntu-24.04\n    x: {"environment": release}'), ENVIRONMENT],
   ['names an environment in capitals', s => s.replace('    runs-on:', '    Environment: release\n    runs-on:'), ENVIRONMENT],
   // Any secret, in any form and case.
   ['reads a secret in the tag step', s => s.replace('          HEAD_SHA:', '          OTHER: ${{ secrets.OTHER }}\n          HEAD_SHA:'), SECRET],
-  ['reads a secret in place of the token', s => s.replace('${{ github.token }}', '${{ secrets.PACT_RELEASE_APP_KEY }}'), SECRET],
   ['reads a secret by an index', s => s.replace('          HEAD_SHA:', "          OTHER: ${{ secrets['OTHER'] }}\n          HEAD_SHA:"), SECRET],
   ["reads a secret, in capitals, in a step's name", s => s.replace('name: Tag a release candidate', 'name: ${{ SECRETS.OTHER }}'), SECRET],
   ['reads a secret in a second job', s => `${s}  second:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo\n        env:\n          X: \${{ secrets.OTHER }}\n`, SECRET],
   ['hides a secret on a script line that starts with #', s => s.replace(FIRST_RUN, '$1          #${{ SECRETS.OTHER }}\n'), HIDES],
   // A manual run: a person's input would reach the job.
   ['adds a manual run', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n'), TRIGGERS_SAY],
-  ['adds a manual run that takes an input', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n    inputs:\n      rc:\n        type: string\n'), TRIGGERS_SAY],
   ['adds a trigger', s => s.replace('\non:\n', '\non:\n  push:\n'), TRIGGERS_SAY],
   ['listens to another workflow', s => s.replace('workflows: [gate]', 'workflows: [gate, other]'), TRIGGERS_SAY],
   // Permissions: read at the top, contents: write on the one job and nothing more.
@@ -1242,13 +1237,13 @@ for (const [label, plant, says] of [
   ['gives the job read access only', s => s.replace(JOB_WRITE, '    permissions:\n      contents: read\n'), NO_WRITE],
   ['gives the job a second permission', s => s.replace(JOB_WRITE, `${JOB_WRITE}      pull-requests: write\n`), NO_WRITE],
   ['gives the job write-all', s => s.replace(JOB_WRITE, '    permissions: write-all\n'), NO_WRITE],
+  // A key the job's allow-list does not name, here a container the steps would run in.
+  ['gives the job a container', s => s.replace('    runs-on:', '    container: x\n    runs-on:'), extraKey(C, 'container')],
   // One job.
   ['adds a second job', s => `${s}  second:\n    runs-on: ubuntu-24.04\n`, ONE_JOB],
-  ['adds a promote job like the first', copyJob('promote'), ONE_JOB],
   ['drops the one job', s => s.slice(0, s.indexOf('  candidate:\n')), ONE_JOB],
   // The app token action does not come back, whether or not its output is used.
   ['brings the app token action back', s => s.replace('    steps:\n', `    steps:\n${APP_STEP}`), APP],
-  ['brings the app token action back as the only token', s => s.replace('    steps:\n', `    steps:\n${APP_STEP}`).replace('${{ github.token }}', '${{ steps.app.outputs.token }}'), HANDS],
   ['names the release app key variable', s => s.replace('          HEAD_SHA:', '          KEY: PACT_RELEASE_APP_KEY\n          HEAD_SHA:'), APP],
   // The tag step's token is the workflow's own, read once.
   ['hands the script another token', s => s.replace('${{ github.token }}', '${{ steps.app.outputs.token }}'), HANDS],

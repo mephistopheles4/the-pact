@@ -140,6 +140,8 @@ test('C16: a hooks file the record doesn\'t list is merged, not refused; one tha
   assert.deepEqual(json(h, CODEX), {});
   assert.deepEqual(Object.keys(json(h, AG)), ['mine', 'pact-guard']);
   assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
+  // With Codex out there is no hook of its to run, so no launcher for it either; GUARD_FILES holds launchers on Windows alone.
+  assert.deepEqual(guardFiles(h), GUARD_FILES.filter(f => f !== 'codex.cmd'), 'no launcher for a harness with no hook');
 });
 
 test("C12: a skill that stands for the owner's answer installs no guard, and no hook of the cleaner's meets a read tool", t => {
@@ -333,6 +335,13 @@ test('shell policy: taking Codex with no mark in the record leaves config.toml, 
   const dry = install(repo, h);
   passed(dry);
   assert.doesNotMatch(dry.stdout, /shell policy/i, dry.out);
+  passed(applyBound(repo, h));
+  assert.equal(readFileSync(at(h, POLICY), 'utf8'), text);
+  assert.ok(!('shellPolicy' in record(h)));
+  // Bad case: a record now exists, and still says nothing of the line; the next run reads that as no mark, not as a mark that was never set to false.
+  const again = install(repo, h);
+  passed(again);
+  assert.doesNotMatch(again.stdout, /shell policy/i, again.out);
   passed(applyBound(repo, h));
   assert.equal(readFileSync(at(h, POLICY), 'utf8'), text);
   assert.ok(!('shellPolicy' in record(h)));
