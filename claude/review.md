@@ -88,7 +88,7 @@ lenses to offer, and when.
   again, as you ran it before and never read again from a file, before any other
   git, and compare the last line, `<hash> whole record`, alone:
   the same means no change. On any difference, if a run fails, or if you no
-  longer hold the first output: stop there, run no git in that tree, change
+  longer hold the command or the first output: stop there, run no git in that tree, change
   nothing, count the pass inconclusive, and report to me which lines differ.
 
 ## The report template

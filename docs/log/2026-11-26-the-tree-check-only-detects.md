@@ -19,7 +19,7 @@ The command's own git listing could fetch a missing object in a partial clone, w
 
 ## Run as printed
 
-In the next end-to-end runs both Codex sessions cut the script out of `review.md` and piped it to `node`. One run failed, stopping safely; the other edited the script to make it run. The rule now says to run the command exactly as printed, and the command reads the folder from its last argument, so either form runs the same check (spec 0007 S2 item 60). A security read then closed a gap: the second run is the command as the session ran it before, never read again from a file a lens could have rewritten.
+In the next end-to-end runs both Codex sessions cut the script out of `review.md` and piped it to `node`. One run failed, stopping safely; the other edited the script to make it run. The rule now says to run the command exactly as printed, and the command reads the folder from its last argument, so either form runs the same check (spec 0007 S2 item 60). A security read then closed a gap: the second run is the command as the session ran it before, never read again from a file a lens could have rewritten, and a session that lost the command stops. The threat model now says what stays open: a lens writing as the owner can still forge the second run through a program found by name.
 
 ## Left open
 

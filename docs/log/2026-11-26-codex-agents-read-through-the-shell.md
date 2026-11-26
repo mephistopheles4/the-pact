@@ -4,7 +4,7 @@
 
 ## What changed
 
-- **One line** now opens the instructions of every Codex agent file (`gate/harness-render.mjs`): it has no `Read`, `Glob` or `Grep` tool there, searches and reads with read-only shell commands instead, and doesn't stop at reading that way.
+- **One line** now opens the instructions of every Codex agent file (`gate/harness-render.mjs`): it has no `Read`, `Glob` or `Grep` tool there, searches and reads with shell commands that only read files instead, and doesn't stop at reading that way. A security read kept `git` out: it can run programs a repo's config names.
 - In an end-to-end run the Codex `scout` had refused its job for lack of those tools. Its source also tells it to stop when a question needs a command.
 
 ## Left open

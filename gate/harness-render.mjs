@@ -23,7 +23,7 @@ const FRONT_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 const CODEX_AGENT_OFF = Object.freeze(['apps', 'plugins', 'memories', 'request_permissions_tool']);
 const READ_TOOLS = Object.freeze(['Read', 'Glob', 'Grep']);
 // A codex-toml agent reads through its shell alone, whatever tools its source names (S7).
-const SHELL_READS = 'You have no Read, Glob or Grep tool here. Where these instructions name one, search and read with read-only shell commands: reading that way is not a command to stop at.';
+const SHELL_READS = 'You have no Read, Glob or Grep tool here. Where these instructions name one, search and read with shell commands that only read files (`rg`, `ls`, `cat`, `Get-Content`), not `git`: reading that way is not a command to stop at.';
 const SKILL_POLICY = 'policy:\n  allow_implicit_invocation: false\n';
 // A table's second line, and the line between two cells of a row.
 const DELIMITER_RE = /^\|(?:\s*:?-+:?\s*\|)+\s*$/;

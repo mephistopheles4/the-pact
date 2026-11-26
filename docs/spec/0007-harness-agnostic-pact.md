@@ -248,7 +248,7 @@ round's comment on the issue lists each finding.
     tree check runs exactly as printed, and reads the folder from its last
     argument, after end-to-end sessions piped the script to `node` (S12).
 61. The same pick: a `codex-toml` agent file says to search and read with
-    read-only shell commands, after an end-to-end `scout` refused for lack of
+    shell commands that only read files, never `git`, after an end-to-end `scout` refused for lack of
     the tools its instructions name (S7).
 62. Trade-off: `docs/rule-reasons.md`'s budget rises to 1,250, on the
     owner's word-cap rule (PACT-110).
@@ -494,7 +494,8 @@ only model and effort words, never which parts or clauses a harness gets.
   string; a body holding `'''` refuses (`agent-toml`). `tools` has no field
   and is dropped. Such an agent reads through its shell alone, so its
   instructions open with one line saying it has no `Read`, `Glob` or `Grep`
-  tool, to search and read with read-only shell commands, and that reading so
+  tool, to search and read with shell commands that only read files, not
+  `git` (which can run programs a repo's config names), and that reading so
   is no command to stop at. Every agent file sets `features.apps`, `features.plugins`,
   `features.memories` and `features.request_permissions_tool` to `false`;
   S12 says what is left.
@@ -823,8 +824,8 @@ the app instead (S2 item 49).
   After the pass the session stops any process the agent left running, runs the
   same command again, as it ran it before and never read again from a file (an
   agent that can write that file would write its own check), before any other
-  git, and compares: the same last line means no change. On any difference, a failed run, or a first record it no longer
-  holds, it stops: it runs no git in that tree, changes nothing, counts the
+  git, and compares: the same last line means no change. On any difference, a failed run, or a command or first record it no
+  longer holds, it stops: it runs no git in that tree, changes nothing, counts the
   pass inconclusive and reports to the owner which lines differ. It keeps no
   copy and restores nothing.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses

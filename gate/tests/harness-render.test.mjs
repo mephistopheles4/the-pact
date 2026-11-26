@@ -47,7 +47,7 @@ const RULES = [
 const LENS = agent(['name: data-lens', 'description: Reads for leaks. Not for "style".', 'tools: [Read, Glob, Grep, WebFetch]', 'model: planning', 'effort: high'], '# data-lens\n\nRead.\n');
 const SCOUT = agent(['name: scout', 'description: Searches.', 'tools: [Read]', 'model: light', 'effort: medium'], '# scout\n');
 // The line every codex-toml agent file opens its instructions with (spec 0007 S7).
-const SHELL_READS = 'You have no Read, Glob or Grep tool here. Where these instructions name one, search and read with read-only shell commands: reading that way is not a command to stop at.';
+const SHELL_READS = 'You have no Read, Glob or Grep tool here. Where these instructions name one, search and read with shell commands that only read files (`rg`, `ls`, `cat`, `Get-Content`), not `git`: reading that way is not a command to stop at.';
 const AGENTS = new Map([['data-lens', LENS], ['scout', SCOUT]]);
 const TABLE = { Read: 'view_file', Glob: 'find_by_name', Grep: 'grep_search' };
 
@@ -133,8 +133,9 @@ test('C5: a codex-toml agent maps role and effort, drops tools, and every agent 
     `name = "data-lens"\ndescription = "Reads for leaks. Not for \\"style\\"."\nmodel = "sol"\nmodel_reasoning_effort = "high"\ndeveloper_instructions = '''\n${SHELL_READS}\n\n# data-lens\n\nRead.\n'''\n\n[features]\napps = false\nplugins = false\nmemories = false\nrequest_permissions_tool = false\n`,
   );
   const scout = file(r, 'rendered/codex/agents/scout.toml');
-  // Only a codex-toml agent reads through its shell alone.
-  for (const [out, name] of [[render([CLAUDE]), 'rendered/claude/agents/scout.md'], [render([ANTI]), 'rendered/antigravity/agents/scout.md']]) assert.doesNotMatch(file(out, name), /shell commands/);
+  // So does an agent whose source names no read tool.
+  const bare = render([CODEX], { agents: new Map([['scout', SCOUT.replace('tools: [Read]', 'tools: [WebFetch]')]]) });
+  assert.ok(file(bare, 'rendered/codex/agents/scout.toml').includes(`developer_instructions = '''\n${SHELL_READS}\n\n# scout`));
   assert.match(scout, /^model = "astra"$/m);
   assert.match(scout, /^model_reasoning_effort = "medium"$/m);
   assert.match(scout, /\n\[features\]\napps = false\nplugins = false\nmemories = false\nrequest_permissions_tool = false\n$/);
