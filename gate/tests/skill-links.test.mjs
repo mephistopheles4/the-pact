@@ -2,7 +2,7 @@
 // 0007 S7, S9): C19, and C17 and C18 as they hold for a link. Codex's known
 // description is the harness here, in a throwaway home.
 import assert from 'node:assert/strict';
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { applyBound, commitAll, home, install, makeRepo, passed, refused } from './install-harness.mjs';
@@ -52,9 +52,18 @@ test('C19: one apply links each skill and records the link; a command turned off
   passed(again);
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 
+  rmSync(at(h, `${SKILLS}/finis`), { recursive: true });
+  const gone = install(repo, h);
+  passed(gone);
+  assert.match(gone.stdout, /^ {2}link \.agents\/skills\/finis -> \.pact\/skills\/finis\r?$/m, gone.out);
+  passed(applyBound(repo, h));
+  assert.equal(kind(h, `${SKILLS}/finis`), 'link', 'a recorded link that is gone is made again');
+
   config(h, ['finis']);
   passed(applyBound(repo, h));
   assert.deepEqual([kind(h, `${SKILLS}/finis`), kind(h, `${SKILLS}/scry`)], ['link', 'absent']);
+  const manifests = readdirSync(at(h, '.pact/backups')).sort().map(b => JSON.parse(read(h, `.pact/backups/${b}/manifest.json`)));
+  assert.deepEqual(manifests.at(-1).entries.find(e => e.path === `${SKILLS}/scry`), { path: `${SKILLS}/scry`, harness: 'codex', was: 'link', target: '.pact/skills/scry' });
 
   config(h, ['finis'], []);
   passed(applyBound(repo, h));
@@ -80,6 +89,40 @@ test('C18: a skill folder the record does not list is yours and left as is; a re
   refused(r, /installed files or settings entries changed/);
   assert.match(r.stdout, /^ {2}\.agents\/skills\/finis \(the pact's skill link changed since the install\)\r?$/m, r.out);
   assert.equal(read(h, `${SKILLS}/finis/SKILL.md`), 'mine now\n');
+  // Turned off, the replaced link is still reported, and still left.
+  config(h, ['scry']);
+  const off = applyBound(repo, h);
+  refused(off, /installed files or settings entries changed/);
+  assert.match(off.stdout, /^ {2}\.agents\/skills\/finis \(the pact's skill link changed since the install\)\r?$/m, off.out);
+  assert.equal(read(h, `${SKILLS}/finis/SKILL.md`), 'mine now\n');
+});
+
+test('bad case: a record link the install may not act on is warned about and skipped, links in another shape refuse, and so does a skills folder that is a link', t => {
+  const repo = makeRepo(t);
+  const h = codexHome(t);
+  config(h, ['finis']);
+  passed(applyBound(repo, h));
+  const kept = record(h);
+  const planted = [
+    { harness: 'codex', path: `${SKILLS}/../planted`, target: '.pact/skills/planted' },
+    { harness: 'codex', path: `${SKILLS}/other`, target: '.pact/config.json' },
+  ];
+  put(h, '.pact/install.json', JSON.stringify({ ...kept, links: [...kept.links, ...planted] }));
+  const r = install(repo, h);
+  passed(r);
+  assert.match(r.stdout, /^WARN: path outside its harness's folders in the install record, skipped: \.agents\/skills\/\.\.\/planted\r?$/m, r.out);
+  assert.match(r.stdout, /^WARN: unsafe path in the install record, skipped: \.agents\/skills\/other\r?$/m, r.out);
+  assert.doesNotMatch(r.stdout, /unlink/, r.out);
+
+  put(h, '.pact/install.json', JSON.stringify({ ...kept, links: [{ harness: 'codex', path: `${SKILLS}/finis` }] }));
+  refused(install(repo, h), /links are not a list of skill links/);
+
+  const behind = codexHome(t);
+  config(behind, ['finis']);
+  mkdirSync(at(behind, '.agents/elsewhere'), { recursive: true });
+  symlinkSync(at(behind, '.agents/elsewhere'), at(behind, SKILLS), 'junction');
+  refused(install(repo, behind), /path through a link for a skill folder/);
+  assert.deepEqual(readdirSync(at(behind, '.agents/elsewhere')), []);
 });
 
 /** A repo whose one function that makes a link fails first, where `when` holds. */

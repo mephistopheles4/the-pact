@@ -183,9 +183,9 @@ round's comment on the issue lists each finding.
 
 **The lead's pick at T8, flagged:**
 
-47. The threat model's word cap rises from 3,050 to 3,750, since S15's text
-    and the release app's (the lead's pick at T6, S2 item 49) didn't fit it,
-    and no text is cut
+47. The threat model's word cap rises from 3,050 to 3,950, since S15's text,
+    the release app's (the lead's pick at T6, S2 item 49) and T4's probe
+    findings didn't fit it, and no text is cut
     (`gate/tests/threat-model-cap.test.mjs`, ADR 0173).
 48. The threat model's two charts come back, as the owner asked, and the
     word count leaves mermaid blocks out, since the charts were dropped twice
@@ -694,11 +694,16 @@ only `main` may deploy to, against "no secrets".
   `agent-identity` binds Claude Code sessions only: Codex and Antigravity
   sessions push with the owner's own Git credentials, which the docs and
   the threat model say (C27).
+- **Codex's shell environment policy.** T4's probe found that Codex 0.159.0,
+  left at its defaults, hands its shells every variable, ones named like KEY,
+  SECRET or TOKEN included. While Codex is taken, the install puts
+  `shell_environment_policy.ignore_default_excludes = false` first in
+  `~/.codex/config.toml`, which drops those names from the shells Codex starts.
+  The record marks it, a config that names the policy itself is left with a
+  warning, and a Codex taken out loses the line (C33).
 - **The poster** refuses a post holding a live secret found in its own
-  environment. T4's probe found that Codex 0.159.0, left at its defaults,
-  hands its shells every variable, ones named like KEY, SECRET or TOKEN
-  included, so the poster sees them as it would elsewhere. A Codex set to drop
-  them leaves it fewer (S15).
+  environment. In a Codex shell it can't see a variable the policy drops
+  (S15).
 - **Docs.** `docs/install.md`, `docs/agents/install.md`,
   `docs/agents/issue-tracker.md`, `docs/agents/agent-apps.md`,
   `docs/reference.md` and the README name `~/.pact`, the `npx` command and
@@ -772,6 +777,8 @@ never-sync rule names both folders.
   auto-proceed;
 - Codex's trust step: a precondition for the guard to run, not a control on
   a change to the script or the table;
+- Codex's shell environment policy (S13), which a trusted project's config or
+  a `-c` flag sets back;
 - the hook command's and the bootstrap's guard against a `node` or `git` in
   the working folder (S8, S10).
 
@@ -793,9 +800,12 @@ never-sync rule names both folders.
   write inside an ignored folder too big to hash is seen only by its status
   line. MCP servers come from the parent and run outside the sandbox, so the
   owner's option is to run Codex lenses only with the parent's network off
-  and no MCP server in its profile; T4's probe records whether Codex asks
-  before a lens's MCP call and what its sandbox holds on native Windows. This
-  widens "Review rests on rules": the owner's call, asked before T4 starts.
+  and no MCP server in its profile. T4's probe found that neither holds it
+  everywhere: an interactive session asks before a lens's MCP call unless the
+  server marks the tool read-only, `codex exec` runs at `never` and asks about
+  nothing, and on native Windows the `unelevated` sandbox with network off
+  still let a raw loopback connection through. This widens "Review rests on
+  rules": the owner's call, asked before T4 starts.
 - **Antigravity skills can't be kept from the model.** A session there may
   start `make-it-so` on its own; the skills' first line (S7) is a rule the
   model keeps, not a control. After `scry`,
@@ -808,16 +818,23 @@ never-sync rule names both folders.
   leaves the default install list (`defaultInstall: false`) until a probed
   hook holds; it stays detected, and the owner can still name it in the
   list.
-- **The poster in Codex** sees fewer environment secrets only where Codex is
-  set to drop them (S13): T4's probe found its shells keep them by default,
-  where they are in any command's reach too. It is a control that works
+- **The poster in Codex** doesn't refuse a post holding a secret the shell
+  policy drops, since it can't see it (S13). It is a control that works
   without the session's cooperation, so its weakening is the owner's call.
+- **Secrets in Codex's environment.** A secret under a name without KEY,
+  SECRET or TOKEN, such as `DB_PASSWORD` or `GITHUB_PAT`, reaches every
+  command, hooks see every variable, and a config that sets its own policy is
+  left as it is (S13).
 - **Project installs** tighten a repo in Claude Code alone (S13).
 - **An old copy** left behind loads beside the new pact until a person
   removes it; S14's dry run catches only a rules file.
 - **Guards are speed bumps,** as the deny rules are today: another spelling
   gets past them, and in Codex so does text typed into a running shell, which
-  runs no hook (T4's probe).
+  runs no hook (T4's probe). `features.unified_exec_tty=false` closes that in
+  Codex, at the cost of every interactive terminal session and an edit inside
+  the owner's `[features]`; the install doesn't set it.
+- **A lens's leftover process** in Codex outlives the lens, so it can write
+  after the tree check (T4's probe).
 
 **The class and the scope.** "What you install and CI run" widens to name the
 bootstrap and the release app's key, and "Merges and installs" names
@@ -928,6 +945,10 @@ model must stay within its word budget.
   left as is. A harness dropped from the list has its recorded files removed.
 - **C19** A link is a junction on Windows and a symlink elsewhere, falling
   back to a copy with a dry-run line; only recorded links are removed.
+- **C33** While Codex is taken, one apply puts S13's shell policy line first in
+  `.codex/config.toml`, backs the file up and records it; a config that names
+  the policy itself is warned about and left; a recorded line changed or moved
+  under a table is drift; a Codex taken out loses only that line.
 - **C20** The cloud generator's output changes only in the `~/.pact` paths.
 - **C31** After an apply with an empty install list, `install.json` lists
   nothing and every recorded target is gone; `docs/install.md`'s rollback
@@ -1008,7 +1029,7 @@ stay; nothing runs them unless someone types the bootstrap command.
    updated for S7's command changes only; a dated log. Depends on T1.
 3. **T3: the rule table and the shared guard.** S8; C11–C16. Depends on T1.
 4. **T4: Codex.** Its description, agents, skills and guard wrapper; C5, C9,
-   C12–C15, C17 and C18 as they hold in Codex; a probe session on the
+   C12–C15, C17 and C18 as they hold in Codex, C19 and C33; a probe session on the
    installed Codex that confirms the deny shape, the trust step, the exact
    hook command, the environment the poster sees, whether Codex asks before
    a lens's MCP call, and what its sandbox holds on native Windows, in its
@@ -1051,9 +1072,11 @@ reads this spec and each ticket's diff.
 | Widening "Review rests on rules" for Codex lenses, and the network-off option (S15) | the owner's call; on a no, S12's fallback | before T4 starts |
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
-| The threat-model cap at 3,750 (S2 item 47) | the lead's flagged pick, for review | any time |
+| The threat-model cap at 3,950 (S2 item 47) | the lead's flagged pick, for review | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
-| The poster's narrower coverage in Codex (S13); T4's probe found none at Codex's defaults | the owner's call | at T4's probe |
+| The poster's narrower coverage in Codex, which the install's shell policy makes (S13) | the owner's call | at T4's probe |
+| Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |
+| Codex lenses' approval and network-off limits, and leftover processes (S15) | the owner's call, security | with the lenses widening |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
 | The tag ruleset on every tag | the owner's own act | before T6 merges |
 | `PACT_RELEASES` set to `on` | the owner's own act | in T9 |
