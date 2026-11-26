@@ -29,7 +29,8 @@
     "agents": { "dir": "~/.gemini/config/agents", "format": "antigravity-md" },
     "skills": { "dir": "~/.gemini/config/skills" },
     "hooks": { "file": "~/.gemini/config/hooks.json", "format": "antigravity" },
-    "models": { "planning": "pro", "executor": "flash", "light": "flash" },
+    "models": { "planning": "gemini-4-neon-<effort>", "executor": "gemini-4-hydrogen-<effort>", "light": "flash" },
+    "agentModels": { "*": "flash", "adversarial-lens": "pro", "data-lens": "pro" },
     "capabilities": ["subagents", "tool-limits", "hook-ask", "explicit-skills", "skill-copies"]
   }
 ]

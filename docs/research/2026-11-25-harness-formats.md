@@ -173,6 +173,14 @@ From the repo at `374670e`:
   lens cannot pick Claude. A misspelled name in `tools` "may cause the
   subagent process to hang". [subagents][ag-subagents],
   [build plugins][ag-build]
+- **Tiers, seen.** On agy 1.5.17, with the session on `gemini-4-neon-low`, a
+  `flash` subagent ran `gemini-4-hydrogen-tiered-high`, a `pro` one
+  `gemini-4-hydrogen-tiered-xhigh` and a `flash_lite` one
+  `gemini-3.5-flash-lite` (live probes, 2026-11-26, PACT-105). No tier reached
+  Carbon. Which model a tier runs depends on the release and the sign-in. `agy
+  models` lists the slugs; Neon and Hydrogen each take `low`, `medium`, `high`
+  and `xhigh`. The pact names Neon for planning and Hydrogen for building, and
+  puts lenses on `flash`, the security pair on `pro`.
 - **Swarm** (preview). A coordinator, named workers, a verifier per two to
   four workers and a monitor, on a shared board. A verifier on another model
   is asked for in the prompt; no config field sets it. [swarm][ag-swarm]

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-nOX+hu6XZqm2y4WBDdCgdg6IoOjUI5GQvC4tvwFlcMI='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-JanvXbvJDHWWHva7TPKIUFL3PvmflqAOdN0He4OjMhw='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -3467,9 +3467,14 @@ const PACT = /* pact-data:begin */ {
      "format": "antigravity"
     },
     "models": {
-     "planning": "pro",
-     "executor": "flash",
+     "planning": "gemini-4-neon-\u003ceffort>",
+     "executor": "gemini-4-hydrogen-\u003ceffort>",
      "light": "flash"
+    },
+    "agentModels": {
+     "*": "flash",
+     "adversarial-lens": "pro",
+     "data-lens": "pro"
     },
     "capabilities": [
      "subagents",
@@ -6255,7 +6260,9 @@ const PARTS = Object.freeze({
   commands: { path: 'dir', more: [] },
   hooks: { path: 'file', more: ['format'], formats: HOOK_FORMATS, ext: '.json' },
 });
-const FIELDS = Object.freeze(['id', 'name', 'detect', ...Object.keys(PARTS), 'models', 'defaultInstall', 'capabilities']);
+const FIELDS = Object.freeze(['id', 'name', 'detect', ...Object.keys(PARTS), 'models', 'agentModels', 'defaultInstall', 'capabilities']);
+// An agent's name in agentModels; `*` stands for every agent the entry doesn't name.
+const AGENT_KEY_RE = /^(?:\*|[a-z][a-z0-9-]{0,63})$/;
 
 const refuse = (rule, why) => {
   throw new Refusal(rule, why);
@@ -6332,6 +6339,12 @@ function checkFields(entry, id, ctx) {
     if (!ok) refuse('harness-shape', `${shown} models is not planning, executor and an optional light, each one word.`);
     out.models = { planning: m.planning, executor: m.executor, light: m.light ?? null };
   }
+  if (Object.hasOwn(entry, 'agentModels')) {
+    const a = entry.agentModels;
+    const ok = isObject(a) && Object.entries(a).every(([k, v]) => AGENT_KEY_RE.test(k) && typeof v === 'string' && MODEL_RE.test(v));
+    if (!ok) refuse('harness-shape', `${shown} agentModels is not an agent name or * for each model, each one word.`);
+    out.agentModels = { ...a };
+  }
   if (Object.hasOwn(entry, 'defaultInstall')) {
     if (typeof entry.defaultInstall !== 'boolean') refuse('harness-shape', `${shown} defaultInstall is not true or false.`);
     out.defaultInstall = entry.defaultInstall;
@@ -6344,7 +6357,7 @@ function checkFields(entry, id, ctx) {
   return out;
 }
 
-const EMPTY = Object.freeze({ rules: null, agents: null, skills: null, commands: null, hooks: null, models: null, defaultInstall: true, capabilities: [] });
+const EMPTY = Object.freeze({ rules: null, agents: null, skills: null, commands: null, hooks: null, models: null, agentModels: null, defaultInstall: true, capabilities: [] });
 
 /** The commit's known.json as a list of raw entries; a file the install cannot read refuses. */
 function parseKnown(text) {
@@ -6406,6 +6419,8 @@ function resolveHarnesses({ known, own = [], home, platform, inWorkTree }) {
     if (!entry) return described;
     mine.delete(base.id);
     const given = checkFields(entry, base.id, { home, platform, inWorkTree });
+    // A person’s own models reach the agents too, unless their entry names a model per agent.
+    if (given.models && !given.agentModels) described.agentModels = null;
     return { ...described, ...given, id: base.id, overrides: Object.keys(given) };
   });
   for (const [id, entry] of mine) {
@@ -6460,6 +6475,8 @@ const FRONT_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 const CODEX_AGENT_OFF = Object.freeze(['apps', 'plugins', 'memories', 'request_permissions_tool']);
 const READ_TOOLS = Object.freeze(['Read', 'Glob', 'Grep']);
 const SKILL_POLICY = 'policy:\n  allow_implicit_invocation: false\n';
+// A model name holding this takes its effort from the tier table.
+const EFFORT = '<effort>';
 
 const refuse = (rule, why) => {
   throw new Refusal(rule, why);
@@ -6494,7 +6511,7 @@ function modelFor(value, models) {
 
 function rulesFor(rules, h) {
   const m = h.models;
-  const line = m ? `Here the planning model is \`${m.planning}\`, the executor model \`${m.executor}\` and the light model \`${m.light ?? m.executor}\`.` : null;
+  const line = m && `Here the planning model is \`${m.planning}\`, the executor model \`${m.executor}\` and the light model \`${m.light ?? m.executor}\`.${Object.values(m).some(v => v?.includes(EFFORT)) ? ` For \`${EFFORT}\`, take the effort the tier table gives.` : ''}`;
   return blocksFor(rules, h, 'the rules file')
     .split('\n')
     .flatMap(l => (MODELS_RE.test(l) ? (line ? ['', line] : []) : [l]))
@@ -6546,7 +6563,9 @@ function antigravityAgent(name, text, model, table, warn) {
 function agentFor(name, text, h, tables, warn) {
   const { values } = frontmatter(text, `the agent ${name}`);
   const asked = values.get('model');
-  const model = asked === undefined ? null : modelFor(asked, h.models);
+  // The harness's own model for this agent, over the one its role names; a model the source names stays.
+  const own = ROLES.includes(asked) && h.agentModels ? (Object.hasOwn(h.agentModels, name) ? h.agentModels[name] : h.agentModels['*']) : undefined;
+  const model = own ?? (asked === undefined ? null : modelFor(asked, h.models));
   const { format } = h.agents;
   if (format === 'codex-toml') return [`${name}.toml`, codexAgent(name, text, model), model];
   if (format === 'antigravity-md') return [`${name}.md`, antigravityAgent(name, text, model, tables[format], warn), model];
@@ -6587,7 +6606,7 @@ function renderHarnesses({ rules, agents, commands, harnesses, tables = TOOL_TAB
     };
     if (!h.models) warn('it names no models, so its rules hold no models line and its agents no model');
     // A configured name can hold a provider account or project, so it is never printed here.
-    else if (h.own || h.overrides.includes('models')) warn('its rules hold your configuration’s model names as written; sessions read that file and may quote it.');
+    else if (h.own || h.overrides.includes('models') || h.overrides.includes('agentModels')) warn('its rules hold your configuration’s model names as written; sessions read that file and may quote it.');
 
     const text = rulesFor(rules, h);
     const size = Buffer.byteLength(text);

@@ -26,7 +26,9 @@ const PARTS = Object.freeze({
   commands: { path: 'dir', more: [] },
   hooks: { path: 'file', more: ['format'], formats: HOOK_FORMATS, ext: '.json' },
 });
-const FIELDS = Object.freeze(['id', 'name', 'detect', ...Object.keys(PARTS), 'models', 'defaultInstall', 'capabilities']);
+const FIELDS = Object.freeze(['id', 'name', 'detect', ...Object.keys(PARTS), 'models', 'agentModels', 'defaultInstall', 'capabilities']);
+// An agent's name in agentModels; `*` stands for every agent the entry doesn't name.
+const AGENT_KEY_RE = /^(?:\*|[a-z][a-z0-9-]{0,63})$/;
 
 const refuse = (rule, why) => {
   throw new Refusal(rule, why);
@@ -103,6 +105,12 @@ function checkFields(entry, id, ctx) {
     if (!ok) refuse('harness-shape', `${shown} models is not planning, executor and an optional light, each one word.`);
     out.models = { planning: m.planning, executor: m.executor, light: m.light ?? null };
   }
+  if (Object.hasOwn(entry, 'agentModels')) {
+    const a = entry.agentModels;
+    const ok = isObject(a) && Object.entries(a).every(([k, v]) => AGENT_KEY_RE.test(k) && typeof v === 'string' && MODEL_RE.test(v));
+    if (!ok) refuse('harness-shape', `${shown} agentModels is not an agent name or * for each model, each one word.`);
+    out.agentModels = { ...a };
+  }
   if (Object.hasOwn(entry, 'defaultInstall')) {
     if (typeof entry.defaultInstall !== 'boolean') refuse('harness-shape', `${shown} defaultInstall is not true or false.`);
     out.defaultInstall = entry.defaultInstall;
@@ -115,7 +123,7 @@ function checkFields(entry, id, ctx) {
   return out;
 }
 
-const EMPTY = Object.freeze({ rules: null, agents: null, skills: null, commands: null, hooks: null, models: null, defaultInstall: true, capabilities: [] });
+const EMPTY = Object.freeze({ rules: null, agents: null, skills: null, commands: null, hooks: null, models: null, agentModels: null, defaultInstall: true, capabilities: [] });
 
 /** The commit's known.json as a list of raw entries; a file the install cannot read refuses. */
 export function parseKnown(text) {
@@ -177,6 +185,8 @@ export function resolveHarnesses({ known, own = [], home, platform, inWorkTree }
     if (!entry) return described;
     mine.delete(base.id);
     const given = checkFields(entry, base.id, { home, platform, inWorkTree });
+    // A person’s own models reach the agents too, unless their entry names a model per agent.
+    if (given.models && !given.agentModels) described.agentModels = null;
     return { ...described, ...given, id: base.id, overrides: Object.keys(given) };
   });
   for (const [id, entry] of mine) {

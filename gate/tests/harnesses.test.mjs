@@ -45,7 +45,10 @@ test('known.json describes claude, codex and antigravity as spec 0007 S5 tables 
   assert.equal(codex.commands, null);
   const anti = byId(list, 'antigravity');
   assert.deepEqual([anti.detect, anti.rules, anti.agents, anti.skills, anti.hooks], ['.gemini/config', { path: '.gemini/AGENTS.md', cap: 24000, sharedCap: null }, { dir: '.gemini/config/agents', format: 'antigravity-md' }, { dir: '.gemini/config/skills' }, { file: '.gemini/config/hooks.json', format: 'antigravity' }]);
-  assert.deepEqual(anti.models, { planning: 'pro', executor: 'flash', light: 'flash' });
+  assert.deepEqual(anti.models, { planning: 'gemini-4-neon-<effort>', executor: 'gemini-4-hydrogen-<effort>', light: 'flash' });
+  // Every lens and scout on flash, the security pair on pro; the other harnesses follow their roles.
+  assert.deepEqual(anti.agentModels, { '*': 'flash', 'adversarial-lens': 'pro', 'data-lens': 'pro' });
+  assert.deepEqual([claude.agentModels, codex.agentModels], [null, null]);
   assert.deepEqual(anti.capabilities, ['subagents', 'tool-limits', 'hook-ask', 'explicit-skills', 'skill-copies']);
 });
 
@@ -55,6 +58,15 @@ test('an own harness is described from the pact\'s formats, its paths turned hom
   assert.deepEqual(mine.rules, { path: '.mine/RULES.md', cap: 100, sharedCap: null });
   assert.deepEqual(mine.agents, { dir: '.mine/agents', format: 'claude-md' });
   assert.equal(mine.hooks, null);
+});
+
+test('an own entry’s models reach its agents too, unless it names a model per agent; a bad per-agent entry refuses', () => {
+  const models = { planning: 'p', executor: 'e' };
+  const anti = entry => byId(resolve([{ id: 'antigravity', ...entry }]), 'antigravity');
+  assert.equal(anti({ models }).agentModels, null);
+  assert.deepEqual(anti({ models, agentModels: { scout: 's' } }).agentModels, { scout: 's' });
+  assert.deepEqual(anti({ agentModels: { '*': 'a' } }).agentModels, { '*': 'a' });
+  for (const bad of [{ scout: 'two words' }, { 'no such name!': 'a' }, ['a']]) assert.throws(() => anti({ agentModels: bad }), e => e.rule === 'harness-shape');
 });
 
 test('an own entry with a known id overrides it field by field and names each field', () => {

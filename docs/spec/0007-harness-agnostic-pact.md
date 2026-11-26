@@ -234,6 +234,14 @@ round's comment on the issue lists each finding.
     uncommitted work can't be put back for you automatically." The owner:
     "Yes, please. That sounds good." It replaces the copies and the restore of
     items 38, 44 and 53 (S12).
+57. The owner's pick, relayed by the lead (its decision 135): Antigravity's
+    planning model is Gemini 4 Neon and its executor model Gemini 4 Hydrogen,
+    each a slug that takes its effort from the tier table; every lens and
+    `scout` runs on `flash` and the security pair on `pro`. A per-agent entry,
+    `agentModels`, carries it (the session's pick, flagged). Never Carbon.
+58. The lead's pick, flagged for the owner (its decision 139): a per-harness
+    tier effort, and the page setting each harness's agent models and efforts,
+    move to a ticket of their own, merged before this work's pull request.
 
 ## S3 Terms
 
@@ -319,7 +327,10 @@ configuration. Each has:
 - `hooks`: `{ "file", "format" }`, format one of `claude`, `codex`,
   `antigravity` (S8); or absent.
 - `models`: `{ "planning", "executor", "light" }`, each a model name the
-  harness takes, `light` optional.
+  harness takes, `light` optional. A name holding `<effort>` takes its effort
+  from the tier table.
+- `agentModels`: a model per agent, by its name, with `*` for every agent it
+  doesn't name; optional.
 - `defaultInstall`: `false` keeps a detected harness out of a missing
   install list; optional, `true` when absent.
 - `capabilities`: a list from `subagents`, `tool-limits`, `cleaner`,
@@ -340,7 +351,8 @@ The known descriptions:
 | `skills` | none | `~/.agents/skills` | `~/.gemini/config/skills` |
 | `commands` | `~/.claude/commands` | none | none |
 | `hooks` | `~/.claude/settings.json`, `claude` | `~/.codex/hooks.json`, `codex` | `~/.gemini/config/hooks.json`, `antigravity` |
-| `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-sol`, none | `pro`, `flash`, `flash` |
+| `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-sol`, none | `gemini-4-neon-<effort>`, `gemini-4-hydrogen-<effort>`, `flash` |
+| `agentModels` | none | none | `*`: `flash`; `adversarial-lens` and `data-lens`: `pro` |
 | `capabilities` | `subagents`, `tool-limits`, `cleaner`, `archive`, `native-rules` | `subagents`, `hook-trust`, `explicit-skills` | `subagents`, `tool-limits`, `hook-ask`, `explicit-skills`, `skill-copies` |
 
 - **Detection.** The dry run lists each known harness whose `detect` folder
@@ -358,7 +370,9 @@ The known descriptions:
   Nothing else is checked. The dry run prints, for each own harness with `hooks`: "guards
   unverified for `<name>`: the pact has not seen this harness run its hook".
 - **A known harness's fields** may be overridden by an own entry of the same
-  id, field by field, under the same checks, with a `WARN` naming each.
+  id, field by field, under the same checks, with a `WARN` naming each. An
+  entry that sets `models` and no `agentModels` drops the known `agentModels`,
+  so the person's models reach the agents too.
 
 ## S6 Models: roles and mapping
 
@@ -374,13 +388,16 @@ The known descriptions:
 - **The models line.** Each rendered rules file gets one line after the
   tiers part, whatever block fills that part: "Here the planning model is
   `<planning>`, the executor model `<executor>` and the light model `<light>`." A
-  configuration that replaces the tiers block can't drop it (C29). Where the
+  configuration that replaces the tiers block can't drop it (C29). Where a name
+  holds `<effort>`, the line goes on: "For `<effort>`, take the effort the tier
+  table gives." Where the
   names come from the configuration, the dry run warns, without naming them,
   that the rules hold them as written and sessions may quote them.
 - **Agent files name roles.** Each source agent's `model:` is `planning`,
   `executor` or `light`: every lens `planning`, scout `light`. The renderer
   writes the harness's model in its place. `light` with no light model
-  writes the executor model.
+  writes the executor model. A harness's `agentModels` entry for the agent wins
+  over its role's model; a model the source names outright stays.
 - **A person's own names still work.** A configuration block, an agent
   setting or a builder table cell that names a model, such as "Opus", renders
   as written, in every harness. The dry run warns for each harness that isn't
@@ -761,8 +778,10 @@ the app instead (S2 item 49).
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
   (S15), T4 removes `subagents` from Codex's known description, so Codex
   gets the no-subagents line and each lens runs in a separate session.
-- **Antigravity lenses** run on Gemini tiers only; the planning model there is
-  `pro`. Their agent files list their tools (S7); each also gets
+- **Antigravity lenses** run on Gemini tiers only: `pro` for the security
+  pair and `flash` for every other lens and `scout` (`agentModels`, S5), while
+  the session's own planning and executor models are named slugs. Which model a
+  tier runs depends on the release and the sign-in. Their agent files list their tools (S7); each also gets
   `manage_task` and `send_message`, and the guard's hook runs on a lens's
   calls too. A lens's `manage_task` was refused a program the session had left
   running (T5's probe).

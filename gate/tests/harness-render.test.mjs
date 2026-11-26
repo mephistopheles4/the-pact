@@ -132,6 +132,19 @@ test('C5: an antigravity-md agent maps its tools, drops effort, and warns on eac
   assert.match(r.warnings.join('\n'), /^antigravity: data-lens loses the tool WebFetch/m);
 });
 
+test('C5: a harness’s own model for an agent wins over the one its role names, in that harness alone, and a model the source names stays', () => {
+  const own = { ...ANTI, models: { planning: 'neon-<effort>', executor: 'hydrogen-<effort>', light: 'flash' }, agentModels: { '*': 'flash', 'data-lens': 'pro' } };
+  const r = render([own, CODEX]);
+  assert.match(file(r, 'rendered/antigravity/agents/data-lens.md'), /^model: pro$/m);
+  assert.match(file(r, 'rendered/antigravity/agents/scout.md'), /^model: flash$/m);
+  assert.match(file(r, 'rendered/codex/agents/data-lens.toml'), /^model = "sol"$/m);
+  // A model with <effort> in it tells the session where the effort comes from.
+  assert.match(file(r, 'rendered/antigravity/rules.md'), /the planning model is `neon-<effort>`, the executor model `hydrogen-<effort>` and the light model `flash`\. For `<effort>`, take the effort the tier table gives\.$/m);
+  assert.doesNotMatch(file(r, 'rendered/codex/rules.md'), /<effort>/);
+  const named = render([own], { agents: new Map([['scout', SCOUT.replace('model: light', 'model: my-model')]]) });
+  assert.match(file(named, 'rendered/antigravity/agents/scout.md'), /^model: my-model$/m);
+});
+
 test('C5: an antigravity agent whose tools come out empty or lose a read tool refuses', () => {
   const only = table => render([ANTI], { tables: { 'antigravity-md': table } });
   refuses(() => only({ Bash: 'run_command' }), 'agent-tools');

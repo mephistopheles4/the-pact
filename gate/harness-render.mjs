@@ -23,6 +23,8 @@ const FRONT_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 const CODEX_AGENT_OFF = Object.freeze(['apps', 'plugins', 'memories', 'request_permissions_tool']);
 const READ_TOOLS = Object.freeze(['Read', 'Glob', 'Grep']);
 const SKILL_POLICY = 'policy:\n  allow_implicit_invocation: false\n';
+// A model name holding this takes its effort from the tier table.
+const EFFORT = '<effort>';
 
 const refuse = (rule, why) => {
   throw new Refusal(rule, why);
@@ -57,7 +59,7 @@ function modelFor(value, models) {
 
 function rulesFor(rules, h) {
   const m = h.models;
-  const line = m ? `Here the planning model is \`${m.planning}\`, the executor model \`${m.executor}\` and the light model \`${m.light ?? m.executor}\`.` : null;
+  const line = m && `Here the planning model is \`${m.planning}\`, the executor model \`${m.executor}\` and the light model \`${m.light ?? m.executor}\`.${Object.values(m).some(v => v?.includes(EFFORT)) ? ` For \`${EFFORT}\`, take the effort the tier table gives.` : ''}`;
   return blocksFor(rules, h, 'the rules file')
     .split('\n')
     .flatMap(l => (MODELS_RE.test(l) ? (line ? ['', line] : []) : [l]))
@@ -109,7 +111,9 @@ function antigravityAgent(name, text, model, table, warn) {
 function agentFor(name, text, h, tables, warn) {
   const { values } = frontmatter(text, `the agent ${name}`);
   const asked = values.get('model');
-  const model = asked === undefined ? null : modelFor(asked, h.models);
+  // The harness's own model for this agent, over the one its role names; a model the source names stays.
+  const own = ROLES.includes(asked) && h.agentModels ? (Object.hasOwn(h.agentModels, name) ? h.agentModels[name] : h.agentModels['*']) : undefined;
+  const model = own ?? (asked === undefined ? null : modelFor(asked, h.models));
   const { format } = h.agents;
   if (format === 'codex-toml') return [`${name}.toml`, codexAgent(name, text, model), model];
   if (format === 'antigravity-md') return [`${name}.md`, antigravityAgent(name, text, model, tables[format], warn), model];
@@ -150,7 +154,7 @@ export function renderHarnesses({ rules, agents, commands, harnesses, tables = T
     };
     if (!h.models) warn('it names no models, so its rules hold no models line and its agents no model');
     // A configured name can hold a provider account or project, so it is never printed here.
-    else if (h.own || h.overrides.includes('models')) warn('its rules hold your configuration’s model names as written; sessions read that file and may quote it.');
+    else if (h.own || h.overrides.includes('models') || h.overrides.includes('agentModels')) warn('its rules hold your configuration’s model names as written; sessions read that file and may quote it.');
 
     const text = rulesFor(rules, h);
     const size = Buffer.byteLength(text);
