@@ -81,7 +81,7 @@ test('bootstrap: refuses when no release tag exists, and writes nothing', async 
 test('bootstrap: runs the clone\'s install by its full path as a dry run, never with --apply, from the home folder', async t => {
   const r = remote(t);
   const sha = r.release('v1.1.0');
-  // The install refuses to run with NODE_OPTIONS set, so the bootstrap hands it none.
+  // The bootstrap hands the install no NODE_OPTIONS.
   const got = await run(t, r.url, { env: { ...process.env, NODE_OPTIONS: '--no-warnings' } });
   assert.equal(got.ran.nodeOptions, null);
   assert.deepEqual(got.ran.argv, [join(source(got.home), sha, 'gate', 'install.mjs'), '--release', 'v1.1.0', '--home', got.home]);

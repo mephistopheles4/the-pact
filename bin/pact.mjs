@@ -48,8 +48,7 @@ function parseArgs(argv) {
 /**
  * The environment git and the install run with: this one, with PATH cut to its
  * full entries outside any node_modules folder (npx puts the running folder's
- * node_modules/.bin first), no GIT_ variable, and no NODE_OPTIONS, which the
- * install refuses to run with.
+ * node_modules/.bin first), no GIT_ variable, and no NODE_OPTIONS.
  */
 function childEnv(env) {
   const out = {};
@@ -102,7 +101,7 @@ function readList(file) {
 /** The release's clone under the home folder, made if it is missing, with its head checked, and older clones of its own deleted. */
 function cloneRelease(git, home, url, { tag, commit }) {
   const source = join(home, '.pact', 'source');
-  mkdirSync(source, { recursive: true, mode: 0o700 });
+  mkdirSync(source, { recursive: true });
   const dest = join(source, commit);
   const headIs = dir => {
     const r = git(['--git-dir', join(dir, '.git'), 'rev-parse', '--verify', 'HEAD']);

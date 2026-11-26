@@ -525,7 +525,7 @@ export function recordText({ commit, release = null, digest, harnesses, userHash
  * The gate block (S6, G11): every gate file but the tests, against the
  * record's.
  */
-export function gateBlock(gateNow, recordGate, selfDiffers) {
+export function gateBlock(gateNow, recordGate) {
   const then = new Map(recordGate);
   let lines;
   if (!then.size) lines = ['Gate: no gate recorded at the last install'];
@@ -543,7 +543,6 @@ export function gateBlock(gateNow, recordGate, selfDiffers) {
     const changes = [...order.filter(Boolean), ...removed.map(k => `  removed ${formatPlain(k)}`)];
     lines = changes.length ? ['Gate: CHANGED since the last install', ...changes] : ['Gate: unchanged since the last install'];
   }
-  if (selfDiffers) lines.push('WARN: this install script differs from the committed copy; --apply will refuse.');
   return lines;
 }
 
@@ -2580,9 +2579,8 @@ export function checkBinding(opts, rulesHash, commit) {
 }
 
 /** --apply's own refusals (S6, X1), in order. */
-export function checkApply({ configApplies, hashGiven, selfDiffers, drift, dirty, settingsObject, unrecorded = [] }) {
+export function checkApply({ configApplies, hashGiven, drift, dirty, settingsObject, unrecorded = [] }) {
   if (configApplies && !hashGiven) refuse('apply-needs-hash', 'a configuration applies, so --apply needs the full rendered hash the dry run showed, given with --rendered-hash.');
-  if (selfDiffers) refuse('apply-self-differs', 'this install script differs from the committed copy.');
   if (drift) refuse('apply-drift', 'installed files or settings entries changed since the last install. Whether to keep or replace those edits is the owner\'s decision; docs/install.md says how.');
   if (unrecorded.length) refuse('unrecorded-target', `${unrecorded.map(formatPlain).join(', ')} already exists and the install record does not list it. The pact owns the whole rules file: move your own text into your configuration and the file out of the way. After an install from before ~/.pact, follow the one-time removal in docs/install.md.`);
   if (dirty) refuse('apply-dirty', 'the working tree is not clean.');
@@ -2593,12 +2591,9 @@ const REVIEW_LEFT = 'The review folder may hold what the review module wrote; no
 
 /** The runner's own refusals, each with its rule id, for what it finds on disk or in its own process. */
 export const stops = Object.freeze({
-  preload: () => refuse('run-preload', 'NODE_OPTIONS is set, or the runner was started with an option; start the install with node gate/install.mjs.'),
   runArgs: () => refuse('run-args', 'the install runner was not started by the install bootstrap: run node gate/install.mjs.'),
-  stageUnreadable: () => refuse('stage-unreadable', 'the stage could not be read.'),
   reachableMissing: () => refuse('reachable-missing', "the install bootstrap wrote no list of this commit's history; run node gate/install.mjs from a clean checkout."),
   configLink: () => refuse('config-link', 'the user configuration file, or the .pact folder that holds it, is a link or other reparse point.'),
-  configChanged: () => refuse('config-changed', 'the user configuration changed while the install ran; run the install again.'),
   homeWorkTree: () => refuse('home-work-tree', '--home is inside a git work tree; give a folder outside any repository.'),
   harnessKnownMissing: () => refuse('harness-known', 'the commit holds no harnesses/known.json.'),
   blocksLink: () => refuse('blocks-link', 'the configuration blocks folder is a link or other reparse point.'),
@@ -2607,11 +2602,6 @@ export const stops = Object.freeze({
   moduleMissing: name => refuse('module-missing', `the commit's ${name} could not be loaded.`),
   rulesMissing: () => refuse('rules-missing', `the commit holds no ${RULES_REL}.`),
   rulesSourceInTree: () => refuse('rules-source-in-tree', `the commit holds ${KIT_RULES_REL}, a file only the install makes, from ${RULES_REL}.`),
-  rulesSourceHash: () => refuse('rules-source-hash', `the copy of ${RULES_REL} made for the builder kit does not match the commit's.`),
-  renderChangedStage: () => refuse('render-changed-stage', 'the renderer changed the stage.'),
-  stageChanged: rel => refuse('stage-changed', `the staged copy of ${formatPlain(rel)} changed after the check.`),
-  reviewRulesChanged: () => refuse('review-rules-changed', 'the staged rules file changed after the check.'),
-  reviewChangedStage: () => refuse('review-changed-stage', 'the review module changed the stage.', REVIEW_LEFT),
   reviewFailed: () => refuse('review-failed', 'the review output was not written, or not as this run rendered it.', REVIEW_LEFT),
   hooksNotObject: rel => refuse('hooks-not-object', `${formatPlain(rel)} is not a strict JSON object, so the pact's guard hook cannot be merged into it; fix the file first.`),
   hooksPath: (rel, why) => refuse('hooks-path', `${why} for a hooks file: ${formatPlain(rel)}.`),
@@ -2717,9 +2707,7 @@ export function pruneLines({ pruned, later, others, failed }) {
 export const backupStops = Object.freeze({
   link: rel => refuse('backup-link', `${formatPlain(rel)}, on the backup's path, is a link, another reparse point or not what the backup expects; move it out of the way, then run the install again.`),
   stagingLeft: n => refuse('backup-staging-left', `${BACKUPS_REL} holds ${n} staging folder(s) an earlier apply left; each may hold a copy of your settings. Check and delete them, then run the install again.`),
-  nameTaken: () => refuse('backup-name-taken', `no free backup name is left in ${BACKUPS_REL} for this millisecond, or the name was taken while the install ran; run the install again.`),
-  changed: rel => refuse('backup-changed', `${formatPlain(rel)} changed while the install ran; run the install again.`),
-  mode: () => refuse('backup-mode', 'a backup file or folder can be read by other accounts on this machine; check the umask and the file system the home folder sits on, then run the install again.'),
+  nameTaken: () => refuse('backup-name-taken', `no free backup name is left in ${BACKUPS_REL} for this millisecond; run the install again.`),
   failed: () => refuse('backup-failed', 'the backup of the files this install replaces could not be written in full; check free space and that you can write to .pact/backups, then run the install again.'),
   cleanup: stagingRel => refuse('backup-cleanup', 'the backup failed, and what it wrote could not be removed.', `${stagingRel} may hold a copy of your settings: check it and delete it, then run the install again.`),
 });
@@ -2730,11 +2718,11 @@ export function checkReviewLines(report, rulesHash, diffHash) {
   if (report.failed || lines.length !== 2 || lines[1] !== 'RESULT: pass' || lines[0] !== `REVIEW ${rulesHash} ${diffHash}`) stops.reviewFailed();
 }
 
-/** The runner's own command line from the bootstrap: work folder, commit, dirty count, self-differs, then the words as typed. */
+/** The runner's own command line from the bootstrap: work folder, commit, dirty count, then the words as typed. */
 export function parseRunnerArgs(argv) {
-  const [work, commit, dirty, self, sep] = argv;
-  if (argv.length < 5 || sep !== '--' || !/^[0-9a-f]{40}$/.test(commit) || !/^(0|[1-9][0-9]{0,8})$/.test(dirty) || !/^(yes|no)$/.test(self)) stops.runArgs();
-  return { work, commit, dirty: Number(dirty), selfDiffers: self === 'yes', words: argv.slice(5) };
+  const [work, commit, dirty, sep] = argv;
+  if (argv.length < 4 || sep !== '--' || !/^[0-9a-f]{40}$/.test(commit) || !/^(0|[1-9][0-9]{0,8})$/.test(dirty)) stops.runArgs();
+  return { work, commit, dirty: Number(dirty), words: argv.slice(4) };
 }
 
 /** The runner's work folder (S3): directly in the temp folder, named pact-install-*, holding the runner's own stage. */

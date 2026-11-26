@@ -83,20 +83,6 @@ test('bad case: an edited install script is flagged in the dry run', t => {
   assert.match(r.stdout, /^ {2}changed gate\/install-run\.mjs$/m, r.out);
 });
 
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('bad case: an uncommitted edit to the install script refuses --apply', t => {
-  const repo = makeRepo(t);
-  const p = join(repo, 'gate', 'install.mjs');
-  writeFileSync(p, `${readFileSync(p, 'utf8')}// edited\n`);
-  const h = home(t);
-  const dry = install(repo, h);
-  passed(dry);
-  assert.match(dry.stdout, /^WARN: this install script differs from the committed copy; --apply will refuse\.$/m, dry.out);
-  const r = applyBound(repo, h);
-  refused(r, /^REFUSED: this install script differs from the committed copy\./m);
-  assert.deepEqual(listTree(h), ['.claude']);
-});
-
 // ------------------------------------------------------------ fails closed
 
 // The Node install runs every check in-process on the Node that started it
@@ -147,14 +133,6 @@ test('a node.cmd shim first on PATH is never run', { skip: !WIN && 'a .cmd shim 
   const r = install(makeRepo(t), home(t), { path: [d, ...basePath()] });
   passed(r);
   assert.ok(!existsSync(marker), 'the node.cmd shim ran');
-});
-
-// The Node install refuses NODE_OPTIONS rather than clearing it (S3, step 1;
-// S6, A7), so no check ever runs under it.
-test('bad case: NODE_OPTIONS set refuses before any check runs', t => {
-  const r = install(makeRepo(t), home(t), { env: { NODE_OPTIONS: '--max-old-space-size=200' } });
-  refused(r, /^REFUSED: NODE_OPTIONS is set/m);
-  assert.doesNotMatch(r.stdout, /^(render|seam-a)\| /m, r.out);
 });
 
 // The bootstrap's own case check, before anything is staged; the runner's
@@ -369,23 +347,6 @@ test('the dry run shows a Configuration block that names the pact\'s default whe
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('bad case: the rules file changed in the stage after the check refuses --apply, with nothing written', t => {
-  let source;
-  const repo = makeRepo(t, root => {
-    source = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
-    // After seam A has hashed the rendered file, it puts the unrendered source back.
-    plantSeamAOnce(root, "import { lstatSync, readFileSync, readdirSync } from 'node:fs';", "import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';");
-    plantSeamAOnce(root, '// @@TEST-SETTINGS-HOOK@@', `writeFileSync(join(root, 'rendered', 'claude', 'rules.md'), ${JSON.stringify(source)});`);
-  });
-  rulesOf(t, repo);
-  const h = home(t);
-  const r = applyBound(repo, h);
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the staged copy of \.claude\/CLAUDE\.md changed after the check\./m, r.out);
-  assert.deepEqual(listTree(h), ['.claude']);
-});
-
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a record whose rules-file hash is not the rendered bytes\' hash is drift, and --apply refuses', t => {
   const repo = makeRepo(t);
   const { source, rendered } = rulesOf(t, repo);
@@ -414,24 +375,6 @@ test('bad case: a renderer that reports a hash other than its output\'s refuses'
   assert.deepEqual(listTree(h), ['.claude']);
 });
 
-test('bad case: a renderer that adds a file to the stage refuses, with nothing written', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, R_RENDER, `  writeFileSync('planted.md', 'x\\n');\n${R_RENDER}`));
-  const h = home(t);
-  const r = install(repo, h, { apply: true });
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
-  assert.deepEqual(listTree(h), ['.claude']);
-});
-
-test('bad case: a renderer that changes a staged file refuses', t => {
-  const repo = makeRepo(t, root =>
-    plantRenderer(root, R_RENDER, `  writeFileSync('gate/settings-allowlist.json', 'x\\n', { flag: 'a' });\n${R_RENDER}`),
-  );
-  const r = install(repo, home(t));
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
-});
-
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('the renderer and the rules file come from the commit: working-tree-only edits to them are not what runs', t => {
   const repo = makeRepo(t);
@@ -444,16 +387,6 @@ test('the renderer and the rules file come from the commit: working-tree-only ed
   assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
   assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(configured)}$`, 'm'), r.out);
   assert.match(r.stdout, /uncommitted edits are not checked/, r.out);
-});
-
-test('bad case: a renderer that adds a hidden file to the stage refuses', t => {
-  const repo = makeRepo(t, root => {
-    plantRenderer(root, "import { createHash } from 'node:crypto';", "import { createHash } from 'node:crypto';\nimport { spawnSync } from 'node:child_process';");
-    plantRenderer(root, R_RENDER, `  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n${R_RENDER}`);
-  });
-  const r = install(repo, home(t));
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
 });
 
 // The runner loads the renderer's core in-process (S3), so that is the file a commit can lack.

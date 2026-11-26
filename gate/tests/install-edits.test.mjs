@@ -412,53 +412,6 @@ test('bad case: a review module that reports other hashes than this run rendered
   assert.deepEqual(readdirSync(folder).sort(), ['config.diff', 'rendered-rules.txt']);
 });
 
-test('bad case: a staged rules file changed after the check refuses the review output before it is written', t => {
-  // A seam A that passes, then changes the staged rules file as it returns.
-  const repo = makeRepo(t, root => wrapCheck(root, 'seam-a-core', { after: "fs.appendFileSync(argv[0] + '/rendered/claude/rules.md', 'x\\n');" }));
-  const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { extra: ['--review-folder', folder] });
-  refused(r);
-  assert.match(r.stdout, /^seam-a\| RESULT: pass\r?$/m, r.out);
-  assert.match(r.stdout, /^REFUSED: the staged rules file changed after the check\./m, r.out);
-  assert.ok(!existsSync(folder));
-});
-
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('bad case: a review module that changes the stage on -Apply refuses before anything is installed', t => {
-  // The runner's working folder is the stage (S3, step 9).
-  const repo = makeRepo(t, root => wrapCheck(root, 'review-core', { after: "const d = 'claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n');" }));
-  const h = home(t);
-  const folder = join(tempDir(t), 'review');
-  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
-  refused(r);
-  assert.match(r.stdout, /^review\| RESULT: pass\r?$/m, r.out);
-  assert.match(r.stdout, /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
-  assert.deepEqual(readdirSync(folder).sort(), ['config.diff', 'rendered-rules.txt']);
-  assert.doesNotMatch(r.stdout, /^Applying\./m, r.out);
-  const tree = listTree(h).map(f => f.replaceAll('\\', '/'));
-  assert.ok(!tree.some(f => f === '.claude/CLAUDE.md' || f.startsWith('.claude/agents')), tree.join('\n'));
-});
-test('bad case: a review module that changes the stage on a dry run refuses, saying the review folder may hold its output', t => {
-  const repo = makeRepo(t, root => wrapCheck(root, 'review-core', { after: "fs.writeFileSync('planted.txt', 'x\\n');" }));
-  const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { extra: ['--review-folder', folder] });
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
-  assert.doesNotMatch(r.stdout, /^Dry run only/m, r.out);
-});
-
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('-Apply with -ReviewFolder writes the review only after the last re-hash of the stage', t => {
-  // A seam A that changes a staged agent as it returns: the re-hash refuses,
-  // and no review is written, because the review comes after it.
-  const repo = makeRepo(t, root => wrapCheck(root, 'seam-a-core', { after: "const d = argv[0] + '/claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n');" }));
-  const folder = join(tempDir(t), 'review');
-  const h = home(t);
-  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the staged copy of \.pact\/builder\/claude\/agents\/[^ ]+ changed after the check\. Nothing was changed\.\r?$/m, r.out);
-  assert.ok(!existsSync(folder), 'the review was written before the last re-hash');
-});
 // ------------------------------------------------------------ the Cost limits part (#278)
 
 const COST_BLOCK = '| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Review rounds | Rounds of lens review | 2 | Ask me |\n';

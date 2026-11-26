@@ -344,10 +344,9 @@ These join `CONTEXT.md` in T1.
   outside any git work tree, as the Claude home must be today (C30). No
   environment variable moves `~/.pact`; `CLAUDE_CONFIG_DIR` still moves
   Claude Code's own paths, as it does today.
-- The backups folder keeps today's protections: owner-only modes (700 and
-  600) on Linux and macOS, `docs/install.md`'s Windows access list named as
-  `~/.pact`'s, and its "never sync, share or commit", which names the old
-  folder too.
+- The backups folder keeps `docs/install.md`'s "never sync, share or
+  commit", which names the old folder too; its files take default modes (S2
+  item 65).
 - Every path in the payload, the tools, the hooks, the commands, the rules
   text and the agent-facing docs that names `~/.claude/pact` names `~/.pact`
   instead. `~/.claude` stays only where Claude Code itself reads it: its

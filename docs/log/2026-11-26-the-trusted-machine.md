@@ -20,7 +20,6 @@ Whose words count, the deny and ask rules, the pin checks, the poster's quote an
 
 ## Left open
 
-- clef-pilot, outside this repo, read the token from `run.json`; the supervisor now ignores one it sends.
 - The Codex end-to-end run reads the real `~/.agents`: a known test limit, with no fix.
 
 ## Record

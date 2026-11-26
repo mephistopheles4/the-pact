@@ -81,9 +81,6 @@ function findGit() {
 // Everything that runs before committed code (S3, steps 1 to 9).
 function main() {
   if (Number(process.versions.node.split('.')[0]) < FLOOR) refuse(`the install needs Node ${FLOOR} or later; this is Node ${process.versions.node}.`);
-  if (process.env.NODE_OPTIONS !== undefined || process.execArgv.length) {
-    refuse(WIN ? 'NODE_OPTIONS is set, or node was started with an option. Run $env:NODE_OPTIONS = $null; then node gate/install.mjs with no option before the script.' : 'NODE_OPTIONS is set, or node was started with an option. Run env -u NODE_OPTIONS node gate/install.mjs with no option before the script.');
-  }
   for (const k of GIT_REDIRECTS) if (process.env[k] !== undefined) refuse(`${k} is set; it redirects git. Unset it and run the install again.`);
 
   const self = fileURLToPath(import.meta.url);
@@ -186,15 +183,12 @@ function main() {
     }
   }
 
-  // This script against its committed copy: a fact the runner decides on.
-  const mine = staged.filter(e => e.rel === 'gate/install.mjs')[0];
-  const selfDiffers = !mine || sha1('blob', readFileSync(self)) !== mine.id;
   const runner = join(stage, 'gate', 'install-run.mjs');
   if (!existsSync(runner)) refuse('the commit holds no install runner (gate/install-run.mjs).');
 
   // The runner: committed code only, with no exec options, an allow-listed
   // environment, its own process group on Unix, and the command line as typed.
-  const args = [runner, work, commit, String(dirty.size), selfDiffers ? 'yes' : 'no', '--'].concat(process.argv.slice(2));
+  const args = [runner, work, commit, String(dirty.size), '--'].concat(process.argv.slice(2));
   child = spawn(process.execPath, args, { cwd: stage, env: allowEnv({}), stdio: ['ignore', 'pipe', 'pipe'], detached: !WIN, windowsHide: true });
   let timedOut = false;
   let checksDone = false;

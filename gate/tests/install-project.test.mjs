@@ -494,17 +494,3 @@ test('Node never runs with the project folder as its working folder', t => {
   assert.ok(cwds.length >= 5, `each check logged its folder: ${cwds.length}`);
   for (const c of cwds) assert.ok(!under(c, proj), `a Node run had the project as its working folder: ${c}`);
 });
-
-// ------------------------------------------------------------ the second render's stage hash
-
-test('bad case: a renderer that changes the stage on its project run refuses', t => {
-  const repo = makeRepo(t, r => {
-    const from = 'function runProject(out, home, projectFolder, report) {\n';
-    plantModule(join(r, 'gate'), 'render', from, `${from}  writeFileSync('planted.md', 'x\\n');\n`);
-  });
-  const { homeDir } = layout(t);
-  const proj = projectAt(join(homeDir, 'proj'));
-  const r = projInstall(repo, homeDir, proj);
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
-});

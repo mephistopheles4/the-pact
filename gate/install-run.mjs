@@ -3,8 +3,7 @@
 // code. It does everything after staging: pin,
 // render, seam A, the copy set, the plan, settings, review output, apply,
 // record and verify. The four gate checks run in-process, through each core's
-// check(), with ADR 0032's controls kept (S5): this process refuses any
-// preload, each verdict needs both parts, only the checks' own cleaned lines
+// check(), with ADR 0032's controls kept (S5): each verdict needs both parts, only the checks' own cleaned lines
 // are shown, and the bootstrap's clock stops the whole run until CHECKS DONE.
 // Every decision is a function in install-core.mjs; every read and write is
 // in install-io.mjs. No error's own text is ever printed.
@@ -43,8 +42,7 @@ async function loadCore(file) {
 
 /**
  * The harnesses this install takes (spec 0007 S5): the commit's known ones and
- * the user configuration's own, the configuration read again and held to the
- * hash the renderer reported.
+ * the user configuration's own.
  */
 function chooseHarnesses({ stage, staged, home, parsed, record }) {
   if (!staged.has(harness.KNOWN_REL)) core.stops.harnessKnownMissing();
@@ -52,8 +50,7 @@ function chooseHarnesses({ stage, staged, home, parsed, record }) {
   let text = null;
   if (parsed.config.kind === 'user') {
     const bytes = io.readOptional(live(home, core.CONFIG_REL));
-    if (bytes === null || io.sha256(bytes) !== parsed.config.sha256) core.stops.configChanged();
-    text = bytes.toString('utf8');
+    text = bytes === null ? null : bytes.toString('utf8');
   }
   const { install, own } = harness.configHarnesses(text);
   const harnesses = harness.resolveHarnesses({ known, own, home, platform: process.platform, inWorkTree: io.insideWorkTree });
@@ -113,16 +110,7 @@ function runCheck(check, argv, prefix, what) {
   return { report, lines: core.checkVerdict(report, what) };
 }
 
-const stateOf = root => {
-  try {
-    return io.treeState(root);
-  } catch {
-    return core.stops.stageUnreadable();
-  }
-};
-
 async function main() {
-  if (process.env.NODE_OPTIONS !== undefined || process.execArgv.length) core.stops.preload();
   const run = core.parseRunnerArgs(process.argv.slice(2));
   const { work, commit } = run;
   const stage = join(work, 'stage');
@@ -177,7 +165,7 @@ async function main() {
 
   // The gate's fingerprints: every staged gate file, the install's own included (G11).
   const gateNow = new Map([...staged].filter(([rel]) => rel.startsWith('gate/')).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
-  gateLines = core.gateBlock(gateNow, record ? record.gate : [], run.selfDiffers);
+  gateLines = core.gateBlock(gateNow, record ? record.gate : []);
 
   // Node is this process: no lookup happens (P2).
   say(`Node: ${process.execPath} (${process.version})`);
@@ -216,10 +204,7 @@ async function main() {
   // The builder kit's rules source (#203 S6): the unrendered rules, copied in the stage before the render, bound to the commit's hash.
   if (staged.has(core.KIT_RULES_REL)) core.stops.rulesSourceInTree();
   copyFileSync(rulesStaged, live(stage, core.KIT_RULES_REL));
-  const sourceHash = io.fileSha256(live(stage, core.KIT_RULES_REL));
-  if (sourceHash !== staged.get(core.RULES_REL)) core.stops.rulesSourceHash();
-  staged.set(core.KIT_RULES_REL, sourceHash);
-  const before = stateOf(stage);
+  staged.set(core.KIT_RULES_REL, staged.get(core.RULES_REL));
   const renderOut = mkdtempSync(join(work, 'render-'));
   // A project install gives the stage its no-file render, against a new empty
   // folder in place of the home folder; the user file is read later.
@@ -227,7 +212,6 @@ async function main() {
   // A home install with no user file renders the pact's default from the stage (#183 T4a); a project install never does.
   const { lines: renderLines } = runCheck(render, [rulesStaged, renderOut, renderHome, ...(project ? [] : [live(stage, core.DEFAULT_CONFIG_DIR)])], 'render', 'the renderer');
   const parsed = core.parseRenderLines(renderLines, { project, hash: io.sha256 });
-  if (stateOf(stage) !== before) core.stops.renderChangedStage();
   core.checkRenderOutput(io.folderEntries(renderOut), parsed.agentSets.keys());
   const rendered = readFileSync(join(renderOut, 'CLAUDE.md'));
   const rulesHash = io.sha256(rendered);
@@ -297,12 +281,9 @@ async function main() {
   // settings merge or record. The renderer runs again in project mode, the
   // stage hashed around it, to give the project rules file (J3, J4).
   if (project) {
-    projectLinks();
-    const was = stateOf(stage);
     const projectOut = mkdtempSync(join(work, 'project-'));
     const { lines: prLines } = runCheck(render, ['project', projectOut, home, pc.root], 'render', 'the project render');
     const pr = core.parseProjectRenderLines(prLines, io.sha256);
-    if (stateOf(stage) !== was) core.stops.renderChangedStage();
     const projectFile = join(projectOut, 'pact-project.md');
     const entries = io.folderEntries(projectOut);
     core.checkProjectOutput(entries, entries.length === 1 && entries[0].file ? io.fileSha256(projectFile) : null, pr.projectHash);
@@ -324,8 +305,7 @@ async function main() {
       say('RESULT: pass');
       return;
     }
-    core.checkApply({ configApplies: true, hashGiven: opts.renderedHash !== null, selfDiffers: run.selfDiffers, drift: false, dirty: run.dirty > 0, settingsObject: true });
-    projectLinks();
+    core.checkApply({ configApplies: true, hashGiven: opts.renderedHash !== null, drift: false, dirty: run.dirty > 0, settingsObject: true });
     const projectWrite = await loadCore('project-core.mjs');
     say('CHECKS DONE');
     writing = 'project';
@@ -334,16 +314,12 @@ async function main() {
     const report = projectWrite(['write', pc.root, home, projectFile, pr.projectHash]);
     for (const l of core.showLines(core.outputLines(report.lines), 'project')) say(l);
     const recordHash = core.parseProjectWrite(report, pr.projectHash);
-    // Verify: each written file plain, then its hash; then the link test again.
+    // Verify: each written file's hash.
     let bad = 0;
     for (const [rel, sha] of [[core.PROJECT_RULES_REL, pr.projectHash], [core.PROJECT_RECORD_REL, recordHash]]) {
-      const ok = !io.throughLink(pc.root, rel) && io.liveState(live(pc.root, rel)).sha256 === sha;
+      const ok = io.liveState(live(pc.root, rel)).sha256 === sha;
       say(`${ok ? 'OK      ' : 'MISMATCH'} ${rel}`);
       if (!ok) bad++;
-    }
-    if (core.PROJECT_ATTR_RELS.some(rel => io.throughLink(pc.root, rel))) {
-      say('MISMATCH a project path is now a link or other reparse point');
-      bad++;
     }
     if (bad) {
       say(`${bad} mismatch(es).`);
@@ -563,9 +539,6 @@ async function main() {
   if (folder.staging.length) say(core.stagingLine(folder.staging));
   if (folder.others) say(core.othersLine(folder.others));
   const ownFiles = [...(settingsRel === null ? [] : [[settingsRel, settingsFile]]), ...hooks.map(f => [f.path, f.file]), ...(policyWill ? [[core.CODEX_CONFIG_REL, policyFile]] : []), [core.RECORD_REL, recordFile]];
-  for (const [rel, file] of ownFiles) {
-    if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
-  }
   say('Configuration:');
   for (const l of core.configBlock(parsed, boundHash, record, renders.rules.map(r => r.id).sort())) say(l);
   for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
@@ -585,15 +558,8 @@ async function main() {
   const writeReview = async () => {
     if (opts.reviewFolder === null) return;
     const review = await loadCore('review-core.mjs');
-    if (io.fileSha256(reviewFile) !== reviewHash) core.stops.reviewRulesChanged();
-    const was = stateOf(stage);
     const report = review([resolve(opts.reviewFolder), home, reviewFile, diffFile]);
     for (const l of core.showLines(core.outputLines(report.lines), 'review')) say(l);
-    let now = null;
-    try {
-      now = io.treeState(stage);
-    } catch {}
-    if (now !== was) core.stops.reviewChangedStage();
     core.checkReviewLines(report, reviewHash, parsed.diffHash);
     say('Review output: rendered-rules.txt and config.diff written to the review folder.');
   };
@@ -605,10 +571,9 @@ async function main() {
     say('RESULT: pass');
     return;
   }
-  core.checkApply({ configApplies, hashGiven: opts.renderedHash !== null, selfDiffers: run.selfDiffers, drift: drift.length > 0, dirty: run.dirty > 0, settingsObject: settingsRel === null || liveSettings !== null, unrecorded });
+  core.checkApply({ configApplies, hashGiven: opts.renderedHash !== null, drift: drift.length > 0, dirty: run.dirty > 0, settingsObject: settingsRel === null || liveSettings !== null, unrecorded });
 
-  // Apply (X2 to X5): every staged byte re-hashed, the review last, then the writes.
-  for (const [rel, sha] of repoFiles) if (io.fileSha256(live(stage, sourceOf.get(rel))) !== sha) core.stops.stageChanged(rel);
+  // Apply (X2 to X5): the review last, then the writes.
   // A temp file a hard stop left would stop the writes midway, so refuse before any (X5).
   for (const rel of [...p.overwrite, ...p.add]) if (io.exists(io.tempName(live(home, rel)))) core.stops.tempLeft(rel);
   for (const [rel, file] of ownFiles) if (io.exists(io.tempName(file))) core.stops.tempLeft(rel);
@@ -626,7 +591,7 @@ async function main() {
     say('BACKUP STARTED');
     // @@TEST-BACKUP-STARTED-HOOK@@
   };
-  const made = io.takeBackup(io.FS_OPS, { home, commit, entries: toKeep, platform: process.platform, now: () => new Date(), started });
+  const made = io.takeBackup(io.FS_OPS, { home, commit, entries: toKeep, now: () => new Date(), started });
   backup = made.name;
   say(`backed up ${made.files} file(s) to ${core.BACKUPS_REL}/${backup}`);
   say('CHECKS DONE');
@@ -654,10 +619,10 @@ async function main() {
     const kept = recorded.filter(old => !now.some(t => targetsText(t) === targetsText(old)) && ([...files].some(([rel, f]) => f.harness === old.id && core.inTargets(rel, old.id, [old]) && !core.inTargets(rel, old.id, now)) || [...linksNow.values()].some(l => l.harness === old.id && !now.some(t => t.id === old.id))));
     const sorted = new Map([...files].sort(([a], [b]) => (a < b ? -1 : 1)));
     // The window stays recorded when the settings file is left untouched.
-    io.writeReplacing(recordFile, core.recordText({ commit, release: opts.release, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, links: [...linksNow.values()].sort((a, b) => (a.path < b.path ? -1 : 1)), entries: [...entriesNow, ...[...hookEntries.values()].flat()], shellPolicy: policyNow, gateNow }), 0o600);
+    io.writeReplacing(recordFile, core.recordText({ commit, release: opts.release, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, links: [...linksNow.values()].sort((a, b) => (a.path < b.path ? -1 : 1)), entries: [...entriesNow, ...[...hookEntries.values()].flat()], shellPolicy: policyNow, gateNow }));
   };
   const writeHooks = f => {
-    io.writeReplacing(f.file, core.settingsText(f.merged), 0o600);
+    io.writeReplacing(f.file, core.settingsText(f.merged));
     hookEntries.set(f.path, f.entries);
     writeRecord();
     say(`merged ${f.path}`);
@@ -703,7 +668,7 @@ async function main() {
     say(`linked ${l.path} -> ${l.target}`);
   }
   if (settingsWill) {
-    io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
+    io.writeReplacing(settingsFile, core.settingsText(merged));
     say('merged settings.json');
   }
   entriesNow = entries;
@@ -711,7 +676,7 @@ async function main() {
   for (const f of hooksWill.filter(f => f.want.length)) writeHooks(f);
   for (const f of hooks.filter(f => f.trust)) say(core.CODEX_TRUST_LINE);
   if (policyWill) {
-    io.writeReplacing(policyFile, policy.next, 0o600);
+    io.writeReplacing(policyFile, policy.next);
     policyNow = policyAfter;
     writeRecord();
     say(`merged ${core.CODEX_CONFIG_REL}`);

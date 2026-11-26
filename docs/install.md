@@ -233,14 +233,9 @@ the agent files it wrote and still holds as it wrote them.
   push out an older backup: copy aside one you mean to keep.
 - **The copies are plain and unencrypted.** Your settings file can hold API
   keys, and a key you rotate stays in the old copies until they are pruned or
-  you delete them. On Linux and macOS the install gives the backups owner-only
-  modes (`700` and `600`); an access-list entry inherited from `~/.pact` on
-  macOS can still widen them, and `ls -le` shows one. On Windows they take the
-  `~/.pact` folder's access list, and they hold your settings file's older contents
-  (out of scope: they stay on your machine; see the [threat model](threat-model.md#scope)'s Scope). To see who that list lets in,
-  or to narrow it, open the folder's Properties in Explorer and its Security
-  tab, or run `icacls "$env:USERPROFILE\.pact"` in PowerShell. A list for you
-  alone holds your account, SYSTEM and Administrators.
+  you delete them. They take your system's default modes, and on Windows the
+  `~/.pact` folder's access list (out of scope: they stay on your machine; see
+  the [threat model](threat-model.md#scope)'s Scope).
 - **Never sync, share or commit the backups folder.** Any copy you make
   yourself, a backup copied aside or your own copies from before backups,
   belongs outside the clone and any synced or shared folder, readable only by
@@ -268,9 +263,7 @@ env -u NODE_OPTIONS node gate/install.mjs
 
 With no option, the script writes nothing in your home folder. It
 still runs code from your clone, with your rights: the install script and the
-pact's check. So run it only on a clone you trust. It refuses if
-`NODE_OPTIONS` is set, because a preload could change what the checks see.
-It checks the committed files and prints what an install would do. Read these
+pact's check. So run it only on a clone you trust. It checks the committed files and prints what an install would do. Read these
 parts:
 
 - **`Install from commit …`.** The commit it would install. Compare it with
@@ -797,12 +790,9 @@ installer's own floor) and `node` on the PATH.
   log for the generator's `pact cloud copy <marker>` line.
 - **Hand-offs stay.** The pact never deletes a hand-off or `.turn` file in
   `~/.pact/handoffs/`; clear them yourself when you like. They are
-  notes a session wrote, kept unencrypted in a folder the hook creates for
-  your account alone on Linux and macOS (on Windows the folder takes the
-  pact folder's access), and they outlive turning the window off and
-  Claude Code's own transcript clean-up. On macOS an access control list the
-  folder inherits can grant another account access despite the owner-only
-  mode; check with `ls -le`.
+  notes a session wrote, kept unencrypted with your system's default modes,
+  and they outlive turning the window off and Claude Code's own transcript
+  clean-up.
 
 ## The guard in Codex and Antigravity
 

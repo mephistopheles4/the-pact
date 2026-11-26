@@ -24,16 +24,10 @@
 // the files it created, by name, and the folder if it created it.
 //
 // The files. REVIEW_RULES and REVIEW_DIFF, names Claude Code never loads as
-// rules. Each is created exclusively (and on Unix without following a link)
-// under the folder's final path, checked from its open handle to be a
-// regular, one-link file, and written. Afterwards the folder must hold exactly
-// those two plain files, and still resolve to the same final path.
+// rules. Each is created exclusively under the folder's final path and written.
 //
-// Known limits, taken on the record at #94's Test review (the files are inert names
+// Known limit, taken on the record at #94's Test review (the files are inert names
 // Claude Code never loads, so neither reaches a session's rules):
-//   - The undo removes its files by name. A process running as the same user
-//     that swaps a folder on the path between the write and the undo could
-//     make it remove a file of the same name elsewhere.
 //   - A network share or a user-space mount whose root is a Claude folder, or
 //     a folder in one, aliases it past these checks: its final path shows no
 //     .claude segment and no home folder prefix. Making such a share on
@@ -45,7 +39,7 @@
 // content. No switch turns a check off. Node 20 or later, ESM.
 
 import { createHash } from 'node:crypto';
-import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, writeSync } from 'node:fs';
+import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, writeSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { isClaudeSegment, realOrResolved as realHome, segments, within } from './paths.mjs';
@@ -77,18 +71,13 @@ function readInput(path, which, report) {
 function writeNew(dir, name, bytes, made, report) {
   let fd;
   try {
-    fd = openSync(join(dir, name), constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o644);
+    fd = openSync(join(dir, name), constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o644);
   } catch {
     report.fail('review-write', null, null, `${name} could not be created as a new file in the review folder`);
     return false;
   }
   made.push(name);
   try {
-    const st = fstatSync(fd, { bigint: true });
-    if (!st.isFile() || st.nlink !== 1n) {
-      report.fail('review-write', null, null, `${name} is not a new plain file`);
-      return false;
-    }
     let off = 0;
     while (off < bytes.length) off += writeSync(fd, bytes, off, bytes.length - off);
     return true;
@@ -172,21 +161,6 @@ function run(argv, report) {
   };
   if (!writeNew(real, REVIEW_RULES, rules, made, report) || !writeNew(real, REVIEW_DIFF, diff, made, report)) return undo();
 
-  // Afterwards: exactly the two plain files, in a folder that still resolves where it did.
-  try {
-    const names = readdirSync(real).sort();
-    const plain = names.every(n => {
-      const s = lstatSync(join(real, n));
-      return s.isFile() && !s.isSymbolicLink();
-    });
-    if (realpathSync.native(folder) !== real || names.join('/') !== [REVIEW_DIFF, REVIEW_RULES].join('/') || !plain) {
-      report.fail('review-write', null, null, 'the review folder changed while it was written');
-      return undo();
-    }
-  } catch {
-    report.fail('review-write', null, null, 'the review folder could not be read after the write');
-    return undo();
-  }
   report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);
 }
 

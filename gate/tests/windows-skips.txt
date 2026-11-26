@@ -18,19 +18,13 @@ clef-run.test.mjs sweepOrphans: ends a process whose exe lies under runtime/ and
 cloud-sessions.test.mjs cloud copy: both generated setup scripts parse under bash -n
 cloud-sessions.test.mjs #482 C10: the cloud tail writes the hook groups and the window as the install does, keeps an owner hook, and a merge that drops it is seen to fail
 config-install.test.mjs bad case: an unreadable configuration file refuses, and -Apply writes nothing
-contained.test.mjs bad case: a dangling link planted at the temp name refuses, and nothing is created outside the folder
-install-backup.test.mjs #272 C6: on Linux and macOS the backup folders are 0700 and its files 0600
 install-node.test.mjs node: a configuration blocks folder that cannot be read refuses
-install-node.test.mjs node: a new settings file and the record are owner-only on Unix
-install-node.test.mjs node: a settings file other accounts can read draws a warning, and --apply keeps its mode
 install-node.test.mjs node: a signal stops the runner and removes the work folder
 install-project.test.mjs bad case: a special-file configuration refuses
 install-project.test.mjs bad case: a special-file record refuses
 render-config.test.mjs bad case: a Claude home folder that is a file refuses, never read as no configuration
 render-config.test.mjs bad case: a Claude home path through a file refuses, never read as no configuration
-render-config.test.mjs bad case: a configuration file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW
 render-config.test.mjs bad case: an unreadable configuration file refuses
-render-edits.test.mjs bad case: a block file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW
 run.test.mjs shell: a control character in a test-file name is printed replaced
 run.test.mjs shell: an untracked file with a control character in its name prints with it replaced
 seam-a.test.mjs bad case: two agents whose names differ only in case

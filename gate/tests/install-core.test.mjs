@@ -251,11 +251,11 @@ test('the behind line: none with no record, at this commit, or behind it in eith
 
 // ------------------------------------------------------------ the gate's fingerprints (G11)
 
-test('the gate block: changed, added and removed lines, compared without regard to case, and the self-differs warning', () => {
+test('the gate block: changed, added and removed lines, compared without regard to case', () => {
   const now = new Map([['gate/a.mjs', H('a')], ['gate/b.mjs', H('b')], ['gate/new.mjs', H('c')]]);
-  assert.deepEqual(core.gateBlock(now, [], false), ['Gate: no gate recorded at the last install']);
-  assert.deepEqual(core.gateBlock(now, [['gate/a.mjs', H('A')], ['gate/b.mjs', H('d')], ['gate/old\u0007.mjs', H('e')]], true), ['Gate: CHANGED since the last install', '  changed gate/b.mjs', '  added gate/new.mjs', '  removed gate/old?.mjs', 'WARN: this install script differs from the committed copy; --apply will refuse.']);
-  assert.deepEqual(core.gateBlock(now, [...now], false), ['Gate: unchanged since the last install']);
+  assert.deepEqual(core.gateBlock(now, []), ['Gate: no gate recorded at the last install']);
+  assert.deepEqual(core.gateBlock(now, [['gate/a.mjs', H('A')], ['gate/b.mjs', H('d')], ['gate/old\u0007.mjs', H('e')]]), ['Gate: CHANGED since the last install', '  changed gate/b.mjs', '  added gate/new.mjs', '  removed gate/old?.mjs']);
+  assert.deepEqual(core.gateBlock(now, [...now]), ['Gate: unchanged since the last install']);
 });
 
 // ------------------------------------------------------------ a check's verdict (R4, S-1, control 4)
@@ -1283,13 +1283,12 @@ test('the binding: nothing given is nothing compared', () => {
   assert.equal(decided(() => core.checkBinding({ renderedHash: null, commit: null }, H('a'), ID('c'))).code, 0);
 });
 
-const applyBase = () => ({ in: json({ configApplies: true, hashGiven: true, selfDiffers: false, drift: false, dirty: false, settingsObject: true }) });
+const applyBase = () => ({ in: json({ configApplies: true, hashGiven: true, drift: false, dirty: false, settingsObject: true }) });
 {
   const base = applyBase;
   const run = t => decided(() => core.checkApply(JSON.parse(t.in)));
   const rows = [
     { id: 'no-hash-with-config', plant: rep('"hashGiven":true', '"hashGiven":false'), fails: ['apply-needs-hash'], why: 'a configuration applies' },
-    { id: 'self-differs', plant: rep('"selfDiffers":false', '"selfDiffers":true'), fails: ['apply-self-differs'], why: 'an uncommitted edit to the install script' },
     { id: 'drift', plant: rep('"drift":false', '"drift":true'), fails: ['apply-drift'], says: /owner's decision/, why: 'live files changed since the last install' },
     { id: 'dirty', plant: rep('"dirty":false', '"dirty":true'), fails: ['apply-dirty'], why: 'the working tree is not clean' },
     { id: 'settings-not-object', plant: rep('"settingsObject":true', '"settingsObject":false'), fails: ['apply-settings'], why: "the guard can't be merged" },
@@ -1300,7 +1299,7 @@ const applyBase = () => ({ in: json({ configApplies: true, hashGiven: true, self
 }
 
 test('apply: no configuration needs no hash', () => {
-  assert.equal(decided(() => core.checkApply({ configApplies: false, hashGiven: false, selfDiffers: false, drift: false, dirty: false, settingsObject: true })).code, 0);
+  assert.equal(decided(() => core.checkApply({ configApplies: false, hashGiven: false, drift: false, dirty: false, settingsObject: true })).code, 0);
 });
 
 // ------------------------------------------------------------ the runner's start and its review (S3, V1)
@@ -1322,13 +1321,12 @@ const workBase = () => ({ in: json({ parentReal: 'C:\\T', tmpReal: 'c:\\t', name
 }
 
 {
-  const base = () => ({ in: json(['/tmp/pact-install-x', ID('a'), '3', 'no', '--', '--apply']) });
+  const base = () => ({ in: json(['/tmp/pact-install-x', ID('a'), '3', '--', '--apply']) });
   const run = t => decided(() => core.parseRunnerArgs(JSON.parse(t.in)));
   const rows = [
     { id: 'no-separator', plant: rep('"--",', ''), fails: ['run-args'], why: "the bootstrap's shape only" },
     { id: 'short-commit', plant: rep(ID('a'), 'a'.repeat(7)), fails: ['run-args'], why: 'a full commit id' },
     { id: 'bad-count', plant: rep('"3"', '"-1"'), fails: ['run-args'], why: 'a count of paths' },
-    { id: 'bad-self', plant: rep('"no"', '"maybe"'), fails: ['run-args'], why: 'yes or no' },
   ];
   test('runner command line: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`runner command line: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));

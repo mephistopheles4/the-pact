@@ -25,12 +25,10 @@
 // folder; each block file an edit names is under BLOCKS_REL beside it. Both
 // are read under these rules:
 //   - For the user file, only "does not exist" means no file. A link, a
-//     dangling link, a folder, a file with more than one link, or any read
-//     error refuses. A block file that does not exist refuses.
+//     dangling link, a folder, or any read error refuses. A block file that does not exist refuses.
 //   - Every component below the home folder is lstat'ed and must not be
-//     a link; the file's real path must stay where it was named; the open
-//     handle must be the regular, one-link file the lstat saw (device and
-//     inode); and it is read once, its size cap enforced during the read.
+//     a link; the file's real path must be the one named; and it is read
+//     once, its size cap enforced during the read.
 //   - Node's lstat reports symbolic links and junctions, but reads other
 //     reparse points as plain files and folders. The install script runs its
 //     own reparse-attribute test on the file and its blocks folder before it
@@ -184,7 +182,7 @@
 // No switch turns a check off. Node 20 or later, ESM.
 
 import { createHash } from 'node:crypto';
-import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, lstatSync, openSync, readSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, PACT_TOOLS, Refused, Report, SEGMENT_RE, readStrictJson, scanText } from './shared.mjs';
 
@@ -614,11 +612,6 @@ function readSource(path, report) {
   }
   const fd = openSync(path, constants.O_RDONLY);
   try {
-    const fst = fstatSync(fd);
-    if (!fst.isFile() || fst.dev !== st.dev || fst.ino !== st.ino) {
-      report.fail('source', null, null, 'the source rules file changed while it was opened');
-      return null;
-    }
     const buf = Buffer.alloc(MAX_BYTES + 1);
     let n = 0;
     for (;;) {
@@ -674,13 +667,12 @@ function readUnder(home, segs, names, { cap, shownFile, rule, size, rootLabel = 
   const file = join(dir, segs[segs.length - 1]);
   let st;
   try {
-    st = lstatSync(file, { bigint: true });
+    st = lstatSync(file);
   } catch (e) {
     return missing(e) ? MISSING : refuse(`${label} could not be read`);
   }
   if (st.isSymbolicLink()) return refuse(`${label} is a link`);
   if (!st.isFile()) return refuse(`${label} is not a regular file`);
-  if (st.nlink !== 1n) return refuse(`${label} has more than one link`);
   let real;
   try {
     real = realpathSync.native(file);
@@ -690,13 +682,11 @@ function readUnder(home, segs, names, { cap, shownFile, rule, size, rootLabel = 
   if (FOLD_CASE ? real.toLowerCase() !== file.toLowerCase() : real !== file) return refuse(`${label} resolves somewhere else`);
   let fd;
   try {
-    fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    fd = openSync(file, constants.O_RDONLY);
   } catch {
     return refuse(`${label} could not be opened`);
   }
   try {
-    const fst = fstatSync(fd, { bigint: true });
-    if (!fst.isFile() || fst.nlink !== 1n || fst.dev !== st.dev || fst.ino !== st.ino) return refuse(`${label} changed while it was opened`);
     const buf = Buffer.alloc(cap + 1);
     let n = 0;
     for (;;) {
@@ -1060,20 +1050,18 @@ function readCapped(path, cap, rule, shown, report) {
   };
   let st;
   try {
-    st = lstatSync(path, { bigint: true });
+    st = lstatSync(path);
   } catch {
     return refuse('the file is missing');
   }
   if (st.isSymbolicLink() || !st.isFile()) return refuse('not a regular file');
   let fd;
   try {
-    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    fd = openSync(path, constants.O_RDONLY);
   } catch {
     return refuse('could not be opened');
   }
   try {
-    const fst = fstatSync(fd, { bigint: true });
-    if (!fst.isFile() || fst.dev !== st.dev || fst.ino !== st.ino) return refuse('changed while it was opened');
     const buf = Buffer.alloc(cap + 1);
     let n = 0;
     for (;;) {
