@@ -813,8 +813,9 @@ the app instead (S2 item 49).
   read, or a name that isn't text, fails the run.
 
   After the pass the session stops any process the agent left running, runs the
-  command again before any other git, and compares: the same last line means no
-  change. On any difference, a failed run, or a first record it no longer
+  same command again, as it ran it before and never read again from a file (an
+  agent that can write that file would write its own check), before any other
+  git, and compares: the same last line means no change. On any difference, a failed run, or a first record it no longer
   holds, it stops: it runs no git in that tree, changes nothing, counts the
   pass inconclusive and reports to the owner which lines differ. It keeps no
   copy and restores nothing.
@@ -1086,8 +1087,9 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   with S7's line everywhere. `finis` without `archive` ends with S7's line
   and archives nothing. `scriptorium` names no one harness's folders.
 - **C10** `review.md` holds S12's tree check, around each lens and `scout`
-  pass: one command, run as printed from outside the tree before and after,
-  taking the folder as its last argument, whose record
+  pass: one command, run as printed from outside the tree before and after (the
+  second run never read again from a file), taking the folder as its last
+  argument, whose record
   covers every file and git's config, hooks, `info`, `HEAD`, refs, index
   entries and half-done merges and rebases, stays the same across a `git
   status`, runs no

@@ -1206,8 +1206,9 @@ lenses to offer, and when.
   ' "<top folder>"
   ```
 
-  After the pass, stop any process the agent left running, run the command again
-  before any other git, and compare the last line, `<hash> whole record`, alone:
+  After the pass, stop any process the agent left running, run the same command
+  again, as you ran it before and never read again from a file, before any other
+  git, and compare the last line, `<hash> whole record`, alone:
   the same means no change. On any difference, if a run fails, or if you no
   longer hold the first output: stop there, run no git in that tree, change
   nothing, count the pass inconclusive, and report to me which lines differ.
@@ -1686,7 +1687,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash 7993199efb69cf6d2df8088b3375f32fc21094bcd719dafc7574bb49ee015b8a '.pact/review.md'
+check_hash cee3827b0a77c53b58b57b3ea670ad9d51cf2920eafba5866028366b1f64119d '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1716,7 +1717,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 4fc9cddfd455"
+  echo "pact cloud copy d53181d1045c"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
