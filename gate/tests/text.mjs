@@ -26,11 +26,12 @@ export function withoutOpenMarks(text) {
 /**
  * A rules or agent file as Claude Code receives it (spec 0007 S6, S7), worked
  * out apart from the renderer: the models line, no capability mark, no part for
- * a harness without subagents, and each role as Claude Code's own model.
+ * a harness without subagents or one that can't hold an agent to its tools, and
+ * each role as Claude Code's own model.
  */
 export function forClaude(text) {
   return text
-    .replace(/<!-- pact:unless subagents -->\n[\s\S]*?<!-- pact:end -->\n/, '')
+    .replace(/<!-- pact:unless (?:subagents|tool-limits) -->\n[\s\S]*?<!-- pact:end -->\n/g, '')
     .replace(/^<!-- pact:(?:if [a-z-]+|end) -->\n/gm, '')
     .replace('<!-- pact:models -->\n', '\nHere the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.\n')
     .replace(/^model: planning$/m, 'model: opus')

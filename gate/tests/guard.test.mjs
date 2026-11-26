@@ -158,13 +158,13 @@ test('a long adversarial command is judged well inside the hook\'s timeout', () 
 
 // ------------------------------------------------------------ reads of an owner-typed skill
 
-test('S7: the table asks on a read of each skill that stands for the owner\'s answer, and only while its switch is on', () => {
+test('C12: the table asks on a read of each skill that stands for the owner\'s answer, and only while its switch is on', () => {
   assert.deepEqual(ASKING.filter(r => r.skills), [{ id: 'owner-skill', decision: 'ask', switch: 'owner-skills', skills: ['make-it-so', 'finis', 'scry'] }]);
   assert.deepEqual(core.guardRules(['owner-skills']), [core.OWNER_SKILL_RULE]);
   assert.deepEqual(ALL.filter(r => r.skills), []);
 });
 
-test('S7: a skill file is met by its path in either spelling, and nothing else is', () => {
+test('C12: a skill file is met by its path in either spelling, and nothing else is', () => {
   const asked = { decision: 'ask', id: 'owner-skill' };
   for (const p of [
     '/home/u/.gemini/config/skills/make-it-so/SKILL.md',
@@ -190,7 +190,7 @@ test('S7: a skill file is met by its path in either spelling, and nothing else i
 
 // ------------------------------------------------------------ the hook command
 
-test('S7: only a harness that takes a skill the rule names, behind a hook that can ask before a read, gets the ask', () => {
+test('C12: only a harness that takes a skill the rule names, behind a hook that can ask before a read, gets the ask', () => {
   const anti = { id: 'antigravity', skills: { dir: '.gemini/config/skills' }, hooks: { file: '.gemini/config/hooks.json', format: 'antigravity' }, capabilities: ['hook-ask'] };
   assert.deepEqual(core.ownerSkillReaders([anti], ['finis']), [anti]);
   assert.deepEqual(core.ownerSkillReaders([anti], ['scriptorium']), [], 'no skill the rule names');
@@ -357,7 +357,7 @@ test('C12: antigravity judges a line typed into a running program as it judges a
   for (const Action of ['list', 'status', 'kill']) assert.deepEqual(run(tool('manage_task', { Action, TaskId: 't', Input: 'git worktree remove w' })), SILENT, Action);
 });
 
-test('S7: antigravity asks before either read tool opens an owner-typed skill, and answers nothing for another file', t => {
+test('C12: antigravity asks before either read tool opens an owner-typed skill, and answers nothing for another file', t => {
   const at = installed(t, ASKING);
   const run = call => runHook(at, 'antigravity', call);
   const says = `The pact's guard asks the owner before this file is read (rule owner-skill).`;

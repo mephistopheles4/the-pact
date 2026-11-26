@@ -1156,30 +1156,32 @@ lenses to offer, and when.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
 - **The tree check,** where the harness can't hold an agent to its tools (Codex
-  today), around each lens. Before it:
+  today), around each lens and each `scout` pass. Before it:
   - find git's real folders through git (`rev-parse --git-common-dir`, and
     `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since in
     a linked worktree `.git` is a file;
   - copy those outside the work tree, readable only by the owner, and keep a
     hash of each copy, its file names included, and the records below, in your
-    own output, never in a file a lens can write;
+    own output, never in a file the agent can write;
   - record `HEAD`, a hash of every ref and of the stash list, and
     `status --porcelain --ignored=matching --untracked-files=all`, with a hash
     of each listed path's content. Run git with fsmonitor and every filter off:
     `-c core.fsmonitor=false`, and each filter's `clean` and `process` empty
     and `required` false.
 
-  After it, first stop any process the lens left running, and remove any new
-  link or junction, in git's folders too. Check each copy against its hash, and
-  again right before you put anything back from it; if one differs, put nothing
-  back from the copies and bring it to me. Else compare git's folders with the
-  copies and put them back, check them against the same hashes, and bring any
-  difference to me; then take the same records again. Any change, a removed
-  link included, marks the lens inconclusive. Put back only what changed during
-  the lens: a moved ref goes back to its earlier value first; then restore a
-  path clean before with git from the earlier `HEAD`, or delete it if it is
-  new. Remove, put back and restore each path as itself, never through a link or
-  junction. A path already changed before the lens stays as it is, and you name
+  After it, first stop any process the agent left running, and remove any new
+  link or junction, one in a file's place too, git's folders included. Check each
+  copy against its hash, and again right before you put anything back from it.
+  While all match, compare git's folders with the copies, put them back, and
+  check them against the same hashes. If a copy, or a git folder after that,
+  differs from its hash, stop: run no more git there, restore nothing more, and
+  bring it to me. Else bring any difference you found to me, and take the same
+  records again. Any change, a removed link included, marks the lens or `scout`
+  pass inconclusive. Put back only what changed during it: a moved ref goes back
+  to its earlier value first; then
+  restore a path clean before with git from the earlier `HEAD`, or delete it if
+  it is new. Remove, put back and restore each path as itself, never through a
+  link or junction. A path already changed before it stays as it is, and you name
   it, so my own work is never thrown away. Delete the copies. The change and the
   restore are a checkpoint, flagged.
 
@@ -1657,7 +1659,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash a4382538f63c65ac9bfe18e13cbaf202533045c7dc838810aa1fba86fdbf0ad8 '.pact/review.md'
+check_hash 0fe9e27ae21732ab91d87ee4f287b43a85f56af4a80a4abbf26ac8da11c6a88b '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1687,7 +1689,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 481b67a036bb"
+  echo "pact cloud copy 6bd036a2520b"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

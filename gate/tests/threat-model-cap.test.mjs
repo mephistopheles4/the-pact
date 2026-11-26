@@ -1,5 +1,5 @@
 // The threat model's word cap (#544, the spec's S10): the threat model stays
-// at or under 4,100 words, so a session reads all of it. The count is the file
+// at or under 4,200 words, so a session reads all of it. The count is the file
 // split on whitespace, with its table of contents and mermaid blocks left out.
 // Raising the cap, or leaving more out of the count, changes a built-in default
 // that bounds something, so it is a spec change.
@@ -15,11 +15,12 @@ import { tempDir } from './tree.mjs';
 // Antigravity, the bootstrap and the release tags, which didn't fit, so that no
 // security text was cut, then to 3,750 for the release app and its key, raised
 // rather than cut on the owner's rule (the lead session's flagged picks, spec
-// 0007 S2 item 47; the owner reviews them). PACT-105 T4 raised it to 3,950 on
-// the same rule, for what its Codex probe found and the shell policy it added,
-// and PACT-105 T5 to 4,100 for T4's text and its Antigravity probe's together.
+// 0007 S2 item 47; the owner reviews them). PACT-105 T4 and T5 raised it to
+// 4,100 on the same rule, for what their Codex and Antigravity probes found and
+// the shell policy T4 added, and PACT-105 T9 to 4,200 for the protected-path
+// gap, the login-shell default and the release key's limits.
 // PACT-109 cleans the file up, and PACT-39 drops the word budgets.
-const CAP = 4100;
+const CAP = 4200;
 
 // PACT-105 T8 (ADR 0173): the charts don't count. They were dropped twice to fit
 // the count (PACT-65, PACT-101), and a chart is for the reader's eye.
@@ -66,7 +67,7 @@ test('threat-model cap: a copy padded to one word past the cap is reported over'
   const source = readFileSync(join(REPO, 'docs', 'threat-model.md'), 'utf8');
   writeFileSync(padded, `${source}\n${'padding '.repeat(CAP + 1 - words(source))}\n`);
   const text = readFileSync(padded, 'utf8');
-  assert.equal(words(text), 4101);
+  assert.equal(words(text), 4201);
   assert.deepEqual(overCap('padded', text), [`padded: ${CAP + 1} words, cap ${CAP}`]);
 });
 

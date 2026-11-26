@@ -2,11 +2,10 @@
 // render in gate/harness-render.mjs. neutral-home.test.mjs runs it in a real
 // install.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderHarnesses } from '../harness-render.mjs';
-import { REPO, agent } from './text.mjs';
+import { realAgents } from './payload.mjs';
+import { agent } from './text.mjs';
 
 const h = (id, over = {}) => ({
   id,
@@ -154,7 +153,7 @@ test("C5: the pact's own table gives each of its six tool names Antigravity's na
 
 // A shell is a tool an agent has only when its source lists one: the table never turns a reader into a runner.
 test("C5: each of the pact's agents renders for Antigravity, with a shell only where its source has one", () => {
-  const sources = new Map(readdirSync(join(REPO, 'claude', 'agents')).map(f => [f.slice(0, -3), readFileSync(join(REPO, 'claude', 'agents', f), 'utf8').replaceAll('\r\n', '\n')]));
+  const sources = new Map(Object.entries(realAgents()).map(([path, text]) => [path.slice('claude/agents/'.length, -'.md'.length), text.replaceAll('\r\n', '\n')]));
   const r = render([ANTI], { agents: sources, tables: undefined });
   assert.ok(sources.size >= 9, `${sources.size} agents`);
   for (const [name, source] of sources) {

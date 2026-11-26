@@ -118,6 +118,9 @@ or the read before posting.
 
 **Before you run a lens or post to the record, read
 `~/.pact/review.md`.** To research a module or trace what a piece of code leads to, use `scout`.
+<!-- pact:unless tool-limits -->
+Run its tree check around each `scout` pass too.
+<!-- pact:end -->
 <!-- pact:unless subagents -->
 This harness has no subagents: run each lens in a separate session.
 <!-- pact:end -->

@@ -205,14 +205,25 @@ round's comment on the issue lists each finding.
     `github.token` is one every workflow shares, and a workflow file on any
     branch of the repo sets its own permissions and runs before review (S10).
 50. Trade-off: the word budgets of `docs/install.md` (8,700 to 9,100, then
-    9,500 with T3's text and 9,550 with T7's) and `docs/reference.md` (2,300
-    to 2,400, then 2,450 with T7's) rise, and nothing is cut to make room, on
-    the owner's rule; PACT-110 cleans up.
+    9,500 with T3's text and 9,550 with T7's, before item 47's later raise) and
+    `docs/reference.md` (2,300 to 2,400, then 2,450 with T7's) rise, and
+    nothing is cut to make room, on the owner's rule; PACT-110 cleans up.
 51. Trade-off: the builder kit gains `gate/install-core.mjs`,
     `gate/harnesses.mjs`, `gate/harness-render.mjs` and
     `harnesses/known.json`, so the page chooses and renders harnesses as the
     install does (T7, S11). Three more gate files then install. The owner
     hasn't answered it.
+
+**Ticket T9's picks, the lead's decision 125, flagged:**
+
+52. Trade-off: the threat model's cap rises to 4,200 and `docs/install.md`'s
+    budget to 10,550, on the owner's word-cap rule (PACT-109, PACT-110).
+53. Security: the tree check also wraps each `scout` pass, and stops, running
+    no more git, when a hash check fails (S12).
+54. Security: undoing an apply and a full uninstall take only the pact's hook
+    out of a hooks file (`docs/install.md`, Undo an apply).
+55. Security: `~/.pact` outside Claude Code's protected paths stays an open gap
+    in the threat model; no ask rule is added.
 
 ## S3 Terms
 
@@ -714,7 +725,8 @@ the app instead (S2 item 49).
   the permission-request tool (S7).
 - **The tree check.** `review.md`, one shared file, gains one step under
   Running a lens. In a harness whose agents can't be held to their tools
-  (Codex today), the session, before each lens:
+  (Codex today), where the rules file also sends `scout` to it, the session,
+  before each lens and each `scout` pass:
   - finds git's real folders through git (`rev-parse --git-common-dir` and
     `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since
     in a linked worktree `.git` is a file;
@@ -726,20 +738,22 @@ the app instead (S2 item 49).
     fsmonitor and every filter off, with a hash of each listed path's
     content.
 
-  After the lens it first stops any process the lens left running and removes
-  any new link or junction, in the git folders too. It checks each copy against
-  its hash, and again right before it puts anything back from it; where one
-  differs it puts nothing back from the copies and brings it to the owner. Else
-  it compares the git folders with the copies and puts them back, checks them
-  against the same hashes, bringing any difference to the owner, then runs the
-  same records again. Any change, a removed link included, marks the lens
-  inconclusive. The session puts back only what changed during the lens: a
-  moved ref goes back to its earlier value first; then a path clean before is
-  restored with git from that `HEAD`, or deleted if it is new. Each path is
-  removed, put back or restored as itself, never through a link or junction. A
-  path already changed before the lens is left as it is and named, so the
-  owner's own work is never thrown away. The copies are deleted afterwards. The
-  change and the restore are a flagged checkpoint.
+  After it the session first stops any process the agent left running and
+  removes any new link or junction, one in a file's place too, the git folders
+  included. It checks each copy against its hash, and again right before it puts
+  anything back from it. While all match, it compares the git folders with the
+  copies, puts them back and checks them against the same hashes. Where a copy,
+  or a git folder after that, differs from its hash, it stops: it runs no more
+  git there, restores nothing more and brings it to the owner. Else it brings
+  any difference it found to the owner and runs the same records again. Any
+  change, a removed link included, marks the lens or pass inconclusive. The
+  session puts back only what changed during it: a moved ref goes back to its
+  earlier value first; then a path clean before is restored with git from that
+  `HEAD`, or deleted if it is new. Each path is removed, put back or restored as
+  itself, never through a link or junction. A path already changed before it is
+  left as it is and named, so the owner's own work is never thrown away. The
+  copies are deleted afterwards. The change and the restore are a flagged
+  checkpoint.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
   (S15), T4 removes `subagents` from Codex's known description, so Codex
   gets the no-subagents line and each lens runs in a separate session.
@@ -862,7 +876,8 @@ never-sync rule names both folders.
   integrity. This widens "What you install and CI run".
 - **The release app's key** does all `contents: write` does, not tags alone:
   it can push a branch no ruleset covers, and merge what `main`'s ruleset lets
-  through. A change merged to `main` can read the key from the `release`
+  through. Before the second tag ruleset exists it can also move or delete a
+  tag. A change merged to `main` can read the key from the `release`
   environment; required reviewers on it would stop that without a session's
   help, at one click per release. This widens "What you install and CI run":
   the owner's call.
@@ -937,9 +952,8 @@ bootstrap and the release app's key, and "Merges and installs" names
 servers, and Antigravity with Google's, out of scope as Anthropic's are. The
 harness controls name both harnesses' controls and when each doesn't hold.
 Widening a class and changing the scope are the owner's calls. The threat model must stay within its word budget:
-4,100 words of prose (S2 item 47), raised on the owner's
-word-cap rule. T4 and T5 raised `docs/install.md`'s budget to 10,450 on the
-same rule, and T5, merging T6's text, `docs/reference.md`'s to 2,450.
+4,200 words of prose (S2 items 47 and 52), raised on the owner's
+word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 
 ## S16 Trade-offs
 
@@ -1002,10 +1016,11 @@ same rule, and T5, merging T6's text, `docs/reference.md`'s to 2,450.
   `allow_implicit_invocation: false`. `make-it-so`, `finis` and `scry` open
   with S7's line everywhere. `finis` without `archive` ends with S7's line
   and archives nothing. `scriptorium` names no one harness's folders.
-- **C10** `review.md` holds S12's tree check: git's folders found through git
-  and put back first, `HEAD`, refs and stash recorded, status with content
-  hashes and filters and fsmonitor off, moved refs reset, only what changed
-  restored, and the copies outside the work tree, deleted afterwards.
+- **C10** `review.md` holds S12's tree check, around each lens and `scout`
+  pass: git's folders found through git and put back first, a failed hash check
+  stopping it, `HEAD`, refs and stash recorded, status with content hashes and
+  filters and fsmonitor off, moved refs reset, only what changed restored, and
+  the copies outside the work tree, deleted afterwards.
 - **C29** Each harness's rendered rules hold the models line with its own
   models, also under a configuration that replaces the tiers block.
 
@@ -1192,7 +1207,7 @@ reads this spec and each ticket's diff.
 | Two tag rulesets on every tag (S10): creating, the release app its one bypass once it exists; updating and deleting, no bypass | the owner's own act | before T6 merges |
 | The release app as that bypass, and its key's reach (S2 item 49, S15) | the owner's call | before T9 |
 | The raised budgets of two docs (S2 item 50) | a flagged pick, for review | any time |
-| The release app (contents write, this repo only); the `release` environment, set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as its secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags, branches, merges and releases it made | the owner's own acts | before T9 |
+| The release app (contents write, this repo only); the `release` environment, set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as its secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags, branches, merges and releases it made, and delete each bad tag, lifting the second ruleset to do it | the owner's own acts | before T9 |
 | Required reviewers on the `release` environment (S15) | an offer, unanswered; built without | before T9 |
 | `PACT_RELEASES` set to `on` | the owner's own act | in T9 |
 | S14's one-time removal; its step 4 moves the hand ports out of use | the owner's own machine | straight before T9's apply |

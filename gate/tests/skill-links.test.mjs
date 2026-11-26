@@ -204,7 +204,7 @@ test('C19: where a link cannot be made, the dry run says so and the install copi
   assert.equal(kind(h, `${SKILLS}/finis`), 'absent', 'no empty folder is left');
 });
 
-// agy 1.2.14 lists no skill whose folder is a link (docs/log/2026-11-25-antigravity.md), so Antigravity's are copied.
+// agy 1.2.14 lists no skill whose folder is a link, as its probe's log records, so Antigravity's are copied.
 test('C19: a harness that does not discover a linked skill gets copies, beside another harness\'s links, and they come out again', t => {
   const repo = makeRepo(t);
   const h = codexHome(t);

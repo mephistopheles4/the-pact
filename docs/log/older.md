@@ -3692,3 +3692,251 @@ The QA pair read `09b5868`.
 ### Record
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/368): the tier and the claims.
+
+## A hook holds local gate runs to athanor
+
+**2026-10-24.** Two sessions skipped the written rule that local runs of the gate's tests go through athanor, and the owner wants a hook to enforce it, as grimoire's issue 377 did. Tier: standard, planned and built on Opus at medium.
+
+### What was built (#383)
+
+- **The hook:** `.claude/hooks/athanor-guard.mjs`, run by `.claude/settings.json` before every Bash and PowerShell call. It refuses a host `fast` or `full` run while `athanor --version` works, and is silent otherwise. Ported from grimoire's guard, with the-pact's own command forms (`env -u NODE_OPTIONS`, `$env:NODE_OPTIONS = $null;`).
+- **The runner's fallback:** `gate/tests/run.mjs` learns `--host-fallback='<reason>'` on `fast` and `full`, takes a short reason in plain words only, and prints it before the run.
+- **The push hold** in `AGENTS.md` and `docs/agents/gate-tests.md` adds `.claude/settings.json` and `.claude/hooks/`, and the checkout rule in `docs/agents/issue-tracker.md` names the hook script.
+- **The settings file:** `.gitignore` lets out `/.claude/settings.json` alone, and a gate test holds it to the `hooks` key.
+- **Docs:** `AGENTS.md`, `docs/agents/gate-tests.md` (The hook), `docs/reference.md`, and a line in `docs/threat-model.md` that the hook is a nudge, not a defence.
+
+### Decisions
+
+- [ADR 0104](../adr/0104-a-hook-holds-local-gate-runs-to-athanor.md): a hook holds local gate runs to athanor. Enforces ADR 0099.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/383), with [the spec pair's review](https://github.com/mephistopheles4/the-pact/issues/383#issuecomment-6387453987) and [spec revision 2](https://github.com/mephistopheles4/the-pact/issues/383#issuecomment-6387456657).
+
+## The builder-file check reads decoded text
+
+**2026-10-24.** The Test review of #283 (adversarial-lens, F5) found that the builder file's character scan read raw bytes, so a JSON escape for an invisible or direction-changing character passed it and decoded into the page. Tier: quick, set by the owner, with the security pair at Test since it is input validation.
+
+### What was built (#327)
+
+- **The check:** `loadBuilder` in `builder/build.mjs` walks every decoded key and string after the parse and refuses the file if one holds a character the scanner refuses (ADR 0106).
+- **The page:** `presetFromText` in `builder/scriptorium.html` runs the same walk on a file opened on the page, before any of its text is shown, and refuses it with fixed text. The owner widened the change to this path after the Test review (adversarial-lens F2). An opened file's name that holds such a character, or a line break, is shown as fixed text, in the fallback title and the refusal (adversarial-lens, round 2).
+- **The test:** a new test in `gate/tests/builder-page.test.mjs` loads a clean file, and one whose agent file holds an escaped tab and line feed, which still load; then six bad ones: an escaped right-to-left override, carriage return, tag character and lone surrogate in the title, an escaped zero-width space in a key, and an escaped bell in a nested string. Each gets the one fixed refusal, which quotes nothing from the file. A second test does the same for the page's reader, and a third for an opened file's name. A line feed must pass, since part texts run to several lines; the shipped presets hold many.
+- **Rebuilt:** `builder/scriptorium.html`. **Unaffected:** `builder/default-config/` and `cloud-sessions/`.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/327).
+
+## The C4 test closes four withheld-check gaps
+
+**2026-10-24.** #336's last Test round found four broken versions of the poster's withheld checks that the C4 test let pass; the code already caught each one. Tier: quick, test only; the code is unchanged.
+
+### What was built (#342)
+
+- **The C4 test** (`gate/tests/poster-table.test.mjs`) gains five cases: curly quotes and `~~` before the word, and a bare withheld cell with two spaces after the comma, each refused as `table/state`; two different format characters inside the word, refused as `table/state`; and a withheld row with a `skipped, because …` Disposition, refused as `table/disposition`.
+- **Seen to catch:** four mutants of `claude/tools/poster.mjs` (an ASCII-only leading strip, removal of the first soft hyphen only, the withheld Disposition check under the skipped guard, and a spacing-tidying exemption) each pass the old test and fail the new one.
+- **Integrity-lens F5 and F6, on the owner's word:** an ordinary `noted` row is accepted, and a withheld row whose Disposition is no word is refused once. The F6 case kills a mutant that drops the double-refusal guard; the F5 mutant was already caught by an older case.
+
+### Left out
+
+- Behaviour-lens F1's code change (running `withheldAfter` on the poster's `normalise` view) goes to its own issue, on the owner's word.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/342).
+
+## The cloud Node pin moves to 24.22.1
+
+**2026-10-24.** #367. Node's October 2026 security release, high severity on the 24.x line, reached the cloud setup's Node pin. ADR 0088 sets a 7-day limit on a security bump; the release is dated 2026-10-20, so the bump was due by 2026-10-27. Tier: standard, planned and built on Opus at medium. The owner took no sensitive route and no security pair, relayed by the lead session.
+
+### What was built
+
+- **`CLOUD_PINS`** in `cloud-sessions/gen.mjs`: `NODE_VERSION` 24.22.1, with its archive and `bin/node` hashes. The mise pins stay as they were.
+- **The cloud copies,** `cloud-setup.sh` and `cloud-setup-wrapper.sh`, regenerated: in each, the three pin lines and the marker's hash change, and nothing else.
+- **Tests: +0 −0.** Run after the pin edit and before regenerating, four cloud-copy tests failed, among them "the committed outputs equal what the generator builds"; after regenerating, all passed.
+
+### The pin bump, by ADR 0088
+
+Run in a throwaway `ubuntu:24.04` container, with the image's own `gpgv` (2.4.4) and only a scratch copy of the committed keyring mounted, read-only. The copy's SHA-256 matched the one `cloud-sessions/keys/README.md` records.
+
+- **The signature:** `SHASUMS256.txt.sig` for v24.22.1, checked with `gpgv` against `cloud-sessions/keys/node-release-keys.kbx`: a good signature from `5BE8A3F6C8A5C01D106C0AD820B1A390B168D356`. That key is in the committed keyring and in the primary releaser keys of nodejs/node's README at commit `91c4436`. It is not the key that signed 24.22.0, which ADR 0088's key table names. The keyring itself is unchanged: this key was already in it. A copy of `SHASUMS256.txt` with one byte changed was refused.
+- **The archive:** `node-v24.22.1-linux-x64.tar.gz` hashes to `eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c`, as its line in the checked file says.
+- **`bin/node`:** unpacked, it hashes to `e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb` and prints `v24.22.1`.
+
+### The test driver
+
+`cloud-sessions/test-driver.sh` ran the regenerated setup in a throwaway `ubuntu:24.04` container, with only its scratch folder mounted, read-only. The setup ran token-free and anonymous.
+
+- **Both passes** (the driver runs the setup twice, to show a rerun changes nothing; the two snapshots were identical) printed `ok: node, npm and npx run Node 24.22.1` and the marker `pact cloud copy ed0e9014eac1`, with no `node:` reason. The wrappers ran Node `v24.22.1`, npm and npx `11.19.1`.
+- **The hand checks** (the driver's failure cases from #183): a wrong mise, archive or binary pin each printed its mismatch `WARN` and `INCOMPLETE (… node: hash)`. A missing mise release gave `node: download`, `paranoid` off gave `node: config`, and a `uname` stub printing `aarch64` gave `node: arch`.
+- **The Node block alone** took 9 s from nothing installed. An untrusted `mise.toml` asking for Node 22 was refused as untrusted, and the wrapper still printed `v24.22.1`. `mise exec node@22` printed `v22.23.4`.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/367).
+- [The spec](https://github.com/mephistopheles4/the-pact/issues/367#issuecomment-6387269187).
+- [The Test review](https://github.com/mephistopheles4/the-pact/issues/367#issuecomment-6387467386): the QA pair and the standards pair.
+
+## Confirmed decisions run their own command
+
+**2026-10-24.** The rules file made a session hand back a command only the owner may start, even one the owner had just confirmed in chat, such as an install's apply. On mobile, where the owner can't run a command, that hand-back blocks the work. The owner chose the new wording in the lead's chat. Tier: quick.
+
+### What was built (#379)
+
+- **The rules file** (`claude/CLAUDE.md`, How Claude helps): once the owner confirms a decision in chat, the session carries it out, its command included; a command it can't run, such as one that needs the owner's sign-in or a password, it hands over in one line and stops. The decisions list is unchanged.
+- **Regenerated:** `cloud-sessions/`. **Unaffected:** `builder/scriptorium.html` and `builder/default-config/`, which don't carry this sentence.
+- **Unchanged:** the first-install prompt in `docs/install.md`, which runs before any pact is loaded.
+
+### Decisions
+
+- No ADR. Each decision still needs the owner's word in chat; only who types the command after it changes.
+- "In chat" means the owner's own chat. A session under a lead hands a confirmed command to the lead, which runs it on the owner's word in its own chat (the owner, relayed by the lead).
+- No change to the threat model: R22's safeguards hold, since an install still needs the owner's word in chat (the owner, relayed by the lead).
+- Once this merges, the owner pastes `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again.
+
+### Record
+
+- [The request](https://github.com/mephistopheles4/the-pact/issues/379), with the owner's wording.
+- [Test review: conventions-lens and reader-lens](https://github.com/mephistopheles4/the-pact/issues/379#issuecomment-6386915584).
+
+## Effort is taken as given
+
+**2026-10-24.** In a field test, a session started at high effort reported itself below high and asked whether to restart, while its own status line read high throughout. A session sees no effort setting by name, so it guesses, and a wrong guess stops the work for the owner. #306 had already taken effort out of "Say a mismatch first", but sessions still checked their effort against the effort named by the tiers and the sensitive route. Tier: standard.
+
+### What was built (#376)
+
+- **The rules file** (`claude/CLAUDE.md`, How much checking): after "Keep one model for a whole session.", one sentence says the effort set at the start, by the owner or by a lead session the owner set up, which the start prompt may state, is taken as given, and never judged, flagged or used to stop the work from the session's own sense of it.
+- **The test:** a new test in `gate/tests/paths.test.mjs` checks that this sentence follows the one-model line, word for word. The #306 test, unchanged, still checks that the mismatch bullet names no effort.
+- **Regenerated:** `cloud-sessions/`. **Unaffected:** `builder/scriptorium.html` and `builder/default-config/`, which don't carry this line.
+
+### Decisions
+
+- The sentence sits on a line outside every builder block, so a configuration that replaces the tiers, the workflow or the sensitive route keeps it.
+- The issue's ask that a session name its doubt about effort in one line was dropped: a session can never read its effort, so the line would show in every session (the owner, relayed by the lead).
+- No ADR. ADR 0013 still sets which effort a tier starts at; this says who knows it. An xhigh rerun the owner sets at a stop, under ADR 0013, is likewise an effort the session takes as given.
+- Once this merges, the owner pastes `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again.
+
+### Record
+
+- [The issue and the spec](https://github.com/mephistopheles4/the-pact/issues/376#issuecomment-6387275198).
+- [Test review: behaviour-lens and integrity-lens](https://github.com/mephistopheles4/the-pact/issues/376#issuecomment-6387417795).
+- [Test review: conventions-lens and reader-lens](https://github.com/mephistopheles4/the-pact/issues/376#issuecomment-6387430009).
+
+## Every lens runs in a pair, and a cost can limit the review
+
+**2026-10-24.** A field test ran seven lenses at Test twice on a Standard change, and the owner wants every lens offered in a pair and a review capped at two pairs a round. The owner chose a cost row for the cap rather than an edit to the Workflow cells. Tier: standard, planned on Opus at medium, built on Opus. The owner waived in chat ADR 0094's sensitive route for this change and the security-pair read a roster change needs.
+
+### What was built (#377)
+
+- **The gatekeeper goes:** from the Lenses table, the default Test cell, `builder/parts.mjs`, four presets and three example blocks. The builder's half-of-a-pair warning loses its exception.
+- **A cost no Enough names limits the review itself:** one sentence in the Cost limits prose (`claude/CLAUDE.md`, and `gate/render-core.mjs`'s fixed copy). The builder's warning for such a row is gone, Scriptorium shows its reach, and the dry run's notes follow.
+- **The Lens pairs row** ships in the pact's text; Ultra Code carries the other three rows and stays uncapped.
+- **`claude/review.md`:** a lens of a pair never runs or crosses alone, and a round is counted against review-wide costs.
+- **Docs:** the README, `docs/reference.md`, `docs/install.md`, `docs/agents/install.md`, `CONTEXT.md` and FIG. 03.
+- **The threat model's R30 and R31** say a cost row no quality names limits the review, and the dry run notes it; the owner accepted the class of path a project's configuration opens here, relayed by the lead session.
+- **Regenerated:** `builder/scriptorium.html`, `builder/default-config/`, `cloud-sessions/` and the figures.
+
+### Decisions
+
+- [ADR 0101](../adr/0101-every-lens-runs-in-a-pair-and-a-cost-can-limit-the-review.md): every lens runs in a pair, and a cost can limit the review. Supersedes in part ADR 0080 and ADR 0079.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/377).
+- [The spec, revision 3](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6385941228), and [the spec pair's review](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6385902546) of revision 2.
+- [The QA pair's review](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386232025) and [the standards pair's](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386247557) at Test.
+- The follow-up round at Test: [the QA pair](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386395569) and [the standards pair](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386410371).
+- [Spec revision 4](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386441928), amending D2 and C3, and [the QA pair's last round](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386562378) on the final code.
+
+## The home-folder install test passes where home is /root
+
+**2026-10-24.** In a cloud session the home folder is `/root`, so the install test for a project holding the real home folder named `/` as the project. It also tries each path with a separator added, and `/` plus `/` is `//`, which the install refuses earlier as a network or device path. The test expected the home-folder refusal, so it failed there, and on `main`. Tier: quick.
+
+### What was built (#333)
+
+- **The test** (`gate/tests/install-project.test.mjs`, `realHomeCase`): a path that already ends in a separator, as a filesystem root does, is tried as given and not with a second separator. The test still checks that `/` is refused as a project holding the home folder.
+- **Checked:** in a Linux container running as root, the test failed before the change with the network-path refusal and passes after it.
+
+### Decisions
+
+- The issue's options were to accept the earlier refusal or to skip. Neither was taken: the fault was the doubled separator, so the test keeps its own assertion everywhere. No ADR.
+
+### Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/333).
+- [Test review: behaviour-lens and integrity-lens](https://github.com/mephistopheles4/the-pact/issues/333#issuecomment-6388926206).
+
+## A follow-up lens run reads only the revision
+
+#389, standard tier, planned and built on Opus at medium by pact-389-followups, led by head-chef-field-test. The owner's answers, numbered q1 on, came by relay through the lead; q1 to q14 are written into spec revision 6, and the rest into the Test review comments. The security pair ran on the spec and the diff, without the sensitive route's Opus-high build (q4).
+
+The issue counted one day of brigade lens runs: a follow-up cost about what a first round did, because it re-read the whole change. The spec went through six revisions and three Design rounds of the spec pair and the security pair. The first round found the push gate this repo keeps on the security pair's read, and the owner kept that read full (q5). The second found that a spec has no git head, and the owner kept spec follow-ups full (q8). It also found that repos with no push rule would merge on a scoped security read, and the owner answered with a closing read that compares three states (q9). The third round, by the owner's q11 its last, brought five rules pinning the closing read down (q13) and the push sentences' own wording (q12). The Design follow-ups cost 57–81k tokens each, about what the first rounds did, which is the issue's point.
+
+The build edits `claude/review.md` (the scoped follow-up, the closing read, Spec drift in the template and the review comment), the push sentences in `AGENTS.md` and `docs/agents/gate-tests.md`, and `CONTEXT.md`, with one assertion block in the existing review-file test in `gate/tests/pact-call.test.mjs`, seen red first (ADR 0108). Whether reviews cost less is proved by use after the install (claim 9).
+
+Test ran the QA pair and the security pair together as the closing read, on `3499e1f`, on the fix head `c445aab`, and the security pair alone as the full push read of `de1f188`; the standards pair ran last, as the second Test round. Each round turned up small new items in the text the last fix added, so Test hit the Guards' stop after two rounds, and the owner chose one last fix commit (q18). The fixes:
+- a scoped follow-up gets the base by its hash, never the whole diff;
+- a claims lens keeps the claims its earlier findings sit on;
+- the push read and the closing read are handed their earlier findings;
+- a squash falls back to a restart, which carries the open rows;
+- a file the revision touches stays in scope even when a withheld finding sits in it (q15), though a claim run never reaches it for a lens that can reach the web;
+- "the approved spec" means the revision the owner approved.
+
+The owner then took four close-out fixes (q19), with the R42 and R23 wording in the threat model; the gap that a scoped data read can't see a leak crossing out of its scope stays a note, not an accepted risk.
+
+### Record
+
+- The request: the issue body of #389.
+- Spec revisions 1 to 6: issuecomment-6389194243, issuecomment-6389899815, issuecomment-6390011115, issuecomment-6390040839, issuecomment-6390172799, issuecomment-6390274791.
+- Design reviews: issuecomment-6390002036 and issuecomment-6390003189 (revision 2); issuecomment-6390122653 and issuecomment-6390122917 (revision 4); issuecomment-6390249895 and issuecomment-6390250243 (revision 5).
+- Test reviews: issuecomment-6390437253 and issuecomment-6390438474 (`3499e1f`); issuecomment-6390588301 and issuecomment-6390588858 (`c445aab`); issuecomment-6390743100 (`de1f188`, the security pair's push read); issuecomment-6390816290 (`de1f188`, the standards pair).
+- The input-validation gap filed from the Design review: #391.
+
+## The folder check reads other workflows
+
+**2026-10-24.** Two low follow-ups from the security pair's Test read of #351. The lockdown test's YAML reader splits lines on a line feed alone, so another line break could hide a key from it (#356), and the folder check found a second `gate` or `gate-windows` job by matching lines, which other spellings got past (#357). Tier: quick.
+
+### What was built (#356, #357)
+
+- **Line breaks** (`gate/tests/workflow.test.mjs`, `folderProblems`): every workflow file, `gate.yml` included, is refused when it holds a carriage return not followed by a line feed, a control character other than a tab or a line feed (the C0 and C1 ranges and delete, next line among them), a line separator or a paragraph separator.
+- **Other workflows:** every file but `gate.yml` is read with the same YAML reader; a file it can't read is refused, and so is a job whose id or `name` equals a required check name, or whose `name` holds an expression. The line match from #351 stays beside it.
+- **The security pair's read** (F1, H1, H2): a job name is compared trimmed and in lower case, so a block-scalar name such as `|-` and `gate` reads as `gate`; a job id in another case counts too; and a workflow file whose extension is in another case is read.
+- **The QA pair's read:** the C1 control range is refused too, and the folder reader takes its listing, so the upper-case extension is tested through it.
+- **The tests:** twenty-one bad cases, each failing on a broken version of its check, and one control that a CRLF line ending and a tab are no stray break.
+
+### Decisions
+
+- The line match stays, so a quoted job id, which the reader refuses as unreadable, still reports the gate name.
+- No ADR.
+
+### Record
+
+- The issues: [#356](https://github.com/mephistopheles4/the-pact/issues/356), [#357](https://github.com/mephistopheles4/the-pact/issues/357).
+
+## The withheld check folds links with parentheses
+
+Follow-up to #391 and #392 (#395), under #396, quick tier, built on Opus at low by pact-391-392, led by head-chef-field-test. The owner's answers came by relay through the lead (q10 to q12 on #395's last Test read).
+
+The poster's withheld check folds a link to its text before it matches the word. A second fold now takes an address with one level of parentheses and a quoted title, so a link whose address holds a pair of parentheses, or whose title holds a closing parenthesis, no longer splits the word past it. The first fold stays beside it: the security pair found that the new fold alone read a lone quote in an address as a title and missed a form `7d282c2` caught. Three cases join the C4 test in `gate/tests/poster-table.test.mjs`. The check failed each before its fix, letting the row through: the two new forms at `7d282c2`, and the lone quote at `2f43184`.
+
+`docs/threat-model.md`: R57's text adds "or in markup it doesn't fold", the owner's wording (q11), and the label line names the two crypto collision residuals that are accepted without a label (q12).
+
+### Record
+
+- The request: q10 to q12, relayed by the lead after #395's last Test read; #396.
+
+## The withheld check reads the normalised view, and input validation gets its section
+
+#391 and #392, quick tier, built on Opus at low by pact-391-392, led by head-chef-field-test. The owner's answers, q1 to q9, came by relay through the lead.
+
+#392: the poster's `withheldAfter` read a Finding cell's raw text, so a form of "withheld" written differently but rendering the same passed it. It now reads the text after the state word in four views: as written, the two `normalise` copies `scan` reads, and a copy with each link folded to its text and without emphasis and code span marks. Fourteen cases join the C4 test in `gate/tests/poster-table.test.mjs`. Eleven were seen to pass the base's code: a character reference, an inline element, an HTML comment inside the word, fullwidth letters, a combining grapheme joiner, emphasis, a code span, link brackets, a link address or a reference label inside the word, and an empty link before it. The other three, the word in a closed or unclosed comment or as a bare tag, the base already refused; they were seen to pass the first Test round's head, `defb110`, which had dropped them.
+
+#391: `docs/threat-model.md` gains an "Input validation here" section that gathers the input checks the pact's code already makes, and the accepted risks that cover the rest, so the security lenses' sensitive-list check can read them in one place. The section adds no control and accepts no risk; the change also records R57 (q5).
+
+Test's first round, on `defb110`, ran the QA pair and the security pair together. The security pair found that reading only the normalised view had dropped the comment and tag forms the raw read caught; the four-view read restores them. The owner corrected the section's wording (q3), took the emphasis, code span and link fix (q4), and accepted R57, a withheld row's state in a form or cell the check does not read or fold, such as a look-alike letter from another script (q5). The second round, the security pair's full read of `d87eca8`, found the link fix only partial; that hit the Guards' stop after two rounds, and the owner chose one last fix commit and one last full read (q7). Follow-ups filed: #394, the content scan's named references (q6), and #396, the tag-attribute split (q8).
+
+### Record
+
+- The requests: the issue bodies of #391 and #392.
+- The pull request: #395.

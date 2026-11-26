@@ -23,7 +23,7 @@ Claude Code session on your machine.
 
 - [Before you install](#before-you-install)
 - [Where the pact installs](#where-the-pact-installs)
-  - [Skill links](#skill-links)
+  - [Skill links and copies](#skill-links-and-copies)
   - [Codex's shell environment policy](#codexs-shell-environment-policy)
 - [Before the first install into `~/.pact`](#before-the-first-install-into-pact)
 - [1. Check the prerequisites](#1-check-the-prerequisites)
@@ -76,7 +76,7 @@ moves `~/.pact`.
 A **harness** is a program the rules install into. The pact knows three, in
 [`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
 `codex` and `antigravity`. The install writes each one's rules and agents.
-[Skills](#skill-links) give Codex and Antigravity the commands, and
+[Skills](#skill-links-and-copies) give Codex and Antigravity the commands, and
 [the guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
 
 - **Detection.** A known harness is found when its `detect` folder exists
@@ -95,7 +95,7 @@ A **harness** is a program the rules install into. The pact knows three, in
   refuses (`harness-id`, `harness-format`, `harness-path`,
   `harness-shape`, `harness-field`).
 
-### Skill links
+### Skill links and copies
 
 Codex and Antigravity get each command that is on as a skill. The pact keeps the
 skill in `~/.pact/skills/<name>`. In Codex's skills folder
@@ -1014,15 +1014,17 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
    6 for each in turn.
 2. **Know what it undoes.** A copy-back puts each listed file back as it was
    before that apply, losing any edit made to it since, including what Claude
-   Code writes to `settings.json`, such as permission rules.
+   Code writes to `settings.json`, such as permission rules, and a hook you
+   added to a hooks file.
 3. **Check its `manifest.json` before you act on it,** and stop on any
    failure:
    - each path is relative to your home folder, with forward slashes and no `..`,
      and names its harness;
    - each path is under `.pact/` or a harness's own rules file, agents,
      commands or skills folder, or is `~/.codex/config.toml` or its hooks file
-     (`~/.codex/hooks.json`, `~/.gemini/config/hooks.json`, or the one your own
-     harness names); none is under `.pact/blocks/`, `.pact/presets/`,
+     (`~/.codex/hooks.json`, `~/.gemini/config/hooks.json`, or the `hooks.file`
+     your own harness names under `harnesses.own` in `~/.pact/config.json`);
+     none is under `.pact/blocks/`, `.pact/presets/`,
      `.pact/backups/`, `.pact/handoffs/`, `.pact/config.json`,
      `.pact/builder.json` or a `.credentials` file, the paths the install
      never touches; `.claude/settings.json` and `.pact/install.json` may be
@@ -1039,13 +1041,19 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
      planted
      entry can't have you delete a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
+     A hooks file is listed even if it already held your hooks, so step 5
+     keeps one that holds more than the pact's.
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
    `~/<path>`. Keep `settings.json`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
    and macOS. Don't copy Codex's `config.toml` back, which would undo what you or
    Codex wrote to it since, such as a tighter approval setting: change only the
-   pact's line, to match the backup's copy.
-5. **Delete each `was: absent` path** that is there. A skill link goes as a
+   pact's line, to match the backup's copy. Read a hooks file's copy before you
+   copy it back, and stop on a command that neither you nor the pact set.
+5. **Delete each `was: absent` path** that is there. From a hooks file, take
+   out only the hook whose command runs a script in `~/.pact/guard/`, with any
+   group and key that leaves empty, and delete the file only if nothing but
+   `{}` is left. A skill link goes as a
    link, never through it: `rm "$HOME/<path>"` on Linux and macOS,
    `cmd /c rmdir "$HOME\<path>"` in PowerShell, with the path's slashes turned
    to backslashes, and no `-r` or `/s`. In a copied skill folder, delete the
@@ -1068,11 +1076,12 @@ while your current record is still there; there, a `was: absent` path your
 current record doesn't list passes if it isn't on disk, and one that is on disk
 and unlisted is yours to leave alone. A backup taken after you moved the record
 aside (Updating later) is not your first install's: if every such backup was
-taken that way, or you deleted the first one, follow Installed before backups. Then delete the pact files your
-current record lists: the agents, `.pact/review.md`, `.pact/review-diagrams.md`, the `.pact/builder/`
-folder, each pact command in `.claude/commands/`, `/scriptorium` included,
-`.pact/tools/poster.mjs` and `.pact/tools/cleaner.mjs` if listed,
-`.pact/hooks/compact-handoff.mjs` if listed, and `.pact/install.json`. Then do
+taken that way, or you deleted the first one, follow Installed before backups.
+Then remove what your current record lists, a guard added by a later apply
+included: every file under `files`, every skill link under `links` (as step 5
+removes one), the pact's hook in each hooks file under `entries` (as step 5
+does), Codex's policy line if `shellPolicy` is marked, and
+`.pact/install.json`. Then do
 steps 4 to 7 with that backup. Step 4's restored `settings.json` takes the
 pact's hook entries and `autoCompactWindow` out with it; had you no backup of
 it, remove the entries that call the deleted script by hand. If you had no `settings.json` before, step 5
@@ -1086,6 +1095,7 @@ back your own copies of your rules file, settings and agents. With no copy of
 `settings.json:` and the lines of the `auto-compact-window:` block, or set them
 back, `permissions.defaultMode` above all, and take out the hook entries that
 call `.pact/hooks/compact-handoff.mjs` and `autoCompactWindow`. Then
-delete the pact files your record lists, as for a full uninstall.
+remove what your record lists, as for a full uninstall, but no file you just put
+back.
 
 Start a new session to load the change.
