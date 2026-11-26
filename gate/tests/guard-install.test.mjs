@@ -32,7 +32,7 @@ const guardEntries = h => record(h).entries.filter(e => e.key.startsWith('guard.
 const WIN = process.platform === 'win32';
 // On Windows each wrapper has a launcher beside it (S8).
 const GUARD_FILES = [...(WIN ? ['antigravity.cmd', 'codex.cmd'] : []), 'antigravity.mjs', 'codex.mjs', 'guard.mjs', 'rules.json'].sort();
-/** The hook's command run as Codex runs it here. */
+/** The hook's command run through the platform's shell: on Windows, Windows PowerShell, since Codex runs hooks under PowerShell. */
 const asCodex = (command, input) => (WIN
   ? spawnSync('powershell.exe', ['-NoProfile', '-Command', command], { input, encoding: 'utf8' })
   : spawnSync('/bin/sh', ['-c', command], { input, encoding: 'utf8', env: { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}` } }));

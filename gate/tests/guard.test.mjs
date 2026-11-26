@@ -199,7 +199,7 @@ test('S7: only a harness that takes a skill the rule names, behind a hook that c
   }
 });
 
-test('the hook command names the wrapper by its full path and clears NODE_OPTIONS in each platform\'s form', () => {
+test('the hook command names its script by full path: the wrapper with NODE_OPTIONS cleared, and on Windows the launcher through cmd.exe', () => {
   assert.equal(core.guardCommand({ script: "/home/o'x/.pact/guard/codex.mjs", platform: 'linux' }), "env -u NODE_OPTIONS node '/home/o'\\''x/.pact/guard/codex.mjs'");
   // One text for cmd and PowerShell (S8): the launcher beside the wrapper, its exit code passed on.
   const win = 'C:\\Windows\\System32\\cmd.exe /d /c call "C:\\Users\\a b\\.pact\\guard\\codex.cmd" ; exit $LASTEXITCODE';
@@ -252,7 +252,7 @@ const typed = Input => tool('manage_task', { Action: 'send_input', Input, TaskId
 
 /** Windows PowerShell by its full path, so a case may empty PATH. */
 const POWERSHELL = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-/** The shell each harness runs a hook under on Windows: Codex PowerShell, Antigravity cmd. */
+/** The shell the cases run each harness's hook under on Windows: Windows PowerShell for Codex, whose own pwsh the shells case covers, and cmd for Antigravity. */
 const SHELL = { codex: POWERSHELL, antigravity: 'cmd' };
 
 /** The hook run as the harness runs it: the rendered command's exact text, through the platform's shell, the call on standard input. */
