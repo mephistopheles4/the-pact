@@ -85,7 +85,7 @@ const column = (header, name, from) => header.cells.findIndex((c, i) => i >= fro
 /** A tier row's name, its bold text, or the cell as it stands. */
 const tierName = row => /^\*\*(.+)\*\*$/.exec(cellText(row, 1))?.[1] ?? cellText(row, 1);
 // A key as harnesses.mjs's TIER_KEY_RE accepts it.
-const tierKey = name => name.toLowerCase().replace(/ +/g, '-');
+export const tierKey = name => name.toLowerCase().replace(/ +/g, '-');
 
 /** The tiers table and the workflow table (spec 0008 D5), each undefined when the rules hold none. */
 function tierTables(lines) {
@@ -94,6 +94,14 @@ function tierTables(lines) {
     tiers: all.find(([head]) => cellText(head, 1) === 'Tier' && column(head, 'Plan', 2) > 0 && column(head, 'Build', 2) > 0),
     workflow: all.find(([head]) => cellText(head, 1) === 'Stage'),
   };
+}
+
+/** Each tier of the rules' tiers table: its key, its name, and its Plan and Build cells as written. Scriptorium shows these. */
+export function tierRows(rules) {
+  const { tiers } = tierTables(rules.split('\n'));
+  if (!tiers) return [];
+  const [head, ...rows] = tiers;
+  return rows.filter(r => /^\*\*.+\*\*$/.test(cellText(r, 1))).map(r => ({ key: tierKey(tierName(r)), name: tierName(r), plan: cellText(r, column(head, STAGES.plan, 2)), build: cellText(r, column(head, STAGES.build, 2)) }));
 }
 
 /** The cells one tier key rewrites, as [row, column, effort], or why the key finds nothing. */

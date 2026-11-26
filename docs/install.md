@@ -94,9 +94,10 @@ A **harness** is a program the rules install into. The pact knows three, in
   the three its rules name, and `agentModels`, a model per agent, `*` for the
   rest, laid over the known ones. Antigravity's agents take their model from
   `agentModels`, unless an agent's file or setting names a model outright.
-- **Efforts.** `tierEfforts` sets plan or build efforts by tier key (name
-  lowercased, hyphenated; `null` drops one); `efforts` bounds `<effort>`
-  models. Refusals: `harness-shape`, `tier-effort`, `agent-effort`.
+- **Efforts.** `tierEfforts` sets plan/build efforts by tier key
+  (lowercase-hyphenated name; `null` drops the known key); `efforts` lists
+  `<effort>` models' efforts. Refusals: `harness-shape`, `tier-effort`,
+  `agent-effort`.
 - **Your own harness** goes under `harnesses.own`, as a description with the
   fields of the known ones (spec 0007, S5). A description the pact can't take
   refuses (`harness-id`, `harness-format`, `harness-path`,

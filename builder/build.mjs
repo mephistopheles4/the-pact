@@ -7,6 +7,7 @@
 //   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it, to a new file outside any repo, Claude folder and pact folder
 //   node builder/build.mjs --builder <file>                check it, then write the page to ~/.pact/scriptorium.html, replacing the last one
 //   node builder/build.mjs --builder <file> --texts        check it, then print each part it changes as the page saves it
+//   node builder/build.mjs --overview <page>               write the setup the install would write now, across harnesses, to a new page (spec 0008 D6)
 //
 // The page runs from disk with no network, so everything it shows is carried
 // inside it, as one JSON object in its script between the pact-data marks.
@@ -54,10 +55,11 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { AGENT_EFFORTS, CONFIG_REL, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain, parseRecord } from '../gate/install-core.mjs';
+import { AGENT_EFFORTS, CONFIG_REL, DEFAULT_CONFIG_DIR, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain, parseRecord } from '../gate/install-core.mjs';
 import { KNOWN_REL, chooseHarnesses, configHarnesses, parseKnown, resolveHarnesses } from '../gate/harnesses.mjs';
+import { renderHarnesses, tierRows } from '../gate/harness-render.mjs';
 import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
-import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
+import { DEFAULT_PARTS, PART_MARKS, acrossColumn, acrossRows, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
@@ -152,10 +154,10 @@ function renderCode(root) {
       own(/^const windowsName = [\s\S]*?;$/m),
       own(/^const SECRET_STORES = .*;$/m),
       'const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));',
-    ], 'CAPABILITIES, EFFORT_SLOT, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses'),
+    ], 'CAPABILITIES, EFFORT_SLOT, TIER_KEY_RE, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses'),
     '})();',
     'const rendered = (() => {',
-    wrapped('gate/harness-render.mjs', ['const { CAPABILITIES, EFFORT_SLOT } = described;', 'const Buffer = { byteLength: s => utf8Length(s) };'], 'renderHarnesses'),
+    wrapped('gate/harness-render.mjs', ['const { CAPABILITIES, EFFORT_SLOT } = described;', 'const Buffer = { byteLength: s => utf8Length(s) };'], 'renderHarnesses, tierRows, tierKey'),
     '})();',
     'return { ...described, ...rendered, Refusal };',
     '})();',
@@ -890,6 +892,83 @@ export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_R
   return out;
 }
 
+const OVERVIEW_STYLE = 'body{font:14px/1.5 system-ui,sans-serif;margin:16px;background:#fff;color:#111}div{overflow-x:auto}table{border-collapse:collapse}th,td{border:1px solid #999;padding:4px 8px;text-align:left;vertical-align:top}td{min-width:12em;overflow-wrap:anywhere}@media(prefers-color-scheme:dark){body{background:#111;color:#eee}}';
+const escapeHtml = s => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+
+/**
+ * What the install would write for each harness from the configuration under
+ * `home` now (spec 0008 D6): { columns: [{ id, heading, ... }], names } from the
+ * installer's own renderer, or { refusals }, its lines.
+ */
+export function overviewData(root, home = homedir()) {
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const out = mkdtempSync(join(tmpdir(), 'scriptorium-overview-'));
+  try {
+    const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesPath(root), out, home, join(root, ...DEFAULT_CONFIG_DIR.split('/'))], { encoding: 'utf8', env });
+    if (r.status !== 0) {
+      const fails = (r.stdout || '').split('\n').filter(l => l.startsWith('FAIL '));
+      return { refusals: fails.length ? fails : ["the installer's renderer could not run"] };
+    }
+    const texts = dir => new Map(readdirSync(join(root, 'claude', dir)).filter(f => f.endsWith('.md')).sort().map(f => [f.slice(0, -3), readFileSync(join(root, 'claude', dir, f), 'utf8')]));
+    const agents = texts('agents');
+    // An agent the configuration sets is the renderer's own file.
+    for (const name of agents.keys()) {
+      const made = join(out, `agent-${name}.md`);
+      if (existsSync(made)) agents.set(name, readFileSync(made, 'utf8'));
+    }
+    let configText = null;
+    try {
+      configText = readFileSync(join(home, ...CONFIG_REL.split('/')), 'utf8');
+    } catch (e) {
+      if (e.code !== 'ENOENT') return { refusals: [`${CONFIG_REL} could not be read`] };
+    }
+    const known = knownHarnesses(root);
+    let harnesses;
+    try {
+      harnesses = resolveHarnesses({ known, own: configHarnesses(configText).own, home, platform: process.platform, inWorkTree: null });
+    } catch (e) {
+      if (!(e instanceof Refusal)) throw e;
+      // The rule id alone: the sentence can hold text from the file.
+      return { refusals: [`the install would refuse the harnesses in ${CONFIG_REL} (${e.rule})`] };
+    }
+    const input = { rules: readFileSync(join(out, 'CLAUDE.md'), 'utf8'), agents, commands: texts('commands') };
+    const lib = { renderHarnesses, tierRows, Refusal };
+    // A known harness goes by its known name and an own one by its id: a configured name can hold anything.
+    const columns = harnesses.map(h => ({ ...acrossColumn(lib, input, h), heading: known.find(k => k.id === h.id)?.name ?? h.id }));
+    return { columns, names: [...agents.keys()] };
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+}
+
+/** The across-harnesses table as a page of its own: no script, nothing loaded, and no text but models, efforts, and tier, agent and harness names. */
+export function overviewPage({ columns, names }) {
+  const cells = (tag, list) => list.map(c => `<${tag}>${escapeHtml(c)}</${tag}>`).join('');
+  const rows = acrossRows(columns, names).map(r => `<tr><th scope="row">${escapeHtml(r.label)}</th>${cells('td', r.cells)}</tr>`);
+  return [
+    '<!doctype html>',
+    '<html lang="en">',
+    '<head>',
+    '<meta charset="utf-8">',
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-${sha256b64(OVERVIEW_STYLE)}'; base-uri 'none'; form-action 'none'">`,
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    '<title>The pact across harnesses</title>',
+    `<style>${OVERVIEW_STYLE}</style>`,
+    '</head>',
+    '<body>',
+    '<h1>The pact across harnesses</h1>',
+    '<p>What the install would write for each harness from this configuration.</p>',
+    '<div><table>',
+    `<tr><th scope="col">Setting</th>${cells('th', columns.map(c => c.heading))}</tr>`,
+    ...rows,
+    '</table></div>',
+    '</body>',
+    '</html>',
+    '',
+  ].join('\n');
+}
+
 const FOLD = process.platform === 'win32' || process.platform === 'darwin';
 /** A path's canonical form: its folder's real path joined with its name, case-folded where the file system folds case. */
 function canonical(p) {
@@ -906,7 +985,8 @@ function canonical(p) {
 /**
  * Why a page may not be written at `out`, or null. A page carries the person's
  * own parts and lists, so it is never written inside this clone, where a
- * commit would publish it, and never over the builder file. Paths compare in
+ * commit would publish it, and never over the builder file. `builder` is null
+ * for --overview, which has no builder file to compare. Paths compare in
  * canonical form, so a different spelling of the same file is caught.
  * `fixed` is true only for the default path (PACT-96, ADR 0171): no --out was
  * given, so the page goes to ~/.pact/scriptorium.html. That one path is let
@@ -916,7 +996,7 @@ function canonical(p) {
  */
 export function outProblem(root, out, builder, fixed = false) {
   const o = canonical(out);
-  if (o === canonical(builder)) return 'must not be the builder file';
+  if (builder !== null && o === canonical(builder)) return 'must not be the builder file';
   const r = canonical(join(root, 'x')).slice(0, -1);
   if (o.startsWith(r)) return isKit(root) ? 'must be outside the builder kit' : 'must be outside this clone: a page carries your own parts and lists, so keep it out of any repo';
   // The Claude home folder, as each of its spellings, the pact folder, and any
@@ -969,11 +1049,30 @@ function printCheck(name, r) {
   process.stdout.write(`RESULT: ${r.refusals.length ? 'refused' : 'pass'} (${name}: ${r.refusals.length} refusal${r.refusals.length === 1 ? '' : 's'}, ${r.findings.length} finding${r.findings.length === 1 ? '' : 's'})\n`);
 }
 
+/** `--overview <file>`: the across-harnesses page for this machine's configuration. It installs nothing. */
+function writeOverview(root, file) {
+  const refuse = why => {
+    process.stdout.write(`REFUSE ${why}\n`);
+    process.exitCode = 1;
+  };
+  const why = outProblem(root, file, null);
+  if (why) return refuse(`--overview ${why}`);
+  const data = overviewData(root);
+  if (data.refusals) return data.refusals.forEach(refuse);
+  try {
+    writeFileSync(resolve(file), overviewPage(data), { flag: 'wx' });
+  } catch (e) {
+    return refuse(`the page could not be written (${e.code || 'error'})`);
+  }
+  process.stdout.write(`WROTE ${resolve(file)}\n`);
+  process.stdout.write('NOTE the page holds your model names and tier names in plain text: you may delete the file when you are done with it\n');
+}
+
 function main(argv) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const page = join(root, PAGE_REL);
   const usage = () => {
-    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> [--check | --out <page> | --texts]\n');
+    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> [--check | --out <page> | --texts] | --overview <page>\n');
     process.exitCode = 2;
   };
   const major = Number(process.versions.node.split('.')[0]);
@@ -982,14 +1081,16 @@ function main(argv) {
     process.exitCode = 1;
     return;
   }
-  const opts = { check: false, builder: null, out: null, texts: false };
+  const opts = { check: false, builder: null, out: null, texts: false, overview: null };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--check') opts.check = true;
     else if (argv[i] === '--texts') opts.texts = true;
     else if (argv[i] === '--builder' && argv[i + 1]) opts.builder = argv[(i += 1)];
     else if (argv[i] === '--out' && argv[i + 1]) opts.out = argv[(i += 1)];
+    else if (argv[i] === '--overview' && argv[i + 1]) opts.overview = argv[(i += 1)];
     else return usage();
   }
+  if (opts.overview !== null) return opts.check || opts.builder || opts.out || opts.texts ? usage() : writeOverview(root, opts.overview);
 
   if (!opts.builder) {
     if (opts.out || opts.texts) return usage();
