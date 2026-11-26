@@ -42,8 +42,11 @@ pull request, cost money on each, and posted nothing. V2:
 - leaves the Console and GitHub settings steps to the owner, as an ordered
   checklist on the issue.
 
-The same change refreshes the threat model, `docs/reference.md` and the
-spec's table of contents, and adds a dated log, since it changes the gate.
+The same change refreshes the threat model, `docs/reference.md` (which
+names the two asks and who may post them, for a session that wants a
+review) and the spec's table of contents, adds `.claude/ci/` to AGENTS.md's
+read-closely list, since it steers a run, and adds a dated log, since it
+changes the gate.
 
 ## W2 Decisions
 
@@ -327,7 +330,9 @@ workflow validation". Its residual lines become:
 - a steered run can still read what the deny list misses (an unlisted
   command or path), and post it through the masked tools in a shape
   `redactSecrets` does not know, or push it in a commit, unmasked and
-  reachable by its ID after the branch goes; `github.com` and
+  reachable by its ID after the branch goes; an update to the tracking
+  comment keeps its earlier text in the comment's public edit history;
+  `github.com` and
   `api.github.com` stay open to it;
 - a session holding an agent app's key can start a run that spends Anthropic
   tokens and writes through the app's token; a comment by an allowed bot that
@@ -340,7 +345,7 @@ workflow validation". Its residual lines become:
   open.
 
 The V1 lines on the review's `gh` shell, the unpinned plugin and the rule's
-missing ref pin go once C10 shows the narrowed rule.
+missing ref pin go once C12 shows the narrowed rule.
 
 ## W6 Out of scope
 
@@ -404,7 +409,8 @@ After merge:
   comment with a summary, and inline comments where it finds something; the
   same from an agent app does too. The run's result line shows success and
   its turns and cost under the caps. If the CLI refuses `--max-budget-usd`,
-  the flag comes out (a spec change).
+  the flag comes out (a spec change). A run that fails or hits a cap says so
+  in its tracking comment, so the asker sees it.
 - C9. That comment starts no `claude` job, and an `@claude` comment that is
   not an ask starts no review.
 - C10. An `@claude` comment from the owner on an issue gets an answer in its
@@ -424,7 +430,8 @@ each step with its test. It names where each secret lives, never a value.
    create the `claude` environment with deployment branches `main` only, then
    add the key and client ID; delete the downloaded key file. Inert until V2
    is on `main`.
-2. Before merge: the CI workspace with a monthly spend limit, the service
+2. Before merge: confirm in the Console why today's runs fail; then the CI
+   workspace with a monthly spend limit, the service
    account in it, the rule targeting it, the scope `workspace:inference`.
 3. Before merge: the rule's pins (subject, workflows, events, repository ID).
    V1 runs stop then; nothing runs them by itself any more.
