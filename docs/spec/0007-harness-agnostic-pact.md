@@ -247,6 +247,11 @@ round's comment on the issue lists each finding.
 60. Security, the lead's pick, flagged for the owner (its decision 146): the
     tree check runs exactly as printed, and reads the folder from its last
     argument, after end-to-end sessions piped the script to `node` (S12).
+61. The same pick: a `codex-toml` agent file says to search and read with
+    shell commands that only read files, never `git`, after an end-to-end `scout` refused for lack of
+    the tools its instructions name (S7).
+62. Trade-off: `docs/rule-reasons.md`'s budget rises to 1,250, on the
+    owner's word-cap rule (PACT-110).
 
 ## S3 Terms
 
@@ -487,7 +492,11 @@ only model and effort words, never which parts or clauses a harness gets.
 - `claude-md`: as today, with the model role mapped.
 - `codex-toml`: the body goes to `developer_instructions` as a TOML literal
   string; a body holding `'''` refuses (`agent-toml`). `tools` has no field
-  and is dropped. Every agent file sets `features.apps`, `features.plugins`,
+  and is dropped. Such an agent reads through its shell alone, so its
+  instructions open with one line saying it has no `Read`, `Glob` or `Grep`
+  tool, to search and read with shell commands that only read files, not
+  `git` (which can run programs a repo's config names), and that reading so
+  is no command to stop at. Every agent file sets `features.apps`, `features.plugins`,
   `features.memories` and `features.request_permissions_tool` to `false`;
   S12 says what is left.
 - `antigravity-md`: `tools` is mapped through a fixed table per harness from
@@ -822,9 +831,10 @@ the app instead (S2 item 49).
   read, or a name that isn't text, fails the run.
 
   After the pass the session stops any process the agent left running, runs the
-  command again before any other git, and compares: the same last line means no
-  change. On any difference, a failed run, or a first record it no longer
-  holds, it stops: it runs no git in that tree, changes nothing, counts the
+  same command again, as it ran it before and never read again from a file (an
+  agent that can write that file would write its own check), before any other
+  git, and compares: the same last line means no change. On any difference, a failed run, or a command or first record it no
+  longer holds, it stops: it runs no git in that tree, changes nothing, counts the
   pass inconclusive and reports to the owner which lines differ. It keeps no
   copy and restores nothing.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
@@ -1080,7 +1090,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 - **C5** Each known harness's agents render in its format, with its models in
   place of the roles; a `light` role with no light model gets the executor
   model. Each Codex agent file turns off apps, plugins, memories and the
-  permission-request tool. An Antigravity lens whose mapped tools come out
+  permission-request tool, and opens its instructions with S7's line on
+  reading through the shell. An Antigravity lens whose mapped tools come out
   empty or lose a read tool refuses (`agent-tools`), and an Antigravity agent
   has a shell only where its source has one.
 - **C6** A rules file over a harness's cap refuses (`rules-cap`); above half
@@ -1095,8 +1106,9 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   with S7's line everywhere. `finis` without `archive` ends with S7's line
   and archives nothing. `scriptorium` names no one harness's folders.
 - **C10** `review.md` holds S12's tree check, around each lens and `scout`
-  pass: one command, run as printed from outside the tree before and after,
-  taking the folder as its last argument, whose record
+  pass: one command, run as printed from outside the tree before and after (the
+  second run never read again from a file), taking the folder as its last
+  argument, whose record
   covers every file and git's config, hooks, `info`, `HEAD`, refs, index
   entries and half-done merges and rebases, stays the same across a `git
   status`, runs no

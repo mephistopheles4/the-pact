@@ -112,8 +112,10 @@ test('C10: the tree check takes the folder from its last argument, so a session 
   const piped = spawnSync(process.execPath, ['-', main], { ...away, input: script() });
   assert.equal(piped.status, 0, piped.stderr);
   assert.equal(piped.stdout, record(main));
-  assert.notEqual(spawnSync(process.execPath, ['-e', script()], away).status, 0, 'node -e with no folder');
-  assert.notEqual(spawnSync(process.execPath, ['-'], { ...away, input: script() }).status, 0, 'a piped run with no folder');
+  // Started inside a work tree, so a run that fell back to where it stands would print a record.
+  const inside = { ...away, cwd: main };
+  assert.notEqual(spawnSync(process.execPath, ['-e', script()], inside).status, 0, 'node -e with no folder');
+  assert.notEqual(spawnSync(process.execPath, ['-'], { ...inside, input: script() }).status, 0, 'a piped run with no folder');
 });
 
 test('C10: bad case: the tree check starts no fetch, which runs a program the repo’s config names', t => {
