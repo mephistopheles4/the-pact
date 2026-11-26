@@ -37,8 +37,3 @@ seam-a.test.mjs bad case: two agents whose names differ only in case
 clef-run.test.mjs main: on macOS, serve from the runtime folder named in another case is accepted
 clef-run.test.mjs serve on the keeper line: a stop sends the server no signal from the supervisor, and a server that ignores SIGTERM is still ended
 clef.test.mjs unpack: on macOS the executable gets mode 0755
-guard-install.test.mjs C15, C16: one apply writes the guard and merges each hook beside the person's, prints Codex's trust step, and the next run has nothing to do
-guard-install.test.mjs C16: the apply backs up each hooks file it changes, and with every rule off removes only the pact's entry and the guard
-guard-install.test.mjs C16: a hooks file the record doesn't list is merged, not refused; one that doesn't exist is made; a harness taken out loses only the pact's entry
-guard-install.test.mjs bad case: a changed pact hook is drift, a hooks file that is not a strict JSON object refuses, and so does a list of another shape
-guard-install.test.mjs bad case: a hooks file that is settings.json, or sits behind a link, refuses
