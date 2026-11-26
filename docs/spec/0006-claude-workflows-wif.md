@@ -1,160 +1,270 @@
-# Spec: the Claude workflows, through Workload Identity Federation — V1
+# Spec: the Claude workflows, through Workload Identity Federation — V2
 
-Status: draft on the PACT-101 branch, flagged for the owner's review. The
-security pair reads it with the diff at Test (the session's pick, logged on
-the issue). The spec counts once it is on `main`.
+Status: V2 revision 7 (Test round 2's wording), draft on the PACT-113 branch, on the sensitive route:
+the security pair reads it and the diff. V1 (PACT-101) let two workflows in;
+V2, at the owner's word, keeps one, `claude.yml`, run on request only, with
+caps. The spec counts once it is on `main`.
 
 <!-- toc -->
 
 - [W1 Objective](#w1-objective)
 - [W2 Decisions](#w2-decisions)
 - [W3 The allow-list (the gate's tests)](#w3-the-allow-list-the-gates-tests)
-- [W4 The two files](#w4-the-two-files)
+- [W4 The file](#w4-the-file)
 - [W5 Threat model](#w5-threat-model)
 - [W6 Out of scope](#w6-out-of-scope)
 - [W7 Trade-offs](#w7-trade-offs)
-- [W8 Acceptance claims](#w8-acceptance-claims)
+- [W8 Acceptance claims and the owner's checklist](#w8-acceptance-claims-and-the-owners-checklist)
 
 <!-- /toc -->
 
 ## W1 Objective
 
 The Claude GitHub app's setup adds two workflows: `claude.yml`, which answers
-`@claude` on issues, comments and reviews, and `claude-code-review.yml`,
-which reviews each pull request. As set up, both read a stored
-`ANTHROPIC_API_KEY` secret, ask for more than `contents: read`, pin actions
-to tags and leave the token in the checkout, so the lockdown in
-`gate/tests/workflow.test.mjs` refuses them. This spec lets the two files in,
-with no secret, under an exact allow-list of their own, the way `codeql.yml`
-has one.
+`@claude`, and `claude-code-review.yml`, which reviewed every pull request.
+V1 let both in with no stored key, under an exact allow-list of their own in
+`gate/tests/workflow.test.mjs`. The review then ran on every push to every
+pull request, cost money on each, and posted nothing. V2:
+
+- deletes `claude-code-review.yml`, so nothing runs on a push or on opening a
+  pull request;
+- keeps `claude.yml` as the one way to ask Claude for work: an `@claude`
+  comment on an issue, a pull request's conversation, a review or a diff
+  line, or an issue opened or assigned with `@claude` in it. A run can
+  answer, review ("`@claude review`" is a request in the text like any
+  other), commit, push and open pull requests;
+- bounds each run's model, turns, spend, time and overlap;
+- leaves the Console steps to the owner, as a short checklist on the issue.
+
+The same change refreshes the threat model and the spec's table of contents,
+and adds a dated log, since it changes the gate.
 
 ## W2 Decisions
 
-1. **Authentication is Workload Identity Federation.** Each run trades the
-   job's GitHub OIDC token (audience `https://api.anthropic.com`) for a
-   short-lived Anthropic token. The workflow files carry the federation rule,
-   organization and service account IDs: identifiers, not credentials, written
-   in the file so a reader sees which rule a run uses. Neither file sets
-   `anthropic_api_key` or `claude_code_oauth_token`; either would take
-   precedence over federation.
+1. **Authentication to the Claude API stays Workload Identity Federation.**
+   Each run trades the job's GitHub OIDC token (audience
+   `https://api.anthropic.com`) for a short-lived Anthropic token. The file
+   carries the federation rule, organization and service account IDs:
+   identifiers, not credentials. It sets no `anthropic_api_key`,
+   `claude_code_oauth_token` or `github_token`, and reads no secret.
 2. **The rule bounds who gets an Anthropic token, and it lives in the Claude
-   Console.** It matches by a CEL condition on the repository owner's account
-   ID, the subject prefix, the audience and an allow-list of actor account
-   IDs. Nothing in the repo names who is on that list. The rule does not bound
-   the GitHub write token: the action gets that through a separate OIDC
-   exchange (audience `claude-code-github-action`) that never references the
-   rule. Who gets it rests on the job guard, the action's own actor check
-   (write access, or `allowed_bots`) and Anthropic's workflow validation
-   (vendor behaviour, unverified here).
-3. **The job guard is a control.** Each job runs only when the
-   triggering author's association is `OWNER`, `MEMBER` or `COLLABORATOR`,
-   or the author's login is one of the owner's three agent apps
+   Console.** Beside V1's owner, subject-prefix, audience and actor checks,
+   the owner's checklist (W8) pins the repository ID, the four event names
+   and the workflow: `claude.yml` on `main` for issue events, and
+   `claude.yml` on a pull request's merge ref for the two review events,
+   which run the file from that ref. The rule targets the CI workspace,
+   whose monthly spend limit bounds the total, with the scope
+   `workspace:inference`.
+3. **Who can start a run.** The job guard is V1's: each event's text holds
+   `@claude`, and its author's association is `OWNER`, `MEMBER` or
+   `COLLABORATOR`, or its login is one of the owner's three agent apps
    (`mephistos-homunculus[bot]`, `mephistos-euphorion[bot]`,
-   `mephistos-wagner[bot]`; an owner's decision) (and, for `claude.yml`, the
-   text holds `@claude`). The action refuses a bot actor unless `allowed_bots`
-   names it, so each file sets `allowed_bots` to exactly those three names,
-   without the suffix, which the action strips from both sides, and never `*`. The review job also
-   runs only for a pull request whose head is a branch of this repo. A pusher
-   can edit the guard on a branch, and the rule still holds for the Anthropic
-   token; the write token's other checks are the action's and Anthropic's.
-4. **The GitHub token stays read-only.** Each job's `permissions` grant reads
-   and `id-token: write`, nothing else. The action's writes (comments,
-   branches, reviews) go through the Claude GitHub app's installation token,
-   which the action mints from the same OIDC token. `main`'s ruleset, with no
-   bypass actor, keeps that token's pushes off `main`.
-5. **Pins.** `actions/checkout` is pinned to `gate.yml`'s commit, and
-   `anthropics/claude-code-action` to a full commit SHA, both kept current by
-   Dependabot. Each checkout sets `persist-credentials: false`.
+   `mephistos-wagner[bot]`). `allowed_bots` names exactly those three, since
+   the action refuses an unlisted bot actor. A session that wants a review
+   posts `@claude review` as an agent app or the owner's account.
+4. **Claude's own GitHub app stays the writer.** The action trades the same
+   OIDC token for the Claude GitHub app's installation token, and Anthropic's
+   exchange checks that the workflow file matches the one on the default
+   branch, so a branch's edited copy gets no Claude app token (W5 says what
+   it does get). `main`'s copy keeps the job's `GITHUB_TOKEN` read-only. No
+   new app, key or environment.
+5. **The action's defaults hold the tools.** Tag mode, which the action picks
+   for a mention, gives Claude its file tools, edits in the checkout, its
+   commit and push wrappers, the tracking comment and, on a pull request,
+   the CI tools. `claude_args` adds only what the asks need and tag mode
+   lacks: the inline comment tool, for a review's line comments, and
+   `gh pr create`, to open a pull request. The inline comments and the
+   tracking comment pass the action's `redactSecrets` mask; a pull request's
+   title and body, opened through `gh pr create`, pass no mask (W5).
+6. **Caps per run.** `claude_args` sets `--model claude-sonnet-5-5` (one model
+   for answers, reviews and code, at the owner's word; the action takes the
+   model from `main`'s workflow only, so a comment cannot pick another; W5
+   covers an edited review-event copy), `--max-turns 60` and
+   `--max-budget-usd 5`; the job has a 30-minute time limit and a
+   `concurrency` group per issue or pull request number that never cancels a
+   run in progress. GitHub keeps one pending run per group, so a third ask
+   while one runs replaces the second. `--max-budget-usd` is Claude Code's
+   own estimate, passed through by the action; C6 checks it.
+7. **Full history in the checkout.** `fetch-depth: 0`, so a review's
+   `git diff` against the base finds a merge base; with a shallow checkout it
+   fails once `main` has moved. `persist-credentials: false` stays.
+8. **No transcript, no debug.** The action's `execution_file` holds every
+   message of a run, unredacted, and this repo is public, so the file is
+   never uploaded. Debug logging is never turned on for this file: the action
+   prints the whole transcript when `ACTIONS_STEP_DEBUG` is on, so a debug
+   re-run would publish it. That is held by rule alone: no one re-runs
+   `claude` with debug logging. Each run's cost, turns and duration print in
+   its result line.
+9. **Pins.** `actions/checkout` is pinned to `gate.yml`'s commit, and
+   `anthropics/claude-code-action` stays at V1's commit; Dependabot keeps
+   both current.
+10. **Dropped from round 2's list, at the owner's word:** the egress-firewall
+    runner, `dontAsk` with exact tool lists and deny rules, a narrower app of
+    the owner's own, and CODEOWNERS. None is needed for the action to work.
 
 ## W3 The allow-list (the gate's tests)
 
-`workflow.test.mjs` reads `claude.yml` and `claude-code-review.yml` with
-their own allow-list instead of the common lockdown. For each file it refuses:
+`workflow.test.mjs` reads `claude.yml` with its own allow-list instead of the
+common lockdown. It refuses:
 
 - a top-level key other than `name`, `on`, `permissions` and `jobs`; a name
-  other than the file's own;
-- triggers other than the file's own, listed in W4, with their event types;
-  `pull_request_target` and `workflow_run` in any form;
+  other than `claude`;
+- triggers other than W4's, with their event types; `pull_request_target`
+  and `workflow_run` in any form;
 - top-level `permissions` other than exactly `contents: read`;
-- a job other than the file's one job; a job key outside `if`, `runs-on`,
-  `timeout-minutes`, `permissions` and `steps`; a runner other than
-  `ubuntu-24.04`, or no time limit;
-- job permissions other than the file's exact set in W4;
-- a job `if` that is not the file's guard, as W4 writes it;
+- a job other than `claude`; a job key outside `if`, `runs-on`,
+  `timeout-minutes`, `concurrency`, `permissions` and `steps`; a runner
+  other than `ubuntu-24.04`; a time limit or a `concurrency` other than W4's;
+- job permissions other than W4's exact set;
+- a job `if` other than V1's guard, held exactly;
 - steps other than `actions/checkout` then `anthropics/claude-code-action`,
   each pinned to a full commit SHA, checkout's pin equal to `gate.yml`'s;
-- a checkout input other than `fetch-depth` and `persist-credentials`, or
-  `persist-credentials` other than `false`; a step's `with` that is not a map;
-- an action input outside the file's list in W4, the federation IDs missing,
-  or an ID that is not the file's own exact value (`fdrl_`, a UUID, `svac_`);
-  an `allowed_bots` that is not exactly the three apps (never `*`); a guard
-  that admits another login;
-- any `secrets.`, `github.token`, `github['token']` or `GITHUB_TOKEN`; a `run:` step; an
-  `env:` at any level; a YAML anchor, alias, merge key or flow mapping;
-  uploading or caching the workspace; a job or check named `gate`,
+- checkout inputs other than exactly `fetch-depth: 0` and
+  `persist-credentials: false`; a step's `with` that is not a map;
+- an action input outside W4's list, or a value other than W4's: the
+  federation IDs, `allowed_bots` (never `*`), `additional_permissions` and
+  `claude_args` included;
+- `secrets` in any form, `github.token`, `github['token']` or `GITHUB_TOKEN`;
+  `anthropic_api_key`, `claude_code_oauth_token` or `github_token`; a `run:`
+  step; an `env:` at any level; a YAML anchor, alias, merge key or flow
+  mapping; uploading or caching anything; a job or check named `gate`,
   `gate-macos` or `gate-windows`.
 
-Every other workflow file keeps the common lockdown, unchanged. Each refusal
-has a bad case it is seen to catch, in the style of the CodeQL allow-list's.
+The gate also refuses a workflow file named `claude-code-review.yml`. V1's
+allow-list for that file goes with it. Every other workflow file keeps the
+common lockdown, unchanged. Each refusal added or tightened (the exact
+`fetch-depth`, `concurrency` and `claude_args`, `secrets` in any form, the
+review file's name) has a bad case it is seen to catch.
 
-## W4 The two files
+## W4 The file
 
-| | `claude.yml` | `claude-code-review.yml` |
-| --- | --- | --- |
-| Name | `claude` | `claude-code-review` |
-| Triggers | `issue_comment` [created], `pull_request_review_comment` [created], `issues` [opened, assigned], `pull_request_review` [submitted] | `pull_request` [opened, synchronize, ready_for_review, reopened] |
-| Job | `claude` | `claude-review` |
-| Job permissions | `contents`, `pull-requests`, `issues`, `actions`: read; `id-token: write` | `contents`, `pull-requests`, `issues`: read; `id-token: write` |
-| Guard | per event: `@claude` in the text, and the author's association in the list or the author's login one of the three apps | head repo is this repo, and the pull request author's association in the list or the author's login one of the three apps |
-| Action inputs | the three federation IDs, `allowed_bots`, `additional_permissions` (`actions: read`) | the three federation IDs, `allowed_bots`, `plugin_marketplaces`, `plugins`, `prompt`, `claude_args` |
+| | `claude.yml` |
+| --- | --- |
+| Triggers | `issue_comment` [created], `pull_request_review_comment` [created], `issues` [opened, assigned], `pull_request_review` [submitted] |
+| Job | `claude`, `ubuntu-24.04`, 30 minutes |
+| Concurrency | group `claude-${{ github.event.issue.number \|\| github.event.pull_request.number }}`, `cancel-in-progress: false` |
+| Job permissions | `contents`, `pull-requests`, `issues`, `actions`: read; `id-token: write` |
+| Guard | V1's, unchanged: per event, `@claude` in the text, and the author's association in the list or the login one of the three apps |
+| Action inputs | the three federation IDs, `allowed_bots`, `additional_permissions` (`actions: read`), `claude_args` |
 
-The review's `claude_args` allows the inline-comment tool and `gh pr view`, `gh pr diff` and `gh pr comment`: the commands the code-review plugin's steps use (`plugins/code-review` in `anthropics/claude-plugins-official`, which its marketplace entry in `anthropics/claude-code` resolves to). Its declared list also holds `gh issue view`, `gh issue list`, `gh search` and `gh pr list`, which no step uses; they stay out, so the review reads no issue or search text. With only the inline-comment tool, the review runs and posts nothing. The review run so has a shell limited to those `gh` commands, and a steered review can post, as a public comment, a file or variable it can read, its run's short-lived tokens included (W5).
-
-The guard text is held exactly, as the files on this branch write it. `actions: read` stays in `claude.yml` so Claude can read CI results on pull requests.
+`claude_args`, held exactly:
+`--model claude-sonnet-5-5 --max-turns 60 --max-budget-usd 5 --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr create:*)"`.
 
 ## W5 Threat model
 
-`docs/threat-model.md`'s Code that runs names the two files and their
-allow-list beside `codeql.yml`'s. A residual line says what is accepted:
+`docs/threat-model.md`'s Code that runs names the one file, its allow-list,
+the rule's pins and the caps, and drops the review file. Its residual lines
+become:
 
-- a run that an allowed actor triggers reads issue, comment and pull request
-  text from anyone, and that text can steer what Claude writes through the
-  app's token, short of `main`;
-- a session holding an agent app's key can start a run that spends Anthropic
-  tokens and writes through the Claude app's token, short of `main`;
-- the review plugin is fetched from its marketplace at run time, unpinned;
-- a comment by an allowed bot that merely contains `@claude` starts a run;
-- the rule pins no ref or workflow, so any workflow on any branch of any of
-  the owner's repos that an allowed actor starts can mint an Anthropic token;
-  the rule bounds who, not what the run does. The service account's scope
-  (workspace, role) is the owner's to confirm.
-- the review's `gh` shell (W4): a steered review can post anything it can read, its run's tokens included, as a public comment, without the poster.
+- a run that an allowed actor starts reads issue, comment and pull request
+  text from anyone, and that text can steer what Claude does with the Claude
+  app's token. That token carries what the app holds, Workflows write
+  included, and a steered run can read it from its own environment. So text
+  a run reads can steer a commit, a push to any branch but `main`, a
+  workflow file on a branch, a pull request, and a merge on `main`, which
+  needs no approval. The owner accepts this under the identity gate (W2.3);
+- a steered run can post or push what it can read, its own credentials
+  included: the Claude app token in its environment, and the job's OIDC
+  token file and cached Anthropic credential. It can put them in a commit
+  (unmasked, and reachable by its ID after the branch goes), a comment in a
+  shape `redactSecrets` does not know, or a pull request's title or body,
+  which pass no mask. Whoever reads it can then use the app token,
+  Workflows write included, until the job ends, or for up to an hour, until
+  it expires, if the action's best-effort revoke fails (accepted by the
+  owner, PACT-113, after Test round 2), and spend Anthropic tokens
+  past the run's caps, bounded only by the workspace's monthly limit. This
+  reaches past the identity gate; the owner accepts it and keeps
+  `gh pr create` (PACT-113, after Test round 1). The tracking comment's edit
+  history keeps earlier text;
+- a session holding an agent app's key can start a run; a comment by an
+  allowed actor that merely contains `@claude` starts one;
+- a pull request review or diff-line comment runs the pull request's own
+  copy of `claude.yml`. An unedited copy runs as `main`'s does. A copy edited
+  on a branch of this repo sets its own guard, permissions and steps: it
+  gets the repo's Actions secrets and a write `GITHUB_TOKEN` if it asks for
+  one, and the rule grants it an Anthropic token, bounded only by the
+  workspace's monthly limit; Anthropic's workflow validation refuses it the
+  Claude app token. A steered run can plant such a copy, and any review on
+  that pull request then starts it. Any workflow a steered run plants on a
+  branch with a review trigger, not only `claude.yml`, runs the same way on
+  any GitHub user's review of that pull request, after the run has ended
+  (accepted by the owner, PACT-113, after Test round 2); only an allowed reviewer's
+  run of `claude.yml` gets an Anthropic token. A fork's copy gets no secrets
+  and a read-only `GITHUB_TOKEN`, by GitHub's documented rule for the review
+  events, and the action refuses a fork's review event before it mints any
+  token;
+- the repo holds one Actions secret, `ANTHROPIC_API_KEY`, from the app's
+  setup, which nothing uses under federation and any workflow on a branch
+  can read; the owner deletes it (W8's checklist);
+- the Claude app token is scoped to this repository: the action's security
+  doc at the pinned commit says it is "scoped specifically to the repository
+  it's operating in". The exchange request names no repository, so that
+  rests on Anthropic's exchange. The owner keeps the Claude GitHub app on
+  every repository of theirs, which none of the others' workflows use;
+- until the owner pins the rule and narrows its workspace and scope, any
+  workflow of the owner's that an allowed actor starts can mint an
+  Anthropic token, which reaches what the service account's workspace
+  holds.
+
+V1's lines on the review's `gh` shell and the unpinned plugin go with the
+review file. The line on the rule's missing pins goes once C8 shows them.
+`docs/threat-model.md` carries a short form of these lines, within its word
+cap, and points here for the rest.
 
 ## W6 Out of scope
 
 Inline comment classification (it needs an API key, and is skipped under
-federation). A per-collaborator service account. Running the workflows in
-other repos; the rule already covers them, and each repo brings its own files.
+federation). Commit authorship. A per-collaborator service account. Other
+repos. Claude Approvals and the managed Code Review, which need a Claude Team
+or Enterprise plan.
 
 ## W7 Trade-offs
 
-Reach against convenience: the action keeps the app's write token, which
-`@claude` needs to act; the GitHub token stays read-only; the rule's actor
-list bounds who gets an Anthropic token, and the job guard, the action's actor
-check and Anthropic's workflow validation bound who gets the write token. The
-driver: cheaper to reverse. Deleting the rule, or the two files, stops every
-run.
+- **Simplicity against reach.** The owner's driver: "Claude is already an
+  app, shouldn't complicate this." One file on the Claude app's token, held
+  by the identity gate, instead of round 2's controls. A run can do what the
+  Claude app can, a merge on `main` included (W5). Cheaper to reverse: a
+  spec change adds any dropped control back, and W8's kill switch stops
+  runs.
+- **Autonomy against cost.** Any allowed actor may ask at will, each run on
+  Sonnet with up to $5 and 60 turns; the workspace's monthly limit bounds the
+  total.
+- **A record against publishing it.** Keeping `execution_file` would publish
+  every run's transcript (W2.8). Keep none.
 
-## W8 Acceptance claims
+## W8 Acceptance claims and the owner's checklist
 
-- C1. `workflow.test.mjs` passes on the two files as this branch writes them,
-  and the common lockdown still passes on every other file.
-- C2. Each refusal in W3 has a bad case, and each bad case fails on its plant.
-- C3. Neither workflow reads a secret or sets a credential input
-  (`anthropic_api_key`, `claude_code_oauth_token`, `github_token`); the
-  two workflow files hold none of those names.
+Before merge:
+
+- C1. `workflow.test.mjs` passes on `claude.yml` as this branch writes it,
+  with no `claude-code-review.yml`, and the common lockdown passes on every
+  other file.
+- C2. Each refusal W3 adds or tightens has a bad case, and each bad case
+  fails on its plant.
+- C3. `claude.yml` reads no secret and sets no credential input.
 - C4. CI's three jobs pass on the reviewed head.
-- C5. After merge, an `@claude` comment by an allowed actor gets an answer,
-  and the Console's authentication history shows the exchange matched the
-  rule (the owner checks; the review workflow first runs on the next pull
-  request, since the action needs the file on `main`).
+- C5. The owner's checklist is on the issue.
+
+After merge:
+
+- C6. An `@claude` question from the owner on an issue gets an answer; an
+  `@claude` ask for an edit lands as a commit on a `claude/` branch with a
+  pull request opened; `@claude review` on a pull request from the owner and
+  from an agent app posts a review, with inline comments where it finds
+  something. Each run's result line shows success and its turns and cost
+  under the caps. If the CLI refuses `--max-budget-usd`, the flag comes out
+  (a spec change). A second `@claude` posted while a run is going runs after
+  it, and a comment by an actor the guard skips cancels no waiting ask.
+- C7. A push to a pull request and opening one start no run.
+- C8. The Console's authentication history shows each exchange matched the
+  pinned rule, including a review-event run's workflow ref, and a review on
+  a fork's pull request shows the action's fork refusal and no exchange (a
+  check of the action, not of GitHub's rule).
+
+The owner's checklist, kept on the issue: confirm why runs fail today; the
+CI workspace with a monthly limit, the service account in it, the rule
+targeting it with the `workspace:inference` scope; the rule's pins (W2.2),
+which can go in before merge; delete the unused `ANTHROPIC_API_KEY` Actions
+secret; then merge and C6 to C8. The kill switch:
+`gh workflow disable claude`; archive the rule; set the workspace limit low;
+take this repo off the Claude GitHub app. Rollback: revert the pull request.
