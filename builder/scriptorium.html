@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-bAyKTNoFoMrLKrYYKijn7A+0QBt2DFsnxDaX9S6O6js='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-yE1/AA5jwCQyNx1YdhXn8Dqjj1G4TAjMBHE4PzilJkg='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -9828,7 +9828,7 @@ function boot() {
   function drawHarnessDialog() {
     const rows = harnessList(state);
     const changed = harnessesChanged(state.harnesses);
-    const looked = PACT.machine ? 'Listed as your install\'s dry run would list them when this page was written. Build the page again to look afresh.' : 'This page was written without looking at your machine, so it lists every harness the pact knows. A save into your pact folder changes only what you change here.';
+    const looked = PACT.machine ? 'Listed as your install\'s dry run would list them when this page was written. Build the page again to look afresh.' : 'This page was written without looking at your machine, so it lists every harness the pact knows. A save into your pact folder changes only what you change here, with one exception: if your config.json has no install list, changing a tick or adding a harness writes a list of every harness ticked here. The install then puts the pact into each of them, found on your machine or not.';
     $('harnesses').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
