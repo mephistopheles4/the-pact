@@ -93,7 +93,9 @@ how every session in every repo behaves. So:
   deny rules are a speed bump: a flag before the
   subcommand and a wrapped call get past them.
 - **Retired deny rules.** With the cleaner on or off, an install drops each rule
-  in `RETIRED_DENY` that is both recorded and live, and records none.
+  in `RETIRED_DENY` that is both recorded and live, and records none. With
+  `settings.json` not strict JSON, the file is left alone and the record keeps
+  them until an install can read it.
 - **The field check for the deny rules,** run after the owner applies with the
   cleaner on; a session reports the result and does not apply for the owner: a
   harmless `claude rm not-a-real-id` is refused by permission. *On a failure:*
