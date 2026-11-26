@@ -5,7 +5,7 @@
 // copies of the default and the hook names.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { REPO } from './text.mjs';
@@ -65,7 +65,6 @@ test('#482 C6: the hook nudges past the line (window minus 80000) and not under 
   assert.equal(readFileSync(turnFile(past), 'utf8').trim(), 'nudged');
   assert.deepEqual(readdirSync(past.h).sort(), ['.pact', 'transcript.jsonl'], 'nothing outside the pact folder');
   assert.deepEqual(readdirSync(past.cwd), [], 'nothing in the session\'s own folder');
-  if (process.platform !== 'win32') assert.equal(statSync(past.dir).mode & 0o777, 0o700, 'the hand-off folder is for its owner alone');
 });
 
 test('#482 C6: the env var\'s window is read first, then the argument', t => {

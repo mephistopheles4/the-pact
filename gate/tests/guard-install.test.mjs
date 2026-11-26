@@ -24,7 +24,6 @@ const config = (h, doc) => put(h, '.pact/config.json', { schema: 1, ...doc });
 const ON = { tools: ['cleaner'], commands: [] };
 const OFF = { tools: [], commands: [] };
 const COMMAND_MATCHER = 'run_command|manage_task|send_command_input';
-const READ_MATCHER = `${COMMAND_MATCHER}|view_file|read_file`;
 const MINE = { matcher: '^Bash$', hooks: [{ type: 'command', command: 'echo mine', timeout: 5 }] };
 const MY_GROUP = { PreToolUse: [{ matcher: 'run_command', hooks: [{ command: 'echo mine' }] }] };
 const record = h => json(h, '.pact/install.json');
@@ -141,45 +140,30 @@ test('C16: a hooks file the record doesn\'t list is merged, not refused; one tha
   assert.deepEqual(json(h, CODEX), {});
   assert.deepEqual(Object.keys(json(h, AG)), ['mine', 'pact-guard']);
   assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
+  // With Codex out there is no hook of its to run, so no launcher for it either; GUARD_FILES holds launchers on Windows alone.
+  assert.deepEqual(guardFiles(h), GUARD_FILES.filter(f => f !== 'codex.cmd'), 'no launcher for a harness with no hook');
 });
 
-test('C12: with a skill that stands for the owner\'s answer installed, Antigravity alone gets the ask, rules off included; with none, no guard', t => {
+test("C12: a skill that stands for the owner's answer installs no guard, and no hook of the cleaner's meets a read tool", t => {
   const repo = makeRepo(t);
   const h = three(t);
-  const before = readFileSync(at(h, CODEX), 'utf8');
+  const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
   config(h, { tools: [], commands: ['finis'] });
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): owner-skill \(ask\)\r?$/m, dry.out);
-  assert.doesNotMatch(dry.stdout, TRUST, dry.out);
-  passed(applyBound(repo, h));
-  assert.equal(readFileSync(at(h, CODEX), 'utf8'), before);
-  assert.deepEqual(guardFiles(h), GUARD_FILES.filter(f => f !== 'codex.cmd'), 'no launcher for a harness with no hook');
-  const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
-  assert.equal(entry().matcher, READ_MATCHER);
-  assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
-  const read = asAntigravity(entry().hooks[0].command, { toolCall: { name: 'read_file', args: { Path: at(h, '.gemini/config/skills/finis/SKILL.md') } } });
-  assert.equal(JSON.parse(read.stdout).decision, 'force_ask', `${read.stdout}${read.stderr}`);
-
-  // /scriptorium stands for no answer: nothing to ask on.
-  config(h, OFF);
+  assert.doesNotMatch(dry.stdout, /Guard rules/, dry.out);
   passed(applyBound(repo, h));
   assert.equal(entry(), undefined);
   assert.deepEqual(guardFiles(h), []);
 
-  // With the cleaner on beside such a skill, the table holds both, and Antigravity's hook alone meets reads.
+  // With the cleaner on beside such a skill, the table holds the cleaner's rules alone, and no hook meets a read.
   config(h, { tools: ['cleaner'], commands: ['finis'] });
   const both = install(repo, h);
   passed(both);
-  assert.match(both.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): worktree-remove \(deny\), .*owner-skill \(ask\)\r?$/m, both.out);
-  passed(applyBound(repo, h));
-  assert.equal(entry().matcher, READ_MATCHER);
-  assert.deepEqual(json(h, CODEX).hooks.PreToolUse.map(g => g.matcher), ['^Bash$', '^Bash$']);
-
-  // With the cleaner on and no such skill, the read tools are left alone.
-  config(h, ON);
+  assert.doesNotMatch(both.stdout, /owner-skill/, both.out);
   passed(applyBound(repo, h));
   assert.equal(entry().matcher, COMMAND_MATCHER);
+  assert.equal(json(h, '.pact/guard/rules.json').rules.some(r => r.skills), false);
 });
 
 test('with no rule on, no guard file or hook is written', t => {
@@ -298,4 +282,67 @@ test('bad case: a hooks file that is settings.json, or sits behind a link, refus
   config(linked, { ...ON, harnesses: { own: [{ id: 'antigravity', hooks: { file: '~/.gemini/hooks-link/hooks.json', format: 'antigravity' } }] } });
   refused(install(repo, linked), /path through a link for a hooks file: \.gemini\/hooks-link\/hooks\.json/);
   assert.deepEqual(readdirSync(join(linked, 'elsewhere')), []);
+});
+
+// The shell policy is the owner's: the install only removes the one line an older install wrote, and only when its record marks it.
+const POLICY = '.codex/config.toml';
+const POLICY_LINE = 'shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts';
+/** A home that took Codex once, then a record that marks the line and a config.toml with `text`. */
+function markedHome(t, repo, text) {
+  const h = home(t);
+  mkdirSync(at(h, '.codex'));
+  config(h, { ...OFF, harnesses: { install: ['codex'] } });
+  passed(applyBound(repo, h));
+  put(h, '.pact/install.json', { ...record(h), shellPolicy: true });
+  put(h, POLICY, text);
+  return h;
+}
+
+test('shell policy: a recorded pact line is removed, the rest of config.toml is kept byte for byte and backed up, and the new record drops the mark', t => {
+  const repo = makeRepo(t);
+  const mine = '# mine\r\nmodel = "m"\r\n\r\n[history]\r\npersistence = "none"\r\n';
+  const h = markedHome(t, repo, `${POLICY_LINE}\r\n${mine}`);
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(dry.stdout, /^Codex shell policy: the pact's line would be removed; Codex's shells then get every variable$/m, dry.out);
+  const applied = applyBound(repo, h);
+  passed(applied);
+  assert.match(applied.stdout, /^removed the pact's shell-policy line from \.codex\/config\.toml$/m, applied.out);
+  assert.equal(readFileSync(at(h, POLICY), 'utf8'), mine);
+  assert.ok(!('shellPolicy' in record(h)));
+  const saved = readdirSync(at(h, '.pact/backups')).map(b => at(h, `.pact/backups/${b}/${POLICY}`)).filter(f => existsSync(f));
+  assert.deepEqual(saved.map(f => readFileSync(f, 'utf8')), [`${POLICY_LINE}\r\n${mine}`]);
+});
+
+test('bad case: a recorded but edited pact line is left alone, with no drift stop and no warning', t => {
+  const repo = makeRepo(t);
+  const edited = `${POLICY_LINE.replace('= false', '= true')}\n[shell_environment_policy]\ninherit = "all"\n`;
+  const h = markedHome(t, repo, edited);
+  const r = applyBound(repo, h);
+  passed(r);
+  assert.doesNotMatch(r.stdout, /shell policy|WARN: Codex/i, r.out);
+  assert.equal(readFileSync(at(h, POLICY), 'utf8'), edited);
+});
+
+test('shell policy: taking Codex with no mark in the record leaves config.toml, the exact pact line in it included, byte for byte, prints no shell policy line, and records no shellPolicy key', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  mkdirSync(at(h, '.codex'));
+  config(h, { ...OFF, harnesses: { install: ['codex'] } });
+  // Bad case: the very line an older install wrote, with no mark to say the pact wrote it.
+  const text = `${POLICY_LINE}\n[history]\npersistence = "none"\n`;
+  put(h, POLICY, text);
+  const dry = install(repo, h);
+  passed(dry);
+  assert.doesNotMatch(dry.stdout, /shell policy/i, dry.out);
+  passed(applyBound(repo, h));
+  assert.equal(readFileSync(at(h, POLICY), 'utf8'), text);
+  assert.ok(!('shellPolicy' in record(h)));
+  // Bad case: a record now exists, and still says nothing of the line; the next run reads that as no mark, not as a mark that was never set to false.
+  const again = install(repo, h);
+  passed(again);
+  assert.doesNotMatch(again.stdout, /shell policy/i, again.out);
+  passed(applyBound(repo, h));
+  assert.equal(readFileSync(at(h, POLICY), 'utf8'), text);
+  assert.ok(!('shellPolicy' in record(h)));
 });

@@ -38,6 +38,19 @@ test('node: a dry run on a clean tree passes, shows the pin, the check, the gate
   assert.equal(r.stderr, '');
 });
 
+// The bootstrap passes the runner only the variables it names; an inherited NODE_OPTIONS (a preload) is not among them.
+test('node: an inherited NODE_OPTIONS preload runs in the bootstrap, the one process it was set for, and never in the runner the bootstrap starts', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const marks = tempDir(t, 'pact-opts-marks-');
+  const preload = join(tempDir(t, 'pact-opts-preload-'), 'preload.cjs');
+  writeFileSync(preload, `const fs = require('node:fs');\nconst name = String(process.argv[1] ?? '').split(/[\\\\/]/).pop();\nfs.writeFileSync(require('node:path').join(${JSON.stringify(marks)}, name + '@' + process.pid), '');\n`);
+  const r = install(repo, h, { env: { NODE_OPTIONS: `--require ${JSON.stringify(preload.replace(/\\/g, '/'))}` } });
+  passed(r);
+  // The preload ran in the bootstrap, so the case could have caught it in the runner too.
+  assert.deepEqual(readdirSync(marks).map(n => n.split('@')[0]).sort(), ['install.mjs']);
+});
+
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: --apply installs the files byte for byte, writes the record and the guard, and the next dry run has nothing to do', t => {
   const repo = makeRepo(t);
@@ -75,16 +88,6 @@ test('node: --apply keeps the live settings: an exact large number, the owner\'s
   assert.match(text, /"big": 12345678901234567890\.10,/);
   assert.ok(JSON.parse(text).permissions.allow.includes('Read'));
   if (!WIN) assert.equal(statSync(sf).mode & 0o777, 0o640);
-});
-
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('node: a new settings file and the record are owner-only on Unix', t => {
-  if (WIN) return t.skip('Windows sets no mode bits');
-  const repo = makeRepo(t);
-  const h = home(t);
-  passed(applyBound(repo, h));
-  assert.equal(statSync(join(h, '.claude', 'settings.json')).mode & 0o777, 0o600);
-  assert.equal(statSync(join(h, '.pact', 'install.json')).mode & 0o777, 0o600);
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
@@ -158,12 +161,9 @@ test('node: the dirty count never runs a clean filter, which git status would', 
   assert.ok(!existsSync(marker), 'the Node install ran the clean filter');
 });
 
-test('node: NODE_OPTIONS, an exec option or a git redirect refuses before anything is staged', t => {
+test('node: a git redirect refuses before anything is staged', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  refused(install(repo, h, { env: { NODE_OPTIONS: '--max-old-space-size=200' } }), /^REFUSED: NODE_OPTIONS is set/m);
-  const r = spawnNodeInstall(['--no-warnings', join(repo, 'gate', 'install.mjs'), '--home', h], { cwd: repo, encoding: 'utf8', env: nodeEnv() });
-  refused({ code: r.status, stdout: r.stdout, out: r.stdout + r.stderr }, /^REFUSED: NODE_OPTIONS is set, or node was started with an option/m);
   refused(install(repo, h, { env: { GIT_DIR: join(repo, '.git') } }), /^REFUSED: GIT_DIR is set/m);
 });
 
@@ -265,7 +265,7 @@ test('node: a bootstrap that writes no reachable list is refused by the runner',
 test('node: the runner started from the working tree refuses', t => {
   const repo = makeRepo(t);
   const runner = join(repo, 'gate', 'install-run.mjs');
-  for (const args of [[], [join(repo, 'pact-install-x'), 'a'.repeat(40), '0', 'no', '--']]) {
+  for (const args of [[], [join(repo, 'pact-install-x'), 'a'.repeat(40), '0', '--']]) {
     const r = spawnNodeInstall([runner, ...args], { cwd: repo, encoding: 'utf8', env: nodeEnv() });
     assert.equal(r.status, 1, r.stdout);
     assert.equal(lastLine(r.stdout), 'RESULT: refused');
@@ -340,14 +340,6 @@ test('node: a configuration blocks folder that is a link refuses before the rend
   assert.ok(!/^render\| /m.test(r.stdout), 'the renderer never ran');
 });
 
-/** Plants `code` into a committed core's check(), at its start or just before it returns, with appendFileSync in scope as plantAppend. */
-function plantCore(root, name, at, code) {
-  const p = join(root, 'gate', `${name}-core.mjs`);
-  const target = at === 'start' ? 'export function check(argv) {\n' : '  return { lines: report.lines, failed: report.failed };';
-  const text = readFileSync(p, 'utf8');
-  assert.equal(text.split(target).length, 2, `${name}-core.mjs holds the plant's target once`);
-  writeFileSync(p, `import { appendFileSync as plantAppend } from 'node:fs';\n${text.replace(target, at === 'start' ? `${target}  ${code}\n` : `  ${code}\n${target}`)}`);
-}
 const junctionOrSkip = (t, target, path) => {
   try {
     symlinkSync(target, path, WIN ? 'junction' : 'dir');
@@ -397,36 +389,6 @@ test('node: a configuration blocks folder that cannot be read refuses', t => {
   refused(r, /^REFUSED: the configuration blocks folder could not be read\./m);
 });
 
-test('node: a renderer that writes into the stage refuses, with nothing written', t => {
-  const repo = makeRepo(t, root => plantCore(root, 'render', 'start', "plantAppend('planted-by-render', 'x');"));
-  const h = home(t);
-  refused(install(repo, h, { apply: true }), /^REFUSED: the renderer changed the stage\. Nothing was changed\.$/m);
-  assert.deepEqual(listTree(h), ['.claude']);
-});
-
-test('node: a review module that writes into the stage refuses, saying the review folder may hold its output', t => {
-  const repo = makeRepo(t, root => plantCore(root, 'review', 'start', "plantAppend('planted-by-review', 'x');"));
-  refused(install(repo, home(t), { extra: ['--review-folder', join(tempDir(t, 'pact-rev-'), 'review')] }), /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.$/m);
-});
-
-// Seam A passes, then changes the staged rules file it checked: the review's re-hash and the apply's re-hash catch it.
-const seamAThenEdit = root => plantCore(root, 'seam-a', 'end', "if (argv[1] === '--commands') plantAppend(argv[0] + '/rendered/claude/rules.md', 'x');");
-
-test('node: a staged rules file changed after the check refuses the review output before it is written', t => {
-  const repo = makeRepo(t, seamAThenEdit);
-  const rev = join(tempDir(t, 'pact-rev-'), 'review');
-  refused(install(repo, home(t), { extra: ['--review-folder', rev] }), /^REFUSED: the staged rules file changed after the check\. Nothing was changed\.$/m);
-  assert.ok(!existsSync(rev));
-});
-
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('node: a staged file changed after the check refuses --apply before any write', t => {
-  const repo = makeRepo(t, seamAThenEdit);
-  const h = home(t);
-  refused(applyBound(repo, h), /^REFUSED: the staged copy of \.claude\/CLAUDE\.md changed after the check\. Nothing was changed\.$/m);
-  assert.deepEqual(listTree(h), ['.claude']);
-});
-
 test('node: a commit with no runner refuses', t => {
   const repo = makeRepo(t);
   git(repo, 'rm', '-q', 'gate/install-run.mjs');
@@ -441,29 +403,6 @@ test('node: a temp file an earlier install left refuses --apply before any write
   writeFileSync(join(h, '.claude', 'settings.json.pact-tmp'), '{}\n');
   refused(applyBound(repo, h), /^REFUSED: a temp file the install writes through is already there: \.claude\/settings\.json\.pact-tmp\. .* Nothing was changed\.$/m);
   assert.deepEqual(listTree(h), ['.claude', join('.claude', 'settings.json.pact-tmp')]);
-});
-
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('node: a settings file other accounts can read draws a warning, and --apply keeps its mode', t => {
-  if (WIN) return t.skip('Windows sets no mode bits');
-  const repo = makeRepo(t);
-  const h = home(t);
-  const sf = join(h, '.claude', 'settings.json');
-  writeFileSync(sf, '{}\n');
-  // 0664, which the usual umask would not give a new file by chance.
-  chmodSync(sf, 0o664);
-  const r = install(repo, h);
-  passed(r);
-  assert.match(r.stdout, /^WARN: \.claude\/settings\.json can be read by other accounts on this machine; .*\(chmod 600\)\.$/m);
-  // #311: --apply rewrites the settings file and keeps the mode it found.
-  const applied = applyBound(repo, h);
-  passed(applied);
-  assert.match(applied.stdout, /^merged settings\.json$/m);
-  assert.equal(statSync(sf).mode & 0o777, 0o664);
-  chmodSync(sf, 0o600);
-  const again = install(repo, h);
-  passed(again);
-  assert.doesNotMatch(again.stdout, /can be read by other accounts/);
 });
 
 // Nothing outside the typed command can turn on --apply (S6, A2 and A3):

@@ -42,10 +42,8 @@
 // untracked files were listed; never -f, -D or --delete. A hard keep (in use,
 // a link, a submodule, edits git is told not to check, a read that failed)
 // gets no override tag. A session passes it only on the owner's own words in
-// chat; remove's lines go to chat only. Right before the forced call it checks
-// that the folder, its parent and .claude are not links and that the folder is
-// the one it read. Every git call carries the pins that keep a setting from
-// hiding an untracked file or an edit.
+// chat; remove's lines go to chat only. Every git call carries the pins that
+// keep a setting from hiding an untracked file or an edit.
 //
 // --recoverable (#446) also keeps a worktree
 // whose removal could lose what git does not hold, or run a program: ignored
@@ -425,13 +423,7 @@ export const isFinished = r => r.kind === 'bg' && r.status === 'idle' && typeof 
 
 /**
  * The record of every Claude Code session status file: its cwd, kind, status,
- * jobId and pid. A file that does not
- * read, and (#442) a sessions folder or a status file that is a link or the
- * wrong kind, stop the run: a planted link could point at another host, and
- * reading through it would reach it. `~/.claude` is listed as given, so a
- * link there is not caught (#519); the sessions folder and its files are
- * listed first, so nothing under them is opened before a listing shows it is
- * no link.
+ * jobId and pid. A file that does not read stops the run.
  */
 export function sessionCwds(home, platform = process.platform) {
   const fail = () => new Unavailable('the sessions check failed');
@@ -453,12 +445,10 @@ export function sessionCwds(home, platform = process.platform) {
     entry = same[0];
   }
   if (!entry) return [];
-  if (entry.isSymbolicLink() || !entry.isDirectory()) throw fail();
   const dir = join(claude, entry.name);
   const files = list(dir);
   if (!files) return [];
   const status = files.filter(e => e.name.endsWith('.json'));
-  if (status.some(e => e.isSymbolicLink() || !e.isFile())) throw fail();
   return status.map(e => {
     let doc;
     try {
@@ -523,22 +513,6 @@ const present = p => {
     throw e;
   }
 };
-
-/**
- * A worktree folder's identity (device and inode), or null when it, its parent
- * `.claude/worktrees` or `.claude` is a link, or it can't be read. Run after the
- * last read and again right before a forced removal: a difference means the
- * folder was swapped in between (#523).
- */
-function standOf(path, main, platform) {
-  try {
-    if (isLink(path, platform) || isLink(join(main, '.claude'), platform) || isLink(join(main, '.claude', 'worktrees'), platform)) return null;
-    const st = lstatSync(path);
-    return `${st.dev}:${st.ino}`;
-  } catch {
-    return null;
-  }
-}
 
 /** Whether the folder holds a link anywhere inside, links never followed. */
 function holdsLink(dir) {
@@ -853,9 +827,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
       let stops = null;
       if (mine.length) {
         // One finished session, whose pid is the one in the worktree's own lock, and whose jobId and sessionId no other
-        // status file carries. A plant that points a stop at another session must rewrite that session's status file and
-        // the lock too; any process of the owner's can do both (git worktree lock --reason), so this stops only a plant
-        // that leaves them as Claude Code wrote them.
+        // status file carries, so a stale lock or a second session never stops the wrong one.
         const lockPid = 'locked' in rec && isSessionLock(rec.locked, name) ? rec.locked.slice(`claude session ${name} (pid `.length, -1) : null;
         const twin = mine.length === 1 && sessions.some(r => r.file !== mine[0].file && (r.jobId === mine[0].jobId || r.sessionId === mine[0].sessionId || (typeof r.sessionId === 'string' && r.sessionId.startsWith(mine[0].jobId))));
         if (mine.length > 1 || twin || lockPid !== String(mine[0].pid)) {
@@ -1087,7 +1059,7 @@ const refusedFor = f => (f.changed.length || f.untracked.length ? 'left, git ref
  * and override tag make a pair in `override` (#523). `again(name)` is the last
  * read of one folder, run before a forced removal.
  */
-function removeAll(git, items, { yes, override }, hooks, platform, again, stopper) {
+function removeAll(git, items, { yes, override }, platform, again, stopper) {
   const lines = [];
   const counts = { removed: 0, left: 0 };
   const wanted = new Set(yes ?? []);
@@ -1108,7 +1080,7 @@ function removeAll(git, items, { yes, override }, hooks, platform, again, stoppe
       continue;
     }
     try {
-      removeOne(git, item, main, hooks, platform, lines, counts, { again, forced, stopper });
+      removeOne(git, item, main, platform, lines, counts, { again, forced, stopper });
     } catch {
       // A failure part way counts this item, and every one after it, as left.
       stopped = true;
@@ -1124,12 +1096,12 @@ function removeAll(git, items, { yes, override }, hooks, platform, again, stoppe
  * `counts`. With `again`, the removal is forced (#523): the folder is read once
  * more first, and any lock and any listed file go.
  */
-function removeOne(git, item, main, hooks, platform, lines, counts, ctx) {
+function removeOne(git, item, main, platform, lines, counts, ctx) {
   const at = lines.length;
   const head = `worktree ${folderName(item.name)}`;
   const mark = { stopped: false };
   try {
-    removeCore(git, item, main, hooks, platform, lines, counts, ctx, mark);
+    removeCore(git, item, main, platform, lines, counts, ctx, mark);
   } finally {
     // The report line gains the stop in front of its usual text (PACT-80).
     if (mark.stopped && lines[at]?.startsWith(`${head}: `)) lines[at] = `${head}: session stopped, ${lines[at].slice(head.length + 2)}`;
@@ -1154,7 +1126,7 @@ function folderFree(item, stopper, platform) {
   return !held && !stopper.alive(item.facts.stops[1]);
 }
 
-function removeCore(git, item, main, hooks, platform, lines, counts, { again: reread, forced, stopper }, mark) {
+function removeCore(git, item, main, platform, lines, counts, { again: reread, forced, stopper }, mark) {
   const f = item.facts;
   const head = `worktree ${folderName(item.name)}`;
   const again = forced ? reread : null;
@@ -1162,9 +1134,6 @@ function removeCore(git, item, main, hooks, platform, lines, counts, { again: re
     counts.left += 1;
     lines.push(`${head}: ${why}`, ...extra, ...(f.branch !== null ? [`  the branch stays: ${esc(f.branch)}`] : []));
   };
-  // The hooks folder is checked right before each removal call.
-  const hooksChanged = () => lstatSync(hooks).isSymbolicLink() || readdirSync(hooks).length > 0;
-  if (hooksChanged()) return left("left, the run's hooks folder changed");
   if (f.stops) {
     // 1. Only when git would not refuse: the override covers what git refuses, the yes path does not.
     if (!forced && (f.changed.length || f.untracked.length || (f.lock !== null && !isSessionLock(f.lock, f.folder)))) return left('left, git would refuse, so the session was not stopped');
@@ -1197,18 +1166,10 @@ function removeCore(git, item, main, hooks, platform, lines, counts, { again: re
     // After a stop the sessions are gone from a fresh read, so its tag is compared with the one the facts give without them.
     if (!fresh || fresh.overrideTag !== (f.stops ? overrideTagOf(item, true) : item.overrideTag)) return left('left, it changed since the read');
   }
-  // The folder's identity as of the last read, for the check right before git is told to force (the window after the last read, #523).
-  const stood = again ? standOf(item.path, main, platform) : null;
-  if (again && stood === null) return left('left, it changed since the read');
   const listed = again ? item.risk.changed.length + item.risk.untracked.length : 0;
   // A stopped session's own lock comes off just before the removal; git's other refusals still stand. An override lifts any lock.
   const lifted = f.lock !== null && (Boolean(again) || isSessionLock(f.lock, f.folder));
   if (lifted && !git(main, ['worktree', 'unlock', item.path]).ok) return left('left, git refused: it is locked');
-  // --force skips git's own clean check, so a folder or parent swapped for a link, or a folder made anew, since the last read is never forced.
-  if (again && standOf(item.path, main, platform) !== stood) {
-    const back = lifted ? (git(main, ['worktree', 'lock', ...(f.lock === '' ? [] : ['--reason', f.lock]), item.path]).ok ? [] : ['  the lock was not put back']) : [];
-    return left('left, it changed since the read', back);
-  }
   // --force at most once, only with listed files, so git's own lock check and, without files, its check for changed files still hold.
   const ok = git(main, ['worktree', 'remove', ...(listed ? ['--force'] : []), item.path]).ok;
   // A refusal leaves the lock as it was found.
@@ -1228,7 +1189,7 @@ function removeCore(git, item, main, hooks, platform, lines, counts, { again: re
       ...(f.lock !== null ? ['lock removed'] : []),
       ...(f.branchKept === COMMITS ? [`branch ${esc(f.branch)} kept with ${f.unpushed} commits`] : []),
     ];
-    const kept = f.branch !== null && !f.branchKept && !(!hooksChanged() && git(main, ['branch', '-d', f.branch]).ok);
+    const kept = f.branch !== null && !f.branchKept && !git(main, ['branch', '-d', f.branch]).ok;
     const undo = undoLine(f, { files: c + u > 0, stays: Boolean(f.branchKept) || kept });
     if (kept) {
       counts.left += 1;
@@ -1241,7 +1202,7 @@ function removeCore(git, item, main, hooks, platform, lines, counts, { again: re
   }
   if (f.branch === null) lines.push(`${head}: removed`);
   else if (f.branchKept) lines.push(`${head}: removed; branch ${esc(f.branch)} kept: ${f.branchKept}`);
-  else if (!hooksChanged() && git(main, ['branch', '-d', f.branch]).ok) lines.push(`${head}: removed`);
+  else if (git(main, ['branch', '-d', f.branch]).ok) lines.push(`${head}: removed`);
   else {
     counts.left += 1;
     lines.push(`${head}: left, the folder is gone`, `  the branch stays: ${esc(f.branch)}`);
@@ -1318,7 +1279,7 @@ function cleanRun(opts, io) {
     // The last read of one folder, as the run's own read made it and reusing nothing from it (#523).
     const again = name => readAll(run, { ...readWith, worktrees: [name] }).find(i => i.name === name);
     const stopper = { claude: readWith.claude, spawn: io.spawn ?? spawnSync, cwd, env: io.env, cwds: () => sessionCwds(io.home, platform).map(r => r.cwd), alive: io.alive ?? isAlive, sleep: io.sleep ?? sleepMs, now: io.now ?? Date.now };
-    const r = removeAll(run, items, opts, hooks, platform, again, stopper);
+    const r = removeAll(run, items, opts, platform, again, stopper);
     return { code: r.left || r.changed ? 1 : 0, lines: [...r.lines, `RESULT: removed ${r.removed} left ${r.left} changed ${r.changed}`] };
   } catch (e) {
     // removeAll catches each removal's own failure; this is a failure around them.

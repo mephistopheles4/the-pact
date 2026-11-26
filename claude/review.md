@@ -36,8 +36,7 @@ lenses to offer, and when.
   keeps no copy and puts nothing back. Before the pass, run this one command
   exactly as printed, putting only the work tree's top folder in its place: don't
   cut the script out, pipe it or edit it. It starts from your home folder, so no
-  program or version pin in the tree picks the `node` that runs it. Keep what it
-  prints in your own output, never in a file the agent can write. It covers
+  program or version pin in the tree picks the `node` that runs it. It covers
   every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
   index entries and half-done merges and rebases.
 
@@ -85,11 +84,10 @@ lenses to offer, and when.
   ```
 
   After the pass, stop any process the agent left running, run the same command
-  again, as you ran it before and never read again from a file, before any other
-  git, and compare the last line, `<hash> whole record`, alone:
-  the same means no change. On any difference, if a run fails, or if you no
-  longer hold the command or the first output: stop there, run no git in that tree, change
-  nothing, count the pass inconclusive, and report to me which lines differ.
+  again before any other git, and compare the last line, `<hash> whole record`,
+  alone: the same means no change. On any difference, or if a run fails: stop
+  there, run no git in that tree, change nothing, count the pass inconclusive,
+  and report to me which lines differ.
 
 ## The report template
 
@@ -271,7 +269,8 @@ when no other row answers the sentence.
 
 - **Read before you post.** Read every report and comment for a secret or a
   personal detail before posting it, and every commit before a push others
-  can read.
+  can read. A user or host name, a home path or a settings name is not a
+  personal detail here.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it

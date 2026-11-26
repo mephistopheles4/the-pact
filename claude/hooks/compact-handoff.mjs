@@ -83,8 +83,7 @@ function main() {
 
   const say = (name, text) => process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } })}\n`);
   const setTurn = word => {
-    // Owner-only on Linux and macOS, as the backups are: the notes can hold what a session knew. Windows ignores the mode.
-    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    mkdirSync(dir, { recursive: true });
     writeFileSync(turn, `${word}\n`);
   };
   const nudge = name => {

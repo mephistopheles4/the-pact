@@ -43,8 +43,7 @@
 //      link. (The renderer reads it, under its own rules.)
 //   4. The .claude/rules folder, when it exists, is not a link and stays where
 //      it was named. The rules file and the record, when they exist, are read
-//      once each as regular, one-link files that are not links
-//      (gate/contained.mjs). The record must be one the pact wrote, naming
+//      once each as regular files that are not links (gate/contained.mjs). The record must be one the pact wrote, naming
 //      RULES_NAME. An existing rules file with no record, or whose hash is not
 //      the record's, refuses: the install never replaces a file it did not
 //      write. First-install mode never applies in a project.
@@ -60,8 +59,8 @@
 // folder's real path. It reads the rendered file once (at most 1 MiB) and
 // refuses unless its hash is the one given. It makes .claude/rules if needed,
 // then writes the rules file and the record, each through writeContained
-// with a random temp name, the rules folder pinned to the identity the checks
-// found. Then it verifies both: the same lstat and open checks, then the hash.
+// with a random temp name. Then it verifies both: the same read as any other
+// here, then the hash.
 // It prints "WROTE <sha256 of the rules file> <sha256 of the record>".
 //
 // Then "RESULT: pass", or FAIL lines and "RESULT: fail" with exit 1. Like seam
@@ -72,7 +71,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir, userInfo } from 'node:os';
 import { isAbsolute, join } from 'node:path';
-import { folderId, randomTempName, readContained, writeContained } from './contained.mjs';
+import { randomTempName, readContained, writeContained } from './contained.mjs';
 import { fold, realOrResolved, within } from './paths.mjs';
 import { Refused, Report, readStrictJson } from './shared.mjs';
 
@@ -152,8 +151,6 @@ function inspect(given, home) {
 
   const rulesDir = join(claudeDir, 'rules');
   if (!plainFolder(rulesDir, "the project's .claude/rules folder")) return { root, rulesDir, rulesExists: false, state: 'STATE new' };
-  const rulesId = folderId(rulesDir);
-  if (rulesId === null) refuse('project-folder', "the project's .claude/rules folder could not be read");
   const rules = readContained(rulesDir, RULES_NAME, RULES_MAX);
   const recordBuf = readContained(rulesDir, RECORD_NAME, RECORD_MAX);
   let record = null;
@@ -168,13 +165,13 @@ function inspect(given, home) {
       refuse('project-record', `the project record is not one the pact wrote: it must name only ${RULES_NAME} and its hash`);
     }
   }
-  if (!rules) return { root, rulesDir, rulesId, rulesExists: true, state: 'STATE new' };
+  if (!rules) return { root, rulesDir, rulesExists: true, state: 'STATE new' };
   const hash = sha256(rules.buf);
   if (!record) refuse('project-unrecorded', `an existing .claude/rules/${RULES_NAME} with no record beside it; the install never replaces a file it has no record of writing`);
   if (record.sha256 !== hash) {
     refuse('project-unrecorded', `the existing .claude/rules/${RULES_NAME} is not the file its record names: it was edited, or an earlier write stopped partway. If the pact wrote it, delete it and ${RECORD_NAME}, then install again`);
   }
-  return { root, rulesDir, rulesId, rulesExists: true, state: `STATE update ${hash}` };
+  return { root, rulesDir, rulesExists: true, state: `STATE update ${hash}` };
 }
 
 function write(args, report) {
@@ -191,7 +188,6 @@ function write(args, report) {
     refuse('project-input', 'the rendered project rules file could not be read');
   }
   if (bytes.length > RULES_MAX || sha256(bytes) !== want) refuse('project-input', "the rendered project rules file's hash is not the one the install checked");
-  let rulesId = at.rulesId ?? null;
   if (!at.rulesExists) {
     try {
       mkdirSync(at.rulesDir);
@@ -199,12 +195,10 @@ function write(args, report) {
       refuse('project-folder', "the project's .claude/rules folder could not be made");
     }
     if (!plainFolder(at.rulesDir, "the project's .claude/rules folder")) refuse('project-folder', "the project's .claude/rules folder could not be made");
-    rulesId = folderId(at.rulesDir);
-    if (rulesId === null) refuse('project-folder', "the project's .claude/rules folder could not be made");
   }
   const record = Buffer.from(`${JSON.stringify({ file: RULES_NAME, sha256: want }, null, 2)}\n`, 'utf8');
-  writeContained(at.rulesDir, randomTempName(), RULES_NAME, bytes, rulesId);
-  writeContained(at.rulesDir, randomTempName(), RECORD_NAME, record, rulesId);
+  writeContained(at.rulesDir, randomTempName(), RULES_NAME, bytes);
+  writeContained(at.rulesDir, randomTempName(), RECORD_NAME, record);
   // The verify: the same lstat and open checks as any read here, then the hash.
   const wroteRules = readContained(at.rulesDir, RULES_NAME, RULES_MAX);
   const wroteRecord = readContained(at.rulesDir, RECORD_NAME, RECORD_MAX);

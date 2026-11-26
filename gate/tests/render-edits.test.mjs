@@ -542,31 +542,8 @@ test('bad case: a block reached through a linked parent folder refuses', t => {
   refusedWith(render(t, h), 'block-file', /a folder on the block path is a link/);
 });
 
-test('bad case: a block file with a second hard link refuses', t => {
-  const h = homeWith(t, edit1, { 'b.md': 'Good text.\n' });
-  try {
-    linkSync(join(h, '.pact', 'blocks', 'b.md'), join(tempDir(t), 'second.md'));
-  } catch {
-    t.skip('cannot create a hard link here (not run)');
-    return;
-  }
-  refusedWith(render(t, h), 'block-file', /the block file has more than one link/);
-});
-
-test('bad case: a block file swapped for another between its lstat and its open refuses', t => {
-  refusedWith(render(t, homeWith(t, edit1, { 'b.md': 'Good text.\n' }), SOURCE, { fault: 'swap-before-open' }), 'block-file', /the block file changed while it was opened/);
-});
-
-test('bad case: a block file given a second name between its lstat and its open refuses, by the link count', t => {
-  refusedWith(render(t, homeWith(t, edit1, { 'b.md': 'Good text.\n' }), SOURCE, { fault: 'hardlink-before-open' }), 'block-file', /the block file changed while it was opened/);
-});
-
 test('bad case: a block file whose real path is elsewhere refuses', t => {
   refusedWith(render(t, homeWith(t, edit1, { 'b.md': 'Good text.\n' }), SOURCE, { fault: 'realpath-elsewhere' }), 'block-file', /the block file resolves somewhere else/);
-});
-
-test('bad case: a block file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW', { skip: WIN && 'Windows defines no O_NOFOLLOW (not run)' }, t => {
-  refusedWith(render(t, homeWith(t, edit1, { 'b.md': 'Good text.\n' }), SOURCE, { fault: 'link-before-open' }), 'block-file', /the block file could not be opened/);
 });
 
 test('bad case: a read error on the blocks folder other than "does not exist" refuses', t => {

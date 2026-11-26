@@ -22,7 +22,7 @@ const plain = v => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
 /** The page's own functions, run with no document; what they return is cloned into this realm. */
 function logic(page = PAGE) {
-  const names = ['PACT', 'initialState', 'buildFiles', 'keepFolderKeys', 'harnessList', 'setHarnessIn', 'setHarnessModel', 'addHarness', 'removeHarness', 'receives', 'problems', 'touchedAgents', 'startState', 'changesOf', 'builderWith', 'setAgentModel', 'setTierEffort', 'dropTierKey', 'agentTable', 'tierTable', 'across', 'acrossTable', 'knownModels'];
+  const names = ['PACT', 'initialState', 'buildFiles', 'keepFolderKeys', 'harnessList', 'setHarnessIn', 'setHarnessModel', 'addHarness', 'removeHarness', 'receives', 'problems', 'touchedAgents', 'startState', 'changesOf', 'builderWith', 'setAgentModel', 'agentTable', 'across', 'acrossTable', 'knownModels'];
   const got = vm.runInContext(`${scriptOf(page)}\n;({ ${names.join(', ')} });`, vm.createContext({ TextEncoder }));
   // A state stays the page realm's object, so each setter changes it in place.
   return Object.fromEntries(Object.entries(got).map(([k, v]) => [k, typeof v !== 'function' ? plain(v) : k === 'initialState' || k === 'startState' ? v : (...a) => plain(v(...a))]));
@@ -362,7 +362,7 @@ test('bad case: the installer\'s harness renderer changed makes the committed pa
   assert.notEqual(buildPage(root, PAGE), PAGE);
 });
 
-// ------------------------------------------------------------ spec 0008 C9: one harness's agent models and tier efforts
+// ------------------------------------------------------------ spec 0008 C9: one harness's agent models
 
 /** The lines of `after` that differ from `before`, per file: { path: [new lines] }. */
 function changedLines(before, after) {
@@ -374,30 +374,24 @@ function changedLines(before, after) {
     return [p, now.filter((l, i) => l !== was[i])];
   }));
 }
-const tierId = (state, name) => state.parts.tiers.find(x => x.name === name).id;
 const cellOf = (state, agent, id) => L.agentTable(state).rows.find(r => r.agent === agent).cells.find(c => c.id === id);
-const tierOf = (state, id, name) => L.tierTable(state).find(x => x.id === id).rows.find(r => r.name === name);
 const own = state => configOf(state).harnesses?.own;
 
 // PACT-111 C9.
-test('0008 C9: one agent’s model and one tier’s effort for one harness write only that harness’s own entry, and nothing else renders differently', t => {
+test('0008 C9: one agent’s model for one harness writes only that harness’s own entry, and nothing else renders differently', t => {
   const s = L.initialState();
   // The rules' configuration notice holds the configuration's fingerprint, which any change moves.
   const renders = () => new Map([...installerRenders(t, s).rendered].map(([path, text]) => [path, text.replace(/^\*\*Configuration in effect\.\*\*.*$/m, '')]));
   const before = renders();
   assert.equal(L.setAgentModel(s, 'codex', 'data-lens', 'big-model'), null);
-  L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'plan', 'low');
-  // The known build effort stays with the key, which replaces the known one whole.
-  assert.deepEqual(configOf(s).harnesses, { own: [{ id: 'codex', agentModels: { 'data-lens': 'big-model' }, tierEfforts: { standard: { build: 'medium', plan: 'low' } } }] });
+  assert.deepEqual(configOf(s).harnesses, { own: [{ id: 'codex', agentModels: { 'data-lens': 'big-model' } }] });
   const changed = changedLines(before, renders());
-  assert.deepEqual(Object.keys(changed).sort(), ['rendered/codex/agents/data-lens.toml', 'rendered/codex/rules.md']);
+  assert.deepEqual(Object.keys(changed), ['rendered/codex/agents/data-lens.toml']);
   assert.deepEqual(changed['rendered/codex/agents/data-lens.toml'], ['model = "big-model"']);
-  assert.equal(changed['rendered/codex/rules.md'].length, 2, 'the tiers row and the workflow’s Plan row');
-  for (const line of changed['rendered/codex/rules.md']) assert.match(line, /planning model, low/);
 });
 
 // PACT-111 C9.
-test('0008 C9: the cells show what the install would write, and choosing the default or the table removes only that key', () => {
+test('0008 C9: the cells show what the install would write, and choosing the default removes only that key', () => {
   const s = L.startState();
   const lens = () => cellOf(s, 'data-lens', 'antigravity');
   assert.deepEqual([lens().model, lens().dropped, lens().fallback, lens().own], ['pro', true, 'pro', null]);
@@ -406,62 +400,21 @@ test('0008 C9: the cells show what the install would write, and choosing the def
   L.setAgentModel(s, 'mine', 'scout', 'one');
   assert.deepEqual([cellOf(s, 'scout', 'mine').model, cellOf(s, 'scout', 'mine').fallback], ['one', 'every']);
   L.removeHarness(s, 'mine');
-  const std = () => tierOf(s, 'codex', 'Standard');
-  assert.deepEqual([std().build.effective, std().build.own, std().build.table], ['medium', 'medium', 'high']);
-  assert.deepEqual([std().plan.effective, std().plan.own], ['medium', null]);
   L.setAgentModel(s, 'antigravity', 'data-lens', 'flash');
   L.setAgentModel(s, 'antigravity', 'scout', 'pro');
   assert.deepEqual([lens().model, lens().own, lens().fallback], ['flash', 'flash', 'pro']);
   L.setAgentModel(s, 'antigravity', 'data-lens', null);
   assert.deepEqual(own(s), [{ id: 'antigravity', agentModels: { scout: 'pro' } }]);
-  L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'build', null);
-  assert.deepEqual([own(s)[1], std().build.effective, std().build.own], [{ id: 'codex', tierEfforts: { standard: null } }, 'high', null]);
 });
 
 // PACT-111 C9.
 test('0008 C9: over a folder’s own entry, a change writes its one key and “as the default says” removes only that key', () => {
-  const existing = JSON.stringify({ schema: 1, harnesses: { own: [{ id: 'codex', agentModels: { scout: 'a', 'data-lens': 'b' }, tierEfforts: { quick: { plan: 'high' }, standard: { plan: 'low' } } }] } });
+  const existing = JSON.stringify({ schema: 1, harnesses: { own: [{ id: 'codex', agentModels: { scout: 'a', 'data-lens': 'b' } }] } });
   const s = L.initialState();
   L.setAgentModel(s, 'codex', 'reader-lens', 'c');
   L.setAgentModel(s, 'codex', 'scout', null);
-  L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'build', 'xhigh');
   const kept = JSON.parse(L.keepFolderKeys(L.buildFiles(s), existing, L.changesOf(s)).files[0].text);
-  assert.deepEqual(kept.harnesses.own[0].tierEfforts, { quick: { plan: 'high' }, standard: { plan: 'low', build: 'xhigh' } });
   assert.deepEqual(kept.harnesses.own[0].agentModels, { 'data-lens': 'b', 'reader-lens': 'c' });
-});
-
-// PACT-111 C9.
-test('0008 C9: renaming a tier moves its key in every own entry, and the dry run takes it', t => {
-  const s = L.initialState();
-  L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'plan', 'low');
-  L.setTierEffort(s, 'claude', tierId(s, 'Standard'), 'build', 'low');
-  s.parts.tiers[1].name = 'Deep Work';
-  assert.deepEqual(own(s).map(e => [e.id, Object.keys(e.tierEfforts)]), [['codex', ['deep-work']], ['claude', ['deep-work']]]);
-  const { rendered } = installerRenders(t, s);
-  assert.match(rendered.get('rendered/claude/rules.md'), /\| \*\*Deep Work\*\* \|[^\n]*executor model, low \|/);
-  assert.deepEqual(L.problems(s).filter(p => p.level === 'error'), []);
-});
-
-// PACT-111 C9.
-test('0008 C9: a rename or a dropped tier moves or removes the keys a folder holds that the page never saw', () => {
-  const existing = JSON.stringify({ schema: 1, harnesses: { own: [{ id: 'codex', tierEfforts: { standard: { build: 'low' }, thorough: { plan: 'max' }, deep: { plan: 'high' } } }] } });
-  const s = L.initialState();
-  s.parts.tiers[1].name = 'Deep';
-  s.parts.tiers.splice(2, 1);
-  const kept = JSON.parse(L.keepFolderKeys(L.buildFiles(s), existing, L.changesOf(s)).files[0].text);
-  assert.deepEqual(kept.harnesses, { own: [{ id: 'codex', tierEfforts: { deep: { build: 'low' } } }] });
-  assert.equal(Object.hasOwn(configOf(s), 'harnesses'), false, 'with no key of theirs to move, nothing is written');
-});
-
-// PACT-111 C9.
-test('0008 C9: an own key with no row of that tier is an error on its harness’s row, which removing the key clears', () => {
-  const s = L.initialState();
-  assert.equal(L.addHarness(s, { ...OWN, tierEfforts: { deepest: { plan: 'low' } } }), null);
-  const errors = () => L.problems(s).filter(p => p.where === 'mine' && p.level === 'error');
-  assert.match(errors()[0].text, /deepest/);
-  assert.deepEqual(L.tierTable(s).find(x => x.id === 'mine').orphans, ['deepest']);
-  L.dropTierKey(s, 'mine', 'deepest');
-  assert.deepEqual(errors(), []);
 });
 
 // PACT-111 C9.
@@ -504,18 +457,17 @@ function savedMachine(t, state) {
 }
 
 // PACT-111 C9.
-test('0008 C9: a page rebuilt from the saved configuration shows both, and saves them unchanged', t => {
+test('0008 C9: a page rebuilt from the saved configuration shows it, and saves it unchanged', t => {
   const s = L.initialState();
   L.setAgentModel(s, 'codex', 'data-lens', 'big-model');
+  // A renamed tier gives the save a builder file to rebuild from.
   s.parts.tiers[1].name = 'Deep';
-  L.setTierEffort(s, 'codex', tierId(s, 'Deep'), 'plan', 'low');
   const m = savedMachine(t, s);
   const r = m.cli(['--builder', join(m.home, '.pact', 'builder.json')]);
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const P = logic(readFileSync(join(m.home, '.pact', 'scriptorium.html'), 'utf8'));
   const again = P.startState();
   assert.equal(P.agentTable(again).rows.find(x => x.agent === 'data-lens').cells.find(c => c.id === 'codex').own, 'big-model');
-  assert.equal(P.tierTable(again).find(x => x.id === 'codex').rows.find(x => x.name === 'Deep').plan.own, 'low');
   const config = readFileSync(join(m.home, '.pact', 'config.json'), 'utf8');
   const kept = P.keepFolderKeys(P.buildFiles(again), config, P.changesOf(again), P.touchedAgents(again));
   assert.deepEqual(JSON.parse(kept.files[0].text).harnesses, JSON.parse(config).harnesses);
@@ -559,11 +511,10 @@ function holdsColumns(table, rendered) {
 test('0008 C10: the Across-harnesses section shows for each harness what the renderer writes for the same configuration', t => {
   const s = L.initialState();
   L.setAgentModel(s, 'codex', 'data-lens', 'big-model');
-  L.setTierEffort(s, 'antigravity', tierId(s, 'Quick'), 'build', 'low');
   const table = L.acrossTable(L.across(s));
   assert.deepEqual(table.heads.map(h => h.id), KNOWN.map(h => h.id));
   holdsColumns(table, installerRenders(t, s).rendered);
-  assert.equal(byLabel(table)['Standard, Build'].codex, 'executor model, medium');
+  assert.deepEqual(byLabel(table)['Standard, Build'], { claude: 'executor model, medium', codex: 'executor model, medium', antigravity: 'executor model, medium' });
   assert.equal(byLabel(table)['data-lens'].antigravity, 'pro, effort dropped');
 });
 
@@ -615,7 +566,7 @@ test('0008 C10: with no config.json, --overview shows the pact’s default confi
   const out = join(tempDir(t, 'pact-overview-'), 'overview.html');
   const r = m.cli(['--overview', out]);
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.deepEqual(byLabel(overviewTable(readFileSync(out, 'utf8')))['Standard, Build'], { claude: 'executor model, high', codex: 'executor model, medium', antigravity: 'executor model, high' });
+  assert.deepEqual(byLabel(overviewTable(readFileSync(out, 'utf8')))['Standard, Build'], { claude: 'executor model, high', codex: 'executor model, high', antigravity: 'executor model, high' });
 });
 
 // PACT-111 C10.

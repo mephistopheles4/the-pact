@@ -39,7 +39,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   const gatePaths = manifest.gate.map(g => g.path).sort();
   // Written out, so a stray gate file fails it; the four cores came with #155.
   // The Node install's gate is the gate folder alone (#153, S9). The tracker
-  // author checker (#183, T2) is staged with it and never run by the install.
+  // author checker (#183, T2) and the owner's release command are staged with it and never run by the install.
   assert.deepEqual(gatePaths, [
     'gate/contained.mjs',
     'gate/harness-render.mjs',
@@ -51,6 +51,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
     'gate/paths.mjs',
     'gate/project-core.mjs',
     'gate/project.mjs',
+    'gate/release-promote.mjs',
     'gate/render-core.mjs',
     'gate/render.mjs',
     'gate/review-core.mjs',

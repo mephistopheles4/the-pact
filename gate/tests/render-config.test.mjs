@@ -256,17 +256,6 @@ test('bad case: a pact folder that is a link to a folder holding a good file ref
   refusedWith(render(t, h), 'config-file', /the \.pact folder is a link/);
 });
 
-test('bad case: a configuration file with a second hard link refuses', t => {
-  const h = homeWith(t, readFileSync(EXAMPLE));
-  try {
-    linkSync(join(h, '.pact', 'config.json'), join(tempDir(t), 'second.json'));
-  } catch {
-    t.skip('cannot create a hard link here (not run)');
-    return;
-  }
-  refusedWith(render(t, h), 'config-file', /more than one link/);
-});
-
 test('bad case: an unreadable configuration file refuses', t => {
   const h = homeWith(t, readFileSync(EXAMPLE));
   const p = join(h, '.pact', 'config.json');
@@ -520,20 +509,8 @@ for (const [fault, reason] of [
   });
 }
 
-test('bad case: a configuration file swapped for another between its lstat and its open refuses', t => {
-  refusedWith(renderFault(t, homeWith(t, GOOD), 'swap-before-open'), 'config-file', /changed while it was opened/);
-});
-
-test('bad case: a configuration file given a second name between its lstat and its open refuses, by the link count', t => {
-  refusedWith(renderFault(t, homeWith(t, GOOD), 'hardlink-before-open'), 'config-file', /changed while it was opened/);
-});
-
 test('bad case: a configuration file whose real path is elsewhere refuses', t => {
   refusedWith(renderFault(t, homeWith(t, GOOD), 'realpath-elsewhere'), 'config-file', /resolves somewhere else/);
-});
-
-test('bad case: a configuration file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW', { skip: WIN && 'Windows defines no O_NOFOLLOW (not run)' }, t => {
-  refusedWith(renderFault(t, homeWith(t, GOOD), 'link-before-open'), 'config-file', /could not be opened/);
 });
 
 test('the configuration file is opened once and read once, and a large file is read no further than the cap', t => {

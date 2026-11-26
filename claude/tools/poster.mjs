@@ -81,7 +81,7 @@
 // this file is the entry script.
 
 import { spawnSync } from 'node:child_process';
-import { closeSync, existsSync, fstatSync, lstatSync, mkdtempSync, openSync, readSync, realpathSync, rmSync } from 'node:fs';
+import { closeSync, existsSync, lstatSync, mkdtempSync, openSync, readSync, realpathSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -191,10 +191,9 @@ export function idText(v) {
 const chars = s => [...s].length;
 
 /**
- * A text file read strictly: a regular file, not a link, at most 256 KiB,
- * checked before it is read and again on the open descriptor, so a file
- * swapped between the two is refused. Valid UTF-8, with no byte-order mark,
- * and not empty. Returns { text } or { rule }.
+ * A text file read strictly: a regular file, not a link, at most 256 KiB.
+ * Valid UTF-8, with no byte-order mark, and not empty. Returns { text } or
+ * { rule }.
  */
 export function readText(path) {
   let before;
@@ -214,8 +213,6 @@ export function readText(path) {
   }
   let bytes;
   try {
-    const after = fstatSync(fd, { bigint: true });
-    if (!after.isFile() || after.dev !== before.dev || after.ino !== before.ino) return { rule: 'file/not-regular' };
     const buf = Buffer.alloc(FILE_MAX + 1);
     let got = 0;
     for (;;) {

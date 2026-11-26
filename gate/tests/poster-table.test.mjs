@@ -441,7 +441,7 @@ test('each fixture holds only its label line and table, with placeholders in eve
   }
 });
 
-// #280 C8: the fixtures carry nothing the poster's scan refuses. The home-path guard reads them with every tracked file.
+// #280 C8: the fixtures carry nothing the poster's scan refuses.
 test("the poster's scan finds nothing in any fixture", () => {
   for (const name of Object.keys(RECORDED)) assert.deepEqual(scan([{ field: 'body', text: fixture(name) }], { env: {}, ...MACHINE, surface: 'issue-comment' }), [], name);
 });

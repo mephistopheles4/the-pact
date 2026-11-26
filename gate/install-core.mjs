@@ -67,9 +67,6 @@ export const GUARD_RULES = Object.freeze([
   deny('daemon-stop', 'session-stop-deny', 'claude daemon stop'),
   deny('session-respawn', 'session-stop-deny', 'claude respawn'),
 ]);
-// The skills that stand for the owner's answer, asked on where a harness can ask before a file is read (S7). It
-// matches a read's path, never a command, so no permission rule is made of it.
-export const OWNER_SKILL_RULE = rule('owner-skill', 'ask', 'owner-skills', 'skills', ['make-it-so', 'finis', 'scry']);
 const permissionRules = (on, decision) => {
   const patterns = GUARD_RULES.filter(r => r.switch === on && r.decision === decision).map(r => (r.words ? `${r.words.join(' ')} *` : `*${r.contains.join('*')}*`));
   return Object.freeze([...patterns.map(p => `Bash(${p})`), ...patterns.map(p => `PowerShell(${p})`)]);
@@ -269,8 +266,8 @@ const FLAGS = new Set(['--apply']);
 const VALUED = new Set(['--commit', '--rendered-hash', '--home', '--review-folder', '--project-folder', '--release']);
 const PATH_OPTIONS = ['--home', '--review-folder', '--project-folder'];
 const SAFE_PATH = /^[A-Za-z0-9 ._\-:\\/]+$/;
-// A release tag, named exactly v1.<n>.0 (spec 0007 S10).
-const RELEASE_RE = /^v1\.(0|[1-9]\d{0,8})\.0$/;
+// A release tag, named exactly v1.<n>.0 or v1.<n>.0-rc.<k> (spec 0007 S10).
+const RELEASE_RE = /^v1\.(0|[1-9]\d{0,8})\.0(?:-rc\.([1-9]\d{0,8}))?$/;
 
 /**
  * The command line, strictly (S4): known options only, spelled exactly, each
@@ -308,7 +305,7 @@ export function parseArgs(argv, platform) {
     if (!SAFE_PATH.test(v) || (win && v.indexOf(':', 2) >= 0)) refuse('path-chars', `${opt} holds a character the install does not take in a path: only letters, digits, spaces and . _ - : \\ / are taken. Use a folder whose full path holds only those.`);
   }
   // The bootstrap names the release it cloned, so the record holds it (spec 0007 S9, S10).
-  if (given.has('--release') && !RELEASE_RE.test(given.get('--release'))) refuse('args-release', '--release takes a release tag, such as v1.1.0.');
+  if (given.has('--release') && !RELEASE_RE.test(given.get('--release'))) refuse('args-release', '--release takes a release tag, such as v1.1.0 or v1.2.0-rc.1.');
   if (given.has('--review-folder') && given.has('--project-folder')) refuse('args-review-project', '--review-folder is for a home install; a project install writes no review output.');
   if (given.has('--apply') && !given.has('--commit')) refuse('args-apply-commit', '--apply needs --commit with the full commit id the dry run printed.');
   return {
@@ -402,8 +399,13 @@ export function behindLine(recordCommit, commit, reachable, release = null, reco
   if (recordCommit === null) return null;
   const last = recordCommit.toLowerCase();
   if (release !== null && recordRelease !== null) {
-    const n = tag => Number(RELEASE_RE.exec(tag)[1]);
-    return n(release) < n(recordRelease) ? `WARN: the release ${release} is lower than the last install's ${recordRelease}: this install is behind the last install, and installing rolls the pact back.` : null;
+    // By number, and a release candidate ranks below its own stable release.
+    const n = tag => {
+      const m = RELEASE_RE.exec(tag);
+      return [Number(m[1]), m[2] ? Number(m[2]) : Infinity];
+    };
+    const [a, b] = [n(release), n(recordRelease)];
+    return a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]) ? `WARN: the release ${release} is lower than the last install's ${recordRelease}: this install is behind the last install, and installing rolls the pact back.` : null;
   }
   if (last === commit || reachable.has(last)) return null;
   const named = /^[0-9a-f]{40}$/.test(last) ? ` ${last}` : ', a commit id the install does not read,';
@@ -471,7 +473,7 @@ export function parseRecord(text) {
   // Every skill link the install made: the harness, the link and the folder it points at.
   const links = ci(doc, 'links') ?? [];
   if (!Array.isArray(links) || !links.every(l => isPlainObject(l) && ['harness', 'path', 'target'].every(k => typeof l[k] === 'string'))) refuse('record-not-pact', 'the install record\'s links are not a list of skill links; fix or remove it.');
-  // Whether the install wrote the shell policy line into Codex's config.
+  // An older install's mark that it wrote the shell policy line into Codex's config: read, never written again.
   const shellPolicy = ci(doc, 'shellpolicy') ?? false;
   if (shellPolicy !== false && shellPolicy !== true) refuse('record-not-pact', 'the install record\'s shell policy mark is neither true nor false; fix or remove it.');
   const valuesAt = key => entries.filter(e => e.key === key && typeof e.value === 'string').map(e => e.value);
@@ -502,7 +504,7 @@ export function parseRecord(text) {
  * harnesses with their paths, config, every file with its harness and hash,
  * every settings entry, and the gate. `files` is path to { harness, sha256 }.
  */
-export function recordText({ commit, release = null, digest, harnesses, userHash, blockHashes, files, links = [], entries, shellPolicy = false, gateNow }) {
+export function recordText({ commit, release = null, digest, harnesses, userHash, blockHashes, files, links = [], entries, gateNow }) {
   const doc = {
     commit,
     // The source of the last apply: a release tag, or none for a checkout commit.
@@ -513,7 +515,6 @@ export function recordText({ commit, release = null, digest, harnesses, userHash
     files: [...files].map(([path, f]) => ({ harness: f.harness, path, sha256: f.sha256 })),
     ...(links.length ? { links } : {}),
     entries,
-    ...(shellPolicy ? { shellPolicy } : {}),
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
   };
   return `${JSON.stringify(doc, null, 2)}\n`;
@@ -525,7 +526,7 @@ export function recordText({ commit, release = null, digest, harnesses, userHash
  * The gate block (S6, G11): every gate file but the tests, against the
  * record's.
  */
-export function gateBlock(gateNow, recordGate, selfDiffers) {
+export function gateBlock(gateNow, recordGate) {
   const then = new Map(recordGate);
   let lines;
   if (!then.size) lines = ['Gate: no gate recorded at the last install'];
@@ -543,7 +544,6 @@ export function gateBlock(gateNow, recordGate, selfDiffers) {
     const changes = [...order.filter(Boolean), ...removed.map(k => `  removed ${formatPlain(k)}`)];
     lines = changes.length ? ['Gate: CHANGED since the last install', ...changes] : ['Gate: unchanged since the last install'];
   }
-  if (selfDiffers) lines.push('WARN: this install script differs from the committed copy; --apply will refuse.');
   return lines;
 }
 
@@ -1636,17 +1636,7 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
 // ------------------------------------------------------------ the guard's hook entry (spec 0007 S8)
 
 /** The rules the switches leave on: `on` names the switches that are. */
-export const guardRules = on => [...GUARD_RULES, OWNER_SKILL_RULE].filter(r => on.includes(r.switch));
-
-/**
- * The harnesses that get the owner-skill ask: those whose hook can meet a read
- * and answer it with a question, and that take a skill the rule names, with
- * the commands in `on`.
- */
-export const ownerSkillReaders = (harnesses, on) => harnesses.filter(h => {
-  const parts = builtParts(h);
-  return parts.guard && parts.skills && GUARD_SHAPES[h.hooks.format].reads !== null && h.capabilities.includes('hook-ask') && on.some(c => OWNER_SKILL_RULE.skills.includes(c));
-});
+export const guardRules = on => GUARD_RULES.filter(r => on.includes(r.switch));
 
 /** rules.json's text for those rules. */
 export const guardTableText = rules => `${JSON.stringify({ rules }, null, 2)}\n`;
@@ -1724,19 +1714,18 @@ export function guardCommand({ script, platform, systemRoot }) {
 }
 
 // Where each harness keeps its PreToolUse list, and what the pact's group there holds: `matcher` the tools that
-// run or type a command, `reads` the tools that read a file, matched too while the harness gets a rule on a read.
-// Codex's hook meets no read. Antigravity's manage_task types into a program left running; send_command_input is a
+// run or type a command. Antigravity's manage_task types into a program left running; send_command_input is a
 // second name for that which agy 1.2.14 registers and gives no agent.
 const GUARD_SHAPES = Object.freeze({
-  codex: Object.freeze({ path: Object.freeze(['hooks', 'PreToolUse']), matcher: '^Bash$', reads: null, more: Object.freeze([['statusMessage', 'pact-guard']]) }),
-  antigravity: Object.freeze({ path: Object.freeze(['pact-guard', 'PreToolUse']), matcher: 'run_command|manage_task|send_command_input', reads: 'view_file|read_file', more: Object.freeze([]) }),
+  codex: Object.freeze({ path: Object.freeze(['hooks', 'PreToolUse']), matcher: '^Bash$', more: Object.freeze([['statusMessage', 'pact-guard']]) }),
+  antigravity: Object.freeze({ path: Object.freeze(['pact-guard', 'PreToolUse']), matcher: 'run_command|manage_task|send_command_input', more: Object.freeze([]) }),
 });
 
 /** The pact's matcher group for a format, as settings maps: one hook, its command and a 15 s timeout. */
-export function guardGroup(format, command, { reads = false } = {}) {
+export function guardGroup(format, command) {
   const shape = GUARD_SHAPES[format];
   const hook = new Map([['type', 'command'], ['command', command], ['timeout', new Num('15')], ...shape.more]);
-  return new Map([['matcher', reads && shape.reads ? `${shape.matcher}|${shape.reads}` : shape.matcher], ['hooks', [hook]]]);
+  return new Map([['matcher', shape.matcher], ['hooks', [hook]]]);
 }
 
 /** A recorded entry's value, a group, as settings maps; null when it is not one. */
@@ -1805,7 +1794,7 @@ export function guardMerge(live, { drop = [], want = [] }) {
 
 /**
  * The guard hooks of this install, one plan per hooks file: the files of the
- * harnesses that are in (`want`: { harness, path, format, command, reads }), and
+ * harnesses that are in (`want`: { harness, path, format, command }), and
  * those the record lists a guard hook in.
  */
 export function guardPlans(recordEntries, want) {
@@ -1821,7 +1810,7 @@ export function guardPlans(recordEntries, want) {
     f.recorded.push(e);
     f.drop.push({ format, group: recordedGroup(e.value) });
   }
-  for (const w of want) at(w.path).want.push({ harness: w.harness, format: w.format, group: guardGroup(w.format, w.command, { reads: w.reads }) });
+  for (const w of want) at(w.path).want.push({ harness: w.harness, format: w.format, group: guardGroup(w.format, w.command) });
   return [...files.values()];
 }
 
@@ -2327,59 +2316,30 @@ export const NO_LINK_LINE = 'WARN: a skill link cannot be made on this machine, 
 // ------------------------------------------------------------ Codex's shell environment policy (spec 0007 S13)
 
 export const CODEX_CONFIG_REL = '.codex/config.toml';
-const SHELL_POLICY_KEY = 'shell_environment_policy';
-const SHELL_POLICY_MARK = '# the pact: secret-named variables stay out of the shells Codex starts';
-export const SHELL_POLICY_LINE = `${SHELL_POLICY_KEY}.ignore_default_excludes = false ${SHELL_POLICY_MARK}`;
+const SHELL_POLICY_LINE = 'shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts';
+/** The dry run's line and the apply's line when the line is taken out of config.toml. */
+export const SHELL_POLICY_DRY_LINE = "Codex shell policy: the pact's line would be removed; Codex's shells then get every variable";
+export const SHELL_POLICY_APPLY_LINE = `removed the pact's shell-policy line from ${CODEX_CONFIG_REL}`;
 
 /**
- * What Codex's config.toml needs. `bytes` is the file's, or null when there is
- * none; `wanted` is whether this run takes Codex, `recorded` whether the last
- * install's record holds the line. `status` is 'add', 'keep', 'remove',
- * 'yours' (the file sets the policy itself: left as is), 'drift' (the pact's
- * line changed) or 'none'; `next` is the file's new text where it changes.
- * The file is read as lines, not parsed as TOML: any line outside a comment
- * that names the policy counts as the person's own.
+ * A one-time cleanup: Codex's shell environment policy is the owner's now, but
+ * an older install wrote one line of it. Given the config.toml bytes of an
+ * install whose record marks that line, the file's new text without exactly
+ * that line, or undefined when the line is not there (or the file is not
+ * UTF-8): then the file is left alone.
  */
-export function shellPolicyPlan({ bytes, wanted, recorded }) {
-  if (!wanted && !recorded) return { status: 'none' };
-  let text = '';
-  if (bytes !== null) {
-    try {
-      text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-    } catch {
-      stops.configNotText();
-    }
+export function withoutShellPolicy(bytes) {
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    return undefined;
   }
   const bom = text.startsWith('\uFEFF') ? '\uFEFF' : '';
-  const body = text.slice(bom.length);
-  const lines = body.split('\n').map(l => l.replace(/\r$/, ''));
-  const at = lines.indexOf(SHELL_POLICY_LINE);
-  if (!wanted) {
-    // Only a recorded install gets here, so a marked line that no longer matches was changed since.
-    if (at < 0 && lines.some(l => l.includes(SHELL_POLICY_MARK))) return { status: 'drift' };
-    if (at < 0) return { status: 'none' };
-    return { status: 'remove', next: bom + body.split(/(?<=\n)/).filter((_, i) => i !== at).join('') };
-  }
-  const named = lines.some((l, i) => i !== at && !l.trimStart().startsWith('#') && l.includes(SHELL_POLICY_KEY));
-  const table = lines.findIndex(l => l.trimStart().startsWith('['));
-  // Under a table header the line would be that table's key, which Codex ignores.
-  if (at >= 0 && (table < 0 || at < table) && !named) return { status: 'keep' };
-  if (recorded && lines.some(l => l.includes(SHELL_POLICY_MARK))) return { status: 'drift' };
-  if (named || at >= 0) return { status: 'yours' };
-  const eol = body.includes('\r\n') ? '\r\n' : '\n';
-  // A dotted key before the first table header is valid TOML wherever the rest of the file stands.
-  return { status: 'add', next: `${bom}${SHELL_POLICY_LINE}${eol}${body}` };
+  const lines = text.slice(bom.length).split(/(?<=\n)/);
+  const at = lines.findIndex(l => l.replace(/\r?\n$/, '') === SHELL_POLICY_LINE);
+  return at < 0 ? undefined : bom + lines.filter((_, i) => i !== at).join('');
 }
-
-export const SHELL_POLICY_DRIFT = `${CODEX_CONFIG_REL} (the pact's shell policy line changed since the install)`;
-
-/** The dry run's lines for the policy, in Codex's block. */
-export const shellPolicyLines = ({ status }) => ({
-  add: [`Codex shell policy: would be added to ${CODEX_CONFIG_REL}, so variables named like KEY, SECRET or TOKEN stay out of the shells Codex starts`],
-  keep: ['Codex shell policy: in place'],
-  remove: [`Codex shell policy: would be removed from ${CODEX_CONFIG_REL}`],
-  yours: [`WARN: Codex shell policy: ${CODEX_CONFIG_REL} sets ${SHELL_POLICY_KEY} itself, so the pact leaves it. Variables named like KEY, SECRET or TOKEN stay out of the shells Codex starts only if yours sets ignore_default_excludes = false.`],
-}[status] ?? []);
 
 /** The old builder agents' paths in Claude Code's agents folder, which a first install deletes (#262). */
 export const retiredPaths = targets => targets.filter(t => t.id === 'claude' && t.agents).flatMap(t => RETIRED.map(r => `${t.agents}/${r.slice('agents/'.length)}`));
@@ -2580,9 +2540,8 @@ export function checkBinding(opts, rulesHash, commit) {
 }
 
 /** --apply's own refusals (S6, X1), in order. */
-export function checkApply({ configApplies, hashGiven, selfDiffers, drift, dirty, settingsObject, unrecorded = [] }) {
+export function checkApply({ configApplies, hashGiven, drift, dirty, settingsObject, unrecorded = [] }) {
   if (configApplies && !hashGiven) refuse('apply-needs-hash', 'a configuration applies, so --apply needs the full rendered hash the dry run showed, given with --rendered-hash.');
-  if (selfDiffers) refuse('apply-self-differs', 'this install script differs from the committed copy.');
   if (drift) refuse('apply-drift', 'installed files or settings entries changed since the last install. Whether to keep or replace those edits is the owner\'s decision; docs/install.md says how.');
   if (unrecorded.length) refuse('unrecorded-target', `${unrecorded.map(formatPlain).join(', ')} already exists and the install record does not list it. The pact owns the whole rules file: move your own text into your configuration and the file out of the way. After an install from before ~/.pact, follow the one-time removal in docs/install.md.`);
   if (dirty) refuse('apply-dirty', 'the working tree is not clean.');
@@ -2593,12 +2552,9 @@ const REVIEW_LEFT = 'The review folder may hold what the review module wrote; no
 
 /** The runner's own refusals, each with its rule id, for what it finds on disk or in its own process. */
 export const stops = Object.freeze({
-  preload: () => refuse('run-preload', 'NODE_OPTIONS is set, or the runner was started with an option; start the install with node gate/install.mjs.'),
   runArgs: () => refuse('run-args', 'the install runner was not started by the install bootstrap: run node gate/install.mjs.'),
-  stageUnreadable: () => refuse('stage-unreadable', 'the stage could not be read.'),
   reachableMissing: () => refuse('reachable-missing', "the install bootstrap wrote no list of this commit's history; run node gate/install.mjs from a clean checkout."),
   configLink: () => refuse('config-link', 'the user configuration file, or the .pact folder that holds it, is a link or other reparse point.'),
-  configChanged: () => refuse('config-changed', 'the user configuration changed while the install ran; run the install again.'),
   homeWorkTree: () => refuse('home-work-tree', '--home is inside a git work tree; give a folder outside any repository.'),
   harnessKnownMissing: () => refuse('harness-known', 'the commit holds no harnesses/known.json.'),
   blocksLink: () => refuse('blocks-link', 'the configuration blocks folder is a link or other reparse point.'),
@@ -2607,16 +2563,9 @@ export const stops = Object.freeze({
   moduleMissing: name => refuse('module-missing', `the commit's ${name} could not be loaded.`),
   rulesMissing: () => refuse('rules-missing', `the commit holds no ${RULES_REL}.`),
   rulesSourceInTree: () => refuse('rules-source-in-tree', `the commit holds ${KIT_RULES_REL}, a file only the install makes, from ${RULES_REL}.`),
-  rulesSourceHash: () => refuse('rules-source-hash', `the copy of ${RULES_REL} made for the builder kit does not match the commit's.`),
-  renderChangedStage: () => refuse('render-changed-stage', 'the renderer changed the stage.'),
-  stageChanged: rel => refuse('stage-changed', `the staged copy of ${formatPlain(rel)} changed after the check.`),
-  reviewRulesChanged: () => refuse('review-rules-changed', 'the staged rules file changed after the check.'),
-  reviewChangedStage: () => refuse('review-changed-stage', 'the review module changed the stage.', REVIEW_LEFT),
   reviewFailed: () => refuse('review-failed', 'the review output was not written, or not as this run rendered it.', REVIEW_LEFT),
   hooksNotObject: rel => refuse('hooks-not-object', `${formatPlain(rel)} is not a strict JSON object, so the pact's guard hook cannot be merged into it; fix the file first.`),
   hooksPath: (rel, why) => refuse('hooks-path', `${why} for a hooks file: ${formatPlain(rel)}.`),
-  configLinked: () => refuse('config-linked', `${CODEX_CONFIG_REL} is behind a link, so the install does not write the pact's shell policy line into it.`),
-  configNotText: () => refuse('config-not-text', `${CODEX_CONFIG_REL} is not a UTF-8 text file, so the pact's shell policy line cannot be added; fix the file first.`),
   tempLeft: rel => refuse('temp-left', `a temp file the install writes through is already there: ${formatPlain(rel)}.pact-tmp. An earlier install stopped mid-write, and the file may hold a copy of your settings; check it, delete it, and run the install again.`),
 });
 
@@ -2717,9 +2666,7 @@ export function pruneLines({ pruned, later, others, failed }) {
 export const backupStops = Object.freeze({
   link: rel => refuse('backup-link', `${formatPlain(rel)}, on the backup's path, is a link, another reparse point or not what the backup expects; move it out of the way, then run the install again.`),
   stagingLeft: n => refuse('backup-staging-left', `${BACKUPS_REL} holds ${n} staging folder(s) an earlier apply left; each may hold a copy of your settings. Check and delete them, then run the install again.`),
-  nameTaken: () => refuse('backup-name-taken', `no free backup name is left in ${BACKUPS_REL} for this millisecond, or the name was taken while the install ran; run the install again.`),
-  changed: rel => refuse('backup-changed', `${formatPlain(rel)} changed while the install ran; run the install again.`),
-  mode: () => refuse('backup-mode', 'a backup file or folder can be read by other accounts on this machine; check the umask and the file system the home folder sits on, then run the install again.'),
+  nameTaken: () => refuse('backup-name-taken', `no free backup name is left in ${BACKUPS_REL} for this millisecond; run the install again.`),
   failed: () => refuse('backup-failed', 'the backup of the files this install replaces could not be written in full; check free space and that you can write to .pact/backups, then run the install again.'),
   cleanup: stagingRel => refuse('backup-cleanup', 'the backup failed, and what it wrote could not be removed.', `${stagingRel} may hold a copy of your settings: check it and delete it, then run the install again.`),
 });
@@ -2730,11 +2677,11 @@ export function checkReviewLines(report, rulesHash, diffHash) {
   if (report.failed || lines.length !== 2 || lines[1] !== 'RESULT: pass' || lines[0] !== `REVIEW ${rulesHash} ${diffHash}`) stops.reviewFailed();
 }
 
-/** The runner's own command line from the bootstrap: work folder, commit, dirty count, self-differs, then the words as typed. */
+/** The runner's own command line from the bootstrap: work folder, commit, dirty count, then the words as typed. */
 export function parseRunnerArgs(argv) {
-  const [work, commit, dirty, self, sep] = argv;
-  if (argv.length < 5 || sep !== '--' || !/^[0-9a-f]{40}$/.test(commit) || !/^(0|[1-9][0-9]{0,8})$/.test(dirty) || !/^(yes|no)$/.test(self)) stops.runArgs();
-  return { work, commit, dirty: Number(dirty), selfDiffers: self === 'yes', words: argv.slice(5) };
+  const [work, commit, dirty, sep] = argv;
+  if (argv.length < 4 || sep !== '--' || !/^[0-9a-f]{40}$/.test(commit) || !/^(0|[1-9][0-9]{0,8})$/.test(dirty)) stops.runArgs();
+  return { work, commit, dirty: Number(dirty), words: argv.slice(4) };
 }
 
 /** The runner's work folder (S3): directly in the temp folder, named pact-install-*, holding the runner's own stage. */

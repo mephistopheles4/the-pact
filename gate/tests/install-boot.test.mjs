@@ -131,9 +131,9 @@ test('the runner and every module it loads import only node: built-ins and files
   }
 });
 
-test('the runner refuses any preload and prints no error text', () => {
+test('the runner prints no error text', () => {
   const src = text('install-run.mjs');
-  assert.match(src, /if \(process\.env\.NODE_OPTIONS !== undefined \|\| process\.execArgv\.length\) core\.stops\.preload\(\);/);
+
   assert.ok(!/\be\.message\b|\berr\.message\b|\be\.stack\b|String\(e\)|\$\{e\}/.test(src), 'no thrown error text reaches the output');
   assert.ok(!/\bconsole\./.test(src));
   assert.match(src, /say\('CHECKS DONE'\);\n {2}writing = true;/, 'CHECKS DONE comes right before the first write');

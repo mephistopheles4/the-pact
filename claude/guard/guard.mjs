@@ -225,11 +225,10 @@ function containsMatch(text, parts) {
 
 const ID_RE = /^[a-z0-9-]{1,64}$/;
 const isWords = v => Array.isArray(v) && v.length > 0 && v.every(w => typeof w === 'string' && w !== '');
-// What a rule matches, one kind each: a command's words, parts of its text, or the skills whose file a read opens.
+// What a rule matches, one kind each: a command's words, or parts of its text.
 const SHAPES = {
   words: v => isWords(v) && v[0] !== '*' && v.at(-1) !== '*',
   contains: isWords,
-  skills: v => isWords(v) && v.every(name => ID_RE.test(name)),
 };
 
 /** The rule table's text as its rules; anything but exactly the install's shape is a `table` failure. */
@@ -265,38 +264,7 @@ function firstMet(rules, met) {
  */
 export function judge(command, rules) {
   const segments = [...segmentsOf(command, true), ...segmentsOf(command, false)].map(tokens => ({ tokens, at: programAt(tokens), text: tokens.join(' ') }));
-  return firstMet(rules, rule => !rule.skills && segments.some(s => (rule.words ? wordsMatch(s.tokens, s.at, rule.words) : containsMatch(s.text, rule.contains))));
-}
-
-/** A name without the characters of `drop` at its end; a loop, so a long name costs no backtracking. */
-function trimmed(name, drop) {
-  let end = name.length;
-  while (end > 0 && drop.includes(name[end - 1])) end -= 1;
-  return name.slice(0, end);
-}
-
-/**
- * A path's parts in lower case, with either separator. Each name loses a stream
- * after a colon and the spaces at its end, then `.` and `..` are resolved,
- * then dots and spaces at its end go, and an empty name is left out. Windows
- * cuts less, so this meets more paths than open the file.
- */
-function pathParts(path) {
-  const parts = [];
-  for (const named of path.toLowerCase().split(/[\\/]+/)) {
-    const spaced = trimmed(named.split(':', 1)[0], ' ');
-    const part = trimmed(spaced, '. ');
-    if (spaced === '..') parts.pop();
-    else if (part !== '') parts.push(part);
-  }
-  return parts;
-}
-
-/** The rule a read of `path` meets, or null: the SKILL.md of a skill the rule names, in a folder named skills. */
-export function judgeRead(path, rules) {
-  const [folder, skill, file] = pathParts(path).slice(-3);
-  if (folder !== 'skills' || file !== 'skill.md') return null;
-  return firstMet(rules, rule => rule.skills?.includes(skill));
+  return firstMet(rules, rule => segments.some(s => (rule.words ? wordsMatch(s.tokens, s.at, rule.words) : containsMatch(s.text, rule.contains))));
 }
 
 /** `judgeBy` on the text and the table beside this file, once the text is one the guard reads. */
@@ -315,5 +283,3 @@ function against(text, judgeBy, tableFile) {
 const TABLE = new URL('./rules.json', import.meta.url);
 /** The answer to one command: null, or { decision, id }. */
 export const answer = (command, tableFile = TABLE) => against(command, judge, tableFile);
-/** The answer to one read of a file: null, or { decision, id }. */
-export const answerRead = (path, tableFile = TABLE) => against(path, judgeRead, tableFile);

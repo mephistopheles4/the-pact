@@ -1,4 +1,4 @@
-# Spec delta: per-harness agent models and tier efforts — V1
+# Spec delta: per-harness agent models and efforts — V1
 
 Status: draft, after spec round 2 of 2 (final), with its fixes taken as
 the lead's flagged picks. A delta on
@@ -24,13 +24,13 @@ checkpoints. The spec counts once it is on `main`.
 ## D1 Objective
 
 Scriptorium can pick each harness's three role models (0007 S11). It can't
-set one harness's model for one agent, or one harness's effort for one tier.
+set one harness's model for one agent.
 The owner wants Scriptorium to fully support Claude Code, Codex and
 Antigravity before 0007's work merges. When this is done:
 
-- a harness description can name an effort per tier cell, beside the model
-  per agent the base already renders, and the install renders both;
-- Scriptorium shows and sets both, for each harness;
+- a harness description can name the model per agent the base already
+  renders, and the efforts it takes, and the install renders them;
+- Scriptorium shows and sets the model of each agent, for each harness;
 - Scriptorium writes one local page of the current setup across all three
   harnesses, which reaches the owner as D8 says.
 
@@ -45,13 +45,14 @@ The owner's words, relayed by the lead, and the lead's picks:
    `gemini-4-hydrogen-<effort>`, each in `low`, `medium`, `high` and `xhigh`
    (`agy models`, agy 1.5.17). Its agent aliases resolve on their own:
    `pro` to Hydrogen xhigh, `flash` to Hydrogen high.
-3. **Codex's tiers:** "drop standard to Sol medium and keep the others at
-   high". Only Standard's Build moves, in the tiers table and the workflow
-   table's Build row. Quick, Thorough and the sensitive route stay as the
-   configuration's tables say. Claude Code is unchanged.
+3. **No tier efforts.** `tierEfforts`, a per-harness effort for a tier cell,
+   was deleted on the owner's word ("it shouldn't be a rule about effort",
+   the lead's decision 163). Stages name only the planning or the executor
+   model, and Test stays on the executor model. Every harness reads the same
+   tier and workflow tables.
 4. **Per-agent model only.** No per-agent effort per harness. Codex keeps its
    agent efforts as each agent file sets them.
-5. **Where it lives:** the per-agent entry and the tier efforts are fields of
+5. **Where it lives:** the per-agent entry and the efforts list are fields of
    a harness description (`harnesses/known.json`, or an own entry that
    overrides it field by field, 0007 S5).
 
@@ -76,16 +77,11 @@ The owner's words, relayed by the lead, and the lead's picks:
 
 ## D4 The description's fields
 
-`tierEfforts` and `efforts` are new and optional; `agentModels` gains two
-checks. An own entry's `tierEfforts` goes over the known one key by key, as
-`agentModels` does, and a key set to `null` drops the known one; `efforts`
+`efforts` is new and optional; `agentModels` gains two checks. `efforts`
 replaces the known field whole, under S5's checks and `WARN`.
 
 - **`agentModels`** (at the base): its values may not hold `<effort>`
   (pick), and a key naming no pact agent gives a dry-run `WARN`.
-- **`tierEfforts`:** an object. Each key is a tier key (D5),
-  `[a-z0-9]+(-[a-z0-9]+)*`; each value is `null` in an own entry, or an
-  object holding `plan`, `build` or both, each one of the five efforts.
 - **`efforts`:** the efforts the harness takes, a non-empty list from the
   five, each once, in the five's order; absent means all five.
 - **`<effort>` in a model.** A model in `models` may hold the text
@@ -99,38 +95,9 @@ The known descriptions after this change:
 | --- | --- | --- | --- |
 | `models` | unchanged | unchanged | at the base: `gemini-4-neon-<effort>`, `gemini-4-hydrogen-<effort>`, `flash` |
 | `agentModels` | none | none | at the base: `*`: `flash`; `adversarial-lens`, `data-lens`: `pro` |
-| `tierEfforts` | none | `standard`: `build` `medium` | none |
 | `efforts` | none | none | `low`, `medium`, `high`, `xhigh` |
 
 ## D5 Rendering
-
-**The tier key.** A tier row's key is its bold name in the tiers table, lower
-case, with each run of spaces as one hyphen: `**Standard**` is `standard`.
-The builder's default tier ids are the same words, but a renamed tier's key
-follows its name.
-
-**Tier efforts** rewrite only the effort word of cells, in the rules each
-harness receives:
-
-- In the tiers table (the first table whose header starts `| Tier |` and
-  holds `Plan` and `Build`), the keyed row's `Plan` or `Build` cell.
-- In the workflow table (the first whose header starts `| Stage |`), in the
-  column headed by that tier's name, the cell of the row named after the
-  same stage: a `plan` key moves the Plan row, a `build` key the Build row.
-  No other row moves (D2 item 3; whether Test follows Build waits on the
-  owner, D8).
-- The sensitive route's column and paragraph are never rewritten.
-
-What happens when a key finds nothing depends on who set it:
-
-- **An own entry's key** refuses `tier-effort`, naming the harness and the
-  key, when no tiers table is found, no row has the key, or the keyed cell
-  isn't `<model>, <effort>`.
-- **A known description's key** that finds nothing gives a dry-run `WARN`
-  naming the harness and the key, and the rules render without it, so a
-  configuration that renames or drops Standard still installs Codex.
-- A workflow table, or a row of it, that isn't there is skipped; a cell there
-  that isn't `<model>, <effort>` is handled as the key's setter says above.
 
 **`<effort>` in the rules.** The models line's sentence stays as at the
 base. A tiers or workflow table cell whose model is a role that maps to a
@@ -159,17 +126,10 @@ effort words, never which parts or clauses a harness gets.
   else the role. A cell whose agent the configuration's `agents` setting
   gives a model shows "set by the configuration" and is locked: the install
   keeps that model (D3).
-- **Tier efforts.** For each harness, one row per tier with a Plan and a
-  Build dropdown: the effective effort, known values included, "as the table
-  says (`<effort>`)" and the harness's `efforts`. The page writes the D5 key
-  of the tier's current name; a key with no row shows as an error on that
-  harness's row.
-- **Writing an override.** A change writes only that agent's or tier's key
-  in the harness's own entry; both fields merge key by key (D4), so every
-  other value stays as it was. Choosing "as the default says" removes the
-  agent's own key; "as the table says" removes the tier's own key, or writes
-  `null` where the known description has one. Renaming a tier moves its key
-  in every own entry; dropping a tier removes its key.
+- **Writing an override.** A change writes only that agent's key in the
+  harness's own entry; `agentModels` merges key by key (D4), so every other
+  value stays as it was. Choosing "as the default says" removes the agent's
+  own key.
 - **Known models.** Each harness's model dropdowns offer its `known.json`
   models plus, for Antigravity, `pro`, `flash` and `flash_lite`.
 - **Across harnesses.** A read-only section, one column per harness: the
@@ -187,18 +147,15 @@ effort words, never which parts or clauses a harness gets.
   install record. It takes no `--builder`, `--check`, `--texts` or `--out`,
   and refuses as `--out` does (`outProblem` with no builder to compare, never
   overwriting, never into a git work tree).
-- **Saving keeps them.** A page rebuilt from a saved configuration shows and
-  saves both fields unchanged.
+- **Saving keeps it.** A page rebuilt from a saved configuration shows and
+  saves the agent models unchanged.
 
 ## D7 Acceptance claims
 
-- **C1** `tierEfforts`, `efforts` and the `<effort>` rule parse as D4, and
-  an own `tierEfforts` merges key by key with `null` dropping a known key. A
-  gate test sees `harness-shape` refuse each of: an `agentModels` value with
-  `<effort>`, a `tierEfforts` key outside its shape, a `tierEfforts` field
-  other than `plan` or `build`, `null` in a known description, an effort
-  outside the five, an empty or repeated `efforts`, and a model holding
-  `<effort>` twice. A key naming no agent gives the `WARN`, and a gate test,
+- **C1** `efforts` and the `<effort>` rule parse as D4. A gate test sees
+  `harness-shape` refuse each of: an `agentModels` value with `<effort>`, an
+  effort outside the five, an empty or repeated `efforts`, and a model
+  holding `<effort>` twice. A key naming no agent gives the `WARN`, and a gate test,
   seen failing on a known.json copy with a misspelt key, holds `known.json`'s
   keys to `claude/agents/`.
 - **C2** (holds at the base; no new test) Antigravity's rendered agents name `model: flash` for every agent but
@@ -208,31 +165,23 @@ effort words, never which parts or clauses a harness gets.
   `gemini-4-hydrogen-<effort>` in the models line with its `<effort>`
   sentence, and no rendered file for any harness holds
   `carbon` (render test).
-- **C4** With the default configuration, whose Standard Build is
-  "executor model, high", Codex's rendered rules read "executor model,
-  medium" in Standard's Build cell and in the workflow table's Standard Build
-  cell, and Claude Code's read high; every other cell, Test included, is the
-  same in both (render test).
+- **C4** With the default configuration, Codex's rendered tiers and workflow
+  tables read cell for cell as Claude Code's do, Test included (render test).
 - **C5** Claude Code's rendered files, and Codex's agent files, are byte for
   byte what they were before this change (0007's C3 fixture and a Codex
   agent fixture pass unchanged).
-- **C6** An own entry's `tierEfforts` refuses `tier-effort` in each of D5's
-  three cases, and a known key with no matching row warns and installs: a
-  configuration whose tiers rename Standard installs Codex with the `WARN`
-  (render test, one case each).
+- **C6** (withdrawn with `tierEfforts`, D2 item 3)
 - **C7** (holds at the base; no new test) A configuration's `agents`
   setting that names a model renders as set in all three harnesses, over
   `agentModels`.
 - **C8** An agent whose role maps to a `<effort>` model takes its file's
   effort; one outside `efforts`, or none, refuses `agent-effort`; a table
   cell at `max` for Antigravity's role models warns without naming the model.
-- **C9** In the built page, setting one agent's model and one tier's effort
-  for one harness writes only that harness's own entry, and every other
-  agent's and tier's rendered value stays as it was; renaming Standard after
-  setting it moves its key, the old one is gone and the dry run doesn't
-  refuse; an agent the configuration's `agents` setting sets shows that
-  model, locked, in every harness; a page rebuilt from the saved
-  configuration shows both (builder harness test).
+- **C9** In the built page, setting one agent's model for one harness
+  writes only that harness's own entry, and every other agent's rendered
+  value stays as it was; an agent the configuration's `agents` setting sets
+  shows that model, locked, in every harness; a page rebuilt from the saved
+  configuration shows it (builder harness test).
 - **C10** The Across-harnesses section and `--overview`'s page show, for each
   of the three harnesses, what `renderHarnesses` writes for the same
   configuration; with a home configuration whose tiers differ from the
@@ -270,7 +219,6 @@ jobs on the reviewed head.
 
 | What | Recommendation | When |
 | --- | --- | --- |
-| Whether the workflow's Test row follows Standard's Build | No, as the lead relayed (D2 item 3); a yes is one rewrite rule and one test | Before T1 merges |
 | The overview page reaching the owner | Attach the `--overview` page to the Linear issue, never a GitHub issue or PR, after the read before posting; cite the attachment in T2's record | Before T2 closes |
 | Each merge into `pact-105-codex-sol` | Pinned to its reviewed head | At each ticket's Deploy |
 | C11's live Antigravity check | Runs as one more C26 line in 0007's T9, after its apply; before then the `--home` run stands for it | At T9 |
@@ -279,9 +227,9 @@ jobs on the reviewed head.
 D5's sentence; agy refuses a slug or alias in an agent file or a session;
 C5's bytes change; or an older configuration stops installing.
 
-**Rollback.** An installer from before this delta refuses `tierEfforts` and
-`efforts` (`harness-field`). To go back: run the four checks in
-`docs/install.md`'s rollback section; remove both from every
+**Rollback.** An installer from before this delta refuses `efforts`
+(`harness-field`). To go back: run the four checks in
+`docs/install.md`'s rollback section; remove it from every
 `harnesses.own` entry; revert the merges; run a dry run, then apply on the
 owner's go-ahead. Done when the apply exits zero and a second dry run shows
 no drift.
@@ -290,10 +238,7 @@ no drift.
 
 | Pull | Side taken | Driver |
 | --- | --- | --- |
-| Rewrite table cells vs a per-harness tiers block | Rewrite cells | Effort stated once; no second copy of the tables to drift |
 | `<effort>` in a model vs one model per effort | `<effort>` | One field per role; the agy slugs follow one pattern |
-| Workflow's Build row only vs every cell the tier's Build fills | Build only | The lead's relayed answer; open for the owner (D8) |
-| A known key that misses: refuse vs warn | Warn and skip | A person's own tiers must not break a default install |
 | Overview as a build flag vs a one-off page | A build flag | The owner can regenerate it; cheap to drop |
 
 Business driver: D1's, full support for all three harnesses before the
@@ -304,5 +249,4 @@ parent branch merges; else what is cheaper to reverse.
 - Per-agent effort per harness: not asked for (D2 item 4).
 - Resetting a configuration's agent setting to the pact default from the
   page: the page doesn't load a folder's agent settings (D3).
-- Rewriting the sensitive route's efforts per harness: no decision asks it.
 - Codex's `max` effort: unprobed; Codex keeps the five words as S6 says.

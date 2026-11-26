@@ -105,22 +105,6 @@ test('bad case: a commit holding claude/rules.source.md refuses, and changes not
   assert.deepEqual(listTree(h), before);
 });
 
-// rules-source-hash: the kit's rules are the commit's own bytes.
-test('bad case: a rules source that differs from the commit\'s rules refuses, and changes nothing', t => {
-  const repo = repoWithKit(t, root => {
-    const p = join(root, 'gate', 'install-run.mjs');
-    const s = readFileSync(p, 'utf8');
-    const line = 'copyFileSync(rulesStaged, live(stage, core.KIT_RULES_REL));';
-    const planted = s.replace(line, "writeFileSync(live(stage, core.KIT_RULES_REL), 'other rules\\n');");
-    assert.notEqual(planted, s, 'the plant landed in the runner');
-    writeFileSync(p, planted);
-  });
-  const h = home(t);
-  const before = listTree(h);
-  refused(install(repo, h, { apply: true }), /^REFUSED: the copy of claude\/CLAUDE\.md made for the builder kit does not match the commit's\./m);
-  assert.deepEqual(listTree(h), before);
-});
-
 // kit-incomplete: /scriptorium never installs half a kit.
 test('bad case: a commit with /scriptorium but without a kit file refuses, and changes nothing', t => {
   const repo = repoWithKit(t, root => rmSync(join(root, 'builder', 'parts.mjs')));

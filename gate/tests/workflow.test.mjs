@@ -41,7 +41,7 @@ function commonProblems(src) {
   if (/pull_request_target|workflow_run/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
   const perms = /^permissions:\n((?:[ \t]+.+\n)+)/m.exec(`${code}\n`);
   if (!perms || perms[1].trim() !== 'contents: read' || (code.match(/^\s*permissions:/gm) ?? []).length !== 1) out.push('asks for more than read access to the contents');
-  // Spec 0007 S10: any form of a secret read, in any case, and no environment, which could hold the release app's key.
+  // Spec 0007 S10: any form of a secret read, in any case, and no environment, which could hold a secret.
   if (/\bsecrets\b|\$\{\{\s*github\.token|GITHUB_TOKEN/i.test(code)) out.push('reads a secret or the token');
   if (/(?:^\s*(?:- )?|[{,]\s*)['"]?environment['"]?\s*:/im.test(code)) out.push('names a deployment environment');
   if (HIDDEN.test(src)) out.push(HIDES);
@@ -468,29 +468,26 @@ function claudeProblems(src, gateSrc, which) {
   return [...new Set(out)];
 }
 
-// Spec 0007 S10: the release workflow, the one file that may run on workflow_run. Each of the job's conditions, held as written.
-const RELEASE_IF =
-  [
-    "github.event.workflow_run.conclusion == 'success'",
-    "github.event.workflow_run.event == 'push'",
-    "github.event.workflow_run.head_branch == 'main'",
-    'github.event.workflow_run.head_repository.full_name == github.repository',
-    "github.ref == 'refs/heads/main'",
-    "vars.PACT_RELEASES == 'on'",
-  ].join(' &&\n') + '\n';
-const RELEASE_KEY = '${{ secrets.PACT_RELEASE_APP_KEY }}';
-const RELEASE_APP = {
-  'client-id': '${{ vars.PACT_RELEASE_APP_CLIENT_ID }}',
-  'private-key': RELEASE_KEY,
-  'permission-contents': 'write',
-};
-const RELEASE_ENV = { TOKEN: '${{ steps.app.outputs.token }}', HEAD_SHA: '${{ github.event.workflow_run.head_sha }}' };
+// Spec 0007 S10, decision 177: the release workflow, the one file that may run on workflow_run. Its one job's condition, held as written.
+const RELEASE_IF = `github.ref == 'refs/heads/main' &&
+vars.PACT_RELEASES == 'on' &&
+github.event_name == 'workflow_run' &&
+github.event.workflow_run.conclusion == 'success' &&
+github.event.workflow_run.event == 'push' &&
+github.event.workflow_run.head_branch == 'main' &&
+github.event.workflow_run.head_repository.full_name == github.repository
+`;
+// The one trigger: the gate's completion. No manual run, so no input.
+const RELEASE_ON = { workflow_run: { workflows: ['gate'], types: ['completed'] } };
+// The tag step's name and script env: the workflow's own token, and the run's commit.
+const RELEASE_STEP = { name: 'Tag a release candidate', env: { TOKEN: '${{ github.token }}', HEAD_SHA: '${{ github.event.workflow_run.head_sha }}' } };
 
 /**
  * Where the release workflow breaks its allow-list, as plain sentences; empty
- * when it keeps it. Its job reads one secret, the release app's key, in the
- * release environment; the job's own token only reads; it checks nothing out.
- * What its script does is the release job test's.
+ * when it keeps it. One job, candidate, tags a release candidate with the
+ * workflow's own token, contents: write on that job alone; it reads no secret,
+ * names no environment, uses no app token and takes no manual run, and checks
+ * nothing out. What its script does is the release job test's.
  */
 function releaseProblems(src) {
   const code = codeOf(src);
@@ -502,9 +499,12 @@ function releaseProblems(src) {
   };
   if (/pull_request_target/.test(code)) out.push('runs on a trigger that holds secrets or a write token');
   if (HIDDEN.test(src)) out.push(HIDES);
-  // GitHub reads context names in any case.
-  if (code.split(RELEASE_KEY).length !== 2 || (code.match(/\bsecrets\b/gi) ?? []).length !== 1) out.push("reads a secret other than the release app's key, or reads that key twice or not at all");
-  if (/\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/i.test(code)) out.push("reads the job's own token");
+  // GitHub reads context names in any case: no secret in any form, no environment, no app token.
+  if (/\bsecrets\b/i.test(code)) out.push('reads a secret');
+  if (/(?:^\s*(?:- )?|[{,]\s*)['"]?environment['"]?\s*:/im.test(code)) out.push('names a deployment environment');
+  if (/create-github-app-token|PACT_RELEASE_APP/i.test(code)) out.push('uses a release app or its key');
+  // The workflow's token is read once, in the tag step's TOKEN.
+  if ((code.match(/\bgithub\s*\.\s*token\b|\bgithub\s*\[\s*['"]token|GITHUB_TOKEN/gi) ?? []).length !== 1) out.push("reads the workflow's token other than once, in the tag step's TOKEN");
   if (/actions\/checkout/.test(code)) out.push('checks the repo out');
   if (/upload-artifact|\bcache\b/.test(code)) out.push('uploads or caches the workspace');
   let w;
@@ -515,25 +515,23 @@ function releaseProblems(src) {
   }
   extras('the file', w, ['name', 'on', 'permissions', 'jobs']);
   if (w.name !== 'release') out.push('is not named release');
-  if (!sameSet(w.on, { workflow_run: { workflows: ['gate'], types: ['completed'] } })) out.push("runs on another trigger than the gate workflow's completion");
+  if (!sameSet(w.on, RELEASE_ON)) out.push("runs on another trigger than the gate workflow's completion");
   if (!same(w.permissions, { contents: 'read' })) out.push('asks for more than read access to the contents');
-  if (!isMap(w.jobs) || !same(Object.keys(w.jobs), ['release'])) out.push('holds a job other than release');
-  const job = isMap(w.jobs?.release) ? w.jobs.release : {};
-  extras('the job', job, ['if', 'runs-on', 'timeout-minutes', 'environment', 'concurrency', 'steps']);
-  if (job.if !== RELEASE_IF) out.push("runs its job without exactly spec 0007's conditions");
-  if (job['runs-on'] !== 'ubuntu-24.04' || !/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push('does not run on ubuntu-24.04 with a time limit');
-  if (job.environment !== 'release') out.push('does not run in the release environment');
-  if (!sameSet(job.concurrency, { group: 'release', 'cancel-in-progress': 'false' })) out.push('does not run in the release concurrency group that never cancels');
+  if (!isMap(w.jobs) || !same(Object.keys(w.jobs), ['candidate'])) out.push('holds jobs other than candidate');
+  const at = 'the candidate job';
+  const job = isMap(w.jobs?.candidate) ? w.jobs.candidate : {};
+  extras(at, job, ['if', 'runs-on', 'timeout-minutes', 'permissions', 'concurrency', 'steps']);
+  if (job.if !== RELEASE_IF) out.push(`${at} runs without exactly spec 0007's conditions`);
+  if (job['runs-on'] !== 'ubuntu-24.04' || !/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push(`${at} does not run on ubuntu-24.04 with a time limit`);
+  if (!same(job.permissions, { contents: 'write' })) out.push(`${at} does not hold exactly contents: write`);
+  if (!sameSet(job.concurrency, { group: 'release', 'cancel-in-progress': 'false' })) out.push(`${at} does not run in the release concurrency group that never cancels`);
   const steps = Array.isArray(job.steps) ? job.steps : [];
-  if (steps.length !== 2) out.push("holds other steps than the app token's and the tag's");
-  const [app, tag] = steps;
-  extras('step 1', app, ['uses', 'id', 'with']);
-  extras('step 2', tag, ['name', 'env', 'shell', 'run']);
-  if (!new RegExp(`^actions/create-github-app-token@${SHA}$`).test(app?.uses ?? '')) out.push('step 1 is not the app token action pinned to a full commit SHA');
-  if (app?.id !== 'app' || !sameSet(app?.with, RELEASE_APP)) out.push("asks for the app token with other inputs than the client id, the key and contents: write");
-  if (tag?.name !== 'Tag the tip of main' || !sameSet(tag?.env, RELEASE_ENV) || tag?.shell !== 'node {0}') out.push('hands the script another name, environment or shell than its own');
+  if (steps.length !== 1) out.push(`${at} holds other steps than the tag's`);
+  const [tag] = steps;
+  extras(`${at} step 1`, tag, ['name', 'env', 'shell', 'run']);
+  if (tag?.name !== RELEASE_STEP.name || !sameSet(tag?.env, RELEASE_STEP.env) || tag?.shell !== 'node {0}') out.push(`${at} hands the script another name, environment or shell than its own`);
   // An expression inside the script would be pasted into the code before it runs.
-  if (typeof tag?.run !== 'string' || tag.run.includes('${{')) out.push('has no script, or puts an expression into it');
+  if (typeof tag?.run !== 'string' || tag.run.includes('${{')) out.push(`${at} has no script, or puts an expression into it`);
   return [...new Set(out)];
 }
 
@@ -725,7 +723,7 @@ for (const [label, plant, says] of [
 
 const OTHER = "name: other\non:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  lint:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo ok\n";
 for (const [label, other, says] of [
-  // PACT-105 C23: no other workflow reaches the release app's key.
+  // PACT-105 C23: no other workflow names a deployment environment or reads a secret.
   ['names the release environment', OTHER.replace('    steps:', '    environment: release\n    steps:'), 'other.yml names a deployment environment'],
   ['names an environment in a flow mapping', OTHER.replace('    runs-on: ubuntu-24.04', '    runs-on: ubuntu-24.04\n    x: {"environment": release}'), 'other.yml names a deployment environment'],
   ['reads a secret in bracket form', OTHER.replace('echo ok', "echo ${{ secrets['X'] }}"), 'other.yml reads a secret or the token'],
@@ -1184,43 +1182,83 @@ test('the release workflow keeps its allow-list', () => {
   assert.deepEqual(releaseProblems(readFileSync(RELEASE, 'utf8')), []);
 });
 
-const NO_CONDITION = "runs its job without exactly spec 0007's conditions";
-const ONE_SECRET = "reads a secret other than the release app's key, or reads that key twice or not at all";
-const cut = line => s => s.replace(`      ${line} &&\n`, '');
-// PACT-105 C23: each rule of the release allow-list catches its plant.
+const C = 'the candidate job';
+const TRIGGERS_SAY = "runs on another trigger than the gate workflow's completion";
+const NO_CONDITION = `${C} runs without exactly spec 0007's conditions`;
+const SECRET = 'reads a secret';
+const ENVIRONMENT = 'names a deployment environment';
+const APP = 'uses a release app or its key';
+const TOKEN_ONCE = "reads the workflow's token other than once, in the tag step's TOKEN";
+const HANDS = `${C} hands the script another name, environment or shell than its own`;
+const NO_WRITE = `${C} does not hold exactly contents: write`;
+const NO_GROUP = `${C} does not run in the release concurrency group that never cancels`;
+const NO_SCRIPT = `${C} has no script, or puts an expression into it`;
+const ONE_JOB = 'holds jobs other than candidate';
+const TOP_READ = 'asks for more than read access to the contents';
+const cut = line => s => s.split('\n').filter(l => !l.includes(line)).join('\n');
+const JOB_WRITE = '    permissions:\n      contents: write\n';
+const APP_STEP = `      - uses: actions/create-github-app-token@${'a'.repeat(40)}\n        id: app\n        with:\n          client-id: x\n          private-key: x\n`;
+const FIRST_RUN = /(\n        run: \|-?\n)/;
+// PACT-105 C23 and decision 177: each rule of the release allow-list catches its plant. Each plant is a change that would give the workflow more power or make its tag easier to forge.
 for (const [label, plant, says] of [
   ['drops the success condition', cut("github.event.workflow_run.conclusion == 'success'"), NO_CONDITION],
   ['drops the push condition', cut("github.event.workflow_run.event == 'push'"), NO_CONDITION],
   ['drops the head branch condition', cut("github.event.workflow_run.head_branch == 'main'"), NO_CONDITION],
   ['drops the same-repository condition', cut('github.event.workflow_run.head_repository.full_name == github.repository'), NO_CONDITION],
   ['drops the main ref condition', cut("github.ref == 'refs/heads/main'"), NO_CONDITION],
-  ['drops the releases switch', s => s.replace(" &&\n      vars.PACT_RELEASES == 'on'", ''), NO_CONDITION],
+  ['drops the releases switch', s => s.replace("      vars.PACT_RELEASES == 'on' &&\n", ''), NO_CONDITION],
   ['runs on any switch value', s => s.replace("vars.PACT_RELEASES == 'on'", "vars.PACT_RELEASES != 'off'"), NO_CONDITION],
   ['joins a condition with or', s => s.replace("== 'success' &&", "== 'success' ||"), NO_CONDITION],
-  ['leaves the environment', s => s.replace('    environment: release\n', ''), 'does not run in the release environment'],
-  ['uses another environment', s => s.replace('environment: release', 'environment: other'), 'does not run in the release environment'],
-  ['drops the concurrency group', s => s.replace('    concurrency:\n      group: release\n      cancel-in-progress: false\n', ''), 'does not run in the release concurrency group that never cancels'],
-  ['cancels a running release', s => s.replace('cancel-in-progress: false', 'cancel-in-progress: true'), 'does not run in the release concurrency group that never cancels'],
-  ["gives the job's token write access", s => s.replace('  contents: read', '  contents: write'), 'asks for more than read access to the contents'],
-  ['gives the job permissions of its own', s => s.replace('    environment: release\n', '    environment: release\n    permissions:\n      contents: write\n'), "the job holds permissions, which the allow-list doesn't name"],
-  ['reads a second secret', s => s.replace('          TOKEN:', '          OTHER: ${{ secrets.OTHER }}\n          TOKEN:'), ONE_SECRET],
-  // GitHub reads an expression in a step's name, and its context names ignore case.
-  ["reads a second secret, in capitals, in a step's name", s => s.replace('name: Tag the tip of main', 'name: ${{ SECRETS.OTHER }}'), ONE_SECRET],
-  ["reads the job's own token, in capitals, in a step's name", s => s.replace('name: Tag the tip of main', 'name: ${{ github.Token }}'), "reads the job's own token"],
-  ['names its tag step with an expression', s => s.replace('name: Tag the tip of main', 'name: ${{ env.X }}'), 'hands the script another name, environment or shell than its own'],
-  ['hides a second secret on a script line that starts with #', s => s.replace(/(\n        run: \|-?\n)/, '$1          #${{ SECRETS.OTHER }}\n'), HIDES],
-  ['reads another secret as the key', s => s.replace('secrets.PACT_RELEASE_APP_KEY', 'secrets.OTHER'), ONE_SECRET],
-  ["reads the job's own token", s => s.replace('${{ steps.app.outputs.token }}', '${{ github.token }}'), "reads the job's own token"],
+  ['lets a manual run reach the job', s => s.replace("github.event_name == 'workflow_run' &&", "(github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch') &&"), NO_CONDITION],
+  ['lets any event reach the job', s => s.replace("github.event_name == 'workflow_run' &&", "github.event_name != '' &&"), NO_CONDITION],
+  ['drops the concurrency group', s => s.replace('    concurrency:\n      group: release\n      cancel-in-progress: false\n', ''), NO_GROUP],
+  ['gives the job a group of its own', s => s.replace('group: release', 'group: release-candidate'), NO_GROUP],
+  ['cancels a running release', s => s.replace('cancel-in-progress: false', 'cancel-in-progress: true'), NO_GROUP],
+  // Any environment: it could hold a secret or a reviewer rule the workflow does not name.
+  ['names an environment on the job', s => s.replace('    runs-on:', '    environment: release\n    runs-on:'), ENVIRONMENT],
+  ['names an environment in a flow mapping', s => s.replace('    runs-on: ubuntu-24.04', '    runs-on: ubuntu-24.04\n    x: {"environment": release}'), ENVIRONMENT],
+  ['names an environment in capitals', s => s.replace('    runs-on:', '    Environment: release\n    runs-on:'), ENVIRONMENT],
+  // Any secret, in any form and case.
+  ['reads a secret in the tag step', s => s.replace('          HEAD_SHA:', '          OTHER: ${{ secrets.OTHER }}\n          HEAD_SHA:'), SECRET],
+  ['reads a secret by an index', s => s.replace('          HEAD_SHA:', "          OTHER: ${{ secrets['OTHER'] }}\n          HEAD_SHA:"), SECRET],
+  ["reads a secret, in capitals, in a step's name", s => s.replace('name: Tag a release candidate', 'name: ${{ SECRETS.OTHER }}'), SECRET],
+  ['reads a secret in a second job', s => `${s}  second:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo\n        env:\n          X: \${{ secrets.OTHER }}\n`, SECRET],
+  ['hides a secret on a script line that starts with #', s => s.replace(FIRST_RUN, '$1          #${{ SECRETS.OTHER }}\n'), HIDES],
+  // A manual run: a person's input would reach the job.
+  ['adds a manual run', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n'), TRIGGERS_SAY],
+  ['adds a trigger', s => s.replace('\non:\n', '\non:\n  push:\n'), TRIGGERS_SAY],
+  ['listens to another workflow', s => s.replace('workflows: [gate]', 'workflows: [gate, other]'), TRIGGERS_SAY],
+  // Permissions: read at the top, contents: write on the one job and nothing more.
+  ['gives the top level write access', s => s.replace('permissions:\n  contents: read\n', 'permissions:\n  contents: write\n'), TOP_READ],
+  ['gives the top level write-all', s => s.replace('permissions:\n  contents: read\n', 'permissions: write-all\n'), TOP_READ],
+  ['gives the top level a second permission', s => s.replace('permissions:\n  contents: read\n', 'permissions:\n  contents: read\n  id-token: write\n'), TOP_READ],
+  ['drops the top-level permissions', s => s.replace('permissions:\n  contents: read\n\n', ''), TOP_READ],
+  ['gives the job no permissions of its own', s => s.replace(JOB_WRITE, ''), NO_WRITE],
+  ['gives the job read access only', s => s.replace(JOB_WRITE, '    permissions:\n      contents: read\n'), NO_WRITE],
+  ['gives the job a second permission', s => s.replace(JOB_WRITE, `${JOB_WRITE}      pull-requests: write\n`), NO_WRITE],
+  ['gives the job write-all', s => s.replace(JOB_WRITE, '    permissions: write-all\n'), NO_WRITE],
+  // A key the job's allow-list does not name, here a container the steps would run in.
+  ['gives the job a container', s => s.replace('    runs-on:', '    container: x\n    runs-on:'), extraKey(C, 'container')],
+  // One job.
+  ['adds a second job', s => `${s}  second:\n    runs-on: ubuntu-24.04\n`, ONE_JOB],
+  ['drops the one job', s => s.slice(0, s.indexOf('  candidate:\n')), ONE_JOB],
+  // The app token action does not come back, whether or not its output is used.
+  ['brings the app token action back', s => s.replace('    steps:\n', `    steps:\n${APP_STEP}`), APP],
+  ['names the release app key variable', s => s.replace('          HEAD_SHA:', '          KEY: PACT_RELEASE_APP_KEY\n          HEAD_SHA:'), APP],
+  // The tag step's token is the workflow's own, read once.
+  ['hands the script another token', s => s.replace('${{ github.token }}', '${{ steps.app.outputs.token }}'), HANDS],
+  ['hands the script a token from the env context', s => s.replace('${{ github.token }}', '${{ env.TOKEN }}'), HANDS],
+  ['hands the script no token expression', s => s.replace('${{ github.token }}', 'literal'), TOKEN_ONCE],
+  ['hands the script the token twice', s => s.replace('          HEAD_SHA:', '          OTHER: ${{ github.token }}\n          HEAD_SHA:'), TOKEN_ONCE],
+  ['hands the script the token in capitals', s => s.replace('${{ github.token }}', '${{ GITHUB.TOKEN }}'), HANDS],
+  ['reads GITHUB_TOKEN', s => s.replace('          HEAD_SHA:', '          GITHUB_TOKEN: ${{ github.token }}\n          HEAD_SHA:'), TOKEN_ONCE],
+  ["reads the token, in capitals, in a step's name", s => s.replace('name: Tag a release candidate', 'name: ${{ github.Token }}'), TOKEN_ONCE],
+  // The step and its script.
+  ['names the step with an expression', s => s.replace('name: Tag a release candidate', 'name: ${{ env.X }}'), HANDS],
+  ['pastes an expression into the script', s => s.replace('          main().then', '          // ${{ github.event.workflow_run.head_commit.message }}\n          main().then'), NO_SCRIPT],
+  ['adds a step', s => s.replace('    steps:\n', '    steps:\n      - run: echo ok\n'), `${C} holds other steps than the tag's`],
+  ['hands the script an input', s => s.replace('          HEAD_SHA:', '          RC: ${{ inputs.rc }}\n          HEAD_SHA:'), HANDS],
   ['checks the repo out', s => s.replace('    steps:\n', `    steps:\n      - uses: actions/checkout@${'a'.repeat(40)}\n`), 'checks the repo out'],
-  ['pins the action to a tag', s => s.replace(/create-github-app-token@[0-9a-f]{40}/, 'create-github-app-token@v3'), 'step 1 is not the app token action pinned to a full commit SHA'],
-  ['uses another token action', s => s.replace('actions/create-github-app-token@', 'someone/create-github-app-token@'), 'step 1 is not the app token action pinned to a full commit SHA'],
-  ['asks the app for more', s => s.replace('          permission-contents: write\n', '          permission-contents: write\n          permission-workflows: write\n'), "asks for the app token with other inputs than the client id, the key and contents: write"],
-  ['drops the permission bound', s => s.replace('          permission-contents: write\n', ''), "asks for the app token with other inputs than the client id, the key and contents: write"],
-  ['keeps the token after the job', s => s.replace('          permission-contents: write\n', '          permission-contents: write\n          skip-token-revoke: true\n'), "asks for the app token with other inputs than the client id, the key and contents: write"],
-  ['pastes an expression into the script', s => s.replace('          main().then', '          // ${{ github.event.workflow_run.head_commit.message }}\n          main().then'), 'has no script, or puts an expression into it'],
-  ['adds a step', s => `${s.replace('    steps:\n', '    steps:\n      - run: echo ok\n')}`, "holds other steps than the app token's and the tag's"],
-  ['adds a trigger', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n'), "runs on another trigger than the gate workflow's completion"],
-  ['listens to another workflow', s => s.replace('workflows: [gate]', 'workflows: [gate, other]'), "runs on another trigger than the gate workflow's completion"],
 ]) {
   test(`bad case: the release allow-list catches a workflow that ${label}`, () => {
     const src = readFileSync(RELEASE, 'utf8').replace(/\r\n/g, '\n');
@@ -1234,8 +1272,8 @@ for (const [label, plant, says] of [
 test('bad case: the folder check holds the release workflow to its allow-list, and no other file may use workflow_run', () => {
   const files = realFolder();
   assert.deepEqual(folderProblems(files), [], 'control: the real folder passes');
-  const broken = new Map([...files, ['release.yml', files.get('release.yml').replace('    environment: release\n', '')]]);
-  assert.ok(folderProblems(broken).includes('release.yml does not run in the release environment'), folderProblems(broken).join('\n'));
+  const broken = new Map([...files, ['release.yml', files.get('release.yml').replace('    runs-on:', '    environment: release\n    runs-on:')]]);
+  assert.ok(folderProblems(broken).includes('release.yml names a deployment environment'), folderProblems(broken).join('\n'));
   for (const name of ['release-copy.yml', 'Release.yml', 'release.yaml']) {
     const copied = new Map([...files, [name, files.get('release.yml')]]);
     assert.ok(folderProblems(copied).includes(`${name} runs on a trigger that holds secrets or a write token`), folderProblems(copied).join('\n'));

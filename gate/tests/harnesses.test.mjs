@@ -74,41 +74,23 @@ test('an own entry’s models leave the model per agent as it is, and its agentM
 });
 
 // PACT-111 C1.
-test('known.json gives Codex its Standard build effort and Antigravity the four efforts it takes', () => {
-  assert.deepEqual(resolve().map(x => [x.id, x.tierEfforts, x.ownTiers, x.efforts]), [
-    ['claude', null, [], null],
-    ['codex', { standard: { build: 'medium' } }, [], null],
-    ['antigravity', null, [], ['low', 'medium', 'high', 'xhigh']],
+test('known.json gives Antigravity the four efforts it takes', () => {
+  assert.deepEqual(resolve().map(x => [x.id, x.efforts]), [
+    ['claude', null],
+    ['codex', null],
+    ['antigravity', ['low', 'medium', 'high', 'xhigh']],
   ]);
 });
 
 // PACT-111 C1.
-test('an own entry’s tierEfforts goes over the known one key by key, a null key drops it, and its efforts replace the known list', () => {
-  const codex = entry => byId(resolve([{ id: 'codex', ...entry }]), 'codex');
-  const more = codex({ tierEfforts: { thorough: { plan: 'low', build: 'max' } } });
-  assert.deepEqual(more.tierEfforts, { standard: { build: 'medium' }, thorough: { plan: 'low', build: 'max' } });
-  assert.deepEqual([more.ownTiers, more.overrides], [['thorough'], ['tierEfforts']]);
-  // A key's value is replaced whole.
-  const set = codex({ tierEfforts: { standard: { plan: 'high' } } });
-  assert.deepEqual([set.tierEfforts, set.ownTiers], [{ standard: { plan: 'high' } }, ['standard']]);
-  const dropped = codex({ tierEfforts: { standard: null } });
-  assert.deepEqual([dropped.tierEfforts, dropped.ownTiers], [{}, []]);
+test('an own entry’s efforts replace the known list', () => {
   assert.deepEqual(byId(resolve([{ id: 'antigravity', efforts: ['low', 'max'] }]), 'antigravity').efforts, ['low', 'max']);
-  const mine = byId(resolve([{ ...OWN, tierEfforts: { 'big-job-2': { build: 'low' }, gone: null } }]), 'mine');
-  assert.deepEqual([mine.tierEfforts, mine.ownTiers], [{ 'big-job-2': { build: 'low' } }, ['big-job-2']]);
 });
 
 // PACT-111 C1.
-test('bad case: a tierEfforts, efforts or <effort> model outside its shape refuses', () => {
+test('bad case: an efforts or <effort> model outside its shape refuses', () => {
   const bad = [
     { agentModels: { scout: 'neon-<effort>' } },
-    { tierEfforts: [] },
-    { tierEfforts: { Standard: { build: 'low' } } },
-    { tierEfforts: { 'a--b': { build: 'low' } } },
-    { tierEfforts: { a: {} } },
-    { tierEfforts: { a: 'low' } },
-    { tierEfforts: { a: { test: 'low' } } },
-    { tierEfforts: { a: { build: 'ultra' } } },
     { efforts: [] },
     { efforts: ['low', 'low'] },
     { efforts: ['high', 'low'] },
@@ -117,9 +99,6 @@ test('bad case: a tierEfforts, efforts or <effort> model outside its shape refus
     { models: { planning: 'a-<effort>-<effort>', executor: 'e' } },
   ];
   for (const fields of bad) assert.equal(rule(() => resolve([{ ...OWN, ...fields }])), 'harness-shape', JSON.stringify(fields));
-  // A null key drops a known one, which only a person's entry has to drop.
-  const known = [{ ...OWN, tierEfforts: { standard: null } }];
-  assert.equal(rule(() => h.resolveHarnesses({ known, home: HOME, platform: 'linux', inWorkTree: null })), 'harness-shape');
 });
 
 /** The agent names a known.json text names a model for that no agent file has. */

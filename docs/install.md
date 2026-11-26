@@ -94,10 +94,8 @@ A **harness** is a program the rules install into. The pact knows three, in
   the three its rules name, and `agentModels`, a model per agent, `*` for the
   rest, laid over the known ones. Antigravity's agents take their model from
   `agentModels`, unless an agent's file or setting names a model outright.
-- **Efforts.** `tierEfforts` sets plan/build efforts by tier key
-  (lowercase-hyphenated name; `null` drops the known key); `efforts` lists
-  `<effort>` models' efforts. Refusals: `harness-shape`, `tier-effort`,
-  `agent-effort`.
+- **Efforts.** `efforts` lists `<effort>` models' efforts. Refusals:
+  `harness-shape`, `agent-effort`.
 - **Your own harness** goes under `harnesses.own`, as a description with the
   fields of the known ones (spec 0007, S5). A description the pact can't take
   refuses (`harness-id`, `harness-format`, `harness-path`,
@@ -119,36 +117,13 @@ its record lists.
 
 ### Codex's shell environment policy
 
-Codex hands the shells it starts every variable it was started with. While
-Codex is in the install, the apply puts one line first in
-`~/.codex/config.toml`:
-
-```toml
-shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts
-```
-
-Variables with `KEY`, `SECRET` or `TOKEN` in their name, in any case, then stay
-out of those shells, a lens's included (probed on Windows only). A command that reads one there, such as
-`gh` reading `GH_TOKEN`, no longer finds it; `gh` then uses its stored login,
-if it has one.
-
-- **Where a value stays readable.** The line only drops the name from the
-  environment Codex hands its shells. The value is still wherever you set it: a
-  shell profile, a saved Windows user variable, a `.env` file or a credential
-  store. A variable your profile sets comes back in a command Codex runs in a
-  login shell, which it allows by default. Neither that nor a saved Windows user
-  variable was probed. And the poster, run from a Codex shell, can no longer
-  refuse a post that holds a dropped value.
-- **What still gets through.** Other names, such as `DB_PASSWORD`,
-  `AWS_CREDENTIALS`, `CONNECTION_STRING` and `GITHUB_PAT`. Hooks see every
-  variable. A trusted project's `.codex/config.toml`, or a `-c` flag, can set
-  it back.
-- **Your own policy** is left as it is, with a `WARN:`, when the file names
-  `shell_environment_policy` outside a comment. Set
-  `ignore_default_excludes = false` there for the same effect.
-- **Later.** A deleted line is added again, and your own policy in its place is
-  yours. The pact's line changed, moved under a table, or beside a policy of
-  your own is drift. Taking Codex out of the install removes the line.
+The install leaves `shell_environment_policy` in `~/.codex/config.toml` to
+you, so the shells Codex starts get every variable Codex was started with, as
+agents working in a project need. An earlier install may have put the pact's
+line first in that file, ending
+`# the pact: secret-named variables stay out of the shells Codex starts`.
+While the record marks it, the next apply removes that line alone, with a
+backup; a line you changed stays.
 
 ## Before the first install into `~/.pact`
 
@@ -235,14 +210,9 @@ the agent files it wrote and still holds as it wrote them.
   push out an older backup: copy aside one you mean to keep.
 - **The copies are plain and unencrypted.** Your settings file can hold API
   keys, and a key you rotate stays in the old copies until they are pruned or
-  you delete them. On Linux and macOS the install gives the backups owner-only
-  modes (`700` and `600`); an access-list entry inherited from `~/.pact` on
-  macOS can still widen them, and `ls -le` shows one. On Windows they take the
-  `~/.pact` folder's access list, and they hold your settings file's older contents
-  (out of scope: they stay on your machine; see the [threat model](threat-model.md#scope)'s Scope). To see who that list lets in,
-  or to narrow it, open the folder's Properties in Explorer and its Security
-  tab, or run `icacls "$env:USERPROFILE\.pact"` in PowerShell. A list for you
-  alone holds your account, SYSTEM and Administrators.
+  you delete them. They take your system's default modes, and on Windows the
+  `~/.pact` folder's access list (out of scope: they stay on your machine; see
+  the [threat model](threat-model.md#scope)'s Scope).
 - **Never sync, share or commit the backups folder.** Any copy you make
   yourself, a backup copied aside or your own copies from before backups,
   belongs outside the clone and any synced or shared folder, readable only by
@@ -270,10 +240,7 @@ env -u NODE_OPTIONS node gate/install.mjs
 
 With no option, the script writes nothing in your home folder. It
 still runs code from your clone, with your rights: the install script and the
-pact's check. So run it only on a clone you trust. It refuses if
-`NODE_OPTIONS` is set, because a preload could change what the checks see.
-It checks the committed files and prints what an install would do. The output
-names your home folder, so mask your username before you share it. Read these
+pact's check. So run it only on a clone you trust. It checks the committed files and prints what an install would do. Read these
 parts:
 
 - **`Install from commit …`.** The commit it would install. Compare it with
@@ -501,10 +468,6 @@ parts:
   `pact-install-*` folders by hand; the script never deletes them, because
   one could belong to an install still running.
 
-The dry run names your home folder and your Node's path, which hold your
-user name, and the names of your own settings. Post its verdict and counts on
-a tracker, never its raw output.
-
 A dry run asks nothing first, and it runs `gate/install.mjs` as it stands
 in your working folder, uncommitted edits included. So on a branch that
 changes the installer, run it with `--home` pointing at a throwaway
@@ -694,14 +657,15 @@ session.
 
 ## Install from a release
 
-Releases need the owner's switch, and the command is safe only once rulesets
-cover every tag. Run it from your home folder, or an empty folder outside every project: npm first reads the settings of a project around it. It replaces the clone and dry run:
+Releases need the owner's switch, and the command is safe only once the
+owner's two tag rulesets exist: only the owner creates a tag but a candidate,
+and no tag is ever updated or deleted. Run it from your home folder, or an empty folder outside every project: npm first reads the settings of a project around it. It replaces the clone and dry run:
 
 ```
 npx github:mephistopheles4/the-pact#semver:^1
 ```
 
-It takes the highest tag named `v1.<n>.0`, clones it into
+It takes the highest stable tag, named `v1.<n>.0`, clones it into
 `~/.pact/source/<commit>` (it keeps its last three), checks the clone's head,
 and runs that clone's dry run. Choose the default configuration when it asks,
 or pass `--default`; an existing `~/.pact/config.json` is kept and used.
@@ -713,6 +677,20 @@ choose the default: it uses what you saved. It never applies: read the dry run,
 then type the apply line it prints, which runs from any folder. A release lower than the last one installed is called behind it. npm
 picks which copy of the command runs from the repo's tags, so each tag is code
 you run.
+
+Each passing change on `main` is first a release candidate, `v1.<n>.0-rc.<k>`;
+the owner promotes one to `v1.<n>.0`, from a checkout of `main` under their
+own account, with `node gate/release-promote.mjs v1.<n>.0-rc.<k>`. Add an option after the command to take
+another:
+
+- `--channel beta` takes the newest tag, a release candidate included; a
+  stable `v1.<n>.0` outranks its own candidates. Anyone who can write to the
+  repo can make a candidate, on any commit.
+- `--release <tag>` takes exactly that tag, stable or candidate, such as
+  `--release v1.4.0-rc.2`, and refuses when it isn't there.
+
+A bad value, a major other than 1, or both options together is refused before
+anything is fetched.
 
 ## The session stop switch
 
@@ -804,12 +782,9 @@ installer's own floor) and `node` on the PATH.
   log for the generator's `pact cloud copy <marker>` line.
 - **Hand-offs stay.** The pact never deletes a hand-off or `.turn` file in
   `~/.pact/handoffs/`; clear them yourself when you like. They are
-  notes a session wrote, kept unencrypted in a folder the hook creates for
-  your account alone on Linux and macOS (on Windows the folder takes the
-  pact folder's access), and they outlive turning the window off and
-  Claude Code's own transcript clean-up. On macOS an access control list the
-  folder inherits can grant another account access despite the owner-only
-  mode; check with `ls -le`.
+  notes a session wrote, kept unencrypted with your system's default modes,
+  and they outlive turning the window off and Claude Code's own transcript
+  clean-up.
 
 ## The guard in Codex and Antigravity
 
@@ -819,13 +794,10 @@ hook the install adds.
 
 - **When.** Only while a rule is on and the install takes such a harness. The
   command rules follow the cleaner and the session stop switch
-  ([cleaner.md](cleaner.md) lists the commands). Antigravity has one more, on
-  while `/make-it-so`, `/finis` or `/scry` is: its hook asks you before a
-  session reads that skill's `SKILL.md`. Typing the command asks nothing.
+  ([cleaner.md](cleaner.md) lists the commands).
 - **What it writes.** `~/.pact/guard/`: the guard, a wrapper per format, and
   `rules.json`, the rules that are on. And one `pact-guard` hook, run before a
-  shell command (in Antigravity also before input typed into a running program
-  and, for the rule above, before a file read), in each harness's hooks file (`~/.codex/hooks.json`,
+  shell command (in Antigravity also before input typed into a running program), in each harness's hooks file (`~/.codex/hooks.json`,
   `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
   pact's entry, and the apply backs up each hooks file it changes.
 - **On Windows** the install also writes a launcher beside each wrapper,
@@ -851,8 +823,7 @@ hook the install adds.
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
   `bash -c "..."` included, and so does one typed into a shell that is already
   running, which Codex runs no hook for; Antigravity's hook reads a typed line,
-  though not one sent a few characters at a time. A shell, another tool or
-  another spelling passes the ask on a skill file. A hook that can't start or
+  though not one sent a few characters at a time. A hook that can't start or
   runs past 15 seconds lets the command through. Outside Windows, a missing
   `node` or a crash the wrapper doesn't catch lets it through too; on Windows
   the launcher denies both, so there only a missing `cmd.exe` or launcher stops
@@ -873,8 +844,6 @@ Seen on its command line, agy 1.2.14, on Windows
   searching and web page tools don't arrive, so a lens reads only files it can
   name. Every agent also gets `send_message` and `manage_task`; a lens's
   `manage_task` was refused its session's program.
-- **Its shells see your secrets.** A command saw planted token, key and
-  password variables, and no setting to drop them was found. Don't start it with secrets in its environment.
 - **A session can still start your commands,** by reading the skill's file with
   a shell command. Don't take what it starts as your word for an
   install apply or mise trust: nothing enforces that.
@@ -950,7 +919,7 @@ refuses. What an old enough pact refuses:
 - in a project's configuration, the `costLimits` key (`project-key`) and the
   `enough` and `enoughCosts` fields (`project-qualities`); in a builder file,
   the `costLimits` key and an Enough on a quality row;
-- `tierEfforts` and `efforts` in a `harnesses.own` entry.
+- `efforts` in a `harnesses.own` entry.
 
 One thing an older pact does not refuse: an Enough column in a Qualities
 block. A pact from before the Enough column installs that text as written, and
@@ -1094,8 +1063,9 @@ removes one), the pact's hook in each guard hooks file under `entries` (as step
 `.pact/install.json`. Hold each path to step 3's first two checks, and each link
 to a target of `.pact/skills/` and its name, and stop on any other. Delete the
 folders a copied skill leaves empty. Then do
-steps 4 to 6 with that backup. A path under `files` that it doesn't list may have
-been yours before a later apply: where the oldest backup listing it says
+steps 4 to 6 with that backup. A path under the removed record's `files` (note
+them before you remove it) that the backup doesn't list may have been yours
+before a later apply: where the oldest backup listing it says
 `was: file`, check that copy as step 3 does and copy it back as step 4 does. Then
 do step 7. Step 4's restored `settings.json` takes the
 pact's hook entries and `autoCompactWindow` out with it; had you no backup of

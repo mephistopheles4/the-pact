@@ -1,6 +1,6 @@
 // The fault-fixture guard (#140, T10): no file under gate/tests/ outside
 // fixtures/, test files and helpers alike, imports a fault fixture
-// (fixtures/*-faults.mjs), the contained driver (contained-driver.mjs) or the
+// (fixtures/*-faults.mjs) or the
 // import trap and its driver (import-trap.mjs, import-trap-driver.mjs), by a
 // static import or a dynamic import() or require() naming one; nor imports
 // any code module under fixtures/, which could relay one. Each patches or
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { tempDir } from './tree.mjs';
 
 const TESTS = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = /[A-Za-z0-9._-]*-faults\.mjs|contained-driver\.mjs|import-trap(?:-driver)?\.mjs/;
+const FIXTURE = /[A-Za-z0-9._-]*-faults\.mjs|import-trap(?:-driver)?\.mjs/;
 // Node 24 strips types by default, so a .ts, .mts or .cts helper loads too.
 const SOURCE_EXT = /\.(?:[mc]?js|[mc]?ts)$/;
 // Any code under fixtures/ may relay a fixture, so importing code from there counts too.
@@ -181,7 +181,7 @@ function fixtureImporters(dir) {
     .map(([rel, hits]) => `${rel}: ${hits.join(', ')}`);
 }
 
-test('the fault-fixture guard: no file under gate/tests/ outside fixtures/ imports a fault fixture, the contained driver or the import trap', () => {
+test('the fault-fixture guard: no file under gate/tests/ outside fixtures/ imports a fault fixture or the import trap', () => {
   assert.deepEqual(fixtureImporters(TESTS), []);
 });
 
@@ -191,9 +191,9 @@ test('the fault-fixture guard reads every source file outside fixtures/, test fi
   assert.ok(!seen.some(f => f.startsWith('fixtures/')));
 });
 
-test('the fault-fixture guard\'s pattern names every fault fixture, the contained driver and the import trap the fixtures folder holds', () => {
+test('the fault-fixture guard\'s pattern names every fault fixture and the import trap the fixtures folder holds', () => {
   const held = readdirSync(join(TESTS, 'fixtures')).filter(f => FIXTURE.test(f)).sort();
-  assert.deepEqual(held, ['contained-driver.mjs', 'contained-faults.mjs', 'import-trap-driver.mjs', 'import-trap.mjs', 'render-faults.mjs']);
+  assert.deepEqual(held, ['import-trap-driver.mjs', 'import-trap.mjs', 'render-faults.mjs']);
   for (const f of held) assert.equal(FIXTURE.exec(f)[0], f);
 });
 
@@ -216,7 +216,6 @@ for (const [label, body] of [
   ['a dynamic import of a built path', `await import(pathToFileURL(join(HERE, 'fixtures', '${RENDER_FAULTS}')).href);\n`],
   ['a dynamic import of a joined literal', `await import('./fixtures/render-' + '${'faults'}.mjs');\n`],
   ['a require', `const f = require('./fixtures/${RENDER_FAULTS}');\n`],
-  ['an import of the contained driver', `import './fixtures/contained-${'driver'}.mjs';\n`],
   ['an import of the import trap', `await import(${JSON.stringify(`./${FIX}/import-${'trap'}.mjs`)});\n`],
   ['a static import of a relay module under fixtures/', `import { x } from './${FIX}/relay.mjs';\n`],
   ['a dynamic import of a relay module under fixtures/', `await import(pathToFileURL(join(HERE, '${FIX}', 'relay.mjs')).href);\n`],

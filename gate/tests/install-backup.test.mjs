@@ -6,7 +6,7 @@
 // source that is not a plain file is among the install decisions' tests.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { applyBound, git, home, install, makeRepo, nodeEnv, passed, refused, renderedHash, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
@@ -118,42 +118,6 @@ test('#272 C4: a staging folder an earlier apply left refuses --apply before any
   refused(applyBound(repo, h), /^REFUSED: \.pact\/backups holds 1 staging folder.* Nothing was changed\.$/m);
   assert.deepEqual(files(h), before);
   assert.deepEqual(backups(h), ['.staging-left']);
-});
-
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('#272 C5: a live file changed while the install ran refuses before any install write', t => {
-  // The plant acts once a record is there, so the first install, which writes the rules file the apply later replaces, passes.
-  const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', '// @@TEST-BACKUP-HOOK@@', "if (io.exists(join(home, '.pact', 'install.json'))) writeFileSync(join(home, '.claude', 'CLAUDE.md'), 'changed during the run\\n');"));
-  const h = ownHome(t);
-  passed(applyBound(repo, h));
-  writeFileSync(join(repo, 'claude', 'CLAUDE.md'), `${readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')}A changed line.\n`);
-  git(repo, 'commit', '-qam', 'change the rules');
-  const record = readFileSync(join(h, '.pact', 'install.json'));
-  const taken = backups(h);
-  const r = applyBound(repo, h);
-  refused(r, /^REFUSED: \.claude\/CLAUDE\.md changed while the install ran.* Nothing was changed\.$/m);
-  assert.equal(readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8'), 'changed during the run\n');
-  assert.deepEqual(readFileSync(join(h, '.pact', 'install.json')), record, 'nothing was installed');
-  assert.deepEqual(backups(h), taken);
-});
-
-// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
-test('#272 C6: on Linux and macOS the backup folders are 0700 and its files 0600', t => {
-  if (WIN) return t.skip('Windows sets no mode bits; a backup takes its folder\'s access list');
-  const repo = makeRepo(t);
-  const h = ownHome(t);
-  passed(applyBound(repo, h));
-  writeFileSync(join(repo, 'claude', 'agents', 'scout.md'), `${readFileSync(join(repo, 'claude', 'agents', 'scout.md'), 'utf8')}A changed line.\n`);
-  git(repo, 'commit', '-qam', 'change scout');
-  passed(applyBound(repo, h));
-  const walk = rel => {
-    const p = join(backupsDir(h), rel);
-    const st = statSync(p);
-    assert.equal(st.mode & 0o777, st.isDirectory() ? 0o700 : 0o600, rel || '.pact/backups');
-    if (st.isDirectory()) for (const n of readdirSync(p)) walk(rel ? `${rel}/${n}` : n);
-  };
-  walk('');
-  assert.ok(backups(h).some(n => existsSync(join(backupsDir(h), n, '.claude', 'agents', 'scout.md'))), 'a backup holds a subfolder');
 });
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.

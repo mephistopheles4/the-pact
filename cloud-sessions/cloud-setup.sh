@@ -1044,8 +1044,7 @@ function main() {
 
   const say = (name, text) => process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } })}\n`);
   const setTurn = word => {
-    // Owner-only on Linux and macOS, as the backups are: the notes can hold what a session knew. Windows ignores the mode.
-    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    mkdirSync(dir, { recursive: true });
     writeFileSync(turn, `${word}\n`);
   };
   const nudge = name => {
@@ -1158,8 +1157,7 @@ lenses to offer, and when.
   keeps no copy and puts nothing back. Before the pass, run this one command
   exactly as printed, putting only the work tree's top folder in its place: don't
   cut the script out, pipe it or edit it. It starts from your home folder, so no
-  program or version pin in the tree picks the `node` that runs it. Keep what it
-  prints in your own output, never in a file the agent can write. It covers
+  program or version pin in the tree picks the `node` that runs it. It covers
   every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
   index entries and half-done merges and rebases.
 
@@ -1207,11 +1205,10 @@ lenses to offer, and when.
   ```
 
   After the pass, stop any process the agent left running, run the same command
-  again, as you ran it before and never read again from a file, before any other
-  git, and compare the last line, `<hash> whole record`, alone:
-  the same means no change. On any difference, if a run fails, or if you no
-  longer hold the command or the first output: stop there, run no git in that tree, change
-  nothing, count the pass inconclusive, and report to me which lines differ.
+  again before any other git, and compare the last line, `<hash> whole record`,
+  alone: the same means no change. On any difference, or if a run fails: stop
+  there, run no git in that tree, change nothing, count the pass inconclusive,
+  and report to me which lines differ.
 
 ## The report template
 
@@ -1393,7 +1390,8 @@ when no other row answers the sentence.
 
 - **Read before you post.** Read every report and comment for a secret or a
   personal detail before posting it, and every commit before a push others
-  can read.
+  can read. A user or host name, a home path or a settings name is not a
+  personal detail here.
 - **Verbatim reports go in a fold,** a details element whose summary names the
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
@@ -1685,9 +1683,9 @@ check_hash ffc248f8c6e59ae1f1c00d311483a0cc8ebd0454b4668feacb0a7c7139be75e2 'age
 check_hash 27ab76d8604dc2ed83b12d0677686c48182c264ba0f366526acac8a07caa309f 'agents/reader-lens.md'
 check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'agents/scout.md'
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
-check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
+check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash 80c9cc303acf50d987fb8d7e34a8e7026c7a392c14d293e27c8467da9a4cba5b '.pact/review.md'
+check_hash 6b4c6d59b2582ad789337a4dec7416f058a2b7f3dcc06b7472aaa00c158eed00 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1717,7 +1715,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 57cc51723c9d"
+  echo "pact cloud copy 0c4f2bdf1425"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

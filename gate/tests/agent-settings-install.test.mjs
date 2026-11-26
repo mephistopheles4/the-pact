@@ -133,7 +133,6 @@ for (const [label, config, from, to, why] of [
   ['the committed lines left unchanged while it reports a setting', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('model: sonnet', 'model: opus').replace('effort: low', 'effort: medium'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
   ['an effort line other than the one it reports', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('effort: low', 'effort: medium'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
   ['a body line changed in place of the frontmatter', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('# integrity-lens', 'model: sonnet'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
-  ['an agent written into the stage', SET, R_AGENT_WRITE, `${R_AGENT_WRITE}\n  for (const a of agents) writeFileSync(join(dirname(source), 'agents', 'integrity-lens.md'), a.buf);`, 'the renderer changed the stage'],
 ]) {
   test(`bad case: a renderer that reports ${label} refuses, and nothing is installed`, t => {
     // With no configuration, the renderer is also planted to skip the pact's default, so it reports CONFIG none (#183 T4a).
