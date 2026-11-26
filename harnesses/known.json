@@ -19,6 +19,7 @@
     "skills": { "dir": "~/.agents/skills" },
     "hooks": { "file": "~/.codex/hooks.json", "format": "codex" },
     "models": { "planning": "gpt-6.2-sol", "executor": "gpt-6.2-sol" },
+    "tierEfforts": { "standard": { "build": "medium" } },
     "capabilities": ["subagents", "hook-trust", "explicit-skills"]
   },
   {
@@ -31,6 +32,7 @@
     "hooks": { "file": "~/.gemini/config/hooks.json", "format": "antigravity" },
     "models": { "planning": "gemini-4-neon-<effort>", "executor": "gemini-4-hydrogen-<effort>", "light": "flash" },
     "agentModels": { "*": "flash", "adversarial-lens": "pro", "data-lens": "pro" },
+    "efforts": ["low", "medium", "high", "xhigh"],
     "capabilities": ["subagents", "tool-limits", "hook-ask", "explicit-skills", "skill-copies"]
   }
 ]

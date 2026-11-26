@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import * as h from '../harnesses.mjs';
 import { Refusal } from '../install-core.mjs';
+import { realAgents } from './payload.mjs';
 import { REPO } from './text.mjs';
 
 const KNOWN_TEXT = readFileSync(join(REPO, 'harnesses', 'known.json'), 'utf8');
@@ -70,6 +71,73 @@ test('an own entry’s models leave the model per agent as it is, and its agentM
   // `*` is a name too: the security pair keeps its own tier until their entry names it.
   assert.deepEqual(anti({ agentModels: { '*': 'a' } }).agentModels, { '*': 'a', 'adversarial-lens': 'pro', 'data-lens': 'pro' });
   for (const bad of [{ scout: 'two words' }, { 'no such name!': 'a' }, ['a']]) assert.throws(() => anti({ agentModels: bad }), e => e.rule === 'harness-shape');
+});
+
+// PACT-111 C1.
+test('known.json gives Codex its Standard build effort and Antigravity the four efforts it takes', () => {
+  assert.deepEqual(resolve().map(x => [x.id, x.tierEfforts, x.ownTiers, x.efforts]), [
+    ['claude', null, [], null],
+    ['codex', { standard: { build: 'medium' } }, [], null],
+    ['antigravity', null, [], ['low', 'medium', 'high', 'xhigh']],
+  ]);
+});
+
+// PACT-111 C1.
+test('an own entry’s tierEfforts goes over the known one key by key, a null key drops it, and its efforts replace the known list', () => {
+  const codex = entry => byId(resolve([{ id: 'codex', ...entry }]), 'codex');
+  const more = codex({ tierEfforts: { thorough: { plan: 'low', build: 'max' } } });
+  assert.deepEqual(more.tierEfforts, { standard: { build: 'medium' }, thorough: { plan: 'low', build: 'max' } });
+  assert.deepEqual([more.ownTiers, more.overrides], [['thorough'], ['tierEfforts']]);
+  // A key's value is replaced whole.
+  const set = codex({ tierEfforts: { standard: { plan: 'high' } } });
+  assert.deepEqual([set.tierEfforts, set.ownTiers], [{ standard: { plan: 'high' } }, ['standard']]);
+  const dropped = codex({ tierEfforts: { standard: null } });
+  assert.deepEqual([dropped.tierEfforts, dropped.ownTiers], [{}, []]);
+  assert.deepEqual(byId(resolve([{ id: 'antigravity', efforts: ['low', 'max'] }]), 'antigravity').efforts, ['low', 'max']);
+  const mine = byId(resolve([{ ...OWN, tierEfforts: { 'big-job-2': { build: 'low' }, gone: null } }]), 'mine');
+  assert.deepEqual([mine.tierEfforts, mine.ownTiers], [{ 'big-job-2': { build: 'low' } }, ['big-job-2']]);
+});
+
+// PACT-111 C1.
+test('bad case: a tierEfforts, efforts or <effort> model outside its shape refuses', () => {
+  const bad = [
+    { agentModels: { scout: 'neon-<effort>' } },
+    { tierEfforts: [] },
+    { tierEfforts: { Standard: { build: 'low' } } },
+    { tierEfforts: { 'a--b': { build: 'low' } } },
+    { tierEfforts: { a: {} } },
+    { tierEfforts: { a: 'low' } },
+    { tierEfforts: { a: { test: 'low' } } },
+    { tierEfforts: { a: { build: 'ultra' } } },
+    { efforts: [] },
+    { efforts: ['low', 'low'] },
+    { efforts: ['high', 'low'] },
+    { efforts: ['ultra'] },
+    { efforts: 'low' },
+    { models: { planning: 'a-<effort>-<effort>', executor: 'e' } },
+  ];
+  for (const fields of bad) assert.equal(rule(() => resolve([{ ...OWN, ...fields }])), 'harness-shape', JSON.stringify(fields));
+  // A null key drops a known one, which only a person's entry has to drop.
+  const known = [{ ...OWN, tierEfforts: { standard: null } }];
+  assert.equal(rule(() => h.resolveHarnesses({ known, home: HOME, platform: 'linux', inWorkTree: null })), 'harness-shape');
+});
+
+/** The agent names a known.json text names a model for that no agent file has. */
+const unknownAgents = text => {
+  const names = Object.keys(realAgents()).map(p => p.slice('claude/agents/'.length, -'.md'.length));
+  return h.parseKnown(text).flatMap(e => Object.keys(e.agentModels ?? {}).filter(k => k !== '*' && !names.includes(k)));
+};
+
+// PACT-111 C1.
+test('every agent known.json names a model for is one of claude/agents/', () => {
+  assert.deepEqual(unknownAgents(KNOWN_TEXT), []);
+});
+
+// PACT-111 C1.
+test('bad case: a known.json with a misspelt agent name is seen', () => {
+  const misspelt = KNOWN_TEXT.replace('"data-lens": "pro"', '"data-lense": "pro"');
+  assert.notEqual(misspelt, KNOWN_TEXT);
+  assert.deepEqual(unknownAgents(misspelt), ['data-lense']);
 });
 
 test('an own entry with a known id overrides it field by field and names each field', () => {
