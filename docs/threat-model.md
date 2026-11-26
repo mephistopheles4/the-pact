@@ -213,7 +213,7 @@ rule holds back trusting a project's mise config until the owner says so in chat
 
 Also accepted. What you install and CI run: typing the
 `npx` command trusts GitHub and the tag rulesets, and npm may reuse a cached
-copy; a stolen release app key, while the app holds only `contents: write`, on this repo only, can create any tag, push a branch no ruleset covers, merge what `main`'s ruleset lets through and make releases; a change merged to `main` can read the key; a copy left on a machine, such as the file GitHub hands the owner, is exposed there, and a leak is answered by uninstalling the app, deleting the key and checking each tag, branch, merge and release it made; the cloud
+copy; a stolen release app key, while the app holds only `contents: write`, on this repo only, can create any tag, push a branch no ruleset covers, merge what `main`'s ruleset lets through and make releases, and before the second tag ruleset exists it can also move or delete a tag; a change merged to `main` can read the key; a copy left on a machine, such as the file GitHub hands the owner, is exposed there, and a leak is answered by uninstalling the app, deleting the key, checking each tag, branch, merge and release it made and deleting each bad tag, lifting the second ruleset to do it; the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
@@ -294,7 +294,9 @@ it.
   names, such as `DB_PASSWORD` or `GITHUB_PAT`, stay in every command's reach.
   A dropped value stays readable where it was set, such as a shell profile,
   which a login shell reads again, a saved Windows user variable, a `.env` file
-  or a credential store.
+  or a credential store. Codex allows login shells by default, and the pact
+  doesn't set that; neither the login-shell route nor the saved-variable one was
+  probed.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
   hidden text, and refuses an edit of what its login didn't write. That holds
@@ -403,4 +405,4 @@ quadrantChart
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. Claude Code's protected paths name `.claude`, not `~/.pact`: a write anywhere under it, the pact's hook script, tools, guard, git config, review procedure, skills, configuration, install record and backups included, gets no protected-path check, and no ask rule covers it. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).

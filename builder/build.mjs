@@ -1055,7 +1055,7 @@ function main(argv) {
   }
   process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
   process.stdout.write(fixed
-    ? 'NOTE the page sits in your pact folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files: you may delete the file when you are done with it\n'
+    ? 'NOTE the page sits in your pact folder, beside your builder file, and holds the same lists in plain text, with every preset listed from your presets folder and any agent files, your harness settings and which harness folders were found: you may delete the file when you are done with it\n'
     : 'NOTE the page holds your lists, every preset listed from your presets folder and any agent files in plain text: you may delete the file when you are done with it\n');
 }
 

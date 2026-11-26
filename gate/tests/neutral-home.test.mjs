@@ -113,11 +113,14 @@ test('C17: one apply writes every harness in the list, records and backs up each
   assert.match(block(dry, 'mine'), /^ {2}\.mine\/RULES\.md$/m);
 
   passed(applyBound(repo, h));
-  // C7, C29: an own harness that names no models gets no models line, and one with no subagents gets S12's line.
+  // C7, C10, C29: an own harness that names no models gets no models line, one with no subagents gets S12's line,
+  // and one that can't hold an agent to its tools gets the scout's tree check.
   const mine = read(h, '.mine/RULES.md');
   const alone = 'This harness has no subagents: run each lens in a separate session.\n';
+  const scouted = 'Run its tree check around each `scout` pass too.\n';
   assert.equal(mine.split(alone).length, 2, mine);
-  assert.equal(mine.replace(alone, ''), read(h, '.claude/CLAUDE.md').replace(/\nHere the planning model is [^\n]*\n/, ''));
+  assert.equal(mine.split(scouted).length, 2, mine);
+  assert.equal(mine.replace(alone, '').replace(scouted, ''), read(h, '.claude/CLAUDE.md').replace(/\nHere the planning model is [^\n]*\n/, ''));
   const files = record(h).files;
   for (const [id, path] of [['claude', '.claude/CLAUDE.md'], ['claude', '.claude/agents/scout.md'], ['mine', '.mine/RULES.md'], ['mine', '.mine/agents/scout.md'], ['pact', '.pact/review.md']]) {
     assert.ok(files.some(f => f.harness === id && f.path === path), `${id} ${path}`);

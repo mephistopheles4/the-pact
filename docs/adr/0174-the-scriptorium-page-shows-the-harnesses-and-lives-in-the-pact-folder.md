@@ -19,5 +19,5 @@ Amends [ADR 0171](0171-the-scriptorium-page-has-a-fixed-path-in-the-claude-home.
 ## What it costs
 
 - **The install core is now installed, into the kit.** It runs nothing on import, but it is a file under the home folder that the kit's builder imports. The copy-set check still lets a gate file install only into the kit.
-- **The page holds more of the pact folder.** Harness descriptions and model names, which may name a provider account or project, sit in the page in plain text beside `config.json`, which already holds them. The accepted residual for a builder file's text covers it.
+- **The page holds more of the pact folder.** Harness descriptions and model names, which may name a provider account or project, sit in the page in plain text beside `config.json`, which already holds them. The page stays on the machine, which the threat model's scope leaves out.
 - **The view is not the install.** The line naming the configuration is a placeholder, since only the install computes its fingerprint; settings keys, hooks, tools and the review procedure are not shown. The install stays the authority on what a save installs.
