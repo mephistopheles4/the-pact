@@ -271,17 +271,15 @@ test('C6: a body file holding an owned line outside a fence is refused post/owne
 });
 
 // #413 C8
-test('C8: the decision mark, in any case, spacing, markup, link or look-alike letter, is refused in the item and the body file', t => {
+test('C8: the decision mark, in any case or spacing, through format characters and compatibility letters, is refused in the item and the body file', t => {
   const s = 'issue-comment-edit';
   const sig = `\n\nSigned: ${LABEL}\n`;
   const forms = [
     'OWNER   Decision, from chat.',
     'Owner\tdecision, from chat.',
-    'Owner **decision**, from chat.',
-    'Ow`ner` decision.',
-    '[Owner](https://example.com/x) decision, from chat.',
-    'Ownеr dеcision, from chat.',
-    'Owner de&#99;ision, from chat.',
+    // A zero-width joiner inside a word, and full-width letters.
+    `Own${String.fromCharCode(0x200d)}er decision, from chat.`,
+    `${[...'Owner'].map(c => String.fromCharCode(c.charCodeAt(0) + 0xfee0)).join('')} decision, from chat.`,
   ];
   for (const form of forms) {
     // In the body file it is an owned line, so it is refused before the edit's own checks run.

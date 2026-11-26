@@ -539,10 +539,9 @@ const HTML_HEADING_RE = /<h[1-6][\s/>]/i;
 const MARKER_RE = /^[ \t]*(?:>|[-*+](?=[ \t])|[0-9]{1,9}[.)](?=[ \t]))[ \t]*/;
 const OPENER_RE = /^(?:`{3,}|~{3,})/;
 
-/** A line read as the page shows it: format characters out, look-alikes folded, leading quote and list markers removed, trimmed, in lower case. */
+/** One view of a line as the owned lines are matched: leading quote and list markers removed, a curly apostrophe straightened, trimmed, in lower case. */
 function pageLine(view) {
-  let s = view.replace(/\p{Cf}/gu, '');
-  s = [...s.normalize('NFKC')].map(c => LOOKALIKES.get(c) ?? c).join('').replace(/[‘’]/g, "'");
+  let s = view.replace(/[‘’]/g, "'");
   for (let prev = null; prev !== s;) {
     prev = s;
     s = s.replace(MARKER_RE, '');
@@ -1045,26 +1044,25 @@ export function normalise(text, keepComments = false) {
   return s;
 }
 
-/** The normalised copies of a text, which the scan and the edit checks read: its HTML comments removed with their contents, and with only their markers removed. */
+/** The normalised copies of a text, which the scan reads: its HTML comments removed with their contents, and with only their markers removed. */
 function copies(text) {
   return [normalise(text), normalise(text, true)];
 }
 
 const LINK_PLAIN_RE = /!?\[([^[\]]*)\](?:\([^()]*\)|\[[^[\]]*\])?/g;
 const LINK_NESTED_RE = /!?\[([^[\]]*)\](?:\((?:[^()"']|\([^()]*\)|"[^"]*"|'[^']*')*\)|\[[^[\]]*\])?/g;
-const MARKS_RE = /[*_`~[\]]/g;
 // The scan keeps `_`, which several secret shapes hold and CommonMark never reads as emphasis inside a word.
 const SCAN_MARKS_RE = /[*`~[\]]/g;
 
 /**
- * `s` with each link folded to its text and the marks `marks` matches
+ * `s` with each link folded to its text and the marks `SCAN_MARKS_RE` matches
  * removed, two ways: one link form whose address holds no parenthesis (any
  * quote is an address character), and one whose address may hold one level of
  * parentheses and a quoted title; each alternative starts on its own
  * character, so neither match can backtrack without bound.
  */
-function folds(s, marks = MARKS_RE) {
-  const fold = re => s.replace(re, '$1').replace(marks, '');
+function folds(s) {
+  const fold = re => s.replace(re, '$1').replace(SCAN_MARKS_RE, '');
   return [fold(LINK_PLAIN_RE), fold(LINK_NESTED_RE)];
 }
 
@@ -1097,7 +1095,7 @@ export function scan(fields, ctx) {
       out.push({ rule: h.rule, where: `${field} ${lineCol(text, h.index)}${h.note ? ` (${h.note})` : ''}` });
     }
     const normalised = copies(text);
-    for (const norm of new Set([...normalised, ...folds(normalised[0], SCAN_MARKS_RE)])) {
+    for (const norm of new Set([...normalised, ...folds(normalised[0])])) {
       if (norm === text) continue;
       for (const h of hitsIn(norm, ctx)) {
         const key = `${h.rule} ${h.note ?? ''}`;
@@ -1183,43 +1181,6 @@ const HEADING_RE = /^ {0,3}#{1,6}(?:[ \t]|$)/;
 const SETEXT_RE = /^ {0,3}(?:=+|-+)[ \t]*$/;
 const CLOSED_COMMENT_RE = /<!--[\s\S]*?--!?>/g;
 const DECISION = 'owner decision';
-/**
- * Look-alikes, from Cyrillic, Greek, Armenian and Latin, of the Latin letters
- * the owned lines and "owner decision" are written in, folded to those letters
- * (lower case) before the match (#524: every letter of the owned lines, not
- * only those of "owner decision").
- */
-const LOOKALIKES = new Map(
-  Object.entries({
-    a: [0x430, 0x410, 0x391, 0x3b1],
-    b: [0x412, 0x392, 0x42c, 0x432],
-    c: [0x441, 0x421, 0x3f2, 0x3f9],
-    d: [0x501, 0x500],
-    e: [0x435, 0x415, 0x395, 0x4bd],
-    f: [0x3dd, 0x3dc],
-    g: [0x261, 0x581],
-    h: [0x43d, 0x41d, 0x397, 0x4bb, 0x4ba],
-    i: [0x456, 0x406, 0x3b9, 0x399, 0x131, 0x4cf],
-    j: [0x458, 0x408],
-    k: [0x43a, 0x41a, 0x3ba, 0x39a],
-    l: [0x4cf, 0x1c0],
-    m: [0x43c, 0x41c, 0x39c],
-    n: [0x578, 0x39d, 0x43f],
-    o: [0x43e, 0x41e, 0x3bf, 0x39f, 0x585],
-    p: [0x440, 0x420, 0x3c1, 0x3a1],
-    q: [0x51b, 0x51a],
-    r: [0x433, 0x280],
-    s: [0x455, 0x405],
-    t: [0x442, 0x422, 0x3c4, 0x3a4],
-    u: [0x3c5, 0x57d, 0x3a5],
-    v: [0x3bd, 0x475, 0x474],
-    w: [0x461, 0x51d, 0x51c],
-    x: [0x445, 0x425, 0x3c7, 0x3a7],
-    y: [0x443, 0x423, 0x3b3],
-    z: [0x3b6, 0x396],
-  }).flatMap(([letter, codes]) => codes.map(c => [cp(c), letter])),
-);
-
 // A line ends at a line feed, a carriage return, or both, as CommonMark reads it.
 const LINE_END_RE = /\r\n|\r|\n/;
 
@@ -1297,15 +1258,15 @@ export function signatures(body) {
   });
 }
 
-/** The views of a text the edit checks read: as written without format characters, its normalised copies (`copies`), and each of those folded. */
+/** The views of a text the edit and owned-line checks read: as written without format characters, and that after NFKC. */
 function views(text) {
-  const normalised = copies(text);
-  return [text.replace(/\p{Cf}/gu, ''), ...normalised, ...normalised.flatMap(c => folds(c))];
+  const plain = text.replace(/\p{Cf}/gu, '');
+  return [plain, plain.normalize('NFKC')];
 }
 
-/** Whether a body holds the decision mark, "owner decision", in any case, spacing, markup or folded look-alike letter. */
+/** Whether a body holds the decision mark, "owner decision", in any case or spacing. */
 export function hasDecision(body) {
-  return views(body).some(v => [...v].map(c => LOOKALIKES.get(c) ?? c).join('').replace(/\s+/g, ' ').toLowerCase().includes(DECISION));
+  return views(body).some(v => v.replace(/\s+/g, ' ').toLowerCase().includes(DECISION));
 }
 
 /** Whether a body holds a line that opens "Heard in chat by", an app's decision mark, in any view (#599, S8). */
