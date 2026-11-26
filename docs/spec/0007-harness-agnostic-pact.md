@@ -451,18 +451,25 @@ Claude Code for them.
 **Codex and Antigravity** get one PreToolUse hook each, which runs the
 wrapper `~/.pact/guard/<harness>.mjs`:
 
-- **The command.** It names the wrapper by its absolute path, quoted for the
+- **The command.** It names its script by absolute path, quoted for the
   platform, since Windows shells don't expand `~` and a hook that can't start
-  lets the call through. It clears `NODE_OPTIONS` in the platform's own form
-  (`env -u NODE_OPTIONS` on Linux and macOS, `set "NODE_OPTIONS="` under
-  `cmd /d /c` on Windows), so an inherited option can't crash node before the
-  wrapper runs. On Windows it also sets `NoDefaultCurrentDirectoryInExePath=1`,
-  so cmd never runs a `node` from the session's working folder. The text is
-  fixed per machine, so Codex's trust holds; T4 and T5 probe it exactly.
-  **Open amendment (T3):** a harness may run hooks under PowerShell, where this
-  Windows text prints the environment and lets the call through. The Windows
-  command waits for T4's probe; until it is settled the install writes no guard
-  on Windows and says so.
+  lets the call through. On Linux and macOS it runs the wrapper under
+  `env -u NODE_OPTIONS`. On Windows it is one text for cmd and PowerShell:
+  `<Windows>\System32\cmd.exe /d /c call "<launcher>.cmd" ; exit
+  $LASTEXITCODE`. PowerShell, which Codex runs hooks under, would report a
+  hook's exit 2 as 1, which lets the call through; the last words pass the code
+  on, and cmd hands them to the launcher, which ignores them. A path either
+  shell would read as more than a path refuses (`hook-command-path`). The text
+  is fixed per machine, so Codex's trust holds.
+- **The Windows launcher,** made by the install beside each wrapper, clears
+  `NODE_OPTIONS` and `ERRORLEVEL`, sets `NoDefaultCurrentDirectoryInExePath=1`,
+  so cmd never runs a `node` from the session's working folder, and runs the
+  wrapper. Exit 0 passes through, and so does Codex's 2. Any other end, a
+  missing node included, is the harness's denial: exit 2 with a reason for
+  Codex, the `deny` JSON with exit 0 for Antigravity.
+- **A Windows home from another platform.** A node that is not Windows's
+  refuses (`guard-windows-home`) to write a guard into a home holding
+  `AppData`.
 - The wrapper reads the call from stdin in its harness's shape (Codex:
   `Bash`; Antigravity: `run_command`), passes the command text to `guard.mjs`,
   and writes its harness's answer. Codex: exit 2 with the reason on stderr,
@@ -894,7 +901,8 @@ model must stay within its word budget.
   matching command across the tokenizer cases, in their own deny shape, and
   answer nothing for a command no rule matches. The command names an
   absolute path and clears `NODE_OPTIONS`; this runs on `gate-windows` too,
-  where a `node.cmd` planted in the working folder never runs.
+  under cmd and PowerShell, where a `node.cmd` planted in the working folder
+  never runs, and a launcher whose wrapper can't run denies.
 - **C13** An `ask` rule answers `force_ask` in Antigravity and is denied in
   Codex with S8's line.
 - **C14** A planted error in the guard, a missing table, a malformed call and

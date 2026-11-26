@@ -62,7 +62,7 @@ function chooseHarnesses({ stage, staged, home, parsed, record }) {
 }
 
 /** The dry run's harness list: each one in or out, then what the install does not do for it. */
-function harnessLines({ rows, warnings }, guarded, unguarded) {
+function harnessLines({ rows, warnings }) {
   const out = [rows.length ? 'Harnesses:' : 'Harnesses: none found, so nothing installs'];
   for (const r of rows) out.push(`  ${r.id}${r.harness ? ` (${r.harness.name})` : ''}: ${r.in ? 'in' : 'out'}${r.detected ? '' : ', not found'}`);
   for (const w of warnings) out.push(`WARN: ${core.formatPlain(w)}`);
@@ -72,7 +72,6 @@ function harnessLines({ rows, warnings }, guarded, unguarded) {
     if (!r.in) continue;
     const parts = core.builtParts(h);
     if (h.agents && !parts.agents) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s agent format yet; no agent is installed into it.`);
-    if (unguarded.includes(h)) out.push(core.guardNotYetLine(h));
     if (h.hooks && !parts.settings && !parts.guard) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
   }
   return out;
@@ -269,9 +268,8 @@ async function main() {
   // The guard (spec 0007 S8): its rules follow the switches, whichever harnesses are in; its files and hooks install while a harness with a guard hook is in and a rule is on.
   const rules = project ? [] : core.guardRules([...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(core.stopSwitchOn(parsed) ? ['session-stop-deny'] : [])]);
   const wired = rules.length ? taken.filter(h => core.builtParts(h).guard) : [];
-  const guarded = core.guardOnPlatform(process.platform) ? wired : [];
-  const unguarded = wired.filter(h => !guarded.includes(h));
-  const guardOn = guarded.length > 0;
+  const guardOn = wired.length > 0;
+  if (guardOn) core.checkGuardHome({ platform: process.platform, windowsHome: io.present(join(home, 'AppData')) });
   const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, guardOn)], 'seam-a', 'the check');
   const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0, taken, guardOn), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
@@ -359,12 +357,16 @@ async function main() {
   const mergedFiles = [...choice.rows.flatMap(r => (r.harness?.hooks ? [r.harness.hooks.file] : [])), ...recorded.flatMap(h => (h.settings ? [h.settings] : [])), ...guardRecorded.map(e => e.path)];
   const linkIn = rel => io.throughHomeLink(home, rel);
   const destinations = core.resolveDestinations(checked, taken);
-  // rules.json is the install's own, made here after seam A, which refuses a commit that holds one.
+  // rules.json, and on Windows each wrapper's launcher, are the install's own, made here after seam A, which refuses a commit that holds one.
   if (guardOn) {
-    const table = Buffer.from(core.guardTableText(rules), 'utf8');
-    mkdirSync(dirname(live(stage, core.GUARD_TABLE_REL)), { recursive: true });
-    writeFileSync(live(stage, core.GUARD_TABLE_REL), table);
-    destinations.push([core.GUARD_TABLE_REL, { dest: core.GUARD_TABLE_DEST, sha256: io.sha256(table), harness: core.PACT_ID }]);
+    const make = (rel, dest, text) => {
+      const bytes = Buffer.from(text, 'utf8');
+      mkdirSync(dirname(live(stage, rel)), { recursive: true });
+      writeFileSync(live(stage, rel), bytes);
+      destinations.push([rel, { dest, sha256: io.sha256(bytes), harness: core.PACT_ID }]);
+    };
+    make(core.GUARD_TABLE_REL, core.GUARD_TABLE_DEST, core.guardTableText(rules));
+    if (process.platform === 'win32') for (const format of new Set(wired.map(h => h.hooks.format))) make(core.guardLauncherRel(format), core.guardLauncherDest(format), core.guardLauncherText(format));
   }
   // The skill folders (spec 0007 S7): a link each, or the files copied where no link can be made.
   const wanted = core.skillsWanted(taken, on);
@@ -469,7 +471,7 @@ async function main() {
     : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: [...deny.record, ...stopRecord], ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record }) : [];
   const settingsDrift = liveSettings === null ? [] : core.entryDrift(lastEntries.filter(e => !core.OVERLAY_KEYS.includes(e.key)), liveSettings);
   // The guard's hook, one keyed merge per hooks file (spec 0007 S8).
-  const hooks = core.guardPlans(guardRecorded, guarded.map(h => ({ harness: h.id, path: h.hooks.file, format: h.hooks.format, command: core.guardCommand({ script: join(home, ...core.guardScriptRel(h.hooks.format).split('/')), platform: process.platform, systemRoot: process.env.SystemRoot }) })));
+  const hooks = core.guardPlans(guardRecorded, wired.map(h => ({ harness: h.id, path: h.hooks.file, format: h.hooks.format, command: core.guardCommand({ script: join(home, ...core.guardScriptRel(h.hooks.format).split('/')), platform: process.platform, systemRoot: process.env.SystemRoot }) })));
   for (const f of hooks) {
     const why = f.path.toLowerCase() === settingsRel?.toLowerCase() ? 'the path of settings.json' : core.guardPathReason(f.path, linkIn);
     if (why) core.stops.hooksPath(f.path, why);
@@ -497,7 +499,7 @@ async function main() {
   const nothing = !(p.overwrite.length || p.add.length || p.delete.length || linksWill || settingsWill || hooksWill.length || stale || yoursListed || !record);
 
   // One block per harness, the pact's own files first (spec 0007 S9).
-  for (const l of harnessLines(choice, guarded, unguarded)) say(l);
+  for (const l of harnessLines(choice)) say(l);
   for (const w of renders.warnings) say(`WARN: ${core.formatPlain(w)}`);
   if (!linkable && links.copy.length) say(core.NO_LINK_LINE);
   for (const w of links.warnings) say(`WARN: ${core.formatPlain(w)}`);

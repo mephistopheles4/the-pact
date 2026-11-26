@@ -762,10 +762,15 @@ hook the install adds.
   shell command, in each harness's hooks file (`~/.codex/hooks.json`,
   `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
   pact's entry, and the apply backs up each hooks file it changes.
-- **Not on Windows yet.** The hook command is written for `cmd`, and a harness
-  may run it under PowerShell, where it prints the environment and lets the call
-  through. On Windows the install writes no guard, and the dry run and the apply
-  warn for each harness left unguarded.
+- **On Windows** the install also writes a launcher beside each wrapper,
+  `~/.pact/guard/<harness>.cmd`, and the hook calls it through `cmd.exe` and
+  passes its exit code on, so one command works under PowerShell, where Codex
+  runs hooks, and under `cmd`. A home path holding `%`, `!`, `^`, `&`, `$`, a
+  backtick or a curly double quote refuses (`hook-command-path`), and so does
+  one with no space that holds `(`, `)`, `;`, `,` or `=`.
+- **A Windows home from Linux or macOS,** such as a WSL install into it,
+  refuses (`guard-windows-home`) while a guard would be written: a home that
+  holds `AppData` is a Windows one, and Windows couldn't run that hook.
 - **Trust it in Codex.** Codex runs a hook only once you trust it: open
   `/hooks` and trust `pact-guard`, the one from `~/.codex/hooks.json`: another
   hooks file can use the name. The dry run and the apply say so when the entry
@@ -778,8 +783,9 @@ hook the install adds.
   dry run.`
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
   `bash -c "..."` included, and so does one typed into a shell that is already
-  running, which Codex runs no hook for. A hook that can't start, crashes or
-  runs past 15 seconds lets the command through.
+  running, which Codex runs no hook for. A hook that can't start or runs past
+  15 seconds lets the command through, and so does a crash outside what the
+  wrapper catches, except on Windows, where the launcher denies.
 - **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
   shape, or sits behind a link refuses the dry run. A pact entry changed since
   the install is drift.

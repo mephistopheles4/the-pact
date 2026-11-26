@@ -1606,32 +1606,69 @@ export const guardTableText = rules => `${JSON.stringify({ rules }, null, 2)}\n`
 export const CODEX_TRUST_LINE = 'Codex: open /hooks and trust pact-guard; until then Codex runs unguarded.';
 
 /**
- * Whether the pact installs the guard on this platform. Not on Windows yet: the
- * hook command is written for cmd, a harness may run hooks under PowerShell,
- * and there the command prints the environment and lets the call through.
+ * Refuses a guard hook a node that is not Windows's would write into a Windows
+ * home (one that holds AppData, as a WSL node sees it): the harness there runs
+ * Windows commands, and a hook it can't run lets every call through.
  */
-export const guardOnPlatform = platform => platform !== 'win32';
-/** The warning for a harness that would take the guard where it is not installed. */
-export const guardNotYetLine = h => `WARN: ${h.id}: the pact's guard isn't installed on Windows yet, so ${h.name} runs unguarded.`;
+export function checkGuardHome({ platform, windowsHome }) {
+  if (platform !== 'win32' && windowsHome) refuse('guard-windows-home', `this home holds AppData, so it is a Windows one, and this node runs on ${formatPlain(platform)}: it would write a guard hook Windows can't run. Run the install with Windows' node, or turn the guard's rules off.`);
+}
 
-// Characters cmd or a shell would read as more than part of a path.
-const WIN_PATH_BAD = /["%!^&|<>\p{Cc}]/u;
+/** The Windows launcher beside a wrapper. */
+export const guardLauncherDest = format => `${GUARD_DEST}${format}.cmd`;
+/** Where the install makes a launcher in its stage, as it makes rules.json: no commit holds one. */
+export const guardLauncherRel = format => `claude/guard/${format}.cmd`;
+
+// What a launcher answers when its wrapper did not end as it should, in each harness's shape.
+const LAUNCH_FAILED = "The pact's guard failed (launch); run the pact's dry run.";
+const LAUNCH_ANSWERS = Object.freeze({
+  // Codex blocks on exit 2 with a reason, so 2 passes through.
+  codex: ['if %ERRORLEVEL% EQU 2 exit /b 2', `echo ${LAUNCH_FAILED}>&2`, 'exit /b 2'],
+  // Antigravity lets a call through on a non-zero exit, so the denial is its JSON answer.
+  antigravity: [`echo {"decision":"deny","reason":"${LAUNCH_FAILED}"}`, 'exit /b 0'],
+});
 
 /**
- * The hook's command for a wrapper at `script`, an absolute path (S8). It
- * clears NODE_OPTIONS in the platform's own form, so an inherited option can't
- * crash node before the wrapper runs. On Windows it names cmd.exe by its full
- * path, from `systemRoot`, and sets NoDefaultCurrentDirectoryInExePath, so no
- * `node` or `cmd` in the session's working folder runs. The text depends only
- * on the machine, so a harness's trust in the entry holds across installs.
+ * A format's Windows launcher (S8). It clears NODE_OPTIONS, sets
+ * NoDefaultCurrentDirectoryInExePath so no `node` in the session's working
+ * folder runs, and runs the wrapper beside it. Exit 0 passes through with
+ * whatever the wrapper wrote; anything else ends as that harness's denial. An
+ * ERRORLEVEL variable of the session's would hide the real code, so it is
+ * cleared; `call` lets a node that is itself a batch file return here.
+ */
+export const guardLauncherText = format => `${[
+  '@echo off',
+  'setlocal',
+  'set "ERRORLEVEL="',
+  'set "NODE_OPTIONS="',
+  'set "NoDefaultCurrentDirectoryInExePath=1"',
+  `call node "%~dp0${format}.mjs"`,
+  'if %ERRORLEVEL% EQU 0 exit /b 0',
+  ...LAUNCH_ANSWERS[format],
+].join('\r\n')}\r\n`;
+
+// Characters cmd or PowerShell would read as more than part of a path, inside double quotes too.
+const WIN_PATH_BAD = /["%!^&|<>$`\u201c\u201d\u201e\p{Cc}]/u;
+// PowerShell passes a path with no space unquoted, and cmd then splits or misreads these.
+const WIN_PATH_UNQUOTED_BAD = /^[^ ]*[();,=][^ ]*$/;
+
+/**
+ * The hook's command for a wrapper at `script`, an absolute path (S8). The text
+ * depends only on the machine, so a harness's trust in the entry holds across
+ * installs. Elsewhere than Windows it clears NODE_OPTIONS, so an inherited
+ * option can't crash node before the wrapper runs. On Windows one text serves
+ * cmd and PowerShell: cmd.exe, named by its full path from `systemRoot`, calls
+ * the wrapper's launcher, and PowerShell, which would report a hook's exit 2 as
+ * 1, passes the code on. cmd hands those last words to the launcher, which
+ * ignores them.
  */
 export function guardCommand({ script, platform, systemRoot }) {
   if (platform === 'win32') {
     const root = String(systemRoot || 'C:\\Windows');
-    if (!/^[A-Za-z]:\\[A-Za-z0-9_.\\-]+$/.test(root) || !/^[A-Za-z]:\\/.test(script) || WIN_PATH_BAD.test(script)) refuse('hook-command-path', "the guard's path or the Windows folder holds a character the hook command can't carry, or is not a full path.");
+    if (!/^[A-Za-z]:\\[A-Za-z0-9_.\\-]+$/.test(root) || !/^[A-Za-z]:\\/.test(script) || WIN_PATH_BAD.test(script) || WIN_PATH_UNQUOTED_BAD.test(script)) refuse('hook-command-path', "the guard's path or the Windows folder holds a character the hook command can't carry, or is not a full path.");
     // SystemRoot's case differs between environments (C:\WINDOWS, C:\Windows); one spelling keeps the entry the same.
     const folder = root.replace(/\\$/, '').replace(/^[a-z]/, d => d.toUpperCase()).replace(/\\windows$/i, '\\Windows');
-    return `${folder}\\System32\\cmd.exe /d /c "set "NODE_OPTIONS=" & set "NoDefaultCurrentDirectoryInExePath=1" & node "${script}""`;
+    return `${folder}\\System32\\cmd.exe /d /c call "${script.replace(/\.mjs$/, '.cmd')}" ; exit $LASTEXITCODE`;
   }
   if (!script.startsWith('/') || /\p{Cc}/u.test(script)) refuse('hook-command-path', "the guard's path holds a character the hook command can't carry, or is not a full path.");
   return `env -u NODE_OPTIONS node '${script.replaceAll("'", `'\\''`)}'`;
