@@ -52,6 +52,14 @@ This file is never installed.
 | Usage still holds | A goal parks the work before usage runs out. The harness doesn't. |
 | Usage | A checkpoint on weekly usage. The harness has no such line. |
 
+## Waiting on CI
+
+[Gate tests](agents/gate-tests.md#running-the-gates-tests) bounds how a session
+waits on CI. Every session on one `gh` login shares its hourly REST quota,
+`gh run watch` refreshes every 3 seconds by default, and once the quota is
+spent no session on that login can read CI runs, jobs or logs until it resets.
+Nothing else paces a watch or checks the quota first.
+
 ## What no read looks for
 
 No read before a post looks for a path on this machine ([ADR 0143](adr/0143-no-read-looks-for-this-machines-paths.md)). A user or host name, inside a path or on its own, a home path or a settings name is not a personal detail for the read before a post or a commit (spec 0007 S2 item 66) ([ADR 0145](adr/0145-record-mode-writes-the-output-as-printed.md)). A rewrite of that read adds no path item.
