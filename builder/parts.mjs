@@ -745,7 +745,7 @@ export function acrossColumn(lib, input, h) {
   };
 }
 
-/** The columns as one table: { rows: [{ label, cells }] }, a cell for each column, the pact's agents named by `names`. */
+/** The columns as one table's rows, [{ label, cells }]: a cell for each column, and a row for each of the pact's agents in `names`. */
 export function acrossRows(columns, names) {
   const row = (label, cell) => ({ label, cells: columns.map(c => (c.refusal ? 'the install would stop' : cell(c))) });
   const tiers = [...new Set(columns.flatMap(c => c.tiers.map(t => t.name)))];

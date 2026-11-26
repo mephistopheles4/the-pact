@@ -9,7 +9,7 @@
 - **The overview page.** `node builder/build.mjs --overview <file>` writes the table alone from the home configuration, to a new file outside any repo, and installs nothing.
 - **A role picked for one agent** is written as the model that role names in that harness, since `agentModels` renders as written.
 
-**What the gate bounds:** no check changes. The renderer and the harness descriptions export what they already used (`tierRows`, `tierKey`, `TIER_KEY_RE`), for the page.
+**What the gate bounds:** no check changes. For the page, the renderer exports `tierKey` and gains `tierRows`, which reads the tiers table, and the harness descriptions export `TIER_KEY_RE`.
 
 **Rolling back:** revert the change. A configuration the page saved stays readable by the installer of ticket T1.
 

@@ -2,7 +2,7 @@
 // what it saves into config.json's harnesses key, what it says each harness
 // receives, held to the installer's own renderer, and the page the builder
 // writes before any install. The page is not gate code; the installer stays the
-// authority.
+// authority. PACT-111 C9 and C10 are named above their tests.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
@@ -379,6 +379,7 @@ const cellOf = (state, agent, id) => L.agentTable(state).rows.find(r => r.agent 
 const tierOf = (state, id, name) => L.tierTable(state).find(x => x.id === id).rows.find(r => r.name === name);
 const own = state => configOf(state).harnesses?.own;
 
+// PACT-111 C9.
 test('0008 C9: one agent’s model and one tier’s effort for one harness write only that harness’s own entry, and nothing else renders differently', t => {
   const s = L.initialState();
   // The rules' configuration notice holds the configuration's fingerprint, which any change moves.
@@ -395,11 +396,16 @@ test('0008 C9: one agent’s model and one tier’s effort for one harness write
   for (const line of changed['rendered/codex/rules.md']) assert.match(line, /planning model, low/);
 });
 
+// PACT-111 C9.
 test('0008 C9: the cells show what the install would write, and choosing the default or the table removes only that key', () => {
   const s = L.startState();
   const lens = () => cellOf(s, 'data-lens', 'antigravity');
   assert.deepEqual([lens().model, lens().dropped, lens().fallback, lens().own], ['pro', true, 'pro', null]);
-  assert.equal(cellOf(s, 'scout', 'claude').model, 'haiku');
+  assert.deepEqual([cellOf(s, 'scout', 'claude').model, cellOf(s, 'scout', 'claude').effort], ['haiku', 'medium']);
+  assert.equal(L.addHarness(s, { ...OWN, agentModels: { '*': 'every' } }), null);
+  L.setAgentModel(s, 'mine', 'scout', 'one');
+  assert.deepEqual([cellOf(s, 'scout', 'mine').model, cellOf(s, 'scout', 'mine').fallback], ['one', 'every']);
+  L.removeHarness(s, 'mine');
   const std = () => tierOf(s, 'codex', 'Standard');
   assert.deepEqual([std().build.effective, std().build.own, std().build.table], ['medium', 'medium', 'high']);
   assert.deepEqual([std().plan.effective, std().plan.own], ['medium', null]);
@@ -412,6 +418,7 @@ test('0008 C9: the cells show what the install would write, and choosing the def
   assert.deepEqual([own(s)[1], std().build.effective, std().build.own], [{ id: 'codex', tierEfforts: { standard: null } }, 'high', null]);
 });
 
+// PACT-111 C9.
 test('0008 C9: over a folder’s own entry, a change writes its one key and “as the default says” removes only that key', () => {
   const existing = JSON.stringify({ schema: 1, harnesses: { own: [{ id: 'codex', agentModels: { scout: 'a', 'data-lens': 'b' }, tierEfforts: { quick: { plan: 'high' }, standard: { plan: 'low' } } }] } });
   const s = L.initialState();
@@ -423,6 +430,7 @@ test('0008 C9: over a folder’s own entry, a change writes its one key and “a
   assert.deepEqual(kept.harnesses.own[0].agentModels, { 'data-lens': 'b', 'reader-lens': 'c' });
 });
 
+// PACT-111 C9.
 test('0008 C9: renaming a tier moves its key in every own entry, and the dry run takes it', t => {
   const s = L.initialState();
   L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'plan', 'low');
@@ -434,8 +442,9 @@ test('0008 C9: renaming a tier moves its key in every own entry, and the dry run
   assert.deepEqual(L.problems(s).filter(p => p.level === 'error'), []);
 });
 
+// PACT-111 C9.
 test('0008 C9: a rename or a dropped tier moves or removes the keys a folder holds that the page never saw', () => {
-  const existing = JSON.stringify({ schema: 1, harnesses: { own: [{ id: 'codex', tierEfforts: { standard: { build: 'low' }, thorough: { plan: 'max' } } }] } });
+  const existing = JSON.stringify({ schema: 1, harnesses: { own: [{ id: 'codex', tierEfforts: { standard: { build: 'low' }, thorough: { plan: 'max' }, deep: { plan: 'high' } } }] } });
   const s = L.initialState();
   s.parts.tiers[1].name = 'Deep';
   s.parts.tiers.splice(2, 1);
@@ -444,6 +453,7 @@ test('0008 C9: a rename or a dropped tier moves or removes the keys a folder hol
   assert.equal(Object.hasOwn(configOf(s), 'harnesses'), false, 'with no key of theirs to move, nothing is written');
 });
 
+// PACT-111 C9.
 test('0008 C9: an own key with no row of that tier is an error on its harness’s row, which removing the key clears', () => {
   const s = L.initialState();
   assert.equal(L.addHarness(s, { ...OWN, tierEfforts: { deepest: { plan: 'low' } } }), null);
@@ -454,6 +464,7 @@ test('0008 C9: an own key with no row of that tier is an error on its harness’
   assert.deepEqual(errors(), []);
 });
 
+// PACT-111 C9.
 test('0008 C9: an agent the configuration gives a model shows it, locked, in every harness; a role does not lock', () => {
   const s = L.initialState();
   s.agents.scout.model = 'my-model';
@@ -463,13 +474,15 @@ test('0008 C9: an agent the configuration gives a model shows it, locked, in eve
   assert.deepEqual(row('data-lens').map(c => c.locked), [null, null, null]);
 });
 
-test('0008 C9: each harness’s model dropdowns offer its known models, and Antigravity’s its three tiers', () => {
+// PACT-111 C9.
+test('0008 C9: each harness’s model dropdowns offer its known models, and Antigravity’s also its three aliases', () => {
   const s = L.initialState();
   assert.deepEqual(L.knownModels(s, 'claude'), ['opus', 'sonnet', 'haiku']);
   assert.deepEqual(L.knownModels(s, 'antigravity'), ['flash', 'pro', 'flash_lite']);
   assert.deepEqual(cellOf(s, 'data-lens', 'antigravity').roles.map(o => o.model), ['gemini-4-neon-high', 'gemini-4-hydrogen-high', 'flash']);
 });
 
+// PACT-111 C9.
 for (const [name, model] of [['two words', 'two words'], ['a model holding <effort>', 'x-<effort>'], ['nothing', '']]) {
   test(`bad agent model: ${name} is refused and nothing is written`, () => {
     const s = L.initialState();
@@ -490,6 +503,7 @@ function savedMachine(t, state) {
   });
 }
 
+// PACT-111 C9.
 test('0008 C9: a page rebuilt from the saved configuration shows both, and saves them unchanged', t => {
   const s = L.initialState();
   L.setAgentModel(s, 'codex', 'data-lens', 'big-model');
@@ -521,6 +535,7 @@ function readColumn(rendered, id) {
     const head = m[2] === 'toml' ? text.split('developer_instructions')[0] : text.split('\n---\n')[0];
     const model = (m[2] === 'toml' ? /^model = "(.*)"$/m : /^model: (.*)$/m).exec(head)?.[1] ?? 'no model';
     const effort = (m[2] === 'toml' ? /^model_reasoning_effort = "(.*)"$/m : /^effort: (.*)$/m).exec(head)?.[1];
+    if (id === 'antigravity') assert.equal(effort, undefined, `${rel} writes no effort`);
     agents[m[1]] = `${model}, ${id === 'antigravity' ? 'effort dropped' : (effort ?? 'no effort')}`;
   }
   return { line: lines.find(l => l.startsWith('Here the planning model is ')), tiers, agents };
@@ -540,6 +555,7 @@ function holdsColumns(table, rendered) {
   }
 }
 
+// PACT-111 C10.
 test('0008 C10: the Across-harnesses section shows for each harness what the renderer writes for the same configuration', t => {
   const s = L.initialState();
   L.setAgentModel(s, 'codex', 'data-lens', 'big-model');
@@ -565,11 +581,13 @@ function overviewMachine(t) {
   s.parts.tiers[0].name = 'Tiny';
   s.parts.tiers[0].build = 'planning model, max';
   assert.equal(L.addHarness(s, OWN), null);
+  assert.equal(L.setAgentModel(s, 'codex', 'reader-lens', 'a<b>&c'), null);
   const m = savedMachine(t, s);
   writeTree(m.home, { '.pact/install.json': JSON.stringify({ commit: 'abc', files: [{ path: join(m.home, '.claude', 'CLAUDE.md'), sha256: 'x' }] }) });
   return { ...m, state: s };
 }
 
+// PACT-111 C10.
 test('0008 C10: --overview writes the home configuration’s across table alone, with no path, and installs nothing', t => {
   const m = overviewMachine(t);
   const out = join(tempDir(t, 'pact-overview-'), 'overview.html');
@@ -588,8 +606,10 @@ test('0008 C10: --overview writes the home configuration’s across table alone,
   holdsColumns(table, installerRenders(t, m.state).rendered);
   for (const piece of [m.home, m.home.replaceAll('\\', '/'), 'user-home', '~/', '.mine', 'RULES.md', 'My harness']) assert.ok(!html.includes(piece), piece);
   assert.ok(!/<script|<link|:\/\//i.test(html), 'the page loads nothing');
+  assert.ok(html.includes('a&lt;b&gt;&amp;c') && !html.includes('a<b>&c'), 'a model name is text, never markup');
 });
 
+// PACT-111 C10.
 test('0008 C10: with no config.json, --overview shows the pact’s default configuration', t => {
   const m = machine(t, { '.claude/keep': '' });
   const out = join(tempDir(t, 'pact-overview-'), 'overview.html');
@@ -598,6 +618,7 @@ test('0008 C10: with no config.json, --overview shows the pact’s default confi
   assert.deepEqual(byLabel(overviewTable(readFileSync(out, 'utf8')))['Standard, Build'], { claude: 'executor model, high', codex: 'executor model, medium', antigravity: 'executor model, high' });
 });
 
+// PACT-111 C10.
 for (const [name, place, says] of [
   ['a git work tree', t => { const d = tempDir(t, 'pact-overview-repo-'); mkdirSync(join(d, '.git')); return join(d, 'o.html'); }, /git work tree/],
   ['an existing file', t => { const d = tempDir(t, 'pact-overview-'); writeTree(d, { 'o.html': 'kept' }); return join(d, 'o.html'); }, /new file/],
@@ -613,6 +634,7 @@ for (const [name, place, says] of [
   });
 }
 
+// PACT-111 C10.
 test('bad --overview: it takes no other flag', t => {
   const m = machine(t, { '.claude/keep': '' });
   const out = join(tempDir(t, 'pact-overview-'), 'o.html');

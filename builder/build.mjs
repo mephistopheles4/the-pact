@@ -985,7 +985,8 @@ function canonical(p) {
 /**
  * Why a page may not be written at `out`, or null. A page carries the person's
  * own parts and lists, so it is never written inside this clone, where a
- * commit would publish it, and never over the builder file. Paths compare in
+ * commit would publish it, and never over the builder file. `builder` is null
+ * for --overview, which has no builder file to compare. Paths compare in
  * canonical form, so a different spelling of the same file is caught.
  * `fixed` is true only for the default path (PACT-96, ADR 0171): no --out was
  * given, so the page goes to ~/.pact/scriptorium.html. That one path is let
