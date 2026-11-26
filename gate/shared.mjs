@@ -41,7 +41,7 @@ const STOP_DENY = Object.freeze([...STOP_PATTERNS.map(p => `Bash(${p})`), ...STO
 // A reads this copy; the install keeps its own (install-core.mjs), held to
 // this one by a test. The rules source is the staged, unrendered rules file,
 // copied by the install; the agents and the presets go by pattern.
-const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/default-config.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
+const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/default-config.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/harness-render.mjs', 'gate/harnesses.mjs', 'gate/install-core.mjs', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs', 'harnesses/known.json']);
 const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^claude\/commands\/[^/]+\.md$/, /^claude\/review\.md$/, /^claude\/settings\.overlay\.json$/, /^builder\/presets\/[^/]+\.json$/, /^builder\/default-config\/config\.json$/, /^builder\/default-config\/blocks\/[^/]+\.md$/]);
 const inKit = rel => BUILDER_KIT.includes(rel) || BUILDER_KIT_PATTERNS.some(re => re.test(rel));
 // The fixed blocks: marked parts of the rules file that no configuration edit

@@ -535,7 +535,10 @@ kept by hand from the poster's source; no test holds them.
 - **`secret/env`:** the value, 8 characters or more, of any environment
   variable whose name has a part ending in `TOKEN`, `SECRET`, `KEY`,
   `PASSWORD`, `PASSWD`, `PWD`, `PAT`, `AUTH`, `CREDENTIAL`, `CREDENTIALS` or
-  `COOKIE`, except `PWD`, `OLDPWD` and `SSH_AUTH_SOCK`.
+  `COOKIE`, except `PWD`, `OLDPWD` and `SSH_AUTH_SOCK`. In a Codex shell, the
+  pact's [shell policy](install.md#codexs-shell-environment-policy) drops the
+  names with `KEY`, `SECRET` or `TOKEN`, so the poster can't refuse their values
+  there.
 - **No path rule.** The scan refuses no path, this machine's own home and
   temp folders, user name and host name included. A
   link whose target is a local path is still refused, by `link/relative`,

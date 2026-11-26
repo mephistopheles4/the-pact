@@ -134,6 +134,7 @@ const planted = (t, head, first) => makeRepo(t, root => {
 });
 const MAKE = 'export function makeLink(target, path) {';
 const FAIL = "throw Object.assign(new Error('planted'), { code: 'EPERM' });";
+const MISMATCHES = /^\d+ mismatch\(es\)\./m;
 // The install's trial link, in its work folder, is left to succeed.
 const OWN = "!path.includes('link-probe')";
 
@@ -145,8 +146,9 @@ test('bad case: an apply that leaves a skill link unmade, or a removed one stand
   const h = codexHome(t);
   config(h, ['finis']);
   const r = applyBound(unmade, h);
-  assert.notEqual(r.status, 0, r.out);
+  assert.equal(r.code, 1, r.out);
   assert.match(r.stdout, /^MISMATCH \.agents\/skills\/finis \(the skill link is not there\)\r?$/m, r.out);
+  assert.match(r.stdout, MISMATCHES, r.out);
 
   const standing = planted(t, 'export function removeLink(p) {', 'return;');
   const kept = codexHome(t);
@@ -154,8 +156,9 @@ test('bad case: an apply that leaves a skill link unmade, or a removed one stand
   passed(applyBound(standing, kept));
   config(kept, []);
   const off = applyBound(standing, kept);
-  assert.notEqual(off.status, 0, off.out);
+  assert.equal(off.code, 1, off.out);
   assert.match(off.stdout, /^MISMATCH \.agents\/skills\/finis \(should be unlinked\)\r?$/m, off.out);
+  assert.match(off.stdout, MISMATCHES, off.out);
 });
 
 test('bad case: a link that fails after something came to be at its path is not copied over', t => {
@@ -163,7 +166,7 @@ test('bad case: a link that fails after something came to be at its path is not 
   const h = codexHome(t);
   config(h, ['finis']);
   const r = applyBound(repo, h);
-  assert.notEqual(r.status, 0, r.out);
+  refused(r, /^REFUSED: the install failed while it ran\. /m);
   assert.doesNotMatch(r.stdout, /^copied /m, r.out);
   assert.ok(!existsSync(at(h, `${SKILLS}/finis/SKILL.md`)));
 });
