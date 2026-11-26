@@ -240,61 +240,77 @@ test('bootstrap: run through a link to it, as a package\'s bin is, it still runs
   assert.match(r.stdout, /\[bootstrap-args\]/);
 });
 
-// PACT-105 decision 167: release candidates, the stable default, the beta channel and an exact tag.
+// PACT-105 decision 167 and spec 0009: beta releases, the stable default, the beta channel and an exact tag.
 const tagOf = out => /^Release: (\S+) /m.exec(out)?.[1] ?? null;
 
-test('bootstrap: by default it takes the highest stable release and never a release candidate', async t => {
+test('bootstrap: by default it takes the highest stable release and never a beta, under either name', async t => {
   const r = remote(t);
   const stable = r.release('v1.2.0');
   r.release('v1.3.0-rc.1');
-  r.release('v1.3.0-rc.2');
+  r.release('v1.3.0-beta.1');
   const got = await run(t, r.url);
   assert.equal(got.code, 0, got.out);
   assert.equal(tagOf(got.out), 'v1.2.0');
   assert.deepEqual(clones(got.home), [stable]);
-  // Bad case: with only candidates the default finds no release rather than taking one.
+  // Bad case: with only betas the default finds no release rather than taking one.
   const only = remote(t);
   only.release('v1.1.0-rc.1');
+  only.release('v1.1.0-beta.1');
   const none = await run(t, only.url);
   assert.match(none.out, /\[release-none\]/);
   assert.equal(none.ran, null);
   assert.equal(existsSync(join(none.home, '.pact')), false);
 });
 
-test('bootstrap: --channel beta takes the newest release, by number, and a stable release outranks its own candidates', async t => {
+// The pact's own order within a minor, not semver's: every -rc, then every -beta, then the stable release (spec 0009 S2).
+const ORDER = ['v1.1.0-rc.1', 'v1.1.0-rc.3', 'v1.1.0-beta.1', 'v1.1.0-beta.2', 'v1.1.0', 'v1.2.0-rc.9', 'v1.2.0-beta.1'];
+
+test('bootstrap: ranks -rc below -beta below the stable release, by minor first, in any listing order', async () => {
+  const { pickRelease } = await boot();
+  const line = tag => `${String(ORDER.indexOf(tag)).repeat(40)}\trefs/tags/${tag}`;
+  const pick = tags => pickRelease(tags.map(line).join('\n'), { channel: 'beta', release: null })?.tag;
+  for (const [i, lower] of ORDER.entries()) {
+    for (const higher of ORDER.slice(i + 1)) for (const pair of [[lower, higher], [higher, lower]]) assert.equal(pick(pair), higher, pair.join(' then '));
+  }
+});
+
+test('bootstrap: --channel beta takes the newest release, by number, and a stable release outranks its own betas', async t => {
   const r = remote(t);
   r.release('v1.2.0');
-  r.release('v1.3.0-rc.2');
-  const rc10 = r.release('v1.3.0-rc.10', { annotated: true });
+  r.release('v1.3.0-beta.2');
+  const beta10 = r.release('v1.3.0-beta.10', { annotated: true });
   const beta = ['--default', '--channel', 'beta'];
   const first = await run(t, r.url, { argv: beta });
-  assert.equal(tagOf(first.out), 'v1.3.0-rc.10');
-  assert.deepEqual(clones(first.home), [rc10]);
+  assert.equal(tagOf(first.out), 'v1.3.0-beta.10');
+  assert.deepEqual(clones(first.home), [beta10]);
   const stable = r.release('v1.3.0');
   const second = await run(t, r.url, { argv: beta });
   assert.equal(tagOf(second.out), 'v1.3.0');
   assert.deepEqual(clones(second.home), [stable]);
-  // Bad case: a newer candidate beats an older stable on beta, and the stable channel still ignores it.
-  r.release('v1.4.0-rc.1');
-  assert.equal(tagOf((await run(t, r.url, { argv: beta })).out), 'v1.4.0-rc.1');
+  // Bad case: a newer beta beats an older stable on beta, and the stable channel still ignores it.
+  r.release('v1.4.0-beta.1');
+  assert.equal(tagOf((await run(t, r.url, { argv: beta })).out), 'v1.4.0-beta.1');
   assert.equal(tagOf((await run(t, r.url, { argv: ['--default', '--channel', 'stable'] })).out), 'v1.3.0');
 });
 
-test('bootstrap: --release installs exactly the tag named, stable or candidate, and never a higher one', async t => {
+test('bootstrap: --release installs exactly the tag named, stable, beta or legacy -rc, and never a higher one', async t => {
   const r = remote(t);
   const old = r.release('v1.2.0');
   const rc = r.release('v1.3.0-rc.1');
+  const beta = r.release('v1.3.0-beta.1');
   r.release('v1.4.0');
   const exact = await run(t, r.url, { argv: ['--default', '--release', 'v1.2.0'] });
   assert.equal(tagOf(exact.out), 'v1.2.0');
   assert.deepEqual(exact.ran.argv.slice(1, 3), ['--release', 'v1.2.0']);
   assert.deepEqual(clones(exact.home), [old]);
-  const cand = await run(t, r.url, { argv: ['--default', '--release', 'v1.3.0-rc.1'] });
-  assert.equal(tagOf(cand.out), 'v1.3.0-rc.1');
-  assert.deepEqual(cand.ran.argv.slice(1, 3), ['--release', 'v1.3.0-rc.1']);
-  assert.deepEqual(clones(cand.home), [rc]);
+  for (const [tag, commit] of [['v1.3.0-rc.1', rc], ['v1.3.0-beta.1', beta]]) {
+    const got = await run(t, r.url, { argv: ['--default', '--release', tag] });
+    assert.equal(tagOf(got.out), tag);
+    assert.deepEqual(got.ran.argv.slice(1, 3), ['--release', tag]);
+    assert.deepEqual(clones(got.home), [commit]);
+  }
   // Bad case: a tag that does not exist is refused, though higher releases exist, and nothing is written.
-  for (const missing of ['v1.9.0', 'v1.3.0-rc.2', 'v1.3.0']) {
+  for (const missing of ['v1.9.0', 'v1.3.0-beta.2', 'v1.3.0']) {
     const got = await run(t, r.url, { argv: ['--default', '--release', missing] });
     assert.equal(got.code, 1, missing);
     assert.match(got.out, /\[release-none\]/, missing);
@@ -314,6 +330,10 @@ test('bootstrap: refuses a bad channel, a bad or major tag, both together, or a 
     ['--default', '--release', 'v1.2.1'],
     ['--default', '--release', 'v1.2.0-rc1'],
     ['--default', '--release', 'v1.2.0-rc.0'],
+    ['--default', '--release', 'v2.1.0-beta.1'],
+    ['--default', '--release', 'v1.2.0-beta1'],
+    ['--default', '--release', 'v1.2.0-beta.0'],
+    ['--default', '--release', 'v1.2.0-alpha.1'],
     ['--default', '--release', 'main'],
     ['--default', '--release'],
     ['--default', '--channel', 'beta', '--release', 'v1.1.0'],
@@ -332,6 +352,7 @@ test('bootstrap: a major release is never taken, by default, on the beta channel
   const one = r.release('v1.1.0');
   r.release('v2.0.0');
   r.release('v2.1.0-rc.1');
+  r.release('v2.1.0-beta.1');
   const beta = await run(t, r.url, { argv: ['--default', '--channel', 'beta'] });
   assert.equal(tagOf(beta.out), 'v1.1.0');
   assert.deepEqual(clones(beta.home), [one]);
