@@ -192,6 +192,34 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   assert.notEqual(bound(install(repo, h)), was);
 });
 
+// #262 for Codex's agents, which are .toml files: the record check, the owner's own file and the removal.
+test('bad case: Codex\'s .toml agents are the record\'s to check, the owner\'s to keep, and go with Codex', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  mkdirSync(at(h, '.codex/agents'), { recursive: true });
+  writeFileSync(at(h, '.codex/agents/data-lens.toml'), 'mine\n');
+  configure(h, ['codex']);
+  const first = applyBound(repo, h);
+  passed(first);
+  assert.match(block(first, 'codex'), /^Yours, left as is: 1\n {2}\.codex\/agents\/data-lens\.toml$/m);
+  assert.equal(read(h, '.codex/agents/data-lens.toml'), 'mine\n');
+
+  const again = install(repo, h);
+  passed(again);
+  assert.doesNotMatch(again.stdout, /in the install record, skipped/, again.out);
+  assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
+
+  writeFileSync(at(h, '.codex/agents/scout.toml'), 'changed by hand\n');
+  const kept = applyBound(repo, h);
+  passed(kept);
+  assert.match(block(kept, 'codex'), /^ {2}\.codex\/agents\/scout\.toml$/m);
+  assert.equal(read(h, '.codex/agents/scout.toml'), 'changed by hand\n');
+
+  configure(h, []);
+  passed(applyBound(repo, h));
+  assert.deepEqual(readdirSync(at(h, '.codex/agents')).sort(), ['data-lens.toml', 'scout.toml'], 'the pact\'s own went; the owner\'s two stay');
+});
+
 test('bad case: a skill file already in ~/.pact/skills that the record does not list refuses', t => {
   const repo = makeRepo(t);
   const h = home(t);

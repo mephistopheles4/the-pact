@@ -23,6 +23,8 @@ Claude Code session on your machine.
 
 - [Before you install](#before-you-install)
 - [Where the pact installs](#where-the-pact-installs)
+  - [Skill links](#skill-links)
+  - [Codex's shell environment policy](#codexs-shell-environment-policy)
 - [Before the first install into `~/.pact`](#before-the-first-install-into-pact)
 - [1. Check the prerequisites](#1-check-the-prerequisites)
 - [2. Clone the repo](#2-clone-the-repo)
@@ -73,9 +75,9 @@ moves `~/.pact`.
 A **harness** is a program the rules install into. The pact knows three, in
 [`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
 `codex` and `antigravity`. The install writes each one's rules, and the agents
-of Claude Code and Codex; Antigravity gets none yet. Commands reach Codex and
-Antigravity as skills in `~/.pact/skills`, not yet linked into either.
-[The guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
+of Claude Code and Codex; Antigravity gets none yet.
+[Skill links](#skill-links) give Codex and Antigravity the commands, and
+[the guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
 
 - **Detection.** A known harness is found when its `detect` folder exists
   (`~/.claude`, `~/.codex`, `~/.gemini/config`).
@@ -92,6 +94,51 @@ Antigravity as skills in `~/.pact/skills`, not yet linked into either.
   fields of the known ones (spec 0007, S5). A description the pact can't take
   refuses (`harness-id`, `harness-format`, `harness-path`,
   `harness-shape`, `harness-field`).
+
+### Skill links
+
+Codex and Antigravity get each command that is on as a skill. The pact keeps the
+skill in `~/.pact/skills/<name>`, and links `<name>` in the harness's skills
+folder (`~/.agents/skills`, `~/.gemini/config/skills`) to it: a directory
+junction on Windows, a symlink elsewhere. The dry run lists each link it makes
+or removes. Where no link can be made, it warns, and the apply copies the
+folder's files instead. A folder of yours with a skill's name is left as it is,
+listed under `Yours, left as is:`. A link the pact made that you have since
+replaced is drift. The install removes only the links and copied folders that
+its record lists.
+
+### Codex's shell environment policy
+
+Codex hands the shells it starts every variable it was started with. While
+Codex is in the install, the apply puts one line first in
+`~/.codex/config.toml`:
+
+```toml
+shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts
+```
+
+Variables with `KEY`, `SECRET` or `TOKEN` in their name, in any case, then stay
+out of those shells, a lens's included (probed on Windows only). A command that reads one there, such as
+`gh` reading `GH_TOKEN`, no longer finds it; `gh` then uses its stored login,
+if it has one.
+
+- **Where a value stays readable.** The line only drops the name from the
+  environment Codex hands its shells. The value is still wherever you set it: a
+  shell profile, a saved Windows user variable, a `.env` file or a credential
+  store. A variable your profile sets comes back in a command Codex runs in a
+  login shell, which it allows by default. Neither that nor a saved Windows user
+  variable was probed. And the poster, run from a Codex shell, can no longer
+  refuse a post that holds a dropped value.
+- **What still gets through.** Other names, such as `DB_PASSWORD`,
+  `AWS_CREDENTIALS`, `CONNECTION_STRING` and `GITHUB_PAT`. Hooks see every
+  variable. A trusted project's `.codex/config.toml`, or a `-c` flag, can set
+  it back.
+- **Your own policy** is left as it is, with a `WARN:`, when the file names
+  `shell_environment_policy` outside a comment. Set
+  `ignore_default_excludes = false` there for the same effect.
+- **Later.** A deleted line is added again, and your own policy in its place is
+  yours. The pact's line changed, moved under a table, or beside a policy of
+  your own is drift. Taking Codex out of the install removes the line.
 
 ## Before the first install into `~/.pact`
 
@@ -772,13 +819,19 @@ hook the install adds.
   shell command, in each harness's hooks file (`~/.codex/hooks.json`,
   `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
   pact's entry, and the apply backs up each hooks file it changes.
-- **Not on Windows yet.** The hook command is written for `cmd`, and a harness
-  may run it under PowerShell, where it prints the environment and lets the call
-  through. On Windows the install writes no guard, and the dry run and the apply
-  warn for each harness left unguarded.
+- **On Windows** the install also writes a launcher beside each wrapper,
+  `~/.pact/guard/<harness>.cmd`, and the hook calls it through `cmd.exe` and
+  passes its exit code on, so one command works under PowerShell, where Codex
+  runs hooks, and under `cmd`. A home path holding `%`, `!`, `^`, `&`, `$`, a
+  backtick or a curly double quote refuses (`hook-command-path`), and so does
+  one with no space that holds `(`, `)`, `;`, `,` or `=`.
+- **A Windows home from Linux or macOS,** such as a WSL install into it,
+  refuses (`guard-windows-home`) while a guard would be written: a home that
+  holds `AppData` is a Windows one, and Windows couldn't run that hook.
 - **Trust it in Codex.** Codex runs a hook only once you trust it: open
   `/hooks` and trust `pact-guard`, the one from `~/.codex/hooks.json`: another
-  hooks file can use the name. The dry run and the apply say so when the entry
+  hooks file can use the name. Until then `codex exec` skips it and says
+  nothing. The dry run and the apply say so when the entry
   is new or changed. An update to the guard or its rules needs no new
   trust, and trust never checks them.
 - **What it answers.** It refuses a command a rule denies. A rule that asks
@@ -788,8 +841,11 @@ hook the install adds.
   dry run.`
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
   `bash -c "..."` included, and so does one typed into a shell that is already
-  running, which Codex runs no hook for. A hook that can't start, crashes or
-  runs past 15 seconds lets the command through.
+  running, which Codex runs no hook for. A hook that can't start or runs past
+  15 seconds lets the command through. Outside Windows, a missing `node` or a
+  crash the wrapper doesn't catch lets it through too; on Windows the launcher
+  denies both, so there only a missing `cmd.exe` or launcher stops the hook from
+  starting.
 - **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
   shape, or sits behind a link refuses the dry run. A pact entry changed since
   the install is drift.
@@ -931,12 +987,13 @@ also repeat the removal by hand in step 5.
 ## Undo an apply
 
 Do this yourself, not through a session: a session that reads a copy of your
-settings holds its keys in its context. The script has no undo command. Each
+settings, or of Codex's `config.toml`, holds any key in it in its context. The
+script has no undo command. Each
 backup in `~/.pact/backups/` undoes one apply (step 3):
 
 1. **Pick the backup,** one whose name an apply you ran printed. To undo more
    than one apply, go newest first, back to the one you want, and do steps 3 to
-   5 for each in turn.
+   6 for each in turn.
 2. **Know what it undoes.** A copy-back puts each listed file back as it was
    before that apply, losing any edit made to it since, including what Claude
    Code writes to `settings.json`, such as permission rules.
@@ -944,27 +1001,43 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
    failure:
    - each path is relative to your home folder, with forward slashes and no `..`,
      and names its harness;
-   - each path is under `.pact/` or a harness's own rules file, agents or
-     commands folder, or is its hooks file (`~/.codex/hooks.json`,
-     `~/.gemini/config/hooks.json`, or the one your own harness names); none
-     is under `.pact/blocks/`, `.pact/presets/`,
+   - each path is under `.pact/` or a harness's own rules file, agents,
+     commands or skills folder, or is `~/.codex/config.toml` or its hooks file
+     (`~/.codex/hooks.json`, `~/.gemini/config/hooks.json`, or the one your own
+     harness names); none is under `.pact/blocks/`, `.pact/presets/`,
      `.pact/backups/`, `.pact/handoffs/`, `.pact/config.json`,
      `.pact/builder.json` or a `.credentials` file, the paths the install
      never touches; `.claude/settings.json` and `.pact/install.json` may be
      listed;
    - each `was: file` copy's SHA-256 matches its entry, by `sha256sum` or
      `shasum -a 256`, or `Get-FileHash` in PowerShell (compare ignoring case);
+   - each `was: link` entry is a skill's name in a skills folder, and its
+     `target` is `.pact/skills/` and that name;
    - each `was: absent` path, other than `settings.json` and
      `install.json`, is listed in your current
-     `~/.pact/install.json` (a hooks file under its `entries`), so a planted
+     `~/.pact/install.json` (a hooks file under its `entries`; Codex's
+     `config.toml` by its `shellPolicy` mark; a skill under its `links` or,
+     where the folder was copied, as files below that path in its `files`), so a
+     planted
      entry can't have you delete a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
    `~/<path>`. Keep `settings.json`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
-   and macOS.
-5. **Delete each `was: absent` path** that is there.
-6. **Run the dry run** to check, and read it before you start any session: it
+   and macOS. Don't copy Codex's `config.toml` back, which would undo what you or
+   Codex wrote to it since, such as a tighter approval setting: change only the
+   pact's line, to match the backup's copy.
+5. **Delete each `was: absent` path** that is there. A skill link goes as a
+   link, never through it: `rm "$HOME/<path>"` on Linux and macOS,
+   `cmd /c rmdir "$HOME\<path>"` in PowerShell, with the path's slashes turned
+   to backslashes, and no `-r` or `/s`. In a copied skill folder, delete the
+   files your record lists, then the empty folders. Delete Codex's `config.toml`
+   only if the pact's line is all it holds; else delete that line.
+6. **Make each `was: link` entry again:**
+   `ln -s "$HOME/<target>" "$HOME/<path>"`, or
+   `New-Item -ItemType Junction -Path "$HOME\<path>" -Target "$HOME\<target>"`
+   in PowerShell.
+7. **Run the dry run** to check, and read it before you start any session: it
    shows no drift, its `Last install:` line names the commit in the name of the
    next-older backup, the apply before the oldest one you undid (after undoing
    a first install it reads as a first install), and
@@ -982,7 +1055,7 @@ current record lists: the agents, `.pact/review.md`, `.pact/review-diagrams.md`,
 folder, each pact command in `.claude/commands/`, `/scriptorium` included,
 `.pact/tools/poster.mjs` and `.pact/tools/cleaner.mjs` if listed,
 `.pact/hooks/compact-handoff.mjs` if listed, and `.pact/install.json`. Then do
-steps 4 to 6 with that backup. Step 5's restored `settings.json` takes the
+steps 4 to 7 with that backup. Step 4's restored `settings.json` takes the
 pact's hook entries and `autoCompactWindow` out with it; had you no backup of
 it, remove the entries that call the deleted script by hand. If you had no `settings.json` before, step 5
 deletes it, with anything Claude Code wrote there since.

@@ -85,19 +85,26 @@ someone hands a session to load, and a decision model's answer.
   installed mod that approves a call skips; folder trust, which asks once and
   stops holding when the owner trusts the folder. The pact's overlay sets auto
   mode as the default. Codex's sandbox and approval policy, which don't hold
-  under full access; Antigravity's permission settings, which don't hold under
-  auto-proceed.
+  under full access; its approval also doesn't hold under `codex exec`, which
+  runs at `never`, or for an MCP tool its server marks read-only, and on native
+  Windows its `unelevated` sandbox with network off let a raw loopback
+  connection through (probed on 0.159.0); Antigravity's permission settings,
+  which don't hold under auto-proceed.
 - **Harness, installed by the pact.** Deny rules on raw `git worktree remove`,
   `git branch -d`, `-D` and `--delete`, and `claude rm`, and an ask rule on a
   `cleaner.mjs remove --override` call, on only while the cleaner is on (off by default). Eight deny rules on raw `claude stop`, `kill`, `daemon stop`
   and `respawn`, on only while `session-stop-deny` is on (off by default); the
   cleaner's stop yields to it. Deny
   rules are speed bumps: another spelling gets past them. The ask rule is
-  passed by `bypassPermissions`, a mod, or another spelling. Off Windows, in
-  Codex and Antigravity a guard hook denies what those rules deny, under the same
+  passed by `bypassPermissions`, a mod, or another spelling. In Codex and
+  Antigravity a guard hook denies what those rules deny, under the same
   switches; an ask rule prompts in Antigravity and denies in Codex. The hook
-  denies on an error it catches; a hook that can't start, crashes past that or times out lets the call
-  through, as does another spelling. In Codex it runs only once the owner
+  denies on an error it catches; a hook that can't start (on Windows, one whose
+  `cmd.exe` or launcher is missing, since the launcher denies a missing `node`)
+  or times out lets the call through, as do a crash past that (off Windows), another spelling and, in
+  Codex, text typed into a running shell, which
+  `features.unified_exec_tty=false` would close, with every interactive
+  terminal session; the pact doesn't set it. In Codex it runs only once the owner
   trusts it in `/hooks`, and trust never sees a change to its script or rules.
   In a harness the owner describes, nothing verifies it runs.
 - **The pact's tools.** The cleaner removes with fixed git commands and keeps
@@ -245,7 +252,7 @@ parent's sandbox, approvals and MCP servers (which run outside the sandbox),
 so it can write or send through them and read what the owner's account
 can, keys and tokens included, its agent file turning off only apps, plugins,
 memories and the permission-request tool; `review.md`'s tree check sees changes to the work tree, refs and git's own folders, not
-a write elsewhere or inside an ignored folder too big to hash, a read or a send.
+a write elsewhere or inside an ignored folder too big to hash, a read, a send, or a later write by a process the lens left running.
 The pact gets loosened: a project install tightens Claude Code alone, not Codex
 or Antigravity, and a hand-made or old copy loads beside the pact until a person removes it.
 
@@ -271,12 +278,20 @@ it.
 - **Harness.** Permission prompts, the classifier, and Codex's and
   Antigravity's controls, as above, for what a session sends by fetch, search or
   connector call.
+- **Harness, installed by the pact.** A line in Codex's config keeps variables
+  named like KEY, SECRET or TOKEN out of the shells Codex starts (probed on
+  Windows only, 0.159.0). A trusted project's config or a `-c` flag sets it back, a config
+  with its own policy is left as it is, hooks see every variable, and other
+  names, such as `DB_PASSWORD` or `GITHUB_PAT`, stay in every command's reach.
+  A dropped value stays readable where it was set, such as a shell profile,
+  which a login shell reads again, a saved Windows user variable, a `.env` file
+  or a credential store.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
   hidden text, and refuses an edit of what its login didn't write. That holds
   for posts sent through it, and permission rules on `gh` don't see its calls.
-  Under Codex, whose shells drop secret-named variables by default, it may see
-  fewer secrets.
+  In a Codex shell it can't see a variable that line drops, so it no longer
+  refuses a post holding that value, read from where it was set.
   Its text fields and edit checks catch accidents only and are not a control.
   With an app pinned it refuses a post as anything but the pinned bot the
   post's `as` names, for posts sent through it.

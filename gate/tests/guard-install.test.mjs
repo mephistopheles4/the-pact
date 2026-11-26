@@ -25,11 +25,13 @@ const MINE = { matcher: '^Bash$', hooks: [{ type: 'command', command: 'echo mine
 const MY_GROUP = { PreToolUse: [{ matcher: 'run_command', hooks: [{ command: 'echo mine' }] }] };
 const record = h => json(h, '.pact/install.json');
 const guardEntries = h => record(h).entries.filter(e => e.key.startsWith('guard.'));
-const GUARD_FILES = ['antigravity.mjs', 'codex.mjs', 'guard.mjs', 'rules.json'];
-// Windows gets no guard yet, so the cases that need an installed hook skip there (gate/tests/windows-skips.txt).
-const GUARDS = process.platform !== 'win32';
-const hooked = { skip: !GUARDS && 'no guard is installed on Windows yet' };
-const notYet = id => new RegExp(`^WARN: ${id}: the pact's guard isn't installed on Windows yet, `, 'm');
+const WIN = process.platform === 'win32';
+// On Windows each wrapper has a launcher beside it (S8).
+const GUARD_FILES = [...(WIN ? ['antigravity.cmd', 'codex.cmd'] : []), 'antigravity.mjs', 'codex.mjs', 'guard.mjs', 'rules.json'].sort();
+/** The hook's command run through the platform's shell: on Windows, Windows PowerShell, since Codex runs hooks under PowerShell. */
+const asCodex = (command, input) => (WIN
+  ? spawnSync('powershell.exe', ['-NoProfile', '-Command', command], { input, encoding: 'utf8' })
+  : spawnSync('/bin/sh', ['-c', command], { input, encoding: 'utf8', env: { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}` } }));
 const guardFiles = h => (existsSync(at(h, '.pact/guard')) ? readdirSync(at(h, '.pact/guard')).sort() : []);
 
 /** A home with Claude Code, Codex and Antigravity found in it, the person's own hooks in the last two, and the cleaner on. */
@@ -41,7 +43,7 @@ function three(t) {
   return h;
 }
 
-test('C15, C16: one apply writes the guard and merges each hook beside the person\'s, prints Codex\'s trust step, and the next run has nothing to do', hooked, t => {
+test('C15, C16: one apply writes the guard and merges each hook beside the person\'s, prints Codex\'s trust step, and the next run has nothing to do', t => {
   const repo = makeRepo(t);
   const h = three(t);
   const dry = install(repo, h);
@@ -71,7 +73,7 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
   // The command the entry holds, run as the harness would, denies a guarded command.
   const input = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git worktree remove w' } });
   const command = pact.hooks[0].command;
-  const run = spawnSync('/bin/sh', ['-c', command], { input, encoding: 'utf8', env: { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}` } });
+  const run = asCodex(command, input);
   assert.equal(run.status, 2, `${run.stdout}${run.stderr}`);
   assert.match(run.stderr, /rule worktree-remove/);
 
@@ -89,7 +91,7 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
   assert.doesNotMatch(update.stdout, TRUST, update.out);
 });
 
-test('C16: the apply backs up each hooks file it changes, and with every rule off removes only the pact\'s entry and the guard', hooked, t => {
+test('C16: the apply backs up each hooks file it changes, and with every rule off removes only the pact\'s entry and the guard', t => {
   const repo = makeRepo(t);
   const h = three(t);
   const before = readFileSync(at(h, CODEX), 'utf8');
@@ -112,7 +114,7 @@ test('C16: the apply backs up each hooks file it changes, and with every rule of
   assert.ok(off.stdout.indexOf(`merged ${CODEX}`) < off.stdout.indexOf('deleted .pact/guard/codex.mjs'), off.out);
 });
 
-test('C16: a hooks file the record doesn\'t list is merged, not refused; one that doesn\'t exist is made; a harness taken out loses only the pact\'s entry', hooked, t => {
+test('C16: a hooks file the record doesn\'t list is merged, not refused; one that doesn\'t exist is made; a harness taken out loses only the pact\'s entry', t => {
   const repo = makeRepo(t);
   const h = home(t);
   mkdirSync(join(h, '.codex'));
@@ -138,25 +140,30 @@ test('with no rule on, no guard file or hook is written', t => {
   const r = applyBound(repo, h);
   passed(r);
   assert.doesNotMatch(r.stdout, TRUST, r.out);
-  assert.doesNotMatch(r.stdout, notYet('codex'), r.out);
   assert.equal(readFileSync(at(h, CODEX), 'utf8'), before);
   assert.deepEqual(guardFiles(h), []);
 });
 
-test('on Windows no guard is installed yet: each harness that would take it is warned and left as it was; elsewhere neither is warned', t => {
+// A hook written by a Linux or macOS node can't run where the home is a Windows one (a WSL node, say).
+test('bad case: a node that is not Windows\'s refuses to write a guard into a Windows home', t => {
   const repo = makeRepo(t);
   const h = three(t);
-  const before = [CODEX, AG].map(rel => readFileSync(at(h, rel), 'utf8'));
-  const r = applyBound(repo, h);
-  passed(r);
-  for (const id of ['codex', 'antigravity']) assert.equal(notYet(id).test(r.stdout), !GUARDS, r.out);
-  assert.equal(TRUST.test(r.stdout), GUARDS, r.out);
-  assert.deepEqual(guardFiles(h), GUARDS ? GUARD_FILES : []);
-  assert.equal(guardEntries(h).length, GUARDS ? 2 : 0);
-  assert.deepEqual([CODEX, AG].map(rel => readFileSync(at(h, rel), 'utf8') === before[[CODEX, AG].indexOf(rel)]), [!GUARDS, !GUARDS]);
+  mkdirSync(at(h, 'AppData/Local'), { recursive: true });
+  const before = readFileSync(at(h, CODEX), 'utf8');
+  const r = install(repo, h);
+  if (WIN) {
+    passed(r);
+    return;
+  }
+  refused(r, /^REFUSED: this home holds AppData, so it is a Windows one, /m);
+  assert.equal(readFileSync(at(h, CODEX), 'utf8'), before);
+  assert.deepEqual(guardFiles(h), []);
+  // With every rule off there is no hook to write, so the install goes on.
+  config(h, { tools: [] });
+  passed(install(repo, h));
 });
 
-test('bad case: a changed pact hook is drift, a hooks file that is not a strict JSON object refuses, and so does a list of another shape', hooked, t => {
+test('bad case: a changed pact hook is drift, a hooks file that is not a strict JSON object refuses, and so does a list of another shape', t => {
   const repo = makeRepo(t);
   const h = three(t);
   passed(applyBound(repo, h));
@@ -189,7 +196,7 @@ test('bad case: the undo steps allow each hooks file the apply backs up, one it 
   const name = /backed up \d+ file\(s\) to \.pact\/backups\/(\S+)/.exec(r.stdout)[1];
   const hooksFile = e => [CODEX, AG].includes(e.path);
   const listed = json(h, `.pact/backups/${name}/manifest.json`).entries.filter(hooksFile).map(e => [e.path, e.was]);
-  assert.deepEqual(listed, GUARDS ? [[CODEX, 'absent'], [AG, 'file']] : []);
+  assert.deepEqual(listed, [[CODEX, 'absent'], [AG, 'file']]);
   // The record names a hooks file under its entries, never its files.
   assert.deepEqual(record(h).files.filter(hooksFile), []);
   const undo = readFileSync(join(REPO, 'docs', 'install.md'), 'utf8').replaceAll('\r\n', '\n').split('\n## Undo an apply\n')[1].split('\n## ')[0];
@@ -217,7 +224,7 @@ test('bad case: a commit that holds a guard table or an unknown guard file, or l
     [root => writeFileSync(join(root, 'claude', 'guard', 'rules.json'), '{"rules": []}\n'), /guard-file-name/],
     [root => writeFileSync(join(root, 'claude', 'guard', 'other.mjs'), '// other\n'), /guard-file-name/],
     // A missing guard file is refused only where the guard installs.
-    ...(GUARDS ? [[root => rmSync(join(root, 'claude', 'guard', 'codex.mjs')), /guard-not-in-pact/]] : []),
+    [root => rmSync(join(root, 'claude', 'guard', 'codex.mjs')), /guard-not-in-pact/],
   ]) {
     const h = three(t);
     refused(install(makeRepo(t, mutate), h), says);
@@ -225,7 +232,7 @@ test('bad case: a commit that holds a guard table or an unknown guard file, or l
   }
 });
 
-test('bad case: a hooks file that is settings.json, or sits behind a link, refuses', hooked, t => {
+test('bad case: a hooks file that is settings.json, or sits behind a link, refuses', t => {
   const repo = makeRepo(t);
   const shared = home(t);
   mkdirSync(join(shared, '.codex'));
