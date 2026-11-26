@@ -58,7 +58,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AGENT_EFFORTS, CONFIG_REL, DEFAULT_CONFIG_DIR, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain, parseRecord } from '../gate/install-core.mjs';
 import { KNOWN_REL, chooseHarnesses, configHarnesses, parseKnown, resolveHarnesses } from '../gate/harnesses.mjs';
 import { renderHarnesses, tierRows } from '../gate/harness-render.mjs';
-import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
+import { CLEANER_ASK, CLEANER_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, acrossColumn, acrossRows, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
@@ -244,11 +244,7 @@ function compactFrom(renderSrc) {
   return { name: 'auto-compact-window', min: Number(m[1]), max: Number(m[2]), step: Number(m[3]), off: Number(m[4]), def: Number(m[5]) };
 }
 
-/** The stop switch's name and default (#439), read from gate/render-core.mjs's text. */
-function stopSwitchFrom(renderSrc) {
-  return switchFrom(renderSrc, 'session-stop-deny');
-}
-/** The agent-identity switch's name and default (#603), read the same way. */
+/** The agent-identity switch's name and default (#603), read from gate/render-core.mjs's text. */
 function identitySwitchFrom(renderSrc) {
   return switchFrom(renderSrc, 'agent-identity');
 }
@@ -341,7 +337,6 @@ function pactText(root, src, renderSrc) {
     settings: read('claude/settings.overlay.json'),
     cleanerDeny: CLEANER_DENY.join('\n'),
     cleanerAsk: CLEANER_ASK.join('\n'),
-    stopDeny: STOP_DENY.join('\n'),
   };
 }
 
@@ -516,10 +511,9 @@ export function pactData(root) {
 
   const session = sessionFrom(renderSrc);
   const compact = compactFrom(renderSrc);
-  const stopSwitch = stopSwitchFrom(renderSrc);
   const identitySwitch = identitySwitchFrom(renderSrc);
   const retiredSettings = retiredSettingsFrom(renderSrc);
-  return { always, editable, setting, session, compact, stopSwitch, identitySwitch, retiredSettings, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc), harness: harnessData(root, src, renderSrc) };
+  return { always, editable, setting, session, compact, identitySwitch, retiredSettings, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc), harness: harnessData(root, src, renderSrc) };
 }
 
 // ------------------------------------------------------------ the builder file

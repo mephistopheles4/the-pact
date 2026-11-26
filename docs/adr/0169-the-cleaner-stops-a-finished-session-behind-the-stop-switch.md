@@ -1,5 +1,7 @@
 # The cleaner stops a finished session, behind the stop switch
 
+Superseded by [ADR 0176](0176-the-stop-switch-is-removed.md) (2026-11-26): no switch holds the cleaner's stop back. The rest of the stop, its tie to the folder and its order, still holds, as ADR 0176 restates.
+
 The cleaner stops a finished background session in a worktree it removes, so one ask clears the session and its worktree (PACT-80). It extends [ADR 0124](0124-the-cleaner-removes-worktrees-with-fixed-commands-and-never-forces.md), which gave the cleaner fixed git commands, and [ADR 0148](0148-deny-rules-come-only-behind-a-switch-that-owns-them-and-records-them.md), which put the stop deny rules behind `session-stop-deny`.
 
 - **Finished is the status file's word.** Kind `bg`, status `idle`, an 8-hex `jobId` that opens the `sessionId`, a positive whole `pid`, and a file named `<pid>.json`. Anything else is live. No shell and no `claude agents` call.

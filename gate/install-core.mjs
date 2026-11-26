@@ -61,11 +61,6 @@ export const GUARD_RULES = Object.freeze([
   // One contains pattern with a gap on every side, since quotes, `env -u NODE_OPTIONS`, `node.exe`, `& node` and
   // `$env:` prefixes all sit around the path; for an ask rule a match it shouldn't make only prompts.
   rule('cleaner-override', 'ask', 'cleaner', 'contains', ['cleaner.mjs', 'remove', '--override']),
-  // Suffix only: a mid `*` would catch a session start whose prompt says "stop".
-  deny('session-stop', 'session-stop-deny', 'claude stop'),
-  deny('session-kill', 'session-stop-deny', 'claude kill'),
-  deny('daemon-stop', 'session-stop-deny', 'claude daemon stop'),
-  deny('session-respawn', 'session-stop-deny', 'claude respawn'),
 ]);
 const permissionRules = (on, decision) => {
   const patterns = GUARD_RULES.filter(r => r.switch === on && r.decision === decision).map(r => (r.words ? `${r.words.join(' ')} *` : `*${r.contains.join('*')}*`));
@@ -79,11 +74,12 @@ export const CLEANER_DENY = permissionRules('cleaner', 'deny');
 // The cleaner's ask rules (#523 S3b): the same switch as its deny rules, in the ask list. The install records those it
 // adds under cleanerAsk. The builder's copy is in shared.mjs, held equal to this one by a test.
 export const CLEANER_ASK = permissionRules('cleaner', 'ask');
-// The stop switch's deny rules (#439 S1.2; `claude kill`, the supervisor stop and `claude respawn` added at Test, the lead's pick): settings.json holds them only
-// while the user setting session-stop-deny is on. The install records those it
-// adds under stopDeny, and removes only rules both recorded and on this list.
-// The builder's copy is in shared.mjs, held equal to this one by a test.
-export const STOP_DENY = permissionRules('session-stop-deny', 'deny');
+// Rules a retired switch once added. An install drops each one both recorded and still in permissions.deny, and records none.
+// The list goes with the next change to the install record's format, or on the owner's word (ADR 0176).
+export const RETIRED_DENY = Object.freeze([
+  'Bash(claude stop *)', 'Bash(claude kill *)', 'Bash(claude daemon stop *)', 'Bash(claude respawn *)',
+  'PowerShell(claude stop *)', 'PowerShell(claude kill *)', 'PowerShell(claude daemon stop *)', 'PowerShell(claude respawn *)',
+]);
 // The shared guard's files (spec 0007 S8): claude/guard/<name>.mjs installs to
 // GUARD_DEST<name>.mjs only while a harness with a guard hook is in and a rule
 // is on. rules.json is made by the install beside them, never in a commit.
@@ -488,7 +484,6 @@ export function parseRecord(text) {
     cleanerDeny: valuesAt('permissions.deny'),
     identityEnv,
     cleanerAsk: valuesAt('permissions.ask'),
-    stopDeny: valuesAt('permissions.deny'),
     autoCompactWindow: typeof recordedWindow === 'number' && compactWindowOk(recordedWindow) && recordedWindow > 0 ? recordedWindow : null,
     commit: psString(commit),
     digest: typeof digest === 'string' && /^[0-9a-f]{12}$/.test(digest) ? digest : null,
@@ -564,8 +559,7 @@ const EDIT_RE =/^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limi
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 // #482: a home render may also report the auto-compact window; a project render never does.
-// #439: and the stop switch, as the word on or off.
-const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(session-stop-deny) (on|off)|(agent-identity) (on|off))$/;
+const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(usage-pause) (off)|(auto-compact-window) (0|[1-9][0-9]{5,6})|(agent-identity) (on|off))$/;
 // The settings the pact retired (#564): the install's own copy of RETIRED_SETTINGS in gate/render-core.mjs, as it keeps AGENT_NAMES. Each copy is pinned to the same value by its own test (install-core and builder-page).
 // The render reports each one a file sets as `RETIRED-SETTING <name> <true|false>`, at most once; the line changes nothing in the rules file.
 export const RETIRED_SETTINGS = Object.freeze(['checkpoint-stops']);
@@ -593,8 +587,6 @@ function retiredSettingWarn(name, value, where, project) {
   const tail = value === 'true' ? `: checkpoints no longer wait${project ? ' in this project' : ''}` : '; false changes nothing';
   return `  WARN: ${where} sets ${name}, which the pact retired${tail}. Take the key out.`;
 }
-/** Whether the stop switch is on (#439): only a reported `VALUE session-stop-deny on`; no line means off. */
-export const stopSwitchOn = parsed => parsed.values.get('session-stop-deny') === 'on';
 /** Whether the agent-identity switch is on (#603): only a reported `VALUE agent-identity on`; no line means off. */
 export const identitySwitchOn = parsed => parsed.values.get('agent-identity') === 'on';
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
@@ -681,8 +673,8 @@ export function parseRenderLines(lines, { project, hash }) {
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
     } else if ((m = HOME_VALUE_RE.exec(l))) {
-      const name = m[1] ?? m[3] ?? m[5] ?? m[7] ?? m[9];
-      const value = m[2] ?? m[4] ?? m[6] ?? m[8] ?? m[10];
+      const name = m[1] ?? m[3] ?? m[5] ?? m[7];
+      const value = m[2] ?? m[4] ?? m[6] ?? m[8];
       if (name === 'auto-compact-window' && !compactWindowOk(Number(value))) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (values.has(name)) refuse('render-value-twice', 'the renderer reported one setting twice.');
       values.set(name, value);
@@ -1615,13 +1607,9 @@ export function cleanerAskPlan(live, toolsOn, recorded) {
   return denyPlan(live, CLEANER_ASK, toolsOn.includes('cleaner'), recorded, 'ask');
 }
 
-/**
- * The stop switch's deny rules for this install (#439 S1.2): the same plan,
- * over STOP_DENY only: it never drops, prints or records one of the cleaner's
- * rules, though the record lists both, and the cleaner's plan likewise.
- */
-export function stopDenyPlan(live, on, recorded) {
-  return denyPlan(live, STOP_DENY, on, recorded);
+/** The retired rules' plan: it only drops, each rule both recorded and live, and records none. */
+export function retiredDenyPlan(live, recorded) {
+  return denyPlan(live, RETIRED_DENY, false, recorded);
 }
 
 function denyPlan(live, fixed, on, recorded, list = 'deny') {

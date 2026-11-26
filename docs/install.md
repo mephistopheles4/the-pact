@@ -35,7 +35,6 @@ Claude Code session on your machine.
 - [Install by prompt](#install-by-prompt)
 - [Updating later](#updating-later)
 - [Install from a release](#install-from-a-release)
-- [The session stop switch](#the-session-stop-switch)
 - [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
 - [The guard in Codex and Antigravity](#the-guard-in-codex-and-antigravity)
 - [What Antigravity doesn't do](#what-antigravity-doesnt-do)
@@ -141,8 +140,8 @@ session running:
    `handoff/` (to `handoffs/`) from `~/.claude/pact/` to `~/.pact/`. Delete the
    old page, `~/.claude/pact/scriptorium.html`: it holds your configuration.
 3. In `~/.claude/settings.json`, take out the pact's entries: each rule the old
-   record, `~/.claude/.pact-install.json`, lists under `cleanerDeny`,
-   `cleanerAsk` and `stopDeny`, the `env` keys under `identityEnv`,
+   record, `~/.claude/.pact-install.json`, lists under a key ending
+   `Deny` or `Ask`, the `env` keys under `identityEnv`,
    `autoCompactWindow`, the hooks that call `pact/hooks/compact-handoff.mjs`,
    `permissions.defaultMode` and `skipAutoPermissionPrompt` (the next install
    sets the last two again, and records them). Then delete each file the record
@@ -428,6 +427,10 @@ parts:
   everything left in it, so run it only after the cleaner has removed the
   worktree, or after checking the worktree yourself.
 
+  An install, with the cleaner on or off, also drops eight retired rules on raw
+  `claude stop`, `kill`, `daemon stop` and `respawn` that its record still lists,
+  each listed as `- permissions.deny`.
+
   It adds two ask rules on the cleaner's forced removal, `Bash(*cleaner.mjs*remove*--override*)`
   and its `PowerShell(...)` twin, each listed as `+ permissions.ask`, and records the ones it added in
   `install.json`'s `entries`; turning the cleaner off removes only those. They make Claude Code
@@ -649,7 +652,7 @@ To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default; `false`
 turns it off), and `usage-pause-session`, the 5-hour session line, unset
-by default. The builder's Settings dialog holds both. Two more, `session-stop-deny` and `auto-compact-window`, have a section each. `checkpoint-stops` is retired: no checkpoint waits, and a configuration or project file that still sets it gets a dry-run WARN and the key is ignored. The canvas edits the workflow, Settings
+by default. The builder's Settings dialog holds both. `auto-compact-window` has a section of its own. `checkpoint-stops` is retired: no checkpoint waits, and a configuration or project file that still sets it gets a dry-run WARN and the key is ignored. The canvas edits the workflow, Settings
 the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
 session line set. For a builder of your own, type `/scriptorium` in any
@@ -691,48 +694,6 @@ another:
 
 A bad value, a major other than 1, or both options together is refused before
 anything is fetched.
-
-## The session stop switch
-
-`session-stop-deny` in `~/.pact/config.json` is
-`true` or `false`, `false` when unset, and the builder's Settings dialog shows
-it as Session stop. A project configuration may not set it, and a project
-install never adds its rules. It has no part in the rules file; only the
-notice line names it, as `session-stop-deny on` or `off`.
-
-- **What it does.** While it is `true`, the install adds eight rules to
-  `permissions.deny` in `settings.json`, each listed as `+ permissions.deny`:
-  `claude stop *`, `claude kill *` (Claude Code's alias of stop),
-  `claude daemon stop *` (stops the supervisor and, unless `--keep-workers` is passed, the sessions it hosts) and
-  `claude respawn *` (restarts a session, or all with `--all`), each as a
-  `Bash(...)` and a `PowerShell(...)` rule. It records the ones it added in
-  `install.json`'s `entries`. Turning it off removes only rules that
-  are both recorded and one of those eight, listed as `- permissions.deny`; an
-  identical rule you wrote yourself stays. The cloud copy adds none of them.
-- **Who turns it on.** Turn it on if you run Brigade (the session-manager
-  mod), so that stops go through Brigade's own tool, not a raw
-  `claude stop` from a session.
-- **Why a switch.** The pact can't tell whether Brigade is installed, and the
-  rules block a raw stop, kill, supervisor stop or respawn. It is off unless you
-  turn it on. The cleaner's `claude rm` rules are separate: they come with the
-  cleaner. While it is on, the cleaner stops no session itself: its own stop is a child process the rules don't see, so it holds it back.
-- **A speed bump, not a gate.** Each rule is a suffix only: the command, then
-  anything. A flag before the subcommand, a path-qualified or
-  wrapped call, and any other spelling get past them, with the classifier
-  behind them.
-- **Your own `claude stop <id>`** (or kill, supervisor stop or respawn). A session never respawns another one; you do, by hand. Run it from a separate terminal, outside
-  Claude Code. Whether Claude Code's `!` shell mode honours deny rules is
-  **unmeasured**.
-- **If Brigade's stop is refused.** Brigade's `stop_background_session` runs
-  `claude stop` from the mod's own process, which permission rules don't see.
-  A Brigade restart that runs `claude respawn` the same way is assumed the same; a refusal on a restart has the same way out.
-  If the rule does catch it, the symptom is a
-  permission refusal on Brigade's stop. The way out: set `session-stop-deny`
-  to `false`, then a dry run and an apply on your word.
-- **Rolling back.** Set it to `false` and apply first, then take the key out
-  of the configuration. An older installer refuses a configuration that names
-  it, even as `false`, and ignores `stopDeny`, so the eight rules would stay in
-  `settings.json` looking like your own.
 
 ## The auto-compact window and its hooks
 
@@ -793,7 +754,7 @@ your own whose hooks file takes either one's format, get the same rules from a
 hook the install adds.
 
 - **When.** Only while a rule is on and the install takes such a harness. The
-  command rules follow the cleaner and the session stop switch
+  command rules follow the cleaner
   ([cleaner.md](cleaner.md) lists the commands).
 - **What it writes.** `~/.pact/guard/`: the guard, a wrapper per format, and
   `rules.json`, the rules that are on. And one `pact-guard` hook, run before a
@@ -929,7 +890,7 @@ column, remove it first.
 
 **The `clef` tool.** A pact from before `clef` refuses it on the `tools` list. If `clef` is on, run `clef stop` and `clef remove --yes` first (see [clef.md](clef.md)), take `clef` off the list and apply at the newer commit, then roll back. The clef folder, `pact-clef/`, is not the install's and stays unless you remove it.
 
-Four settings leave rules or files that an older installer can't remove. For
+Three settings leave rules or files that an older installer can't remove. For
 each, turn it off and apply at the newer commit first, then take its key out
 of the configuration:
 
@@ -938,9 +899,6 @@ of the configuration:
   ask rules, so they would stay in `settings.json`, where they look like your
   own. A pact from before the `claude rm` rules also drops those two from its
   record and leaves them there.
-- **`session-stop-deny`** (set it to `false`): an older installer refuses the
-  key, even as `false`, and ignores `stopDeny`, so its eight rules stay in
-  `settings.json`.
 - **`agent-identity`** (set it to `false`): an older installer ignores
   `identityEnv`, so its two `env` keys stay in `settings.json`. [Steps](agent-identity.md#rolling-back).
 - **The auto-compact window** (set `auto-compact-window` to `0`): an older

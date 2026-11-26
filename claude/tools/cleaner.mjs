@@ -21,16 +21,13 @@
 // and a file named <pid>.json; anything else is live and keeps its worktree in
 // use. A worktree held by exactly one finished session, whose lock is that
 // session's own (`claude session <folder> (pid <n>)`, n its pid), is read on
-// as free, and its tag covers the [jobId, pid] pair and the stop switch. Any
-// other worktree a finished session holds stays in use. remove then, in this
-// order: leaves it when git would refuse (yes path), reads the session and the
-// switch again, runs `claude stop <jobId>` (claude by its absolute path, no
-// shell, 30 s), waits up to 15 s until no status file names the folder and
-// the stopped pid is not alive, and only then removes as it does for any
-// worktree. While `Bash(claude stop *)` or
-// `PowerShell(claude stop *)` is in ~/.claude/settings.json's deny list, or
-// that file cannot be read as plain strict JSON, or no claude is found, the
-// cleaner stops nothing and the worktree stays in use.
+// as free, and its tag covers the [jobId, pid] pair. Any other worktree a
+// finished session holds stays in use. remove then, in this order: leaves it
+// when git would refuse (yes path), reads the session again, runs
+// `claude stop <jobId>` (claude by its absolute path, no shell, 30 s), waits up
+// to 15 s until no status file names the folder and the stopped pid is not
+// alive, and only then removes as it does for any worktree. With no claude
+// found, the cleaner stops nothing and the worktree stays in use.
 //
 // The override (#523) is the one way past a refusal. A soft risk (changed or
 // untracked files, commits found nowhere else on a branch, a lock that is not
@@ -86,7 +83,6 @@ const GIT_FLOOR = [2, 36];
 // GIT_NO_LAZY_FETCH came in git 2.45.
 const RECOVERABLE_FLOOR = [2, 45];
 const JOB_RE = /^[0-9a-f]{8}$/;
-export const STOP_DENY = ['Bash(claude stop *)', 'PowerShell(claude stop *)'];
 const STOP_MS = 30000;
 const WAIT_MS = 15000;
 const POLL_MS = 250;
@@ -462,35 +458,6 @@ export function sessionCwds(home, platform = process.platform) {
 }
 
 /**
- * Whether the stop switch is on (PACT-80): `Bash(claude stop *)` or
- * `PowerShell(claude stop *)` in ~/.claude/settings.json's permissions.deny.
- * No file is off. A link, a file that is not plain, not strict JSON, or a
- * permissions.deny present and not a list of strings is on: no stop runs on a
- * doubt. Read with lstat, nothing followed.
- */
-export function stopSwitch(home) {
-  const path = join(home, '.claude', 'settings.json');
-  try {
-    const st = lstatSync(path);
-    if (st.isSymbolicLink() || !st.isFile()) return true;
-  } catch (e) {
-    return e?.code !== 'ENOENT';
-  }
-  try {
-    const doc = JSON.parse(readFileSync(path, 'utf8'));
-    if (doc === null || typeof doc !== 'object' || Array.isArray(doc)) return true;
-    if (!('permissions' in doc)) return false;
-    const perms = doc.permissions;
-    if (perms === null || typeof perms !== 'object' || Array.isArray(perms)) return true;
-    if (!('deny' in perms)) return false;
-    if (!Array.isArray(perms.deny) || !perms.deny.every(d => typeof d === 'string')) return true;
-    return perms.deny.some(d => STOP_DENY.includes(d));
-  } catch {
-    return true;
-  }
-}
-
-/**
  * Whether `p` is a link, the installer's way: lstat sees symlinks and
  * junctions, and a real path that differs from the path given catches the
  * reparse points lstat reads as plain folders. A missing path is no link.
@@ -771,7 +738,6 @@ function overrideTagOf(item, bare = false) {
   const f = all && bare ? { ...all } : all;
   if (f && bare) {
     delete f.stops;
-    delete f.stopSwitch;
   }
   if (!f || !r || r.submodules || r.failed || r.hidden.length) return null;
   const soft = r.changed.length || r.untracked.length || (f.lock !== null && !isSessionLock(f.lock, f.folder)) || f.branchKept === COMMITS;
@@ -793,7 +759,6 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
   const sessions = sessionCwds(home, platform);
   const used = [...sessions.filter(r => !isFinished(r)).map(r => r.cwd), cwd].flatMap(forms);
   const finished = sessions.filter(isFinished).map(r => ({ jobId: r.jobId, sessionId: r.sessionId, file: r.file, pid: r.pid, forms: forms(r.cwd) }));
-  const switchOn = finished.length ? stopSwitch(home) : false;
   const origin = read(git, main, ['for-each-ref', '--format=%(symref)', 'refs/remotes/origin/HEAD']).trim();
   const defaults = origin.startsWith('refs/remotes/origin/') ? [origin.slice('refs/remotes/origin/'.length)] : ['main', 'master'];
   const stashes = read(git, main, ['stash', 'list', '-z', '--format=%gd%x1f%gs']).split('\0').filter(Boolean).map(s => s.split('\x1f'));
@@ -834,9 +799,9 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
           item.keep = 'in use';
           continue;
         }
-        if (claude === null || switchOn) {
+        if (claude === null) {
           item.keep = 'in use';
-          item.note = `a finished background session holds it; ${claude === null ? 'claude was not found' : 'session-stop-deny is on'}, so the cleaner does not stop it`;
+          item.note = 'a finished background session holds it; claude was not found, so the cleaner does not stop it';
           continue;
         }
         stops = [mine[0].jobId, mine[0].pid];
@@ -953,8 +918,8 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
         gone,
         branchKept: unpushed ? COMMITS : branch !== null && defaults.includes(branch) ? 'the default branch' : null,
         ...lists,
-        // The sessions and the switch join the facts, so a session that changes or a switch turned on reads as changed.
-        ...(stops ? { stops, stopSwitch: 'off' } : {}),
+        // The sessions join the facts, so a session that changes reads as changed.
+        ...(stops ? { stops } : {}),
         stashes: stashes.filter(([, s]) => subjects.some(p => s?.startsWith(p))).map(([ref]) => ref),
         ...(unpushed ? { unpushed } : {}),
         // The flag joins the facts, so a tag from a run without it never passes a run with it.
@@ -1137,14 +1102,14 @@ function removeCore(git, item, main, platform, lines, counts, { again: reread, f
   if (f.stops) {
     // 1. Only when git would not refuse: the override covers what git refuses, the yes path does not.
     if (!forced && (f.changed.length || f.untracked.length || (f.lock !== null && !isSessionLock(f.lock, f.folder)))) return left('left, git would refuse, so the session was not stopped');
-    // 2. The sessions and the switch, read again: nothing is stopped on a change.
+    // 2. The sessions, read again: nothing is stopped on a change.
     let fresh = null;
     try {
       fresh = reread(item.name);
     } catch {
       // a failed read is a change
     }
-    if (!fresh?.facts || JSON.stringify(fresh.facts.stops) !== JSON.stringify(f.stops) || fresh.facts.stopSwitch !== f.stopSwitch) return left('left, it changed since the read');
+    if (!fresh?.facts || JSON.stringify(fresh.facts.stops) !== JSON.stringify(f.stops)) return left('left, it changed since the read');
     // 3. The session stops; a failure leaves the worktree, its branch and its lock as they are.
     if (!stopSession(item, stopper)) return left('left, the session did not stop');
     // 4. The wait for the folder to be free.

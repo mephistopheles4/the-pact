@@ -550,24 +550,14 @@ test('an auto-compact window of 0 still prints as a number, and the rules keep t
   assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', 'auto-compact-window 0'));
 });
 
-// #439 C6: the stop switch takes true or false only; it has no part in the rules file, so only the notice line changes.
-test('"session-stop-deny": true prints VALUE session-stop-deny on and the notice word on; false prints off', t => {
-  for (const [v, word] of [[true, 'on'], [false, 'off']]) {
-    const bytes = Buffer.from(`{"schema": 1, "settings": {"session-stop-deny": ${v}}}\n`);
-    const r = render(t, homeWith(t, bytes));
-    assert.equal(r.code, 0, r.out);
-    assert.match(r.stdout, new RegExp(`^VALUE session-stop-deny ${word}$`, 'm'), r.out);
-    assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', `session-stop-deny ${word}`));
-  }
-});
-// #439 C6
-test('bad case: session-stop-deny takes no value but true or false', t => {
-  for (const bad of ['1', '0', '"on"', '"true"', 'null', '[]']) {
-    refusedWith(render(t, homeWith(t, Buffer.from(`{"schema": 1, "settings": {"session-stop-deny": ${bad}}}\n`))), 'config-value', /session-stop-deny must be true or false/);
-  }
+// PACT-116 C3: the closed list of settings, so the unknown-setting refusals cover every other name.
+test('the renderer declares exactly four settings', () => {
+  const table = /const SETTINGS = new Map\(\[\n([\s\S]*?)\n\]\);/.exec(readFileSync(join(REPO, 'gate', 'render-core.mjs'), 'utf8'));
+  assert.ok(table, 'the renderer declares its settings in the expected form');
+  assert.deepEqual([...table[1].matchAll(/^  \['([a-z-]+)', /gm)].map(m => m[1]), ['usage-pause', 'usage-pause-session', 'auto-compact-window', 'agent-identity']);
 });
 
-// #603 C8: the agent-identity switch is declared as the stop switch is; it has no part in the rules file, so only the notice line changes.
+// #603 C8: the agent-identity switch has no part in the rules file, so only the notice line changes.
 test('"agent-identity": true prints VALUE agent-identity on and TOOLS gh-app; false prints off and TOOLS none', t => {
   for (const [v, word, tools] of [[true, 'on', 'gh-app'], [false, 'off', 'none']]) {
     const bytes = Buffer.from(`{"schema": 1, "settings": {"agent-identity": ${v}}}\n`);

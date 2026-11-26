@@ -79,38 +79,27 @@ how every session in every repo behaves. So:
   weekly `usage-pause`; unset, the rules file has no session line.
   `usage-pause` also takes `false`, which renders no weekly line. Rolling back
   past any of these is in [install](../install.md#roll-back-to-an-older-version).
-- **The session stop switch.** `session-stop-deny` is
-  `true` or `false`, `false` when unset, and no project may set it (a project
-  configuration that names it is refused). It has no part in the rules file;
-  the notice names it, and the renderer prints `VALUE session-stop-deny on` or
-  `off`, the only two words the install's parser takes. On, the install adds `STOP_DENY`'s eight
-  rules (`claude stop *`, `claude kill *`, `claude daemon stop *` and
-  `claude respawn *`, each as a `Bash(...)` and a `PowerShell(...)` rule) to
-  `permissions.deny` and records the ones it added in the record's `entries`; off, it
-  removes only rules both recorded and on that list. `parseRecord` refuses
-  `entries` that are not a list of settings entries. The cleaner's switch adds
-  `claude rm *` the same way. It adds `CLEANER_ASK`'s two
+- **The cleaner's rules.** With the cleaner on, the install adds its deny rules,
+  `claude rm *` among them, to `permissions.deny` and records the ones it added
+  in the record's `entries`; with it off, the install removes only rules both
+  recorded and on its list.
+  `parseRecord` refuses `entries` that are not a list of settings entries. The install adds `CLEANER_ASK`'s two
   rules (`*cleaner.mjs*remove*--override*`, as a `Bash(...)` and a `PowerShell(...)` rule) to
   `permissions.ask`, recorded the same way; `cleanerAskPlan` is `denyPlan`
   over the ask list, and `mergeSettings` applies it after the retired-ask filter. With `settings.json` not strict JSON and the
   cleaner on, a `WARN:` line names both rules. Each plan filters its record
-  by its own list. None of the three is in the overlay or the allow-list, and
-  the cloud copy adds none. The ask rules' misses are listed in ADR 0151. The
+  by its own list. Neither list is in the overlay or the allow-list, and
+  the cloud copy adds neither. The ask rules' misses are listed in ADR 0151. The
   deny rules are a speed bump: a flag before the
-  subcommand, a wrapped call and a flag between `claude daemon` and `stop` (a leading `--dangerously-skip-permissions` is the one Claude Code's docs name as still reaching the subcommand) get past them.
-- **The field check for the deny rules,** run after the owner applies
-  with `session-stop-deny` on or the cleaner on; a session reports the result
-  and does not apply for the owner. While `session-stop-deny` is on, a
-  session's harmless `claude stop not-a-real-id`, `claude kill not-a-real-id`
-  and `claude respawn not-a-real-id` are refused by permission and Brigade's
-  `stop_background_session` still works. Never respawn a live session. Never probe `claude daemon stop` or
-  `claude respawn --all`: if the rule did not fire, the probe ends every
-  hosted session's turn. While the cleaner is on, a
-  harmless `claude rm not-a-real-id` is refused by permission. Check only
-  the commands whose switch is on. *On a failure:* if Brigade's
-  stop is refused, set `session-stop-deny` to `false` and apply on the owner's
-  word, and open an issue with what was seen; if a rule did not refuse, open an
-  issue.
+  subcommand and a wrapped call get past them.
+- **Retired deny rules.** With the cleaner on or off, an install drops each rule
+  in `RETIRED_DENY` that is both recorded and live, and records none. With
+  `settings.json` not strict JSON, the file is left alone and the record keeps
+  them until an install can read it.
+- **The field check for the deny rules,** run after the owner applies with the
+  cleaner on; a session reports the result and does not apply for the owner: a
+  harmless `claude rm not-a-real-id` is refused by permission. *On a failure:*
+  open an issue with what was seen.
 - **The agent identity switch.** Read [agent-identity](../agent-identity.md) first.
 - **The retired checkpoints key.** `checkpoint-stops` set to `true` or `false` in a configuration, a project file or a builder file is ignored, with a dry-run WARN or a page note. Any other value is refused.
 - **The auto-compact field checks,** run by the owner in the first sessions after an
@@ -241,7 +230,7 @@ An older pact installs with that commit's own installer.
   section's numbered steps: an empty install list applied, the record checked
   empty, then the configuration and hand copies moved back.
 - **Then, at the current commit, take out what the older pact doesn't know,** as that section lists:
-  keys it refuses, and the four settings (the cleaner, `session-stop-deny`,
+  keys it refuses, and the three settings (the cleaner,
   `agent-identity`, the auto-compact window) to turn off and apply before the rollback. After
   those numbered steps, apply nothing more at the current commit. Stop and
   ask when `settings.json` still holds a hook that calls

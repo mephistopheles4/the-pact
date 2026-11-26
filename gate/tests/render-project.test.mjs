@@ -116,13 +116,6 @@ test('bad case: agent-identity in a project configuration refuses, naming the ke
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"agent-identity": true}}\n')), 'project-direction', /agent-identity has no tightening direction, so a project may not set it: remove the key from the project's configuration and ask the owner to set it in the home configuration; it is false when unset/);
 });
 
-// #439 C6: the stop switch has no tightening direction, so a project may not set it, valid value or not.
-test('bad case: session-stop-deny in a project configuration refuses, naming the key', t => {
-  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": true}}\n')), 'project-direction', /session-stop-deny has no tightening direction, so a project may not set it/);
-  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": false}}\n')), 'project-direction', /session-stop-deny/);
-  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"session-stop-deny": 1}}\n')), 'project-value', /session-stop-deny must be true or false/);
-});
-
 const stopsProject = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`;
 const stopsUser = v => `{"schema": 1, "settings": {"checkpoint-stops": ${v}}}\n`;
 

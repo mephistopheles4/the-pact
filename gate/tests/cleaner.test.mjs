@@ -11,7 +11,6 @@ import { test } from 'node:test';
 // #442: the new exports are reached through the namespace, so this file still loads on the base.
 import * as cleaner from '../../claude/tools/cleaner.mjs';
 import { clean, esc, findClaude, findGit, realOf, walkTree } from '../../claude/tools/cleaner.mjs';
-import { STOP_DENY as INSTALL_STOP_DENY } from '../install-core.mjs';
 import { tempDir } from './tree.mjs';
 
 const cp = String.fromCodePoint;
@@ -2171,10 +2170,6 @@ test('PACT-80 C1: show names a worktree held only by a finished session with a t
   assert.equal(block(f.run(['show'], s.over).out, 'fin'), '  kept: in use\n', 'status');
   rmSync(sessionsOf(f), { recursive: true });
   plantSession(f, dir);
-  writeSettings(f, { permissions: { deny: ['Bash(claude stop *)'] } });
-  const on = f.run(['show'], s.over);
-  assert.equal(block(on.out, 'fin'), '  kept: in use\n  a finished background session holds it; session-stop-deny is on, so the cleaner does not stop it\n', on.out);
-  assert.equal(tagsOf(on.out).length, 0, on.out);
 });
 
 // PACT-80 C2, C9
@@ -2303,12 +2298,11 @@ test('PACT-80 C12: a finished session is stopped only when the worktree\'s lock 
 });
 
 // PACT-80 C5
-test('PACT-80 C5: a session that turns live, or a switch that turns on, after remove read and before it stops leaves the worktree with no stop', t => {
+test('PACT-80 C5: a session that turns live, or changes its pair, after remove read and before it stops leaves the worktree with no stop', t => {
   for (const [why, change] of [
     ['live', f => writeFileSync(join(sessionsOf(f), '4242.json'), JSON.stringify({ pid: 4242, kind: 'bg', status: 'busy', jobId: JOB, sessionId: `${JOB}-0`, cwd: f.wt('fin') }))],
     // A pair that changes and stays finished: a new jobId, its sessionId matching, still idle.
     ['pair', f => writeFileSync(join(sessionsOf(f), '4242.json'), JSON.stringify({ pid: 4242, kind: 'bg', status: 'idle', jobId: '55555555', sessionId: '55555555-0', cwd: f.wt('fin') }))],
-    ['switch', f => writeSettings(f, { permissions: { deny: ['Bash(claude stop *)'] } })],
   ]) {
     const f = makeRepo(t);
     const dir = finished(f, 'fin');
@@ -2366,46 +2360,20 @@ test('PACT-80 C7: with no claude on PATH the worktree stays in use and says so; 
   if (!isAbsolute(rel)) assert.equal(findClaude({ PATH: rel }, 'linux'), null);
 });
 
-// PACT-80 C10
-test('PACT-80 C10: a deny rule for claude stop, or a settings.json that is a link, not JSON or not a list of strings, means no stop; no file or other rules do not', t => {
-  const f = makeRepo(t);
-  finished(f, 'fin');
-  const s = stopIo(t, f);
-  const read = () => {
-    const r = f.run(['show'], s.over);
-    return { r, tags: tagsOf(r.out).length, on: block(r.out, 'fin') === '  kept: in use\n  a finished background session holds it; session-stop-deny is on, so the cleaner does not stop it\n' };
-  };
-  assert.equal(read().tags, 1, 'no settings.json: off');
-  for (const [name, text, on] of [
-    ['bash', { permissions: { deny: ['Bash(claude stop *)'] } }, true],
-    ['powershell', { permissions: { deny: ['Read(x)', 'PowerShell(claude stop *)'] } }, true],
-    ['not JSON', '{"permissions": ', true],
-    ['trailing comma', '{"permissions": {"deny": [],}}', true],
-    ['deny a string', { permissions: { deny: 'Bash(claude stop *)' } }, true],
-    ['deny holds a number', { permissions: { deny: [1] } }, true],
-    ['an array', [], true],
-    ['permissions a list', { permissions: [] }, true],
-    ['other rules', { permissions: { deny: ['Bash(rm *)'] } }, false],
-    ['no deny', { permissions: { allow: ['Bash(ls)'] } }, false],
-    ['no permissions', { model: 'x' }, false],
-  ]) {
-    writeSettings(f, text);
-    const got = read();
-    assert.equal(got.on, on, `${name}: ${got.r.out}`);
-    assert.equal(got.tags, on ? 0 : 1, name);
+// PACT-116 C4
+test('a deny rule for claude stop, or a settings.json that is not JSON, keeps no finished session\'s worktree: remove stops the session and removes it', t => {
+  for (const [why, settings] of [['a deny rule', { permissions: { deny: ['Bash(claude stop *)'] } }], ['not JSON', '{"permissions": ']]) {
+    const f = makeRepo(t);
+    const dir = finished(f, 'fin');
+    writeSettings(f, settings);
+    const s = stopIo(t, f);
+    const shown = f.run(['show'], s.over);
+    assert.equal(tagsOf(shown.out).length, 1, `${why}: ${shown.out}`);
+    const rm = f.run(['remove', '--yes', tagsOf(shown.out).join(',')], s.over);
+    assert.match(rm.out, /^worktree fin: session stopped, removed$/m, `${why}: ${rm.out}`);
+    assert.equal(s.stops().length, 1, why);
+    assert.ok(!existsSync(dir), why);
   }
-  rmSync(join(f.home, '.claude', 'settings.json'));
-  mkdirSync(join(f.home, 'elsewhere'));
-  const target = join(f.home, 'elsewhere', 'real.json');
-  writeFileSync(target, '{}');
-  if (plantLink(target, join(f.home, '.claude', 'settings.json'), 'file')) assert.equal(read().on, true, 'a link');
-  // A folder named settings.json is not a plain file.
-  rmSync(join(f.home, '.claude', 'settings.json'), { recursive: true, force: true });
-  mkdirSync(join(f.home, '.claude', 'settings.json'));
-  assert.equal(read().on, true, 'a folder');
-  assert.equal(s.stops().length, 0);
-  // What the cleaner reads as the switch is a subset of what the install adds for session-stop-deny.
-  for (const rule of cleaner.STOP_DENY) assert.ok(INSTALL_STOP_DENY.includes(rule), rule);
 });
 
 /** An override run's setup: a finished session in a worktree that holds an untracked file, so it has an override tag. */

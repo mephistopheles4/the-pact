@@ -32,10 +32,6 @@ const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), 
 // in its Bash and PowerShell forms. The install keeps its own copy (install-core.mjs), held to this one by a test.
 const CLEANER_ASK_PATTERNS = ['*cleaner.mjs*remove*--override*'];
 const CLEANER_ASK = Object.freeze([...CLEANER_ASK_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_ASK_PATTERNS.map(p => `PowerShell(${p})`)]);
-// The stop switch's deny rules (#439 S1.2), for the builder page to show. The
-// install keeps its own copy (install-core.mjs), held to this one by a test.
-const STOP_PATTERNS = ['claude stop *', 'claude kill *', 'claude daemon stop *', 'claude respawn *'];
-const STOP_DENY = Object.freeze([...STOP_PATTERNS.map(p => `Bash(${p})`), ...STOP_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The builder kit (#203 S6; #262): what the builder reads, installed under
 // pact/builder/ in the repo's own layout whenever /scriptorium installs. Seam
 // A reads this copy; the install keeps its own (install-core.mjs), held to
@@ -260,7 +256,6 @@ export {
   PACT_TOOLS,
   CLEANER_ASK,
   CLEANER_DENY,
-  STOP_DENY,
   BUILDER_KIT,
   BUILDER_KIT_PATTERNS,
   inKit,

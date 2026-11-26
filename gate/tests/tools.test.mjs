@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { CLEANER_ASK, CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS, STOP_DENY } from '../install-core.mjs';
-import { CLEANER_ASK as SHARED_ASK, CLEANER_DENY as SHARED_DENY, PACT_TOOLS, STOP_DENY as SHARED_STOP } from '../shared.mjs';
+import { CLEANER_ASK, CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS } from '../install-core.mjs';
+import { CLEANER_ASK as SHARED_ASK, CLEANER_DENY as SHARED_DENY, PACT_TOOLS } from '../shared.mjs';
 import { TOOLS_WITHOUT_PART } from '../render-core.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
@@ -327,16 +327,6 @@ test('the cleaner\'s ask rules are the two fixed rules, equal in both files, and
   }
 });
 
-// #439 C9: the stop switch's eight rules, pinned, and held equal in both files.
-test('the stop switch\'s deny rules are the eight fixed rules, equal in both files and frozen', () => {
-  const p = ['claude stop *', 'claude kill *', 'claude daemon stop *', 'claude respawn *'];
-  assert.deepEqual([...STOP_DENY], [...p.map(x => `Bash(${x})`), ...p.map(x => `PowerShell(${x})`)]);
-  assert.equal(STOP_DENY.length, 8);
-  assert.ok(Object.isFrozen(STOP_DENY));
-  assert.deepEqual([...SHARED_STOP], [...STOP_DENY]);
-  assert.ok(Object.isFrozen(SHARED_STOP));
-});
-
 // #439 C5: a model of Claude Code's matcher, as S2.1 states it, and only that.
 // (a) a trailing ` *`, the rule's only wildcard, matches the bare command and
 // the command followed by a space and any text; (b) a mid `*` matches any
@@ -373,29 +363,17 @@ const RM_RULES = CLEANER_DENY.filter(r => r.includes('claude rm'));
 test('the matcher model: the new rules match their bad cases and none of the neighbours', () => {
   assert.deepEqual(RM_RULES, ['Bash(claude rm *)', 'PowerShell(claude rm *)']);
   const shells = rules => rules.map(r => [r, r.startsWith('PowerShell')]);
-  // Each stop-switch rule matches its own command in its bad cases; the PowerShell forms also the cased one (S2.1 d).
-  const STOP_CASES = new Map([
-    ['claude stop *', ['claude stop 3fa9c1', 'claude stop', 'git status && claude stop 3fa9c1']],
-    ['claude kill *', ['claude kill 3fa9c1', 'claude kill', 'git status && claude kill 3fa9c1']],
-    ['claude daemon stop *', ['claude daemon stop --any', 'claude daemon stop --any --keep-workers', 'claude daemon stop']],
-    ['claude respawn *', ['claude respawn --all', 'claude respawn 7c5dcf5d', 'claude respawn']],
-  ]);
-  for (const [rule, ps] of shells(STOP_DENY)) {
-    const pattern = rule.slice(rule.indexOf('(') + 1, -1);
-    for (const c of STOP_CASES.get(pattern)) assert.ok(denies(rule, c), `${rule} matches ${c}`);
-    if (ps) assert.ok(denies(rule, STOP_CASES.get(pattern)[0].replace(/^claude/, 'Claude')), `${rule} matches the cased form`);
-  }
   for (const [rule, ps] of shells(RM_RULES)) {
     for (const c of ['claude rm 3fa9c1', 'claude rm', 'claude rm 3fa9c1 --force-remove-worktree --discard-unpushed']) assert.ok(denies(rule, c), `${rule} matches ${c}`);
     if (ps) assert.ok(denies(rule, 'Claude RM 3fa9c1'), `${rule} matches the cased form`);
   }
   const NEIGHBOURS = ['claude --bg -w pact-1 "stop it, then rm the file"', 'claude attach 3fa9c1', 'claude agents', 'git rm x', 'claude stopwatch', 'claude rmdir x', 'claude killall', 'claude daemon status', 'claude daemon logs', 'claude respawnable', 'claude kill-switch'];
-  for (const rule of [...STOP_DENY, ...RM_RULES]) {
+  for (const rule of RM_RULES) {
     for (const c of NEIGHBOURS) assert.ok(!denies(rule, c), `${rule} must not match ${c}`);
   }
   // The model can say no: the mid-`*` shape the spec rejects does catch a session start.
   assert.ok(denies('Bash(claude * stop *)', 'claude --bg -w pact-1 please stop it now'));
   // No new rule holds a `*` other than its trailing one.
-  for (const rule of [...STOP_DENY, ...RM_RULES]) assert.equal(rule.split('*').length, 2, `${rule} holds one star`);
-  for (const rule of [...STOP_DENY, ...RM_RULES]) assert.ok(rule.endsWith(' *)'), `${rule} ends with a space and a star`);
+  for (const rule of RM_RULES) assert.equal(rule.split('*').length, 2, `${rule} holds one star`);
+  for (const rule of RM_RULES) assert.ok(rule.endsWith(' *)'), `${rule} ends with a space and a star`);
 });
