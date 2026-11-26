@@ -75,8 +75,8 @@ line. A post is one JSON file, the post file, and its body is a second file
 the post names, `body_file`, in the post file's own folder. Write both to the
 scratch folder. A round comment runs to tens of thousands of characters, and a
 body written as one escaped JSON string is where a mistake would land, which
-is why the body is a file and only the short text (title, quote, read-back,
-reason) is inline. As `review.md` says, delete both files once their post
+is why the body is a file and only the short text (title, quote, read-back)
+is inline. As `review.md` says, delete both files once their post
 ends, whatever the result (verified, failed, unverified, mismatch or
 unavailable), or once you drop it: they hold the owner's exact words. Keep a
 file holding a lens report that the poster refused until the owner has
@@ -106,10 +106,10 @@ the fix, as for posted text.
 | `issue-comment` | A comment on an issue or a pull request's conversation | `kind`, `issue`, `answers` (a `decision` only), `quote`, `intent` |
 | `pull-request-review` | A review that only comments, never approving or asking for changes, with a body and no line comments | `kind`, `pr`, `quote`, `intent` |
 | `review-thread-reply` | A reply in an existing line-comment thread on a pull request | `kind`, `pr`, `comment` (the id of the thread's review comment), `quote`, `intent` |
-| `issue-edit` | A new body for an issue | `issue`, `reason`, `quote`, `intent` |
-| `pull-request-edit` | A new body for a pull request | `pr`, `reason`, `quote`, `intent` |
-| `issue-comment-edit` | A new body for a comment on an issue or a pull request's conversation | `issue`, `comment` (the id of the comment edited), `reason`, `quote`, `intent` |
-| `review-thread-reply-edit` | A new body for a reply in a line-comment thread | `pr`, `comment` (the id of the reply edited), `reason`, `quote`, `intent` |
+| `issue-edit` | A new body for an issue | `issue`, `quote`, `intent` |
+| `pull-request-edit` | A new body for a pull request | `pr`, `quote`, `intent` |
+| `issue-comment-edit` | A new body for a comment on an issue or a pull request's conversation | `issue`, `comment` (the id of the comment edited), `quote`, `intent` |
+| `review-thread-reply-edit` | A new body for a reply in a line-comment thread | `pr`, `comment` (the id of the reply edited), `quote`, `intent` |
 
 Every surface also takes `repo`, `signer` and `body_file`, and may take `as`.
 `quote` and `intent` are required or refused by kind on a create post, and on
@@ -127,10 +127,10 @@ names:
 { "repo": "you/your-repo", "kind": "note", "issue": 12, "as": "you", "signer": "build-12", "body_file": "comment.md" }
 { "repo": "you/your-repo", "kind": "review", "pr": 34, "signer": "review-34", "body_file": "review.md" }
 { "repo": "you/your-repo", "kind": "reply", "pr": 34, "comment": 5678, "signer": "build-34", "body_file": "reply.md" }
-{ "repo": "you/your-repo", "issue": 12, "signer": "build-12", "reason": "fixed a wrong link", "body_file": "body.md" }
-{ "repo": "you/your-repo", "pr": 34, "signer": "pr-34", "reason": "fixed a wrong link", "body_file": "body.md" }
-{ "repo": "you/your-repo", "issue": 12, "comment": 4321, "signer": "build-12", "reason": "fixed a wrong link", "body_file": "comment.md" }
-{ "repo": "you/your-repo", "pr": 34, "comment": 8765, "signer": "build-34", "reason": "fixed a wrong link", "body_file": "reply.md" }
+{ "repo": "you/your-repo", "issue": 12, "signer": "build-12", "body_file": "body.md" }
+{ "repo": "you/your-repo", "pr": 34, "signer": "pr-34", "body_file": "body.md" }
+{ "repo": "you/your-repo", "issue": 12, "comment": 4321, "signer": "build-12", "body_file": "comment.md" }
+{ "repo": "you/your-repo", "pr": 34, "comment": 8765, "signer": "build-34", "body_file": "reply.md" }
 ```
 
 They are the nine examples, one per surface in the table's order; the
@@ -207,7 +207,7 @@ poster renders the read-back line itself:
 
 `intent.text`, `intent.corrected`, `intent_skip`, `intent_none` and `start_none` are refused `post/owned-line` when a line
 holds a heading, a fence opening, an HTML heading tag or one of the poster's
-owned lines (below), read as the page shows it. An unclosed HTML comment or fold in the body before the signature is refused `text/hidden-line`.
+owned lines (below), read as that section says. An unclosed HTML comment or fold in the body before the signature is refused `text/hidden-line`.
 
 ### The two quotes
 
@@ -238,11 +238,11 @@ between each: for a `decision`, the mark line and the `Answers:` line when
 `answers` names the item (`issue <n>`, `pull request <n>` or `comment <id>`);
 `## The ask` with each passage as a block quote and a source line, then any no-owner-words line;
 `## Understood intent` with the intent text and its read-back line; the `body_file` text;
-`Signed: <signer>`; on an edit, the reason lines. So this repo's PR checkbox line
-opens the `body_file`, not the whole PR body.
+`Signed: <signer>`. So this repo's PR checkbox line opens the `body_file`, not
+the whole PR body.
 
 The **owned lines** are the lines the poster writes: a `Signed:` or `Posted by`
-signature line, a reason line, a decision mark, a line starting `Read-back:`,
+signature line, a decision mark, a line starting `Read-back:`,
 `## The ask`, `## Understood intent`, a source line, `Corrected read-back:` and
 a line starting `Answers:`. The source line follows its passage, and is one of:
 
@@ -253,10 +253,10 @@ a line starting `Answers:`. The source line follows its passage, and is one of:
 Each ends with its role line when it has one, and a line starting `No owner
 words started the intent:` or `No owner words started the task:` is owned too.
 
-A `body_file` that holds
-one outside a fence is refused `post/owned-line`. The prose check skips the
-quote's lines, since they are the owner's words verbatim, so a hard-wrapped
-quote posts while the same wrap in the `body_file` is refused `text/hard-wrap`.
+A `body_file` that holds one outside a fence is refused `post/owned-line`. The
+poster matches a line in any case and behind quote and list markers, with its
+format characters removed, as written and after NFKC. It folds no markup, no
+entities and no look-alike letters.
 
 ### Edits
 
@@ -265,44 +265,28 @@ else: no title, label or state. A review's body can't be edited. Read the
 item's current body with `gh api repos/<owner>/<name>/<path> --jq .body`,
 where the path is `issues/<n>`, `pulls/<n>`, `issues/comments/<id>` or
 `pulls/comments/<id>`, and write the `body_file` as the session's part of it:
-the text between the poster's own parts, with no signature line and no
-`Edited:` line, since the poster adds both. The post names the item (`issue`,
-`pr`, `comment`), the item's own `signer` and a `reason`, and the poster
-renders the new body as it renders any other (How the poster builds the body),
-ending with the item's reason lines carried forward in order and one new line,
-as its own paragraph:
-
-```text
-Edited: <reason> (<signer>)
-```
-
-The line breaks it adds follow the body's: CRLF when the body holds one, else
-LF. A reason names the kind of fix ("fixed a wrong link"), never the text
-taken out, and is one line of at most 200 characters.
+the text between the poster's own parts, with no signature line, since the
+poster adds it. The post names the item (`issue`, `pr`, `comment`) and the
+item's own `signer`, and the poster renders the new body as it renders any
+other (How the poster builds the body). It appends nothing else: GitHub's edit
+history shows what changed.
 
 An edit runs in two stages. Before any `gh` call it runs the shape, kind and
 owned-line checks and the per-field scans. After the login, the `as` check and
 the read of the item, and before it sends, it runs the item's checks, the
-reason carry, the content scan of the whole rendered body and the body bound.
-So a dry run of an edit reads nothing and prints one fixed line saying which
-checks did not run (`edit/ask`, `edit/status`, `edit/confirm`, `post/tracker`,
-the reason carry and the content scan of the full body): an edit isn't checked
-in full until it is sent.
+content scan of the whole rendered body and the body bound. So a dry run of an
+edit reads nothing and prints one fixed line saying which checks did not run
+(`edit/ask`, `edit/status`, `edit/confirm`, `post/tracker` and the content scan
+of the full body): an edit isn't checked in full until it is sent.
 
-The author, target, signature, leak and append-only reason checks are the
-edit's controls; on a status edit the append-only check is removed, accepted
-by the owner. The record and decision checks, and the
-reason lines' "in plain sight" part, are a best-effort backstop: they guess at
-how GitHub renders a body, and a form their readings don't see passes (What the
-scans don't cover).
-
-The scans that read a post read the edit too: the reason, and the whole
-rendered body with its reason line.
+The author, target and signature checks are the edit's controls. The decision
+check is a best-effort backstop: it reads the source text, not GitHub's
+rendered page, and a form its readings don't see passes (What the scans don't
+cover).
 
 The routine use of `issue-comment-edit` is the review procedure's status
-comment, signed `status-<n>` and edited after each round; it holds none
-of what `edit/record` and `edit/decision` refuse, and as a status edit it ends
-in its newest reason line only.
+comment, signed `status-<n>` and edited after each round; it never holds what
+`edit/decision` refuses.
 
 #### Ask items and the read-back
 
@@ -342,9 +326,7 @@ meets all of these:
 
 A comment by another author is read no further, no text from the cited comment
 reaches the output, and a failed or unusable read ends `unavailable` with
-nothing sent. The poster appends `, heard by <label>` to the reason, taking
-the label from the cited decision's signature, after the reason's own bound
-is checked. A later correction of a corrected item is a new `decision`
+nothing sent. A later correction of a corrected item is a new `decision`
 comment: the item keeps its first correction, and the work follows the newest
 decision.
 
@@ -386,11 +368,10 @@ fields are also scanned, each as its own field, so a refusal names it:
 | `intent` | The read-back: `text` of 1 to 2,000 characters, a `status`, and on an edit `comment` and `corrected` | `post/status`, `post/owned-line`, `text/hidden-line` |
 | `intent_skip` | In place of `intent`: one line, 1 to 200 characters, with no leading or trailing space, why there is no reading | `post/missing`, `post/pattern`, `post/length`, `post/field`, `post/owned-line`, `text/hidden-line` |
 | `body_file` | A bare file name in the post file's own folder (no slash, backslash or colon, not `.` or `..`), read like the post file; its text at most 65,536 characters, and the whole rendered body too | the `file/` rules, `post/pattern`, `post/owned-line`, `text/body-length` |
-| `reason` | An edit's reason: one line of at most 200 characters | `post/length`, `post/pattern` |
 
 `--dry-run` takes no value. It prints the `gh` arguments and the request with
-each text replaced by its size, and sends nothing. The post checks, the content
-scan, the table check, the fence check and the wrap and link checks all run;
+each text replaced by its size, and sends nothing. The post checks and the
+content scan run;
 `gh` doesn't, so the login and owner checks don't, nor does the `as` check,
 nor the tracker read: a create post's dry run prints one fixed line saying so
 (`post/tracker did not run`). A dry run can pass where the real run is refused.
@@ -417,7 +398,7 @@ On exit 1 and exit 3 the poster prints one `NEXT:` line, straight above the
 sees this page still knows. An exit 2 prints one `NEXT:` line for each rule it
 refused, above `RESULT:`, saying what to do instead: every rule below but the
 `owner/` and `as/` ones, whose `where` already names the login or the repo to
-fix; a `NOTE:` line on refusals left unlisted comes before them. The exit 1 and exit 3 line's
+fix. The exit 1 and exit 3 line's
 page and login are the ones the poster checked before it sent, never text from
 `gh` or the body.
 
@@ -427,14 +408,14 @@ page and login are the ones the poster checked before it sent, never text from
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
 | 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the post file and the body file; tells the owner which field |
 | 1 | `RESULT: unverified <url>` | Posted, but the check of what landed failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the post file and the body file; opens the URL and tells the owner |
-| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for hidden characters or a live environment secret's value stays local, unedited, and the owner is told where it is, in chat; a table, wrap, link or fence refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: tells the owner and goes on |
-| 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the post file and the body file; checks whether it landed, as below; never posts again on its own |
+| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes what the `REFUSED` lines name and posts again. A lens report refused for hidden characters or a live environment secret's value stays local, unedited, and the owner is told where it is, in chat. A refusal no text fix clears, or a second one it can't explain: tells the owner and goes on |
+| 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Checks whether it landed, as below, and never posts again on its own; then deletes the post file and the body file |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the post file and the body file; tells the owner and goes on, as `review.md` says. `gh auth status` and the network are what to check |
 
 An edit ends the same ways, with its own words. Its link is the item's,
 known before it sends. Its exit 1 `NEXT:` line says the edit landed and must
-never be sent again. Its exit 3 line names the item and says to look there for
-the reason line. A failed or unusable read of the item, a 404 included,
+never be sent again. Its exit 3 line names the item and says to compare its body
+with the body that was sent. A failed or unusable read of the item, a 404 included,
 is exit 4, with nothing sent. A dry run of an edit doesn't read the item, so
 the item's checks don't run, and it says so (Edits).
 
@@ -453,7 +434,7 @@ send:
 - **`issue-comment`:** `gh issue view <n> -R <owner/name> --comments`, or `gh pr view <n> -R <owner/name> --comments` on a pull request's conversation; its last comments
 - **`pull-request-review`:** `gh api --paginate repos/<owner/name>/pulls/<n>/reviews`, its last items
 - **`review-thread-reply`:** `gh api --paginate repos/<owner/name>/pulls/<n>/comments`, its last items
-- **`issue-edit`, `pull-request-edit`, `issue-comment-edit`, `review-thread-reply-edit`:** open the link the `NEXT:` line names and look for the edit's reason line at the end of the body; if it is there, never send the edit again, and tell the owner its link
+- **`issue-edit`, `pull-request-edit`, `issue-comment-edit`, `review-thread-reply-edit`:** open the link the `NEXT:` line names and compare the item's body with the body file you sent, between the poster's own parts; if they match, never send the edit again, and tell the owner its link
 
 If the post is there, don't post again: treat it as unverified, and give the
 owner its URL. If it isn't, tell the owner, and post again only on their word.
@@ -479,7 +460,7 @@ nothing sent.
 | `as/differs` | `as` isn't the `gh` login |
 | `post/json` | The post file isn't JSON, or its top level isn't an object; `where` is always `post file` |
 | `post/unknown` | A field no surface knows, `__proto__`, `constructor` and `toString` included |
-| `post/field` | A field the schema knows but this surface or kind refuses (`kind` on an edit, `reason` on a create, `labels` on a pull request, `answers` off a `decision`, `quote`, `intent`, `intent_skip`, `intent_none` or `start_none` where the kind or item refuses them, a quote side given both a passage and its reason, `role` off an `issue`, `pull-request` or `spec`, `quote[n].comment` off a `tracker` passage, `via` off a `relayed` one) |
+| `post/field` | A field the schema knows but this surface or kind refuses (`kind` on an edit, `labels` on a pull request, `answers` off a `decision`, `quote`, `intent`, `intent_skip`, `intent_none` or `start_none` where the kind or item refuses them, a quote side given both a passage and its reason, `role` off an `issue`, `pull-request` or `spec`, `quote[n].comment` off a `tracker` passage, `via` off a `relayed` one) |
 | `post/missing` | A required field is missing, or a quote side has neither a passage nor its reason |
 | `post/type` | A field has the wrong type |
 | `post/pattern` | A value misses its pattern or enum, such as a `body_file` of `..`, `a/b`, `a\b`, `c:x` or a link name |
@@ -502,28 +483,25 @@ nothing sent.
 | `edit/author` | The item's author isn't the `gh` login |
 | `edit/target` | The item isn't where the post says, or is a pull request read as an issue, or a thread's first comment |
 | `edit/unsigned` | The item or the rendered body has no signature line for `signer`, or has one for another label |
-| `edit/record` | The item or the new body is a review record |
 | `edit/decision` | The item or the new body holds the words "owner decision" |
-| `edit/leak` | The item holds what the content scan refuses: a hidden character or a live environment secret's value |
-| `edit/reasons` | The rendered body doesn't end in exactly the item's reason lines and the new one, or opens a comment or fold above them it doesn't close; on a status edit, it holds more than the newest |
 | `edit/ask` | An edit of an ask item whose `quote`, `intent`, `intent_skip`, `intent_none` or `start_none` differs from the item's own: a passage's text, source, comment, `when` or `role`, a no-owner-words reason, or the read-back text |
 | `edit/status` | A read-back move other than staying, or `pending` to `confirmed` or `corrected`; or a move with no `intent.comment`; or a kept status whose comment or corrected text differs |
 | `edit/confirm` | The cited decision isn't the `gh` login's, isn't on the item's own issue or pull request, isn't a chat-marked confirmed ask item, doesn't name the item in `Answers:`, has an intent text the move doesn't match, or doesn't hold exactly one signature label; `where` is `intent.comment`, and none of the comment's text is printed |
 | `secret/env` | The value of a secret environment variable; the line names the variable, never the value |
 | `text/hidden` | A hidden character |
-| `table/header` | A Lens dispositions table's header row isn't exactly `\| Finding \| Lens \| Disposition \| Rerun \|` |
-| `table/cells` | A row has the wrong number of cells, or an empty Lens cell |
-| `table/disposition` | A Disposition cell doesn't start with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted` |
-| `table/skipped` | `skipped` isn't followed by `, because` |
-| `table/auto` | ` (auto` isn't followed by `:`, `)` or `, reversed` |
-| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped`; or the word "withheld", in any case, spacing or markup, comes after a state word, after any marks and one severity word (`high`, `medium` or `low`), a `security?` after it and the colon |
-| `fence/unclosed` | A fence is left open: the body ends inside it, or a `mermaid` fence runs into another fence or a fold's tag |
-| `text/hard-wrap` | A prose line stops mid-sentence and the next line continues the same paragraph, list item or quote |
-| `link/relative` | A link's target has no scheme and isn't an anchor on the same page |
 
 ## What the scans cover
 
-The content scan reads each text field above and the whole rendered body, as written and as normalised copies meant to show the text as a reader sees it on GitHub's page ([ADR 0122](adr/0122-the-poster-scan-reads-page-faithful-copies-beside-a-frozen-floor.md)). The "page copy" below is one of those copies.
+The content scan reads each text field above and the whole rendered body: as
+written; as two normalised copies, one with HTML comments removed and one with
+only their markers removed; and as the first copy with each link folded to its
+text and the marks `*`, `` ` ``, `~`, `[` and `]` removed. A normalised copy has
+invisible and control characters, markdown escapes and inline tags removed,
+character references decoded and NFKC applied, again until nothing changes, at
+most five rounds. It decodes a number of at most seven decimal or six hex
+digits, and a name, with its semicolon, only from a short list in the poster's
+source, which holds every name whose value is a hidden character
+([ADR 0177](adr/0177-the-poster-keeps-its-controls-and-drops-accident-checks.md)).
 
 Control characters are stripped though GitHub's comments show most of them
 as U+FFFD: stripping only ever adds refusals. The lists of names below are
@@ -540,56 +518,16 @@ kept by hand from the poster's source; no test holds them.
   names with `KEY`, `SECRET` or `TOKEN`, so the poster can't refuse their values
   there.
 - **No path rule.** The scan refuses no path, this machine's own home and
-  temp folders, user name and host name included. A
-  link whose target is a local path is still refused, by `link/relative`,
-  since it lands as a dead link.
+  temp folders, user name and host name included.
 - **No session-id rule.** The scan refuses no UUID, `session_` id or Claude
   Code session link, so a scratchpad path, a GitHub attachment link and
   Claude Code's attribution post on any surface. A session
   link opens only for the account that owns the session.
 - **`text/hidden`:** tag characters (a subdivision flag aside), direction
   embeddings, overrides and isolates, the zero-width space, word joiners, the
-  rarer variation selectors, and a byte-order mark inside the text. The
-  joiners and selectors ordinary emoji use are let through.
-- **The table check (`table/`):** on the body only, after the content scan.
-  It reads a table with a header cell reading `Disposition` under an earlier
-  line naming "Lens dispositions", outside any fence, folds (`<details>` blocks) included; the review procedure gives the table's template, and its review comment folds the table, with the fold's summary line as the line naming "Lens dispositions". Of each row with the template's cell count, it reads the Finding cell's lead word and what follows it (unless the row is `skipped`), whether the Lens cell is empty, and the Disposition cell. A
-  refusal on a line inside a lens report means the report's fence is too
-  short: fix the fence, never the report. Past 50 table refusals,
-  the rest are counted, not listed. It is a backstop too.
-- **The fence check (`fence/unclosed`):** on the body only, after the table
-  check. A fence left open swallows what follows it, the review comment's
-  folds and its table included, from the reader and from the table check. It
-  refuses a body that ends inside a fence, read as the table check reads
-  fences, and a `mermaid` fence that runs into a line no diagram holds:
-  another fence or a fold's tag. It names the opening fence's line and column.
-  It reads nothing inside a closed fence, so a diagram's labels are checked
-  only by the content scans above. A refusal on a line inside a lens report
-  means the report's fence is too short: fix the fence, never the report.
-- **The wrap check (`text/hard-wrap`):** on the body only, after the table
-  check. GitHub shows each single line break in a post, so a paragraph wrapped
-  at a column limit lands as a ragged column. It refuses a prose line that
-  stops mid-sentence (no `.`, `!`, `?`, `:` or `;` at its end, and no link)
-  when the next line continues the same paragraph, list item or quote, and
-  names the continuing line once, however many lines are wrapped. It never
-  reads a fence, an HTML comment, a table or a heading. A
-  line broken on purpose passes: two trailing spaces, a backslash, or a bold
-  label such as `**After:**` starting the next line. To fix it, join the
-  paragraph or item onto one line; never put prose in a fence, code span or
-  comment to get past it. A refusal on a line inside a lens report means the
-  report's fence is too short: fix the fence, never the report, as for tables. The poster never rewrites a body.
-- **The link check (`link/relative`):** on the body only, after the table
-  check. GitHub leaves a link's target as written, so a repository-relative
-  link on an issue page is a dead link. It refuses an inline link, an image, a
-  reference definition or an HTML `href` or `src` whose target does not start with a
-  scheme of two letters or more (`https:`, `mailto:`), `//` or `#`, a root
-  link such as `/owner/repo/issues/3` and a drive-letter path such as
-  `D:/work/x.md` included, and names the target's line and column
-  once. It never reads a fence, a code span or an HTML comment, and a footnote
-  definition is not a link. To fix it, write the full `https://github.com/...`
-  link; never put the link in a fence, code span or comment to get past it. A
-  refusal on a line inside a lens report means the report's fence is too
-  short: fix the fence, never the report.
+  rarer variation selectors, and a byte-order mark inside the text, each written
+  as the character itself. The joiners and selectors ordinary emoji use are let
+  through.
 
 ## What the scans don't cover
 
@@ -597,10 +535,19 @@ kept by hand from the poster's source; no test holds them.
   value: a token `gh` keeps in a credential store, a key in a file, a name,
   an email address.
 - **A refused value written in a form no copy reads as the page does**
-  (threat model, Posts are public): two tricks at once that no single copy reads together,
-  a look-alike letter from another script, a renderer other than GitHub's
-  comments, or a raw-HTML or markdown structure the page copy reads
-  differently from GitHub's page.
+  (threat model, Posts are public): a look-alike letter from another script, a
+  renderer other than GitHub's comments, two tricks at once that no single copy
+  reads together, or a form only a page-faithful reading would catch:
+  - a character reference past the digit cap, or a name off the short list or
+    written without its semicolon;
+  - a tag shape the page shows as text and the copies remove: one made by
+    decoding, in a fence or code span, escaped, with a tag name GitHub filters,
+    with a no-break space, or one HTML's grammar rejects;
+  - raw HTML the page hides or ends where the copies don't, such as a processing
+    instruction, a declaration or a CDATA section;
+  - a tag carried onto the next line of a block quote.
+- **An encoded hidden character,** such as `&#x200B;`, `&#8203` or
+  `&ZeroWidthSpace;`: every copy strips the character it decodes to.
 - **A quote's provenance.** The fields are unverified (threat model, Who
   counts as you): `source` is the session's own word, so the rule that only a
   `chat` source can confirm a read-back catches a mistaken relay, not a session
@@ -622,14 +569,10 @@ kept by hand from the poster's source; no test holds them.
 - **Fields the schema doesn't check beyond their pattern,** which are checked
   against patterns and bounds, not scanned: `repo`, `as`, `signer`, `head`,
   `base` and `via`.
-- **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
-  Rerun cell, the Auto-takes list, escape and gap tables, a table with no
-  leading `|`, and any table inside a fence.
-- **The review comment's opening**: its title line, signal
-  table, 1 to 3 diagrams and count line, and what the diagrams say. The content scans read
-  all of it, diagrams included; the table, wrap and link checks never read
-  inside a fence, and nothing checks the counts against the table, the number
-  of diagrams, their labels or that a withheld finding stays out.
+- **The body's shape.** No check reads a table, a fence, line wrapping or a
+  link's target. A create post whose body leaves a fence open posts, and the
+  fence then swallows its own `Signed:` line, so every later edit of it is
+  refused `edit/unsigned`.
 - **A session that sets out to get past them.** They catch accidents.
 - **The poster itself.** Nothing checks the live file before a session runs
   it; the next dry run shows a changed one as drift (threat model, The pact gets loosened).
@@ -640,27 +583,20 @@ kept by hand from the poster's source; no test holds them.
 - **Who signed.** A label is plain text, so any session can sign with any
   label and edit any post signed in the two forms, an owner's comment that
   holds a session's pasted signature line included. The edit checks stop an
-  edit of owner-typed text with no signature line, of a review record, and of a
-  decision mark; they catch accidents (threat model, Who counts as you).
+  edit of owner-typed text with no signature line and of a decision mark; they
+  catch accidents (threat model, Who counts as you).
 - **Text already relied on.** An edit can change a post someone has acted on,
   such as an approved spec, a hand-off or a pull request body at merge, and in
   a repo whose rule counts the owner's account's last edit, the item still
-  counts. The reason lines and GitHub's history show the change (threat model,
-  Who counts as you); on a status comment, which keeps only its newest reason
-  line, GitHub's history alone shows the earlier ones, and the round comments
-  stay the record. A pull request body signed `pr-<n>` shares its label with
-  every pull request on issue n, so a wrong `pr` among them passes too.
-- **The best-effort checks' gaps.** The record, decision and "in plain sight"
-  checks read the source text, not GitHub's rendered page, so a form their
-  readings don't see passes: a look-alike letter outside the fixed set; a
-  heading as an HTML element, or a setext heading whose lens name sits on an
-  earlier line; an older record layout; fence and comment markup that GitHub
-  reads differently from the poster; a fold or comment tag balanced by one in
-  a fence, a code span or a closed comment, or carried in a reason; and a
-  reason line forged with an entity, emphasis or an escape. They also refuse
-  some text that isn't a record, such as a record shape quoted inside a fence.
-  These gaps are accepted by class (threat model, Who counts as you); reading GitHub's
-  rendered page instead is #419.
+  counts. Only GitHub's edit history shows the change (threat model, Who counts
+  as you); for a status comment, the round comments stay the record. A pull
+  request body signed `pr-<n>` shares its label with every pull request on issue
+  n, so a wrong `pr` among them passes too.
+- **The decision mark and owned lines in disguise.** The checks read the source
+  text, plain and after NFKC, not GitHub's rendered page, so a decision mark or
+  an owned line written with a look-alike letter, markup such as bold, or an
+  entity passes. These gaps are accepted by class (threat model, Who counts as
+  you); reading GitHub's rendered page instead is #419.
 - **A change between the read and the write.** The poster reads the item, then
   writes it; a change made between the two is overwritten unseen. A session
   that drafts from its own earlier read widens that window to its drafting
