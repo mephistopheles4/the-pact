@@ -103,8 +103,8 @@ export function pickRelease(listing, { channel, release }) {
     const [, n, kind, k] = TAG.exec(tag);
     if (kind && channel !== 'beta') continue;
     const rank = [Number(n), { rc: 0, beta: 1 }[kind] ?? 2, Number(k ?? 0)];
-    const at = best ? rank.findIndex((v, i) => v !== best.rank[i]) : 0;
-    if (!best || (at >= 0 && rank[at] > best.rank[at])) best = { rank, tag, commit };
+    const i = best ? rank.findIndex((v, at) => v !== best.rank[at]) : 0;
+    if (!best || (i >= 0 && rank[i] > best.rank[i])) best = { rank, tag, commit };
   }
   return best && { tag: best.tag, commit: best.commit };
 }

@@ -1,4 +1,4 @@
-// PACT-105 C22, C25 and C28: the release bootstrap. A throwaway local repo
+// PACT-105 C22, C25 and C28, and PACT-117 C1, C5 and C6: the release bootstrap. A throwaway local repo
 // stands in for the pact's own, holding a stub install and a stub builder that
 // record how they were run; no test here runs the install or reaches the network.
 import assert from 'node:assert/strict';
@@ -265,6 +265,7 @@ test('bootstrap: by default it takes the highest stable release and never a beta
 // The pact's own order within a minor, not semver's: every -rc, then every -beta, then the stable release (spec 0009 S2).
 const ORDER = ['v1.1.0-rc.1', 'v1.1.0-rc.3', 'v1.1.0-beta.1', 'v1.1.0-beta.2', 'v1.1.0', 'v1.2.0-rc.9', 'v1.2.0-beta.1'];
 
+// PACT-117 C1
 test('bootstrap: ranks -rc below -beta below the stable release, by minor first, in any listing order', async () => {
   const { pickRelease } = await boot();
   const line = tag => `${String(ORDER.indexOf(tag)).repeat(40)}\trefs/tags/${tag}`;

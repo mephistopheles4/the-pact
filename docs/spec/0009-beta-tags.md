@@ -1,11 +1,27 @@
 # Spec delta: per-merge tags are betas, `v1.<n>.0-beta.<k>`
 
 Status: draft 4, after one final executability read, with its fixes folded
-in. A delta on [0007](0007-harness-agnostic-pact.md) S10; everything else there
-holds. The spec counts once it is on `main`.
+in. A delta on [0007](0007-harness-agnostic-pact.md) S10, and on the release-tag
+names and ruleset A's pattern wherever 0007 writes them (S3, S15, S18 C34, S20);
+everything else there holds. The spec counts once it is on `main`.
 
 - **Business driver:** the owner's ask, a standard name for the per-merge lane. Where nothing else decides, take the option that is cheaper to reverse.
 - **Trade-off:** naming against continuity. The name `-beta` is taken, and continuity is kept by reading the legacy `-rc` tags.
+
+<!-- toc -->
+
+- [S1 Objective](#s1-objective)
+- [S2 Names and order](#s2-names-and-order)
+- [S3 The release job](#s3-the-release-job)
+- [S4 `release-promote.mjs`](#s4-release-promotemjs)
+- [S5 The bootstrap](#s5-the-bootstrap)
+- [S6 The install](#s6-the-install)
+- [S7 Docs](#s7-docs)
+- [S8 Acceptance claims](#s8-acceptance-claims)
+- [S9 Boundaries and environments](#s9-boundaries-and-environments)
+- [S10 Rollback](#s10-rollback)
+
+<!-- /toc -->
 
 ## S1 Objective
 
@@ -52,7 +68,7 @@ holds. The spec counts once it is on `main`.
 - **`docs/install.md`:** betas per merge, `--channel beta`, promote, S4's first-stable sentence, and that `-rc` still installs below the betas. Its opening sentence says "but a beta".
 - **`docs/threat-model.md`:** the open names are `v1.*.0-beta.*`, the example is `v1.2.3+x.0-beta.1`, and the job tags "a beta". The accepted risk is the same.
 - **`CONTEXT.md`:** rewrite the "Release tag" entry with the three names and who makes each, and drop "(a later ticket)".
-- **The three files' and the tests' header comments** are updated to match.
+- **The header comments** of `release.yml`, `release-promote.mjs`, `bin/pact.mjs` and the tests are updated to match.
 - **A dated log.**
 
 ## S8 Acceptance claims
@@ -79,7 +95,7 @@ holds. The spec counts once it is on `main`.
   - promote runs on the owner's machine;
   - the bootstrap and the install run on the user's machine (Windows, macOS or Linux, Node 24 or later).
   - CI's three jobs are the clean build.
-- **The owner's one step:** on the ruleset "tags: only the owner creates (candidates open)", change the exclusion `refs/tags/v1.*.0-rc.*` to `refs/tags/v1.*.0-beta.*` and rename the ruleset "betas open".
+- **The owner's one step:** on the ruleset "tags: only the owner creates (candidates open)", change the exclusion `refs/tags/v1.*.0-rc.*` to `refs/tags/v1.*.0-beta.*` and rename the ruleset "tags: only the owner creates (betas open)".
   - Do it just before the merge, so the merge's own release run can tag. No bypass actor is needed.
   - If you do it after the merge, re-run that run while its commit is still the tip. If main has moved on, the next merge tags.
 - **Done when:**

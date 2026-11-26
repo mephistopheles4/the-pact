@@ -6,8 +6,9 @@
 #
 # A stable tag is made by the owner, under the owner's own account, with
 # `node gate/release-promote.mjs <beta>`, which tags that beta's commit
-# v1.<n>.0. The tag rulesets are the owner's: only the owner creates a tag
-# but a beta, and no tag is updated or deleted.
+# v1.<n>.0; the first one comes from a -beta, not a legacy -rc (spec 0009 S4).
+# The tag rulesets are the owner's: only the owner creates a tag but a beta,
+# and no tag is updated or deleted.
 #
 # The job tags nothing until the owner sets the repository variable
 # PACT_RELEASES to on. No checkout: none of the repo's code runs. The file is

@@ -2,7 +2,9 @@
 // The owner's command that makes a stable release (spec 0007 S10, decision 177):
 //   node gate/release-promote.mjs v1.<n>.0-beta.<k>
 // It tags that beta's commit v1.<n>.0 through the GitHub API, and takes a
-// legacy v1.<n>.0-rc.<k> the same way (spec 0009 S4). It uses the token of the
+// legacy v1.<n>.0-rc.<k> the same way (spec 0009 S4). Make the first stable
+// release from a -beta: an -rc commit's bootstrap can't read -beta tags, so
+// npx's default would then hide every beta. It uses the token of the
 // account that runs it: GH_TOKEN when set, else the one `gh auth token` prints.
 // The release workflow only ever makes betas; the
 // repository's tag rulesets, which the owner sets, decide who may make a stable
@@ -59,7 +61,7 @@ export async function promote(beta, env = process.env, run = execFileSync) {
     let target = object;
     for (let level = 0; target.type === 'tag' && level < 5; level++) target = (await call(`git/tags/${target.sha}`)).object;
     if (target.type === 'tag') {
-      // Beta names are open, so another beta that leads nowhere is skipped, not a stop.
+      // -beta names are open to any writer, so a beta that leads nowhere, under either name, is skipped, not a stop, unless it is the one named.
       if (m[3] && m[1] !== beta) continue;
       throw new Error(`${m[1]} does not lead to a commit within five tags.`);
     }

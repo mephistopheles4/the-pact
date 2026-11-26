@@ -1,4 +1,4 @@
-// PACT-105 C23 and spec 0007 S10: what the release job's one script does,
+// PACT-105 C23, PACT-117 C2 to C4 and spec 0007 S10: what the release job's one script does,
 // run as the workflow writes it, and what the owner's promote command does,
 // both against a local stand-in for GitHub's API.
 import assert from 'node:assert/strict';
@@ -88,7 +88,7 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
 const commit = c => ({ type: 'commit', sha: sha(c) });
 const BETA_ONLY = /^refs\/tags\/v1\.\d+\.0-beta\.\d+$/;
 
-test('release job: on a push with no release yet it tags main\'s tip v1.1.0-beta.1, with the token it was handed', async t => {
+test('release job: on a push with no stable release or beta yet it tags main\'s tip v1.1.0-beta.1, with the token it was handed', async t => {
   const got = await release(t);
   assert.equal(got.code, 0, got.out);
   assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.1.0-beta.1', sha: sha('a') }]);
@@ -184,6 +184,9 @@ test('promote command: refuses, and tags nothing, a missing token, an input that
     ['a zero beta number', 'v1.3.0-beta.0', undefined, true],
     ['a beta spelled without its dot', 'v1.3.0-beta1', undefined, true],
     ['another pre-release name', 'v1.3.0-alpha.1', undefined, true],
+    ['a major legacy beta', 'v2.3.0-rc.1', undefined, true],
+    ['a zero legacy beta number', 'v1.3.0-rc.0', undefined, true],
+    ['a legacy beta spelled without its dot', 'v1.3.0-rc1', undefined, true],
     ['trailing text', 'v1.3.0-beta.1 ', undefined, true],
     ['a branch name', 'main', undefined, true],
     ['nothing', '', undefined, true],

@@ -11,7 +11,7 @@
 
 ## The owner's step
 
-The tag creation ruleset's exclusion changes from `refs/tags/v1.*.0-rc.*` to `refs/tags/v1.*.0-beta.*`, just before the merge (spec 0009 S9).
+The tag creation ruleset's exclusion changes from `refs/tags/v1.*.0-rc.*` to `refs/tags/v1.*.0-beta.*`, and the ruleset is renamed "tags: only the owner creates (betas open)", just before the merge (spec 0009 S9).
 
 ## Rolling back
 
@@ -19,4 +19,4 @@ Revert the merge, and restore the `-rc` exclusion just before it. `-beta` tags a
 
 ## Record
 
-- The ticket: PACT-117 on Linear. The spec, the owner's relayed decisions, the spec rounds and the Test record are its comments.
+- The ticket: PACT-117 on Linear. Its comments hold the spec (draft 4, with the final spec read), the two relayed decisions, the spec rounds, the drafts the rename replaced and the Test rounds.

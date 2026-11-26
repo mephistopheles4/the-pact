@@ -1,4 +1,4 @@
-// PACT-105 C32 and C22: what the install decides about a release: the option
+// PACT-105 C32 and C22, and PACT-117 C1 and C7: what the install decides about a release: the option
 // that names it, the apply line it prints, the record that holds it and the
 // warning that it is behind the last install. Decisions only; no install runs.
 import assert from 'node:assert/strict';
@@ -49,6 +49,7 @@ test('release: a release lower than the recorded one warns "behind the last inst
   assert.match(behind({ commit: ID('b'), release: 'v1.10.0' }, 'v1.9.0'), /^WARN: .*v1\.9\.0.*v1\.10\.0.*behind the last install/);
 });
 
+// PACT-117 C1
 test('release: within one kind, a higher k ranks higher by number', () => {
   assert.match(behind({ commit: ID('b'), release: 'v1.10.0-beta.10' }, 'v1.10.0-beta.2'), /behind the last install/);
   assert.equal(behind({ commit: ID('b'), release: 'v1.10.0-beta.2' }, 'v1.10.0-beta.10'), null);
@@ -57,6 +58,7 @@ test('release: within one kind, a higher k ranks higher by number', () => {
 // The pact's own order within a minor, not semver's: every -rc, then every -beta, then the stable release (spec 0009 S2).
 const ORDER = ['v1.1.0-rc.1', 'v1.1.0-rc.3', 'v1.1.0-beta.1', 'v1.1.0-beta.2', 'v1.1.0', 'v1.2.0-rc.9', 'v1.2.0-beta.1'];
 
+// PACT-117 C1
 test('release: behind ranks -rc below -beta below the stable release, by minor first', () => {
   for (const [i, lower] of ORDER.entries()) {
     for (const higher of ORDER.slice(i + 1)) {
