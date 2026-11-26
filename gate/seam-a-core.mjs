@@ -32,6 +32,10 @@
 // --harness names the harnesses that are in, each id with the parts it takes:
 // none, or rules, agents and commands joined by plus signs. Also exactly once.
 // With none, nothing is listed for install.
+// A harness whose render the install put under rendered/<id>/ takes its parts
+// from there alone; any other takes them from claude/. The rendered skills,
+// rendered/skills/<command>/, install to .pact/skills/ with their command
+// (spec 0007 S7).
 // --compact (#482) is on or off, also exactly once. The pact's hook script is
 // exactly claude/hooks/<name>.mjs for a name on PACT_HOOKS; with on it is
 // listed for install at .pact/hooks/<name>.mjs and must be in the stage, with
@@ -66,7 +70,9 @@ const REVIEW_DIAGRAMS_DEST = '.pact/review-diagrams.md';
 // The pact's hook script (#482): exactly claude/hooks/<name>.mjs, installed to .pact/hooks/<name>.mjs only with --compact on.
 const PACT_HOOKS = Object.freeze(['compact-handoff']);
 // The parts a harness may take, and the form of its id (spec 0007 S5).
-const HARNESS_PARTS = Object.freeze(['rules', 'agents', 'commands']);
+const HARNESS_PARTS = Object.freeze(['rules', 'agents', 'commands', 'guard']);
+// The shared guard (spec 0007 S8): exactly claude/guard/<name>.mjs, installed to .pact/guard/<name>.mjs only when a harness takes the guard part.
+const GUARD_SCRIPTS = Object.freeze(['guard', 'codex', 'antigravity']);
 const HARNESS_ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
 // Settings that run a command, load code or reach a tool server. Refused by
 // name as an object key at any depth of the overlay, whatever the settings
@@ -539,9 +545,32 @@ function classify(root, report) {
   const commands = [];
   const tools = [];
   const hooks = [];
+  const guards = [];
   const installs = [];
   const kit = [];
+  const skills = [];
+  const rendered = new Set();
   let overlay = false;
+  for (const rel of walk(root, 'rendered', report)) {
+    if (!safePath(rel)) {
+      report.fail('path', rel, null, "a path with characters outside letters, digits, '.', '_' and '-'");
+      continue;
+    }
+    const skill = /^rendered\/skills\/([^/]+)\/(SKILL\.md|agents\/openai\.yaml)$/.exec(rel);
+    const own = /^rendered\/([^/]+)\/(?:(rules)\.md|(agents)\/(([^/]+)\.(?:md|toml))|(commands)\/([^/]+)\.md)$/.exec(rel);
+    if (skill && PACT_COMMANDS.some(c => c === skill[1])) skills.push({ file: rel, stem: skill[1], dest: `.pact/skills/${skill[1]}/${skill[2]}` });
+    else if (own && own[1] !== 'skills' && HARNESS_ID_RE.test(own[1])) {
+      const [, harness, rules, agentsPart, agentFile, agentStem, commandsPart, command] = own;
+      rendered.add(harness);
+      if (rules) installs.push({ file: rel, harness, part: 'rules', dest: 'rules' });
+      else if (agentsPart) {
+        const a = { file: rel, harness, stem: agentStem, part: 'agents', dest: `agents/${agentFile}` };
+        if (agentFile.endsWith('.md')) agents.push(a);
+        installs.push(a);
+      } else if (commandsPart && PACT_COMMANDS.some(c => c === command)) commands.push({ file: rel, harness, stem: command, part: 'commands', dest: `commands/${command}.md` });
+      else report.fail('command-file-name', rel, null, 'a rendered command that is not a pact command; the gate lists them');
+    } else report.fail('unclassified', rel, null, 'a rendered file of no known kind');
+  }
   const files = [...walk(root, 'claude', report), ...walk(root, 'familiars', report)];
   // The builder kit (#203 S6): builder/ whole, and the kit's files elsewhere, each installed under .pact/builder/ with /scriptorium.
   for (const rel of [...walk(root, 'builder', report), ...BUILDER_KIT.filter(rel => !/^(builder|claude)\//.test(rel)).flatMap(rel => walk(root, rel, report))]) {
@@ -589,6 +618,12 @@ function classify(root, report) {
         if (seg.length !== 3) report.fail('hook-path', rel, null, 'a subfolder in claude/hooks; a hook is claude/hooks/<name>.mjs');
         else if (!PACT_HOOKS.some(c => c === stem)) report.fail('hook-file-name', rel, null, 'a file in claude/hooks that is not a pact hook; the gate lists them');
         else hooks.push({ file: rel, stem, dest: `.pact/hooks/${seg[2]}` });
+      } else if (seg[1] === 'guard') {
+        // The shared guard (spec 0007 S8): exactly claude/guard/<name>.mjs, the name on GUARD_SCRIPTS. rules.json is the install's own, never in a commit.
+        const stem = seg.length === 3 && seg[2].endsWith('.mjs') ? seg[2].slice(0, -4) : null;
+        if (seg.length !== 3) report.fail('guard-path', rel, null, 'a subfolder in claude/guard; a guard file is claude/guard/<name>.mjs');
+        else if (!GUARD_SCRIPTS.some(c => c === stem)) report.fail('guard-file-name', rel, null, 'a file in claude/guard that is not part of the guard; the gate lists them');
+        else guards.push({ file: rel, stem, dest: `.pact/guard/${seg[2]}` });
       } else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       continue;
     }
@@ -597,7 +632,7 @@ function classify(root, report) {
     else if (!(seg[1] === '.gitkeep' || seg[1].endsWith('.contract.md') || seg[1].endsWith('.practice-test.md'))) report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   if (!installs.some(i => i.review)) report.fail('review-file', REVIEW_FILE, null, 'the review procedure file is missing');
-  return { agents, commands, tools, hooks, installs, kit, overlay };
+  return { agents, commands, tools, hooks, guards, installs, kit, skills, rendered, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
@@ -616,16 +651,17 @@ function checkAgent(a, parsed, report) {
   else if (desc.kind === 'text' && desc.value.trim() === '') report.fail('description', a.file, desc.line, 'an empty description');
 }
 
-/** Each install's destinations: a harness's part once per harness that takes it, the rest once, and nothing with no harness in. */
-function expand(installs, harnesses) {
+/** Each install's destinations: a harness's part once per harness that takes it, from its own render when it has one; the rest once; nothing with no harness in. */
+function expand(installs, harnesses, rendered) {
   if (!harnesses.length) return [];
-  return installs.flatMap(i => (i.part ? harnesses.filter(h => h.parts.includes(i.part)).map(h => ({ file: i.file, dest: `@${h.id}/${i.dest}` })) : [i]));
+  const takes = (i, h) => h.parts.includes(i.part) && (i.harness === undefined ? !rendered.has(h.id) : i.harness === h.id);
+  return installs.flatMap(i => (i.part ? harnesses.filter(h => takes(i, h)).map(h => ({ file: i.file, dest: `@${h.id}/${i.dest}` })) : [i]));
 }
 
 function run(root, listed, listedTools, compact, harnesses, report) {
   // @@TEST-CRASH-HOOK@@
   const settingsAllow = loadSettingsAllowlist(report);
-  const { agents, commands, tools, hooks, installs, kit, overlay } = classify(root, report);
+  const { agents, commands, tools, hooks, guards, installs, kit, skills, rendered, overlay } = classify(root, report);
   let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
@@ -636,6 +672,7 @@ function run(root, listed, listedTools, compact, harnesses, report) {
   // Only those --commands names are installed, and the builder kit with /scriptorium.
   for (const c of commands) if (listed.includes(c.stem)) installs.push(c);
   if (listed.includes('scriptorium')) installs.push(...kit);
+  for (const c of skills) if (listed.includes(c.stem)) installs.push(c);
   // Only those --tools names are installed (#280); a tool is off by default.
   for (const c of tools) if (listedTools.includes(c.stem)) installs.push(c);
   // The hook script installs only with --compact on (#482).
@@ -643,9 +680,14 @@ function run(root, listed, listedTools, compact, harnesses, report) {
     for (const name of PACT_HOOKS) if (!hooks.some(h => h.stem === name)) report.fail('hooks-not-in-pact', null, null, `--compact on, but the stage holds no claude/hooks/${name}.mjs: it is not in this pact`);
     installs.push(...hooks);
   }
+  // The guard installs only when a harness takes it (spec 0007 S8), and then whole.
+  if (harnesses.some(h => h.parts.includes('guard'))) {
+    for (const name of GUARD_SCRIPTS) if (!guards.some(g => g.stem === name)) report.fail('guard-not-in-pact', null, null, `--harness takes the guard, but the stage holds no claude/guard/${name}.mjs: it is not in this pact`);
+    installs.push(...guards);
+  }
   // Every other installed text file passes the text scanner: valid UTF-8, no
   // hidden or control characters, so what a reader sees is what the model reads.
-  for (const file of new Set([...installs, ...commands, ...tools, ...hooks, ...kit].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
+  for (const file of new Set([...installs, ...commands, ...tools, ...hooks, ...guards, ...kit, ...skills].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
   for (const name of listed) {
     if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
   }
@@ -654,15 +696,16 @@ function run(root, listed, listedTools, compact, harnesses, report) {
   }
 
   const names = new Map();
+  // A rendered agent repeats its source's name by design; only the sources share one name space.
   for (const a of agents) {
-    if (a.name === undefined) continue;
+    if (a.name === undefined || a.harness !== undefined) continue;
     const k = a.name.toLowerCase();
     if (names.has(k)) report.fail('name-duplicate', a.file, null, `shares its name with ${shown(names.get(k))}`);
     else names.set(k, a.file);
   }
   const dests = new Map();
   for (const i of installs) {
-    const k = i.dest.toLowerCase();
+    const k = `${i.harness ?? ''} ${i.dest}`.toLowerCase();
     if (dests.has(k)) report.fail('destination-duplicate', i.file, null, `installs to the same live path as ${shown(dests.get(k))}`);
     else dests.set(k, i.file);
   }
@@ -672,7 +715,7 @@ function run(root, listed, listedTools, compact, harnesses, report) {
   // The copy set is printed only for a stage that passed, so nothing can be
   // read as approved for install from a failed run.
   if (report.failed) return;
-  const sorted = expand(installs, harnesses)
+  const sorted = expand(installs, harnesses, rendered)
     .filter(i => safePath(i.file))
     .map(i => ({ ...i, hash: sha256(readFileSync(join(root, ...i.file.split('/')))) }))
     .sort((x, y) => (x.dest < y.dest ? -1 : x.dest > y.dest ? 1 : 0));
@@ -720,7 +763,7 @@ function parseArgs(argv, report) {
   if (compactValues.length !== 1) return report.fail('compact-arg', null, null, compactValues.length ? '--compact is given more than once' : 'no --compact: give on or off');
   if (compactValues[0] !== 'on' && compactValues[0] !== 'off') return report.fail('compact-arg', null, null, '--compact takes on or off');
   const harnesses = harnessList(given['--harness']);
-  if (harnesses === null) return report.fail('harness-arg', null, null, '--harness takes, once, none or harness ids each once, each followed by a colon and none or its parts (rules, agents, commands) joined by plus signs');
+  if (harnesses === null) return report.fail('harness-arg', null, null, '--harness takes, once, none or harness ids each once, each followed by a colon and none or its parts (rules, agents, commands, guard) joined by plus signs');
   if (commands === undefined || tools === undefined) return undefined;
   return { root: argv[0], commands, tools, compact: compactValues[0] === 'on', harnesses };
 }

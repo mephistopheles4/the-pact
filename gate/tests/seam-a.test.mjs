@@ -131,6 +131,21 @@ test('bad case: two agents whose names differ only in case', t => {
   assert.ok(failRules(r.stdout).includes('destination-duplicate'), r.out);
 });
 
+// Spec 0007 S7: the install's renders sit under rendered/ in the stage.
+test('a rendered agent beside its source passes: the two share a name by design', t => {
+  expectPass(t, { [A]: plainAgent('probe'), 'rendered/claude/agents/probe.md': plainAgent('probe') });
+});
+
+test('bad case: a rendered file of no known kind, a rendered command or skill that is not the pact\'s, and a rendered agent whose frontmatter fails', t => {
+  // rendered/skills/ is the skills render, never a harness; a harness id is lower case.
+  for (const rel of ['rendered/claude/notes.md', 'rendered/claude/agents/sub/probe.md', 'rendered/skills/rm/SKILL.md', 'rendered/skills/finis/run.sh', 'rendered/skills/rules.md', 'rendered/Mine/rules.md']) expectFail(t, { [rel]: 'x\n' }, 'unclassified');
+  expectFail(t, { 'rendered/claude/agents/a b.md': 'x\n' }, 'path');
+  expectFail(t, { 'rendered/claude/commands/rm.md': 'x\n' }, 'command-file-name');
+  expectFail(t, { 'rendered/claude/agents/probe.md': plainAgent('other') }, 'name-stem');
+  // The rendered skills pass the text scanner like every other installed file.
+  expectFail(t, { 'rendered/skills/finis/SKILL.md': 'x\u202e\n' }, 'invisible');
+});
+
 // Agents install only from claude/agents/; familiars/ holds each agent's contract.
 test('bad case: an agent file in familiars is of no known kind', t => {
   const r = expectFail(t, { 'familiars/probe.md': plainAgent('probe') }, 'unclassified');

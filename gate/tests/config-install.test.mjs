@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import { applyBound, home, install, listTree, makeRepo, nodeEnv, refused, spawnNodeInstall, WIN, total } from './install-harness.mjs';
 import { runCore } from './gate-run.mjs';
 import { plantModule, plantNoDefault } from './gate-files.mjs';
-import { REPO, withoutOpenMarks } from './text.mjs';
+import { REPO, forClaude, withoutOpenMarks } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const CONFIG_REL = ['.pact', 'config.json'];
@@ -124,7 +124,7 @@ function expectedRules(repo, bytes, value) {
   );
   assert.notEqual(noticed, s, 'the notice slot was found and filled');
   s = noticed;
-  return Buffer.from(withoutOpenMarks(s));
+  return Buffer.from(forClaude(withoutOpenMarks(s)));
 }
 
 /** The full rendered hash a dry run printed in its Configuration block. */
@@ -193,9 +193,11 @@ test('with no configuration file the install renders the pact\'s default: the no
   const out = tempDir(t, 'pact-render-');
   const want = runCore('render', [join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]);
   assert.equal(want.failed, false, want.lines.join('\n'));
-  const rendered = readFileSync(join(out, 'CLAUDE.md'));
+  const rendered = Buffer.from(forClaude(readFileSync(join(out, 'CLAUDE.md'), 'utf8')));
   assert.deepEqual(readFileSync(join(h, '.claude', 'CLAUDE.md')), rendered);
   assert.match(rendered.toString('utf8'), /^\*\*Configuration in effect\.\*\* This file was rendered with the pact's default configuration `[0-9a-f]{12}`\.$/m);
+  // C29: the default configuration replaces the tiers part, and the models line survives it.
+  assert.match(rendered.toString('utf8'), /^Here the planning model is `opus`, the executor model `sonnet` and the light model `haiku`\.$/m);
   const digest = /^DIGEST ([0-9a-f]{12})$/m.exec(want.lines.join('\n'))[1];
   const manifest = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
   assert.equal(manifest.digest, digest);
@@ -299,7 +301,7 @@ test('after an install of the pact\'s default, the dry run says so, and a new fi
 });
 
 // The -Apply binding's bad cases. Each refuses with nothing of the install written.
-const BINDING = 'the hash given with --rendered-hash is not the full hash of the rules file this run rendered';
+const BINDING = 'the hash given with --rendered-hash is not the full hash of the rules this run rendered';
 const NEEDS_HASH = 'a configuration applies, so --apply needs the full rendered hash the dry run showed';
 
 test('bad case: -Apply with a wrong hash refuses', t => {

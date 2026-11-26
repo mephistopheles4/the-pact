@@ -35,6 +35,7 @@ Claude Code session on your machine.
 - [Install from a release](#install-from-a-release)
 - [The session stop switch](#the-session-stop-switch)
 - [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
+- [The guard in Codex and Antigravity](#the-guard-in-codex-and-antigravity)
 - [Roll back to an older version](#roll-back-to-an-older-version)
 - [Known limits](#known-limits)
 - [Undo an apply](#undo-an-apply)
@@ -71,9 +72,10 @@ moves `~/.pact`.
 
 A **harness** is a program the rules install into. The pact knows three, in
 [`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
-`codex` and `antigravity`. Today it installs into Claude Code alone: for
-another, the dry run warns that the pact does not build its format yet, and
-writes nothing into it.
+`codex` and `antigravity`. The install writes each one's rules, and the agents
+of Claude Code and Codex; Antigravity gets none yet. Commands reach Codex and
+Antigravity as skills in `~/.pact/skills`, not yet linked into either.
+[The guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
 
 - **Detection.** A known harness is found when its `detect` folder exists
   (`~/.claude`, `~/.codex`, `~/.gemini/config`).
@@ -127,8 +129,9 @@ session running:
    `node claude/tools/gh-app.mjs refresh --provider claude` in your clone, once
    per provider, and apply again.
 
-Skip steps 4 and 6 while the dry run says the pact does not build a harness's
-format yet: your copy is then the only pact that harness reads.
+While the dry run says the pact does not build Antigravity's agent format,
+moving `~/.gemini/config/plugins/the-pact/` leaves Antigravity without the
+pact's agents.
 
 Backups under `~/.claude/pact/backups/` stay where they are. Never sync, share
 or commit that folder either.
@@ -752,6 +755,45 @@ installer's own floor) and `node` on the PATH.
   folder inherits can grant another account access despite the owner-only
   mode; check with `ls -le`.
 
+## The guard in Codex and Antigravity
+
+Claude Code keeps its permission rules. Codex and Antigravity, and a harness of
+your own whose hooks file takes either one's format, get the same rules from a
+hook the install adds.
+
+- **When.** Only while a rule is on (the cleaner, or the session stop switch)
+  and the install takes such a harness. [cleaner.md](cleaner.md) lists the
+  commands.
+- **What it writes.** `~/.pact/guard/`: the guard, a wrapper per format, and
+  `rules.json`, the rules that are on. And one `pact-guard` hook, run before a
+  shell command, in each harness's hooks file (`~/.codex/hooks.json`,
+  `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
+  pact's entry, and the apply backs up each hooks file it changes.
+- **Not on Windows yet.** The hook command is written for `cmd`, and a harness
+  may run it under PowerShell, where it prints the environment and lets the call
+  through. On Windows the install writes no guard, and the dry run and the apply
+  warn for each harness left unguarded.
+- **Trust it in Codex.** Codex runs a hook only once you trust it: open
+  `/hooks` and trust `pact-guard`, the one from `~/.codex/hooks.json`: another
+  hooks file can use the name. The dry run and the apply say so when the entry
+  is new or changed. An update to the guard or its rules needs no new
+  trust, and trust never checks them.
+- **What it answers.** It refuses a command a rule denies. A rule that asks
+  prompts you in Antigravity and is refused in Codex. Any other command gets no
+  answer, so the harness's own permissions decide. A guard that fails refuses
+  every shell command with `The pact's guard failed (<code>); run the pact's
+  dry run.`
+- **A speed bump, not a gate.** Another spelling gets past it, a command inside
+  `bash -c "..."` included, and so does one typed into a shell that is already
+  running, which Codex runs no hook for. A hook that can't start, crashes or
+  runs past 15 seconds lets the command through.
+- **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
+  shape, or sits behind a link refuses the dry run. A pact entry changed since
+  the install is drift.
+- **Off.** Turning every rule off, or taking the harness out of the install
+  list, removes the entry, and the files once no harness takes them. Do that and
+  apply before you roll back to a commit without the guard.
+
 ## Roll back to an older version
 
 **To a commit that installs into `~/.claude`.** Such an installer knows
@@ -900,7 +942,9 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
    - each path is relative to your home folder, with forward slashes and no `..`,
      and names its harness;
    - each path is under `.pact/` or a harness's own rules file, agents or
-     commands folder; none is under `.pact/blocks/`, `.pact/presets/`,
+     commands folder, or is its hooks file (`~/.codex/hooks.json`,
+     `~/.gemini/config/hooks.json`, or the one your own harness names); none
+     is under `.pact/blocks/`, `.pact/presets/`,
      `.pact/backups/`, `.pact/handoffs/`, `.pact/config.json`,
      `.pact/builder.json` or a `.credentials` file, the paths the install
      never touches; `.claude/settings.json` and `.pact/install.json` may be
@@ -909,8 +953,8 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
      `shasum -a 256`, or `Get-FileHash` in PowerShell (compare ignoring case);
    - each `was: absent` path, other than `settings.json` and
      `install.json`, is listed in your current
-     `~/.pact/install.json`, so a planted entry can't have you delete
-     a file of your own. Whatever could plant one could also rewrite the
+     `~/.pact/install.json` (a hooks file under its `entries`), so a planted
+     entry can't have you delete a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
    `~/<path>`. Keep `settings.json`

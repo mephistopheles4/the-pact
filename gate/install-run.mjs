@@ -14,6 +14,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from './install-core.mjs';
 import * as harness from './harnesses.mjs';
+import { renderHarnesses } from './harness-render.mjs';
 import * as io from './install-io.mjs';
 import { FOLD_CASE } from './paths.mjs';
 
@@ -61,7 +62,7 @@ function chooseHarnesses({ stage, staged, home, parsed, record }) {
 }
 
 /** The dry run's harness list: each one in or out, then what the install does not do for it. */
-function harnessLines({ rows, warnings }) {
+function harnessLines({ rows, warnings }, guarded, unguarded) {
   const out = [rows.length ? 'Harnesses:' : 'Harnesses: none found, so nothing installs'];
   for (const r of rows) out.push(`  ${r.id}${r.harness ? ` (${r.harness.name})` : ''}: ${r.in ? 'in' : 'out'}${r.detected ? '' : ', not found'}`);
   for (const w of warnings) out.push(`WARN: ${core.formatPlain(w)}`);
@@ -70,13 +71,40 @@ function harnessLines({ rows, warnings }) {
     if (h?.own && h.hooks) out.push(`guards unverified for ${h.id}: the pact has not seen this harness run its hook`);
     if (!r.in) continue;
     const parts = core.builtParts(h);
-    if (!parts.rules) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s format yet; nothing is installed into it.`);
-    else {
-      if (h.skills) out.push(`WARN: ${h.id}: the pact installs no skills yet.`);
-      if (h.hooks && !parts.settings) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
-    }
+    if (h.agents && !parts.agents) out.push(`WARN: ${h.id}: the pact does not build ${h.name}'s agent format yet; no agent is installed into it.`);
+    if (parts.skills) out.push(`WARN: ${h.id}: its skills are written to ~/.pact/skills; the pact does not link them into ${h.name} yet.`);
+    if (unguarded.includes(h)) out.push(core.guardNotYetLine(h));
+    if (h.hooks && !parts.settings && !parts.guard) out.push(`WARN: ${h.id}: the pact writes no hook into its hooks file yet.`);
   }
   return out;
+}
+
+/** The staged payload files directly in `dir` with `ext`, as name -> text. */
+function stagedTexts(stage, staged, dir, ext) {
+  const names = [...staged.keys()].flatMap(rel => (rel.startsWith(dir) && rel.endsWith(ext) && !rel.slice(dir.length).includes('/') ? [rel.slice(dir.length, -ext.length)] : [])).sort();
+  return new Map(names.map(n => [n, readFileSync(live(stage, `${dir}${n}${ext}`), 'utf8')]));
+}
+
+/**
+ * Each taken harness's render (spec 0007 S7), written into the stage under
+ * rendered/ and hashed as staged, from the configured rules and agents and the
+ * commit's commands. Returns its warnings and each harness's rules hash.
+ */
+function writeRenders({ stage, staged, taken }) {
+  if (!taken.length) return { warnings: [], rules: [] };
+  const { files, warnings } = renderHarnesses({
+    rules: readFileSync(live(stage, core.RULES_REL), 'utf8'),
+    agents: stagedTexts(stage, staged, 'claude/agents/', '.md'),
+    commands: stagedTexts(stage, staged, 'claude/commands/', '.md'),
+    harnesses: taken,
+  });
+  for (const [rel, text] of files) {
+    const bytes = Buffer.from(text, 'utf8');
+    mkdirSync(dirname(live(stage, rel)), { recursive: true });
+    writeFileSync(live(stage, rel), bytes, { flag: 'wx' });
+    staged.set(rel, io.sha256(bytes));
+  }
+  return { warnings, rules: taken.map(h => ({ id: h.id, sha256: staged.get(`${core.RENDERED_REL}${h.id}/rules.md`) })) };
 }
 
 /** Runs a core in-process: its cleaned lines shown (ROOT lines never), its verdict needing both parts. */
@@ -225,6 +253,12 @@ async function main() {
   // The harnesses: a project install takes none.
   const choice = project ? { rows: [], warnings: [] } : chooseHarnesses({ stage, staged, home, parsed, record });
   const taken = choice.rows.filter(r => r.in).map(r => r.harness);
+  const renders = writeRenders({ stage, staged, taken });
+  // One hash over every harness's rules binds the apply (spec 0007 S9); the review folder gets Claude Code's, or the first harness's.
+  const boundHash = core.boundHash(renders.rules, rulesHash, io.sha256);
+  const reviewed = renders.rules.find(r => r.id === 'claude') ?? renders.rules[0] ?? null;
+  const reviewFile = reviewed ? live(stage, `${core.RENDERED_REL}${reviewed.id}/rules.md`) : rulesStaged;
+  const reviewHash = reviewed ? reviewed.sha256 : rulesHash;
   // The settings merge and the hook are Claude Code's: only with it in.
   const claude = taken.find(h => core.builtParts(h).settings) ?? null;
   // The commands that install: the renderer's COMMANDS line, and /scriptorium whenever it is in the commit (#262).
@@ -235,8 +269,14 @@ async function main() {
   const toolsOn = project ? [] : parsed.tools;
   // The auto-compact window (#482): the renderer's VALUE line, else the default; 0 is off, and a project install is always off. It reaches seam A as --compact.
   const window = claude ? core.compactWindow(parsed) : 0;
-  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken)], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0, taken), staged, commit);
+  // The guard (spec 0007 S8): its rules follow the switches, whichever harnesses are in; its files and hooks install while a harness with a guard hook is in and a rule is on.
+  const rules = project ? [] : core.guardRules([...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(core.stopSwitchOn(parsed) ? ['session-stop-deny'] : [])]);
+  const wired = rules.length ? taken.filter(h => core.builtParts(h).guard) : [];
+  const guarded = core.guardOnPlatform(process.platform) ? wired : [];
+  const unguarded = wired.filter(h => !guarded.includes(h));
+  const guardOn = guarded.length > 0;
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, guardOn)], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0, taken, guardOn), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const checkedOverlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   // After the hash check, and only then: the hook script's path and the window replace the overlay's two tokens.
@@ -317,9 +357,19 @@ async function main() {
   // The plan (L1 to L3). Each live state it reads is kept, so the backup compares its copies with what the plan saw (#272, S7).
   const recorded = record ? record.harnesses : [];
   const targets = [...taken.map(core.targetsOf), ...recorded];
-  const mergedFiles = [...choice.rows.flatMap(r => (r.harness?.hooks ? [r.harness.hooks.file] : [])), ...recorded.flatMap(h => (h.settings ? [h.settings] : []))];
+  const guardRecorded = (record ? record.entries : []).filter(e => core.guardFormatOf(e) !== null);
+  const claudeRecorded = (record ? record.entries : []).filter(e => core.guardFormatOf(e) === null);
+  const mergedFiles = [...choice.rows.flatMap(r => (r.harness?.hooks ? [r.harness.hooks.file] : [])), ...recorded.flatMap(h => (h.settings ? [h.settings] : [])), ...guardRecorded.map(e => e.path)];
   const linkIn = rel => io.throughHomeLink(home, rel);
-  const { repoFiles, sourceOf, harnessOf } = core.installDestinations(core.resolveDestinations(checked, taken), linkIn, mergedFiles);
+  const destinations = core.resolveDestinations(checked, taken);
+  // rules.json is the install's own, made here after seam A, which refuses a commit that holds one.
+  if (guardOn) {
+    const table = Buffer.from(core.guardTableText(rules), 'utf8');
+    mkdirSync(dirname(live(stage, core.GUARD_TABLE_REL)), { recursive: true });
+    writeFileSync(live(stage, core.GUARD_TABLE_REL), table);
+    destinations.push([core.GUARD_TABLE_REL, { dest: core.GUARD_TABLE_DEST, sha256: io.sha256(table), harness: core.PACT_ID }]);
+  }
+  const { repoFiles, sourceOf, harnessOf } = core.installDestinations(destinations, linkIn, mergedFiles);
   const seen = new Map();
   const liveAt = rel => {
     if (!seen.has(rel)) seen.set(rel, io.liveState(live(home, rel)));
@@ -339,7 +389,7 @@ async function main() {
   // Settings (L4 to L9). With Claude Code taken out, the entries the record
   // lists are removed by the same merge, over an empty overlay.
   const claudeFile = choice.rows.find(r => r.id === 'claude')?.harness?.hooks?.file ?? null;
-  const removing = !claude && record !== null && record.entries.length > 0 && claudeFile !== null;
+  const removing = !claude && claudeRecorded.length > 0 && claudeFile !== null;
   const settingsRel = claude ? claude.hooks.file : removing ? claudeFile : null;
   const settingsFile = settingsRel === null ? null : live(home, settingsRel);
   const liveBytes = settingsFile === null ? null : io.readOptional(settingsFile);
@@ -410,27 +460,47 @@ async function main() {
   const settingsWill = settings !== null && settings.startsWith('would');
   // The overlay's two plain keys are never drift: each apply sets them again, with a warning, and the record holds them for take-out.
   // The entries the record keeps next: those the merged settings hold, or, for a file left untouched, the last ones.
-  const lastEntries = record ? record.entries.filter(e => e.path === settingsRel) : [];
+  const lastEntries = claudeRecorded.filter(e => e.path === settingsRel);
   const entries = settingsRel === null || liveSettings === null
-    ? (record ? record.entries : [])
+    ? claudeRecorded
     : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: [...deny.record, ...stopRecord], ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record }) : [];
-  const drift = [...p.drift, ...(liveSettings === null ? [] : core.entryDrift(lastEntries.filter(e => !core.OVERLAY_KEYS.includes(e.key)), liveSettings))];
+  const settingsDrift = liveSettings === null ? [] : core.entryDrift(lastEntries.filter(e => !core.OVERLAY_KEYS.includes(e.key)), liveSettings);
+  // The guard's hook, one keyed merge per hooks file (spec 0007 S8).
+  const hooks = core.guardPlans(guardRecorded, guarded.map(h => ({ harness: h.id, path: h.hooks.file, format: h.hooks.format, command: core.guardCommand({ script: join(home, ...core.guardScriptRel(h.hooks.format).split('/')), platform: process.platform, systemRoot: process.env.SystemRoot }) })));
+  for (const f of hooks) {
+    const why = f.path.toLowerCase() === settingsRel?.toLowerCase() ? 'the path of settings.json' : core.guardPathReason(f.path, linkIn);
+    if (why) core.stops.hooksPath(f.path, why);
+    f.file = live(home, f.path);
+    const state = io.liveState(f.file);
+    if (state.exists && !state.file) core.stops.hooksNotObject(f.path);
+    f.bytes = state.exists ? io.readOptional(f.file) : null;
+    const current = f.bytes === null ? new Map() : core.readSettings(f.bytes.toString('utf8'));
+    if (current === null) core.stops.hooksNotObject(f.path);
+    Object.assign(f, core.guardMerge(current, f));
+    f.drifted = core.guardDrift(f, current);
+    f.entries = core.guardEntries(f, io.sha256);
+    // The trust step goes to each harness whose entry is new or changed.
+    f.trust = f.added.includes('codex');
+  }
+  const hooksWill = hooks.filter(f => f.changed);
+  const drift = [...p.drift, ...settingsDrift, ...hooks.flatMap(f => f.drifted.map(d => d.line))];
   const lastConfig = record ? record.config : new Map();
   const targetsText = list => JSON.stringify(list);
   const stale = (record && (record.commit.toLowerCase() !== commit || record.release !== opts.release)) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig) || targetsText(taken.map(core.targetsOf)) !== targetsText(recorded);
   // An agent the record lists that is now yours needs the record rewritten without it.
   const yoursListed = record ? p.yours.some(rel => record.files.some(e => e.path === rel)) : false;
-  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || stale || yoursListed || !record);
+  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || hooksWill.length || stale || yoursListed || !record);
 
   // One block per harness, the pact's own files first (spec 0007 S9).
-  for (const l of harnessLines(choice)) say(l);
+  for (const l of harnessLines(choice, guarded, unguarded)) say(l);
+  for (const w of renders.warnings) say(`WARN: ${core.formatPlain(w)}`);
   const changed = new Set([...p.overwrite, ...p.add]);
   const ids = [...new Set([...(repoFiles.size || record ? ['pact'] : []), ...taken.map(h => h.id), ...recorded.map(h => h.id)])];
   for (const id of ids) {
     const h = taken.find(t => t.id === id);
     say(id === 'pact' ? `== pact home (${core.NEUTRAL_REL}) ==` : `== ${id} (${h ? h.name : 'taken out'}) ==`);
     const mine = rel => owner(rel) === id;
-    const driftHere = [...p.drift.filter(l => mine(l.slice(0, l.indexOf(' (')))), ...(id === 'claude' ? drift.slice(p.drift.length) : [])];
+    const driftHere = [...p.drift.filter(l => mine(l.slice(0, l.indexOf(' (')))), ...(id === 'claude' ? settingsDrift : []), ...hooks.flatMap(f => f.drifted.filter(d => d.harness === id).map(d => d.line))];
     for (const [title, items] of [['Drift', driftHere], ['Overwrite', p.overwrite.filter(mine)], ['Add', p.add.filter(mine)], ['Delete', p.delete.filter(mine)], ['Yours, left as is', p.yours.filter(mine)]]) {
       say(`${title}: ${items.length}`);
       for (const i of items) say(`  ${core.formatPlain(i)}`);
@@ -445,21 +515,23 @@ async function main() {
       for (const l of identityBlock) say(l);
       for (const l of notes) say(l);
     }
+    for (const f of hooks.filter(f => [...f.want, ...f.recorded].some(w => w.harness === id))) for (const l of core.guardLines(f, id)) say(l);
   }
+  if (guardOn) say(`Guard rules (${core.GUARD_TABLE_DEST}): ${rules.map(r => `${r.id} (${r.decision})`).join(', ')}`);
   for (const w of p.warnings) say(`WARN: ${core.formatPlain(w)}`);
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
   const settingsCopied = settingsWill && liveBytes !== null;
-  say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
+  say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + hooksWill.filter(f => f.bytes !== null).length + (recordBytes !== null ? 1 : 0), settingsCopied));
   const folder = io.scanBackups(home);
   if (folder.link) say(`WARN: ${core.BACKUPS_REL} is not a plain folder: a link, a file or another reparse point; --apply refuses until it is moved out of the way.`);
   if (folder.staging.length) say(core.stagingLine(folder.staging));
   if (folder.others) say(core.othersLine(folder.others));
-  const ownFiles = [...(settingsRel === null ? [] : [[settingsRel, settingsFile]]), [core.RECORD_REL, recordFile]];
+  const ownFiles = [...(settingsRel === null ? [] : [[settingsRel, settingsFile]]), ...hooks.map(f => [f.path, f.file]), [core.RECORD_REL, recordFile]];
   for (const [rel, file] of ownFiles) {
     if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
   }
   say('Configuration:');
-  for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
+  for (const l of core.configBlock(parsed, boundHash, record, renders.rules.map(r => r.id).sort())) say(l);
   for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
   for (const l of core.toolsBlock(toolsOn, staged.keys())) say(l);
   for (const l of core.skillsBlock(parsed)) say(l);
@@ -470,30 +542,30 @@ async function main() {
   // The gate block comes last, after the checks' own output, so nothing they print can stand in for it.
   for (const l of gateLines) say(l);
 
-  core.checkBinding(opts, rulesHash, commit);
+  core.checkBinding(opts, boundHash, commit);
   const configApplies = parsed.config.kind !== 'none';
 
   // The review output, once every check for this run has passed (V1, X3).
   const writeReview = async () => {
     if (opts.reviewFolder === null) return;
     const review = await loadCore('review-core.mjs');
-    if (io.fileSha256(rulesStaged) !== rulesHash) core.stops.reviewRulesChanged();
+    if (io.fileSha256(reviewFile) !== reviewHash) core.stops.reviewRulesChanged();
     const was = stateOf(stage);
-    const report = review([resolve(opts.reviewFolder), home, rulesStaged, diffFile]);
+    const report = review([resolve(opts.reviewFolder), home, reviewFile, diffFile]);
     for (const l of core.showLines(core.outputLines(report.lines), 'review')) say(l);
     let now = null;
     try {
       now = io.treeState(stage);
     } catch {}
     if (now !== was) core.stops.reviewChangedStage();
-    core.checkReviewLines(report, rulesHash, parsed.diffHash);
+    core.checkReviewLines(report, reviewHash, parsed.diffHash);
     say('Review output: rendered-rules.txt and config.diff written to the review folder.');
   };
 
   if (!opts.apply) {
     await writeReview();
     say("Dry run only. After the owner's go-ahead, run:");
-    say(`  ${core.applyLine(opts.paths, commit, configApplies ? rulesHash : null, process.platform, releaseFrom())}`);
+    say(`  ${core.applyLine(opts.paths, commit, configApplies ? boundHash : null, process.platform, releaseFrom())}`);
     say('RESULT: pass');
     return;
   }
@@ -507,7 +579,10 @@ async function main() {
   await writeReview();
   // @@TEST-BACKUP-HOOK@@
   // The backup, after every check and before CHECKS DONE, so a backup that fails still changed nothing (#272, S7).
-  const settingsBackup = settingsWill ? [{ path: settingsRel, harness: 'claude', sha256: liveBytes === null ? null : io.sha256(liveBytes) }] : [];
+  const settingsBackup = [
+    ...(settingsWill ? [{ path: settingsRel, harness: 'claude', sha256: liveBytes === null ? null : io.sha256(liveBytes) }] : []),
+    ...hooksWill.map(f => ({ path: f.path, harness: (f.want[0] ?? f.recorded[0]).harness, sha256: f.bytes === null ? null : io.sha256(f.bytes) })),
+  ];
   const toKeep = core.backupEntries({ copy: [...p.overwrite, ...p.delete], add: p.add, live: rel => seen.get(rel), settings: settingsBackup, record: recordBytes === null ? null : io.sha256(recordBytes), harnessOf: owner });
   const started = () => {
     backupStarted = true;
@@ -528,15 +603,25 @@ async function main() {
   const files = new Map();
   for (const e of record ? record.files : []) if (e.path !== null && core.inTargets(e.path, e.harness, targets) && core.skipReason(e.path, linkIn, mergedFiles) === null && !p.yours.includes(e.path) && liveAt(e.path).file) files.set(e.path, { harness: e.harness, sha256: e.sha256 });
   for (const [rel, sha] of repoFiles) if (!changed.has(rel)) files.set(rel, { harness: owner(rel), sha256: sha });
-  let entriesNow = record ? record.entries : [];
+  let entriesNow = claudeRecorded;
+  // Each hooks file's entries: the last install's until it is written, or at once when it needs no write.
+  const hookEntries = new Map(hooks.map(f => [f.path, f.changed ? f.recorded : f.entries]));
   const writeRecord = () => {
     const now = taken.map(core.targetsOf);
     // A harness of the last install stays listed while the record still names a file in its folders.
     const kept = recorded.filter(old => !now.some(t => targetsText(t) === targetsText(old)) && [...files].some(([rel, f]) => f.harness === old.id && core.inTargets(rel, old.id, [old]) && !core.inTargets(rel, old.id, now)));
     const sorted = new Map([...files].sort(([a], [b]) => (a < b ? -1 : 1)));
     // The window stays recorded when the settings file is left untouched.
-    io.writeReplacing(recordFile, core.recordText({ commit, release: opts.release, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, entries: entriesNow, gateNow }), 0o600);
+    io.writeReplacing(recordFile, core.recordText({ commit, release: opts.release, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, entries: [...entriesNow, ...[...hookEntries.values()].flat()], gateNow }), 0o600);
   };
+  const writeHooks = f => {
+    io.writeReplacing(f.file, core.settingsText(f.merged), 0o600);
+    hookEntries.set(f.path, f.entries);
+    writeRecord();
+    say(`merged ${f.path}`);
+  };
+  // A hook goes before the files it runs are deleted, and comes after the files it runs are written, so no entry names a missing wrapper.
+  for (const f of hooksWill.filter(f => !f.want.length)) writeHooks(f);
   for (const rel of p.delete) {
     io.removeFile(live(home, rel));
     files.delete(rel);
@@ -555,6 +640,8 @@ async function main() {
   }
   entriesNow = entries;
   writeRecord();
+  for (const f of hooksWill.filter(f => f.want.length)) writeHooks(f);
+  for (const f of hooks.filter(f => f.trust)) say(core.CODEX_TRUST_LINE);
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;
@@ -568,6 +655,15 @@ async function main() {
   for (const rel of p.delete) {
     if (io.liveState(live(home, rel)).exists) {
       say(`MISMATCH ${rel} (should be deleted)`);
+      bad++;
+    }
+  }
+  for (const f of hooks.filter(f => f.want.length)) {
+    const after = io.readOptional(f.file);
+    const now = after === null ? null : core.readSettings(after.toString('utf8'));
+    if (now !== null && !core.guardDrift({ recorded: f.entries }, now).length) say(`OK       ${f.path} (pact-guard hook)`);
+    else {
+      say(`MISMATCH ${f.path} (the pact-guard hook is not there)`);
       bad++;
     }
   }

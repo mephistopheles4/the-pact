@@ -2,7 +2,7 @@
 name: conventions-lens
 description: Reviews a diff against the repo's written rules, and reports each break, including a copy of a rule that no longer matches its source. Read-only. Not for whether the text reads clearly, whether the change works, security, or what was never asked for.
 tools: [Read, Glob, Grep]
-model: opus
+model: planning
 effort: medium
 ---
 

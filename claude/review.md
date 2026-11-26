@@ -31,6 +31,33 @@ lenses to offer, and when.
   teammate, so it gets no messaging or task tool beyond its own tool list.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
+- **The tree check,** where the harness can't hold an agent to its tools (Codex
+  today), around each lens. Before it:
+  - find git's real folders through git (`rev-parse --git-common-dir`, and
+    `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since in
+    a linked worktree `.git` is a file;
+  - copy those outside the work tree, readable only by the owner, and keep a
+    hash of each copy, its file names included, and the records below, in your
+    own output, never in a file a lens can write;
+  - record `HEAD`, a hash of every ref and of the stash list, and
+    `status --porcelain --ignored=matching --untracked-files=all`, with a hash
+    of each listed path's content. Run git with fsmonitor and every filter off:
+    `-c core.fsmonitor=false`, and each filter's `clean` and `process` empty
+    and `required` false.
+
+  After it, first stop any process the lens left running, and remove any new
+  link or junction, in git's folders too. Check each copy against its hash, and
+  again right before you put anything back from it; if one differs, put nothing
+  back from the copies and bring it to me. Else compare git's folders with the
+  copies and put them back, check them against the same hashes, and bring any
+  difference to me; then take the same records again. Any change, a removed
+  link included, marks the lens inconclusive. Put back only what changed during
+  the lens: a moved ref goes back to its earlier value first; then restore a
+  path clean before with git from the earlier `HEAD`, or delete it if it is
+  new. Remove, put back and restore each path as itself, never through a link or
+  junction. A path already changed before the lens stays as it is, and you name
+  it, so my own work is never thrown away. Delete the copies. The change and the
+  restore are a checkpoint, flagged.
 
 ## The report template
 

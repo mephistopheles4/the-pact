@@ -93,8 +93,8 @@ someone hands a session to load, and a decision model's answer.
   and `respawn`, on only while `session-stop-deny` is on (off by default); the
   cleaner's stop yields to it. Deny
   rules are speed bumps: another spelling gets past them. The ask rule is
-  passed by `bypassPermissions`, a mod, or another spelling. In Codex and
-  Antigravity a guard hook denies what those rules deny, under the same
+  passed by `bypassPermissions`, a mod, or another spelling. Off Windows, in
+  Codex and Antigravity a guard hook denies what those rules deny, under the same
   switches; an ask rule prompts in Antigravity and denies in Codex. The hook
   denies on an error it catches; a hook that can't start, crashes past that or times out lets the call
   through, as does another spelling. In Codex it runs only once the owner
@@ -176,7 +176,7 @@ Codex and Antigravity; and the release app's key.
   token, can pass. It holds only while the test itself is unchanged; a change to it is read
   like any change. The bootstrap takes only an exact release tag and checks the
   clone's head, which keeps the clone consistent, not intact; npm picks the
-  bootstrap, so the tag rulesets decide it. The bootstrap's `git` and the guard
+  bootstrap, so tag rulesets decide it. The bootstrap's `git` and the guard
   hook's `node` are never taken from the working folder. The Scriptorium page's
   policy (`builder/build.mjs`) sets
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and

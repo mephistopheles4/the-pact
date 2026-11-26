@@ -56,16 +56,35 @@ const CONFIG = '{"schema": 1, "commands": ["make-it-so", "finis", "scry"], "tool
 const moved = text => text.replaceAll('.claude/pact/handoff/', '.pact/handoffs/').replaceAll('.claude/pact/', '.pact/').replaceAll('in my Claude folder beside', 'in `~/.pact` beside');
 const lf = text => text.replaceAll('\r\n', '\n');
 const fixture = rel => lf(readFileSync(join(FIXTURE, ...rel.split('/')), 'utf8'));
+/** Every other change to the rules since the fixture (spec 0007 S6, S7): the neutral phrases, the model roles and the models line. */
+const NEUTRAL_RULES = [
+  ['## How Claude helps', '## How the agent helps'],
+  ["Claude's own\n  permission prompts and classifier blocks still stop you; these rules add no\n  stop of their own.", "Your harness's own\n  permission prompts and blocks still stop you; these rules add no stop of\n  their own."],
+  ['| none | Opus, low |', '| none | planning model, low |'],
+  ['| Opus, medium | Sonnet, medium |', '| planning model, medium | executor model, medium |'],
+  ['| Opus, high | Sonnet, medium |\n', '| planning model, high | executor model, medium |\n\nHere the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.\n'],
+  ["and built on Opus at high, with the security pair, `adversarial-lens` and\n`data-lens`, on the spec and the diff. That is the sensitive route. When the\nwork matches that list, or you think it sensitive otherwise, say why in one\nline in your tier proposal and recommend the route; I take it or not. If I\ndidn't take the route, offer the security pair once more at Test when the\nchange matches the list. Beyond that one offer, sensitivity doesn't stop the\nrun. A flag or an offer I haven't answered stays open, in one line, in every\nhand-off and in the result. If you find it later, say so in one line at the\nnext hand-off or result, and keep saying it until I answer.", "and built on the planning model at high, with the security pair,\n`adversarial-lens` and `data-lens`, on the spec and the diff. That is the\nsensitive route. When the work matches that list, or you think it sensitive\notherwise, say why in one line in your tier proposal and recommend the route;\nI take it or not. If I didn't take the route, offer the security pair once\nmore at Test when the change matches the list. Beyond that one offer,\nsensitivity doesn't stop the run. A flag or an offer I haven't answered stays\nopen, in one line, in every hand-off and in the result. If you find it later,\nsay so in one line at the next hand-off or result, and keep saying it until I\nanswer."],
+  ['| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high |', '| Plan | in the session, no plan | planning model, medium | planning model, high | planning model, high |'],
+  ['| Design | skipped | Opus, medium | Opus, high | Opus, high |', '| Design | skipped | planning model, medium | planning model, high | planning model, high |'],
+  ['| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high |', '| Build | planning model, low | executor model, medium | executor model, medium | planning model, high |'],
+  ['| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high |', '| Test | planning model, low | executor model, medium | executor model, medium | planning model, high |'],
+  ['| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high |', '| Maintain | in the session, no plan | planning model, medium | planning model, high | planning model, high |'],
+];
+const neutral = text => NEUTRAL_RULES.reduce((s, [from, to]) => {
+  assert.equal(s.split(from).length, 2, `the fixture holds ${from} once`);
+  return s.replace(from, () => to);
+}, text);
 /** settings.json as values, its home folder read as <home> and every separator as a slash. */
 const settings = (text, h) => JSON.parse(text, (_, v) => (typeof v === 'string' ? (h ? v.replaceAll('\\', '/').replace(h.replaceAll('\\', '/'), '<home>') : v.replaceAll('\\', '/')) : v));
 
-test('C3: the rules, agents, commands and settings written for Claude Code match the fixture but for the paths', t => {
+test('C3: the rules, agents, commands and settings written for Claude Code match the fixture but for the paths, the neutral phrases and the model roles', t => {
   const repo = makeRepo(t);
   const h = home(t);
   mkdirSync(at(h, '.pact'));
   writeFileSync(at(h, '.pact/config.json'), CONFIG);
   passed(applyBound(repo, h));
-  assert.equal(lf(read(h, '.claude/CLAUDE.md')), moved(fixture('rules.md')));
+  const rules = lf(read(h, '.claude/CLAUDE.md'));
+  assert.equal(rules, neutral(moved(fixture('rules.md'))));
   for (const dir of ['agents', 'commands']) {
     const want = readdirSync(join(FIXTURE, dir)).sort();
     assert.deepEqual(readdirSync(at(h, `.claude/${dir}`)).sort(), want);
@@ -94,7 +113,11 @@ test('C17: one apply writes every harness in the list, records and backs up each
   assert.match(block(dry, 'mine'), /^ {2}\.mine\/RULES\.md$/m);
 
   passed(applyBound(repo, h));
-  assert.equal(read(h, '.mine/RULES.md'), read(h, '.claude/CLAUDE.md'));
+  // C7, C29: an own harness that names no models gets no models line, and one with no subagents gets S12's line.
+  const mine = read(h, '.mine/RULES.md');
+  const alone = 'This harness has no subagents: run each lens in a separate session.\n';
+  assert.equal(mine.split(alone).length, 2, mine);
+  assert.equal(mine.replace(alone, ''), read(h, '.claude/CLAUDE.md').replace(/\nHere the planning model is [^\n]*\n/, ''));
   const files = record(h).files;
   for (const [id, path] of [['claude', '.claude/CLAUDE.md'], ['claude', '.claude/agents/scout.md'], ['mine', '.mine/RULES.md'], ['mine', '.mine/agents/scout.md'], ['pact', '.pact/review.md']]) {
     assert.ok(files.some(f => f.harness === id && f.path === path), `${id} ${path}`);
@@ -121,6 +144,72 @@ test('C17: one apply writes every harness in the list, records and backs up each
   const drift = install(repo, h);
   assert.match(block(drift, 'mine'), /^Drift: 1\n {2}\.mine\/RULES\.md \(changed since the install\)$/m);
   assert.match(block(drift, 'claude'), /^Drift: 2\n {2}\.claude\/CLAUDE\.md \(changed since the install\)\n {2}\.claude\/settings\.json autoCompactWindow \(the pact's entry changed since the install\)$/m);
+});
+
+// ------------------------------------------------------------ C5, C8, C9: each harness's own render
+
+test('C5, C8, C9, C29: one apply writes each harness its own render, binds every rules file, and warns on a model named outright', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  for (const dir of ['.codex', '.gemini/config', '.pact']) mkdirSync(at(h, dir), { recursive: true });
+  writeFileSync(at(h, '.pact/config.json'), '{"schema": 1, "commands": ["finis"], "agents": {"scout": {"model": "my-model"}}, "harnesses": {"install": ["claude", "codex", "antigravity"]}}\n');
+
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(dry.stdout, /^WARN: `\.codex\/agents\/scout\.toml` names model `my-model`, which Codex may not have\r?$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, /`\.claude\/[^`]*` names model/);
+  // Antigravity takes no agent until the pact has its tool names.
+  assert.match(dry.stdout, /^WARN: antigravity: the pact does not build Antigravity's agent format yet/m, dry.out);
+  passed(applyBound(repo, h));
+
+  const rules = read(h, '.codex/AGENTS.md');
+  assert.match(rules, /^Here the planning model is `gpt-6\.2-sol`, the executor model `gpt-6\.2-astra` and the light model `gpt-6\.2-astra`\.$/m);
+  assert.doesNotMatch(rules, /\b(?:Opus|Sonnet|Haiku)\b|<!-- pact:(?:if|unless|end -->|models)/);
+  assert.match(read(h, '.gemini/AGENTS.md'), /the planning model is `pro`, the executor model `flash`/);
+  assert.match(read(h, '.codex/agents/data-lens.toml'), /^model = "gpt-6\.2-sol"$/m);
+  assert.ok(!existsSync(at(h, '.gemini/config/agents')));
+  // C9: the skill opens with S7's line, ends with the no-archive line, and its steps archive nothing.
+  const finis = lf(read(h, '.pact/skills/finis/SKILL.md'));
+  assert.match(finis, /^---\nname: finis\n[\s\S]*?\n# \/finis\n\nAct only if the person's latest message names this command; otherwise say so and stop\.\n/);
+  assert.match(finis, /Nothing is outstanding;\s+close this session\."\n$/);
+  assert.doesNotMatch(finis.slice(finis.indexOf('\n# /finis\n')), /archive/i);
+  assert.equal(read(h, '.pact/skills/finis/agents/openai.yaml'), 'policy:\n  allow_implicit_invocation: false\n');
+  // A command the configuration leaves off is no skill either.
+  assert.ok(!existsSync(at(h, '.pact/skills/scry')));
+  assert.match(read(h, '.claude/commands/finis.md'), /archive the\s+session/);
+  const files = record(h).files;
+  for (const [id, path] of [['codex', '.codex/AGENTS.md'], ['codex', '.codex/agents/scout.toml'], ['antigravity', '.gemini/AGENTS.md'], ['pact', '.pact/skills/finis/SKILL.md']]) {
+    assert.ok(files.some(f => f.harness === id && f.path === path), `${id} ${path}`);
+  }
+
+  // The bound hash covers every harness's rules, so one harness's change alone refuses an old apply.
+  const bound = r => /--rendered-hash ([0-9a-f]{64})/.exec(r.stdout)[1];
+  const first = install(repo, h);
+  assert.match(first.stdout, new RegExp(`^  rendered rules of antigravity, claude, codex, one hash over them all: sha256 ${bound(first)}$`, 'm'));
+  const was = bound(first);
+  edit(repo, 'harnesses/known.json', '"planning": "gpt-6.2-sol"', '"planning": "gpt-7"');
+  commitAll(repo);
+  assert.notEqual(bound(install(repo, h)), was);
+});
+
+test('bad case: a skill file already in ~/.pact/skills that the record does not list refuses', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  for (const dir of ['.codex', '.pact/skills/scriptorium']) mkdirSync(at(h, dir), { recursive: true });
+  writeFileSync(at(h, '.pact/skills/scriptorium/SKILL.md'), 'mine\n');
+  const r = install(repo, h);
+  refused(r, /^REFUSED: \.pact\/skills\/scriptorium\/SKILL\.md already exists, and the install record does not list it/m);
+  assert.equal(read(h, '.pact/skills/scriptorium/SKILL.md'), 'mine\n');
+});
+
+test('C6: rules over a harness cap refuse the whole install', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  mkdirSync(at(h, '.gemini/config'), { recursive: true });
+  edit(repo, 'harnesses/known.json', '"cap": 24000', '"cap": 2000');
+  commitAll(repo);
+  const r = install(repo, h);
+  refused(r, /^REFUSED: the rules for antigravity take \d+ bytes, over its cap of 2000\./m);
 });
 
 // ------------------------------------------------------------ C18: what is not the record's, and a harness taken out

@@ -237,7 +237,7 @@ export function collect(read = real, list = listReal) {
   const units = [];
   const add = (file, texts) => units.push(...texts.map(text => ({ file, text })));
   const files = (dir, ext) => list(dir).filter(f => f.endsWith(ext)).map(f => `${dir}/${f}`);
-  // A tool or a hook is read as script text; a file of another kind, or a subfolder, would go unread, so it fails the run.
+  // A tool, a hook or a guard script is read as script text; a file of another kind, or a subfolder, would go unread, so it fails the run.
   const scripts = dir => {
     const stray = list(dir).filter(f => !f.endsWith('.mjs'));
     if (stray.length) throw new Error(`${dir} holds ${stray.join(', ')}, which this test does not read: read it, or take it out`);
@@ -246,7 +246,7 @@ export function collect(read = real, list = listReal) {
   for (const f of ['claude/CLAUDE.md', 'claude/review.md', ...files('claude/commands', '.md'), ...files('claude/agents', '.md')]) add(f, markdownUnits(read(f)));
   const render = read('gate/render-core.mjs');
   for (const name of renderNames(render)) add(`gate/render-core.mjs ${name}`, renderUnits(render, name));
-  for (const f of [...scripts('claude/tools'), ...scripts('claude/hooks')]) add(f, literalUnits(read(f)));
+  for (const f of [...scripts('claude/tools'), ...scripts('claude/hooks'), ...scripts('claude/guard')]) add(f, literalUnits(read(f)));
   return units;
 }
 
@@ -369,7 +369,7 @@ test('wait label: every exemption still matches a unit that would fail', () => {
 // hooks folder holding a file that is not a script, or a subfolder, is refused.
 {
   const withEntry = (dir, entry) => (d => (d === dir ? [...listReal(d), entry] : listReal(d)));
-  for (const [dir, entry] of [['claude/tools', 'helper.sh'], ['claude/hooks', 'extra.cjs'], ['claude/tools', 'lib/']]) {
+  for (const [dir, entry] of [['claude/tools', 'helper.sh'], ['claude/hooks', 'extra.cjs'], ['claude/tools', 'lib/'], ['claude/guard', 'rules.json']]) {
     // #558 C8
     test(`wait label: ${dir} holding ${entry} fails the run`, () => {
       assert.throws(() => collect(real, withEntry(dir, entry)), new RegExp(`${dir} holds ${entry}, which this test does not read`));

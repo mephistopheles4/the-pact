@@ -10,7 +10,7 @@ import test from 'node:test';
 import { applyBound, commitAll, git, home, install, listTree, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
 import { runCore } from './gate-run.mjs';
 import { tempDir } from './tree.mjs';
-import { skipUnlessLinuxCi } from './text.mjs';
+import { forClaude, skipUnlessLinuxCi } from './text.mjs';
 
 const edit = (root, rel, from, to) => {
   const p = join(root, ...rel.split('/'));
@@ -51,7 +51,7 @@ test('node: --apply installs the files byte for byte, writes the record and the 
   const agents = record.files.filter(f => f.path.startsWith('.claude/agents/'));
   assert.equal(agents.length, readdirSync(join(repo, 'claude', 'agents')).length);
   for (const f of agents) {
-    assert.deepEqual(readFileSync(join(h, ...f.path.split('/'))), readFileSync(join(repo, 'claude', ...f.path.split('/').slice(1))), f.path);
+    assert.equal(readFileSync(join(h, ...f.path.split('/')), 'utf8'), forClaude(readFileSync(join(repo, 'claude', ...f.path.split('/').slice(1)), 'utf8')), f.path);
   }
   assert.ok(record.gate.some(g => g.path === 'gate/install.mjs'));
   assert.ok(!record.gate.some(g => g.path.startsWith('gate/tests/')));
@@ -110,7 +110,7 @@ test('node: an installed file that is a hard link loses only its own name; the o
   // ADR 0094: with no configuration, the rules file is the default's render, byte for byte.
   const out = tempDir(t, 'pact-render-');
   assert.equal(runCore('render', [join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]).failed, false);
-  assert.deepEqual(readFileSync(join(h, '.claude', 'CLAUDE.md')), readFileSync(join(out, 'CLAUDE.md')), 'the rules file holds the default render');
+  assert.equal(readFileSync(join(h, '.claude', 'CLAUDE.md'), 'utf8'), forClaude(readFileSync(join(out, 'CLAUDE.md'), 'utf8')), 'the rules file holds the default render');
 });
 
 for (const [name, dirty] of [
@@ -301,7 +301,7 @@ test('node: a configuration binds --apply to the rendered hash, and the record n
   assert.ok(dry.stdout.split('\n').find(l => l.includes(' --apply ')).endsWith(`--rendered-hash ${hash}`), dry.out);
   refused(install(repo, h, { apply: true }), /needs the full rendered hash the dry run showed/);
   userConfig(h, 80);
-  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }), /is not the full hash of the rules file this run rendered/);
+  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }), /is not the full hash of the rules this run rendered/);
   userConfig(h, 90);
   passed(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }));
   const record = JSON.parse(readFileSync(join(h, '.pact', 'install.json'), 'utf8'));
@@ -410,7 +410,7 @@ test('node: a review module that writes into the stage refuses, saying the revie
 });
 
 // Seam A passes, then changes the staged rules file it checked: the review's re-hash and the apply's re-hash catch it.
-const seamAThenEdit = root => plantCore(root, 'seam-a', 'end', "if (argv[1] === '--commands') plantAppend(argv[0] + '/claude/CLAUDE.md', 'x');");
+const seamAThenEdit = root => plantCore(root, 'seam-a', 'end', "if (argv[1] === '--commands') plantAppend(argv[0] + '/rendered/claude/rules.md', 'x');");
 
 test('node: a staged rules file changed after the check refuses the review output before it is written', t => {
   const repo = makeRepo(t, seamAThenEdit);

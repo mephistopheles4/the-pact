@@ -24,18 +24,19 @@ This file is never installed.
 | Think before doing | An intent clear enough to defend. No check can test that. |
 | Checkpoint the seams | It weighs hand-offs and decisions, not only tool actions, by how hard each is to undo. The harness's confirm-first rule covers tool actions only. |
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
-| How Claude helps | What stays the owner's, and where the record's and the tools' how-to lives. |
-| Checkpoints | What the rules keep for the owner is the session's own pick, logged and flagged, so work runs on and the owner reviews after; the pact adds no stop of its own, and Claude's permission prompts and classifier blocks still stop a session. Nothing else logs it or pins a merge to its head. |
+| How the agent helps | What stays the owner's, and where the record's and the tools' how-to lives. |
+| Checkpoints | What the rules keep for the owner is the session's own pick, logged and flagged, so work runs on and the owner reviews after; the pact adds no stop of its own, and the harness's permission prompts and blocks still stop a session. Nothing else logs it or pins a merge to its head. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
 | Keep the record | Points to review.md's Posting section, which no tool loads, and says where the record is: the work's record, else chat. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent; and the read-back, not a listed set of items, sets the work's edge and its acceptance, which no check reads. |
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
 | Remove worktrees only through the cleaner | It can't tell the owner's yes: each removal is a checkpoint (the Safety quality; `AGENTS.md`, Reviewing a change here). The line names the command: a lead may run a cleaner only when the user-level rules name its program, and the bare line named neither. |
-| How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
+| How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. The tables name roles and one line names the harness's models for them, since no harness maps a role to a model. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | A skill I can't invoke | The harness blocks invoking a skill with model invocation off, and a plugin skill can be missing from the session's list; without the rule the stage stalls or the skill is skipped silently. Naming the skill in the workflow is the owner's consent to run it. |
-| Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |
+| Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. Where a harness has no subagents, it says each lens runs in a session of its own, which no harness arranges. |
 | Lenses are offers | An offer is a checkpoint, answered by whoever steers the session: the owner, or the grimoire head chef's lead in Turbo mode. |
 | Before you run a lens or post to the record, read `~/.pact/review.md` | Points to the procedure, which no tool loads. |
+| The tree check (`review.md`, Running a lens) | A harness that can't hold an agent to its tools leaves a lens able to write. Nothing else notices what a lens changed, git's own folders included, or keeps the owner's earlier work while undoing it. |
 | The placement call's bound (`review.md`, the threat model, step 2) | Outside text in a caller's `state` can steer a decision model to a confident wrong placement. Nothing else compares its answer with the session's own, or stops a finding being dropped on it. |
 | Qualities | The owner's quality list, with the lens that checks each. No tool measures them. |
 | Trade-off points | What a spec must record about trade-offs. No tool reads a spec. |

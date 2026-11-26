@@ -251,7 +251,7 @@ const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 // The models the rules file's notice names as they are. Every session reads
 // the notice and may quote it, so any other model, which can hold a provider
 // account or project, is "a custom model" there (#262 S15, data-lens F1).
-const NOTICE_MODELS = Object.freeze(['opus', 'sonnet', 'haiku', 'fable', 'inherit']);
+const NOTICE_MODELS = Object.freeze(['planning', 'executor', 'light', 'opus', 'sonnet', 'haiku', 'fable', 'inherit']);
 const noticeModel = m => (NOTICE_MODELS.includes(m) ? m : 'a custom model');
 const AGENT_FIELDS = Object.freeze(['model', 'effort']);
 /** `v` when it is a model the renderer may write, else undefined. */

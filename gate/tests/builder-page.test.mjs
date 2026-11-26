@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { AVIATION_PIN, EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, personalPresets, personalPresetsDir, shippedPresets } from '../../builder/build.mjs';
-import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
+import { DEFAULT_PARTS, MODEL_RE, agentModelOf, modelChoiceOk, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
 import { BUILDER_KIT, CLEANER_ASK, CLEANER_DENY, STOP_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -1301,7 +1301,7 @@ test('stub page: "The pact" shows the pact\'s text read-only, each file byte for
   // #564: the checkpoint-stops part is gone, so no label stands for it.
   assert.ok(!rules.includes('under Settings:]\n- **Checkpoints wait'));
   const beforePoster = src.split('<!-- pact:begin tool-poster -->')[0].split('\n').filter(l => l.trim() && !l.includes('<!-- pact:')).at(-1);
-  assert.match(rules, new RegExp(`${beforePoster.replace(/[.*+?^$()[\]{}|\\/]/g, '\\$&')}\\n\\[Only while the poster is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[Only while the cleaner is on[^\\n]*\\n- \\*\\*`));
+  assert.match(rules, new RegExp(`${beforePoster.replace(/[.*+?^$()[\]{}|\\/]/g, '\\$&')}\\n\\[Only while the poster is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[Only in a harness with the cleaner capability:\\]\\n\\[Only while the cleaner is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[End of that part\\.\\]`));
   assert.match(rules, /\[Only when you set this line, under Settings:\]\n- \*\*/);
   P.button(P.ids.actions, 'Export').click();
   assert.equal(P.ids.output.text, before);
@@ -1747,7 +1747,11 @@ test('every pact agent takes a model and effort, scout included, and only a chan
 // #262 C16
 test('the Models list feeds the agents and the tiers: a model ID reaches config.json and the tier text exactly as typed', () => {
   const s = L.initialState();
-  assert.deepEqual(s.models, ['Opus', 'Sonnet', 'Haiku', 'Fable']);
+  // Spec 0007 S6: the list starts as the three roles; a role cell reads as a role, and an agent file takes its one word.
+  assert.deepEqual(s.models, ['planning model', 'executor model', 'light model']);
+  assert.deepEqual([...s.models, 'Opus', 'my-model'].map(agentModelOf), ['planning', 'executor', 'light', 'opus', 'my-model']);
+  assert.ok(modelChoiceOk('planning model, low'));
+  assert.ok(!modelChoiceOk('review model, low'), 'only the three roles hold a space');
   s.models.push('claude-opus-5-5');
   s.agents['integrity-lens'].model = 'claude-opus-5-5';
   s.agents['integrity-lens'].effort = 'xhigh';
