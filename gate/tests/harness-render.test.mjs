@@ -2,10 +2,15 @@
 // render in gate/harness-render.mjs. neutral-home.test.mjs runs it in a real
 // install.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderHarnesses } from '../harness-render.mjs';
+import { parseKnown, resolveHarnesses } from '../harnesses.mjs';
+import { runCore } from './gate-run.mjs';
 import { realAgents } from './payload.mjs';
-import { agent } from './text.mjs';
+import { REPO, agent, assertPasses, moduleResult } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const h = (id, over = {}) => ({
   id,
@@ -221,4 +226,128 @@ test('C8: a model named outright warns in each harness but Claude Code, unless i
     '`.own/RULES.md` names model `claude-haiku-5-5`, which own may not have',
   ].map(l => l.replace('.codex/RULES.md', CODEX.rules.path)).sort());
   assert.match(file(render([CODEX], named), 'rendered/codex/agents/scout.toml'), /^model = "my-model"$/m);
+});
+
+// ------------------------------------------------------------ per-harness tier efforts and agent efforts (PACT-111)
+
+/** The known harness `id`, as the install resolves it. */
+const known = id => resolveHarnesses({ known: parseKnown(readFileSync(join(REPO, 'harnesses', 'known.json'), 'utf8')), home: '/home/user', platform: 'linux', inWorkTree: null }).find(x => x.id === id);
+
+const TIERED = [
+  '| Tier | Fits | Plan | Build |',
+  '| --- | --- | --- | --- |',
+  '| **Quick** | small | none | executor model, low |',
+  '| **Standard** | a spec | planning model, medium | executor model, high |',
+  '',
+  '| Stage | Quick | Standard | Sensitive route |',
+  '| --- | --- | --- | --- |',
+  '| Plan | planning model, low | planning model, medium | planning model, high |',
+  '| Design | skipped | planning model, medium | planning model, high |',
+  '| Build | executor model, low | executor model, high | executor model, high |',
+  '| Test | executor model, low | executor model, high | executor model, high |',
+  '',
+].join('\n');
+const tiered = (harness, rules = TIERED) => render([harness], { rules, agents: new Map(), commands: new Map() });
+const rulesOf = (r, id) => file(r, `rendered/${id}/rules.md`);
+const owns = tierEfforts => h('mine', { tierEfforts, ownTiers: Object.keys(tierEfforts) });
+
+// PACT-111 C4.
+test('with the default configuration, Codex’s Standard Build reads medium in both tables, Claude Code’s high, and every other cell is the same', t => {
+  const out = tempDir(t, 'pact-tier-out-');
+  const made = runCore('render', [join(REPO, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-tier-home-'), join(REPO, 'builder', 'default-config')]);
+  assertPasses(moduleResult(made.code, made.stdout, made.stderr));
+  const rules = readFileSync(join(out, 'CLAUDE.md'), 'utf8');
+  const r = render([known('claude'), known('codex')], { rules, agents: new Map(), commands: new Map() });
+  const rows = id => rulesOf(r, id).split('\n').filter(l => l.startsWith('|')).map(l => l.split('|').map(c => c.trim()));
+  const claude = rows('claude');
+  const codex = rows('codex');
+  assert.equal(codex.length, claude.length);
+  const changed = [];
+  let header = null;
+  claude.forEach((row, i) => {
+    if (row[1] === 'Tier' || row[1] === 'Stage') header = row;
+    row.forEach((cell, j) => {
+      if (codex[i][j] !== cell) changed.push([row[1], header[j], cell, codex[i][j]]);
+    });
+  });
+  assert.deepEqual(changed, [
+    ['**Standard**', 'Build', 'executor model, high', 'executor model, medium'],
+    ['Build', 'Standard', 'executor model, high', 'executor model, medium'],
+  ]);
+  assert.deepEqual(r.warnings.filter(w => w.includes('tierEfforts')), []);
+});
+
+// PACT-111 C4.
+test('a plan key moves the tier’s Plan cell and the workflow’s Plan row alone, under a name of several words, with CRLF kept', () => {
+  const rules = TIERED.replaceAll('Standard', 'Big  Job').replaceAll('\n', '\r\n');
+  const out = rulesOf(tiered(owns({ 'big-job': { plan: 'xhigh' } }), rules), 'mine');
+  const want = rules.replace('| a spec | planning model, medium |', '| a spec | planning model, xhigh |').replace('| Plan | planning model, low | planning model, medium |', '| Plan | planning model, low | planning model, xhigh |');
+  assert.equal(out.replace(/\r?\nHere the planning model[^\n]*/, ''), want);
+  // A tier named as the route's column never rewrites it.
+  const route = TIERED.replace('**Standard**', '**Sensitive route**');
+  const moved = route.replace('| a spec | planning model, medium | executor model, high |', '| a spec | planning model, medium | executor model, low |');
+  assert.equal(rulesOf(tiered(owns({ 'sensitive-route': { build: 'low' } }), route), 'mine'), moved);
+});
+
+// PACT-111 C6.
+test('bad case: an own tier key with no tiers table, no row, or a cell that is no model and effort refuses', () => {
+  const key = { standard: { build: 'low' } };
+  refuses(() => tiered(owns(key), 'no table here\n'), 'tier-effort');
+  refuses(() => tiered(owns(key), TIERED.replace('**Standard**', '**Usual**')), 'tier-effort');
+  refuses(() => tiered(owns(key), TIERED.replace('| planning model, medium | executor model, high |', '| planning model, medium | I decide |')), 'tier-effort');
+  refuses(() => tiered(owns(key), TIERED.replace('| Build | executor model, low | executor model, high |', '| Build | executor model, low | skipped |')), 'tier-effort');
+  // A workflow table, or a row of it, that isn't there is skipped.
+  for (const rules of [TIERED.slice(0, TIERED.indexOf('| Stage |')), TIERED.replace(/^\| Build \|.*\n/m, '')]) {
+    assert.match(rulesOf(tiered(owns(key), rules), 'mine'), /\| a spec \| planning model, medium \| executor model, low \|/);
+  }
+});
+
+// PACT-111 C6.
+test('a known tier key that finds nothing warns, and Codex renders its rules without it', () => {
+  const unchanged = rules => assert.match(rulesOf(tiered(known('codex'), rules), 'codex'), /\| a spec \| planning model, medium \| executor model, high \|/);
+  const renamed = TIERED.replaceAll('Standard', 'Usual');
+  unchanged(renamed);
+  assert.deepEqual(tiered(known('codex'), renamed).warnings.filter(w => w.includes('tierEfforts')), ['codex: its known tierEfforts key standard finds no row of that tier in a tiers table, so the rules are rendered without it']);
+  // One cell it can't read leaves the whole key out, so the two tables agree.
+  unchanged(TIERED.replace('| Build | executor model, low | executor model, high |', '| Build | executor model, low | skipped |'));
+});
+
+const SLOTTED = { models: { planning: 'neon-<effort>', executor: 'hydro-<effort>', light: 'tiny' }, efforts: ['low', 'medium', 'high', 'xhigh'] };
+
+// PACT-111 C8.
+test('an agent whose role maps to a model holding <effort> takes its file’s effort, and one it does not take, or none, refuses', () => {
+  const slot = h('slot', SLOTTED);
+  const r = render([slot]);
+  assert.match(file(r, 'rendered/slot/agents/data-lens.md'), /^model: neon-high$/m);
+  assert.match(file(r, 'rendered/slot/agents/scout.md'), /^model: tiny$/m);
+  const lens = to => ({ agents: new Map([['data-lens', LENS.replace('effort: high\n', to)]]) });
+  refuses(() => render([slot], lens('effort: max\n')), 'agent-effort');
+  refuses(() => render([slot], lens('')), 'agent-effort');
+  // With no efforts named, the harness takes all five.
+  assert.match(file(render([h('slot', { ...SLOTTED, efforts: null })], lens('effort: "max"\n')), 'rendered/slot/agents/data-lens.md'), /^model: neon-max$/m);
+});
+
+// PACT-111 C8.
+test('a table cell at an effort the harness does not take warns, naming the tier, stage and effort and never the model', () => {
+  const rules = TIERED.replace('| a spec | planning model, medium |', '| a spec | planning model, max |')
+    .replace('| Build | executor model, low |', '| Build | light model, max |')
+    .replace('| Test | executor model, low |', '| Test | executor model, max |');
+  assert.deepEqual(tiered(h('slot', SLOTTED), rules).warnings.filter(l => l.includes('effort')), [
+    'slot: its tables give Standard Plan the effort max, which it does not take',
+    'slot: its tables give Quick Test the effort max, which it does not take',
+  ]);
+});
+
+// PACT-111 C1.
+test('an agentModels key naming no pact agent warns', () => {
+  const w = render([h('mine', { agentModels: { '*': 'a', scout: 'b', 'data-lense': 'c' } })]).warnings.filter(l => l.includes('agentModels'));
+  assert.deepEqual(w, ['mine: agentModels names data-lense, which is no agent of the pact']);
+});
+
+// PACT-111 C5.
+test('Codex’s agent files, rendered from its known description, keep their bytes', () => {
+  const r = render([known('codex')]);
+  const off = '\n\n[features]\napps = false\nplugins = false\nmemories = false\nrequest_permissions_tool = false\n';
+  assert.equal(file(r, 'rendered/codex/agents/data-lens.toml'), `name = "data-lens"\ndescription = "Reads for leaks. Not for \\"style\\"."\nmodel = "gpt-6.2-sol"\nmodel_reasoning_effort = "high"\ndeveloper_instructions = '''\n# data-lens\n\nRead.\n'''${off}`);
+  assert.equal(file(r, 'rendered/codex/agents/scout.toml'), `name = "scout"\ndescription = "Searches."\nmodel = "gpt-6.2-sol"\nmodel_reasoning_effort = "medium"\ndeveloper_instructions = '''\n# scout\n'''${off}`);
 });

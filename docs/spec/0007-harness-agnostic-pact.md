@@ -327,10 +327,18 @@ configuration. Each has:
 - `hooks`: `{ "file", "format" }`, format one of `claude`, `codex`,
   `antigravity` (S8); or absent.
 - `models`: `{ "planning", "executor", "light" }`, each a model name the
-  harness takes, `light` optional. A name holding `<effort>` takes its effort
-  from the tier table.
+  harness takes, `light` optional. A name may hold `<effort>` once: it takes
+  its effort from the tier table, or for an agent from its file (S6).
 - `agentModels`: a model per agent, by its name, with `*` for every agent it
-  doesn't name; optional.
+  doesn't name; optional. No value holds `<effort>`. A key naming no pact
+  agent gives a dry-run `WARN`.
+- `tierEfforts`: an effort per tier cell; optional. Each key is a tier's name
+  in the tiers table, lower case, each run of spaces one hyphen
+  (`[a-z0-9]+(-[a-z0-9]+)*`); each value holds `plan`, `build` or both, each
+  one of the five efforts.
+- `efforts`: the efforts the harness takes, a non-empty list from the five
+  (`low`, `medium`, `high`, `xhigh`, `max`), each once, in that order;
+  optional, all five when absent.
 - `defaultInstall`: `false` keeps a detected harness out of a missing
   install list; optional, `true` when absent.
 - `capabilities`: a list from `subagents`, `tool-limits`, `cleaner`,
@@ -353,6 +361,8 @@ The known descriptions:
 | `hooks` | `~/.claude/settings.json`, `claude` | `~/.codex/hooks.json`, `codex` | `~/.gemini/config/hooks.json`, `antigravity` |
 | `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-sol`, none | `gemini-4-neon-<effort>`, `gemini-4-hydrogen-<effort>`, `flash` |
 | `agentModels` | none | none | `*`: `flash`; `adversarial-lens` and `data-lens`: `pro` |
+| `tierEfforts` | none | `standard`: `build` `medium` | none |
+| `efforts` | none | none | `low`, `medium`, `high`, `xhigh` |
 | `capabilities` | `subagents`, `tool-limits`, `cleaner`, `archive`, `native-rules` | `subagents`, `hook-trust`, `explicit-skills` | `subagents`, `tool-limits`, `hook-ask`, `explicit-skills`, `skill-copies` |
 
 - **Detection.** The dry run lists each known harness whose `detect` folder
@@ -373,7 +383,8 @@ The known descriptions:
   id, field by field, under the same checks, with a `WARN` naming each. Its
   `agentModels` goes over the known one name by name, and its `models` leave
   it as it is: an Antigravity agent file takes a tier and never a session's
-  model.
+  model. Its `tierEfforts` goes over the known one key by key, where a key set
+  to `null` drops the known one; its `efforts` replaces the known list whole.
 
 ## S6 Models: roles and mapping
 
@@ -406,6 +417,21 @@ The known descriptions:
 - **Effort.** Claude Code and Codex agents keep `effort` (Codex as
   `model_reasoning_effort`, the same five words). Antigravity agents have no
   effort field, so it is dropped there.
+- **A model holding `<effort>`,** reached through an agent's role, takes the
+  agent file's effort; no effort, or one outside `efforts`, refuses
+  (`agent-effort`). A tiers or workflow table cell whose role maps to such a
+  model, at an effort outside `efforts`, gives a dry-run `WARN` naming the
+  tier, the stage and the effort, never the model.
+- **Tier efforts.** A `tierEfforts` key rewrites only the effort word of its
+  tier's `Plan` or `Build` cell in the tiers table (the first whose header
+  starts `| Tier |` and holds `Plan` and `Build`), and of the cell in that
+  tier's column on the same-named row of the workflow table (the first whose
+  header starts `| Stage |`). The sensitive route is never rewritten. A
+  workflow table or row that isn't there is skipped. An own key that finds no
+  tiers table, no row of its tier, or a cell that isn't `<model>, <effort>`
+  refuses (`tier-effort`). A known key that finds nothing gives a dry-run
+  `WARN`, and the rules render without it. [0008](0008-per-harness-models-and-efforts.md)
+  D5 has the rest.
 - **The builder.** Its Models list becomes three dropdown roles plus the
   person's own names. The default configuration and presets switch to roles.
   Each harness row in Scriptorium sets that harness's three models (S11).
@@ -445,6 +471,9 @@ differ per harness only because a tool can't do otherwise:
   universal once the cleaner works in other harnesses.
 - An `ask` rule is an ask in Claude Code, `force_ask` in Antigravity and a
   deny in Codex (S8). It goes universal once Codex hooks support ask.
+
+One exception is a choice: a description's model and effort fields (S5) change
+only model and effort words, never which parts or clauses a harness gets.
 
 **Agents.** One source per agent, `claude/agents/<n>.md`, rendered per format:
 
@@ -999,8 +1028,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 - **The owner's Windows 11 machine,** Node 24 under mise, with all three
   harnesses; links are junctions.
 - **macOS and Linux** in CI (`gate-macos`, `gate`), with symlinks.
-- **Codex CLI** at the version T4 records, **Antigravity** at the version T5
-  records: its CLI, agy 1.2.14, headless on Windows.
+- **Codex CLI** at the version T4 records, **Antigravity** as its CLI, agy
+  1.5.17, headless on Windows. T5's probe ran on agy 1.2.14.
 
 ## S18 Acceptance claims
 

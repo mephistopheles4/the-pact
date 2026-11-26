@@ -54,7 +54,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CONFIG_REL, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain, parseRecord } from '../gate/install-core.mjs';
+import { AGENT_EFFORTS, CONFIG_REL, GUARD_FORMATS, HARNESS_ID_RE, NEUTRAL_REL, PACT_COMMANDS, PACT_ID, RECORD_REL, RENDERED_REL, Refusal, TOOL_TABLES, builtParts, formatPlain, parseRecord } from '../gate/install-core.mjs';
 import { KNOWN_REL, chooseHarnesses, configHarnesses, parseKnown, resolveHarnesses } from '../gate/harnesses.mjs';
 import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
@@ -140,6 +140,7 @@ function renderCode(root) {
     `const RENDERED_REL = ${JSON.stringify(RENDERED_REL)};`,
     `const TOOL_TABLES = ${JSON.stringify(TOOL_TABLES)};`,
     `const GUARD_FORMATS = ${JSON.stringify(GUARD_FORMATS)};`,
+    `const AGENT_EFFORTS = ${JSON.stringify(AGENT_EFFORTS)};`,
     'class Refusal extends Error { constructor(rule, why) { super(why); this.rule = rule; this.why = why; } }',
     builtParts.toString(),
     'const described = (() => {',
@@ -151,10 +152,10 @@ function renderCode(root) {
       own(/^const windowsName = [\s\S]*?;$/m),
       own(/^const SECRET_STORES = .*;$/m),
       'const isSecretStore = rel => SECRET_STORES.test(windowsName(rel));',
-    ], 'CAPABILITIES, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses'),
+    ], 'CAPABILITIES, EFFORT_SLOT, AGENT_FORMATS, HOOK_FORMATS, resolveHarnesses'),
     '})();',
     'const rendered = (() => {',
-    wrapped('gate/harness-render.mjs', ['const { CAPABILITIES } = described;', 'const Buffer = { byteLength: s => utf8Length(s) };'], 'renderHarnesses'),
+    wrapped('gate/harness-render.mjs', ['const { CAPABILITIES, EFFORT_SLOT } = described;', 'const Buffer = { byteLength: s => utf8Length(s) };'], 'renderHarnesses'),
     '})();',
     'return { ...described, ...rendered, Refusal };',
     '})();',
