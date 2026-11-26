@@ -33,8 +33,9 @@ lenses to offer, and when.
   findings it raised then, numbered `E1`, `E2` and on.
 - **The tree check,** where the harness can't hold an agent to its tools (Codex
   today), around each lens and each `scout` pass. It only detects a change: it
-  keeps no copy and puts nothing back. Before the pass, run this one command,
-  giving it the work tree's top folder; it starts from your home folder, so no
+  keeps no copy and puts nothing back. Before the pass, run this one command
+  exactly as printed, putting only the work tree's top folder in its place: don't
+  cut the script out, pipe it or edit it. It starts from your home folder, so no
   program or version pin in the tree picks the `node` that runs it. Keep what it
   prints in your own output, never in a file the agent can write. It covers
   every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
@@ -44,7 +45,7 @@ lenses to offer, and when.
   cd ~
   node -e '
   const fs = require(`fs`), path = require(`path`);
-  process.chdir(process.argv[1]);
+  process.chdir(process.argv.at(-1));
   const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
   // A name that is not text reads back as another name, so it fails the run.
   const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };

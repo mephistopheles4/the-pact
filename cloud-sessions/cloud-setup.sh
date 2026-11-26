@@ -1155,8 +1155,9 @@ lenses to offer, and when.
   findings it raised then, numbered `E1`, `E2` and on.
 - **The tree check,** where the harness can't hold an agent to its tools (Codex
   today), around each lens and each `scout` pass. It only detects a change: it
-  keeps no copy and puts nothing back. Before the pass, run this one command,
-  giving it the work tree's top folder; it starts from your home folder, so no
+  keeps no copy and puts nothing back. Before the pass, run this one command
+  exactly as printed, putting only the work tree's top folder in its place: don't
+  cut the script out, pipe it or edit it. It starts from your home folder, so no
   program or version pin in the tree picks the `node` that runs it. Keep what it
   prints in your own output, never in a file the agent can write. It covers
   every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
@@ -1166,7 +1167,7 @@ lenses to offer, and when.
   cd ~
   node -e '
   const fs = require(`fs`), path = require(`path`);
-  process.chdir(process.argv[1]);
+  process.chdir(process.argv.at(-1));
   const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
   // A name that is not text reads back as another name, so it fails the run.
   const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };
@@ -1685,7 +1686,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 4bd766823d38c1479b9cc7083fc161b969a0fcc79143d68d3e019875add30525 '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash c399f564ae56f91338dec487b6fb111423eda38282c88775234447e5a3668af9 '.pact/review.md'
+check_hash 7993199efb69cf6d2df8088b3375f32fc21094bcd719dafc7574bb49ee015b8a '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1715,7 +1716,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 143be5668880"
+  echo "pact cloud copy 4fc9cddfd455"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

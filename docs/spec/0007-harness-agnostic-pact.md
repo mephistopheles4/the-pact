@@ -244,6 +244,9 @@ round's comment on the issue lists each finding.
     move to a ticket of their own, merged before this work's pull request.
 59. Trade-off: `docs/install.md`'s budget rises to 10,700, on the owner's
     word-cap rule (PACT-110).
+60. Security, the lead's pick, flagged for the owner (its decision 146): the
+    tree check runs exactly as printed, and reads the folder from its last
+    argument, after end-to-end sessions piped the script to `node` (S12).
 
 ## S3 Terms
 
@@ -788,9 +791,12 @@ the app instead (S2 item 49).
   Running a lens. In a harness whose agents can't be held to their tools
   (Codex today), where the rules file also sends `scout` to it, the session
   runs one command before each lens and each `scout` pass, and keeps what it
-  prints in its own output, never in a file a lens can write. It starts the
-  command from the home folder and gives it the work tree's top folder, so no
+  prints in its own output, never in a file a lens can write. It runs the
+  command exactly as printed, never cut out, piped or edited. It starts it
+  from the home folder and gives it the work tree's top folder, so no
   program or version pin in the tree picks the `node` that runs it. The command
+  reads that folder as its last argument, so a run that pipes the script to
+  `node` anyway still reads it, and a run naming no folder fails. It
   prints one hash for each top-level entry of the work tree, ignored files
   included, for git's `HEAD`, `config`, `config.worktree`, `commondir`,
   `hooks`, the hooks folder git's config names, `info`, refs (a linked
@@ -1080,7 +1086,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   with S7's line everywhere. `finis` without `archive` ends with S7's line
   and archives nothing. `scriptorium` names no one harness's folders.
 - **C10** `review.md` holds S12's tree check, around each lens and `scout`
-  pass: one command, run from outside the tree before and after, whose record
+  pass: one command, run as printed from outside the tree before and after,
+  taking the folder as its last argument, whose record
   covers every file and git's config, hooks, `info`, `HEAD`, refs, index
   entries and half-done merges and rebases, stays the same across a `git
   status`, runs no
