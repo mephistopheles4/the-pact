@@ -1512,8 +1512,7 @@ function folds(s, marks = MARKS_RE) {
 
 /**
  * Line and column, from 1, of `index` in `text`; the column in characters.
- * A line ends at a line feed, a carriage return or both, as CommonMark and the
- * table check end it.
+ * A line ends at a line feed, a carriage return or both, as CommonMark ends it.
  */
 function lineCol(text, index) {
   const lines = text.slice(0, index).split(/\r\n|\r|\n/);
@@ -1549,221 +1548,6 @@ export function scan(fields, ctx) {
         out.push({ rule: h.rule, where: `${field} ${lineCol(norm, h.index)} in the normalised copy${h.note ? ` (${h.note})` : ''}` });
       }
     }
-  }
-  return out;
-}
-
-// ---------------------------------------------------------------- the Lens dispositions table
-
-/**
- * The Lens dispositions table's shape, as the review procedure gives it: the
- * header row, the state words a Finding cell starts with, the words a
- * Disposition cell starts with, what follows `skipped`, and what may follow
- * ` (auto`. A test holds them equal to the review procedure's.
- */
-export const DISPOSITIONS = Object.freeze({
-  header: Object.freeze(['Finding', 'Lens', 'Disposition', 'Rerun']),
-  states: Object.freeze(['new', 'updated', 'unchanged', 'absent']),
-  words: Object.freeze(['fixed', 'taken', 'dismissed', 'skipped', 'open', 'noted']),
-  skipped: ', because',
-  auto: ' (auto',
-  afterAuto: Object.freeze([':', ')', ', reversed']),
-});
-
-/** How many table refusals one run lists; the rest are counted. */
-const TABLE_LISTED = 50;
-
-const TABLE = Object.freeze({
-  header: 'table/header',
-  cells: 'table/cells',
-  disposition: 'table/disposition',
-  skipped: 'table/skipped',
-  auto: 'table/auto',
-  state: 'table/state',
-});
-
-// A fence as CommonMark reads it: a run of three or more backticks or tildes,
-// indented by at most three spaces. A backtick run whose info string holds a
-// backtick opens no fence. It closes on a run of the same character at least
-// as long, with nothing after it but spaces or tabs. The info string matches
-// any character, so the end of the line is always reached and a long run is
-// never tried again shorter.
-const FENCE_OPEN_RE = /^ {0,3}(`{3,}|~{3,})([^]*)$/;
-const FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
-
-/** The fence `line` opens, as [run, info], or null. The table check reads fences through these two alone. */
-function fenceOpens(line) {
-  const open = line.match(FENCE_OPEN_RE);
-  return open && !(open[1][0] === '`' && open[2].includes('`')) ? [open[1], open[2]] : null;
-}
-
-/** Whether `line` closes the fence opened by the run `fence`. */
-function fenceCloses(fence, line) {
-  const close = line.match(FENCE_CLOSE_RE);
-  return close !== null && close[1][0] === fence[0] && close[1].length >= fence.length;
-}
-
-// A line ends at a line feed, a carriage return, or both, as CommonMark reads it.
-const LINE_END_RE = /\r\n|\r|\n/;
-const TABLE_LABEL_RE = /lens\s+dispositions/i;
-const DELIMITER_RE = /^[ \t]*:?-+:?[ \t]*$/;
-const LETTER_RE = /\p{L}/u;
-const AUTO_WORD_END_RE = /[\p{L}-]/u;
-
-/**
- * A table line's cells, split at each pipe no backslash escapes, each as
- * { text, col }: its column from 1, in characters, at its first character that
- * is not a space, or at its start when it is empty. A closing pipe ends the
- * last cell. Null for a line that doesn't start with a pipe after at most
- * three spaces. The column is counted as the loop goes, so a line costs no
- * more than its length.
- */
-function tableCells(line) {
-  const lead = line.match(/^ {0,3}\|/);
-  if (!lead) return null;
-  const out = [];
-  let start = lead[0].length;
-  // Characters before index i, and before the current cell; everything before the first cell is one code unit each.
-  let before = start;
-  let cellBefore = start;
-  for (let i = start; i <= line.length; i += 1) {
-    if (i === line.length || (line[i] === '|' && line[i - 1] !== '\\')) {
-      const text = line.slice(start, i);
-      const trimmed = text.trim();
-      // Leading spaces are one code unit each, so their count is a count of characters.
-      const pad = trimmed === '' ? 0 : text.length - text.trimStart().length;
-      out.push({ text: trimmed, col: cellBefore + pad + 1 });
-      start = i + 1;
-      cellBefore = before + 1;
-    }
-    // A low surrogate ends a character its high surrogate already counted.
-    if (i < line.length && (line.charCodeAt(i) & 0xfc00) !== 0xdc00) before += 1;
-  }
-  // A line that ends with a pipe leaves an empty piece after it.
-  if (out.length > 1 && /(?:^|[^\\])\|[ \t]*$/.test(line)) out.pop();
-  return out;
-}
-
-/** Whether a table line's cells are a delimiter row, as `| --- | :-: |`. */
-const isDelimiter = cells => cells.every(c => DELIMITER_RE.test(c.text));
-
-/** The word of `words` that `cell` starts with, ending at a character that isn't a letter or at the cell's end. */
-const leadWord = (words, cell) => words.find(w => cell.startsWith(w) && !LETTER_RE.test(cell[w.length] ?? ''));
-
-/**
- * Whether the text after a Finding cell's lead state word opens with the word
- * "withheld", whatever its case, spacing, punctuation or markup (#336). The
- * text is read as written and as the normalised copies `scan` reads
- * (`copies`, #394), so a form that renders as the word is matched (#392) and
- * a word the page hides in a comment or tag still is; each copy is also read
- * with its links folded to their text, both ways `folds` gives (#396), and
- * its emphasis and code span marks dropped, which can split the word on the
- * page. A severity word (high, medium or low), a `security?` after it and the
- * marks around them are skipped too, as the review procedure's Finding cell
- * puts them before the finding (#478). A finding that quotes the text `withheld, see chat` after
- * other words is not matched.
- */
-function withheldAfter(cell, state) {
-  const after = cell.slice(state.length);
-  const normalised = copies(after);
-  return [after.replace(/\p{Cf}/gu, ''), ...normalised, ...normalised.flatMap(c => folds(c))].some(view => {
-    // #478: the template puts a severity mark, word and colon after the state word, so one severity word, and a `security?` after it, are skipped too.
-    const rest = view.replace(/^[^\p{L}\p{N}]+/u, '').toLowerCase().replace(/^(?:high|medium|low)(?![\p{L}\p{N}])[^\p{L}\p{N}]*(?:security\?[^\p{L}\p{N}]*)?/u, '');
-    return rest.startsWith('withheld') && !LETTER_RE.test(rest['withheld'.length] ?? '');
-  });
-}
-
-/**
- * The refusals one row's Disposition cell earns. ` (auto` is the auto mark
- * only where the word ends there, so reason text such as "(automatically)" is
- * left alone (q3 on #285).
- */
-function dispositionRules(cell) {
-  const out = [];
-  const word = leadWord(DISPOSITIONS.words, cell);
-  if (word === undefined) out.push(TABLE.disposition);
-  else if (word === 'skipped' && !cell.startsWith(DISPOSITIONS.skipped, word.length)) out.push(TABLE.skipped);
-  for (let i = cell.indexOf(DISPOSITIONS.auto); i >= 0; i = cell.indexOf(DISPOSITIONS.auto, i + 1)) {
-    const at = i + DISPOSITIONS.auto.length;
-    if (AUTO_WORD_END_RE.test(cell[at] ?? '')) continue;
-    if (!DISPOSITIONS.afterAuto.some(a => cell.startsWith(a, at))) {
-      out.push(TABLE.auto);
-      break;
-    }
-  }
-  return out;
-}
-
-/**
- * Each place a Lens dispositions table in `body` breaks the review
- * procedure's template, as [{ rule, where }]. It reads every line outside a
- * fence, folds included, with lines ending as CommonMark ends them. A table's
- * header is the pipe line straight before a delimiter row, as GitHub reads
- * it, and only that line is the delimiter row. A table is checked when a
- * header cell reads `Disposition`, ignoring case and `**`, under an earlier
- * line naming "Lens dispositions". A header other than the template's is
- * refused, and its rows are not read. A Finding cell must start with a state
- * word, unless the row is `skipped`, and the word "withheld" never follows a
- * state word, in any case or markup (#336). It reads nothing else: not the
- * reason text, not a `skipped` row's Finding cell, not the Rerun cell, and no
- * other table.
- * `where` names the line and column, never a cell. One pass over the lines,
- * with no pattern that can backtrack without bound.
- */
-export function tableCheck(body) {
-  const out = [];
-  let fence = null;
-  let label = false;
-  let inTable = false;
-  let checking = false;
-  const lines = body.split(LINE_END_RE);
-  // Each line's cells are read once, though a line is looked at twice: as the next line, then as itself.
-  let peek = { n: -1, cells: null };
-  const cellsAt = k => (peek.n === k ? peek.cells : (peek = { n: k, cells: k < lines.length ? tableCells(lines[k]) : null }).cells);
-  for (let n = 0; n < lines.length; n += 1) {
-    const line = lines[n];
-    const refuse = (rule, col) => out.push({ rule, where: `body ${n + 1}:${col}` });
-    if (fence !== null) {
-      if (fenceCloses(fence, line)) fence = null;
-      continue;
-    }
-    const open = fenceOpens(line);
-    if (open) {
-      fence = open[0];
-      inTable = false;
-      continue;
-    }
-    const cells = cellsAt(n);
-    if (cells === null) {
-      inTable = false;
-      if (TABLE_LABEL_RE.test(line)) label = true;
-      continue;
-    }
-    if (!inTable) {
-      // A pipe line with no delimiter row after it is a paragraph line, not a table.
-      const next = cellsAt(n + 1);
-      if (next === null || !isDelimiter(next)) continue;
-      inTable = true;
-      n += 1;
-      checking = label && cells.some(c => c.text.replaceAll('**', '').trim().toLowerCase() === 'disposition');
-      if (!checking) continue;
-      const names = cells.map(c => c.text.replace(/[ \t]+/g, ' ').toLowerCase());
-      if (names.length !== DISPOSITIONS.header.length || names.some((x, i) => x !== DISPOSITIONS.header[i].toLowerCase())) {
-        refuse(TABLE.header, 1);
-        checking = false;
-      }
-      continue;
-    }
-    if (!checking) continue;
-    if (cells.length !== DISPOSITIONS.header.length) {
-      refuse(TABLE.cells, 1);
-      continue;
-    }
-    const finding = cells[0].text;
-    const state = leadWord(DISPOSITIONS.states, finding);
-    if (leadWord(DISPOSITIONS.words, cells[2].text) !== 'skipped' && (state === undefined || withheldAfter(finding, state))) refuse(TABLE.state, cells[0].col);
-    if (cells[1].text === '') refuse(TABLE.cells, cells[1].col);
-    for (const rule of dispositionRules(cells[2].text)) refuse(rule, cells[2].col);
   }
   return out;
 }
@@ -1887,10 +1671,56 @@ const LOOKALIKES = new Map(
   }).flatMap(([letter, codes]) => codes.map(c => [cp(c), letter])),
 );
 
-/** A body's lines, ended at a line feed, a carriage return or both, as CommonMark and the table check end them. */
+// A line ends at a line feed, a carriage return, or both, as CommonMark reads it.
+const LINE_END_RE = /\r\n|\r|\n/;
+
+// A fence as CommonMark reads it: a run of three or more backticks or tildes,
+// indented by at most three spaces. A backtick run whose info string holds a
+// backtick opens no fence. It closes on a run of the same character at least
+// as long, with nothing after it but spaces or tabs. The info string matches
+// any character, so the end of the line is always reached and a long run is
+// never tried again shorter.
+const FENCE_OPEN_RE = /^ {0,3}(`{3,}|~{3,})([^]*)$/;
+const FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
+/**
+ * A table line's cells, split at each pipe no backslash escapes, each as
+ * { text, col }: its column from 1, in characters, at its first character that
+ * is not a space, or at its start when it is empty. A closing pipe ends the
+ * last cell. Null for a line that doesn't start with a pipe after at most
+ * three spaces. The column is counted as the loop goes, so a line costs no
+ * more than its length.
+ */
+function tableCells(line) {
+  const lead = line.match(/^ {0,3}\|/);
+  if (!lead) return null;
+  const out = [];
+  let start = lead[0].length;
+  // Characters before index i, and before the current cell; everything before the first cell is one code unit each.
+  let before = start;
+  let cellBefore = start;
+  for (let i = start; i <= line.length; i += 1) {
+    if (i === line.length || (line[i] === '|' && line[i - 1] !== '\\')) {
+      const text = line.slice(start, i);
+      const trimmed = text.trim();
+      // Leading spaces are one code unit each, so their count is a count of characters.
+      const pad = trimmed === '' ? 0 : text.length - text.trimStart().length;
+      out.push({ text: trimmed, col: cellBefore + pad + 1 });
+      start = i + 1;
+      cellBefore = before + 1;
+    }
+    // A low surrogate ends a character its high surrogate already counted.
+    if (i < line.length && (line.charCodeAt(i) & 0xfc00) !== 0xdc00) before += 1;
+  }
+  // A line that ends with a pipe leaves an empty piece after it.
+  if (out.length > 1 && /(?:^|[^\\])\|[ \t]*$/.test(line)) out.pop();
+  return out;
+}
+
+/** A body's lines, ended at a line feed, a carriage return or both, as CommonMark ends them. */
 const linesOf = text => text.split(LINE_END_RE);
 
-/** The lines outside fences, as the table check reads fences. */
+/** The lines outside fences. */
 function unfenced(lines) {
   const out = [];
   let fence = null;
@@ -2522,7 +2352,7 @@ export const NEXT_FOR = Object.freeze({
   'post/field start_none': 'NEXT: give the task a passage or `start_none`, never both, and no `start_none` on a decision or on a kind that takes no quote (a note, status, review, reply or lens report). Keep the one that fits and post again.',
   'secret/env': "NEXT: remove the value from the named field and post again; the line names the variable, never the value. A lens report stays as it is: tell the owner where it is, in chat, and don't post it.",
   'text/hidden': 'NEXT: remove the hidden character from the named field and post again. A lens report stays as it is: tell the owner where it is, in chat, and don\'t post it.',
-  // PACT-52: the usage, field, file, text and table rules (usage/unknown-option has OLD_OPTION_NEXT).
+  // PACT-52: the usage, field, file and text rules (usage/unknown-option has OLD_OPTION_NEXT).
   'usage/surface': 'NEXT: give a surface first: issue, pull-request, issue-comment, pull-request-review, review-thread-reply, issue-edit, pull-request-edit, issue-comment-edit or review-thread-reply-edit, then `--post <file>`. `schema` prints the fields.',
   'usage/argument': 'NEXT: the only arguments are `<surface> --post <file>` and `--dry-run`. Remove the stray word and run again.',
   'usage/repeated': 'NEXT: give `--post <file>` and `--dry-run` once each. Remove the repeat and run again.',
@@ -2550,22 +2380,16 @@ export const NEXT_FOR = Object.freeze({
   'file/empty': 'NEXT: the named file is empty. Write the text into it, or drop the post.',
   'text/body-length': 'NEXT: the text is over 65,536 characters. Cut it down, or split it into several posts.',
   'text/hidden-line': "NEXT: the text opens an HTML comment or a fold it doesn't close, which hides what follows it. Close it, or remove it.",
-  'table/header': "NEXT: the Lens dispositions table's header row is exactly `| Finding | Lens | Disposition | Rerun |`, with no markup. Fix the header and run again.",
-  'table/cells': 'NEXT: give every row of the table four cells, with the Lens cell filled in.',
-  'table/disposition': 'NEXT: start each Disposition cell with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted`; a row whose Finding cell is exactly `withheld, see chat` takes one bare `open`, `fixed`, `taken` or `dismissed`.',
-  'table/skipped': 'NEXT: write `skipped, because` and then the reason.',
-  'table/auto': 'NEXT: follow ` (auto` with `:`, `)` or `, reversed`, as in `fixed (auto: chose X because Y)`, `fixed (auto)` or `fixed (auto, reversed)`.',
-  'table/state': 'NEXT: start each Finding cell with `new`, `updated`, `unchanged` or `absent`, then the severity mark and the finding; a `skipped` row, or a row whose Finding cell is exactly `withheld, see chat`, takes none. A withheld finding is that bare cell, with no state word or severity before it.',
 });
 
-/** A refused run: exit 2, a REFUSED line for each refusal, `notes` (a line on what was left unlisted), one NEXT line for each rule, straight above RESULT. */
-const refused = (refusals, notes = [], count = refusals.length) => {
+/** A refused run: exit 2, a REFUSED line for each refusal, one NEXT line for each rule, straight above RESULT. */
+const refused = refusals => {
   // An old command line is told its one fixed line, which already covers the missing --post.
   const old = refusals.some(r => r.rule === 'usage/unknown-option');
   const next = [...new Set(refusals.filter(r => !(old && r.rule === 'usage/missing-option')).map(r => NEXT_FOR[`${r.rule} ${r.where}`] ?? NEXT_FOR[`${r.rule} ${r.where.replace(/\[\d+\]/g, '[n]')}`] ?? NEXT_FOR[r.rule]).filter(Boolean))];
   return {
     code: 2,
-    lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...notes, ...next, ...(old ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${count}`],
+    lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), ...next, ...(old ? [OLD_OPTION_NEXT] : []), `RESULT: refused ${refusals.length}`],
   };
 };
 
@@ -2602,16 +2426,10 @@ function prepare(argv, io, app) {
     if (plan.reason !== undefined) fields.push({ field: 'reason', text: plan.reason });
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env };
-    // The table check runs after the content scan, on the body only. Past the
-    // first fifty, its refusals are counted, not listed, so the result line stays in view.
     // In app mode a post goes out `as` the app's bot login and no other (#599, S8).
     const notApp = app !== null && plan.as !== app.bot ? [{ rule: 'as/not-app', where: 'as' }] : [];
     const hits = [...plan.late, ...notApp, ...scan(fields, { ...ctx, surface: plan.surface })];
-    const tables = tableCheck(plan.body);
-    if (tables.length > TABLE_LISTED) {
-      return { result: refused([...hits, ...tables.slice(0, TABLE_LISTED)], [`NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`], hits.length + tables.length) };
-    }
-    if (hits.length || tables.length) return { result: refused([...hits, ...tables]) };
+    if (hits.length) return { result: refused(hits) };
     const edit = isEdit(plan.surface);
     if (edit) {
       const own = editBodyChecks(plan);

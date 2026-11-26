@@ -645,12 +645,18 @@ test('C6: a body file holding an owned line outside a fence is refused post/owne
 });
 
 // PACT-115 C2: the accident checks on a body's shape are gone, so each of these posts as written
-test('C2: a body with a hard-wrapped paragraph, a relative link and an open fence dry-runs clean', t => {
+test('C2: a body with a hard-wrapped paragraph, a relative link, a malformed Lens dispositions table and an open fence dry-runs clean', t => {
   const body = [
     'This was typed with a line break in the middle',
     'and it carries on after the break.',
     '',
     'See [the doc](docs/x.md) for it.',
+    '',
+    'Lens dispositions',
+    '',
+    '| Finding | Disposition |',
+    '| --- | --- |',
+    '| a finding | maybe |',
     '',
     '```text',
     'a fence left open',
