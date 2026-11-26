@@ -159,11 +159,11 @@ Codex and Antigravity, and there before typed input; and the release job's token
 
 **Controls:**
 
-- **GitHub.** Two tag rulesets: on every tag but `v1.*.0-rc.*`, only the
+- **GitHub.** Two tag rulesets: on every tag but `v1.*.0-beta.*`, only the
   repository admin, the owner, creates one; on every tag, with no bypass,
-  none is updated, deleted or force-pushed. Candidate names stay open, so
+  none is updated, deleted or force-pushed. Beta names stay open, so
   anyone with write access can make one npm reads as stable, such as
-  `v1.2.3+x.0-rc.1`, or one on an unreviewed commit, which `--channel beta`
+  `v1.2.3+x.0-beta.1`, or one on an unreviewed commit, which `--channel beta`
   takes and promotion refuses unless its commit is on `main`: accepted with a
   change merged to `main`. They don't hold until
   made, or while the owner edits or disables them. A session holding the
@@ -180,10 +180,10 @@ Codex and Antigravity, and there before typed input; and the release job's token
   `security-events: write` in one CodeQL job, skipped for Dependabot;
   `id-token: write` and caps in the Claude job, no key in the repo;
   `contents: write` in the one release job, with no checkout, the only use of `workflow_run`, which tags only this repo's `main` tip after `gate` passes a
-  push there, as a release candidate, while `PACT_RELEASES` is `on`; a stable
+  push there, as a beta, while `PACT_RELEASES` is `on`; a stable
   tag comes only from the repository admin, by the owner's
   `node gate/release-promote.mjs`, run under their own account and naming a
-  candidate on `main`. The
+  beta on `main`. The
   Console's federation rule bounds who gets an Anthropic token; the job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the
   Claude job's write token. It
@@ -214,7 +214,7 @@ rule holds back trusting a project's mise config until the owner says so in chat
 
 Also accepted. What you install and CI run: typing the
 `npx` command trusts GitHub and the tag rulesets, and npm may reuse a cached
-copy; the release job's token, `contents: write` while the job runs, and a change merged to `main` that uses it, can create a candidate tag or push a branch no ruleset covers, and before the rulesets exist can also make a stable tag or move or delete a tag; the cloud
+copy; the release job's token, `contents: write` while the job runs, and a change merged to `main` that uses it, can create a beta tag or push a branch no ruleset covers, and before the rulesets exist can also make a stable tag or move or delete a tag; the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
