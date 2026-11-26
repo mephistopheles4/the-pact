@@ -38,6 +38,19 @@ test('node: a dry run on a clean tree passes, shows the pin, the check, the gate
   assert.equal(r.stderr, '');
 });
 
+// The bootstrap passes the runner only the variables it names; an inherited NODE_OPTIONS (a preload) is not among them.
+test('node: an inherited NODE_OPTIONS preload runs in the bootstrap, the one process it was set for, and never in the runner the bootstrap starts', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const marks = tempDir(t, 'pact-opts-marks-');
+  const preload = join(tempDir(t, 'pact-opts-preload-'), 'preload.cjs');
+  writeFileSync(preload, `const fs = require('node:fs');\nconst name = String(process.argv[1] ?? '').split(/[\\\\/]/).pop();\nfs.writeFileSync(require('node:path').join(${JSON.stringify(marks)}, name + '@' + process.pid), '');\n`);
+  const r = install(repo, h, { env: { NODE_OPTIONS: `--require ${JSON.stringify(preload.replace(/\\/g, '/'))}` } });
+  passed(r);
+  // The preload ran in the bootstrap, so the case could have caught it in the runner too.
+  assert.deepEqual(readdirSync(marks).map(n => n.split('@')[0]).sort(), ['install.mjs']);
+});
+
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: --apply installs the files byte for byte, writes the record and the guard, and the next dry run has nothing to do', t => {
   const repo = makeRepo(t);

@@ -657,8 +657,9 @@ session.
 
 ## Install from a release
 
-Releases need the owner's switch, and the command is safe only once rulesets
-cover every tag. Run it from your home folder, or an empty folder outside every project: npm first reads the settings of a project around it. It replaces the clone and dry run:
+Releases need the owner's switch, and the command is safe only once the
+owner's two tag rulesets exist: only the owner creates a tag but a candidate,
+and no tag is ever updated or deleted. Run it from your home folder, or an empty folder outside every project: npm first reads the settings of a project around it. It replaces the clone and dry run:
 
 ```
 npx github:mephistopheles4/the-pact#semver:^1
@@ -678,7 +679,8 @@ picks which copy of the command runs from the repo's tags, so each tag is code
 you run.
 
 Each passing change on `main` is first a release candidate, `v1.<n>.0-rc.<k>`;
-the owner promotes one to `v1.<n>.0`. Add an option after the command to take
+the owner promotes one to `v1.<n>.0`, from a checkout of `main` under their
+own account, with `node gate/release-promote.mjs v1.<n>.0-rc.<k>`. Add an option after the command to take
 another:
 
 - `--channel beta` takes the newest tag, a release candidate included; a
@@ -791,13 +793,10 @@ hook the install adds.
 
 - **When.** Only while a rule is on and the install takes such a harness. The
   command rules follow the cleaner and the session stop switch
-  ([cleaner.md](cleaner.md) lists the commands). Antigravity has one more, on
-  while `/make-it-so`, `/finis` or `/scry` is: its hook asks you before a
-  session reads that skill's `SKILL.md`. Typing the command asks nothing.
+  ([cleaner.md](cleaner.md) lists the commands).
 - **What it writes.** `~/.pact/guard/`: the guard, a wrapper per format, and
   `rules.json`, the rules that are on. And one `pact-guard` hook, run before a
-  shell command (in Antigravity also before input typed into a running program
-  and, for the rule above, before a file read), in each harness's hooks file (`~/.codex/hooks.json`,
+  shell command (in Antigravity also before input typed into a running program), in each harness's hooks file (`~/.codex/hooks.json`,
   `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
   pact's entry, and the apply backs up each hooks file it changes.
 - **On Windows** the install also writes a launcher beside each wrapper,
@@ -823,8 +822,7 @@ hook the install adds.
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
   `bash -c "..."` included, and so does one typed into a shell that is already
   running, which Codex runs no hook for; Antigravity's hook reads a typed line,
-  though not one sent a few characters at a time. A shell, another tool or
-  another spelling passes the ask on a skill file. A hook that can't start or
+  though not one sent a few characters at a time. A hook that can't start or
   runs past 15 seconds lets the command through. Outside Windows, a missing
   `node` or a crash the wrapper doesn't catch lets it through too; on Windows
   the launcher denies both, so there only a missing `cmd.exe` or launcher stops
@@ -845,8 +843,6 @@ Seen on its command line, agy 1.2.14, on Windows
   searching and web page tools don't arrive, so a lens reads only files it can
   name. Every agent also gets `send_message` and `manage_task`; a lens's
   `manage_task` was refused its session's program.
-- **Its shells see your secrets.** A command saw planted token, key and
-  password variables, and no setting to drop them was found. Don't start it with secrets in its environment.
 - **A session can still start your commands,** by reading the skill's file with
   a shell command. Don't take what it starts as your word for an
   install apply or mise trust: nothing enforces that.

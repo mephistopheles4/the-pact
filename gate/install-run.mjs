@@ -514,7 +514,10 @@ async function main() {
       for (const l of notes) say(l);
     }
     for (const f of hooks.filter(f => [...f.want, ...f.recorded].some(w => w.harness === id))) for (const l of core.guardLines(f, id)) say(l);
+    if (id === 'codex' && policyWill) say(core.SHELL_POLICY_DRY_LINE);
   }
+  // The line belongs to Codex's block; with Codex no longer taken or recorded there is none, so it stands alone.
+  if (policyWill && !ids.includes('codex')) say(core.SHELL_POLICY_DRY_LINE);
   if (guardOn) say(`Guard rules (${core.GUARD_TABLE_DEST}): ${rules.map(r => `${r.id} (${r.decision})`).join(', ')}`);
   for (const w of p.warnings) say(`WARN: ${core.formatPlain(w)}`);
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
@@ -661,7 +664,7 @@ async function main() {
   for (const f of hooks.filter(f => f.trust)) say(core.CODEX_TRUST_LINE);
   if (policyWill) {
     io.writeReplacing(policyFile, policyNext);
-    say(`merged ${core.CODEX_CONFIG_REL}`);
+    say(core.SHELL_POLICY_APPLY_LINE);
   }
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).

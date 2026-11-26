@@ -1,30 +1,34 @@
 // PACT-105 C23 and spec 0007 S10: what the release job's one script does,
-// run as the workflow writes it against a local stand-in for GitHub's API.
+// run as the workflow writes it, and what the owner's promote command does,
+// both against a local stand-in for GitHub's API.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { tokenFor } from '../release-promote.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const WORKFLOW = join(REPO, '.github', 'workflows', 'release.yml');
+const PROMOTE = join(REPO, 'gate', 'release-promote.mjs');
 const sha = c => c.repeat(40);
 
-/** The script of one job's run block: the candidate job's, or the promote job's. */
-function script(job) {
+/** The script of the workflow's one run block. */
+function script() {
   const src = readFileSync(WORKFLOW, 'utf8').replace(/\r\n/g, '\n');
   const parts = src.split('\n        run: |\n');
-  assert.equal(parts.length, 3, 'one run block in each of the two jobs');
+  assert.equal(parts.length, 2, 'one run block, in the one job');
   // The block ends at the first line indented less than the script.
-  const lines = parts[job === 'candidate' ? 1 : 2].split('\n');
+  const lines = parts[1].split('\n');
   const end = lines.findIndex(l => l.trim() !== '' && !l.startsWith(' '.repeat(10)));
   return (end < 0 ? lines : lines.slice(0, end)).map(l => l.slice(10)).join('\n');
 }
 
 /**
- * One run of the script. `tips` are main's tip at each read, the last one
+ * One run of the workflow's script, or with `job: 'promote'` of the owner's
+ * command, `node gate/release-promote.mjs <rc>`. `tips` are main's tip at each read, the last one
  * repeating; `refs` maps a tag name to its object; `tags` an annotated tag
  * object's id to the commit it names. Returns the code, the output, every tag
  * the script created and the tokens it sent.
@@ -54,11 +58,22 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
   });
   await new Promise(done => server.listen(0, '127.0.0.1', done));
   t.after(() => server.close());
-  const file = join(tempDir(t, 'pact-release-'), 'step');
-  writeFileSync(file, script(job));
-  const env = { ...process.env, TOKEN: token, HEAD_SHA: head, RC: rc, GITHUB_API_URL: `http://127.0.0.1:${server.address().port}`, GITHUB_REPOSITORY: 'o/r' };
+  const api = { GITHUB_API_URL: `http://127.0.0.1:${server.address().port}`, GITHUB_REPOSITORY: 'o/r' };
+  const env = { ...process.env, ...api };
   delete env.NODE_OPTIONS;
-  const child = spawn(process.execPath, [file], { env, timeout: 60_000 });
+  let args;
+  if (job === 'promote') {
+    // The owner's command reads the token from GH_TOKEN, and never from the workflow's variables.
+    delete env.TOKEN;
+    env.GH_TOKEN = token;
+    args = [PROMOTE, rc];
+  } else {
+    const file = join(tempDir(t, 'pact-release-'), 'step');
+    writeFileSync(file, script());
+    Object.assign(env, { TOKEN: token, HEAD_SHA: head });
+    args = [file];
+  }
+  const child = spawn(process.execPath, args, { env, timeout: 60_000 });
   let out = '';
   for (const s of [child.stdout, child.stderr]) s.on('data', d => (out += d));
   const code = await new Promise(done => child.on('close', done));
@@ -121,20 +136,23 @@ test('release job: fails and tags nothing with no token, a malformed commit or a
 
 const promote = (t, rc, more = {}) => release(t, { job: 'promote', rc, ...more });
 
-test('release job: promotion tags the named candidate\'s commit with its stable release, an annotated candidate included', async t => {
+test('promote command: tags the named candidate\'s commit with its stable release, an annotated candidate included, with the token it was given', async t => {
   const refs = { 'v1.1.0': commit('b'), 'v1.2.0-rc.1': commit('c'), 'v1.2.0-rc.2': commit('d') };
   const got = await promote(t, 'v1.2.0-rc.1', { refs });
   assert.equal(got.code, 0, got.out);
   assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.2.0', sha: sha('c') }]);
+  assert.match(got.out, /v1\.2\.0 on c{40}/);
+  assert.deepEqual(got.sent, ['Bearer test-token']);
   const annotated = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: sha('d') } });
   assert.deepEqual(annotated.created, [{ ref: 'refs/tags/v1.2.0', sha: sha('d') }], annotated.out);
   // With no stable release yet, the first minor is the next.
   assert.deepEqual((await promote(t, 'v1.1.0-rc.1', { refs: { 'v1.1.0-rc.1': commit('c') } })).created, [{ ref: 'refs/tags/v1.1.0', sha: sha('c') }]);
 });
 
-test('release job: promotion refuses, and tags nothing, an input that is not a candidate tag, a candidate that does not exist, a minor already released or one that is not the next', async t => {
+test('promote command: refuses, and tags nothing, a missing token, an input that is not a candidate tag, a candidate that does not exist, a minor already released or one that is not the next', async t => {
   const refs = { 'v1.1.0': commit('b'), 'v1.2.0': commit('b'), 'v1.2.0-rc.1': commit('c'), 'v1.3.0-rc.1': commit('c'), 'v1.5.0-rc.1': commit('d') };
-  for (const [what, rc] of [
+  for (const [what, rc, more] of [
+    ['an empty token', 'v1.3.0-rc.1', { token: '' }],
     ['a stable tag', 'v1.3.0'],
     ['a major candidate', 'v2.3.0-rc.1'],
     ['a zero candidate number', 'v1.3.0-rc.0'],
@@ -146,17 +164,33 @@ test('release job: promotion refuses, and tags nothing, an input that is not a c
     ['a minor already released', 'v1.2.0-rc.1'],
     ['a minor past the next', 'v1.5.0-rc.1'],
   ]) {
-    const got = await promote(t, rc, { refs });
+    const got = await promote(t, rc, { refs, ...more });
     assert.equal(got.code, 1, `${what}: ${got.out}`);
     assert.deepEqual(got.created, [], what);
+    assert.equal(got.out.trim().split('\n').length, 1, `${what}: one line`);
+    assert.doesNotMatch(got.out, /test-token/);
+    if (more) assert.deepEqual(got.sent, [], `${what}: no request was made`);
   }
   // Control: the next minor's candidate passes against the same tags.
   assert.deepEqual((await promote(t, 'v1.3.0-rc.1', { refs })).created, [{ ref: 'refs/tags/v1.3.0', sha: sha('c') }]);
 });
 
-test('release job: a promotion that cannot read the tags fails and tags nothing', async t => {
+test('promote command: a run that cannot read the tags fails and tags nothing', async t => {
   const got = await promote(t, 'v1.1.0-rc.1', { refs: { 'v1.1.0-rc.1': commit('c') }, fail: 'git/matching-refs' });
   assert.equal(got.code, 1, got.out);
   assert.deepEqual(got.created, []);
 });
 
+test('promote command: the token is GH_TOKEN when set, else what gh auth token prints, and an empty one or a failing gh is refused', () => {
+  const gh = out => (program, args) => {
+    assert.deepEqual([program, ...args], ['gh', 'auth', 'token']);
+    if (out instanceof Error) throw out;
+    return out;
+  };
+  assert.equal(tokenFor({ GH_TOKEN: 'given' }, gh(new Error('must not run gh'))), 'given');
+  assert.equal(tokenFor({}, gh('from-gh\n')), 'from-gh');
+  // Bad cases: set but empty is not "unset", so gh's token is never swapped in; nor is an empty gh answer or a failed gh run accepted.
+  assert.throws(() => tokenFor({ GH_TOKEN: '' }, gh('from-gh\n')), /No token/);
+  assert.throws(() => tokenFor({}, gh('\n')), /No token/);
+  assert.throws(() => tokenFor({}, gh(new Error('not signed in'))), /No token/);
+});

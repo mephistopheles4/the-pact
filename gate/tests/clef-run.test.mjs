@@ -335,6 +335,8 @@ test('serve: each request is checked, refused with a fixed reason, and never ech
   await refused('host', 400, { body, host: 'localhost' });
   await refused('host', 400, { body, host: `127.0.0.1:${port + 1}` });
   await refused('origin', 403, { body, headers: { origin: 'http://evil.example' } });
+  // A page served from another port on this machine is still another origin.
+  await refused('origin', 403, { body, headers: { origin: `http://127.0.0.1:${port}` } });
   await refused('route', 404, { path: '/v1/other', body });
   await refused('route', 404, { path: '/props', method: 'GET' });
   await refused('method', 405, { method: 'GET', path: '/v1/systemone' });

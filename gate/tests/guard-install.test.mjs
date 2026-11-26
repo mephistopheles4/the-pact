@@ -142,7 +142,7 @@ test('C16: a hooks file the record doesn\'t list is merged, not refused; one tha
   assert.deepEqual(guardEntries(h).map(e => e.harness), ['antigravity']);
 });
 
-test('C12: a skill that stands for the owner's answer installs no guard, and no hook of the cleaner's meets a read tool', t => {
+test("C12: a skill that stands for the owner's answer installs no guard, and no hook of the cleaner's meets a read tool", t => {
   const repo = makeRepo(t);
   const h = three(t);
   const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
@@ -300,7 +300,12 @@ test('shell policy: a recorded pact line is removed, the rest of config.toml is 
   const repo = makeRepo(t);
   const mine = '# mine\r\nmodel = "m"\r\n\r\n[history]\r\npersistence = "none"\r\n';
   const h = markedHome(t, repo, `${POLICY_LINE}\r\n${mine}`);
-  passed(applyBound(repo, h));
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(dry.stdout, /^Codex shell policy: the pact's line would be removed; Codex's shells then get every variable$/m, dry.out);
+  const applied = applyBound(repo, h);
+  passed(applied);
+  assert.match(applied.stdout, /^removed the pact's shell-policy line from \.codex\/config\.toml$/m, applied.out);
   assert.equal(readFileSync(at(h, POLICY), 'utf8'), mine);
   assert.ok(!('shellPolicy' in record(h)));
   const saved = readdirSync(at(h, '.pact/backups')).map(b => at(h, `.pact/backups/${b}/${POLICY}`)).filter(f => existsSync(f));
@@ -317,15 +322,18 @@ test('bad case: a recorded but edited pact line is left alone, with no drift sto
   assert.equal(readFileSync(at(h, POLICY), 'utf8'), edited);
 });
 
-test('shell policy: taking Codex with no mark in the record writes nothing to config.toml, prints no shell policy line, and records no shellPolicy key', t => {
+test('shell policy: taking Codex with no mark in the record leaves config.toml, the exact pact line in it included, byte for byte, prints no shell policy line, and records no shellPolicy key', t => {
   const repo = makeRepo(t);
   const h = home(t);
   mkdirSync(at(h, '.codex'));
   config(h, { ...OFF, harnesses: { install: ['codex'] } });
+  // Bad case: the very line an older install wrote, with no mark to say the pact wrote it.
+  const text = `${POLICY_LINE}\n[history]\npersistence = "none"\n`;
+  put(h, POLICY, text);
   const dry = install(repo, h);
   passed(dry);
   assert.doesNotMatch(dry.stdout, /shell policy/i, dry.out);
   passed(applyBound(repo, h));
-  assert.ok(!existsSync(at(h, POLICY)));
+  assert.equal(readFileSync(at(h, POLICY), 'utf8'), text);
   assert.ok(!('shellPolicy' in record(h)));
 });

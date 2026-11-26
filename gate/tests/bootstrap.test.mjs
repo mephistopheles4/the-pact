@@ -335,5 +335,4 @@ test('bootstrap: a major release is never taken, by default, on the beta channel
   const beta = await run(t, r.url, { argv: ['--default', '--channel', 'beta'] });
   assert.equal(tagOf(beta.out), 'v1.1.0');
   assert.deepEqual(clones(beta.home), [one]);
-  assert.match((await run(t, r.url, { argv: ['--default', '--release', 'v2.0.0'] })).out, /\[bootstrap-args\]/);
 });

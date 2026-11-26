@@ -2317,6 +2317,9 @@ export const NO_LINK_LINE = 'WARN: a skill link cannot be made on this machine, 
 
 export const CODEX_CONFIG_REL = '.codex/config.toml';
 const SHELL_POLICY_LINE = 'shell_environment_policy.ignore_default_excludes = false # the pact: secret-named variables stay out of the shells Codex starts';
+/** The dry run's line and the apply's line when the line is taken out of config.toml. */
+export const SHELL_POLICY_DRY_LINE = "Codex shell policy: the pact's line would be removed; Codex's shells then get every variable";
+export const SHELL_POLICY_APPLY_LINE = `removed the pact's shell-policy line from ${CODEX_CONFIG_REL}`;
 
 /**
  * A one-time cleanup: Codex's shell environment policy is the owner's now, but

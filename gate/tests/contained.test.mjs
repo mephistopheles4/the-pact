@@ -65,6 +65,32 @@ test('bad case: a temp name ending in .md, or holding a separator, refuses befor
   assert.deepEqual(readdirSync(dir), []);
 });
 
+test('bad case: a file link planted at the temp name refuses, and the file it names is unchanged', t => {
+  const { dir, outside } = folders(t);
+  const target = join(outside, 'victim.txt');
+  writeFileSync(target, 'theirs\n');
+  if (!fileLink(t, target, join(dir, TEMP))) return;
+  assert.ok(refusal(() => writeContained(dir, TEMP, 'pact-project.md', Buffer.from('ours\n'))));
+  assert.equal(readFileSync(target, 'utf8'), 'theirs\n');
+  assert.deepEqual(readdirSync(outside), ['victim.txt']);
+  assert.ok(lstatSync(join(dir, TEMP)).isSymbolicLink(), 'the planted link is untouched');
+  assert.ok(!existsSync(join(dir, 'pact-project.md')));
+});
+
+test('bad case: a folder link planted at the temp name refuses, and nothing is written into the folder it names', t => {
+  const { dir, outside } = folders(t);
+  try {
+    symlinkSync(outside, join(dir, TEMP), 'junction');
+  } catch {
+    t.skip('cannot create a folder link here (not run)');
+    return;
+  }
+  assert.ok(refusal(() => writeContained(dir, TEMP, 'pact-project.md', Buffer.from('ours\n'))));
+  assert.deepEqual(readdirSync(outside), []);
+  assert.ok(lstatSync(join(dir, TEMP)).isSymbolicLink(), 'the planted link is untouched');
+  assert.ok(!existsSync(join(dir, 'pact-project.md')));
+});
+
 test('a target that is already a link is replaced by the rename, never followed', t => {
   const { dir, outside } = folders(t);
   const target = join(outside, 'victim.txt');

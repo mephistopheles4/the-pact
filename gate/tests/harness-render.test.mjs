@@ -272,6 +272,8 @@ test('with the default configuration, Codex’s tier and workflow tables read th
   const rows = id => rulesOf(r, id).split('\n').filter(l => l.startsWith('|')).map(l => l.split('|').map(c => c.trim()));
   const claude = rows('claude');
   const codex = rows('codex');
+  // A render that lost the tables would compare two empty lists.
+  assert.ok(claude.some(r => r[1] === 'Tier') && claude.some(r => r[1] === 'Stage'), 'the Claude rows hold the tier and workflow tables');
   assert.equal(codex.length, claude.length);
   const changed = [];
   let header = null;

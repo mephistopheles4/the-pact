@@ -183,6 +183,7 @@ const recordBase = () => ({ in: json({ commit: ID('a'), digest: null, config: []
     { id: 'target-not-canonical', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', agents: '.claude/../x' }] }) }), fails: ['record-not-pact'], why: "a plain path only" },
     { id: 'rules-not-md', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', rules: '.config/shell/profile' }] }) }), fails: ['record-not-pact'], why: "a rules file is Markdown" },
     { id: 'settings-not-json', plant: t => ({ in: json({ ...JSON.parse(t.in), harnesses: [{ id: 'claude', settings: '.zshenv' }] }) }), fails: ['record-not-pact'], why: "a settings file is JSON" },
+    { id: 'shell-policy-mark-not-a-boolean', plant: t => ({ in: json({ ...JSON.parse(t.in), shellPolicy: 'true' }) }), fails: ['record-not-pact'], why: 'the mark that lets the install edit config.toml is true or false, never the word' },
   ];
   test('install record: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`install record: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));

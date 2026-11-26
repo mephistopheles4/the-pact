@@ -205,6 +205,8 @@ round's comment on the issue lists each finding.
     role, app, team, user or deploy key, never a workflow, so a bypass for
     `github.token` is one every workflow shares, and a workflow file on any
     branch of the repo sets its own permissions and runs before review (S10).
+    Replaced by item 74: candidate names are open to any writer, and only the
+    owner creates the rest.
 50. Trade-off: the word budgets of `docs/install.md` (8,700 to 9,100, then
     9,500 with T3's text and 9,550 with T7's, before item 47's later raise) and
     `docs/reference.md` (2,300 to 2,400, then 2,450 with T7's) rise, and
@@ -259,7 +261,8 @@ round's comment on the issue lists each finding.
 
 63. Security: the owner's machine is trusted. Programs, processes and agents
     the owner starts there, sessions and lenses included, are guarded against
-    their mistakes, never against their turning hostile. The owner: "Whatever
+    their mistakes, never against their turning hostile; one steered by
+    outside text stays in scope (the lead's pick on Test round 1). The owner: "Whatever
     I start running on my machine, whether it's a process or an agent, we
     shouldn't be fighting it ... when we protect against mistakes, we don't
     need to be as robust as protecting against attackers." Guards against
@@ -268,19 +271,21 @@ round's comment on the issue lists each finding.
     cut.
 64. Security: the tree check (S12) catches a lens's mistakes, not a hostile
     lens. Its second run may be read from anywhere, and a lens that forges it
-    is the machine's, accepted; this closes the open medium of the lead's
-    decision 152.
+    is accepted under Review rests on rules; this closes the open medium of
+    the lead's decision 152.
 65. Security: the install keeps its temp-then-replace write and every check on
-    what comes from the clone, and loses its race, swap, re-hash, file-mode and
-    preload checks (S9). Clef's supervisor takes no token: any program on the
+    what comes from the clone, and loses its race, swap, re-hash, self-differs,
+    hard-link, file-mode and preload checks; of the project folder's link
+    checks, the first look stays and its re-checks go (S9). Clef's supervisor takes no token: any program on the
     machine may call it, and `Host` and `Origin` still keep web pages out (spec
     0002). The cleaner loses its swap and hooks re-checks, the poster its read
     re-check, and the hand-off folder its owner-only mode. `gh-app`'s refusals
     of `auth`, `extension`, `alias`, `config` and a leading flag stay: they keep
     the bot's token out of the owner's own `gh` login and settings (decision
     165).
-66. No rule keeps the owner's user name or home path out of a post, and none
-    replaces it. "Never post a secret" stays.
+66. No rule keeps the owner's user name, home path or live settings' names
+    out of a post or a commit, and none replaces it (the lead's pick on Test
+    round 1, flagged). "Never post a secret" stays.
 67. Spec 0008's `tierEfforts` is deleted (decision 163): a stage names only the
     planning or executor model, and Test stays on the executor model.
 68. Security, the lead's decision 166: a Codex lens that can read and send
@@ -302,13 +307,36 @@ round's comment on the issue lists each finding.
     candidate." Each green push to `main` tags a candidate; the bootstrap
     takes stable by default, `--channel beta` or `--release <tag>` on request;
     the owner promotes a candidate by a `workflow_dispatch` (the lead's pick,
-    flagged); majors stay out of the job (S10, C22, C34).
+    flagged); majors stay out of the job (S10, C22, C34). Item 74 replaces
+    the promotion.
 72. The lead's decision 174, the owner: "Sounds good, go for it." The
     release job splits in two: candidates from a `workflow_run` in the
     `release-candidate` environment with no reviewer, so agents' merges still
     get them; promotion from a `workflow_dispatch` in `release`, with the owner
     as its required reviewer. Both deploy from `main` only, and each holds its
-    own copy of the key (S10, C23).
+    own copy of the key (S10, C23). Replaced by item 74.
+73. Security, the lead's decision 176, the owner: "yes with the changes",
+    on the eagle-eye box's six open rows. Typed input in Codex stays open,
+    with nothing built. Antigravity stays in the default install, and "A
+    session takes checkpoints alone" widens to name it. Before an owner-typed
+    skill's read in Antigravity, only the skill's first line asks: the
+    guard's `force_ask` on read tools is cut. Nothing is said of secrets in
+    Antigravity's shells. `~/.pact` gets no ask rule, and the gap is named.
+    The raised word caps stay, trimmed after the merge (S15).
+74. The lead's decision 177, the owner, which replaces item 72 and item 71's
+    promotion: no release app, no key, no deployment environment. Each green
+    push to `main` tags a candidate with the release job's own token. A
+    stable tag is made only by the owner's `node gate/release-promote.mjs
+    <rc>`, under their own account, which keeps the old promotion's
+    refusals (the builder's pick, flagged: a stable tag can't be deleted).
+    Two tag rulesets, the owner's to set, let only the repository admin create
+    a stable tag and stop any `v*` tag being updated, deleted or force-pushed.
+    Candidate names stay open (the lead's decision 186). The channel picks
+    stay (S10, C23).
+75. Security, the lead's decision 181, the owner: "Accepted." A session
+    holding the owner's git or `gh` credentials can make a stable tag, and a
+    Codex lens may read with `git`, which runs a program a `.git` folder's
+    config names when that folder came from outside. Both are accepted (S15).
 
 ## S3 Terms
 
@@ -577,11 +605,9 @@ S2 item 30).
   sees, and a typed `/<name>` still runs it. A skill carries the key where its
   command's own frontmatter does and a harness that reads the folder has
   `explicit-skills`; the render adds it to no other.
-- A session can still find the file and read it, so Antigravity's guard also
-  asks the person before a read tool opens the `SKILL.md` of one of those
-  three (S8). T5's probe saw such a read held for a question (headless, so
-  the question itself was not seen), and none when the owner types the
-  command. What is left is a residual for the owner (S15).
+- A session can still find the file and read it; the guard asks nothing
+  before a read (S2 item 73). Only the skill's own first line stands in the
+  way (S15).
 - `finis` archives a Claude Code session. Its archive step sits in a
   `pact:if archive` block; a harness without `archive` gets instead the same
   check for outstanding work and then: "Nothing is outstanding; close this
@@ -605,17 +631,9 @@ only what it recorded.
 **The rule table.** `rules.json` holds today's guard rules as data, from the
 same source as `gate/install-core.mjs`'s `CLEANER_DENY`, `CLEANER_ASK` and
 `STOP_DENY`: each rule an `id`, a decision (`deny` or `ask`), the switch it
-hangs on (`cleaner`, `session-stop-deny` or `owner-skills`), and the command
+hangs on (`cleaner` or `session-stop-deny`), and the command
 words it matches. The table is rendered from the configuration, so a rule whose switch
-is off is not in it. One rule more, `owner-skill`, asks on a read of the
-`SKILL.md` of `make-it-so`, `finis` or `scry` in a folder named `skills`. It
-is in the table while one of those commands is on and a harness is in whose
-hook can ask before a read: Antigravity's, with `hook-ask` and `skills`.
-With no command rule on, only such a harness gets a hook.
-The path is met in any case and with either separator. Each name loses a
-stream after a colon and the spaces at its end, then `.` and `..` are
-resolved, then dots and spaces at its end go: more paths than Windows would
-open. A read call's `AbsolutePath` and `Path` are each judged.
+is off is not in it. With no rule on, no harness gets a hook.
 
 **Claude Code** keeps its native permission rules. The install renders them
 from the table, and they are byte for byte today's (C11). No hook is added to
@@ -645,12 +663,11 @@ wrapper `~/.pact/guard/<harness>.mjs`:
   `AppData`.
 - The hook matches Codex's `Bash`. In Antigravity it matches `run_command`,
   and `manage_task` and `send_command_input`, which type into a program left
-  running; and, while `owner-skill` is in the table, `view_file` and
-  `read_file`. The wrapper reads the call from stdin in its harness's shape,
-  passes the command text, the typed text or the file's path to `guard.mjs`,
+  running. The wrapper reads the call from stdin in its harness's shape,
+  passes the command text or the typed text to `guard.mjs`,
   and writes its harness's answer. The `manage_task` actions agy lists as
   typing nothing (`list`, `status`, `kill`) get no answer; another action,
-  or a matched call whose text or path the wrapper can't find, is denied. Codex's hooks see no typed text (T4's probe).
+  or a matched call whose text the wrapper can't find, is denied. Codex's hooks see no typed text (T4's probe).
 - A denial in Codex is exit 2 with the reason on stderr, since an exit 2 with
   an empty stderr lets the call through; in Antigravity it is
   `decision: "deny"` as JSON on stdout, exit 0.
@@ -778,41 +795,34 @@ It keeps the last three clones and deletes older ones it made.
 
 **The release workflow,** `.github/workflows/release.yml`:
 
-- triggered by `workflow_run` of `gate` completing, or by `workflow_dispatch`
-  with one required input, `rc`, which reaches the script only through `env`.
-  The job's `if` requires `github.ref == 'refs/heads/main'` and the
-  repository variable `PACT_RELEASES` set to `on`, which the owner sets in
-  T9, and for `workflow_run` also `conclusion == 'success'`,
-  `event == 'push'`, `head_branch == 'main'` and
-  `head_repository.full_name == github.repository`;
-- two jobs, each running only its own trigger's path: the candidate job, on
-  `workflow_run`, in the `release-candidate` environment, with no required
-  reviewers, so a merge by any session still gets a candidate; the promote
-  job, on `workflow_dispatch`, in the `release` environment, whose one
-  required reviewer is the owner. Only `main` may deploy to either. Each
-  job's own token only reads; its one secret is the release app's key,
-  `PACT_RELEASE_APP_KEY`; actions are pinned by SHA; no checkout;
+- triggered by `workflow_run` of `gate` completing, nothing else. The job's
+  `if` requires the repository variable `PACT_RELEASES` set to `on`, which
+  the owner sets in T9, `conclusion == 'success'`, `event == 'push'`,
+  `head_branch == 'main'` and `head_repository.full_name ==
+  github.repository`;
+- one job, the candidate job, so a merge by any session still gets a
+  candidate. Its own token, `github.token`, holds `contents: write` and
+  nothing else; the top level reads. No secret, no deployment environment,
+  no app token; no checkout;
 - reads `main`'s tip through the API and tags only when `head_sha` is that
   tip, so a re-run of an old gate run tags nothing. On a push it tags
   `v1.<n>.0-rc.<k>`: `<n>` one past the highest stable `v1.<n>.0`, or 1 when
   none exists, `<k>` one past the highest candidate of that `<n>`, never the
   run number, so a renamed workflow can't restart it. A push never makes a
   stable tag or a major;
-- by hand, the owner promotes a candidate:
-  `gh workflow run release.yml --ref main -f rc=v1.<n>.0-rc.<k>` tags that
-  candidate's commit `v1.<n>.0`. It fails with no tag when the input isn't a
-  candidate's name, the candidate is missing, `v1.<n>.0` exists, or `<n>`
-  isn't the next minor (C34). Anyone with write access can start it, and
-  the owner approves each run as the `release` environment's required
-  reviewer;
 - runs in a `release` concurrency group that never cancels, and reads the tip
   again just before it creates the tag, so two close runs can't put the
   higher number on the older commit;
-- creates the tag through the API (`git/refs`) with a token of the release
-  app, scoped to `contents: write` (`actions/create-github-app-token`, with the
-  variable `PACT_RELEASE_APP_CLIENT_ID`), unless a release tag already points
-  at `head_sha`;
+- creates the tag through the API (`git/refs`), unless a release tag already
+  points at `head_sha`;
 - runs none of the repo's code.
+
+**Promotion** is the owner's, from a checkout of `main`, under their own
+account: `node gate/release-promote.mjs v1.<n>.0-rc.<k>` tags that
+candidate's commit `v1.<n>.0`, with `GH_TOKEN` or else `gh auth token`. It
+fails with no tag when the input isn't a candidate's name, the token is
+empty, the candidate is missing, `v1.<n>.0` exists, or `<n>` isn't the next
+minor (C34). A stable tag can't be deleted, so the refusals stay.
 
 `gate/tests/workflow.test.mjs` bans `workflow_run` in every workflow today.
 This change exempts one file, `release.yml`, with an exact allow-list for its
@@ -820,12 +830,20 @@ job, the way it holds the CodeQL and Claude jobs. That loosens a check, so it
 is a spec change, flagged big and read by the security pair. A second file
 using `workflow_run` still fails (C23).
 
-**The tag rulesets** are the owner's acts on GitHub. Both target every tag,
-not only `v*`, and there are two, since a bypass covers each rule of its
-ruleset: one restricts creating, with the release app as its one bypass actor,
-and one restricts updating and deleting, with none. T6 found that a bypass can name no actor narrower
-than every workflow while the job tags with `github.token`, so it tags with
-the app instead (S2 item 49).
+**The tag rulesets** are the owner's acts on GitHub, by name pattern
+(fnmatch; `*` stops at `/`):
+
+- **A:** every tag but `v1.*.0-rc.*`; Restrict creations; the one bypass is
+  the Repository admin role, the owner. Every tag, not `v*.*.0` alone, since
+  npm takes any tag ending in a version: a `v1.9.1` or `x1.99.0` from the
+  agent app would otherwise be what `npx` runs.
+- **B:** every tag; Restrict updates, Restrict deletions and Block force
+  pushes; no bypass.
+Candidate names stay open (the lead's decision 186). So anyone with write
+access, the agent app or a change merged to `main` that uses the release
+job's token, can make a tag the candidate pattern matches but npm reads as
+stable, such as `v1.2.3+x.0-rc.1`: accepted with a change merged to `main`
+(S15).
 
 ## S11 Scriptorium
 
@@ -969,23 +987,21 @@ never-sync rule names both folders.
 - **Code that runs:** the bootstrap, fetched by `npx` from the repo at a
   release tag, and the clone it makes; both run with the owner's rights
   before any dry run. The guard script and its wrappers run before every
-  shell call in Codex and Antigravity, and in Antigravity before typed input
-  and, while a skill is asked on, before each file read.
+  shell call in Codex and Antigravity, and in Antigravity before typed
+  input.
 - **Merges and installs:** installs now reach `~/.codex`, `~/.gemini` and
   `~/.agents/skills` as well as `~/.claude`, and an own harness's paths.
-- **A write key in CI:** the release job tags with the release app's key.
+- **A write token in CI:** the release job tags with its own `contents: write` token.
 - **What leaves the machine:** Codex and Antigravity sessions send their
   context to OpenAI and Google: the rendered rules, pins, private tracker
   text, hand-offs and private code among it.
 
 **Controls:**
 
-- the tag rulesets (GitHub): every tag, created only by the release app, none
-  moved or deleted. They don't hold while the owner edits them (S10);
-- the `release-candidate` and `release` environments (GitHub): only `main`
-  reads the app's key, each holding its own copy, and the owner approves each
-  promote run. They don't hold if an environment allows another branch, the
-  key is also a repository secret, or `release` loses its reviewer;
+- the tag rulesets (GitHub): every tag but a candidate created only by the
+  owner, none updated, deleted or force-pushed. They don't hold while the
+  owner edits or disables them, and a session holding the owner's
+  credentials counts as the owner (S2 item 75, S10);
 - the release job's conditions: a push run of `gate` on this repo's `main`,
   at `main`'s tip, with `PACT_RELEASES` on (C23);
 - `main`'s ruleset, as today, so a release commit passed review and `gate`;
@@ -1010,16 +1026,12 @@ never-sync rule names both folders.
   GitHub and the tag rulesets. npm may cache a resolved copy. The head check
   compares ids from the same server, so it checks consistency, not
   integrity. This widens "What you install and CI run".
-- **The release app's key** does all `contents: write` does, not tags alone:
-  it can push a branch no ruleset covers, and merge what `main`'s ruleset lets
-  through. Before the second tag ruleset exists it can also move or delete a
-  tag. A change merged to `main` can read the key from the
-  `release-candidate` environment, which has no reviewer, so candidates keep
-  coming from agents' merges. The promote job waits for an approval by the
-  owner's account, which a session holding that account's token can give too
-  (GitHub's pending-deployments API takes a `repo`-scoped token; not probed),
-  at one click per stable release.
-  This widens "What you install and CI run": the owner's call.
+- **The release job's token** does all `contents: write` does while the job
+  runs: it can push a branch no ruleset covers, and make a tag the candidate
+  pattern matches, one npm may read as stable included, as can the agent app
+  (S10). A change merged to `main` can use it. Before the rulesets exist it can also make a stable
+  tag, or move or delete one. This widens "What you install and CI run",
+  accepted (S2 item 74).
 - **A guard that never runs.** In an own harness, or in Codex before the
   trust step, a guard can be missing with no report beyond the dry run's
   line. The owner accepted this for own harnesses.
@@ -1041,11 +1053,9 @@ never-sync rule names both folders.
   still let a raw loopback connection through. This widens "Review rests on
   rules": the owner's call, asked before T4 starts.
 - **An Antigravity session can still start an owner's command.** The skill's
-  own switch keeps it out of what the model sees, and the guard asks before a
-  read tool opens its file, but a shell read, a copy elsewhere or a child
-  `agy` run passes both; another read tool, an 8.3 name, a relative path or a
-  link to the folder passes the ask; and whether the ask holds under
-  auto-proceed is not probed. So a session there may start `make-it-so` on its own; the skills'
+  own switch keeps it out of what the model sees, but a read tool, a shell
+  read, a copy elsewhere or a child `agy` run passes it, and the guard asks
+  nothing before a read (S2 item 73). So a session there may start `make-it-so` on its own; the skills'
   first line (S7) is a rule the model keeps, not a control. After `scry`,
   `make-it-so` means "yes, 1 to N", open security picks included, and the
   record then shows it as the owner's answer. Or it starts `finis` and ends
@@ -1053,24 +1063,8 @@ never-sync rule names both folders.
   sure sign the owner gave it. This spec's answer is that nothing a session
   starts itself is the owner's word for an install apply or mise trust; no rule
   a session loads says so, and nothing enforces it. What is left
-  fits "A session takes checkpoints alone" only if that class widens to
-  name it: the owner's call, asked before T5 starts. On a no, Antigravity
-  leaves the default install list (`defaultInstall: false`) until a probed
-  hook holds; it stays detected, and the owner can still name it in the
-  list.
-- **The poster in Codex** doesn't refuse a post holding a secret the shell
-  policy drops, since it can't see it (S13), not even one read from where it
-  was set. It is a control that works without the session's cooperation, so its
-  weakening is the owner's call.
-- **Secrets in Codex's environment.** A secret under a name without KEY,
-  SECRET or TOKEN, such as `DB_PASSWORD` or `GITHUB_PAT`, reaches every
-  command, hooks see every variable, and a config that sets its own policy is
-  left as it is (S13). A dropped value stays readable where it was set: a shell
-  profile, which a login shell reads again, a saved Windows user variable, a
-  `.env` file or a credential store. Codex's documentation says it allows login
-  shells by default; `allow_login_shell = false` would stop the profile route,
-  at the cost of any tool that relies on one, and the install doesn't set it.
-  Neither was probed.
+  fits "A session takes checkpoints alone", which widens to name it, and
+  Antigravity stays in the default install list (S2 item 73).
 - **Project installs** tighten a repo in Claude Code alone (S13).
 - **An old copy** left behind loads beside the new pact until a person
   removes it; S14's dry run catches only a rules file.
@@ -1083,12 +1077,9 @@ never-sync rule names both folders.
   time passes it, and `send_command_input`'s arguments are not probed.
 - **A lens's leftover process** in Codex outlives the lens, so it can write
   after the tree check (T4's probe).
-- **Antigravity's shells keep secret-named variables** (T5's probe), and no
-  setting that drops them was found: don't start an Antigravity session with
-  secrets in its environment. The owner's call.
 
 **The class and the scope.** "What you install and CI run" widens to name the
-bootstrap and the release app's key, and "Merges and installs" names
+bootstrap and the release job's token, and "Merges and installs" names
 `~/.pact` and the harness folders. Scope gains Codex with OpenAI's models and
 servers, and Antigravity with Google's, out of scope as Anthropic's are. The
 harness controls name both harnesses' controls and when each doesn't hold.
@@ -1183,8 +1174,7 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   absolute path and clears `NODE_OPTIONS`; this runs on `gate-windows` too,
   under cmd and PowerShell, where a `node.cmd` planted in the working folder
   never runs, and a launcher whose wrapper can't run denies. Antigravity's
-  wrapper judges typed input the same way, and answers `force_ask` to either
-  read tool on an owner's skill file.
+  wrapper judges typed input the same way.
 - **C13** An `ask` rule answers `force_ask` in Antigravity and is denied in
   Codex with S8's line.
 - **C14** A planted error in the guard, a missing table, a malformed call and
@@ -1229,18 +1219,18 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   `--apply`; the apply line it leads to runs from another folder; a fake
   `git` in the folder it runs from never runs.
 - **C34** A push to `main` tags only `v1.<n>.0-rc.<k>`, never a stable tag
-  or a major; a dispatch naming a candidate tags its commit `v1.<n>.0`, and
-  refuses a bad name, a missing candidate, a released minor or one past the
-  next, with no tag.
-- **C23** `workflow.test.mjs` passes the release workflow only with its two
-  jobs: the candidate job on `workflow_run` of `gate` in `release-candidate`,
-  the promote job on `workflow_dispatch` in `release`, each with a job token
-  that only reads, no secret but the release app's key, an app token asked
-  for `contents: write` alone, SHA-pinned actions, no checkout, and each of
-  S10's `if` conditions; a bad case for each fails it, and so do either job
-  on the other's environment or trigger, a third job, a missing `release`
-  concurrency group, a second workflow file that uses `workflow_run`, and
-  another workflow that reads a secret or names an environment.
+  or a major; `gate/release-promote.mjs` naming a candidate tags its commit
+  `v1.<n>.0`, and refuses a bad name, an empty token, a missing candidate, a
+  released minor or one past the next, with no tag.
+- **C23** `workflow.test.mjs` passes the release workflow only with its one
+  job, the candidate job on `workflow_run` of `gate`: a job token of
+  `contents: write` alone, `github.token` as the tag step's token, a
+  top level that reads, no secret, no environment, no app token, no
+  `workflow_dispatch`, SHA-pinned actions, no checkout, and each of S10's
+  `if` conditions; a bad case for each fails it, and so do a second job, a
+  missing `release` concurrency group, a second workflow file that uses
+  `workflow_run`, and another workflow that reads a secret or names an
+  environment.
 - **C28** With no terminal and neither flag, the bootstrap refuses
   (`bootstrap-choice`); `--default` never overwrites an existing
   configuration; the bootstrap keeps three clones.
@@ -1258,8 +1248,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 
 **The threat model (T8)**
 
-- **C27** `docs/threat-model.md` names the bootstrap, the release app's key
-  and its `release` environment, `~/.pact`
+- **C27** `docs/threat-model.md` names the bootstrap, the release job's
+  token and the tag rulesets, `~/.pact`
   and the harness folders in their classes, both harnesses' controls with
   when each doesn't hold, the scope line, and each owner answer; the
   doc-budget test passes.
@@ -1313,8 +1303,7 @@ stay; nothing runs them unless someone types the bootstrap command.
 5. **T5: Antigravity.** The same, with the tool-name table; C5, C9, C12–C14,
    C17 and C18 as they hold in Antigravity; a probe session that confirms the
    deny, the `force_ask`, the exact hook command, each mapped tool name, what
-   an empty tool list means, and whether a `force_ask` on reading a skill
-   makes Antigravity ask. Depends on T2, T3 and the owner's answer on
+   an empty tool list means. Depends on T2, T3 and the owner's answer on
    Antigravity skills. Runs beside T4.
 6. **T6: packaging and releases.** S10; C21–C23, C28, C32; which actor the
    tag ruleset's bypass can name, in its record. Depends on T1.
@@ -1323,11 +1312,10 @@ stay; nothing runs them unless someone types the bootstrap command.
 9. **T9: end to end.** C26. Depends on T1–T8 merged, the owner's answers
    below, the tag ruleset, the owner's S14 steps and the owner's apply.
    First it lists the remote's tags and the rulesets by API: both cover every
-   tag, only the release app bypasses the one on creating, none bypasses the
-   one on updating and deleting, and no tag but a release ends in a version.
-   It also lists the `release-candidate` and `release` environments' branch
-   rules and `release`'s required reviewer, and the repository secrets by
-   name, never value: `PACT_RELEASE_APP_KEY` is not among them.
+   tag but a candidate, only the Repository admin bypasses the one on
+   creating, none bypasses the one on updating and deleting, and no tag but
+   a release ends in a version. It also lists the repository secrets by name,
+   never value: none is a release key.
    Then the owner sets `PACT_RELEASES`, and a push to `main`
    or a re-run of `gate` at the tip makes `v1.1.0`.
 
@@ -1349,22 +1337,18 @@ reads this spec and each ticket's diff.
 | The security picks, S2 items 35–39 and 42–44 | the owner's call | before the ticket each touches starts |
 | The final round's trade-offs, S2 items 45 and 46 | the owner's call | before T1 starts |
 | Widening "Review rests on rules" for Codex lenses, and the network-off option (S15) | the owner's call; on a no, S12's fallback | before T4 starts |
-| Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
+| Widening "A session takes checkpoints alone" for Antigravity skills (S15) | widened, Antigravity in the default install (S2 item 73) | closed |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
-| The threat-model cap at 4,200 and `docs/install.md`'s budget (S2 items 47 and 52) | the lead's flagged pick, for review | any time |
-| The tree check around `scout` and the open `~/.pact` gap (S2 items 53 and 55; item 56 drops item 53's undo) | the lead's flagged picks, for review | any time |
+| The threat-model cap at 4,200 and `docs/install.md`'s budget (S2 items 47 and 52) | kept, trimmed after the merge (S2 item 73) | closed |
+| The tree check around `scout` and the open `~/.pact` gap (S2 items 53 and 55; item 56 drops item 53's undo) | the gap named, no ask rule (S2 item 73); the tree check the lead's flagged pick | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
-| Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |
+| Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | left open, nothing built (S2 item 73) | closed |
 | Login shells in Codex: leave them on, or set `allow_login_shell = false` (S15) | the owner's call, security | any time |
 | Codex lenses' approval and network-off limits, and leftover processes (S15) | accepted, the trusted machine (S2 item 68) | closed |
 | `send_message` and `manage_task` for every Antigravity lens (S7, S12) | the owner's call, security | with the lenses widening |
-| Secret-named variables in Antigravity's shells (S15) | the owner's call, security | any time |
 | The "guards unverified" line for own harnesses (S5) | an offer, unanswered; built as offered | any time |
-| Two tag rulesets on every tag (S10): creating, the release app its one bypass once it exists; updating and deleting, no bypass | the owner's own act | before T6 merges |
-| The release app as that bypass, and its key's reach (S2 item 49, S15) | the owner's call | before T9 |
-| The raised budgets of two docs (S2 item 50) | a flagged pick, for review | any time |
-| The release app (contents write, this repo only); the `release-candidate` and `release` environments, each set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as each one's secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags, branches, merges and releases it made, and delete each bad tag, lifting the second ruleset to do it | the owner's own acts | before T9 |
-| The owner as the one required reviewer on the `release` environment, none on `release-candidate` (S2 item 72) | the owner's own act | before T9 |
+| Tag rulesets A and B (S10, S2 item 74): A, every tag but `v1.*.0-rc.*`, Restrict creations, bypass Repository admin; B, every tag, Restrict updates, Restrict deletions and Block force pushes, no bypass | the owner's own act | before T9 |
+| The raised budgets of two docs (S2 item 50) | kept, trimmed after the merge (S2 item 73) | closed |
 | `PACT_RELEASES` set to `on` | the owner's own act | in T9 |
 | S14's one-time removal; its step 4 moves the hand ports out of use | the owner's own machine | straight before T9's apply |
 | Each install apply | the owner's typed command | in T9 |
