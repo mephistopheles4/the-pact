@@ -9,8 +9,8 @@
 //
 // Nothing here runs on import. Imports install-core.mjs and harnesses.mjs only.
 
-import { CAPABILITIES } from './harnesses.mjs';
-import { RENDERED_REL, Refusal, TOOL_TABLES, builtParts } from './install-core.mjs';
+import { CAPABILITIES, EFFORT_SLOT } from './harnesses.mjs';
+import { AGENT_EFFORTS, RENDERED_REL, Refusal, TOOL_TABLES, builtParts } from './install-core.mjs';
 
 export const ROLES = Object.freeze(['planning', 'executor', 'light']);
 // Claude's model names, an alias or a full ID: a rules text that holds one names a model outright (C8).
@@ -22,7 +22,17 @@ const FRONT_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 // A Codex agent keeps its shell (S12); these switches are what its file can turn off.
 const CODEX_AGENT_OFF = Object.freeze(['apps', 'plugins', 'memories', 'request_permissions_tool']);
 const READ_TOOLS = Object.freeze(['Read', 'Glob', 'Grep']);
+// A codex-toml agent reads through its shell alone, whatever tools its source names (S7).
+const SHELL_READS = 'You have no Read, Glob or Grep tool here. Where these instructions name one, search and read with shell commands that only read files (`rg`, `ls`, `cat`, `Get-Content`), not `git`: reading that way is not a command to stop at.';
 const SKILL_POLICY = 'policy:\n  allow_implicit_invocation: false\n';
+// A table's second line, and the line between two cells of a row.
+const DELIMITER_RE = /^\|(?:\s*:?-+:?\s*\|)+\s*$/;
+const CELL_RE = /(?<!\\)\|/;
+// A cell holding `<model>, <effort>`: what stands before the effort, the model, the effort and what follows.
+const CHOICE_RE = new RegExp(`^(\\s*([^,]*[^,\\s]), )(${AGENT_EFFORTS.join('|')})(\\s*)$`);
+const STAGES = Object.freeze({ plan: 'Plan', build: 'Build' });
+// The sensitive route's column, which no tier key rewrites.
+const ROUTE = 'Sensitive route';
 
 const refuse = (rule, why) => {
   throw new Refusal(rule, why);
@@ -55,13 +65,120 @@ function modelFor(value, models) {
   return value === 'light' ? (models.light ?? models.executor) : models[value];
 }
 
-function rulesFor(rules, h) {
+/** The Markdown tables in `lines`: each as its rows, the header first and the delimiter left out, a row its line number and its cells as split. */
+function tablesIn(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith('|') || !DELIMITER_RE.test(lines[i + 1] ?? '')) continue;
+    const rows = [];
+    let j = i;
+    for (; j < lines.length && lines[j].startsWith('|'); j++) if (j !== i + 1) rows.push({ at: j, cells: lines[j].split(CELL_RE) });
+    out.push(rows);
+    i = j - 1;
+  }
+  return out;
+}
+
+// A split row's first part is what stands before its first |, so its first cell is cells[1].
+const cellText = (row, i) => (row.cells[i] ?? '').trim();
+const column = (header, name, from) => header.cells.findIndex((c, i) => i >= from && c.trim() === name);
+/** A tier row's name, its bold text, or the cell as it stands. */
+const tierName = row => /^\*\*(.+)\*\*$/.exec(cellText(row, 1))?.[1] ?? cellText(row, 1);
+// A key as harnesses.mjs's TIER_KEY_RE accepts it.
+export const tierKey = name => name.toLowerCase().replace(/ +/g, '-');
+
+/** The tiers table and the workflow table (spec 0008 D5), each undefined when the rules hold none. */
+function tierTables(lines) {
+  const all = tablesIn(lines);
+  return {
+    tiers: all.find(([head]) => cellText(head, 1) === 'Tier' && column(head, 'Plan', 2) > 0 && column(head, 'Build', 2) > 0),
+    workflow: all.find(([head]) => cellText(head, 1) === 'Stage'),
+  };
+}
+
+/** Each tier of the rules' tiers table: its key, its name, and its Plan and Build cells as written. Scriptorium shows these. */
+export function tierRows(rules) {
+  const { tiers } = tierTables(rules.split('\n'));
+  if (!tiers) return [];
+  const [head, ...rows] = tiers;
+  return rows.filter(r => /^\*\*.+\*\*$/.test(cellText(r, 1))).map(r => ({ key: tierKey(tierName(r)), name: tierName(r), plan: cellText(r, column(head, STAGES.plan, 2)), build: cellText(r, column(head, STAGES.build, 2)) }));
+}
+
+/** The cells one tier key rewrites, as [row, column, effort], or why the key finds nothing. */
+function tierEdits({ tiers, workflow }, key, stages) {
+  if (!tiers) return { why: 'no tiers table' };
+  const [head, ...rows] = tiers;
+  const row = rows.find(r => /^\*\*.+\*\*$/.test(cellText(r, 1)) && tierKey(tierName(r)) === key);
+  if (!row) return { why: 'no row of that tier in a tiers table' };
+  const name = tierName(row);
+  const edits = [];
+  for (const [stage, effort] of Object.entries(stages)) {
+    const title = STAGES[stage];
+    const at = column(head, title, 2);
+    if (!CHOICE_RE.test(row.cells[at] ?? '')) return { why: `no model and effort in that tier's ${title} cell` };
+    edits.push([row, at, effort]);
+    const flow = workflow && name !== ROUTE ? column(workflow[0], name, 2) : -1;
+    const step = flow > 0 && workflow.slice(1).find(r => cellText(r, 1) === title);
+    if (!step || step.cells[flow] === undefined) continue;
+    if (!CHOICE_RE.test(step.cells[flow])) return { why: `no model and effort in the workflow's ${title} cell for that tier` };
+    edits.push([step, flow, effort]);
+  }
+  return { edits };
+}
+
+/**
+ * The rules' lines with each of the harness's tier efforts in its cells. A key
+ * the person's entry set refuses when it finds nothing; a known one warns, and
+ * rewrites none of its cells.
+ */
+function tierEffortsFor(lines, h, warn) {
+  const found = tierTables(lines);
+  const touched = new Set();
+  for (const [key, stages] of Object.entries(h.tierEfforts ?? {})) {
+    const { edits, why } = tierEdits(found, key, stages);
+    if (why) {
+      if (h.ownTiers?.includes(key)) refuse('tier-effort', `the harness ${h.id}'s tierEfforts key ${key} finds ${why}.`);
+      warn(`its known tierEfforts key ${key} finds ${why}, so the rules are rendered without it`);
+      continue;
+    }
+    for (const [row, at, effort] of edits) {
+      row.cells[at] = row.cells[at].replace(CHOICE_RE, (_, before, model, was, after) => `${before}${effort}${after}`);
+      touched.add(row);
+    }
+  }
+  const out = [...lines];
+  for (const row of touched) out[row.at] = row.cells.join('|');
+  return out;
+}
+
+/** A warning for each table cell whose role's model takes its effort in its name, at an effort the harness does not take. Never the model. */
+function effortWarnings(lines, h, warn) {
+  if (!h.models) return;
+  const { tiers, workflow } = tierTables(lines);
+  const said = new Set();
+  const check = (cell, tier, stage) => {
+    const [, , model, effort] = CHOICE_RE.exec(cell ?? '') ?? [];
+    const role = ROLES.find(r => model === `${r} model`);
+    if (!role || (h.efforts ?? AGENT_EFFORTS).includes(effort) || !modelFor(role, h.models).includes(EFFORT_SLOT)) return;
+    said.add(`its tables give ${tier} ${stage} the effort ${effort}, which it does not take`);
+  };
+  if (tiers) {
+    const [head, ...rows] = tiers;
+    for (const row of rows) for (const stage of Object.values(STAGES)) check(row.cells[column(head, stage, 2)], tierName(row), stage);
+  }
+  if (workflow) {
+    const [head, ...rows] = workflow;
+    for (const row of rows) for (let i = 2; i < head.cells.length; i++) check(row.cells[i], cellText(head, i), cellText(row, 1));
+  }
+  for (const why of said) warn(why);
+}
+
+function rulesFor(rules, h, warn) {
   const m = h.models;
-  const line = m ? `Here the planning model is \`${m.planning}\`, the executor model \`${m.executor}\` and the light model \`${m.light ?? m.executor}\`.` : null;
-  return blocksFor(rules, h, 'the rules file')
-    .split('\n')
-    .flatMap(l => (MODELS_RE.test(l) ? (line ? ['', line] : []) : [l]))
-    .join('\n');
+  const line = m && `Here the planning model is \`${m.planning}\`, the executor model \`${m.executor}\` and the light model \`${m.light ?? m.executor}\`.${Object.values(m).some(v => v?.includes(EFFORT_SLOT)) ? ` For \`${EFFORT_SLOT}\`, take the effort the tier table gives.` : ''}`;
+  const lines = tierEffortsFor(blocksFor(rules, h, 'the rules file').split('\n'), h, warn);
+  effortWarnings(lines, h, warn);
+  return lines.flatMap(l => (MODELS_RE.test(l) ? (line ? ['', line] : []) : [l])).join('\n');
 }
 
 /** A Markdown file's frontmatter lines, their values by key, and the text after the closing ---. */
@@ -89,7 +206,7 @@ function codexAgent(name, text, model) {
   const out = [`name = ${JSON.stringify(name)}`, `description = ${JSON.stringify(unquoted(values.get('description') ?? ''))}`];
   if (model !== null) out.push(`model = ${JSON.stringify(model)}`);
   if (values.has('effort')) out.push(`model_reasoning_effort = ${JSON.stringify(values.get('effort'))}`);
-  out.push(`developer_instructions = '''\n${body}'''`);
+  out.push(`developer_instructions = '''\n${SHELL_READS}\n\n${body}'''`);
   out.push('', '[features]', ...CODEX_AGENT_OFF.map(k => `${k} = false`));
   return `${out.join('\n')}\n`;
 }
@@ -109,7 +226,15 @@ function antigravityAgent(name, text, model, table, warn) {
 function agentFor(name, text, h, tables, warn) {
   const { values } = frontmatter(text, `the agent ${name}`);
   const asked = values.get('model');
-  const model = asked === undefined ? null : modelFor(asked, h.models);
+  // The harness's own model for this agent, over the one its role names; a model the source names stays.
+  const own = ROLES.includes(asked) && h.agentModels ? (Object.hasOwn(h.agentModels, name) ? h.agentModels[name] : h.agentModels['*']) : undefined;
+  let model = own ?? (asked === undefined ? null : modelFor(asked, h.models));
+  // A role's model that takes its effort in its name takes the agent file's.
+  if (own === undefined && ROLES.includes(asked) && model?.includes(EFFORT_SLOT)) {
+    const effort = unquoted((values.get('effort') ?? '').trim());
+    if (!(h.efforts ?? AGENT_EFFORTS).includes(effort)) refuse('agent-effort', `the agent ${name} sets no effort that the model of its role in ${h.id} takes.`);
+    model = model.replace(EFFORT_SLOT, effort);
+  }
   const { format } = h.agents;
   if (format === 'codex-toml') return [`${name}.toml`, codexAgent(name, text, model), model];
   if (format === 'antigravity-md') return [`${name}.md`, antigravityAgent(name, text, model, tables[format], warn), model];
@@ -148,11 +273,14 @@ export function renderHarnesses({ rules, agents, commands, harnesses, tables = T
       const own = Object.values(h.models ?? {}).map(m => m?.toLowerCase());
       for (const m of new Set(found)) if (!own.includes(m.toLowerCase())) warnings.push(`\`${path}\` names model \`${m}\`, which ${h.name} may not have`);
     };
-    if (!h.models) warn('it names no models, so its rules hold no models line and its agents no model');
+    if (!h.models) warn(`it names no models, so its rules hold no models line${h.agentModels ? '.' : ' and its agents no model'}`);
     // A configured name can hold a provider account or project, so it is never printed here.
     else if (h.own || h.overrides.includes('models')) warn('its rules hold your configuration’s model names as written; sessions read that file and may quote it.');
+    if (h.agentModels && (h.own || h.overrides.includes('agentModels'))) warn('its agent files hold your configuration’s model names as written; sessions read those files and may quote them.');
 
-    const text = rulesFor(rules, h);
+    for (const k of Object.keys(h.agentModels ?? {})) if (k !== '*' && !agents.has(k)) warn(`agentModels names ${k}, which is no agent of the pact`);
+
+    const text = rulesFor(rules, h, warn);
     const size = Buffer.byteLength(text);
     const { cap, sharedCap } = h.rules;
     const limit = Math.min(cap ?? Infinity, sharedCap ?? Infinity);

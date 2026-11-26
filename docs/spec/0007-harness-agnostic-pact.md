@@ -225,6 +225,34 @@ round's comment on the issue lists each finding.
 55. Security: `~/.pact` outside Claude Code's protected paths stays an open gap
     in the threat model; no ask rule is added.
 
+**The owner's later pick, relayed by the lead (its decision 132):**
+
+56. Security, a control loosened: the tree check only detects. The lead's
+    say-back: "keep a simple check: one command records the repo's state before
+    a lens runs and compares it afterwards. The backup copies and the restore
+    step go. A lens that changes something is still caught, but your
+    uncommitted work can't be put back for you automatically." The owner:
+    "Yes, please. That sounds good." It replaces the copies and the restore of
+    items 38, 44 and 53 (S12).
+57. The owner's pick, relayed by the lead (its decision 135): Antigravity's
+    planning model is Gemini 4 Neon and its executor model Gemini 4 Hydrogen,
+    each a slug that takes its effort from the tier table; every lens and
+    `scout` runs on `flash` and the security pair on `pro`. A per-agent entry,
+    `agentModels`, carries it (the session's pick, flagged). Never Carbon.
+58. The lead's pick, flagged for the owner (its decision 139): a per-harness
+    tier effort, and the page setting each harness's agent models and efforts,
+    move to a ticket of their own, merged before this work's pull request.
+59. Trade-off: `docs/install.md`'s budget rises to 10,700, on the owner's
+    word-cap rule (PACT-110).
+60. Security, the lead's pick, flagged for the owner (its decision 146): the
+    tree check runs exactly as printed, and reads the folder from its last
+    argument, after end-to-end sessions piped the script to `node` (S12).
+61. The same pick: a `codex-toml` agent file says to search and read with
+    shell commands that only read files, never `git`, after an end-to-end `scout` refused for lack of
+    the tools its instructions name (S7).
+62. Trade-off: `docs/rule-reasons.md`'s budget rises to 1,250, on the
+    owner's word-cap rule (PACT-110).
+
 ## S3 Terms
 
 These join `CONTEXT.md` in T1.
@@ -309,7 +337,18 @@ configuration. Each has:
 - `hooks`: `{ "file", "format" }`, format one of `claude`, `codex`,
   `antigravity` (S8); or absent.
 - `models`: `{ "planning", "executor", "light" }`, each a model name the
-  harness takes, `light` optional.
+  harness takes, `light` optional. A name may hold `<effort>` once: it takes
+  its effort from the tier table, or for an agent from its file (S6).
+- `agentModels`: a model per agent, by its name, with `*` for every agent it
+  doesn't name; optional. No value holds `<effort>`. A key naming no pact
+  agent gives a dry-run `WARN`.
+- `tierEfforts`: an effort per tier cell; optional. Each key is a tier's name
+  in the tiers table, lower case, each run of spaces one hyphen
+  (`[a-z0-9]+(-[a-z0-9]+)*`); each value holds `plan`, `build` or both, each
+  one of the five efforts.
+- `efforts`: the efforts the harness takes, a non-empty list from the five
+  (`low`, `medium`, `high`, `xhigh`, `max`), each once, in that order;
+  optional, all five when absent.
 - `defaultInstall`: `false` keeps a detected harness out of a missing
   install list; optional, `true` when absent.
 - `capabilities`: a list from `subagents`, `tool-limits`, `cleaner`,
@@ -330,7 +369,10 @@ The known descriptions:
 | `skills` | none | `~/.agents/skills` | `~/.gemini/config/skills` |
 | `commands` | `~/.claude/commands` | none | none |
 | `hooks` | `~/.claude/settings.json`, `claude` | `~/.codex/hooks.json`, `codex` | `~/.gemini/config/hooks.json`, `antigravity` |
-| `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-astra`, none | `pro`, `flash`, `flash` |
+| `models` | `opus`, `sonnet`, `haiku` | `gpt-6.2-sol`, `gpt-6.2-sol`, none | `gemini-4-neon-<effort>`, `gemini-4-hydrogen-<effort>`, `flash` |
+| `agentModels` | none | none | `*`: `flash`; `adversarial-lens` and `data-lens`: `pro` |
+| `tierEfforts` | none | `standard`: `build` `medium` | none |
+| `efforts` | none | none | `low`, `medium`, `high`, `xhigh` |
 | `capabilities` | `subagents`, `tool-limits`, `cleaner`, `archive`, `native-rules` | `subagents`, `hook-trust`, `explicit-skills` | `subagents`, `tool-limits`, `hook-ask`, `explicit-skills`, `skill-copies` |
 
 - **Detection.** The dry run lists each known harness whose `detect` folder
@@ -348,7 +390,11 @@ The known descriptions:
   Nothing else is checked. The dry run prints, for each own harness with `hooks`: "guards
   unverified for `<name>`: the pact has not seen this harness run its hook".
 - **A known harness's fields** may be overridden by an own entry of the same
-  id, field by field, under the same checks, with a `WARN` naming each.
+  id, field by field, under the same checks, with a `WARN` naming each. Its
+  `agentModels` goes over the known one name by name, and its `models` leave
+  it as it is: an Antigravity agent file takes a tier and never a session's
+  model. Its `tierEfforts` goes over the known one key by key, where a key set
+  to `null` drops the known one; its `efforts` replaces the known list whole.
 
 ## S6 Models: roles and mapping
 
@@ -364,13 +410,16 @@ The known descriptions:
 - **The models line.** Each rendered rules file gets one line after the
   tiers part, whatever block fills that part: "Here the planning model is
   `<planning>`, the executor model `<executor>` and the light model `<light>`." A
-  configuration that replaces the tiers block can't drop it (C29). Where the
+  configuration that replaces the tiers block can't drop it (C29). Where a name
+  holds `<effort>`, the line goes on: "For `<effort>`, take the effort the tier
+  table gives." Where the
   names come from the configuration, the dry run warns, without naming them,
   that the rules hold them as written and sessions may quote them.
 - **Agent files name roles.** Each source agent's `model:` is `planning`,
   `executor` or `light`: every lens `planning`, scout `light`. The renderer
   writes the harness's model in its place. `light` with no light model
-  writes the executor model.
+  writes the executor model. A harness's `agentModels` entry for the agent wins
+  over its role's model; a model the source names outright stays.
 - **A person's own names still work.** A configuration block, an agent
   setting or a builder table cell that names a model, such as "Opus", renders
   as written, in every harness. The dry run warns for each harness that isn't
@@ -378,6 +427,23 @@ The known descriptions:
 - **Effort.** Claude Code and Codex agents keep `effort` (Codex as
   `model_reasoning_effort`, the same five words). Antigravity agents have no
   effort field, so it is dropped there.
+- **A model holding `<effort>`,** reached through an agent's role, takes the
+  agent file's effort; no effort, or one outside `efforts`, refuses
+  (`agent-effort`). A tiers or workflow table cell whose role maps to such a
+  model, at an effort outside `efforts`, gives a dry-run `WARN` naming the
+  tier, the stage and the effort, never the model.
+- **Tier efforts.** A `tierEfforts` key rewrites only the effort word of its
+  tier's `Plan` or `Build` cell in the tiers table (the first whose header
+  starts `| Tier |` and holds `Plan` and `Build`), and of the cell in that
+  tier's column on the same-named row of the workflow table (the first whose
+  header starts `| Stage |`). The workflow table's
+  sensitive-route column, and the sensitive route's paragraph, are never
+  rewritten. A
+  workflow table or row that isn't there is skipped. An own key that finds no
+  tiers table, no row of its tier, or a cell that isn't `<model>, <effort>`
+  refuses (`tier-effort`). A known key that finds nothing gives a dry-run
+  `WARN`, and the rules render without it. [0008](0008-per-harness-models-and-efforts.md)
+  D5 has the rest.
 - **The builder.** Its Models list becomes three dropdown roles plus the
   person's own names. The default configuration and presets switch to roles.
   Each harness row in Scriptorium sets that harness's three models (S11).
@@ -418,12 +484,19 @@ differ per harness only because a tool can't do otherwise:
 - An `ask` rule is an ask in Claude Code, `force_ask` in Antigravity and a
   deny in Codex (S8). It goes universal once Codex hooks support ask.
 
+One exception is a choice: a description's model and effort fields (S5) change
+only model and effort words, never which parts or clauses a harness gets.
+
 **Agents.** One source per agent, `claude/agents/<n>.md`, rendered per format:
 
 - `claude-md`: as today, with the model role mapped.
 - `codex-toml`: the body goes to `developer_instructions` as a TOML literal
   string; a body holding `'''` refuses (`agent-toml`). `tools` has no field
-  and is dropped. Every agent file sets `features.apps`, `features.plugins`,
+  and is dropped. Such an agent reads through its shell alone, so its
+  instructions open with one line saying it has no `Read`, `Glob` or `Grep`
+  tool, to search and read with shell commands that only read files, not
+  `git` (which can run programs a repo's config names), and that reading so
+  is no command to stop at. Every agent file sets `features.apps`, `features.plugins`,
   `features.memories` and `features.request_permissions_tool` to `false`;
   S12 says what is left.
 - `antigravity-md`: `tools` is mapped through a fixed table per harness from
@@ -699,7 +772,16 @@ the app instead (S2 item 49).
 - **The harness section.** One row per harness the dry run would see, known
   and own: its name, whether it is in the install list, and its three
   models, each a dropdown of that harness's known models plus a free entry.
-  An "Add a harness" row takes an own harness's fields (S5).
+  An "Add a harness" row takes an own harness's fields (S5). Antigravity's
+  model dropdowns also offer `pro`, `flash` and `flash_lite`.
+- **Agent models and tier efforts** ([spec 0008](0008-per-harness-models-and-efforts.md)
+  D6). A row per pact agent and a column per harness set `agentModels`; a row
+  per tier sets `tierEfforts`. A change writes one key of the harness's own
+  entry, and a renamed or dropped tier takes its key along.
+- **Across harnesses.** A read-only column per known and own harness: its
+  models line, each tier's cells and each agent's model and effort. `node
+  builder/build.mjs --overview <file>` writes this alone, from the home
+  configuration, to a new page outside any repo, and installs nothing.
 - **What each harness receives.** The page shows each harness's rendered
   rules, agents and skills, read-only, as the install would write them.
 - **Before any install.** `/scriptorium` keeps working in Claude Code, from
@@ -725,40 +807,43 @@ the app instead (S2 item 49).
   the permission-request tool (S7).
 - **The tree check.** `review.md`, one shared file, gains one step under
   Running a lens. In a harness whose agents can't be held to their tools
-  (Codex today), where the rules file also sends `scout` to it, the session,
-  before each lens and each `scout` pass:
-  - finds git's real folders through git (`rev-parse --git-common-dir` and
-    `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since
-    in a linked worktree `.git` is a file;
-  - copies those outside the work tree, readable only by the owner, keeping a
-    hash of each copy, its file names included, and the records below, in the
-    session's own output, never in a file a lens can write;
-  - records `HEAD`, a hash of every ref and of the stash list, and
-    `status --porcelain --ignored=matching --untracked-files=all` run with
-    fsmonitor and every filter off, with a hash of each listed path's
-    content.
+  (Codex today), where the rules file also sends `scout` to it, the session
+  runs one command before each lens and each `scout` pass, and keeps what it
+  prints in its own output, never in a file a lens can write. It runs the
+  command exactly as printed, never cut out, piped or edited. It starts it
+  from the home folder and gives it the work tree's top folder, so no
+  program or version pin in the tree picks the `node` that runs it. The command
+  reads that folder as its last argument, so a run that pipes the script to
+  `node` anyway still reads it, and a run naming no folder fails. It
+  prints one hash for each top-level entry of the work tree, ignored files
+  included, for git's `HEAD`, `config`, `config.worktree`, `commondir`,
+  `hooks`, the hooks folder git's config names, `info`, refs (a linked
+  worktree's own too), stash log, index entries and the files of a half-done merge or
+  rebase, and last one hash of the whole record. It finds git's folders from
+  `.git` itself, since in a linked worktree it is a file. It records a link or
+  junction as its target, never following it. It runs git only to name the
+  hooks folder and list the index, last, with fsmonitor off and from the
+  system folder (`/` elsewhere than Windows), so neither a program a lens named
+  in git's config nor a `git.exe` it left in the tree runs. That git fetches
+  nothing (no lazy fetch, no protocol allowed), since a partial clone's fetch
+  runs programs the config names; a sparse index is listed as it stands, and
+  anything git writes to its error stream fails the run. A file it can't
+  read, or a name that isn't text, fails the run.
 
-  After it the session first stops any process the agent left running and
-  removes any new link or junction, one in a file's place too, the git folders
-  included. It checks each copy against its hash, and again right before it puts
-  anything back from it. While all match, it compares the git folders with the
-  copies, puts them back and checks them against the same hashes. Where a copy,
-  or a git folder after that, differs from its hash, it stops: it runs no more
-  git there, restores nothing more and brings it to the owner. Else it brings
-  any difference it found to the owner and runs the same records again. Any
-  change, a removed link included, marks the lens or pass inconclusive. The
-  session puts back only what changed during it: a moved ref goes back to its
-  earlier value first; then a path clean before is restored with git from that
-  `HEAD`, or deleted if it is new. Each path is removed, put back or restored as
-  itself, never through a link or junction. A path already changed before it is
-  left as it is and named, so the owner's own work is never thrown away. The
-  copies are deleted afterwards. The change and the restore are a flagged
-  checkpoint.
+  After the pass the session stops any process the agent left running, runs the
+  same command again, as it ran it before and never read again from a file (an
+  agent that can write that file would write its own check), before any other
+  git, and compares: the same last line means no change. On any difference, a failed run, or a command or first record it no
+  longer holds, it stops: it runs no git in that tree, changes nothing, counts the
+  pass inconclusive and reports to the owner which lines differ. It keeps no
+  copy and restores nothing.
 - **If the owner declines** widening "Review rests on rules" for Codex lenses
   (S15), T4 removes `subagents` from Codex's known description, so Codex
   gets the no-subagents line and each lens runs in a separate session.
-- **Antigravity lenses** run on Gemini tiers only; the planning model there is
-  `pro`. Their agent files list their tools (S7); each also gets
+- **Antigravity lenses** run on Gemini tiers only: `pro` for the security
+  pair and `flash` for every other lens and `scout` (`agentModels`, S5), while
+  the session's own planning and executor models are named slugs. Which model a
+  tier runs depends on the release and the sign-in. Their agent files list their tools (S7); each also gets
   `manage_task` and `send_message`, and the guard's hook runs on a lens's
   calls too. A lens's `manage_task` was refused a program the session had left
   running (T5's probe).
@@ -889,10 +974,12 @@ never-sync rule names both folders.
   reads can write files or send data within the parent's sandbox, and read
   what the owner's account can: the agent app's key in Credential Manager,
   `~/.codex/auth.json`, `gh`'s token and `~/.pact`. The tree check (S12)
-  sees a change to the work tree's status and content, to refs and to git's
-  own folders. It doesn't see a write outside them, a read or a send, and a
-  write inside an ignored folder too big to hash is seen only by its status
-  line. MCP servers come from the parent and run outside the sandbox, so the
+  sees a change to the work tree's files, ignored ones included, and to git's
+  config, hooks, `info`, `HEAD`, refs, index entries and half-done merges and
+  rebases, not the index's cached trees, which the next commit reuses. It undoes none, so uncommitted work a lens changed stays changed. It
+  doesn't see a write elsewhere, git's objects, a submodule's git folder and
+  another worktree's included, or a read or a send. MCP servers come from the parent and run
+  outside the sandbox, so the
   owner's option is to run Codex lenses only with the parent's network off
   and no MCP server in its profile. T4's probe found that neither holds it
   everywhere: an interactive session asks before a lens's MCP call unless the
@@ -973,8 +1060,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 - **The owner's Windows 11 machine,** Node 24 under mise, with all three
   harnesses; links are junctions.
 - **macOS and Linux** in CI (`gate-macos`, `gate`), with symlinks.
-- **Codex CLI** at the version T4 records, **Antigravity** at the version T5
-  records: its CLI, agy 1.2.14, headless on Windows.
+- **Codex CLI** at the version T4 records, **Antigravity** as its CLI, agy
+  1.5.17, headless on Windows. T5's probe ran on agy 1.2.14.
 
 ## S18 Acceptance claims
 
@@ -1003,7 +1090,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 - **C5** Each known harness's agents render in its format, with its models in
   place of the roles; a `light` role with no light model gets the executor
   model. Each Codex agent file turns off apps, plugins, memories and the
-  permission-request tool. An Antigravity lens whose mapped tools come out
+  permission-request tool, and opens its instructions with S7's line on
+  reading through the shell. An Antigravity lens whose mapped tools come out
   empty or lose a read tool refuses (`agent-tools`), and an Antigravity agent
   has a shell only where its source has one.
 - **C6** A rules file over a harness's cap refuses (`rules-cap`); above half
@@ -1018,10 +1106,15 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   with S7's line everywhere. `finis` without `archive` ends with S7's line
   and archives nothing. `scriptorium` names no one harness's folders.
 - **C10** `review.md` holds S12's tree check, around each lens and `scout`
-  pass: git's folders found through git and put back first, a failed hash check
-  stopping it, `HEAD`, refs and stash recorded, status with content hashes and
-  filters and fsmonitor off, moved refs reset, only what changed restored, and
-  the copies outside the work tree, deleted afterwards.
+  pass: one command, run as printed from outside the tree before and after (the
+  second run never read again from a file), taking the folder as its last
+  argument, whose record
+  covers every file and git's config, hooks, `info`, `HEAD`, refs, index
+  entries and half-done merges and rebases, stays the same across a `git
+  status`, runs no
+  program git's config names or the tree holds, and fails rather than record
+  less. Any difference stops the session, which restores nothing and reports
+  it.
 - **C29** Each harness's rendered rules hold the models line with its own
   models, also under a configuration that replaces the tiers block.
 
@@ -1197,7 +1290,7 @@ reads this spec and each ticket's diff.
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
 | The threat-model cap at 4,200 and `docs/install.md`'s budget (S2 items 47 and 52) | the lead's flagged pick, for review | any time |
-| The tree check around `scout`, the narrower undo and the open `~/.pact` gap (S2 items 53–55) | the lead's flagged picks, for review | any time |
+| The tree check around `scout` and the open `~/.pact` gap (S2 items 53 and 55; item 56 drops item 53's undo) | the lead's flagged picks, for review | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
 | The poster's narrower coverage in Codex, which the install's shell policy makes: it no longer refuses a value the policy drops, though a command can still read it where it was set (S13, S15) | the owner's call | at T4's probe |
 | Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |

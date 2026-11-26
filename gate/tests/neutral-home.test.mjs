@@ -165,9 +165,10 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   passed(applyBound(repo, h));
 
   const rules = read(h, '.codex/AGENTS.md');
-  assert.match(rules, /^Here the planning model is `gpt-6\.2-sol`, the executor model `gpt-6\.2-astra` and the light model `gpt-6\.2-astra`\.$/m);
+  assert.match(rules, /^Here the planning model is `gpt-6\.2-sol`, the executor model `gpt-6\.2-sol` and the light model `gpt-6\.2-sol`\.$/m);
   assert.doesNotMatch(rules, /\b(?:Opus|Sonnet|Haiku)\b|<!-- pact:(?:if|unless|end -->|models)/);
-  assert.match(read(h, '.gemini/AGENTS.md'), /the planning model is `pro`, the executor model `flash`/);
+  assert.match(read(h, '.gemini/AGENTS.md'), /the planning model is `gemini-4-neon-<effort>`, the executor model `gemini-4-hydrogen-<effort>`/);
+  assert.match(lf(read(h, '.gemini/config/agents/behaviour-lens.md')), /^model: flash$/m);
   assert.match(read(h, '.codex/agents/data-lens.toml'), /^model = "gpt-6\.2-sol"$/m);
   assert.match(lf(read(h, '.gemini/config/agents/data-lens.md')), /^model: pro\ntools: \[view_file, find_by_name, grep_search/m);
   // C9: the skill opens with S7's line, ends with the no-archive line, and its steps archive nothing.

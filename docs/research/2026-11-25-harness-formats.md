@@ -151,7 +151,10 @@ From the repo at `374670e`:
 - **Models.** `model` and `model_reasoning_effort` in `config.toml` or an
   agent file. Profiles are now separate `<name>.config.toml` files; since
   0.134.0 `[profiles.x]` tables are no longer read. Current names include
-  `gpt-6.2-sol` and `gpt-6.2-astra`. [config reference][cx-config],
+  `gpt-6.2-sol`, for everyday work at fewer credits per token, and
+  `gpt-6.2-astra`, for demanding work; the pact maps both its Codex roles to
+  Sol, the owner's pick. On a ChatGPT sign-in, CLI 0.159.0 refused both names
+  and 0.172.0 ran both (seen 2026-11-25). [config reference][cx-config],
   [models][cx-models]
 - **Plugins.** A `plugin.json` can bundle skills, MCP config and hooks (hooks
   only for plugins installed by hand in the desktop app); the docs don't say
@@ -170,6 +173,14 @@ From the repo at `374670e`:
   lens cannot pick Claude. A misspelled name in `tools` "may cause the
   subagent process to hang". [subagents][ag-subagents],
   [build plugins][ag-build]
+- **Tiers, seen.** On agy 1.5.17, with the session on `gemini-4-neon-low`, a
+  `flash` subagent ran `gemini-4-hydrogen-tiered-high`, a `pro` one
+  `gemini-4-hydrogen-tiered-xhigh` and a `flash_lite` one
+  `gemini-3.5-flash-lite` (live probes, 2026-11-26, PACT-105). No tier reached
+  Carbon. Which model a tier runs depends on the release and the sign-in. `agy
+  models` lists the slugs; Neon and Hydrogen each take `low`, `medium`, `high`
+  and `xhigh`. The pact names Neon for planning and Hydrogen for building, and
+  puts lenses on `flash`, the security pair on `pro`.
 - **Swarm** (preview). A coordinator, named workers, a verifier per two to
   four workers and a monitor, on a shared board. A verifier on another model
   is asked for in the prompt; no config field sets it. [swarm][ag-swarm]

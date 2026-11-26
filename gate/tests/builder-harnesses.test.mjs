@@ -2,10 +2,10 @@
 // what it saves into config.json's harnesses key, what it says each harness
 // receives, held to the installer's own renderer, and the page the builder
 // writes before any install. The page is not gate code; the installer stays the
-// authority.
+// authority. PACT-111 C9 and C10 are named above their tests.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { test } from 'node:test';
 import vm from 'node:vm';
@@ -22,10 +22,10 @@ const plain = v => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
 /** The page's own functions, run with no document; what they return is cloned into this realm. */
 function logic(page = PAGE) {
-  const names = ['PACT', 'initialState', 'buildFiles', 'keepFolderKeys', 'harnessList', 'setHarnessIn', 'setHarnessModel', 'addHarness', 'removeHarness', 'receives', 'problems'];
+  const names = ['PACT', 'initialState', 'buildFiles', 'keepFolderKeys', 'harnessList', 'setHarnessIn', 'setHarnessModel', 'addHarness', 'removeHarness', 'receives', 'problems', 'touchedAgents', 'startState', 'changesOf', 'builderWith', 'setAgentModel', 'setTierEffort', 'dropTierKey', 'agentTable', 'tierTable', 'across', 'acrossTable', 'knownModels'];
   const got = vm.runInContext(`${scriptOf(page)}\n;({ ${names.join(', ')} });`, vm.createContext({ TextEncoder }));
   // A state stays the page realm's object, so each setter changes it in place.
-  return Object.fromEntries(Object.entries(got).map(([k, v]) => [k, typeof v !== 'function' ? plain(v) : k === 'initialState' ? v : (...a) => plain(v(...a))]));
+  return Object.fromEntries(Object.entries(got).map(([k, v]) => [k, typeof v !== 'function' ? plain(v) : k === 'initialState' || k === 'startState' ? v : (...a) => plain(v(...a))]));
 }
 const L = logic();
 const configOf = state => JSON.parse(L.buildFiles(state)[0].text);
@@ -113,6 +113,16 @@ test('C24: a save keeps the folder\'s harnesses when the page changed none', () 
   const s = L.initialState();
   const kept = L.keepFolderKeys(L.buildFiles(s), EXISTING, s.harnesses);
   assert.deepEqual(JSON.parse(kept.files[0].text).harnesses, JSON.parse(EXISTING).harnesses);
+});
+
+test('C24: a save keeps the folder’s agent settings the page did not change, field by field', () => {
+  const existing = JSON.stringify({ schema: 1, agents: { scout: { model: 'my-model', effort: 'high' }, 'data-lens': { effort: 'low' } } });
+  const s = L.initialState();
+  const untouched = L.keepFolderKeys(L.buildFiles(s), existing, s.harnesses);
+  assert.deepEqual(JSON.parse(untouched.files[0].text).agents, JSON.parse(existing).agents);
+  s.agents.scout.effort = 'low';
+  const changed = L.keepFolderKeys(L.buildFiles(s), existing, s.harnesses, L.touchedAgents(s));
+  assert.deepEqual(JSON.parse(changed.files[0].text).agents, { scout: { model: 'my-model', effort: 'low' }, 'data-lens': { effort: 'low' } });
 });
 
 test('C24: a save applies only what the page changed over the folder\'s harnesses', () => {
@@ -288,6 +298,24 @@ test('C24: the page at its fixed path lists the harnesses the dry run would see,
   assert.match(P.receives(s, 'claude').files[0].text, /Remove worktrees only through the cleaner/);
 });
 
+test('C24: the page at its fixed path starts each agent at the folder’s setting, and one set back to the pact’s own leaves the save', t => {
+  const config = JSON.stringify({ schema: 1, agents: { scout: { model: 'my-model', effort: 'high' }, 'data-lens': { effort: 'low' } } });
+  const m = machine(t, { '.claude/keep': '', '.pact/config.json': config });
+  const r = m.cli(['--builder', EXAMPLE]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const P = logic(readFileSync(join(m.home, '.pact', 'scriptorium.html'), 'utf8'));
+  const s = P.initialState();
+  assert.deepEqual(plain(s.agents.scout), { model: 'my-model', effort: 'high' });
+  const saved = () => P.keepFolderKeys(P.buildFiles(s), config, s.harnesses, P.touchedAgents(s));
+  const agents = () => JSON.parse(saved().files[0].text).agents;
+  assert.deepEqual(agents(), JSON.parse(config).agents);
+  const { model, effort } = P.PACT.agents.find(a => a.name === 'scout');
+  Object.assign(s.agents.scout, { model, effort });
+  assert.deepEqual(agents(), { 'data-lens': { effort: 'low' } });
+  // What the page shows each harness receives follows the same save.
+  assert.match(P.receives(s, 'claude').files.find(f => f.path.endsWith('/scout.md')).text, /^model: haiku$/m);
+});
+
 test('C24: a harness the record lists stays in the page\'s rows after its folder is gone', t => {
   // The record is read as the installer reads it: keys in any case, and no harnesses key for none.
   const record = key => JSON.stringify({ commit: 'abc', files: [], ...(key ? { [key]: [{ id: 'codex' }] } : {}) });
@@ -332,4 +360,284 @@ test('bad case: the installer\'s harness renderer changed makes the committed pa
   const was = readFileSync(p, 'utf8');
   writeFileSync(p, was.replace('allow_implicit_invocation: false', 'allow_implicit_invocation: true'));
   assert.notEqual(buildPage(root, PAGE), PAGE);
+});
+
+// ------------------------------------------------------------ spec 0008 C9: one harness's agent models and tier efforts
+
+/** The lines of `after` that differ from `before`, per file: { path: [new lines] }. */
+function changedLines(before, after) {
+  assert.deepEqual([...after.keys()].sort(), [...before.keys()].sort());
+  return Object.fromEntries([...after].filter(([p, text]) => text !== before.get(p)).map(([p, text]) => {
+    const was = before.get(p).split('\n');
+    const now = text.split('\n');
+    assert.equal(now.length, was.length, p);
+    return [p, now.filter((l, i) => l !== was[i])];
+  }));
+}
+const tierId = (state, name) => state.parts.tiers.find(x => x.name === name).id;
+const cellOf = (state, agent, id) => L.agentTable(state).rows.find(r => r.agent === agent).cells.find(c => c.id === id);
+const tierOf = (state, id, name) => L.tierTable(state).find(x => x.id === id).rows.find(r => r.name === name);
+const own = state => configOf(state).harnesses?.own;
+
+// PACT-111 C9.
+test('0008 C9: one agent’s model and one tier’s effort for one harness write only that harness’s own entry, and nothing else renders differently', t => {
+  const s = L.initialState();
+  // The rules' configuration notice holds the configuration's fingerprint, which any change moves.
+  const renders = () => new Map([...installerRenders(t, s).rendered].map(([path, text]) => [path, text.replace(/^\*\*Configuration in effect\.\*\*.*$/m, '')]));
+  const before = renders();
+  assert.equal(L.setAgentModel(s, 'codex', 'data-lens', 'big-model'), null);
+  L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'plan', 'low');
+  // The known build effort stays with the key, which replaces the known one whole.
+  assert.deepEqual(configOf(s).harnesses, { own: [{ id: 'codex', agentModels: { 'data-lens': 'big-model' }, tierEfforts: { standard: { build: 'medium', plan: 'low' } } }] });
+  const changed = changedLines(before, renders());
+  assert.deepEqual(Object.keys(changed).sort(), ['rendered/codex/agents/data-lens.toml', 'rendered/codex/rules.md']);
+  assert.deepEqual(changed['rendered/codex/agents/data-lens.toml'], ['model = "big-model"']);
+  assert.equal(changed['rendered/codex/rules.md'].length, 2, 'the tiers row and the workflow’s Plan row');
+  for (const line of changed['rendered/codex/rules.md']) assert.match(line, /planning model, low/);
+});
+
+// PACT-111 C9.
+test('0008 C9: the cells show what the install would write, and choosing the default or the table removes only that key', () => {
+  const s = L.startState();
+  const lens = () => cellOf(s, 'data-lens', 'antigravity');
+  assert.deepEqual([lens().model, lens().dropped, lens().fallback, lens().own], ['pro', true, 'pro', null]);
+  assert.deepEqual([cellOf(s, 'scout', 'claude').model, cellOf(s, 'scout', 'claude').effort], ['haiku', 'medium']);
+  assert.equal(L.addHarness(s, { ...OWN, agentModels: { '*': 'every' } }), null);
+  L.setAgentModel(s, 'mine', 'scout', 'one');
+  assert.deepEqual([cellOf(s, 'scout', 'mine').model, cellOf(s, 'scout', 'mine').fallback], ['one', 'every']);
+  L.removeHarness(s, 'mine');
+  const std = () => tierOf(s, 'codex', 'Standard');
+  assert.deepEqual([std().build.effective, std().build.own, std().build.table], ['medium', 'medium', 'high']);
+  assert.deepEqual([std().plan.effective, std().plan.own], ['medium', null]);
+  L.setAgentModel(s, 'antigravity', 'data-lens', 'flash');
+  L.setAgentModel(s, 'antigravity', 'scout', 'pro');
+  assert.deepEqual([lens().model, lens().own, lens().fallback], ['flash', 'flash', 'pro']);
+  L.setAgentModel(s, 'antigravity', 'data-lens', null);
+  assert.deepEqual(own(s), [{ id: 'antigravity', agentModels: { scout: 'pro' } }]);
+  L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'build', null);
+  assert.deepEqual([own(s)[1], std().build.effective, std().build.own], [{ id: 'codex', tierEfforts: { standard: null } }, 'high', null]);
+});
+
+// PACT-111 C9.
+test('0008 C9: over a folder’s own entry, a change writes its one key and “as the default says” removes only that key', () => {
+  const existing = JSON.stringify({ schema: 1, harnesses: { own: [{ id: 'codex', agentModels: { scout: 'a', 'data-lens': 'b' }, tierEfforts: { quick: { plan: 'high' }, standard: { plan: 'low' } } }] } });
+  const s = L.initialState();
+  L.setAgentModel(s, 'codex', 'reader-lens', 'c');
+  L.setAgentModel(s, 'codex', 'scout', null);
+  L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'build', 'xhigh');
+  const kept = JSON.parse(L.keepFolderKeys(L.buildFiles(s), existing, L.changesOf(s)).files[0].text);
+  assert.deepEqual(kept.harnesses.own[0].tierEfforts, { quick: { plan: 'high' }, standard: { plan: 'low', build: 'xhigh' } });
+  assert.deepEqual(kept.harnesses.own[0].agentModels, { 'data-lens': 'b', 'reader-lens': 'c' });
+});
+
+// PACT-111 C9.
+test('0008 C9: renaming a tier moves its key in every own entry, and the dry run takes it', t => {
+  const s = L.initialState();
+  L.setTierEffort(s, 'codex', tierId(s, 'Standard'), 'plan', 'low');
+  L.setTierEffort(s, 'claude', tierId(s, 'Standard'), 'build', 'low');
+  s.parts.tiers[1].name = 'Deep Work';
+  assert.deepEqual(own(s).map(e => [e.id, Object.keys(e.tierEfforts)]), [['codex', ['deep-work']], ['claude', ['deep-work']]]);
+  const { rendered } = installerRenders(t, s);
+  assert.match(rendered.get('rendered/claude/rules.md'), /\| \*\*Deep Work\*\* \|[^\n]*executor model, low \|/);
+  assert.deepEqual(L.problems(s).filter(p => p.level === 'error'), []);
+});
+
+// PACT-111 C9.
+test('0008 C9: a rename or a dropped tier moves or removes the keys a folder holds that the page never saw', () => {
+  const existing = JSON.stringify({ schema: 1, harnesses: { own: [{ id: 'codex', tierEfforts: { standard: { build: 'low' }, thorough: { plan: 'max' }, deep: { plan: 'high' } } }] } });
+  const s = L.initialState();
+  s.parts.tiers[1].name = 'Deep';
+  s.parts.tiers.splice(2, 1);
+  const kept = JSON.parse(L.keepFolderKeys(L.buildFiles(s), existing, L.changesOf(s)).files[0].text);
+  assert.deepEqual(kept.harnesses, { own: [{ id: 'codex', tierEfforts: { deep: { build: 'low' } } }] });
+  assert.equal(Object.hasOwn(configOf(s), 'harnesses'), false, 'with no key of theirs to move, nothing is written');
+});
+
+// PACT-111 C9.
+test('0008 C9: an own key with no row of that tier is an error on its harness’s row, which removing the key clears', () => {
+  const s = L.initialState();
+  assert.equal(L.addHarness(s, { ...OWN, tierEfforts: { deepest: { plan: 'low' } } }), null);
+  const errors = () => L.problems(s).filter(p => p.where === 'mine' && p.level === 'error');
+  assert.match(errors()[0].text, /deepest/);
+  assert.deepEqual(L.tierTable(s).find(x => x.id === 'mine').orphans, ['deepest']);
+  L.dropTierKey(s, 'mine', 'deepest');
+  assert.deepEqual(errors(), []);
+});
+
+// PACT-111 C9.
+test('0008 C9: an agent the configuration gives a model shows it, locked, in every harness; a role does not lock', () => {
+  const s = L.initialState();
+  s.agents.scout.model = 'my-model';
+  s.agents['data-lens'].model = 'planning';
+  const row = name => L.agentTable(s).rows.find(r => r.agent === name).cells;
+  assert.deepEqual(row('scout').map(c => [c.id, c.model, c.locked]), KNOWN.map(h => [h.id, 'my-model', 'set by the configuration']));
+  assert.deepEqual(row('data-lens').map(c => c.locked), [null, null, null]);
+});
+
+// PACT-111 C9.
+test('0008 C9: each harness’s model dropdowns offer its known models, and Antigravity’s also its three aliases', () => {
+  const s = L.initialState();
+  assert.deepEqual(L.knownModels(s, 'claude'), ['opus', 'sonnet', 'haiku']);
+  assert.deepEqual(L.knownModels(s, 'antigravity'), ['flash', 'pro', 'flash_lite']);
+  assert.deepEqual(cellOf(s, 'data-lens', 'antigravity').roles.map(o => o.model), ['gemini-4-neon-high', 'gemini-4-hydrogen-high', 'flash']);
+});
+
+// PACT-111 C9.
+for (const [name, model] of [['two words', 'two words'], ['a model holding <effort>', 'x-<effort>'], ['nothing', '']]) {
+  test(`bad agent model: ${name} is refused and nothing is written`, () => {
+    const s = L.initialState();
+    assert.match(L.setAgentModel(s, 'codex', 'scout', model) ?? '', /one word/);
+    assert.equal(Object.hasOwn(configOf(s), 'harnesses'), false);
+  });
+}
+
+/** A home whose pact folder holds the page's saved files, the way a save leaves it. */
+function savedMachine(t, state) {
+  const files = L.buildFiles(state);
+  const builder = L.builderWith(null, state);
+  return machine(t, {
+    '.claude/keep': '',
+    '.codex/keep': '',
+    ...Object.fromEntries(files.filter(f => !f.agent).map(f => [`.pact/${f.path}`, f.text])),
+    ...(builder.text ? { '.pact/builder.json': builder.text } : {}),
+  });
+}
+
+// PACT-111 C9.
+test('0008 C9: a page rebuilt from the saved configuration shows both, and saves them unchanged', t => {
+  const s = L.initialState();
+  L.setAgentModel(s, 'codex', 'data-lens', 'big-model');
+  s.parts.tiers[1].name = 'Deep';
+  L.setTierEffort(s, 'codex', tierId(s, 'Deep'), 'plan', 'low');
+  const m = savedMachine(t, s);
+  const r = m.cli(['--builder', join(m.home, '.pact', 'builder.json')]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const P = logic(readFileSync(join(m.home, '.pact', 'scriptorium.html'), 'utf8'));
+  const again = P.startState();
+  assert.equal(P.agentTable(again).rows.find(x => x.agent === 'data-lens').cells.find(c => c.id === 'codex').own, 'big-model');
+  assert.equal(P.tierTable(again).find(x => x.id === 'codex').rows.find(x => x.name === 'Deep').plan.own, 'low');
+  const config = readFileSync(join(m.home, '.pact', 'config.json'), 'utf8');
+  const kept = P.keepFolderKeys(P.buildFiles(again), config, P.changesOf(again), P.touchedAgents(again));
+  assert.deepEqual(JSON.parse(kept.files[0].text).harnesses, JSON.parse(config).harnesses);
+});
+
+// ------------------------------------------------------------ spec 0008 C10: across harnesses, and the overview page
+
+/** What one harness's rendered files say, read here: the models line, each tier's cells and each agent's model and effort. */
+function readColumn(rendered, id) {
+  const lines = rendered.get(`rendered/${id}/rules.md`).split('\n');
+  const table = lines.slice(lines.findIndex(l => /^\| Tier \|/.test(l)) + 2);
+  const tiers = table.slice(0, table.findIndex(l => !l.startsWith('|'))).map(l => l.split('|').map(c => c.trim())).map(c => [c[1].replaceAll('*', ''), c.at(-3), c.at(-2)]);
+  const agents = {};
+  for (const [rel, text] of rendered) {
+    const m = new RegExp(`^rendered/${id}/agents/(.+)\\.(md|toml)$`).exec(rel);
+    if (!m) continue;
+    const head = m[2] === 'toml' ? text.split('developer_instructions')[0] : text.split('\n---\n')[0];
+    const model = (m[2] === 'toml' ? /^model = "(.*)"$/m : /^model: (.*)$/m).exec(head)?.[1] ?? 'no model';
+    const effort = (m[2] === 'toml' ? /^model_reasoning_effort = "(.*)"$/m : /^effort: (.*)$/m).exec(head)?.[1];
+    if (id === 'antigravity') assert.equal(effort, undefined, `${rel} writes no effort`);
+    agents[m[1]] = `${model}, ${id === 'antigravity' ? 'effort dropped' : (effort ?? 'no effort')}`;
+  }
+  return { line: lines.find(l => l.startsWith('Here the planning model is ')), tiers, agents };
+}
+
+/** The across table's rows as { label: { harness id: cell } }. */
+const byLabel = ({ heads, rows }) => Object.fromEntries(rows.map(r => [r.label, Object.fromEntries(heads.map((h, i) => [h.id, r.cells[i]]))]));
+
+function holdsColumns(table, rendered) {
+  const rows = byLabel(table);
+  for (const { id } of KNOWN) {
+    const want = readColumn(rendered, id);
+    assert.ok(want.tiers.length && Object.keys(want.agents).length, `${id} has something to compare`);
+    assert.equal(rows['Models line'][id], want.line, id);
+    for (const [tier, plan, build] of want.tiers) assert.deepEqual([rows[`${tier}, Plan`][id], rows[`${tier}, Build`][id]], [plan, build], `${id} ${tier}`);
+    for (const [agent, text] of Object.entries(want.agents)) assert.equal(rows[agent][id], text, `${id} ${agent}`);
+  }
+}
+
+// PACT-111 C10.
+test('0008 C10: the Across-harnesses section shows for each harness what the renderer writes for the same configuration', t => {
+  const s = L.initialState();
+  L.setAgentModel(s, 'codex', 'data-lens', 'big-model');
+  L.setTierEffort(s, 'antigravity', tierId(s, 'Quick'), 'build', 'low');
+  const table = L.acrossTable(L.across(s));
+  assert.deepEqual(table.heads.map(h => h.id), KNOWN.map(h => h.id));
+  holdsColumns(table, installerRenders(t, s).rendered);
+  assert.equal(byLabel(table)['Standard, Build'].codex, 'executor model, medium');
+  assert.equal(byLabel(table)['data-lens'].antigravity, 'pro, effort dropped');
+});
+
+const unescaped = s => s.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&');
+/** The overview page's one table, as the across table's shape, a known harness's heading read back to its id. */
+function overviewTable(html) {
+  const rows = [...html.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map(r => [...r[1].matchAll(/<t[hd](?: [^>]*)?>([\s\S]*?)<\/t[hd]>/g)].map(c => unescaped(c[1])));
+  const [head, ...body] = rows;
+  return { heads: head.slice(1).map(text => ({ id: KNOWN.find(k => k.name === text)?.id ?? text })), rows: body.map(([label, ...cells]) => ({ label, cells })) };
+}
+
+/** A home whose configuration's tiers differ from the default, with an own harness and a home path in its install record. */
+function overviewMachine(t) {
+  const s = L.initialState();
+  s.parts.tiers[0].name = 'Tiny';
+  s.parts.tiers[0].build = 'planning model, max';
+  assert.equal(L.addHarness(s, OWN), null);
+  assert.equal(L.setAgentModel(s, 'codex', 'reader-lens', 'a<b>&c'), null);
+  const m = savedMachine(t, s);
+  writeTree(m.home, { '.pact/install.json': JSON.stringify({ commit: 'abc', files: [{ path: join(m.home, '.claude', 'CLAUDE.md'), sha256: 'x' }] }) });
+  return { ...m, state: s };
+}
+
+// PACT-111 C10.
+test('0008 C10: --overview writes the home configuration’s across table alone, with no path, and installs nothing', t => {
+  const m = overviewMachine(t);
+  const out = join(tempDir(t, 'pact-overview-'), 'overview.html');
+  const before = tree(m.home);
+  const r = m.cli(['--overview', out]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(tree(m.home), before);
+  const html = readFileSync(out, 'utf8');
+  const table = overviewTable(html);
+  assert.deepEqual(table.heads.map(h => h.id), ['claude', 'codex', 'antigravity', 'mine']);
+  const rows = byLabel(table);
+  assert.equal(rows['Tiny, Build'].claude, 'planning model, max');
+  assert.equal(rows['Standard, Build'].codex, 'executor model, medium');
+  assert.equal(rows['data-lens'].antigravity, 'pro, effort dropped');
+  assert.deepEqual(table.rows, L.acrossTable(L.across(m.state)).rows);
+  holdsColumns(table, installerRenders(t, m.state).rendered);
+  for (const piece of [m.home, m.home.replaceAll('\\', '/'), 'user-home', '~/', '.mine', 'RULES.md', 'My harness']) assert.ok(!html.includes(piece), piece);
+  assert.ok(!/<script|<link|:\/\//i.test(html), 'the page loads nothing');
+  assert.ok(html.includes('a&lt;b&gt;&amp;c') && !html.includes('a<b>&c'), 'a model name is text, never markup');
+});
+
+// PACT-111 C10.
+test('0008 C10: with no config.json, --overview shows the pact’s default configuration', t => {
+  const m = machine(t, { '.claude/keep': '' });
+  const out = join(tempDir(t, 'pact-overview-'), 'overview.html');
+  const r = m.cli(['--overview', out]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(byLabel(overviewTable(readFileSync(out, 'utf8')))['Standard, Build'], { claude: 'executor model, high', codex: 'executor model, medium', antigravity: 'executor model, high' });
+});
+
+// PACT-111 C10.
+for (const [name, place, says] of [
+  ['a git work tree', t => { const d = tempDir(t, 'pact-overview-repo-'); mkdirSync(join(d, '.git')); return join(d, 'o.html'); }, /git work tree/],
+  ['an existing file', t => { const d = tempDir(t, 'pact-overview-'); writeTree(d, { 'o.html': 'kept' }); return join(d, 'o.html'); }, /new file/],
+]) {
+  test(`bad --overview: ${name} is refused and nothing is written`, t => {
+    const m = machine(t, { '.claude/keep': '' });
+    const out = place(t);
+    const was = existsSync(out) ? readFileSync(out, 'utf8') : null;
+    const r = m.cli(['--overview', out]);
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stdout, says);
+    assert.equal(existsSync(out) ? readFileSync(out, 'utf8') : null, was);
+  });
+}
+
+// PACT-111 C10.
+test('bad --overview: it takes no other flag', t => {
+  const m = machine(t, { '.claude/keep': '' });
+  const out = join(tempDir(t, 'pact-overview-'), 'o.html');
+  for (const more of [['--builder', EXAMPLE], ['--check'], ['--texts'], ['--out', `${out}2`]]) assert.equal(m.cli(['--overview', out, ...more]).status, 2, more[0]);
+  assert.ok(!existsSync(out));
 });

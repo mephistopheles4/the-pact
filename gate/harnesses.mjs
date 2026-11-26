@@ -6,7 +6,7 @@
 //
 // Nothing here runs on import. Imports install-core.mjs only.
 
-import { HARNESS_ID_RE as ID_RE, NEUTRAL_REL as NEUTRAL, PACT_ID, Refusal, formatPlain, isSecretStore } from './install-core.mjs';
+import { AGENT_EFFORTS, HARNESS_ID_RE as ID_RE, NEUTRAL_REL as NEUTRAL, PACT_ID, Refusal, formatPlain, isSecretStore } from './install-core.mjs';
 
 export const KNOWN_REL = 'harnesses/known.json';
 export const AGENT_FORMATS = Object.freeze(['claude-md', 'codex-toml', 'antigravity-md']);
@@ -15,6 +15,11 @@ export const CAPABILITIES = Object.freeze(['subagents', 'tool-limits', 'cleaner'
 // One path segment below the home folder: a plain name, a leading dot allowed, never . or .., none ending in a dot.
 const SEGMENT_RE = /^\.?[A-Za-z0-9_-](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
 const MODEL_RE = /^\S{1,128}$/;
+// A model name in `models` may hold this once: the agent or the tier table gives the effort.
+export const EFFORT_SLOT = '<effort>';
+// A tier's key: its name in the tiers table, in lower case, each run of spaces one hyphen.
+// harness-render.mjs's tierKey makes it.
+export const TIER_KEY_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const NAME_MAX = 64;
 const CAP_MAX = 16 * 1024 * 1024;
 
@@ -26,7 +31,9 @@ const PARTS = Object.freeze({
   commands: { path: 'dir', more: [] },
   hooks: { path: 'file', more: ['format'], formats: HOOK_FORMATS, ext: '.json' },
 });
-const FIELDS = Object.freeze(['id', 'name', 'detect', ...Object.keys(PARTS), 'models', 'defaultInstall', 'capabilities']);
+const FIELDS = Object.freeze(['id', 'name', 'detect', ...Object.keys(PARTS), 'models', 'agentModels', 'tierEfforts', 'efforts', 'defaultInstall', 'capabilities']);
+// An agent's name in agentModels; `*` stands for every agent the entry doesn't name.
+const AGENT_KEY_RE = /^(?:\*|[a-z][a-z0-9-]{0,63})$/;
 
 const refuse = (rule, why) => {
   throw new Refusal(rule, why);
@@ -60,7 +67,17 @@ function homeRel(value, where, { home, platform }) {
   return segs.join('/');
 }
 
-/** One entry's given fields, checked and with paths made home-relative. `ctx.inWorkTree` null skips the work-tree check. */
+/** Whether `v` is the efforts a harness takes: some of the five, each once, in their order. */
+const effortList = v => Array.isArray(v) && v.length > 0 && v.every(e => AGENT_EFFORTS.includes(e)) && v.every((e, i) => i === 0 || AGENT_EFFORTS.indexOf(v[i - 1]) < AGENT_EFFORTS.indexOf(e));
+
+/** Whether `v` is a tier's efforts: a plan effort, a build effort or both. */
+const tierEffort = v => isObject(v) && Object.keys(v).length > 0 && Object.entries(v).every(([stage, e]) => (stage === 'plan' || stage === 'build') && AGENT_EFFORTS.includes(e));
+
+/**
+ * One entry's given fields, checked and with paths made home-relative.
+ * `ctx.inWorkTree` null skips the work-tree check. An entry from the person's
+ * configuration (`ctx.fromConfig`) may null a tier key, which drops the known one.
+ */
 function checkFields(entry, id, ctx) {
   const out = {};
   const shown = `the harness ${id}'s`;
@@ -99,9 +116,25 @@ function checkFields(entry, id, ctx) {
   }
   if (Object.hasOwn(entry, 'models')) {
     const m = entry.models;
-    const ok = isObject(m) && Object.keys(m).every(k => ['planning', 'executor', 'light'].includes(k)) && ['planning', 'executor'].every(k => typeof m[k] === 'string') && Object.values(m).every(x => typeof x === 'string' && MODEL_RE.test(x));
-    if (!ok) refuse('harness-shape', `${shown} models is not planning, executor and an optional light, each one word.`);
+    const ok = isObject(m) && Object.keys(m).every(k => ['planning', 'executor', 'light'].includes(k)) && ['planning', 'executor'].every(k => typeof m[k] === 'string') && Object.values(m).every(x => typeof x === 'string' && MODEL_RE.test(x) && x.split(EFFORT_SLOT).length <= 2);
+    if (!ok) refuse('harness-shape', `${shown} models is not planning, executor and an optional light, each one word holding ${EFFORT_SLOT} at most once.`);
     out.models = { planning: m.planning, executor: m.executor, light: m.light ?? null };
+  }
+  if (Object.hasOwn(entry, 'agentModels')) {
+    const a = entry.agentModels;
+    const ok = isObject(a) && Object.entries(a).every(([k, v]) => AGENT_KEY_RE.test(k) && typeof v === 'string' && MODEL_RE.test(v) && !v.includes(EFFORT_SLOT));
+    if (!ok) refuse('harness-shape', `${shown} agentModels is not an agent name or * for each model, each one word without ${EFFORT_SLOT}.`);
+    out.agentModels = { ...a };
+  }
+  if (Object.hasOwn(entry, 'tierEfforts')) {
+    const t = entry.tierEfforts;
+    const ok = isObject(t) && Object.entries(t).every(([k, v]) => TIER_KEY_RE.test(k) && (v === null ? ctx.fromConfig : tierEffort(v)));
+    if (!ok) refuse('harness-shape', `${shown} tierEfforts is not a tier key for each plan effort, build effort or both, from ${AGENT_EFFORTS.join(', ')}. A key is a tier's name in lower case with hyphens, and only your own entry may null one.`);
+    out.tierEfforts = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v && { ...v }]));
+  }
+  if (Object.hasOwn(entry, 'efforts')) {
+    if (!effortList(entry.efforts)) refuse('harness-shape', `${shown} efforts is not a list from ${AGENT_EFFORTS.join(', ')}, each once and in that order.`);
+    out.efforts = [...entry.efforts];
   }
   if (Object.hasOwn(entry, 'defaultInstall')) {
     if (typeof entry.defaultInstall !== 'boolean') refuse('harness-shape', `${shown} defaultInstall is not true or false.`);
@@ -115,7 +148,7 @@ function checkFields(entry, id, ctx) {
   return out;
 }
 
-const EMPTY = Object.freeze({ rules: null, agents: null, skills: null, commands: null, hooks: null, models: null, defaultInstall: true, capabilities: [] });
+const EMPTY = Object.freeze({ rules: null, agents: null, skills: null, commands: null, hooks: null, models: null, agentModels: null, tierEfforts: null, ownTiers: [], efforts: null, defaultInstall: true, capabilities: [] });
 
 /** The commit's known.json as a list of raw entries; a file the install cannot read refuses. */
 export function parseKnown(text) {
@@ -153,6 +186,13 @@ export function configHarnesses(text) {
   return { install, own };
 }
 
+/** The known tier efforts with an entry's laid over them key by key, and the keys the entry set to an effort. */
+function tiersOver(known, given) {
+  if (!given) return { tierEfforts: known, ownTiers: [] };
+  const tierEfforts = Object.fromEntries(Object.entries({ ...known, ...given }).filter(([, v]) => v !== null));
+  return { tierEfforts, ownTiers: Object.keys(given).filter(k => given[k] !== null) };
+}
+
 /**
  * The known harnesses with the person's own entries laid over them, then the
  * person's own, in that order. An own entry with a known id overrides it field
@@ -176,13 +216,15 @@ export function resolveHarnesses({ known, own = [], home, platform, inWorkTree }
     const entry = mine.get(base.id);
     if (!entry) return described;
     mine.delete(base.id);
-    const given = checkFields(entry, base.id, { home, platform, inWorkTree });
-    return { ...described, ...given, id: base.id, overrides: Object.keys(given) };
+    const given = checkFields(entry, base.id, { home, platform, inWorkTree, fromConfig: true });
+    // An agent their entry doesn’t name keeps its known model: an Antigravity agent file takes a tier, never a session’s model.
+    const agentModels = given.agentModels ? { ...described.agentModels, ...given.agentModels } : described.agentModels;
+    return { ...described, ...given, agentModels, ...tiersOver(described.tierEfforts, given.tierEfforts), id: base.id, overrides: Object.keys(given) };
   });
   for (const [id, entry] of mine) {
-    const given = checkFields(entry, id, { home, platform, inWorkTree });
+    const given = checkFields(entry, id, { home, platform, inWorkTree, fromConfig: true });
     if (!given.name || !given.detect || !given.rules) refuse('harness-shape', `the own harness ${id} needs a name, a detect folder and rules.`);
-    out.push({ ...EMPTY, ...given, id, own: true, overrides: [] });
+    out.push({ ...EMPTY, ...given, ...tiersOver(null, given.tierEfforts), id, own: true, overrides: [] });
   }
   return out;
 }

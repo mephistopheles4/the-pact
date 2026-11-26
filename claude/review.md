@@ -32,34 +32,64 @@ lenses to offer, and when.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
 - **The tree check,** where the harness can't hold an agent to its tools (Codex
-  today), around each lens and each `scout` pass. Before it:
-  - find git's real folders through git (`rev-parse --git-common-dir`, and
-    `--git-path` for `config`, `config.worktree`, `hooks` and `info`), since in
-    a linked worktree `.git` is a file;
-  - copy those outside the work tree, readable only by the owner, and keep a
-    hash of each copy, its file names included, and the records below, in your
-    own output, never in a file the agent can write;
-  - record `HEAD`, a hash of every ref and of the stash list, and
-    `status --porcelain --ignored=matching --untracked-files=all`, with a hash
-    of each listed path's content. Run git with fsmonitor and every filter off:
-    `-c core.fsmonitor=false`, and each filter's `clean` and `process` empty
-    and `required` false.
+  today), around each lens and each `scout` pass. It only detects a change: it
+  keeps no copy and puts nothing back. Before the pass, run this one command
+  exactly as printed, putting only the work tree's top folder in its place: don't
+  cut the script out, pipe it or edit it. It starts from your home folder, so no
+  program or version pin in the tree picks the `node` that runs it. Keep what it
+  prints in your own output, never in a file the agent can write. It covers
+  every file, ignored ones too, and git's config, hooks, `info`, `HEAD`, refs,
+  index entries and half-done merges and rebases.
 
-  After it, first stop any process the agent left running, and remove any new
-  link or junction, one in a file's place too, git's folders included. Check each
-  copy against its hash, and again right before you put anything back from it.
-  While all match, compare git's folders with the copies, put them back, and
-  check them against the same hashes. If a copy, or a git folder after that,
-  differs from its hash, stop: run no more git there, restore nothing more, and
-  bring it to me. Else bring any difference you found to me, and take the same
-  records again. Any change, a removed link included, marks the lens or `scout`
-  pass inconclusive. Put back only what changed during it: a moved ref goes back
-  to its earlier value first; then
-  restore a path clean before with git from the earlier `HEAD`, or delete it if
-  it is new. Remove, put back and restore each path as itself, never through a
-  link or junction. A path already changed before it stays as it is, and you name
-  it, so my own work is never thrown away. Delete the copies. The change and the
-  restore are a checkpoint, flagged.
+  ```sh
+  cd ~
+  node -e '
+  const fs = require(`fs`), path = require(`path`);
+  process.chdir(process.argv.at(-1));
+  const sha = data => require(`crypto`).createHash(`sha256`).update(data).digest(`hex`);
+  // A name that is not text reads back as another name, so it fails the run.
+  const named = name => { if (name.includes(`\uFFFD`)) throw new Error(`a name that is not text`); return name; };
+  const walk = (file, name) => {
+    const s = fs.lstatSync(file);
+    const id = JSON.stringify(name);
+    if (s.isSymbolicLink()) return `${id} link ${JSON.stringify(named(fs.readlinkSync(file)))}\n`;
+    if (s.isDirectory()) return `${id} dir ${s.mode}\n` + fs.readdirSync(file).sort().map(n => walk(path.join(file, named(n)), `${name}/${n}`)).join(``);
+    return `${id} ${s.mode} ${s.isFile() ? sha(fs.readFileSync(file)) : `other`}\n`;
+  };
+  const record = [];
+  const say = (text, name) => { record.push(`${sha(text)} ${JSON.stringify(name)}`); console.log(record.at(-1)); };
+  const line = (file, name) => { if (fs.lstatSync(file, { throwIfNoEntry: false })) say(walk(file, name), name); };
+  let own = `.git`;
+  const dot = fs.lstatSync(own);
+  if (!dot.isDirectory()) line(own, `.git`);
+  if (dot.isFile()) own = path.resolve(fs.readFileSync(own, `utf8`).replace(`gitdir:`, ``).trim());
+  const pointer = path.join(own, `commondir`);
+  const shared = fs.existsSync(pointer) ? path.resolve(own, fs.readFileSync(pointer, `utf8`).trim()) : own;
+  for (const n of [`HEAD`, `commondir`, `config.worktree`, `ORIG_HEAD`, `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `rebase-merge`, `rebase-apply`, `sequencer`]) line(path.join(own, n), `git:${n}`);
+  if (own !== shared) for (const n of [`refs`, `reftable`]) line(path.join(own, n), `git:own ${n}`);
+  for (const n of [`config`, `hooks`, `info`, `refs`, `reftable`, `packed-refs`, `logs/refs/stash`]) line(path.join(shared, n), `git:${n}`);
+  for (const n of fs.readdirSync(`.`).sort()) if (n !== `.git`) line(named(n), n);
+  // git runs from a folder the tree has no part in, so no program left there stands in for it,
+  // and fetches nothing: a fetch runs programs the config names.
+  const env = { ...process.env, GIT_NO_LAZY_FETCH: `1`, GIT_ALLOW_PROTOCOL: `none` };
+  const git = (...args) => {
+    const r = require(`child_process`).spawnSync(`git`, [`-C`, process.cwd(), `-c`, `core.fsmonitor=false`, ...args], { cwd: process.env.SystemRoot || `/`, env, maxBuffer: 1 << 29 });
+    // Git can leave entries out, say so and still succeed.
+    if (r.status !== 0 || r.stderr.length) throw new Error(`git: ${r.stderr}`);
+    return r.stdout;
+  };
+  line(path.resolve(git(`rev-parse`, `--git-path`, `hooks`).toString().trim()), `git:hooks in use`);
+  say(git(`ls-files`, `--stage`, `-v`, `--sparse`), `git:index`);
+  console.log(sha(record.join(`\n`)), `whole record`);
+  ' "<top folder>"
+  ```
+
+  After the pass, stop any process the agent left running, run the same command
+  again, as you ran it before and never read again from a file, before any other
+  git, and compare the last line, `<hash> whole record`, alone:
+  the same means no change. On any difference, if a run fails, or if you no
+  longer hold the command or the first output: stop there, run no git in that tree, change
+  nothing, count the pass inconclusive, and report to me which lines differ.
 
 ## The report template
 
