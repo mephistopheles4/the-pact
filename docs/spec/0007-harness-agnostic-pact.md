@@ -426,7 +426,9 @@ The known descriptions:
   tier's `Plan` or `Build` cell in the tiers table (the first whose header
   starts `| Tier |` and holds `Plan` and `Build`), and of the cell in that
   tier's column on the same-named row of the workflow table (the first whose
-  header starts `| Stage |`). The sensitive route is never rewritten. A
+  header starts `| Stage |`). The workflow table's
+  sensitive-route column, and the sensitive route's paragraph, are never
+  rewritten. A
   workflow table or row that isn't there is skipped. An own key that finds no
   tiers table, no row of its tier, or a cell that isn't `<model>, <effort>`
   refuses (`tier-effort`). A known key that finds nothing gives a dry-run

@@ -82,6 +82,7 @@ const cellText = (row, i) => (row.cells[i] ?? '').trim();
 const column = (header, name, from) => header.cells.findIndex((c, i) => i >= from && c.trim() === name);
 /** A tier row's name, its bold text, or the cell as it stands. */
 const tierName = row => /^\*\*(.+)\*\*$/.exec(cellText(row, 1))?.[1] ?? cellText(row, 1);
+// A key as harnesses.mjs's TIER_KEY_RE accepts it.
 const tierKey = name => name.toLowerCase().replace(/ +/g, '-');
 
 /** The tiers table and the workflow table (spec 0008 D5), each undefined when the rules hold none. */
@@ -103,9 +104,9 @@ function tierEdits({ tiers, workflow }, key, stages) {
   const edits = [];
   for (const [stage, effort] of Object.entries(stages)) {
     const title = STAGES[stage];
-    const own = column(head, title, 2);
-    if (!CHOICE_RE.test(row.cells[own] ?? '')) return { why: `no model and effort in that tier's ${title} cell` };
-    edits.push([row, own, effort]);
+    const at = column(head, title, 2);
+    if (!CHOICE_RE.test(row.cells[at] ?? '')) return { why: `no model and effort in that tier's ${title} cell` };
+    edits.push([row, at, effort]);
     const flow = workflow && name !== ROUTE ? column(workflow[0], name, 2) : -1;
     const step = flow > 0 && workflow.slice(1).find(r => cellText(r, 1) === title);
     if (!step || step.cells[flow] === undefined) continue;

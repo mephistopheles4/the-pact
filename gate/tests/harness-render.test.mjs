@@ -277,12 +277,12 @@ test('with the default configuration, Codex’s Standard Build reads medium in b
   assert.deepEqual(r.warnings.filter(w => w.includes('tierEfforts')), []);
 });
 
-// PACT-111 C4.
+// No claim of its own (spec 0008 D5): the one test of plan keys, tier names of several words, CRLF rules and the route column.
 test('a plan key moves the tier’s Plan cell and the workflow’s Plan row alone, under a name of several words, with CRLF kept', () => {
   const rules = TIERED.replaceAll('Standard', 'Big  Job').replaceAll('\n', '\r\n');
   const out = rulesOf(tiered(owns({ 'big-job': { plan: 'xhigh' } }), rules), 'mine');
   const want = rules.replace('| a spec | planning model, medium |', '| a spec | planning model, xhigh |').replace('| Plan | planning model, low | planning model, medium |', '| Plan | planning model, low | planning model, xhigh |');
-  assert.equal(out.replace(/\r?\nHere the planning model[^\n]*/, ''), want);
+  assert.equal(out, want);
   // A tier named as the route's column never rewrites it.
   const route = TIERED.replace('**Standard**', '**Sensitive route**');
   const moved = route.replace('| a spec | planning model, medium | executor model, high |', '| a spec | planning model, medium | executor model, low |');
@@ -336,6 +336,8 @@ test('a table cell at an effort the harness does not take warns, naming the tier
     'slot: its tables give Standard Plan the effort max, which it does not take',
     'slot: its tables give Quick Test the effort max, which it does not take',
   ]);
+  // With no efforts named, the harness takes all five.
+  assert.deepEqual(tiered(h('slot', { ...SLOTTED, efforts: null }), rules).warnings.filter(l => l.includes('effort')), []);
 });
 
 // PACT-111 C1.

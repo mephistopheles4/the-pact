@@ -18,6 +18,7 @@ const MODEL_RE = /^\S{1,128}$/;
 // A model name in `models` may hold this once: the agent or the tier table gives the effort.
 export const EFFORT_SLOT = '<effort>';
 // A tier's key: its name in the tiers table, in lower case, each run of spaces one hyphen.
+// harness-render.mjs's tierKey makes it.
 const TIER_KEY_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const NAME_MAX = 64;
 const CAP_MAX = 16 * 1024 * 1024;
@@ -74,8 +75,8 @@ const tierEffort = v => isObject(v) && Object.keys(v).length > 0 && Object.entri
 
 /**
  * One entry's given fields, checked and with paths made home-relative.
- * `ctx.inWorkTree` null skips the work-tree check. A `ctx.own` entry may null
- * a tier key, which drops the known one.
+ * `ctx.inWorkTree` null skips the work-tree check. An entry from the person's
+ * configuration (`ctx.fromConfig`) may null a tier key, which drops the known one.
  */
 function checkFields(entry, id, ctx) {
   const out = {};
@@ -127,8 +128,8 @@ function checkFields(entry, id, ctx) {
   }
   if (Object.hasOwn(entry, 'tierEfforts')) {
     const t = entry.tierEfforts;
-    const ok = isObject(t) && Object.entries(t).every(([k, v]) => TIER_KEY_RE.test(k) && (v === null ? ctx.own : tierEffort(v)));
-    if (!ok) refuse('harness-shape', `${shown} tierEfforts is not a tier key for each plan effort, build effort or both, from ${AGENT_EFFORTS.join(', ')}.`);
+    const ok = isObject(t) && Object.entries(t).every(([k, v]) => TIER_KEY_RE.test(k) && (v === null ? ctx.fromConfig : tierEffort(v)));
+    if (!ok) refuse('harness-shape', `${shown} tierEfforts is not a tier key for each plan effort, build effort or both, from ${AGENT_EFFORTS.join(', ')}. A key is a tier's name in lower case with hyphens, and only your own entry may null one.`);
     out.tierEfforts = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v && { ...v }]));
   }
   if (Object.hasOwn(entry, 'efforts')) {
@@ -185,7 +186,7 @@ export function configHarnesses(text) {
   return { install, own };
 }
 
-/** The known tier efforts with an entry's laid over them key by key, and the keys the entry set. */
+/** The known tier efforts with an entry's laid over them key by key, and the keys the entry set to an effort. */
 function tiersOver(known, given) {
   if (!given) return { tierEfforts: known, ownTiers: [] };
   const tierEfforts = Object.fromEntries(Object.entries({ ...known, ...given }).filter(([, v]) => v !== null));
@@ -215,13 +216,13 @@ export function resolveHarnesses({ known, own = [], home, platform, inWorkTree }
     const entry = mine.get(base.id);
     if (!entry) return described;
     mine.delete(base.id);
-    const given = checkFields(entry, base.id, { home, platform, inWorkTree, own: true });
+    const given = checkFields(entry, base.id, { home, platform, inWorkTree, fromConfig: true });
     // An agent their entry doesn’t name keeps its known model: an Antigravity agent file takes a tier, never a session’s model.
     const agentModels = given.agentModels ? { ...described.agentModels, ...given.agentModels } : described.agentModels;
     return { ...described, ...given, agentModels, ...tiersOver(described.tierEfforts, given.tierEfforts), id: base.id, overrides: Object.keys(given) };
   });
   for (const [id, entry] of mine) {
-    const given = checkFields(entry, id, { home, platform, inWorkTree, own: true });
+    const given = checkFields(entry, id, { home, platform, inWorkTree, fromConfig: true });
     if (!given.name || !given.detect || !given.rules) refuse('harness-shape', `the own harness ${id} needs a name, a detect folder and rules.`);
     out.push({ ...EMPTY, ...given, ...tiersOver(null, given.tierEfforts), id, own: true, overrides: [] });
   }

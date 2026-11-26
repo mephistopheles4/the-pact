@@ -25,4 +25,5 @@
 ## Record
 
 - PACT-111 on Linear: the spec's rounds and decision
+- PACT-111 on Linear: ticket T1's Test round comments
 - Ticket T1's pull request into `pact-105-codex-sol`

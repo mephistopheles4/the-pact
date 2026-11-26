@@ -94,9 +94,10 @@ A **harness** is a program the rules install into. The pact knows three, in
   the three its rules name, and `agentModels`, a model per agent, `*` for the
   rest, laid over the known ones. Antigravity's agents take their model from
   these alone.
-- **Efforts.** It may set `tierEfforts`, a plan or build effort by tier name
-  (`null` drops a known one), and `efforts`, those the harness takes; a
-  misfit refuses (`tier-effort`, `agent-effort`).
+- **Efforts.** `tierEfforts` sets plan or build efforts by tier key (the name in
+  lower case, spaces hyphened; `null` drops a known one); `efforts` lists what
+  `<effort>` models take. Misfits refuse (`harness-shape`, `tier-effort`,
+  `agent-effort`).
 - **Your own harness** goes under `harnesses.own`, as a description with the
   fields of the known ones (spec 0007, S5). A description the pact can't take
   refuses (`harness-id`, `harness-format`, `harness-path`,
@@ -948,7 +949,8 @@ refuses. What an old enough pact refuses:
   lists `scriptorium` in `commands` refuses;
 - in a project's configuration, the `costLimits` key (`project-key`) and the
   `enough` and `enoughCosts` fields (`project-qualities`); in a builder file,
-  the `costLimits` key and an Enough on a quality row.
+  the `costLimits` key and an Enough on a quality row;
+- `tierEfforts` and `efforts` in a `harnesses.own` entry.
 
 One thing an older pact does not refuse: an Enough column in a Qualities
 block. A pact from before the Enough column installs that text as written, and
