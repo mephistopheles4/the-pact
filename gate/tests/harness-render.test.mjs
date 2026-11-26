@@ -120,6 +120,7 @@ test('C5: a codex-toml agent maps role and effort, drops tools, and every agent 
   );
   const scout = file(r, 'rendered/codex/agents/scout.toml');
   assert.match(scout, /^model = "astra"$/m);
+  assert.match(scout, /^model_reasoning_effort = "medium"$/m);
   assert.match(scout, /\n\[features\]\napps = false\nplugins = false\nmemories = false\nrequest_permissions_tool = false\n$/);
   assert.doesNotMatch(scout, /^tools/m);
   refuses(() => render([CODEX], { agents: new Map([['scout', SCOUT.replace('# scout', "a ''' b")]]) }), 'agent-toml');
