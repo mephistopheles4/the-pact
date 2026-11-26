@@ -187,7 +187,7 @@ round's comment on the issue lists each finding.
     the release app's (the lead's pick at T6, S2 item 49) and the probe
     findings of T4 and T5 didn't fit it, and no text is cut
     (`gate/tests/threat-model-cap.test.mjs`, ADR 0173). By the same rule, T4
-    and T5 raise `docs/install.md`'s budget from 9,500 to 10,450, for T4's
+    and T5 raise `docs/install.md`'s budget from 9,550 to 10,450, for T4's
     skill links, guard and shell policy and T5's Antigravity text beside T6's
     and T7's, and `docs/reference.md`'s from 2,400 to 2,450 on their merges
     with T6 and T7 (`gate/tests/doc-budget.test.mjs`, PACT-110).
@@ -217,7 +217,7 @@ round's comment on the issue lists each finding.
 **Ticket T9's picks, the lead's decision 125, flagged:**
 
 52. Trade-off: the threat model's cap rises to 4,200 and `docs/install.md`'s
-    budget to 10,550, on the owner's word-cap rule (PACT-109, PACT-110).
+    budget to 10,650, on the owner's word-cap rule (PACT-109, PACT-110).
 53. Security: the tree check also wraps each `scout` pass, and stops, running
     no more git, when a hash check fails (S12).
 54. Security: undoing an apply and a full uninstall take only the pact's hook
@@ -878,9 +878,9 @@ never-sync rule names both folders.
   it can push a branch no ruleset covers, and merge what `main`'s ruleset lets
   through. Before the second tag ruleset exists it can also move or delete a
   tag. A change merged to `main` can read the key from the `release`
-  environment; required reviewers on it would stop that without a session's
-  help, at one click per release. This widens "What you install and CI run":
-  the owner's call.
+  environment; required reviewers on it would put each run that can read it
+  behind the owner's approval, with no session's help, at one click per
+  release. This widens "What you install and CI run": the owner's call.
 - **A guard that never runs.** In an own harness, or in Codex before the
   trust step, a guard can be missing with no report beyond the dry run's
   line. The owner accepted this for own harnesses.
@@ -1195,7 +1195,8 @@ reads this spec and each ticket's diff.
 | Widening "Review rests on rules" for Codex lenses, and the network-off option (S15) | the owner's call; on a no, S12's fallback | before T4 starts |
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
-| The threat-model cap at 4,100 (S2 item 47) | the lead's flagged pick, for review | any time |
+| The threat-model cap at 4,200 and `docs/install.md`'s budget (S2 items 47 and 52) | the lead's flagged pick, for review | any time |
+| The tree check around `scout`, the narrower undo and the open `~/.pact` gap (S2 items 53–55) | the lead's flagged picks, for review | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
 | The poster's narrower coverage in Codex, which the install's shell policy makes: it no longer refuses a value the policy drops, though a command can still read it where it was set (S13, S15) | the owner's call | at T4's probe |
 | Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |

@@ -186,8 +186,8 @@ Codex and Antigravity, and there before typed input and some reads; and the rele
   the action's actor check and Anthropic's workflow validation, who gets the
   Claude jobs' write token. It
   refuses `#`-line expressions, and outside `release.yml` `secrets` and
-  deployment environments; a read split across lines, an oddly spelled job
-  token, or a name spelled with YAML escapes can pass. It holds only while the test itself is unchanged; a change to it is read
+  deployment environments; a read split across lines, or an oddly spelled job
+  token, can pass. It holds only while the test itself is unchanged; a change to it is read
   like any change. The bootstrap takes only an exact release tag and checks the
   clone's head, which keeps the clone consistent, not intact; npm picks the
   bootstrap, so tag rulesets decide it. The bootstrap's `git` and the guard
@@ -405,4 +405,4 @@ quadrantChart
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. Claude Code's protected paths name `.claude`, not `~/.pact`: a write to the pact's hook script, tools, guard or git config there gets no protected-path check, and no ask rule covers it. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. The cleaner's path checks leave a window for a file made, or a link swapped in, after its last read, which can send git's forced delete outside the worktree. Claude Code's protected paths name `.claude`, not `~/.pact`: a write anywhere under it, the pact's hook script, tools, guard, git config, review procedure, skills, configuration, install record and backups included, gets no protected-path check, and no ask rule covers it. This repo's own rules on secrets and personal details are undecided. Status files and locks are owner-writable: the stop tie holds only for untouched ones. Not yet the owner's: PACT-105's class widenings and placements, narrower poster cover and the release app and its key; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).

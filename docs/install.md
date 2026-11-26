@@ -1050,10 +1050,11 @@ backup in `~/.pact/backups/` undoes one apply (step 3):
    Codex wrote to it since, such as a tighter approval setting: change only the
    pact's line, to match the backup's copy. Read a hooks file's copy before you
    copy it back, and stop on a command that neither you nor the pact set.
-5. **Delete each `was: absent` path** that is there. From a hooks file, take
-   out only the hook whose command runs a script in `~/.pact/guard/`, with any
-   group and key that leaves empty, and delete the file only if nothing but
-   `{}` is left. A skill link goes as a
+5. **Delete each `was: absent` path** that is there. From Codex's,
+   Antigravity's or your own harness's hooks file, take out only the hook whose
+   command runs a script in `~/.pact/guard/`, with any group and key that leaves
+   empty. Delete the file only if nothing but `{}` is left; else stop on a
+   command in it that neither you nor the pact set. A skill link goes as a
    link, never through it: `rm "$HOME/<path>"` on Linux and macOS,
    `cmd /c rmdir "$HOME\<path>"` in PowerShell, with the path's slashes turned
    to backslashes, and no `-r` or `/s`. In a copied skill folder, delete the
@@ -1079,10 +1080,14 @@ aside (Updating later) is not your first install's: if every such backup was
 taken that way, or you deleted the first one, follow Installed before backups.
 Then remove what your current record lists, a guard added by a later apply
 included: every file under `files`, every skill link under `links` (as step 5
-removes one), the pact's hook in each hooks file under `entries` (as step 5
-does), Codex's policy line if `shellPolicy` is marked, and
-`.pact/install.json`. Then do
-steps 4 to 7 with that backup. Step 4's restored `settings.json` takes the
+removes one), the pact's hook in each guard hooks file under `entries` (as step
+5 does), Codex's policy line if `shellPolicy` is marked, and
+`.pact/install.json`. Hold each path to step 3's first two checks, and each link
+to a target of `.pact/skills/` and its name, and stop on any other. Delete the
+folders a copied skill leaves empty. Then do
+steps 4 to 7 with that backup. A path it doesn't list may have been yours before
+a later apply: where the oldest backup listing it says `was: file`, check that
+copy as step 3 does and copy it back. Step 4's restored `settings.json` takes the
 pact's hook entries and `autoCompactWindow` out with it; had you no backup of
 it, remove the entries that call the deleted script by hand. If you had no `settings.json` before, step 5
 deletes it, with anything Claude Code wrote there since.

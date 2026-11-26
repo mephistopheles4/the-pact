@@ -255,18 +255,20 @@ test('bad case: the undo steps allow each hooks file the apply backs up, one it 
   assert.match(rule('each `was: absent` path'), /a hooks file under its `entries`/);
 });
 
-test('bad case: a hooks path only the install record names is held to the same bound, under a harness the install doesn\'t have too', t => {
+test('bad case: a hooks path only the install record names is held to the same bound, under a harness that isn\'t found or that the install doesn\'t have', t => {
   const repo = makeRepo(t);
-  const h = home(t);
-  put(h, AG, { mine: MY_GROUP });
-  config(h, ON);
-  passed(applyBound(repo, h));
-  // Planted, so the case runs on Windows too, where an apply records no guard entry.
-  // `gone` is a harness of the owner's own that the configuration has since dropped.
-  const doc = record(h);
-  doc.entries.push({ harness: 'gone', path: '.ssh/hooks.json', key: 'guard.codex', value: { matcher: '^Bash$', hooks: [] }, sha256: '0'.repeat(64) });
-  put(h, '.pact/install.json', doc);
-  refused(install(repo, h), /unsafe path for a hooks file: \.ssh\/hooks\.json/);
+  // `codex` is a harness the pact knows and doesn't find here; `gone` is one of the owner's own, since dropped.
+  for (const harness of ['codex', 'gone']) {
+    const h = home(t);
+    put(h, AG, { mine: MY_GROUP });
+    config(h, ON);
+    passed(applyBound(repo, h));
+    assert.ok(!existsSync(join(h, '.codex')), 'Codex is not found here');
+    const doc = record(h);
+    doc.entries.push({ harness, path: '.ssh/hooks.json', key: 'guard.codex', value: { matcher: '^Bash$', hooks: [] }, sha256: '0'.repeat(64) });
+    put(h, '.pact/install.json', doc);
+    refused(install(repo, h), /unsafe path for a hooks file: \.ssh\/hooks\.json/);
+  }
 });
 
 test('bad case: a commit that holds a guard table or an unknown guard file, or lacks one, installs nothing', t => {
