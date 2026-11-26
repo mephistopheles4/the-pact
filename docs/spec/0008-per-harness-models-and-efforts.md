@@ -1,6 +1,7 @@
 # Spec delta: per-harness agent models and tier efforts — V1
 
-Status: draft, after spec round 1 of 2. A delta on
+Status: draft, after spec round 2 of 2 (final), with its fixes taken as
+the lead's flagged picks. A delta on
 [0007](0007-harness-agnostic-pact.md) S5, S6, S7, S11 and S17; everything
 else there holds. The lead took the picks marked "pick" as flagged
 checkpoints. The spec counts once it is on `main`.
@@ -155,7 +156,9 @@ effort words, never which parts or clauses a harness gets.
   (or "dropped" where the harness drops it). Its options are the three
   roles, that harness's known models, a free entry, and "as the default
   says (`<model>`)", naming what applies with no key of the agent's own: `*`,
-  else the role.
+  else the role. A cell whose agent the configuration's `agents` setting
+  sets shows "set by the configuration" and is locked: the install keeps that
+  setting (D4).
 - **Tier efforts.** For each harness, one row per tier with a Plan and a
   Build dropdown: the effective effort, known values included, "as the table
   says (`<effort>`)" and the harness's `efforts`. The page writes the D5 key
@@ -165,19 +168,26 @@ effort words, never which parts or clauses a harness gets.
   harness seeds the own entry's field from the effective one, known values
   included, then applies the change, so one change leaves every other
   agent's and tier's value as it was. Choosing "as the default says" or "as
-  the table says" removes only that key.
+  the table says" removes only that key. Renaming a tier moves its key in
+  every own entry; dropping a tier removes its key.
 - **Known models.** Each harness's model dropdowns offer its `known.json`
   models plus, for Antigravity, `pro`, `flash` and `flash_lite`.
 - **Across harnesses.** A read-only section, one column per harness: the
   models line, each tier's Plan and Build as the rules would read, and each
-  agent's model and effort. Its values come from the page's copy of the
-  renderer (`renderHarnesses`), never from a second computation.
+  agent's model and effort, for each of the three known harnesses and each
+  own one, detected or not. Its values come from the page's copy of the
+  renderer (`renderHarnesses`), never from a second computation, handed the
+  configuration's set agents as the install hands them.
 - **The overview page** (pick). `node builder/build.mjs --overview <file>`
   writes that section alone as a standalone page, and installs nothing. It
-  reads what the page at its fixed path reads (`machineData`: the home
-  configuration and install record, the clone's `known.json`), takes no
-  `--builder`, `--check`, `--texts` or `--out`, and refuses as `--out` does
-  (`outProblem`, never overwriting, never into a git work tree).
+  reads the home configuration whole (`config.json`, its blocks and its
+  `agents` setting) as the installer's renderer reads it, with the clone's
+  `known.json` and `claude/` sources, and runs `renderHarnesses` on the
+  result: the setup the install would write now. It holds models, efforts,
+  tier and agent names only, never a path from the configuration or the
+  install record. It takes no `--builder`, `--check`, `--texts` or `--out`,
+  and refuses as `--out` does (`outProblem` with no builder to compare, never
+  overwriting, never into a git work tree).
 - **Saving keeps them.** A page rebuilt from a saved configuration shows and
   saves both fields unchanged.
 
@@ -217,17 +227,23 @@ effort words, never which parts or clauses a harness gets.
   cell at `max` for Antigravity's role models warns without naming the model.
 - **C9** In the built page, setting one agent's model and one tier's effort
   for one harness writes only that harness's own entry, and every other
-  agent's and tier's rendered value stays as it was; renaming a tier writes
-  the new key; a page rebuilt from the saved configuration shows both
-  (builder harness test).
+  agent's and tier's rendered value stays as it was; renaming a seeded
+  Standard moves its key, the old one is gone and the dry run doesn't
+  refuse; an agent the configuration's `agents` setting sets shows that
+  model, locked, in every harness; a page rebuilt from the saved
+  configuration shows both (builder harness test).
 - **C10** The Across-harnesses section and `--overview`'s page show, for each
   of the three harnesses, what `renderHarnesses` writes for the same
-  configuration; `--overview` into a git work tree, or onto an existing
-  file, refuses (builder test).
-- **C11** On agy 1.5.17, in the test home 0007's T9 runs in: a dry run and an
-  apply install the change into all three harnesses; an Antigravity lens
-  subagent's run shows a Hydrogen model and never Carbon, read from agy's own
-  session record, not the model's word.
+  configuration; with a home configuration whose tiers differ from the
+  default, `--overview` shows the configured cells; with a home path in the
+  install record, the page holds no path; `--overview` into a git work tree,
+  or onto an existing file, refuses (builder test).
+- **C11** Before the parent branch merges: a dry run and an apply into a
+  `--home` test folder render all three harnesses, with C2 to C4's cells in
+  the staged files (T2's end to end). The live check joins 0007's C26, run
+  at its T9 after that apply, on agy 1.5.17: an Antigravity lens subagent's
+  run shows a Hydrogen model and never Carbon, read from agy's own session
+  record, not the model's word.
 
 ## D8 Tickets, the owner and rollback
 
@@ -239,9 +255,11 @@ reviewed head before that branch's PR merges.
   `harnesses/known.json`, their tests, 0007 S5, S6, S7 and S17's text (agy
   1.5.17). C1 to C8. In the same change: a dated log (a gate change), a
   `docs/rule-reasons.md` row for D5's rendered sentence, and
-  `node docs/toc.mjs`.
+  `node docs/toc.mjs`; `node builder/build.mjs`, committing
+  `builder/scriptorium.html`, since the page carries the renderer, with any
+  import T1 adds handed in by `renderCode`.
 - **T2 Scriptorium.** D6: `builder/build.mjs`, `builder/scriptorium.html`,
-  the builder tests, 0007 S11, then the end-to-end run. C9 to C11. Needs T1.
+  the builder tests, 0007 S11, then C11's `--home` run. C9 to C11. Needs T1.
   In the same change: `node builder/default-config.mjs`.
 
 Tests run as AGENTS.md says: `node gate/tests/run.mjs <tier>` with
@@ -255,15 +273,20 @@ jobs on the reviewed head.
 | Whether the workflow's Test row follows Standard's Build | No, as the lead relayed (D2 item 3); a yes is one rewrite rule and one test | Before T1 merges |
 | The overview page reaching the owner | Attach the `--overview` page to the Linear issue, never a GitHub issue or PR, after the read before posting; cite the attachment in T2's record | Before T2 closes |
 | Each merge into `pact-105-codex-sol` | Pinned to its reviewed head | At each ticket's Deploy |
+| C11's live Antigravity check | Runs as one more C26 line in 0007's T9, after its apply; before then the `--home` run stands for it | At T9 |
 
 **Stop and ask when:** a harness's rendered rules go over their `cap` after
 D5's sentence; agy refuses a slug or alias in an agent file or a session;
 C5's bytes change; or an older configuration stops installing.
 
 **Rollback.** An installer from before this delta refuses the three fields
-(`harness-field`). To go back: remove `agentModels`, `tierEfforts` and
-`efforts` from every `harnesses.own` entry, revert the merges, and run a dry
-run. Done when it shows no `harness-field` refusal and no drift.
+(`harness-field`), and would write a model holding `<effort>` as it stands.
+To go back: run the four checks in `docs/install.md`'s rollback section;
+remove `agentModels`, `tierEfforts` and `efforts` from every `harnesses.own`
+entry, and replace each own `models` value holding `<effort>`; revert the
+merges; run a dry run, then apply on the owner's go-ahead. Done when the
+apply exits zero, no own model holds `<effort>`, and a second dry run shows
+no drift.
 
 ## D9 Trade-offs
 
@@ -275,8 +298,8 @@ run. Done when it shows no `harness-field` refusal and no drift.
 | A known key that misses: refuse vs warn | Warn and skip | A person's own tiers must not break a default install |
 | Overview as a build flag vs a one-off page | A build flag | The owner can regenerate it; cheap to drop |
 
-Business driver: none written in the spec; leaning to what is cheaper to
-reverse, as the pact says.
+Business driver: D1's, full support for all three harnesses before the
+parent branch merges; else what is cheaper to reverse.
 
 ## D10 Out of scope (deferred)
 
