@@ -133,14 +133,13 @@ setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
 with the owner's rights, and a crafted model could exploit a parser bug; a
-Claude run an allowed actor or an app key's holder starts reads anyone's
-text and spends Anthropic tokens; that text can steer it and the Claude app
-token it can read (Workflows write included), up to a merge on `main`
-or a leaking commit or post (accepted, identity-gated); a mere `@claude`
-starts one; a review or diff-line comment runs the pull request's
-`claude.yml`, minting an Anthropic token, not a write token; until the owner
-pins the rule, any workflow of the owner's an allowed actor starts can mint
-one. Pinned design-system code: each re-pin is reviewed
+Claude run an allowed actor starts reads anyone's text, which can steer it
+and the Claude app token it can read up to a merge on `main`, or
+leak that token or an Anthropic token publicly, past its caps (both accepted); a pull
+request's edited `claude.yml` runs on a review comment with its own steps,
+the repo's secrets and an Anthropic token, but no app token; until the owner
+pins and scopes the rule, any workflow of the owner's can mint one; spec 0006
+W5 has the rest. Pinned design-system code: each re-pin is reviewed
 like any change to this repo.
 
 ### Merges and installs

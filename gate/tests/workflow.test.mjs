@@ -8,10 +8,10 @@
 // S15 CI probe records.
 //
 // The CodeQL workflow (#239, #244) may ask for more: it uploads code-scanning
-// results, so its one job holds security-events: write. The two Claude
-// workflows (spec 0006) may too: each job holds id-token: write, to trade
+// results, so its one job holds security-events: write. The Claude
+// workflow (spec 0006) may too: its job holds id-token: write, to trade
 // GitHub's OIDC token for an Anthropic token, and holds no secret. Each of the
-// three is held to an exact allow-list instead of the common lockdown. The
+// two is held to an exact allow-list instead of the common lockdown. The
 // CodeQL configuration leaves the gate's test files out of the scan, which is safe
 // only while nothing outside gate/tests/ loads a file inside it; the premise
 // test below checks that.
@@ -348,7 +348,7 @@ const FEDERATION = {
   anthropic_service_account_id: 'svac_01QUZe8emXQcqnE1opH93J5e',
 };
 // W2.5, W2.6: the caps and the two tools tag mode lacks, held exactly. A run reviews through the inline comment tool and opens a pull request through gh pr create.
-const CLAUDE_ARGS = '--model claude-opus-5-5 --max-turns 60 --max-budget-usd 5 --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr create:*)"';
+const CLAUDE_ARGS = '--model claude-sonnet-5-5 --max-turns 60 --max-budget-usd 5 --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr create:*)"';
 const CLAUDE = {
   'claude.yml': {
     name: 'claude',
@@ -828,6 +828,7 @@ for (const [label, plant, says, only] of [
   ['adds a manual run', s => s.replace('\non:\n', '\non:\n  workflow_dispatch:\n'), CL.triggers],
   ['adds pull_request_target', s => s.replace('\non:\n', '\non:\n  pull_request_target:\n'), [CL.hot, CL.triggers]],
   ['adds workflow_run', s => s.replace('\non:\n', '\non:\n  workflow_run:\n    workflows: [gate]\n    types: [completed]\n'), [CL.hot, CL.triggers]],
+  ['names pull_request_target as a flow list', s => s.replace(/\non:\n(?: {2}.+\n)+/, '\non: [pull_request_target]\n'), [CL.hot, CL.triggers]],
   ['adds an event type', s => s.replace(/types: \[([^\]]*)\]/, 'types: [$1, edited]'), CL.triggers],
   ['drops the assigned type', s => s.replace('[opened, assigned]', '[opened]'), CL.triggers, ['claude.yml']],
   ['drops a trigger', s => s.replace('  pull_request_review:\n    types: [submitted]\n', ''), CL.triggers, ['claude.yml']],
@@ -871,6 +872,7 @@ for (const [label, plant, says, only] of [
   ['drops the time limit', s => s.replace('    timeout-minutes: 30\n', ''), [CL.runner, 'the job lacks timeout-minutes']],
   ['sets a time limit that is not a number', s => s.replace('timeout-minutes: 30', 'timeout-minutes: soon'), CL.runner],
   ['raises the time limit', s => s.replace('timeout-minutes: 30', 'timeout-minutes: 360'), CL.runner],
+  ['lowers the time limit', s => s.replace('timeout-minutes: 30', 'timeout-minutes: 5'), CL.runner],
   // Concurrency: one group per issue or pull request, never cancelling a run in progress (W2.6).
   ['drops the concurrency group', s => s.replace(/ {4}concurrency:\n(?: {6}.+\n)+/, ''), [CL.concurrency, 'the job lacks concurrency']],
   ['cancels a run in progress', s => s.replace('cancel-in-progress: false', 'cancel-in-progress: true'), CL.concurrency],
@@ -973,7 +975,7 @@ for (const [label, plant, says, only] of [
   ['raises the spend cap', s => s.replace('--max-budget-usd 5', '--max-budget-usd 50'), 'holds another claude_args than its own'],
   ['drops the spend cap', s => s.replace(' --max-budget-usd 5', ''), 'holds another claude_args than its own'],
   ['raises the turn cap', s => s.replace('--max-turns 60', '--max-turns 600'), 'holds another claude_args than its own'],
-  ['drops the model', s => s.replace('--model claude-opus-5-5 ', ''), 'holds another claude_args than its own'],
+  ['drops the model', s => s.replace('--model claude-sonnet-5-5 ', ''), 'holds another claude_args than its own'],
   ['adds an argument', s => s.replace('--allowedTools', '--dangerously-skip-permissions --allowedTools'), 'holds another claude_args than its own'],
   ['drops claude_args', s => s.replace(/ {10}claude_args: .*\n/, ''), WITH + ' lacks claude_args'],
   // YAML forms the reader cannot see through.
@@ -1000,8 +1002,9 @@ for (const name of ['claude-code-review.yml', 'Claude-Code-Review.yml', 'claude-
   test('bad case: the folder check refuses a review workflow named ' + name, () => {
     const files = realFolder();
     assert.deepEqual(folderProblems(files), [], 'control: the real folder passes');
-    files.set(name, claudeSrc('claude.yml'));
-    assert.ok(folderProblems(files).includes(name + ' ' + REVIEW_GONE), folderProblems(files).join('\n'));
+    // OTHER passes the common lockdown, so the name alone is what the check refuses.
+    files.set(name, OTHER);
+    assert.deepEqual(folderProblems(files), [name + ' ' + REVIEW_GONE]);
   });
 }
 

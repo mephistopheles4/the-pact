@@ -1,6 +1,6 @@
 # Spec: the Claude workflows, through Workload Identity Federation — V2
 
-Status: V2 revision 5, draft on the PACT-113 branch, on the sensitive route:
+Status: V2 revision 6 (Test round 1's fixes), draft on the PACT-113 branch, on the sensitive route:
 the security pair reads it and the diff. V1 (PACT-101) let two workflows in;
 V2, at the owner's word, keeps one, `claude.yml`, run on request only, with
 caps. The spec counts once it is on `main`.
@@ -72,10 +72,12 @@ and adds a dated log, since it changes the gate.
    commit and push wrappers, the tracking comment and, on a pull request,
    the CI tools. `claude_args` adds only what the asks need and tag mode
    lacks: the inline comment tool, for a review's line comments, and
-   `gh pr create`, to open a pull request. Both the inline comments and the
-   tracking comment pass the action's `redactSecrets` mask.
-6. **Caps per run.** `claude_args` sets `--model claude-opus-5-5` (one model
-   for answers, reviews and code), `--max-turns 60` and
+   `gh pr create`, to open a pull request. The inline comments and the
+   tracking comment pass the action's `redactSecrets` mask; a pull request's
+   title and body, opened through `gh pr create`, pass no mask (W5).
+6. **Caps per run.** `claude_args` sets `--model claude-sonnet-5-5` (one model
+   for answers, reviews and code, at the owner's word; the action takes the
+   model from the workflow only, so a comment cannot pick another), `--max-turns 60` and
    `--max-budget-usd 5`; the job has a 30-minute time limit and a
    `concurrency` group per issue or pull request number that never cancels a
    run in progress. GitHub keeps one pending run per group, so a third ask
@@ -86,9 +88,11 @@ and adds a dated log, since it changes the gate.
    fails once `main` has moved. `persist-credentials: false` stays.
 8. **No transcript, no debug.** The action's `execution_file` holds every
    message of a run, unredacted, and this repo is public, so the file is
-   never uploaded. Debug logging is never turned on for this file: it prints
-   the transcript into the public log. Each run's cost, turns and duration
-   print in its result line.
+   never uploaded. Debug logging is never turned on for this file: the action
+   prints the whole transcript when `ACTIONS_STEP_DEBUG` is on, so a debug
+   re-run would publish it. That is held by rule alone: no one re-runs
+   `claude` with debug logging. Each run's cost, turns and duration print in
+   its result line.
 9. **Pins.** `actions/checkout` is pinned to `gate.yml`'s commit, and
    `anthropics/claude-code-action` stays at V1's commit; Dependabot keeps
    both current.
@@ -142,7 +146,7 @@ review file's name) has a bad case it is seen to catch.
 | Action inputs | the three federation IDs, `allowed_bots`, `additional_permissions` (`actions: read`), `claude_args` |
 
 `claude_args`, held exactly:
-`--model claude-opus-5-5 --max-turns 60 --max-budget-usd 5 --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr create:*)"`.
+`--model claude-sonnet-5-5 --max-turns 60 --max-budget-usd 5 --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr create:*)"`.
 
 ## W5 Threat model
 
@@ -157,19 +161,45 @@ become:
   a run reads can steer a commit, a push to any branch but `main`, a
   workflow file on a branch, a pull request, and a merge on `main`, which
   needs no approval. The owner accepts this under the identity gate (W2.3);
-- a steered run can post what it can read, in a shape `redactSecrets` does
-  not know, or push it in a commit, unmasked and reachable by its ID after
-  the branch goes; the tracking comment's edit history keeps earlier text;
+- a steered run can post or push what it can read, its own credentials
+  included: the Claude app token in its environment, and the job's OIDC
+  token file and cached Anthropic credential. It can put them in a commit
+  (unmasked, and reachable by its ID after the branch goes), a comment in a
+  shape `redactSecrets` does not know, or a pull request's title or body,
+  which pass no mask. Whoever reads it can then use the app token,
+  Workflows write included, until the job ends, and spend Anthropic tokens
+  past the run's caps, bounded only by the workspace's monthly limit. This
+  reaches past the identity gate; the owner accepts it and keeps
+  `gh pr create` (PACT-113, after Test round 1). The tracking comment's edit
+  history keeps earlier text;
 - a session holding an agent app's key can start a run; a comment by an
   allowed actor that merely contains `@claude` starts one;
 - a pull request review or diff-line comment runs the pull request's own
-  copy of `claude.yml`, so a writer's branch can change what that run does.
-  Anthropic's workflow validation refuses it the write token, but the rule
-  still grants an Anthropic token, bounded by the workspace's monthly limit.
+  copy of `claude.yml`. An unedited copy runs as `main`'s does. A copy edited
+  on a branch of this repo sets its own guard, permissions and steps: it
+  gets the repo's Actions secrets and a write `GITHUB_TOKEN` if it asks for
+  one, and the rule grants it an Anthropic token, bounded only by the
+  workspace's monthly limit; Anthropic's workflow validation refuses it the
+  Claude app token. A steered run can plant such a copy, and any review on
+  that pull request then starts it. A fork's copy gets no OIDC token and no
+  secrets, by GitHub's rule (unverified for the review events; C8 checks);
+- the repo holds one Actions secret, `ANTHROPIC_API_KEY`, from the app's
+  setup, which nothing uses under federation and any workflow on a branch
+  can read; the owner deletes it (W8's checklist);
+- the Claude app token is scoped to this repository: the action's security
+  doc at the pinned commit says it is "scoped specifically to the repository
+  it's operating in". The exchange request names no repository, so that
+  rests on Anthropic's exchange. The owner keeps the Claude GitHub app on
+  every repository of theirs, which none of the others' workflows use;
+- until the owner pins the rule and narrows its workspace and scope, any
+  workflow of the owner's that an allowed actor starts can mint an
+  Anthropic token, which reaches what the service account's workspace
+  holds.
 
 V1's lines on the review's `gh` shell and the unpinned plugin go with the
-review file. The line on the rule's missing ref pin goes once C8 shows the
-pins.
+review file. The line on the rule's missing pins goes once C8 shows them.
+`docs/threat-model.md` carries a short form of these lines, within its word
+cap, and points here for the rest.
 
 ## W6 Out of scope
 
@@ -187,7 +217,7 @@ or Enterprise plan.
   spec change adds any dropped control back, and W8's kill switch stops
   runs.
 - **Autonomy against cost.** Any allowed actor may ask at will, each run on
-  Opus with up to $5 and 60 turns; the workspace's monthly limit bounds the
+  Sonnet with up to $5 and 60 turns; the workspace's monthly limit bounds the
   total.
 - **A record against publishing it.** Keeping `execution_file` would publish
   every run's transcript (W2.8). Keep none.
@@ -213,14 +243,17 @@ After merge:
   from an agent app posts a review, with inline comments where it finds
   something. Each run's result line shows success and its turns and cost
   under the caps. If the CLI refuses `--max-budget-usd`, the flag comes out
-  (a spec change).
+  (a spec change). A second `@claude` posted while a run is going runs after
+  it, and a comment by an actor the guard skips cancels no waiting ask.
 - C7. A push to a pull request and opening one start no run.
 - C8. The Console's authentication history shows each exchange matched the
-  pinned rule, including a review-event run's workflow ref.
+  pinned rule, including a review-event run's workflow ref, and a review on
+  a fork's pull request shows no exchange.
 
 The owner's checklist, kept on the issue: confirm why runs fail today; the
 CI workspace with a monthly limit, the service account in it, the rule
 targeting it with the `workspace:inference` scope; the rule's pins (W2.2),
-which can go in before merge; then merge and C6 to C8. The kill switch:
+which can go in before merge; delete the unused `ANTHROPIC_API_KEY` Actions
+secret; then merge and C6 to C8. The kill switch:
 `gh workflow disable claude`; archive the rule; set the workspace limit low;
 take this repo off the Claude GitHub app. Rollback: revert the pull request.
