@@ -8,14 +8,15 @@
 // S15 CI probe records.
 //
 // The CodeQL workflow (#239, #244) may ask for more: it uploads code-scanning
-// results, so its one job holds security-events: write. The two Claude
-// workflows (spec 0006) may too: each job holds id-token: write, to trade
+// results, so its one job holds security-events: write. The Claude
+// workflow (spec 0006) may too: its job holds id-token: write, to trade
 // GitHub's OIDC token for an Anthropic token, and holds no secret. Each of the
-// three is held to an exact allow-list instead of the common lockdown. The
+// two is held to an exact allow-list instead of the common lockdown. The
 // CodeQL configuration leaves the gate's test files out of the scan, which is safe
 // only while nothing outside gate/tests/ loads a file inside it; the premise
 // test below checks that. Each check keeps its passing case on the real
-// files; their planted bad cases were cut (PACT-114, decision 197).
+// files; their planted bad cases were cut (PACT-114, decision 197), but for
+// the review workflow's refusal, a check family #686 added.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -327,7 +328,7 @@ function codeqlProblems(src, gateSrc) {
   return [...new Set(out)];
 }
 
-// Spec 0006 W3, W4: the two Claude workflows, each held to an exact allow-list of its own. Neither reads a secret:
+// Spec 0006 V2 W3, W4: the one Claude workflow, held to an exact allow-list of its own. It reads no secret:
 // each run trades GitHub's OIDC token for an Anthropic token through Workload Identity Federation.
 // The owner's three agent apps may start a run too (an owner's decision, spec 0006 W2.3); allowed_bots names the same three, never '*'.
 const APPS = ['mephistos-homunculus', 'mephistos-euphorion', 'mephistos-wagner'];
@@ -342,13 +343,14 @@ const ANSWER_GUARD =
     "(github.event_name == 'pull_request_review' && " + MENTION('review') + ' && ' + IN_LIST('review') + ')',
     "(github.event_name == 'issues' && (" + MENTION('issue') + " || contains(github.event.issue.title, '@claude')) && " + IN_LIST('issue') + ')',
   ].join(' ||\n') + '\n';
-const REVIEW_GUARD = 'github.event.pull_request.head.repo.full_name == github.repository && ' + IN_LIST('pull_request');
 // The federation IDs are identifiers, not credentials, and are held exactly: another well-formed ID would point a run at another rule.
 const FEDERATION = {
   anthropic_federation_rule_id: 'fdrl_01V8jy6dtvy7Ebf916SRieME',
   anthropic_organization_id: '6161ef7b-3383-44f6-bd62-34226aa8c2fc',
   anthropic_service_account_id: 'svac_01QUZe8emXQcqnE1opH93J5e',
 };
+// W2.5, W2.6: the caps and the two tools tag mode lacks, held exactly. A run reviews through the inline comment tool and opens a pull request through gh pr create.
+const CLAUDE_ARGS = '--model claude-sonnet-5-5 --max-turns 60 --max-budget-usd 5 --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr create:*)"';
 const CLAUDE = {
   'claude.yml': {
     name: 'claude',
@@ -356,30 +358,20 @@ const CLAUDE = {
     on: { issue_comment: ['created'], pull_request_review_comment: ['created'], issues: ['opened', 'assigned'], pull_request_review: ['submitted'] },
     permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', actions: 'read', 'id-token': 'write' },
     guard: ANSWER_GUARD,
-    inputs: { ...FEDERATION, allowed_bots: APPS.join(','), additional_permissions: 'actions: read\n' },
-  },
-  'claude-code-review.yml': {
-    name: 'claude-code-review',
-    job: 'claude-review',
-    on: { pull_request: ['opened', 'synchronize', 'ready_for_review', 'reopened'] },
-    permissions: { contents: 'read', 'pull-requests': 'read', issues: 'read', 'id-token': 'write' },
-    guard: REVIEW_GUARD,
-    inputs: {
-      ...FEDERATION,
-      allowed_bots: APPS.join(','),
-      plugin_marketplaces: 'https://github.com/anthropics/claude-code.git',
-      plugins: 'code-review@claude-code-plugins',
-      prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}',
-      claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"',
-    },
+    // W2.6: one group per issue or pull request; a run in progress is never cancelled.
+    concurrency: { group: 'claude-${{ github.event.issue.number || github.event.pull_request.number }}', 'cancel-in-progress': 'false' },
+    inputs: { ...FEDERATION, allowed_bots: APPS.join(','), additional_permissions: 'actions: read\n', claude_args: CLAUDE_ARGS },
   },
 };
+// Spec 0006 V2 W1: the review workflow ran on every push to every pull request; it is gone, and a file by its name is refused.
+const REVIEW_GONE = 'is the review workflow V2 removed';
+const isReviewFile = n => /^claude-code-review\.ya?ml$/i.test(n);
 /** A value with every map's keys in order, so two maps compare by what they hold. */
 const sorted = v => (isMap(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, sorted(x)])) : v);
 const sameSet = (a, b) => same(sorted(a), sorted(b));
 
 /**
- * Where one of the two Claude workflows breaks its allow-list, as plain
+ * Where the Claude workflow breaks its allow-list, as plain
  * sentences; empty when it keeps it. 'which' is the file's name, and its
  * values are CLAUDE's. Every level holds exactly the keys W3 names; the guard
  * and the action's inputs, the federation IDs included, are the file's own.
@@ -416,10 +408,11 @@ function claudeProblems(src, gateSrc, which) {
 
   if (!isMap(w.jobs) || !same(Object.keys(w.jobs), [spec.job])) out.push('holds a job other than its own');
   const job = isMap(w.jobs?.[spec.job]) ? w.jobs[spec.job] : {};
-  extras('the job', job, ['if', 'runs-on', 'timeout-minutes', 'permissions', 'steps']);
+  extras('the job', job, ['if', 'runs-on', 'timeout-minutes', 'concurrency', 'permissions', 'steps']);
   if (!sameSet(job.permissions, spec.permissions)) out.push('gives the job other permissions than its own');
   if (job.if !== spec.guard) out.push('runs its job under another guard than its own');
-  if (job['runs-on'] !== 'ubuntu-24.04' || !/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push('does not run on ubuntu-24.04 with a time limit');
+  if (job['runs-on'] !== 'ubuntu-24.04' || job['timeout-minutes'] !== '30') out.push('does not run on ubuntu-24.04 with a 30-minute time limit');
+  if (!sameSet(job.concurrency, spec.concurrency)) out.push('runs under another concurrency group than its own');
 
   const steps = Array.isArray(job.steps) ? job.steps : [];
   const actions = ['actions/checkout', 'anthropics/claude-code-action'];
@@ -446,7 +439,8 @@ function claudeProblems(src, gateSrc, which) {
   if (isMap(steps[0]) && checkout?.['persist-credentials'] !== 'false') out.push('leaves the token in the checkout');
   if (checkout) {
     extras("step 1's with", checkout, ['fetch-depth', 'persist-credentials']);
-    if (Object.hasOwn(checkout, 'fetch-depth') && !/^\d+$/.test(checkout['fetch-depth'])) out.push("step 1's fetch-depth is not a number");
+    // W2.7: a review's git diff needs a merge base, so the checkout keeps the full history.
+    if (checkout['fetch-depth'] !== '0') out.push("step 1's fetch-depth is not 0, a full history");
   }
   if (action) {
     extras("the action's with", action, Object.keys(spec.inputs));
@@ -497,13 +491,14 @@ function premiseProblems(files) {
 
 // #356: a control character but a tab or a line feed (C0, DEL and C1, the QA pair's read), a lone carriage return and next line among them, or a Unicode line break.
 const BREAKS = /[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]/;
-/** Where the workflow folder breaks the lockdown: the gate workflow's own, the allow-lists of the CodeQL workflow and the two Claude workflows, every other file's common lockdown, and no other job named gate or gate-windows. */
+/** Where the workflow folder breaks the lockdown: the gate workflow's own, the allow-lists of the CodeQL workflow and the Claude workflow, every other file's common lockdown, no review workflow, and no other job named gate or gate-windows. */
 function folderProblems(files) {
   const out = [];
   if (!files.has('gate.yml')) out.push('has no gate.yml');
   for (const [name, src] of files) {
     const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : commonProblems(src);
     out.push(...problems.map(p => `${name} ${p}`));
+    if (isReviewFile(name)) out.push(`${name} ${REVIEW_GONE}`);
     // #356: the reader splits lines on a line feed alone, so any other break, or a control character but a tab, could hide a key from it.
     if (BREAKS.test(src.replace(/\r\n/g, '\n'))) out.push(`${name} holds a line break or control character other than a line feed`);
     if (name === 'gate.yml') continue;
@@ -552,14 +547,26 @@ test('a CRLF line ending and a tab are not read as a stray line break', () => {
 test('the CodeQL workflow keeps its allow-list', () => {
   assert.deepEqual(codeqlProblems(readFileSync(CODEQL, 'utf8'), readFileSync(WORKFLOW, 'utf8')), []);
 });
-// Spec 0006 W3, W4: each Claude workflow is held to its own allow-list.
-const CLAUDE_FILES = ['claude.yml', 'claude-code-review.yml'];
+
+// Spec 0006 W3, W4: the one Claude workflow is held to its own allow-list.
+const CLAUDE_FILES = ['claude.yml'];
 const claudeSrc = file => readFileSync(join(WORKFLOWS, file), 'utf8');
 
-test('the two Claude workflows keep their allow-lists', () => {
+test('the Claude workflow keeps its allow-list', () => {
   const gate = readFileSync(WORKFLOW, 'utf8');
   for (const file of CLAUDE_FILES) assert.deepEqual(claudeProblems(claudeSrc(file), gate, file), [], file);
 });
+
+// Spec 0006 V2 W3: the review workflow is gone, and a file by its name, in any case or extension, is refused.
+for (const name of ['claude-code-review.yml', 'Claude-Code-Review.yml', 'claude-code-review.yaml']) {
+  test('bad case: the folder check refuses a review workflow named ' + name, () => {
+    const files = realFolder();
+    assert.deepEqual(folderProblems(files), [], 'control: the real folder passes');
+    // OTHER passes the common lockdown, so the name alone is what the check refuses.
+    files.set(name, OTHER);
+    assert.deepEqual(folderProblems(files), [name + ' ' + REVIEW_GONE]);
+  });
+}
 
 const realSources = () => {
   const listed = execFileSync('git', ['ls-files', '-z'], { cwd: REPO, encoding: 'utf8' }).split('\0');

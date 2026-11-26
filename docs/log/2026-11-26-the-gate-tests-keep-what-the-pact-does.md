@@ -14,10 +14,13 @@ The owner then asked for an audit, saying that 3,000 tests is not very fast (dec
 - **Shared installs.** The harness gains `sharedRepo()` and `sharedInstall()`, one per test file, made on first use. A test that only reads one of them, or dry-runs on it, takes it; a test that changes either keeps its own. A home can't be copied, because the installed `settings.json` holds the home's own path. `install-backup` C17's planted time limit is now 5 s instead of 20 s.
 - **The rules.** In AGENTS.md, each check *family* a change adds or tightens needs one bad case, not each check. The word-budget and table-of-contents tests are no longer named, and the agent-facing docs are listed where the budget test used to list them. `docs/agents/gate-tests.md` follows. The owner deleted two of its rules that the cuts break: "never cut a case that checks a refused install wrote nothing" and "the last bad case for a gate check" on the never-cut list. No new rule text replaces them. No rule in the rules file changed, so `docs/rule-reasons.md` gains no row.
 
+## Accepted (decision 202)
+
+- **Controls left with no bad case.** Four check families have no bad case: the workflow lockdown, the CodeQL and Claude allow-lists, and the premise test. The folder check keeps one, the review workflow's refusal, which #686 added after the cuts. The project check's rule that the real home comes from the OS has none either. Nor do the test runner, `gate/tests/run.mjs` (its pass line, exit code and skip lists), and the athanor hook that refuses a host run of the gate's tests, since their tests went with the machinery. The owner accepted all of these. The new rule asks for a bad case when a family is next tightened.
+
 ## For the owner to confirm
 
 - **What was in `~/.pact`.** Nothing on `main` names that folder, and the fast tier left its canary in place, so its loss is unexplained.
-- **Five check families now have no bad case:** the workflow lockdown, the folder check, the CodeQL and Claude allow-lists, and the premise test. The project check's "the real home comes from the OS" rule has none either. Neither do the test runner, `gate/tests/run.mjs` (its pass line, exit code and skip lists), nor the athanor hook that refuses a host run of the gate's tests, since their tests went with the machinery. The new rule asks for one when a family is next tightened.
 - **`docs/toc.mjs`'s header still cites the cut test.** It was left alone, since a change there makes every vendoring repo behind.
 
 **Rolling back:** revert the merge. The fix stands on its own, so keep its commit if only the cuts go back.
