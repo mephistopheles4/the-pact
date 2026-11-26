@@ -1,6 +1,6 @@
 # Spec: the Claude workflows, through Workload Identity Federation — V2
 
-Status: V2 revision 2, draft on the PACT-113 branch, on the sensitive route:
+Status: V2 revision 3, draft on the PACT-113 branch, on the sensitive route:
 the security pair reads it and the diff. V1 (PACT-101) let the two files in;
 V2 makes the review run on request only and adds the controls PACT-103's
 round 2 listed. The spec counts once it is on `main`.
@@ -32,9 +32,10 @@ pull request, cost money on each, and posted nothing. V2:
 - bounds each run's turns, model, spend and overlap;
 - runs Claude in `dontAsk` mode with an exact tool list and deny rules in
   both files;
-- writes to GitHub through an app of the owner's own with only Contents,
-  Issues and Pull requests, whose key only a run from `main` can read, and
-  takes this repo off the Claude GitHub app;
+- writes to GitHub through an app of the owner's own that holds only Issues
+  and Pull requests write and Contents read, so no run can push or merge, and
+  takes this repo off the Claude GitHub app; a mention answers in its comment
+  and no longer commits;
 - posts the review only through the action's masking comment tools, from a
   procedure kept in the repo, on a runner whose outbound traffic is held to a
   list of hosts;
@@ -95,19 +96,26 @@ changes the gate.
    `--allowedTools` and a `--disallowedTools` list (W4); a tool outside the
    effective list is denied, not reviewed. The lock-down no longer rests on
    `allowed_bots` turning off auto mode. `allowed_bots` stays, exactly the
-   three apps, because the action refuses an unlisted bot actor. The deny
-   list keeps reads off the runner's secrets: `/proc`, the runner's temp
-   folder (where the identity token and the Anthropic token cache sit),
-   `/tmp` and the home folder, and denies `ps`, `env` and `printenv`. The gate
+   three apps, because the action refuses an unlisted bot actor; it also keeps
+   the token out of `.git/config`, since with it set the action uses a
+   credential helper, so removing it is a data change. The action's
+   `settings` input sets `blockReadsOutsideWorkingDirectories` and
+   `blockWritesOutsideWorkingDirectories`, which hold the file tools and the
+   read-only shell commands to the checkout; deny rules on `/proc`, the
+   runner's temp folder (where the identity token and the Anthropic token
+   cache sit) and `/tmp`, and on `ps`, `env` and `printenv`, back it. These
+   are speed bumps, as the threat model says of deny rules: the app token
+   stays in the shell's environment, where a read-only command such as
+   `echo` reaches it, so W2.7 gives the token nothing worth stealing. The gate
    also refuses a `permissions` key in `.claude/settings.json`, which the run
    loads from the base branch and which could widen the list.
 7. **Writes go through the owner's own app, not the Claude GitHub app.** The
    Claude GitHub app holds Workflows, Actions and hooks write besides what the
    action needs, and GitHub lets no installation accept less. The owner's
    agent apps don't fit either: each holds `workflows: write`, and their keys
-   sit with sessions. So the owner creates one new app with Contents, Issues
-   and Pull requests write (Metadata read), no webhook, installed on this
-   repo only, and takes this repo off the Claude GitHub app (W9): while that
+   sit with sessions. So the owner creates one new app with Issues and Pull
+   requests write and Contents read (Metadata read), no webhook, installed on
+   this repo only, and takes this repo off the Claude GitHub app (W9): while that
    app stays installed, a run's OIDC request credentials could be traded for
    its token. Each job uses the GitHub environment `claude`, whose deployment
    branches are `main` only, and which holds the app's private key as the
@@ -115,9 +123,12 @@ changes the gate.
    `CLAUDE_APP_CLIENT_ID`. A step pinned to `actions/create-github-app-token`
    mints an installation token, narrowed per file (W4), and hands it to the
    action as `github_token`; the action then skips its own exchange for the
-   Claude app's token. The mention's token holds no Pull requests permission,
-   so it can neither open nor merge a pull request; the review's holds no
-   Contents write. The token is masked, and revoked when the job ends. Both
+   Claude app's token. Merging a pull request and pushing need Contents
+   write, which neither the app nor any token holds, so a stolen token or key
+   can comment, edit issues and pull requests, and nothing more. The cost: a
+   mention can no longer commit (W7). The mention's token holds Issues write;
+   the review's adds Pull requests write for inline comments. The token is
+   masked, and revoked when the job ends. Both
    files' events run from `main`, so the environment admits them; a workflow
    pushed to another branch gets neither the key nor, by W2.2, an Anthropic
    token. With no Workflows permission, the app's token cannot push a
@@ -138,7 +149,7 @@ changes the gate.
    comments (`mcp__github_inline_comment__create_inline_comment`). Both run
    each body through the action's `redactSecrets`, which masks GitHub,
    Anthropic, AWS and Slack token shapes and JWTs. The git wrappers tag mode
-   adds are denied, so the review cannot commit or push.
+   adds are denied in both files, so no run commits or pushes.
 10. **Outbound traffic is held to a list.** Both jobs run on
     `ubuntu-24.04-firewall`, GitHub's egress-firewall runner, with
     `.github/egress-firewall.yaml` in `mode: enforce`. The runner reads the
@@ -204,8 +215,8 @@ their own allow-list instead of the common lockdown, and reads
   `persist-credentials: false`; app-token inputs other than the file's exact
   set; a step's `with` that is not a map;
 - an action input outside the file's list, or a value other than the file's
-  own, the federation IDs, `allowed_bots`, `prompt` and `claude_args`
-  included;
+  own, the federation IDs, `allowed_bots`, `settings`, `prompt` and
+  `claude_args` included;
 - `secrets` anywhere but the app-token step's `private-key`, and there
   anything but `${{ secrets.CLAUDE_APP_PRIVATE_KEY }}`; `github.token`,
   `github['token']` or `GITHUB_TOKEN`; `anthropic_api_key` or
@@ -238,8 +249,8 @@ style of the CodeQL allow-list's.
 | Environment | `claude` | `claude` |
 | Concurrency | group `claude-${{ github.event.issue.number }}`, `cancel-in-progress: false` | group `claude-review-${{ github.event.issue.number }}`, `cancel-in-progress: false` |
 | Job permissions | `contents`, `pull-requests`, `issues`, `actions`: read; `id-token: write` | `contents`, `pull-requests`, `issues`: read; `id-token: write` |
-| App token (`permission-*`) | `contents`, `issues`: `write` | `contents: read`; `issues`, `pull-requests`: `write` |
-| Action inputs | the three federation IDs, `allowed_bots`, `github_token`, `claude_args` | the three federation IDs, `allowed_bots`, `github_token`, `track_progress`, `prompt`, `claude_args` |
+| App token (`permission-*`) | `contents: read`; `issues: write` | `contents: read`; `issues`, `pull-requests`: `write` |
+| Action inputs | the three federation IDs, `allowed_bots`, `github_token`, `settings`, `claude_args` | the three federation IDs, `allowed_bots`, `github_token`, `track_progress`, `prompt`, `settings`, `claude_args` |
 
 The app-token step's inputs: `client-id: ${{ vars.CLAUDE_APP_CLIENT_ID }}`,
 `private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}`, and the `permission-`
@@ -261,34 +272,43 @@ github.event.issue.pull_request && (startsWith(github.event.comment.body, '@clau
 `OK(f)` is V1's text:
 `(contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.f.author_association) || contains(fromJSON('[<the three apps>]'), github.event.f.user.login))`.
 
-**The deny list** both files share, `DENY_READS`:
-`Read(//proc/**),Read(//home/runner/work/_temp/**),Read(//tmp/**),Read(~/**),Bash(ps:*),Bash(env:*),Bash(printenv:*)`.
+**`settings`,** both files, held exactly:
+`{"permissions":{"blockReadsOutsideWorkingDirectories":true,"blockWritesOutsideWorkingDirectories":true}}`.
+The pinned CLI is newer than both keys need.
+
+**The deny list** both files share, `DENY`:
+`Read(//proc/**),Read(//home/runner/work/_temp/**),Read(//tmp/**),Bash(ps:*),Bash(env:*),Bash(printenv:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rm:*)`.
+No rule names the home folder: the checkout sits inside it, and a Read deny
+there would also deny reading and editing the checkout.
 
 **`claude_args`,** each held exactly:
 
 - `claude.yml`: `--permission-mode dontAsk --allowedTools
-  "Edit(./**),Write(./**),Bash(git status),Bash(git diff),Bash(git diff --stat),Bash(git log --oneline -20)"
-  --disallowedTools "<DENY_READS>"
+  "Bash(git status),Bash(git diff),Bash(git log --oneline -20)"
+  --disallowedTools "<DENY>"
   --model claude-sonnet-5-5 --max-turns 60 --max-budget-usd 5`.
 - `claude-code-review.yml`: `--permission-mode dontAsk --allowedTools
-  "mcp__github_inline_comment__create_inline_comment,Bash(git diff origin/main...HEAD),Bash(git diff --stat origin/main...HEAD)"
-  --disallowedTools "<DENY_READS>,Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rm:*)"
+  "mcp__github_inline_comment__create_inline_comment,Bash(git diff refs/remotes/origin/main...HEAD),Bash(git diff --stat refs/remotes/origin/main...HEAD)"
+  --disallowedTools "<DENY>"
   --model claude-opus-5-5 --max-turns 40 --max-budget-usd 5`.
+
+The base is the full ref, `refs/remotes/origin/main`: a branch or tag named
+`origin/main` would otherwise win and empty the diff.
 
 **The effective tools.** Tag mode adds its own to each list: `Glob`, `Grep`,
 `LS`, `Read`, `mcp__github_comment__update_claude_comment`, the three
 `mcp__github_ci__` tools (started only on a pull request with `actions:
-read`, so only in `claude.yml`), and the four git wrapper scripts. So a
-mention reads the checkout and the runner's other files but those
-`DENY_READS` names, edits and writes inside the checkout, runs four exact
-read-only git commands (no wildcard, so no `--output` or `--no-index`), commits and pushes its own `claude/` branch
-through the wrappers, and updates its tracking comment. A review reads the
-same, runs the two `git diff` commands, updates its tracking comment and
-posts inline comments; the deny list stops the wrappers.
+read`, so only in `claude.yml`), and the four git wrapper scripts, which
+`DENY` stops. So a mention reads the checkout, runs read-only commands there
+(Claude Code's built-in read-only set, which includes read-only forms of git,
+runs in every mode whatever the list says), and answers in its tracking
+comment; it edits nothing it could push. A review does the same, runs the two
+`git diff` commands and posts inline comments.
 
 **The review's prompt:** `Review this pull request. Follow
 .claude/ci/review.md exactly. It comes from the base branch.` The procedure
-says: read the diff with the two allowed `git diff` commands (a pull request
+says: read the diff with the two allowed `git diff` commands, against
+`refs/remotes/origin/main` (a pull request
 stacked on another branch shows that branch's changes too; say so), read the
 changed files as needed, post each finding worth the author's time as an
 inline comment on its line, and put a short summary in the tracking comment;
@@ -324,21 +344,26 @@ Controls paragraph drops "no secrets", "no key in the repo" and "Anthropic's
 workflow validation". Its residual lines become:
 
 - a run that an allowed actor starts reads issue, comment and pull request
-  text from anyone, and that text can steer what Claude writes through the
-  app's token: a mention can push to its own branches, never open or merge a
-  pull request, and so stays short of `main`;
-- a steered run can still read what the deny list misses (an unlisted
-  command or path), and post it through the masked tools in a shape
-  `redactSecrets` does not know, or push it in a commit, unmasked and
-  reachable by its ID after the branch goes; an update to the tracking
-  comment keeps its earlier text in the comment's public edit history;
-  `github.com` and
-  `api.github.com` stay open to it;
+  text from anyone, and that text can steer what Claude posts through the
+  app's token; no token holds Contents write, so a run, or anyone holding
+  its token, can comment and edit issues and pull requests but cannot push,
+  merge or reach `main`;
+- a steered run can read the app token from its own environment, and what
+  the read limits miss, and post it through the masked tools in a shape
+  `redactSecrets` does not know; an update to the tracking comment keeps its
+  earlier text in the comment's public edit history; `github.com` and
+  `api.github.com` stay open to it. Response to a leak in a post: delete the
+  comment, or the revision from its history, never just edit it; the app
+  token dies when the job ends, the identity token within minutes;
+  archiving the rule stops new Anthropic tokens;
 - a session holding an agent app's key can start a run that spends Anthropic
   tokens and writes through the app's token; a comment by an allowed bot that
   merely contains `@claude` starts one;
 - the app's private key is a long-lived secret in the `claude` environment,
-  readable by a run from `main`: whoever can change `main` can read it. Its
+  readable by any code that runs in either job, which includes hooks the
+  action restores from a pull request's base branch: whoever can change
+  `main`, or the base of a pull request someone mentions Claude on, can read
+  it. It buys only what the app holds: no Contents write. Its
   leak response: uninstall the app, which ends every live token, then delete
   the key on the app's page and make a new one;
 - the egress runner is a technical preview, and GitHub's default hosts stay
@@ -351,9 +376,9 @@ missing ref pin go once C12 shows the narrowed rule.
 
 How a session decides to ask (asking Jev is the session's work; the ask
 itself is W2.4's). Inline comment classification (it needs an API key, and
-is skipped under federation, so every inline comment posts). Commit
-authorship: mention commits keep the action's default author while the new
-app pushes them. A per-collaborator service account. Other repos. Claude
+is skipped under federation, so every inline comment posts). Mentions that
+commit: a later spec can give them a separate, narrower path. A
+per-collaborator service account. Other repos. Claude
 Approvals and the managed Code Review, which need a Claude Team or Enterprise
 plan.
 
@@ -369,9 +394,13 @@ plan.
   total. The driver is the owner's: not always in the loop.
 - **A stored key against the Claude app's breadth.** V1 held no secret.
   V2's app key is one, held to `main` by the environment, in exchange for an
-  app that cannot touch workflows, hooks or Actions, and a mention token that
-  cannot reach `main`. Removing the environment's secret and the step returns
+  app that cannot push, merge, or touch workflows, hooks or Actions. Removing the environment's secret and the step returns
   to the Claude app. This is a new boundary: the owner's checkpoint.
+- **Mentions that commit against a token worth stealing.** A steered run can
+  read its own token, and `main` needs no approval, so a token with Contents
+  write could merge any pull request whose checks pass. V2 takes Contents
+  write away: `@claude` answers and no longer commits. Cheaper to reverse
+  than a merge to `main`: a spec change gives it back.
 - **Code owner review on `main`.** Requiring it would make every change to
   the Claude controls wait for the owner, and would block a pull request the
   owner's own account opens on those paths, since an author can't approve
@@ -397,7 +426,9 @@ Before merge:
   `claude_code_oauth_token`.
 - C4. CI's three jobs pass on the reviewed head.
 - C5. A run on `ubuntu-24.04-firewall` starts for this account (a one-off
-  probe workflow on a scratch branch, deleted after).
+  probe workflow on a scratch branch, deleted after). It prints `$HOME`,
+  `$RUNNER_TEMP` and `$GITHUB_WORKSPACE`, names only, never `env`: its log is
+  public.
 - C6. The owner's checklist is on the issue, and W9's before-merge steps are
   done: the environment's branch policy, read back through the API, lists
   only `main`; this repo has no Claude GitHub app installation.
@@ -414,8 +445,10 @@ After merge:
 - C9. That comment starts no `claude` job, and an `@claude` comment that is
   not an ask starts no review.
 - C10. An `@claude` comment from the owner on an issue gets an answer in its
-  tracking comment, and a request for an edit lands as a commit on a
-  `claude/` branch.
+  tracking comment that quotes a file from the checkout. Asked to read
+  `/etc/hostname`, it reports the read refused, and the result line counts a
+  permission denial. Asked to make an edit, it says it can't, and no branch
+  appears.
 - C11. The run summary's egress log shows the policy loaded in enforce mode,
   and no blocked host the run needed.
 - C12. The Console's authentication history shows each exchange matched the
@@ -426,7 +459,8 @@ After merge:
 Kept on the issue as a comment the session posts before Test, in this order,
 each step with its test. It names where each secret lives, never a value.
 
-1. Before merge: create the app (W2.7) and install it on this repo only;
+1. Before merge: create the app (W2.7: Issues and Pull requests write,
+   Contents read) and install it on this repo only;
    create the `claude` environment with deployment branches `main` only, then
    add the key and client ID; delete the downloaded key file. Inert until V2
    is on `main`.
