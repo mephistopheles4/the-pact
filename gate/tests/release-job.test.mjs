@@ -12,12 +12,15 @@ import { tempDir } from './tree.mjs';
 const WORKFLOW = join(REPO, '.github', 'workflows', 'release.yml');
 const sha = c => c.repeat(40);
 
-/** The script of the workflow's one run block, which ends the file. */
-function script() {
+/** The script of one job's run block: the candidate job's, or the promote job's. */
+function script(job) {
   const src = readFileSync(WORKFLOW, 'utf8').replace(/\r\n/g, '\n');
   const parts = src.split('\n        run: |\n');
-  assert.equal(parts.length, 2, 'one run block');
-  return parts[1].split('\n').map(l => l.slice(10)).join('\n');
+  assert.equal(parts.length, 3, 'one run block in each of the two jobs');
+  // The block ends at the first line indented less than the script.
+  const lines = parts[job === 'candidate' ? 1 : 2].split('\n');
+  const end = lines.findIndex(l => l.trim() !== '' && !l.startsWith(' '.repeat(10)));
+  return (end < 0 ? lines : lines.slice(0, end)).map(l => l.slice(10)).join('\n');
 }
 
 /**
@@ -26,7 +29,7 @@ function script() {
  * object's id to the commit it names. Returns the code, the output, every tag
  * the script created and the tokens it sent.
  */
-async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha('a'), token = 'test-token', fail = null, event = 'workflow_run', rc = '' } = {}) {
+async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha('a'), token = 'test-token', fail = null, job = 'candidate', rc = '' } = {}) {
   const created = [];
   const sent = new Set();
   let reads = 0;
@@ -52,8 +55,8 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
   await new Promise(done => server.listen(0, '127.0.0.1', done));
   t.after(() => server.close());
   const file = join(tempDir(t, 'pact-release-'), 'step');
-  writeFileSync(file, script());
-  const env = { ...process.env, TOKEN: token, HEAD_SHA: head, EVENT: event, RC: rc, GITHUB_API_URL: `http://127.0.0.1:${server.address().port}`, GITHUB_REPOSITORY: 'o/r' };
+  writeFileSync(file, script(job));
+  const env = { ...process.env, TOKEN: token, HEAD_SHA: head, RC: rc, GITHUB_API_URL: `http://127.0.0.1:${server.address().port}`, GITHUB_REPOSITORY: 'o/r' };
   delete env.NODE_OPTIONS;
   const child = spawn(process.execPath, [file], { env, timeout: 60_000 });
   let out = '';
@@ -107,8 +110,8 @@ test('release job: tags nothing when a release or candidate already points at th
   assert.deepEqual((await release(t, { refs: { 'v1.1.0': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: sha('a') } })).created, []);
 });
 
-test('release job: fails and tags nothing with no token, a malformed commit, an unknown event or a failed read', async t => {
-  for (const plant of [{ token: '' }, { head: 'main' }, { event: 'push' }, { event: '' }, { fail: 'git/matching-refs' }, { fail: 'git/ref/heads/main' }]) {
+test('release job: fails and tags nothing with no token, a malformed commit or a failed read', async t => {
+  for (const plant of [{ token: '' }, { head: 'main' },{ fail: 'git/matching-refs' }, { fail: 'git/ref/heads/main' }]) {
     const got = await release(t, plant);
     assert.equal(got.code, 1, `${JSON.stringify(plant)} ${got.out}`);
     assert.deepEqual(got.created, []);
@@ -116,7 +119,7 @@ test('release job: fails and tags nothing with no token, a malformed commit, an 
   }
 });
 
-const promote = (t, rc, more = {}) => release(t, { event: 'workflow_dispatch', head: '', rc, ...more });
+const promote = (t, rc, more = {}) => release(t, { job: 'promote', rc, ...more });
 
 test('release job: promotion tags the named candidate\'s commit with its stable release, an annotated candidate included', async t => {
   const refs = { 'v1.1.0': commit('b'), 'v1.2.0-rc.1': commit('c'), 'v1.2.0-rc.2': commit('d') };

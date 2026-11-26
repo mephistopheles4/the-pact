@@ -166,8 +166,8 @@ Codex and Antigravity, and there before typed input and some reads; and the rele
 
 - **GitHub.** Two tag rulesets on every tag: only the release app, one's sole
   bypass, creates one; the other, with none, stops moves and deletions. They
-  don't hold until made, or while the owner edits them. The app's key is a secret of the `release` environment, which only
-  `main` deploys to; that doesn't hold if another branch may deploy there or the key is also a repository secret or kept
+  don't hold until made, or while the owner edits them. The app's key is a secret of the `release-candidate` and `release` environments, which only
+  `main` deploys to, and the owner approves each run in `release`, which alone makes a stable tag; that doesn't hold if another branch may deploy there, `release` loses its reviewer, or the key is also a repository secret or kept
   elsewhere. Actions pinned to a full commit SHA in
   all five workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot

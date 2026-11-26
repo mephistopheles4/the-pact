@@ -1,21 +1,24 @@
-# Release tags (spec 0007 S10): once the gate passed on a push to main, tag
-# main's tip v1.<n>.0-rc.<k>, a release candidate of the next minor, one past
-# the highest stable release. A stable tag v1.<n>.0 is made only on the owner's
-# word, by running this workflow by hand with the candidate's tag in `rc`; it
-# tags that candidate's commit. A push never makes a stable tag or a major.
-# npx installs only stable tags unless asked for a candidate, so a stable tag
-# here is code everyone runs.
+# Release tags (spec 0007 S10), in two jobs that never share a path:
+# - candidate: once the gate passed on a push to main, tags main's tip
+#   v1.<n>.0-rc.<k>, a release candidate of the next minor. It runs in the
+#   release-candidate environment, which has no required reviewer, so every
+#   merge gets a candidate. It can tag nothing else.
+# - promote: run by hand with the candidate's tag in `rc`, tags that
+#   candidate's commit v1.<n>.0. It runs in the release environment, where the
+#   owner is the required reviewer, so a stable tag is made only on the owner's
+#   word. npx installs stable tags unless asked for a candidate.
 #
-# It tags nothing until the owner sets the repository variable PACT_RELEASES to
-# on. It tags with a GitHub App used for releases alone, the one bypass of the
-# ruleset on creating tags, whose private key is a secret of the release
-# environment, which the owner lets only main deploy to. A workflow on another branch holds neither.
+# Both tag nothing until the owner sets the repository variable PACT_RELEASES to
+# on. Each tags with a GitHub App used for releases alone, the one bypass of the
+# ruleset on creating tags, whose private key is a secret of its own
+# environment; the owner lets only main deploy to either. A workflow on another
+# branch holds neither.
 #
 # No checkout: none of the repo's code runs. The file is held to an exact
 # allow-list, as codeql.yml is, and is the one file that may use workflow_run.
-# The concurrency group sits on the job, so a run whose job is skipped never
-# displaces a waiting release. The input reaches the script through env, never
-# through an expression in the script.
+# One concurrency group sits on each job, so the two never race and a run whose
+# job is skipped never displaces a waiting release. The input reaches the
+# script through env, never through an expression in the script.
 name: release
 
 on:
@@ -33,22 +36,18 @@ permissions:
   contents: read
 
 jobs:
-  release:
+  candidate:
     if: |
       github.ref == 'refs/heads/main' &&
       vars.PACT_RELEASES == 'on' &&
-      (
-        github.event_name == 'workflow_dispatch' ||
-        (
-          github.event.workflow_run.conclusion == 'success' &&
-          github.event.workflow_run.event == 'push' &&
-          github.event.workflow_run.head_branch == 'main' &&
-          github.event.workflow_run.head_repository.full_name == github.repository
-        )
-      )
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    environment: release
+    environment: release-candidate
     concurrency:
       group: release
       cancel-in-progress: false
@@ -59,15 +58,13 @@ jobs:
           client-id: ${{ vars.PACT_RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.PACT_RELEASE_APP_KEY }}
           permission-contents: write
-      - name: Tag a release
+      - name: Tag a release candidate
         env:
           TOKEN: ${{ steps.app.outputs.token }}
-          EVENT: ${{ github.event_name }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          RC: ${{ inputs.rc }}
         shell: node {0}
         run: |
-          const { TOKEN, EVENT, HEAD_SHA, RC, GITHUB_API_URL, GITHUB_REPOSITORY } = process.env;
+          const { TOKEN, HEAD_SHA, GITHUB_API_URL, GITHUB_REPOSITORY } = process.env;
           async function call(path, body) {
             const r = await fetch(`${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/${path}`, {
               method: body ? 'POST' : 'GET',
@@ -90,36 +87,82 @@ jobs:
             }
             return found;
           }
-          const nextMinor = done => Math.max(0, ...done.filter(r => r.k === null).map(r => r.n)) + 1;
           // A green push to main: the next candidate of the next minor, never a stable tag.
-          async function candidate() {
+          async function main() {
+            if (!TOKEN) throw new Error('No app token.');
             if (!/^[0-9a-f]{40}$/.test(HEAD_SHA ?? '')) throw new Error('The run names no commit.');
             if (!(await isTip())) return 'main has moved past this run; nothing is tagged.';
             const done = await releases();
             if (done.some(r => r.sha === HEAD_SHA)) return 'A release already points at this commit; nothing is tagged.';
-            const n = nextMinor(done);
+            const n = Math.max(0, ...done.filter(r => r.k === null).map(r => r.n)) + 1;
             const tag = `v1.${n}.0-rc.${Math.max(0, ...done.filter(r => r.n === n && r.k !== null).map(r => r.k)) + 1}`;
             if (!(await isTip())) return 'main has moved past this run; nothing is tagged.';
             await call('git/refs', { ref: `refs/tags/${tag}`, sha: HEAD_SHA });
             return `Tagged ${tag} on ${HEAD_SHA}.`;
           }
+          main().then(console.log, e => {
+            console.log(e.message);
+            process.exitCode = 1;
+          });
+  promote:
+    if: |
+      github.ref == 'refs/heads/main' &&
+      vars.PACT_RELEASES == 'on' &&
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: release
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        id: app
+        with:
+          client-id: ${{ vars.PACT_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PACT_RELEASE_APP_KEY }}
+          permission-contents: write
+      - name: Promote a release candidate
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          RC: ${{ inputs.rc }}
+        shell: node {0}
+        run: |
+          const { TOKEN, RC, GITHUB_API_URL, GITHUB_REPOSITORY } = process.env;
+          async function call(path, body) {
+            const r = await fetch(`${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/${path}`, {
+              method: body ? 'POST' : 'GET',
+              headers: { authorization: `Bearer ${TOKEN}`, accept: 'application/vnd.github+json' },
+              body: body && JSON.stringify(body),
+              redirect: 'error',
+            });
+            if (!r.ok) throw new Error(`GitHub answered ${r.status} for ${path}.`);
+            return r.json();
+          }
+          // Every v1.<n>.0 and v1.<n>.0-rc.<k> tag; k is null for a stable release.
+          async function releases() {
+            const found = [];
+            for (const { ref, object } of await call('git/matching-refs/tags/v1.')) {
+              const m = /^refs\/tags\/(v1\.(0|[1-9]\d{0,8})\.0(?:-rc\.([1-9]\d{0,8}))?)$/.exec(ref);
+              if (!m) continue;
+              const target = object.type === 'tag' ? (await call(`git/tags/${object.sha}`)).object : object;
+              found.push({ tag: m[1], n: Number(m[2]), k: m[3] ? Number(m[3]) : null, sha: target.sha });
+            }
+            return found;
+          }
           // The owner's word: an existing candidate of the next minor becomes that minor's stable release.
-          async function promote() {
+          async function main() {
+            if (!TOKEN) throw new Error('No app token.');
             if (!/^v1\.(0|[1-9]\d{0,8})\.0-rc\.[1-9]\d{0,8}$/.test(RC ?? '')) throw new Error('The input is not a release candidate tag, v1.<n>.0-rc.<k>.');
             const done = await releases();
             const rc = done.find(r => r.tag === RC);
             if (!rc) throw new Error(`${RC} does not exist.`);
             const tag = `v1.${rc.n}.0`;
             if (done.some(r => r.tag === tag)) throw new Error(`${tag} already exists.`);
-            if (rc.n !== nextMinor(done)) throw new Error(`${tag} is not the next minor, v1.${nextMinor(done)}.0.`);
+            const next = Math.max(0, ...done.filter(r => r.k === null).map(r => r.n)) + 1;
+            if (rc.n !== next) throw new Error(`${tag} is not the next minor, v1.${next}.0.`);
             await call('git/refs', { ref: `refs/tags/${tag}`, sha: rc.sha });
             return `Tagged ${tag} on ${rc.sha}, the commit of ${RC}.`;
-          }
-          async function main() {
-            if (!TOKEN) throw new Error('No app token.');
-            if (EVENT === 'workflow_run') return candidate();
-            if (EVENT === 'workflow_dispatch') return promote();
-            throw new Error('The run is neither a gate completion nor a promotion.');
           }
           main().then(console.log, e => {
             console.log(e.message);

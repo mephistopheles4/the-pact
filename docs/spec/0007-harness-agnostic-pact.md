@@ -303,6 +303,12 @@ round's comment on the issue lists each finding.
     takes stable by default, `--channel beta` or `--release <tag>` on request;
     the owner promotes a candidate by a `workflow_dispatch` (the lead's pick,
     flagged); majors stay out of the job (S10, C22, C34).
+72. The lead's decision 174, the owner: "Sounds good, go for it." The
+    release job splits in two: candidates from a `workflow_run` in the
+    `release-candidate` environment with no reviewer, so agents' merges still
+    get them; promotion from a `workflow_dispatch` in `release`, with the owner
+    as its required reviewer. Both deploy from `main` only, and each holds its
+    own copy of the key (S10, C23).
 
 ## S3 Terms
 
@@ -779,8 +785,12 @@ It keeps the last three clones and deletes older ones it made.
   T9, and for `workflow_run` also `conclusion == 'success'`,
   `event == 'push'`, `head_branch == 'main'` and
   `head_repository.full_name == github.repository`;
-- one job in the `release` environment, which only `main` may deploy to. Its
-  own token only reads; its one secret is the release app's key,
+- two jobs, each running only its own trigger's path: the candidate job, on
+  `workflow_run`, in the `release-candidate` environment, with no required
+  reviewers, so a merge by any session still gets a candidate; the promote
+  job, on `workflow_dispatch`, in the `release` environment, whose one
+  required reviewer is the owner. Only `main` may deploy to either. Each
+  job's own token only reads; its one secret is the release app's key,
   `PACT_RELEASE_APP_KEY`; actions are pinned by SHA; no checkout;
 - reads `main`'s tip through the API and tags only when `head_sha` is that
   tip, so a re-run of an old gate run tags nothing. On a push it tags
@@ -792,8 +802,9 @@ It keeps the last three clones and deletes older ones it made.
   `gh workflow run release.yml --ref main -f rc=v1.<n>.0-rc.<k>` tags that
   candidate's commit `v1.<n>.0`. It fails with no tag when the input isn't a
   candidate's name, the candidate is missing, `v1.<n>.0` exists, or `<n>`
-  isn't the next minor (C34). Anyone with write access can start it; the
-  `release` environment bounds it;
+  isn't the next minor (C34). Anyone with write access can start it, and
+  the owner approves each run as the `release` environment's required
+  reviewer;
 - runs in a `release` concurrency group that never cancels, and reads the tip
   again just before it creates the tag, so two close runs can't put the
   higher number on the older commit;
@@ -971,9 +982,10 @@ never-sync rule names both folders.
 
 - the tag rulesets (GitHub): every tag, created only by the release app, none
   moved or deleted. They don't hold while the owner edits them (S10);
-- the `release` environment (GitHub): only `main` reads the app's key. It
-  doesn't hold if the environment allows another branch, or the key is also a
-  repository secret;
+- the `release-candidate` and `release` environments (GitHub): only `main`
+  reads the app's key, each holding its own copy, and the owner approves each
+  promote run. They don't hold if an environment allows another branch, the
+  key is also a repository secret, or `release` loses its reviewer;
 - the release job's conditions: a push run of `gate` on this repo's `main`,
   at `main`'s tip, with `PACT_RELEASES` on (C23);
 - `main`'s ruleset, as today, so a release commit passed review and `gate`;
@@ -1001,11 +1013,12 @@ never-sync rule names both folders.
 - **The release app's key** does all `contents: write` does, not tags alone:
   it can push a branch no ruleset covers, and merge what `main`'s ruleset lets
   through. Before the second tag ruleset exists it can also move or delete a
-  tag. A change merged to `main` can read the key from the `release`
-  environment; required reviewers on it would put each run that can read it
-  behind an approval by the owner's account, which a session holding that
-  account's token can give too (GitHub's pending-deployments API takes a
-  `repo`-scoped token; not probed), at one click per release.
+  tag. A change merged to `main` can read the key from the
+  `release-candidate` environment, which has no reviewer, so candidates keep
+  coming from agents' merges. The promote job waits for an approval by the
+  owner's account, which a session holding that account's token can give too
+  (GitHub's pending-deployments API takes a `repo`-scoped token; not probed),
+  at one click per stable release.
   This widens "What you install and CI run": the owner's call.
 - **A guard that never runs.** In an own harness, or in Codex before the
   trust step, a guard can be missing with no report beyond the dry run's
@@ -1219,11 +1232,13 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
   or a major; a dispatch naming a candidate tags its commit `v1.<n>.0`, and
   refuses a bad name, a missing candidate, a released minor or one past the
   next, with no tag.
-- **C23** `workflow.test.mjs` passes the release job only with a job token that
-  only reads, no secret but the release app's key, the `release` environment,
-  an app token asked for `contents: write` alone, SHA-pinned actions, no
-  checkout, the `workflow_run` trigger on `gate`, and each of S10's `if`
-  conditions; a bad case for each fails it, and so do a missing `release`
+- **C23** `workflow.test.mjs` passes the release workflow only with its two
+  jobs: the candidate job on `workflow_run` of `gate` in `release-candidate`,
+  the promote job on `workflow_dispatch` in `release`, each with a job token
+  that only reads, no secret but the release app's key, an app token asked
+  for `contents: write` alone, SHA-pinned actions, no checkout, and each of
+  S10's `if` conditions; a bad case for each fails it, and so do either job
+  on the other's environment or trigger, a third job, a missing `release`
   concurrency group, a second workflow file that uses `workflow_run`, and
   another workflow that reads a secret or names an environment.
 - **C28** With no terminal and neither flag, the bootstrap refuses
@@ -1310,8 +1325,9 @@ stay; nothing runs them unless someone types the bootstrap command.
    First it lists the remote's tags and the rulesets by API: both cover every
    tag, only the release app bypasses the one on creating, none bypasses the
    one on updating and deleting, and no tag but a release ends in a version.
-   It also lists the `release` environment's branch rule, and the repository
-   secrets by name, never value: `PACT_RELEASE_APP_KEY` is not among them.
+   It also lists the `release-candidate` and `release` environments' branch
+   rules and `release`'s required reviewer, and the repository secrets by
+   name, never value: `PACT_RELEASE_APP_KEY` is not among them.
    Then the owner sets `PACT_RELEASES`, and a push to `main`
    or a re-run of `gate` at the tip makes `v1.1.0`.
 
@@ -1347,8 +1363,8 @@ reads this spec and each ticket's diff.
 | Two tag rulesets on every tag (S10): creating, the release app its one bypass once it exists; updating and deleting, no bypass | the owner's own act | before T6 merges |
 | The release app as that bypass, and its key's reach (S2 item 49, S15) | the owner's call | before T9 |
 | The raised budgets of two docs (S2 item 50) | a flagged pick, for review | any time |
-| The release app (contents write, this repo only); the `release` environment, set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as its secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags, branches, merges and releases it made, and delete each bad tag, lifting the second ruleset to do it | the owner's own acts | before T9 |
-| Required reviewers on the `release` environment (S15) | an offer, unanswered; built without | before T9 |
+| The release app (contents write, this repo only); the `release-candidate` and `release` environments, each set to selected branches with the one rule `main` and no tag rule, before it holds the key; the key as each one's secret `PACT_RELEASE_APP_KEY`, never a repository secret, the downloaded file then deleted; the variable `PACT_RELEASE_APP_CLIENT_ID`. A leaked key: uninstall the app, delete the key, check the tags, branches, merges and releases it made, and delete each bad tag, lifting the second ruleset to do it | the owner's own acts | before T9 |
+| The owner as the one required reviewer on the `release` environment, none on `release-candidate` (S2 item 72) | the owner's own act | before T9 |
 | `PACT_RELEASES` set to `on` | the owner's own act | in T9 |
 | S14's one-time removal; its step 4 moves the hand ports out of use | the owner's own machine | straight before T9's apply |
 | Each install apply | the owner's typed command | in T9 |
