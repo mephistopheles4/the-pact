@@ -1,0 +1,13 @@
+{
+  "name": "the-pact",
+  "version": "1.0.0",
+  "bin": {
+    "pact": "bin/pact.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "files": [
+    "bin/pact.mjs"
+  ]
+}

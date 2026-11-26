@@ -157,10 +157,9 @@ Codex and Antigravity; and the release app's key.
 
 **Controls:**
 
-- **GitHub.** A tag ruleset on every tag: only the release app, its one bypass,
-  creates one, and no one else moves or deletes
-  one. It doesn't hold while the owner
-  edits it. The app's key is a secret of the `release` environment, which only
+- **GitHub.** Two tag rulesets on every tag: only the release app, one's sole
+  bypass, creates one; the other, with none, stops moves and deletions. They
+  don't hold until made, or while the owner edits them. The app's key is a secret of the `release` environment, which only
   `main` deploys to; that doesn't hold if another branch may deploy there or the key is also a repository secret or kept
   elsewhere. Actions pinned to a full commit SHA in
   all five workflows; Dependabot's weekly action updates with a 14-day cooldown;
@@ -178,13 +177,13 @@ Codex and Antigravity; and the release app's key.
   push there, while `PACT_RELEASES` is `on`. The
   Console's federation rule bounds who gets an Anthropic token; each job's guard,
   the action's actor check and Anthropic's workflow validation, who gets the
-  Claude jobs' write token. Outside
-  the Claude files and `release.yml`, its secret check sees only a read written
-  `secrets.NAME`, and a new workflow may name the `release`
-  environment. It holds only while the test itself is unchanged; a change to it is read
+  Claude jobs' write token. It
+  refuses `#`-line expressions, and outside `release.yml` `secrets` and
+  deployment environments; a read split across lines, or an oddly spelled job
+  token, can pass. It holds only while the test itself is unchanged; a change to it is read
   like any change. The bootstrap takes only an exact release tag and checks the
   clone's head, which keeps the clone consistent, not intact; npm picks the
-  bootstrap, so the tag ruleset decides it. The bootstrap's `git` and the guard
+  bootstrap, so tag rulesets decide it. The bootstrap's `git` and the guard
   hook's `node` are never taken from the working folder. The Scriptorium page's
   policy (`builder/build.mjs`) sets
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
@@ -206,8 +205,8 @@ Codex and Antigravity; and the release app's key.
 rule holds back trusting a project's mise config until the owner says so in chat.
 
 Also accepted. What you install and CI run: typing the
-`npx` command trusts GitHub and the tag ruleset, and npm may reuse a cached
-copy; a stolen release app key, while the app holds only `contents: write`, on this repo only, can create, move or delete any tag, push a branch no ruleset covers and merge what `main`'s ruleset lets through; a copy left on a machine, such as the file GitHub hands the owner, is exposed there, and a leak is answered by replacing the key and, once its tokens lapse in an hour, checking for added, moved or deleted tags, and each branch and merge the app made; the cloud
+`npx` command trusts GitHub and the tag rulesets, and npm may reuse a cached
+copy; a stolen release app key, while the app holds only `contents: write`, on this repo only, can create any tag, push a branch no ruleset covers, merge what `main`'s ruleset lets through and make releases; a change merged to `main` can read the key; a copy left on a machine, such as the file GitHub hands the owner, is exposed there, and a leak is answered by uninstalling the app, deleting the key and checking each tag, branch, merge and release it made; the cloud
 setup's pins are git SHA-1 ids; pinned plugins send what they send by design;
 the gate's test files are not scanned; the code-scanning token can read and
 dismiss alerts on `main`; a bad build or model that passes the age rule and review runs
