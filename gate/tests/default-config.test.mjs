@@ -28,7 +28,7 @@ const STAGE_SKILLS = ['grill-with-docs', 'grimoire:eagle-eye', 'impeccable:impec
 /** A throwaway clone-shaped root holding what the builder and the generator read, with `mutate` applied. */
 function root(t, mutate = () => {}) {
   const r = tempDir(t, 'pact-default-root-');
-  for (const d of ['claude', 'examples', 'familiars', join('docs', 'brand'), 'builder']) cpSync(join(REPO, d), join(r, d), { recursive: true });
+  for (const d of ['claude', 'examples', 'familiars', 'harnesses', join('docs', 'brand'), 'builder']) cpSync(join(REPO, d), join(r, d), { recursive: true });
   cpSync(join(REPO, 'gate'), join(r, 'gate'), { recursive: true, filter: s => !s.includes(join('gate', 'tests')) });
   mutate(r);
   return r;

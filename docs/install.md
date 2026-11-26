@@ -652,9 +652,12 @@ It takes the highest tag named `v1.<n>.0`, clones it into
 `~/.pact/source/<commit>` (it keeps its last three), checks the clone's head,
 and runs that clone's dry run. Choose the default configuration when it asks,
 or pass `--default`; an existing `~/.pact/config.json` is kept and used.
-Opening Scriptorium first (`--builder`) isn't built yet. It never applies:
-read the dry run, then type the apply line it prints, which runs from any
-folder. A release lower than the last one installed is called behind it. npm
+To build your own configuration first, choose Scriptorium, or pass
+`--builder`: it runs the clone's builder, on `~/.pact/builder.json` when you
+have one, writes the page to `~/.pact/scriptorium.html`, prints its path and
+installs nothing. Save from the page into `~/.pact`, run the command again and
+choose the default: it uses what you saved. It never applies: read the dry run,
+then type the apply line it prints, which runs from any folder. A release lower than the last one installed is called behind it. npm
 picks which copy of the command runs from the repo's tags, so each tag is code
 you run.
 

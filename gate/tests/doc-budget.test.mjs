@@ -23,11 +23,11 @@ const BUDGETS = Object.freeze({
   'docs/agents/work-records.md': 600,
   'docs/agent-identity.md': 900,
   'docs/cleaner.md': 4200,
-  'docs/install.md': 9500,
+  'docs/install.md': 9550,
   'docs/README.md': 300,
   'docs/poster-app.md': 600,
   'docs/poster.md': 8300,
-  'docs/reference.md': 2400,
+  'docs/reference.md': 2450,
   'docs/rule-reasons.md': 1200,
 });
 
