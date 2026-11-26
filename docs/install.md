@@ -831,7 +831,7 @@ Seen on its command line, agy 1.2.14, on Windows
 - **Lenses can't search.** An agent gets fewer tools than its file lists: the
   searching and web page tools don't arrive, so a lens reads only files it can
   name. Every agent also gets `send_message` and `manage_task`; a lens's
-  was refused its session's program.
+  `manage_task` was refused its session's program.
 - **Its shells see your secrets.** A command saw planted token, key and
   password variables, and no setting to drop them was found. Don't start it with secrets in its environment.
 - **A session can still start your commands,** by reading the skill's file with

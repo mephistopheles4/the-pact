@@ -17,7 +17,7 @@ Antigravity's command line, agy 1.2.14, on Windows 11, headless (`agy -p`), on G
 - **The hook's shell.** A hook runs under `cmd /c` on Windows, in the folder of its hooks file. Its docs say `sh -c` elsewhere, which was not probed. `run_command` itself runs PowerShell.
 - **Answers.** Exit 0 with no output lets the call run. `{}` refuses it. `deny` blocks, `allow` runs, `ask` ran with nobody to ask. `force_ask` was refused as a question headless mode can't show, for a command on the allow list and for a file read. The question itself was not seen, and `force_ask` under auto-proceed was not run.
 - **Failures.** Exit 1, exit 2 with and without standard error, a hook that can't start, a time-out and output that is not JSON all blocked the call. Its documentation says a non-zero exit is ignored, so the pact relies on none of this: the wrapper and the launcher answer `deny` with exit 0.
-- **T4's launcher.** A deny blocked, a silent exit 0 ran, `force_ask` asked, and a missing wrapper and a missing `node` were both denied, under a path with spaces and parentheses and with a `NODE_OPTIONS` that would crash `node` inherited.
+- **T4's launcher.** A deny blocked, a silent exit 0 ran, `force_ask` was held for a question, as under Answers, and a missing wrapper and a missing `node` were both denied, under a path with spaces and parentheses and with a `NODE_OPTIONS` that would crash `node` inherited.
 - **Typed input.** A matcher of `run_command` misses it: a guarded command typed into a running `cmd.exe` through `manage_task` ran. With the widened matcher it is refused. `send_command_input` is registered, but neither the session nor a subagent that listed it was given it, so its arguments are unknown; the guard reads `Input`. The program lists `manage_task`'s actions as `list`, `kill`, `status` and `send_input`, and the guard denies any other.
 - **Agent files.** An agent with `tools: []` got `send_message` and `manage_task`; with no `tools` line it got more, with no shell. An unknown name stops the subagent from starting. A subagent got `read_file` for `view_file`, `run_command` and `search_web`; `find_by_name`, `grep_search`, `list_dir` and `read_url_content` were accepted and never arrived, on the flash and pro models alike. The installed `data-lens` got `read_file`, `send_message` and `manage_task`.
 - **Lenses and the hook.** The guard refused a guarded command from `behaviour-lens`. A session left `cmd.exe` running and asked `data-lens` to type into it through `manage_task`: both `send_input` and `status` were refused as a task that `belongs to a different conversation`, its list showed no task, and nothing was typed. A hook's input names the conversation, not the agent.
@@ -28,9 +28,13 @@ Antigravity's command line, agy 1.2.14, on Windows 11, headless (`agy -p`), on G
 
 ## Left open
 
-- **Not probed:** the app and the editor, Linux and macOS, the question a person sees, auto-proceed, a child `agy` run, and any other version.
+- **Not probed:** the app and the editor, Linux and macOS, the question a person sees, auto-proceed, a child `agy` run, a lens's `manage_task` `kill`, and any other version.
 - **Lenses can't search** on this command line, so a lens there reads only files it can name.
 - **The ask on a skill's file** is not met through an 8.3 name, a relative path, a link to its folder or another read tool.
 - **Codex** reads the same rendered skills, which now carry `disable-model-invocation` where the command does; its probe ran before that.
 - **The owner's call** on widening "A session takes checkpoints alone" (spec 0007, S15) is still open. On a no, Antigravity leaves the default install list.
 - **Word budgets.** With T4's text, the threat model's cap rose to 4,050 (PACT-109 cleans that file up) and `docs/install.md`'s budget to 10,050 (PACT-110).
+
+## Record
+
+On PACT-105: [the plan](https://linear.app/mephistopheles4/issue/PACT-105#comment-86512a8b) and [Test round 1](https://linear.app/mephistopheles4/issue/PACT-105#comment-186e8f41). The probe's record is this log.

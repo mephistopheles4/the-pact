@@ -183,9 +183,9 @@ round's comment on the issue lists each finding.
 
 **The lead's pick at T8, flagged:**
 
-47. The threat model's word cap rises from 3,050 to 3,950, since S15's text,
-    the release app's (the lead's pick at T6, S2 item 49) and T4's probe
-    findings didn't fit it, and no text is cut
+47. The threat model's word cap rises from 3,050 to 4,050, since S15's text,
+    the release app's (the lead's pick at T6, S2 item 49) and the probe
+    findings of T4 and T5 didn't fit it, and no text is cut
     (`gate/tests/threat-model-cap.test.mjs`, ADR 0173).
 48. The threat model's two charts come back, as the owner asked, and the
     word count leaves mermaid blocks out, since the charts were dropped twice
@@ -405,7 +405,8 @@ differ per harness only because a tool can't do otherwise:
   and a subagent gets fewer tools than its file lists, never a shell it
   doesn't list. `find_by_name`, `grep_search` and `read_url_content` did not
   arrive, so a lens there can't search, and every subagent also gets
-  `send_message` and `manage_task`, which reaches its own tasks alone
+  `send_message` and `manage_task`; in the probe a lens's was refused the
+  program its session left running
   ([T5's record](../log/2026-11-25-antigravity.md)).
 
 **Commands as skills.** The four commands are one universal set: every
@@ -414,8 +415,8 @@ S2 item 30).
 
 - Claude Code keeps them as commands, as today. Every other harness with
   `skills` gets each as a skill: the command's body as `SKILL.md`, with
-  `name` and `description` frontmatter, the key above, and its paths on
-  `~/.pact`.
+  `name` and `description` frontmatter, `disable-model-invocation` where the
+  bullets below say, and its paths on `~/.pact`.
 - A pact command stands for an answer the owner types, so each skill is
   kept from the model's own invocation wherever the harness allows it
   (`explicit-skills`). In Codex each skill folder gets `agents/openai.yaml`
@@ -431,8 +432,9 @@ S2 item 30).
   `explicit-skills`; the render adds it to no other.
 - A session can still find the file and read it, so Antigravity's guard also
   asks the person before a read tool opens the `SKILL.md` of one of those
-  three (S8). T5's probe saw the ask on such a read, and none when the owner
-  types the command. What is left is a residual for the owner (S15).
+  three (S8). T5's probe saw such a read held for a question (headless, so
+  the question itself was not seen), and none when the owner types the
+  command. What is left is a residual for the owner (S15).
 - `finis` archives a Claude Code session. Its archive step sits in a
   `pact:if archive` block; a harness without `archive` gets instead the same
   check for outstanding work and then: "Nothing is outstanding; close this
@@ -456,15 +458,17 @@ only what it recorded.
 **The rule table.** `rules.json` holds today's guard rules as data, from the
 same source as `gate/install-core.mjs`'s `CLEANER_DENY`, `CLEANER_ASK` and
 `STOP_DENY`: each rule an `id`, a decision (`deny` or `ask`), the switch it
-hangs on (`cleaner` or `session-stop-deny`), and the command words it
-matches. The table is rendered from the configuration, so a rule whose switch
+hangs on (`cleaner`, `session-stop-deny` or `owner-skills`), and the command
+words it matches. The table is rendered from the configuration, so a rule whose switch
 is off is not in it. One rule more, `owner-skill`, asks on a read of the
 `SKILL.md` of `make-it-so`, `finis` or `scry` in a folder named `skills`. It
 is in the table while one of those commands is on and a harness is in whose
 hook can ask before a read: Antigravity's, with `hook-ask` and `skills`.
 With no command rule on, only such a harness gets a hook.
-  The path is met in any case and with either separator, each name read without
-  a stream after a colon or a dot or space at its end, as Windows reads it.
+The path is met in any case and with either separator. Each name loses a
+stream after a colon and the spaces at its end, then `.` and `..` are
+resolved, then dots and spaces at its end go: more paths than Windows would
+open. A read call's `AbsolutePath` and `Path` are each judged.
 
 **Claude Code** keeps its native permission rules. The install renders them
 from the table, and they are byte for byte today's (C11). No hook is added to
@@ -887,7 +891,7 @@ bootstrap and the release app's key, and "Merges and installs" names
 servers, and Antigravity with Google's, out of scope as Anthropic's are. The
 harness controls name both harnesses' controls and when each doesn't hold.
 Widening a class and changing the scope are the owner's calls. The threat model must stay within its word budget:
-4,050 words of prose, item 47's 3,750 raised by T4 and by T5 on the owner's
+4,050 words of prose (S2 item 47), raised on the owner's
 word-cap rule. T4 and T5 raised `docs/install.md`'s budget to 10,050 on the
 same rule.
 
@@ -1124,7 +1128,7 @@ reads this spec and each ticket's diff.
 | Widening "Review rests on rules" for Codex lenses, and the network-off option (S15) | the owner's call; on a no, S12's fallback | before T4 starts |
 | Widening "A session takes checkpoints alone" for Antigravity skills (S15) | the owner's call; on a no, S15's fallback | before T5 starts |
 | The scope change: Codex with OpenAI, Antigravity with Google (S15) | the owner's call | before T8 merges |
-| The threat-model cap at 3,950 (S2 item 47) | the lead's flagged pick, for review | any time |
+| The threat-model cap at 4,050 (S2 item 47) | the lead's flagged pick, for review | any time |
 | Mermaid blocks left out of the threat-model count (S2 item 48) | the lead's flagged pick, for review | any time |
 | The poster's narrower coverage in Codex, which the install's shell policy makes (S13) | the owner's call | at T4's probe |
 | Typed input in Codex: leave it open, or set `features.unified_exec_tty=false` (S15) | the owner's call, security | any time |

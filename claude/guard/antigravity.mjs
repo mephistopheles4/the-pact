@@ -35,26 +35,25 @@ for (const event of ['uncaughtException', 'unhandledRejection']) {
 const TYPES_NOTHING = ['list', 'status', 'kill'];
 
 /**
- * What the guard judges in a call: { command } to run or to type, { path } to
+ * What the guard judges in a call: { command } to run or to type, { paths } to
  * read, {} for a call that does neither, or null for one it doesn't know.
  */
 function judged(name, args) {
   if (name === 'run_command') return { command: args.CommandLine };
-  // A task's input is typed into the program it left running. An action the guard doesn't know is not known.
+  // A task's input is typed into the program it left running. An action the guard doesn't know is denied.
   if (name === 'manage_task') {
     if (args.Action === 'send_input') return { command: args.Input };
     return TYPES_NOTHING.includes(args.Action) ? {} : null;
   }
   if (name === 'send_command_input') return { command: args.Input };
-  // The documented view_file names its file AbsolutePath and the CLI's read_file Path; an empty one gives way.
-  if (name === 'view_file') return { path: args.AbsolutePath || args.Path };
-  if (name === 'read_file') return { path: args.Path || args.AbsolutePath };
+  // The documented view_file names its file AbsolutePath and the CLI's read_file Path. Either tool may carry both, so each one filled is judged.
+  if (name === 'view_file' || name === 'read_file') return { paths: [args.AbsolutePath, args.Path].filter(p => p !== undefined && p !== '') };
   return null;
 }
 
 const SAYS = {
   command: { deny: 'blocks this command', ask: 'asks the owner before this command' },
-  path: { deny: 'blocks this read', ask: 'asks the owner before this file is read' },
+  paths: { deny: 'blocks this read', ask: 'asks the owner before this file is read' },
 };
 
 let code = 'input';
@@ -73,15 +72,17 @@ try {
     const call = input?.toolCall;
     const what = call?.args ? judged(call.name, call.args) : null;
     const kind = what && Object.keys(what)[0];
-    if (what === null || (kind && typeof what[kind] !== 'string')) failed('call');
+    // Only the paths come as a list; a command that arrives as one is not text.
+    const texts = kind === 'paths' ? what.paths : kind ? [what[kind]] : [];
+    if (what === null || (kind && (!texts.length || texts.some(t => typeof t !== 'string')))) failed('call');
     else if (kind) {
       code = 'guard';
       const guard = await import('./guard.mjs');
       code = 'internal';
-      const met = kind === 'path' ? guard.answerRead(what.path) : guard.answer(what.command);
-      if (met?.decision === 'deny') say('deny', `The pact's guard ${SAYS[kind].deny} (rule ${met.id}).`);
-      else if (met?.decision === 'ask') say('force_ask', `The pact's guard ${SAYS[kind].ask} (rule ${met.id}).`);
-      else if (met !== null) failed('internal');
+      const answers = texts.map(t => (kind === 'paths' ? guard.answerRead(t) : guard.answer(t)));
+      const met = answers.find(a => a?.decision === 'deny') ?? answers.find(a => a?.decision === 'ask');
+      if (met) say(met.decision === 'deny' ? 'deny' : 'force_ask', `The pact's guard ${SAYS[kind][met.decision]} (rule ${met.id}).`);
+      else if (answers.some(a => a !== null)) failed('internal');
     }
   }
 } catch (e) {

@@ -174,11 +174,13 @@ test('S7: a skill file is met by its path in either spelling, and nothing else i
     '/home/u/.pact/skills/./finis//SKILL.md',
     '/home/u/.pact/skills/x/../finis/SKILL.md',
     'skills/scry/SKILL.md',
-    // Windows opens each of these as the same file.
+    // Each is cut to the same file: more than Windows itself would open.
     'C:\\h\\.pact\\skills\\finis\\SKILL.md::$DATA',
     'C:\\h\\.pact\\skills::$INDEX_ALLOCATION\\finis\\SKILL.md',
     '/home/u/.pact/skills/finis./SKILL.md',
     '/home/u/.pact/skills /finis /SKILL.md. ',
+    'C:\\h\\.pact\\skills\\finis\\SKILL.md\\. ',
+    'C:\\h\\.pact\\skills\\finis\\SKILL.md\\x\\.. ',
   ]) assert.deepEqual(guard.judgeRead(p, ASKING), asked, p);
   for (const p of ['/home/u/.pact/skills/scriptorium/SKILL.md', '/home/u/.pact/skills/finis/notes.md', '/home/u/my-skills/finis/SKILL.md', '/home/u/.pact/skills/finis-more/SKILL.md', '/home/u/finis/SKILL.md', '']) assert.equal(guard.judgeRead(p, ASKING), null, p);
   assert.equal(guard.judgeRead('/home/u/.pact/skills/finis/SKILL.md', ALL), null, 'the switch off');
@@ -363,7 +365,7 @@ test('S7: antigravity asks before either read tool opens an owner-typed skill, a
   denied(run(tool('view_file', { AbsolutePath: skill, StartLine: 1 })), 'antigravity', says, 'force_ask');
   denied(run(tool('read_file', { Path: skill })), 'antigravity', says, 'force_ask');
   // Whichever of the two names carries it, an empty one beside it included.
-  for (const call of [tool('view_file', { AbsolutePath: '', Path: skill }), tool('read_file', { Path: skill, AbsolutePath: join(at.home, 'notes.md') }), tool('view_file', { AbsolutePath: skill, Path: join(at.home, 'notes.md') })]) {
+  for (const call of [tool('view_file', { AbsolutePath: '', Path: skill }), tool('read_file', { Path: skill, AbsolutePath: join(at.home, 'notes.md') }), tool('view_file', { AbsolutePath: skill, Path: join(at.home, 'notes.md') }), tool('view_file', { AbsolutePath: join(at.home, 'notes.md'), Path: skill })]) {
     denied(run(call), 'antigravity', says, 'force_ask');
   }
   for (const call of [tool('view_file', { AbsolutePath: join(at.home, 'notes.md') }), tool('read_file', { Path: join(at.home, '.pact', 'skills', 'scriptorium', 'SKILL.md') })]) assert.deepEqual(run(call), SILENT, JSON.stringify(call));
@@ -373,7 +375,7 @@ test('S7: antigravity asks before either read tool opens an owner-typed skill, a
 
 test('bad case: antigravity denies a typed line or a read it cannot judge', t => {
   const at = installed(t, ASKING);
-  for (const call of [tool('manage_task', {}), tool('manage_task', { Action: 1 }), tool('manage_task', { Action: 'Send_Input', Input: 'ls' }), tool('manage_task', { Action: 'write', TaskId: 't' }), tool('manage_task', { Action: 'send_input' }), tool('manage_task', { Action: 'send_input', Input: ['x'] }), tool('view_file', {}), tool('read_file', { Path: 7 }), tool('send_command_input', { CommandId: 'c' }), tool('write_to_file', { TargetFile: 'x' })]) {
+  for (const call of [tool('manage_task', {}), tool('manage_task', { Action: 1 }), tool('manage_task', { Action: 'Send_Input', Input: 'ls' }), tool('manage_task', { Action: 'write', TaskId: 't' }), tool('manage_task', { Action: 'send_input' }), tool('manage_task', { Action: 'send_input', Input: ['x'] }), tool('view_file', {}), tool('read_file', { Path: 7 }), tool('view_file', { AbsolutePath: '/x', Path: 7 }), tool('send_command_input', { CommandId: 'c' }), tool('write_to_file', { TargetFile: 'x' })]) {
     denied(runHook(at, 'antigravity', call), 'antigravity', failure('call'));
   }
   denied(runHook(at, 'antigravity', typed('x'.repeat(guard.COMMAND_MAX + 1))), 'antigravity', failure('size'));

@@ -24,6 +24,8 @@ const h = (id, over = {}) => ({
 const CLAUDE = h('claude', { name: 'Claude Code', commands: { dir: '.claude/commands' }, models: { planning: 'opus', executor: 'sonnet', light: 'haiku' }, capabilities: ['subagents', 'cleaner', 'archive'] });
 const CODEX = h('codex', { agents: { dir: '.codex/agents', format: 'codex-toml' }, skills: { dir: '.agents/skills' }, models: { planning: 'sol', executor: 'astra', light: null }, capabilities: ['subagents', 'explicit-skills'] });
 const ANTI = h('antigravity', { agents: { dir: '.gemini/config/agents', format: 'antigravity-md' }, skills: { dir: '.gemini/config/skills' }, models: { planning: 'pro', executor: 'flash', light: 'flash' } });
+// A harness with a skills folder and no capability for an explicit-only skill.
+const NO_EXPLICIT = h('plain', { skills: { dir: '.plain/skills' } });
 
 const RULES = [
   '# Rules',
@@ -169,7 +171,7 @@ test("C9: a skill keeps its command's own disable-model-invocation where a harne
   const skill = r => file(r, 'rendered/skills/scry/SKILL.md');
   assert.match(skill(render([CODEX])), /^---\nname: scry\ndescription: The scry answer\.\ndisable-model-invocation: true\n---\n/);
   assert.doesNotMatch(skill(render([CODEX], { commands: open })), /disable-model-invocation/);
-  assert.doesNotMatch(skill(render([ANTI])), /disable-model-invocation/);
+  assert.doesNotMatch(skill(render([NO_EXPLICIT])), /disable-model-invocation/);
 });
 
 test('C9: commands stay commands where there is a commands folder, with the blocks resolved', () => {
@@ -182,7 +184,7 @@ test('C9: every command becomes a skill where there is a skills folder, kept fro
   const r = render([CODEX, ANTI]);
   assert.equal(file(r, 'rendered/skills/finis/SKILL.md'), '---\nname: finis\ndescription: The finis answer.\ndisable-model-invocation: true\n---\n\n# /finis\n\nCheck.\nNothing is outstanding; close this session.\n');
   for (const name of COMMANDS.keys()) assert.equal(file(r, `rendered/skills/${name}/agents/openai.yaml`), 'policy:\n  allow_implicit_invocation: false\n');
-  assert.deepEqual([...render([ANTI]).files.keys()].filter(k => k.endsWith('openai.yaml')), []);
+  assert.deepEqual([...render([NO_EXPLICIT]).files.keys()].filter(k => k.endsWith('openai.yaml')), []);
   assert.deepEqual([...r.files.keys()].filter(k => k.includes('/commands/')), []);
 });
 

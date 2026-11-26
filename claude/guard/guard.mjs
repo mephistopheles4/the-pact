@@ -268,24 +268,26 @@ export function judge(command, rules) {
   return firstMet(rules, rule => !rule.skills && segments.some(s => (rule.words ? wordsMatch(s.tokens, s.at, rule.words) : containsMatch(s.text, rule.contains))));
 }
 
-/** A name without the dots and spaces Windows drops from its end; a loop, so a long name costs no backtracking. */
-function trimmed(name) {
+/** A name without the characters of `drop` at its end; a loop, so a long name costs no backtracking. */
+function trimmed(name, drop) {
   let end = name.length;
-  while (end > 0 && (name[end - 1] === '.' || name[end - 1] === ' ')) end -= 1;
+  while (end > 0 && drop.includes(name[end - 1])) end -= 1;
   return name.slice(0, end);
 }
 
 /**
- * A path's parts in lower case, with either separator, `.` and `..` resolved,
- * and each name cut as Windows reads it: no stream after a colon, no dot or
- * space at its end.
+ * A path's parts in lower case, with either separator. Each name loses a stream
+ * after a colon and the spaces at its end, then `.` and `..` are resolved,
+ * then dots and spaces at its end go, and an empty name is left out. Windows
+ * cuts less, so this meets more paths than open the file.
  */
 function pathParts(path) {
   const parts = [];
   for (const named of path.toLowerCase().split(/[\\/]+/)) {
-    const part = named.split(':', 1)[0];
-    if (part === '..') parts.pop();
-    else if (part !== '' && part !== '.') parts.push(trimmed(part));
+    const spaced = trimmed(named.split(':', 1)[0], ' ');
+    const part = trimmed(spaced, '. ');
+    if (spaced === '..') parts.pop();
+    else if (part !== '') parts.push(part);
   }
   return parts;
 }
@@ -297,8 +299,8 @@ export function judgeRead(path, rules) {
   return firstMet(rules, rule => rule.skills?.includes(skill));
 }
 
-/** `judged` against the table beside this file, once the call's text is one the guard reads. */
-function against(text, judged, tableFile) {
+/** `judgeBy` on the text and the table beside this file, once the text is one the guard reads. */
+function against(text, judgeBy, tableFile) {
   if (typeof text !== 'string') fail('call');
   if (text.length > COMMAND_MAX) fail('size');
   let table;
@@ -307,7 +309,7 @@ function against(text, judged, tableFile) {
   } catch {
     fail('table');
   }
-  return judged(text, parseTable(table));
+  return judgeBy(text, parseTable(table));
 }
 
 const TABLE = new URL('./rules.json', import.meta.url);
