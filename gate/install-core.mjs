@@ -266,9 +266,11 @@ export const outputLines = lines => lines.join('\n').split('\n').filter(l => l !
 // ------------------------------------------------------------ the command line
 
 const FLAGS = new Set(['--apply']);
-const VALUED = new Set(['--commit', '--rendered-hash', '--home', '--review-folder', '--project-folder']);
+const VALUED = new Set(['--commit', '--rendered-hash', '--home', '--review-folder', '--project-folder', '--release']);
 const PATH_OPTIONS = ['--home', '--review-folder', '--project-folder'];
 const SAFE_PATH = /^[A-Za-z0-9 ._\-:\\/]+$/;
+// A release tag, named exactly v1.<n>.0 (spec 0007 S10).
+const RELEASE_RE = /^v1\.(0|[1-9]\d{0,8})\.0$/;
 
 /**
  * The command line, strictly (S4): known options only, spelled exactly, each
@@ -305,6 +307,8 @@ export function parseArgs(argv, platform) {
     }
     if (!SAFE_PATH.test(v) || (win && v.indexOf(':', 2) >= 0)) refuse('path-chars', `${opt} holds a character the install does not take in a path: only letters, digits, spaces and . _ - : \\ / are taken. Use a folder whose full path holds only those.`);
   }
+  // The bootstrap names the release it cloned, so the record holds it (spec 0007 S9, S10).
+  if (given.has('--release') && !RELEASE_RE.test(given.get('--release'))) refuse('args-release', '--release takes a release tag, such as v1.1.0.');
   if (given.has('--review-folder') && given.has('--project-folder')) refuse('args-review-project', '--review-folder is for a home install; a project install writes no review output.');
   if (given.has('--apply') && !given.has('--commit')) refuse('args-apply-commit', '--apply needs --commit with the full commit id the dry run printed.');
   return {
@@ -314,14 +318,25 @@ export function parseArgs(argv, platform) {
     home: given.get('--home') ?? null,
     reviewFolder: given.get('--review-folder') ?? null,
     projectFolder: given.get('--project-folder') ?? null,
+    release: given.get('--release') ?? null,
     paths: PATH_OPTIONS.filter(o => given.has(o)).map(o => [o, given.get(o)]),
   };
 }
 
-/** The apply command a dry run prints, runnable as typed (S12): the dry run's paths, single-quoted, then --apply --commit, and the hash when a configuration applies. */
-export function applyLine(paths, commit, renderedHash, platform) {
-  const head = platform === 'win32' ? '$env:NODE_OPTIONS = $null; node gate/install.mjs' : 'env -u NODE_OPTIONS node gate/install.mjs';
-  const opts = paths.map(([o, v]) => ` ${o} '${v}'`).join('');
+/**
+ * The apply command a dry run prints, runnable as typed (S12): the dry run's
+ * paths, single-quoted, then --apply --commit, and the hash when a
+ * configuration applies. For a release (`from`), the script is the clone's own
+ * by its full path, so the line runs from any folder, and the release goes with
+ * it (spec 0007 S10).
+ */
+export function applyLine(paths, commit, renderedHash, platform, from = null) {
+  const win = platform === 'win32';
+  // The script's path holds the home folder, which may hold a quote.
+  const quoted = s => `'${s.replaceAll("'", win ? "''" : "'\\''")}'`;
+  const script = from ? quoted(from.script) : 'gate/install.mjs';
+  const head = `${win ? '$env:NODE_OPTIONS = $null;' : 'env -u NODE_OPTIONS'} node ${script}`;
+  const opts = `${paths.map(([o, v]) => ` ${o} '${v}'`).join('')}${from ? ` --release ${from.release}` : ''}`;
   return `${head}${opts} --apply --commit ${commit}${renderedHash ? ` --rendered-hash ${renderedHash}` : ''}`;
 }
 
@@ -375,16 +390,24 @@ export function parseReachable(bytes, commit) {
 }
 
 /**
- * The warning that this checkout is behind the last install's commit, or on
- * another line, or null: none with no record, at that commit, or when it is in
- * this commit's history, compared lower-cased. Only a commit id is printed;
- * anything else in the record shows as fixed words (S5).
+ * The warning that this install is behind the last one, or null (spec 0007
+ * S9). A checkout (`release` null) is checked against the last install's
+ * commit: none with no record, at that commit, or when it is in this commit's
+ * history, compared lower-cased. A release is compared by number with the
+ * recorded one, since its clone holds no history; after a checkout install at
+ * another commit it can only say so. Only a commit id or a release tag is
+ * printed; anything else in the record shows as fixed words (S5).
  */
-export function behindLine(recordCommit, commit, reachable) {
+export function behindLine(recordCommit, commit, reachable, release = null, recordRelease = null) {
   if (recordCommit === null) return null;
   const last = recordCommit.toLowerCase();
+  if (release !== null && recordRelease !== null) {
+    const n = tag => Number(RELEASE_RE.exec(tag)[1]);
+    return n(release) < n(recordRelease) ? `WARN: the release ${release} is lower than the last install's ${recordRelease}: this install is behind the last install, and installing rolls the pact back.` : null;
+  }
   if (last === commit || reachable.has(last)) return null;
   const named = /^[0-9a-f]{40}$/.test(last) ? ` ${last}` : ', a commit id the install does not read,';
+  if (release !== null) return `WARN: the last install came from a checkout at commit${named} and a release clone holds no history, so the install can't tell whether ${release} is older. Check that the release holds that commit before you apply.`;
   return `WARN: the last install's commit${named} is not in this checkout's history: this checkout is behind it or on another line. Installing may roll the pact back; fast-forward the checkout first, unless you mean to.`;
 }
 
@@ -433,6 +456,7 @@ export function parseRecord(text) {
     else if (kind === 'block' && typeof ci(c, 'path') === 'string') config.set(`block ${ci(c, 'path')}`, sha);
   }
   const digest = ci(doc, 'digest');
+  const release = ci(doc, 'release');
   // The harnesses the last install took, each with the paths it wrote into.
   const harnesses = ci(doc, 'harnesses') ?? [];
   const badHarness = () => refuse('record-not-pact', 'the install record\'s harnesses are not ids with their target paths; fix or remove it.');
@@ -466,6 +490,7 @@ export function parseRecord(text) {
     autoCompactWindow: typeof recordedWindow === 'number' && compactWindowOk(recordedWindow) && recordedWindow > 0 ? recordedWindow : null,
     commit: psString(commit),
     digest: typeof digest === 'string' && /^[0-9a-f]{12}$/.test(digest) ? digest : null,
+    release: typeof release === 'string' && RELEASE_RE.test(release) ? release : null,
     files: files.map(e => ({ harness: typeof ci(e, 'harness') === 'string' ? ci(e, 'harness') : null, path: typeof ci(e, 'path') === 'string' ? ci(e, 'path') : null, sha256: psString(ci(e, 'sha256')) })),
     config,
     gate: truthy(ci(doc, 'gate')) ? asList(ci(doc, 'gate')).map(g => [psString(ci(g, 'path')), psString(ci(g, 'sha256'))]) : [],
@@ -477,9 +502,11 @@ export function parseRecord(text) {
  * harnesses with their paths, config, every file with its harness and hash,
  * every settings entry, and the gate. `files` is path to { harness, sha256 }.
  */
-export function recordText({ commit, digest, harnesses, userHash, blockHashes, files, links = [], entries, shellPolicy = false, gateNow }) {
+export function recordText({ commit, release = null, digest, harnesses, userHash, blockHashes, files, links = [], entries, shellPolicy = false, gateNow }) {
   const doc = {
     commit,
+    // The source of the last apply: a release tag, or none for a checkout commit.
+    ...(release ? { release } : {}),
     digest: digest ?? null,
     harnesses,
     config: [...(userHash ? [{ kind: 'user', sha256: userHash }] : []), ...[...blockHashes].map(([path, sha256]) => ({ kind: 'block', path, sha256 }))],

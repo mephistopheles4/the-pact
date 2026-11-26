@@ -33,7 +33,7 @@ Antigravity's command line, agy 1.2.14, on Windows 11, headless (`agy -p`), on G
 - **The ask on a skill's file** is not met through an 8.3 name, a relative path, a link to its folder or another read tool.
 - **Codex** reads the same rendered skills, which now carry `disable-model-invocation` where the command does; its probe ran before that.
 - **The owner's call** on widening "A session takes checkpoints alone" (spec 0007, S15) is still open. On a no, Antigravity leaves the default install list.
-- **Word budgets.** With T4's text, the threat model's cap rose to 4,050 (PACT-109 cleans that file up) and `docs/install.md`'s budget to 10,050 (PACT-110).
+- **Word budgets.** With T4's and T6's text, the threat model's cap rose to 4,100 (PACT-109 cleans that file up) `docs/install.md`'s budget to 10,350 and `docs/reference.md`'s to 2,450 (PACT-110).
 
 ## Record
 

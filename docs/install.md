@@ -34,6 +34,7 @@ Claude Code session on your machine.
 - [6. Check in a fresh session](#6-check-in-a-fresh-session)
 - [Install by prompt](#install-by-prompt)
 - [Updating later](#updating-later)
+- [Install from a release](#install-from-a-release)
 - [The session stop switch](#the-session-stop-switch)
 - [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
 - [The guard in Codex and Antigravity](#the-guard-in-codex-and-antigravity)
@@ -680,6 +681,25 @@ the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
 session line set. For a builder of your own, type `/scriptorium` in any
 session.
+
+## Install from a release
+
+Releases need the owner's switch, and the command is safe only once rulesets
+cover every tag. Run it from your home folder, or an empty folder outside every project: npm first reads the settings of a project around it. It replaces the clone and dry run:
+
+```
+npx github:mephistopheles4/the-pact#semver:^1
+```
+
+It takes the highest tag named `v1.<n>.0`, clones it into
+`~/.pact/source/<commit>` (it keeps its last three), checks the clone's head,
+and runs that clone's dry run. Choose the default configuration when it asks,
+or pass `--default`; an existing `~/.pact/config.json` is kept and used.
+Opening Scriptorium first (`--builder`) isn't built yet. It never applies:
+read the dry run, then type the apply line it prints, which runs from any
+folder. A release lower than the last one installed is called behind it. npm
+picks which copy of the command runs from the repo's tags, so each tag is code
+you run.
 
 ## The session stop switch
 

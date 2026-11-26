@@ -143,6 +143,8 @@ async function main() {
   const opts = core.parseArgs(run.words, process.platform);
   const home = resolve(opts.home ?? homedir());
   const project = opts.projectFolder !== null;
+  // A release runs from the bootstrap's clone, which the apply line names by its full path (spec 0007 S10).
+  const releaseFrom = () => (opts.release === null ? null : { release: opts.release, script: join(home, core.NEUTRAL_REL, 'source', commit, 'gate', 'install.mjs') });
   // A home the caller names must be outside any repository (spec 0007 S4, C30).
   if (opts.home !== null && io.insideWorkTree(home)) core.stops.homeWorkTree();
 
@@ -288,7 +290,7 @@ async function main() {
   if (securityLine) say(securityLine);
   const enoughNote = project ? null : core.enoughNoteLine(parsed, rendered.toString('utf8'));
   if (enoughNote) say(enoughNote);
-  const behind = project ? null : core.behindLine(record ? record.commit : null, commit, reachable);
+  const behind = project ? null : core.behindLine(record ? record.commit : null, commit, reachable, opts.release, record ? record.release : null);
   if (behind) say(behind);
 
   // A project install ends here, never reaching the home copy, delete,
@@ -318,7 +320,7 @@ async function main() {
     core.checkBinding(opts, pr.projectHash, commit);
     if (!opts.apply) {
       say("Dry run only. After the owner's go-ahead, run:");
-      say(`  ${core.applyLine(opts.paths, commit, pr.projectHash, process.platform)}`);
+      say(`  ${core.applyLine(opts.paths, commit, pr.projectHash, process.platform, releaseFrom())}`);
       say('RESULT: pass');
       return;
     }
@@ -513,7 +515,7 @@ async function main() {
   const lastConfig = record ? record.config : new Map();
   const targetsText = list => JSON.stringify(list);
   const policyChanged = policyRecorded !== policyAfter && policy.status !== 'drift';
-  const stale = (record && record.commit.toLowerCase() !== commit) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig) || targetsText(taken.map(core.targetsOf)) !== targetsText(recorded);
+  const stale = (record && (record.commit.toLowerCase() !== commit || record.release !== opts.release)) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig) || targetsText(taken.map(core.targetsOf)) !== targetsText(recorded);
   // An agent the record lists that is now yours needs the record rewritten without it.
   const yoursListed = record ? p.yours.some(rel => record.files.some(e => e.path === rel)) : false;
   const linksWill = links.add.length || links.remove.length || (record && record.links.length !== links.keep.length);
@@ -599,7 +601,7 @@ async function main() {
   if (!opts.apply) {
     await writeReview();
     say("Dry run only. After the owner's go-ahead, run:");
-    say(`  ${core.applyLine(opts.paths, commit, configApplies ? boundHash : null, process.platform)}`);
+    say(`  ${core.applyLine(opts.paths, commit, configApplies ? boundHash : null, process.platform, releaseFrom())}`);
     say('RESULT: pass');
     return;
   }
@@ -652,7 +654,7 @@ async function main() {
     const kept = recorded.filter(old => !now.some(t => targetsText(t) === targetsText(old)) && ([...files].some(([rel, f]) => f.harness === old.id && core.inTargets(rel, old.id, [old]) && !core.inTargets(rel, old.id, now)) || [...linksNow.values()].some(l => l.harness === old.id && !now.some(t => t.id === old.id))));
     const sorted = new Map([...files].sort(([a], [b]) => (a < b ? -1 : 1)));
     // The window stays recorded when the settings file is left untouched.
-    io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, links: [...linksNow.values()].sort((a, b) => (a.path < b.path ? -1 : 1)), entries: [...entriesNow, ...[...hookEntries.values()].flat()], shellPolicy: policyNow, gateNow }), 0o600);
+    io.writeReplacing(recordFile, core.recordText({ commit, release: opts.release, digest: parsed.digest, harnesses: [...now, ...kept], userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), files: sorted, links: [...linksNow.values()].sort((a, b) => (a.path < b.path ? -1 : 1)), entries: [...entriesNow, ...[...hookEntries.values()].flat()], shellPolicy: policyNow, gateNow }), 0o600);
   };
   const writeHooks = f => {
     io.writeReplacing(f.file, core.settingsText(f.merged), 0o600);
