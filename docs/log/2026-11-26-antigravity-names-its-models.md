@@ -6,7 +6,8 @@
 
 - **Models.** The rules line names Gemini 4 Neon for planning and Gemini 4 Hydrogen for building, each a slug holding `<effort>`, and says to take the effort from the tier table.
 - **Agents.** A harness description may name a model per agent (`agentModels`). Antigravity's puts every lens and `scout` on `flash` and the security pair on `pro`. Claude Code and Codex render as before.
-- A person's own `models` for a harness drops the known per-agent entry, so their models still reach its agents.
+- A person's own `models` for Antigravity set its rules line alone; only their own `agentModels` changes its agents' models.
+- **Scriptorium.** A save keeps the folder's agent settings the page didn't change, the add form takes `defaultInstall`, and Antigravity's row says its agents carry no effort.
 
 ## Left open
 

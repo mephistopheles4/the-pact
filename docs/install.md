@@ -90,9 +90,10 @@ A **harness** is a program the rules install into. The pact knows three, in
 - **Taking one out.** Leave it out of the list: the next apply removes every
   file and settings entry the record holds for it, after backing them up. An
   empty list removes everything the pact installed.
-- **Models.** An entry under `harnesses.own` with a known id and its own
-  `models` reaches that harness's agents too; `agentModels` names a model per
-  agent, `*` for the rest.
+- **Models.** An entry under `harnesses.own` with a known id may set `models`,
+  the three its rules name, and `agentModels`, a model per agent, `*` for the
+  rest, laid over the known ones. Antigravity's agents take their model from
+  these alone.
 - **Your own harness** goes under `harnesses.own`, as a description with the
   fields of the known ones (spec 0007, S5). A description the pact can't take
   refuses (`harness-id`, `harness-format`, `harness-path`,

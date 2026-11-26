@@ -60,12 +60,15 @@ test('an own harness is described from the pact\'s formats, its paths turned hom
   assert.equal(mine.hooks, null);
 });
 
-test('an own entry’s models reach its agents too, unless it names a model per agent; a bad per-agent entry refuses', () => {
+test('an own entry’s models leave the model per agent as it is, and its agentModels goes over it name by name; a bad entry refuses', () => {
   const models = { planning: 'p', executor: 'e' };
   const anti = entry => byId(resolve([{ id: 'antigravity', ...entry }]), 'antigravity');
-  assert.equal(anti({ models }).agentModels, null);
-  assert.deepEqual(anti({ models, agentModels: { scout: 's' } }).agentModels, { scout: 's' });
-  assert.deepEqual(anti({ agentModels: { '*': 'a' } }).agentModels, { '*': 'a' });
+  // Antigravity's agent files take a tier, never a session's model.
+  assert.deepEqual(anti({ models }).agentModels, { '*': 'flash', 'adversarial-lens': 'pro', 'data-lens': 'pro' });
+  // Every agent it doesn't name keeps the known tier.
+  assert.deepEqual(anti({ agentModels: { scout: 's' } }).agentModels, { '*': 'flash', 'adversarial-lens': 'pro', 'data-lens': 'pro', scout: 's' });
+  // `*` is a name too: the security pair keeps its own tier until their entry names it.
+  assert.deepEqual(anti({ agentModels: { '*': 'a' } }).agentModels, { '*': 'a', 'adversarial-lens': 'pro', 'data-lens': 'pro' });
   for (const bad of [{ scout: 'two words' }, { 'no such name!': 'a' }, ['a']]) assert.throws(() => anti({ agentModels: bad }), e => e.rule === 'harness-shape');
 });
 

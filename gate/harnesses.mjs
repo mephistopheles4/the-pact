@@ -185,9 +185,9 @@ export function resolveHarnesses({ known, own = [], home, platform, inWorkTree }
     if (!entry) return described;
     mine.delete(base.id);
     const given = checkFields(entry, base.id, { home, platform, inWorkTree });
-    // A person’s own models reach the agents too, unless their entry names a model per agent.
-    if (given.models && !given.agentModels) described.agentModels = null;
-    return { ...described, ...given, id: base.id, overrides: Object.keys(given) };
+    // An agent their entry doesn’t name keeps its known model: an Antigravity agent file takes a tier, never a session’s model.
+    const agentModels = given.agentModels ? { ...described.agentModels, ...given.agentModels } : described.agentModels;
+    return { ...described, ...given, agentModels, id: base.id, overrides: Object.keys(given) };
   });
   for (const [id, entry] of mine) {
     const given = checkFields(entry, id, { home, platform, inWorkTree });

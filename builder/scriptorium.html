@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-JanvXbvJDHWWHva7TPKIUFL3PvmflqAOdN0He4OjMhw='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-hOWOGJECRxwl54+ODvTWqGVCwiMjqrgYneTnQp7VYUQ='; style-src 'sha256-wDnCwQw8J4TuwLPeKjQMldd89D4mQX5BTqVs2ygtNFA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -6419,9 +6419,9 @@ function resolveHarnesses({ known, own = [], home, platform, inWorkTree }) {
     if (!entry) return described;
     mine.delete(base.id);
     const given = checkFields(entry, base.id, { home, platform, inWorkTree });
-    // A person’s own models reach the agents too, unless their entry names a model per agent.
-    if (given.models && !given.agentModels) described.agentModels = null;
-    return { ...described, ...given, id: base.id, overrides: Object.keys(given) };
+    // An agent their entry doesn’t name keeps its known model: an Antigravity agent file takes a tier, never a session’s model.
+    const agentModels = given.agentModels ? { ...described.agentModels, ...given.agentModels } : described.agentModels;
+    return { ...described, ...given, agentModels, id: base.id, overrides: Object.keys(given) };
   });
   for (const [id, entry] of mine) {
     const given = checkFields(entry, id, { home, platform, inWorkTree });
@@ -6945,12 +6945,18 @@ function keepFolderKeys(files, existing, changes) {
   const changed = Boolean(changes) && harnessesChanged(changes);
   const kept = lists.filter(k => Object.hasOwn(doc, k) && !Object.hasOwn(built, k));
   if (!changed && Object.hasOwn(doc, 'harnesses')) kept.push('harnesses');
-  if (!kept.length && !changed) return { files };
+  // Agent settings: the page starts from the pact's own and writes only what differs, so a field it writes nothing for is
+  // unchanged and the folder's stays. An agent saved with its own file takes none.
+  const object = v => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+  const filed = new Set(files.filter(f => f.agent).map(f => f.path));
+  const settings = object(doc.agents) ? Object.entries(doc.agents).filter(([name, set]) => object(set) && !filed.has(`agents/${name}.md`)) : [];
+  if (!kept.length && !changed && !settings.length) return { files };
   // The installer refuses a key given twice, case folded; JSON.parse would keep the last one.
   const keys = topKeys(existing).map(k => k.toLowerCase());
   if (new Set(keys).size !== keys.length) return { refuse: 'The folder already holds a config.json that gives a key twice, which the installer refuses, so nothing was written. Fix that file, then save again.' };
   const config = JSON.parse(files[0].text);
   for (const k of kept) config[k] = doc[k];
+  if (settings.length) config.agents = { ...config.agents, ...Object.fromEntries(settings.map(([name, set]) => [name, { ...set, ...(config.agents || {})[name] }])) };
   if (changed) {
     const harnesses = harnessesWith(doc.harnesses, changes);
     if (harnesses) config.harnesses = harnesses;
@@ -9753,8 +9759,19 @@ function boot() {
           redrawHarnesses(i ? `Install into ${rows[i - 1].name}` : undefined);
         } }, '×') : null),
       el('div', { class: 'harness-fields' }, ...ROLES.map(role => modelField(row, role))),
+      ...agentNotes(row).map(text => el('p', { class: 'av-annot', text })),
       ...bad.map(p => el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: p.text })),
     );
+  }
+
+  /** What a harness's agent files don't take from the page's agent settings or the three models. */
+  function agentNotes(row) {
+    const h = describedHarnesses(state).find(x => x.id === row.id);
+    const each = Object.entries((h && h.agentModels) || {}).map(([name, model]) => `${name === '*' ? 'every other agent' : name} ${model}`);
+    return [
+      each.length ? `Its agent files name their model per agent: ${each.join(', ')}. That wins over a role an agent’s settings pick; the three models here set its rules’ models line.` : null,
+      h && h.agents && h.agents.format === 'antigravity-md' ? 'Antigravity has no effort setting for an agent, so each agent’s effort is dropped there.' : null,
+    ].filter(Boolean);
   }
 
   /** The add form's fields as the entry config.json holds: empty ones left out. */
@@ -9771,7 +9788,7 @@ function boot() {
       models: v('planning') || v('executor') || v('light') ? { planning: v('planning'), executor: v('executor'), ...(v('light') ? { light: v('light') } : {}) } : null,
     };
     const caps = harnessLib.CAPABILITIES.filter(c => harnessDraft[`cap:${c}`]);
-    return { id: v('id'), name: v('name'), detect: v('detect'), ...Object.fromEntries(Object.entries(parts).filter(([, x]) => x)), ...(caps.length ? { capabilities: caps } : {}) };
+    return { id: v('id'), name: v('name'), detect: v('detect'), ...Object.fromEntries(Object.entries(parts).filter(([, x]) => x)), ...(harnessDraft.listless === false ? { defaultInstall: false } : {}), ...(caps.length ? { capabilities: caps } : {}) };
   }
 
   function harnessForm() {
@@ -9795,6 +9812,9 @@ function boot() {
       return el('label', { class: 'av-check' }, box, el('code', { text: c }));
     };
     const group = (title, ...fields) => [el('span', { class: 'av-label', text: title }), el('div', { class: 'harness-fields' }, ...fields)];
+    const listless = el('input', { type: 'checkbox', 'aria-label': 'New harness: installed without a list' });
+    listless.checked = harnessDraft.listless !== false;
+    listless.addEventListener('change', () => (harnessDraft.listless = listless.checked));
     const d = el('details', { class: 'av-disclosure av-disclosure--quiet' },
       el('summary', { text: 'Add a harness' }),
       el('div', { class: 'av-disclosure-body' },
@@ -9804,6 +9824,8 @@ function boot() {
         ...group('Agents, skills and commands', field('agents', 'Agents folder', 'none'), format('agentsFormat', 'Agent format', harnessLib.AGENT_FORMATS), field('skills', 'Skills folder', 'none'), field('commands', 'Commands folder', 'none')),
         ...group('Hooks', field('hooks', 'Hooks file', 'none'), format('hooksFormat', 'Hooks format', harnessLib.HOOK_FORMATS)),
         ...group('Models', field('planning', 'Planning model', 'none'), field('executor', 'Executor model', 'none'), field('light', 'Light model', "the executor's")),
+        el('span', { class: 'av-label', text: 'With no install list' }),
+        el('label', { class: 'av-check' }, listless, el('span', { text: 'defaultInstall (a harness of your own still installs only when the list names it)' })),
         el('span', { class: 'av-label', text: 'What it can do' }),
         el('div', { class: 'chips harness-caps' }, ...harnessLib.CAPABILITIES.map(capability)),
         harnessWhy ? el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: `Not added: ${harnessWhy}` }) : null,

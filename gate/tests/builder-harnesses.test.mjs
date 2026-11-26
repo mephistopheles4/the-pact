@@ -115,6 +115,16 @@ test('C24: a save keeps the folder\'s harnesses when the page changed none', () 
   assert.deepEqual(JSON.parse(kept.files[0].text).harnesses, JSON.parse(EXISTING).harnesses);
 });
 
+test('C24: a save keeps the folder’s agent settings the page did not change, field by field', () => {
+  const existing = JSON.stringify({ schema: 1, agents: { scout: { model: 'my-model', effort: 'high' }, 'data-lens': { effort: 'low' } } });
+  const s = L.initialState();
+  const untouched = L.keepFolderKeys(L.buildFiles(s), existing, s.harnesses);
+  assert.deepEqual(JSON.parse(untouched.files[0].text).agents, JSON.parse(existing).agents);
+  s.agents.scout.effort = 'low';
+  const changed = L.keepFolderKeys(L.buildFiles(s), existing, s.harnesses);
+  assert.deepEqual(JSON.parse(changed.files[0].text).agents, { scout: { model: 'my-model', effort: 'low' }, 'data-lens': { effort: 'low' } });
+});
+
 test('C24: a save applies only what the page changed over the folder\'s harnesses', () => {
   const s = L.initialState();
   L.setHarnessIn(s, 'codex', false);

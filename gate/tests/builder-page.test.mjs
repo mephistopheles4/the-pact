@@ -939,6 +939,9 @@ test('stub page: Harnesses opens, a harness left out, a model and an added harne
   P.button(box, 'Add this harness').click();
   assert.match(box.text, /Not added: .*~\//);
   typeInto(labelled('New harness: rules file'), '~/.mine/RULES.md');
+  const listless = labelled('New harness: installed without a list');
+  listless.checked = false;
+  fire(listless, 'change');
   P.button(box, 'Add this harness').click();
   assert.doesNotMatch(box.text, /Not added/);
   P.button(box, 'My harness').click();
@@ -948,6 +951,8 @@ test('stub page: Harnesses opens, a harness left out, a model and an added harne
   assert.match(saved, /"install": \[\s*"claude",\s*"antigravity",\s*"mine"\s*\]/);
   assert.match(saved, /"planning": "sonnet"/);
   assert.match(saved, /"path": "~\/\.mine\/RULES\.md"/);
+  assert.match(saved, /"defaultInstall": false/);
+  assert.match(box.text, /Antigravity has no effort setting/);
 });
 
 // PACT-96 S6, C6: cards of different heights; after the first draw and after Arrange, no two cards' boxes overlap.

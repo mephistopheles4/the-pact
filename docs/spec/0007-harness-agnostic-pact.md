@@ -370,9 +370,10 @@ The known descriptions:
   Nothing else is checked. The dry run prints, for each own harness with `hooks`: "guards
   unverified for `<name>`: the pact has not seen this harness run its hook".
 - **A known harness's fields** may be overridden by an own entry of the same
-  id, field by field, under the same checks, with a `WARN` naming each. An
-  entry that sets `models` and no `agentModels` drops the known `agentModels`,
-  so the person's models reach the agents too.
+  id, field by field, under the same checks, with a `WARN` naming each. Its
+  `agentModels` goes over the known one name by name, and its `models` leave
+  it as it is: an Antigravity agent file takes a tier and never a session's
+  model.
 
 ## S6 Models: roles and mapping
 
