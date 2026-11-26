@@ -36,7 +36,7 @@ This file is never installed.
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. Where a harness has no subagents, it says each lens runs in a session of its own, which no harness arranges. |
 | Lenses are offers | An offer is a checkpoint, answered by whoever steers the session: the owner, or the grimoire head chef's lead in Turbo mode. |
 | Before you run a lens or post to the record, read `~/.pact/review.md` | Points to the procedure, which no tool loads. |
-| The tree check (`review.md`, Running a lens), and the rules line sending `scout` to it | A harness that can't hold an agent to its tools leaves a lens or `scout` able to write. Nothing else notices what one changed, git's config and hooks included. It only detects; nothing undoes it. A `scout` pass may run with the procedure unread. |
+| The tree check (`review.md`, Running a lens), and the rules line sending `scout` to it | A harness that can't hold an agent to its tools leaves a lens or `scout` able to write. Nothing else notices what one changed, git's config and hooks included. It only detects; nothing undoes it. It runs as printed, since a session that rewrites it runs a check nobody reviewed. A `scout` pass may run with the procedure unread. |
 | The placement call's bound (`review.md`, the threat model, step 2) | Outside text in a caller's `state` can steer a decision model to a confident wrong placement. Nothing else compares its answer with the session's own, or stops a finding being dropped on it. |
 | Qualities | The owner's quality list, with the lens that checks each. No tool measures them. |
 | Trade-off points | What a spec must record about trade-offs. No tool reads a spec. |

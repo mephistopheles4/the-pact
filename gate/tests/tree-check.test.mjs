@@ -106,6 +106,16 @@ test('C10: the tree check holds no quote, so either shell passes it on unchanged
   }
 });
 
+test('C10: the tree check takes the folder from its last argument, so a session that pipes the script to node gets the same record, and a run naming no folder fails', t => {
+  const { root, main } = repos(t);
+  const away = { cwd: root, env: env(), encoding: 'utf8' };
+  const piped = spawnSync(process.execPath, ['-', main], { ...away, input: script() });
+  assert.equal(piped.status, 0, piped.stderr);
+  assert.equal(piped.stdout, record(main));
+  assert.notEqual(spawnSync(process.execPath, ['-e', script()], away).status, 0, 'node -e with no folder');
+  assert.notEqual(spawnSync(process.execPath, ['-'], { ...away, input: script() }).status, 0, 'a piped run with no folder');
+});
+
 test('C10: bad case: the tree check starts no fetch, which runs a program the repo’s config names', t => {
   const root = tempDir(t, 'pact-tree-fetch-');
   const repo = join(root, 'repo');
