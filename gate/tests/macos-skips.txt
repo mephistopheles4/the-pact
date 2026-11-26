@@ -4,7 +4,6 @@
 # on any listed skip that ran, so a change here is a reviewed change to what
 # macOS CI checks. Each line names its reason in the record of the change
 # that adds it.
-athanor-guard.test.mjs athanor guard probe: a file planted in the working folder is never run, by either defence alone
 cleaner.test.mjs on Windows an ignored junction to an empty folder keeps its worktree in both modes, and the files behind a junction are never named
 cloud-sessions.test.mjs cloud copy: both generated setup scripts parse under bash -n
 clef-run.test.mjs a supervisor that is killed outright leaves no server behind within 2 seconds

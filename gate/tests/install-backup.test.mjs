@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { applyBound, git, home, install, makeRepo, nodeEnv, passed, refused, renderedHash, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
+import { applyBound, git, home, install, makeRepo, nodeEnv, passed, refused, renderedHash, sharedRepo, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
 import { plainAgent } from './text.mjs';
 import { writeTree } from './tree.mjs';
 
@@ -94,7 +94,7 @@ test('#272 C1: an apply first copies what it replaces into a dated backup, whose
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('#272 C2: copying a backup back by its manifest returns the home folder to its files before the apply', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = ownHome(t);
   const before = files(h);
   passed(applyBound(repo, h));
@@ -105,7 +105,7 @@ test('#272 C2: copying a backup back by its manifest returns the home folder to 
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('#272 C4: a staging folder an earlier apply left refuses --apply before any install write', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = ownHome(t);
   mkdirSync(join(backupsDir(h), '.staging-left'), { recursive: true });
   const before = files(h);
@@ -146,7 +146,7 @@ test('#272 C6: on Linux and macOS the backup folders are 0700 and its files 0600
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('#272 C9: the dry run and the apply say what the backup takes, and a refusal after the first write names it', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(join(h, 'settings.json'), '{}\n');
   const dry = install(repo, h);
@@ -194,7 +194,7 @@ test('#272 C7: a refused apply prunes nothing, and the next verified apply prune
   const broken = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  say('Applying.');\n  for", "  say('Applying.');\n  throw new Error('planted');\n  for"));
   refused(applyBound(broken, h));
   assert.equal(backups(h).length, 13, 'the refused apply took its backup and pruned nothing');
-  const r = applyBound(makeRepo(t), h);
+  const r = applyBound(sharedRepo(), h);
   passed(r);
   // Both new backups were taken with no record before them (q8); the ten newest are those two and eight of the old.
   assert.deepEqual(backups(h).filter(n => old.includes(n)), old.slice(4));
@@ -218,7 +218,7 @@ test('#272 C17: a run that ends after BACKUP STARTED, other than by the backup\'
   };
   ended(applyBound(at("throw new Error('planted');"), ownHome(t)), /^REFUSED: the install failed while it ran\. /m);
   ended(applyBound(at('process.exit(3);'), ownHome(t)), /^REFUSED: the install runner did not end with a pass\. /m);
-  ended(applyBound(at('for (;;) {}', root => edit(root, 'gate/install.mjs', 'const LIMIT_MS = 300000;', 'const LIMIT_MS = 20000;')), ownHome(t)), /^REFUSED: the install's checks did not finish within 20 s\. /m);
+  ended(applyBound(at('for (;;) {}', root => edit(root, 'gate/install.mjs', 'const LIMIT_MS = 300000;', 'const LIMIT_MS = 5000;')), ownHome(t)), /^REFUSED: the install's checks did not finish within 5 s\. /m);
   if (WIN) return t.diagnostic('the signal case runs on Linux only: a console signal cannot be sent to one process on Windows');
   const repo = at('for (;;) {}');
   const signalHome = ownHome(t);

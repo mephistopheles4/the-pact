@@ -2,7 +2,7 @@
 // spec post must sort its quote into the intent's words and the task's, but
 // those tests are about something else. `withRoles` gives each role-less
 // passage of such a post the role `both`, and leaves every other post as it is,
-// so a test of the roles themselves (poster-quotes.test.mjs) writes its own.
+// so a test of the roles themselves writes its own.
 import { KINDS } from '../../claude/tools/poster.mjs';
 
 const SORTED = new Set(Object.keys(KINDS).filter(kind => KINDS[kind].roles));

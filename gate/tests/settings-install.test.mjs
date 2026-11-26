@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { plantModule } from './gate-files.mjs';
-import { applyBound, commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { applyBound, commitAll, home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
 import { OVERLAY, RETIRED_RULES, overlayWith, shown } from './settings-rules.mjs';
 
 // ------------------------------------------------------------ install: the merge
@@ -25,7 +25,7 @@ function readLive(h) {
 // names each removal in the dry run, adds no ask rule, takes them all out on
 // --apply, keeps the owner's own rule, and the next dry run is quiet.
 test('--apply removes the retired ask rules, keeps the owner\'s own, sets auto mode, verifies it, and the next dry run is quiet', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeLive(h, { permissions: { ask: [...RETIRED_RULES, 'Bash(git push *)'] } });
   const dry = install(repo, h);
@@ -52,7 +52,7 @@ test('--apply removes the retired ask rules, keeps the owner\'s own, sets auto m
 });
 // #464 T2: the overlay no longer sets these keys; a live file that holds them keeps them.
 test('--apply keeps the keys #464 cut from the overlay in a live file that holds them', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const mine = {
     // Values the overlay never set, so writing the old defaults back would fail here.
@@ -74,7 +74,7 @@ test('--apply keeps the keys #464 cut from the overlay in a live file that holds
 });
 
 test('a live file the merge cannot read draws a plain warning, and -Apply refuses before writing anything', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeLive(h, '[1]\n');
   const dry = install(repo, h);
@@ -89,7 +89,7 @@ test('a live file the merge cannot read draws a plain warning, and -Apply refuse
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('canary: the install never prints a live value, a live env name, a live permission entry or a live key value', t => {
   const C = 'CANARYlive';
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeLive(h, {
     // A live env name is counted, never printed (#210, at Test): one name carries the canary too.
@@ -150,7 +150,7 @@ test('bad case: an -Apply whose written settings lack the guard reports a mismat
 });
 
 test('the dry run no longer says the overlay is unchecked', t => {
-  const r = install(makeRepo(t), home(t));
+  const r = install(sharedRepo(), home(t));
   assert.equal(r.code, 0, r.out);
   assert.doesNotMatch(r.stdout, /not checked until #34/);
 });
