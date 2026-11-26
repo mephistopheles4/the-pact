@@ -11,7 +11,8 @@ import { stripToc } from '../../docs/toc.mjs';
 import { REPO } from './text.mjs';
 
 // PACT-105's tickets raised docs/install.md to 10700 and docs/reference.md to
-// 2450 for what T3's to T7's and T9's text take, rather than cut text a change
+// 2450 for what T3's to T7's and T9's text take, and docs/rule-reasons.md to
+// 1250 for the tree check's reason, rather than cut text a change
 // doesn't touch (the owner's rule); PACT-110 cleans up.
 const BUDGETS = Object.freeze({
   'AGENTS.md': 1750,
@@ -31,7 +32,7 @@ const BUDGETS = Object.freeze({
   'docs/poster-app.md': 600,
   'docs/poster.md': 8300,
   'docs/reference.md': 2450,
-  'docs/rule-reasons.md': 1200,
+  'docs/rule-reasons.md': 1250,
 });
 
 /** Words: runs of non-whitespace, so CRLF and LF count the same, with the doc's table of contents left out (PACT-78). */

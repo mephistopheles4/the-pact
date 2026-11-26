@@ -247,6 +247,11 @@ round's comment on the issue lists each finding.
 60. Security, the lead's pick, flagged for the owner (its decision 146): the
     tree check runs exactly as printed, and reads the folder from its last
     argument, after end-to-end sessions piped the script to `node` (S12).
+61. The same pick: a `codex-toml` agent file says to search and read with
+    read-only shell commands, after an end-to-end `scout` refused for lack of
+    the tools its instructions name (S7).
+62. Trade-off: `docs/rule-reasons.md`'s budget rises to 1,250, on the
+    owner's word-cap rule (PACT-110).
 
 ## S3 Terms
 
@@ -487,7 +492,10 @@ only model and effort words, never which parts or clauses a harness gets.
 - `claude-md`: as today, with the model role mapped.
 - `codex-toml`: the body goes to `developer_instructions` as a TOML literal
   string; a body holding `'''` refuses (`agent-toml`). `tools` has no field
-  and is dropped. Every agent file sets `features.apps`, `features.plugins`,
+  and is dropped. Such an agent reads through its shell alone, so its
+  instructions open with one line saying it has no `Read`, `Glob` or `Grep`
+  tool, to search and read with read-only shell commands, and that reading so
+  is no command to stop at. Every agent file sets `features.apps`, `features.plugins`,
   `features.memories` and `features.request_permissions_tool` to `false`;
   S12 says what is left.
 - `antigravity-md`: `tools` is mapped through a fixed table per harness from
@@ -1072,7 +1080,8 @@ word-cap rule. S2 items 47, 50 and 52 record the two docs' budgets.
 - **C5** Each known harness's agents render in its format, with its models in
   place of the roles; a `light` role with no light model gets the executor
   model. Each Codex agent file turns off apps, plugins, memories and the
-  permission-request tool. An Antigravity lens whose mapped tools come out
+  permission-request tool, and opens its instructions with S7's line on
+  reading through the shell. An Antigravity lens whose mapped tools come out
   empty or lose a read tool refuses (`agent-tools`), and an Antigravity agent
   has a shell only where its source has one.
 - **C6** A rules file over a harness's cap refuses (`rules-cap`); above half

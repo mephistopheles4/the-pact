@@ -22,6 +22,8 @@ const FRONT_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 // A Codex agent keeps its shell (S12); these switches are what its file can turn off.
 const CODEX_AGENT_OFF = Object.freeze(['apps', 'plugins', 'memories', 'request_permissions_tool']);
 const READ_TOOLS = Object.freeze(['Read', 'Glob', 'Grep']);
+// A codex-toml agent reads through its shell alone, whatever tools its source names (S7).
+const SHELL_READS = 'You have no Read, Glob or Grep tool here. Where these instructions name one, search and read with read-only shell commands: reading that way is not a command to stop at.';
 const SKILL_POLICY = 'policy:\n  allow_implicit_invocation: false\n';
 // A table's second line, and the line between two cells of a row.
 const DELIMITER_RE = /^\|(?:\s*:?-+:?\s*\|)+\s*$/;
@@ -196,7 +198,7 @@ function codexAgent(name, text, model) {
   const out = [`name = ${JSON.stringify(name)}`, `description = ${JSON.stringify(unquoted(values.get('description') ?? ''))}`];
   if (model !== null) out.push(`model = ${JSON.stringify(model)}`);
   if (values.has('effort')) out.push(`model_reasoning_effort = ${JSON.stringify(values.get('effort'))}`);
-  out.push(`developer_instructions = '''\n${body}'''`);
+  out.push(`developer_instructions = '''\n${SHELL_READS}\n\n${body}'''`);
   out.push('', '[features]', ...CODEX_AGENT_OFF.map(k => `${k} = false`));
   return `${out.join('\n')}\n`;
 }
