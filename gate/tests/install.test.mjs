@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, WIN, wrapCheck } from './install-harness.mjs';
+import { applyBound, basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, sharedInstall, sharedRepo, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { runCore } from './gate-run.mjs';
 import { READ_ONLY, agent, plainAgent, withoutOpenMarks } from './text.mjs';
@@ -45,7 +45,7 @@ test('a file under gate/tests is not staged, checked or recorded as part of the 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 // #272 C18: two applies on one home at one commit each take a backup (the last assertion).
 test('the owner\'s own live agent is never deleted, and an old manifest deletes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeTree(h, { 'agents/my-own.md': plainAgent('my-own') });
   assert.equal(applyBound(repo, h).code, 0);
@@ -134,7 +134,7 @@ test('with no Node on PATH, the install runs on the Node that started it', t => 
   for (const d of basePath()) {
     assert.ok(!existsSync(join(d, WIN ? 'node.exe' : 'node')), `node found in ${d}; the test would pass for the wrong reason`);
   }
-  const r = install(makeRepo(t), home(t), { path: basePath() });
+  const r = install(sharedRepo(), home(t), { path: basePath() });
   passed(r);
   assert.ok(r.stdout.includes(`Node: ${process.execPath} (${process.version})`), r.out);
 });
@@ -144,7 +144,7 @@ test('a node.cmd shim first on PATH is never run', { skip: !WIN && 'a .cmd shim 
   const d = tempDir(t, 'pact-shim-');
   const marker = join(d, 'ran');
   writeFileSync(join(d, 'node.cmd'), `@echo ran> "${marker}"\r\n@"${process.execPath}" %*\r\n`);
-  const r = install(makeRepo(t), home(t), { path: [d, ...basePath()] });
+  const r = install(sharedRepo(), home(t), { path: [d, ...basePath()] });
   passed(r);
   assert.ok(!existsSync(marker), 'the node.cmd shim ran');
 });
@@ -152,7 +152,7 @@ test('a node.cmd shim first on PATH is never run', { skip: !WIN && 'a .cmd shim 
 // The Node install refuses NODE_OPTIONS rather than clearing it (S3, step 1;
 // S6, A7), so no check ever runs under it.
 test('bad case: NODE_OPTIONS set refuses before any check runs', t => {
-  const r = install(makeRepo(t), home(t), { env: { NODE_OPTIONS: '--max-old-space-size=200' } });
+  const r = install(sharedRepo(), home(t), { env: { NODE_OPTIONS: '--max-old-space-size=200' } });
   refused(r, /^REFUSED: NODE_OPTIONS is set/m);
   assert.doesNotMatch(r.stdout, /^(render|seam-a)\| /m, r.out);
 });
@@ -195,7 +195,7 @@ test('bad case: a git planted in the folder the install runs from is never run',
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('lines built from the install record are cleaned', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
   const mf = join(h, '.pact-install.json');
@@ -208,7 +208,7 @@ test('lines built from the install record are cleaned', t => {
   assert.ok(!r.stdout.includes('\x1b'), JSON.stringify(r.stdout));
 });
 test('bad case: a live agents folder that is a link refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const elsewhere = tempDir(t, 'pact-elsewhere-');
   try {
@@ -282,7 +282,7 @@ test('canary: the install never echoes agent file content', t => {
 
 // unlisted-live (#261, S5): the review file is never laid over a live file the pact did not put there.
 test('bad case: a live pact/review.md the record does not list refuses, on the dry run and on --apply, and nothing is written', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, 'pact'), { recursive: true });
   writeFileSync(join(h, 'pact', 'review.md'), 'my own notes\n');
@@ -336,11 +336,8 @@ function rulesOf(t, repo) {
 
 // #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('--apply installs the default render as the rules file, and the record holds its hash', t => {
-  const repo = makeRepo(t);
+  const { repo, home: h, r } = sharedInstall();
   const { source, rendered } = rulesOf(t, repo);
-  const h = home(t);
-  const r = applyBound(repo, h);
-  assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(rendered)}$`, 'm'), r.out);
   assert.match(r.stdout, /^render\| CONFIG default [0-9a-f]{64}$/m, r.out);
   assert.match(r.stdout, /^OK {7}CLAUDE\.md$/m, r.out);
@@ -357,7 +354,7 @@ test('--apply installs the default render as the rules file, and the record hold
 
 // #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('the dry run shows a Configuration block that names the pact\'s default when there is no configuration, before the gate block', t => {
-  const r = install(makeRepo(t), home(t));
+  const r = install(sharedRepo(), home(t));
   assert.equal(r.code, 0, r.out);
   const lines = r.stdout.replaceAll('\r\n', '\n').split('\n');
   const c = lines.indexOf('Configuration:');
@@ -385,7 +382,7 @@ test('bad case: the rules file changed in the stage after the check refuses --ap
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a record whose rules-file hash is not the rendered bytes\' hash is drift, and --apply refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { source, rendered } = rulesOf(t, repo);
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);

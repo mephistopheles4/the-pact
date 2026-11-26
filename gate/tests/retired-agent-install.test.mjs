@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, home, install, makeRepo } from './install-harness.mjs';
+import { applyBound, home, install, sharedRepo } from './install-harness.mjs';
 
 const LENS = 'good-enough-lens';
 const SENTINEL = 'ZZSENTINELWORD';
@@ -28,7 +28,7 @@ function plant(h, text = `---\nname: ${LENS}\n---\n${SENTINEL}\n`) {
 }
 
 test('bad case: an edit block naming the retired lens draws a WARN in the dry run, which still plans the install', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, { schema: 1, edits: [{ mark: 'workflow', op: 'replace', file: 'wf.md' }] }, { 'wf.md': `Design runs \`${LENS}\` ${SENTINEL}.\n` });
   const r = install(repo, h);
@@ -39,7 +39,7 @@ test('bad case: an edit block naming the retired lens draws a WARN in the dry ru
 });
 
 test('a clean block, and a block naming a longer name that contains the lens, draw no such WARN', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, { schema: 1, edits: [{ mark: 'workflow', op: 'replace', file: 'wf.md' }] }, { 'wf.md': `Design runs my-${LENS} and ${LENS}-two.\n` });
   const r = install(repo, h);
@@ -48,7 +48,7 @@ test('a clean block, and a block naming a longer name that contains the lens, dr
 });
 
 test('bad case: a project qualities list naming the retired lens draws a WARN in the project dry run', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const proj = home(t);
   mkdirSync(join(proj, '.claude'));
@@ -61,7 +61,7 @@ test('bad case: a project qualities list naming the retired lens draws a WARN in
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a live agent file with the retired name, and no record, draws the fixed line in every dry run and is left in place by --apply', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   plant(h);
   const line = new RegExp(`^WARN: ${ORPHAN} is named for ${LENS}, an agent the pact retired; the file is not the pact's, so the install leaves it as is\\.\\r?$`, 'm');
@@ -78,7 +78,7 @@ test('bad case: a live agent file with the retired name, and no record, draws th
 });
 
 test('a clean home draws no retired-agent line', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
@@ -87,7 +87,7 @@ test('a clean home draws no retired-agent line', t => {
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('the pact\'s own recorded copy is deleted through its record and draws no line; a changed copy is kept and named', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   // The repo no longer ships the lens, so an older install's copy is planted by hand and recorded.
   const first = applyBound(repo, h);

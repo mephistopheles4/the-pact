@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, home, install, listTree, makeRepo, nodeEnv, refused, spawnNodeInstall, WIN } from './install-harness.mjs';
+import { applyBound, home, install, listTree, makeRepo, nodeEnv, refused, sharedInstall, sharedRepo, spawnNodeInstall, WIN } from './install-harness.mjs';
 import { runCore } from './gate-run.mjs';
 import { plantModule, plantNoDefault } from './gate-files.mjs';
 import { REPO, withoutOpenMarks } from './text.mjs';
@@ -28,7 +28,7 @@ function configPath(h) {
 // ------------------------------------------------------------ fail-closed "no file"
 
 test('bad case: a configuration path that is a folder refuses, and -Apply writes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(configPath(h));
   const r = install(repo, h, { apply: true });
@@ -38,7 +38,7 @@ test('bad case: a configuration path that is a folder refuses, and -Apply writes
 });
 
 test('bad case: a configuration path that is a dangling link refuses, and -Apply writes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   // A junction to a folder that does not exist: plantable on Windows without
   // the symlink privilege, and a dangling link to Node and to the attribute test.
@@ -79,7 +79,7 @@ function denyRead(p) {
 
 // #261 C10
 test('bad case: an unreadable configuration file refuses, and -Apply writes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const p = configPath(h);
   writeFileSync(p, '{"schema": 1, "settings": {"usage-pause": 90}}\n');
@@ -142,7 +142,7 @@ function nothingWritten(h) {
 
 // #261 C7
 test('the shipped example installs: the dry run shows it, -Apply with the full rendered hash installs 90% with the notice, and the record names it', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   const want = expectedRules(repo, EXAMPLE, 90);
@@ -186,9 +186,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
 
 // #183 T4a C1: with no file of the person's, the pact's default renders, and none of it is the person's to record.
 test('with no configuration file the install renders the pact\'s default: the notice names it, and the record holds its digest and no configuration file', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  const r = applyBound(repo, h);
+  const { repo, home: h, r } = sharedInstall();
   assert.equal(r.code, 0, r.out);
   const out = tempDir(t, 'pact-render-');
   const want = runCore('render', [join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]);
@@ -208,7 +206,7 @@ test('with no configuration file the install renders the pact\'s default: the no
 
 // #183 T4a C1: the dry run names the default by its preset title and digest, warns of its security defaults, and binds the apply to its hash.
 test('with no configuration file the dry run names the pact\'s default and its digest, warns of its security defaults, and prints an apply bound to its hash', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
@@ -239,7 +237,7 @@ test('with no configuration file the dry run names the pact\'s default and its d
 
 // #183 T4a C6: skill sources are listed, and the install fetches and writes none of them.
 test('a configuration with skills: the dry run lists them by repo and says this install fetches none, and the apply writes no skill', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const pin = 'c'.repeat(40);
   writeFileSync(configPath(h), JSON.stringify({ ...JSON.parse(EXAMPLE), skills: [{ repo: 'someone/skills', commit: pin, paths: ['skills/alpha', 'skills/beta'] }] }));
@@ -256,7 +254,7 @@ test('a configuration with skills: the dry run lists them by repo and says this 
 
 // #183 T4a C35: the default in place of a person's own configuration is said, not only shown.
 test('after an install with your own configuration, a dry run with the file gone says it is gone and the default renders in its place', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
@@ -270,7 +268,7 @@ test('after an install with your own configuration, a dry run with the file gone
 });
 
 test('a record that names another configuration hash is stale: the dry run says changed, and not "nothing to do"', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
@@ -288,7 +286,7 @@ test('a record that names another configuration hash is stale: the dry run says 
 
 // #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('after an install of the pact\'s default, the dry run says so, and a new file is "new since the last install"', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
   writeFileSync(configPath(h), EXAMPLE);
@@ -303,7 +301,7 @@ const BINDING = 'the hash given with --rendered-hash is not the full hash of the
 const NEEDS_HASH = 'a configuration applies, so --apply needs the full rendered hash the dry run showed';
 
 test('bad case: -Apply with a wrong hash refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
@@ -319,7 +317,7 @@ for (const [label, cut] of [
   ['the hash with a trailing space', h => `${h} `],
 ]) {
   test(`bad case: -Apply with ${label} of the hash refuses`, t => {
-    const repo = makeRepo(t);
+    const repo = sharedRepo();
     const h = home(t);
     writeFileSync(configPath(h), EXAMPLE);
     const good = dryRunHash(install(repo, h));
@@ -331,7 +329,7 @@ for (const [label, cut] of [
 }
 
 test('bad case: -Apply with no hash refuses when a configuration applies', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   const r = install(repo, h, { apply: true });
@@ -342,7 +340,7 @@ test('bad case: -Apply with no hash refuses when a configuration applies', t => 
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: -Apply with an empty hash refuses: a hash given is compared even when empty', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', ''] });
   refused(r);
@@ -352,7 +350,7 @@ test('bad case: -Apply with an empty hash refuses: a hash given is compared even
 
 // #183: a dry run with no configuration renders the default, so its hash binds the default, and a file that appears after it is refused.
 test('bad case: a configuration that appears after a dry run of the pact\'s default refuses -Apply given the default\'s hash', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
@@ -366,7 +364,7 @@ test('bad case: a configuration that appears after a dry run of the pact\'s defa
 
 // #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('bad case: a configuration deleted after a configured dry run refuses -Apply given its hash', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   const hash = dryRunHash(install(repo, h));
@@ -380,7 +378,7 @@ test('bad case: a configuration deleted after a configured dry run refuses -Appl
 });
 
 test('bad case: a configuration changed between the dry run and -Apply refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   const hash = dryRunHash(install(repo, h));
@@ -392,7 +390,7 @@ test('bad case: a configuration changed between the dry run and -Apply refuses',
 });
 
 test('bad case: a wrong hash refuses a dry run too', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   const r = install(repo, h, { extra: ['--rendered-hash', '0'.repeat(64)] });
@@ -402,7 +400,7 @@ test('bad case: a wrong hash refuses a dry run too', t => {
 
 // config-value
 test('bad case: a refused configuration changes nothing on disk under -Apply, and names only the setting', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), '{"schema": 1, "settings": {"usage-pause": 101}}\n');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
@@ -415,7 +413,7 @@ test('bad case: a refused configuration changes nothing on disk under -Apply, an
 // ------------------------------------------------------------ the reparse-attribute test, before the renderer
 
 test('bad case: a pact folder that is a link refuses before the renderer runs', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const elsewhere = tempDir(t);
   writeFileSync(join(elsewhere, 'config.json'), EXAMPLE);
@@ -428,7 +426,7 @@ test('bad case: a pact folder that is a link refuses before the renderer runs', 
 });
 
 test('bad case: a blocks folder that is a link refuses before the renderer runs', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, 'pact'));
   symlinkSync(tempDir(t), join(h, 'pact', 'blocks'), 'junction');
@@ -439,7 +437,7 @@ test('bad case: a blocks folder that is a link refuses before the renderer runs'
 });
 
 test('bad case: a link deep in the blocks folder, under a hidden name, refuses before the renderer runs', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const deep = join(h, 'pact', 'blocks', 'sub', '.hidden');
   mkdirSync(deep, { recursive: true });
@@ -452,7 +450,7 @@ test('bad case: a link deep in the blocks folder, under a hidden name, refuses b
 });
 
 test('a blocks folder of plain files and folders passes the attribute test', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, 'pact', 'blocks', 'sub'), { recursive: true });
   writeFileSync(join(h, 'pact', 'blocks', 'sub', 'a.md'), 'Text.\n');
@@ -463,7 +461,7 @@ test('a blocks folder of plain files and folders passes the attribute test', t =
 // ------------------------------------------------------------ protected paths
 
 test('the user file and its blocks folder are never deleted, whatever the record says', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   mkdirSync(join(h, 'pact', 'blocks'));
@@ -529,7 +527,7 @@ for (const [label, withConfig, from, to, why] of [
 // ------------------------------------------------------------ how the script reads its own command line
 
 test('bad case: a hash typed after -Apply without its parameter name, and no -ClaudeHome, refuses and installs nowhere', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   // A throwaway home folder, so the default home folder can never be the real one.
   const fakeHome = tempDir(t, 'pact-fakehome-');
   const hash = 'a'.repeat(64);
@@ -545,7 +543,7 @@ test('bad case: a hash typed after -Apply without its parameter name, and no -Cl
 test('bad case: a relative -ClaudeHome refuses before anything runs, even after a change of location', t => {
   // A relative path names a different folder for each reader, so it is
   // refused outright, wherever the process starts (S4).
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const procAt = tempDir(t, 'pact-proccwd-');
   mkdirSync(join(procAt, 'h', 'pact', 'blocks', 'sub'), { recursive: true });
   symlinkSync(tempDir(t), join(procAt, 'h', 'pact', 'blocks', 'sub', 'link'), 'junction');
@@ -558,7 +556,7 @@ test('bad case: a relative -ClaudeHome refuses before anything runs, even after 
 
 // #183 C35: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('a record from before configurations (no config, no digest) reads as no configuration: a new file is "new since the last install"', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
   const mf = join(h, '.pact-install.json');
@@ -582,7 +580,7 @@ test('a record from before configurations (no config, no digest) reads as no con
 });
 
 test('bad case: a misspelled hash option is not dropped: after a configured dry run and a deleted configuration, -Apply refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
   const hash = dryRunHash(install(repo, h));
@@ -595,7 +593,7 @@ test('bad case: a misspelled hash option is not dropped: after a configured dry 
 });
 
 test('bad case: a stray word after the named options refuses, and is not printed', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256(rendered), 'CANARYstray'] });
@@ -606,7 +604,7 @@ test('bad case: a stray word after the named options refuses, and is not printed
 });
 // #501 C1, C5: a user config with the weekly limit off installs with no usage line, and the dry run warns once.
 test('a configuration with the weekly limit off: the dry run warns, -Apply installs, and the rules file holds no usage line', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const bytes = Buffer.from('{"schema": 1, "settings": {"usage-pause": false}}\n');
   writeFileSync(configPath(h), bytes);

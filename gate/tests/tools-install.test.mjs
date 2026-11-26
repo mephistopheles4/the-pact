@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { CLEANER_ASK, CLEANER_DENY, STOP_DENY, identityGitconfigText } from '../install-core.mjs';
-import { home, install, listTree, makeRepo, passed, refused } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, passed, refused, sharedRepo } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 
 const LIVE = ['pact', 'tools', 'poster.mjs'];
@@ -48,7 +48,7 @@ function refusedUnchanged(repo, h, says) {
 
 // #280 C2, C4
 test('the poster on: the dry run warns, it installs at pact/tools/poster.mjs byte for byte, and the installed copy refuses with no arguments and starts no gh', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = homeWith(t, ['poster']);
   const dry = installed(repo, h);
   assert.match(dry.stdout, /^Tools:\r?\n {2}poster: on\r?$/m, dry.out);
@@ -71,7 +71,7 @@ test('the poster on: the dry run warns, it installs at pact/tools/poster.mjs byt
 
 // #280 C2: off is the default, and turning it off deletes the copy the record lists.
 test('the poster off: by default it never installs, and turning it off deletes the live copy', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = homeWith(t, ['poster']);
   installed(repo, h);
   assert.ok(existsSync(join(h, ...LIVE)));
@@ -89,7 +89,7 @@ test('the poster off: by default it never installs, and turning it off deletes t
 
 // unlisted-live, #280 C2
 test('bad case: a live file at the tool path the record does not list refuses, and is left alone', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = homeWith(t, ['poster']);
   mkdirSync(join(h, 'pact', 'tools'));
   writeFileSync(join(h, ...LIVE), 'my own poster\n');
@@ -100,7 +100,7 @@ test('bad case: a live file at the tool path the record does not list refuses, a
 
 // apply-drift, #280 C2: a rewritten poster stops the next install, and is never the person's.
 test('bad case: a changed live poster is drift, and --apply refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = homeWith(t, ['poster']);
   installed(repo, h);
   writeFileSync(join(h, ...LIVE), 'rewritten\n');
@@ -145,7 +145,7 @@ const differ = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].fi
 // PACT-61 C1: with clef off, the apply writes and records what a commit without the tool writes; the dry run's tools block says off.
 test('clef off: the apply writes and records the same files as a commit without the tool, and the dry run says clef: off', t => {
   const without = makeRepo(t, root => rmSync(join(root, 'claude', 'tools', 'clef.mjs'), { force: true }));
-  const withClef = makeRepo(t);
+  const withClef = sharedRepo();
   const [h1, h2] = [homeWith(t, []), homeWith(t, [])];
   const base = installed(without, h1);
   const dry = installed(withClef, h2);
@@ -159,7 +159,7 @@ test('clef off: the apply writes and records the same files as a commit without 
 
 // PACT-61 C2: with clef on, the apply adds pact/tools/clef.mjs and nothing else; the dry run warns; the clef folder is left alone.
 test('clef on: the dry run warns, the apply adds pact/tools/clef.mjs and no other file, and an install and a turn-off leave the clef folder untouched', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const [off, on] = [homeWith(t, []), homeWith(t, ['clef'])];
   installed(repo, off);
   const folder = join(on, 'pact-clef');
@@ -182,7 +182,7 @@ test('clef on: the dry run warns, the apply adds pact/tools/clef.mjs and no othe
 
 // #438 C13: the cleaner's deny rules come and go with it, and only those it added.
 test('the cleaner on adds its deny rules beside the owner\'s and records them; off removes only rules both recorded and fixed', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = homeWith(t, ['cleaner']);
   const OWN = ['Bash(git branch -d *)', 'Bash(rm -rf ./mine *)'];
   const FOREIGN = 'Bash(foreign *)';
@@ -224,7 +224,7 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
 
 // #523 C20: end to end, the ask rules come and go with the cleaner, and the dry run says so.
 test('the cleaner on adds its two ask rules and records them; off removes only recorded ones; an untouched settings.json draws a WARN naming both', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = homeWith(t, ['cleaner']);
   const own = 'Bash(mine)';
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { ask: [own, CLEANER_ASK[0]] } })}\n`);
@@ -271,7 +271,7 @@ test('the cleaner on adds its two ask rules and records them; off removes only r
 
 // #439 C4: a record from before `claude rm` joined the list, holding the sixteen git rules, gets the two added.
 test('a sixteen-rule cleaner record gets the two claude rm rules on the next install', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = homeWith(t, ['cleaner']);
   const RM = ['Bash(claude rm *)', 'PowerShell(claude rm *)'];
   const sixteen = CLEANER_DENY.filter(r => !RM.includes(r));
@@ -303,7 +303,7 @@ function setConfig(h, tools, stop) {
 
 // #439 C1: the switch unset or false adds no claude stop rule, whatever the cleaner does.
 test('session-stop-deny unset or false: no claude stop rule is added or recorded', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   for (const stop of [undefined, false]) {
     const h = stopHome(t, ['cleaner'], stop);
     const dry = installed(repo, h);
@@ -316,7 +316,7 @@ test('session-stop-deny unset or false: no claude stop rule is added or recorded
 
 // #439 C2, C3: on, the install adds and records the eight rules; off removes only recorded ones on the list.
 test('session-stop-deny on adds and records the eight rules; off removes only rules both recorded and fixed; the owner\'s identical rule stays', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = stopHome(t, [], true);
   const OWN = ['Bash(claude stop *)', 'Bash(rm -rf ./mine *)'];
   const FOREIGN = 'Bash(foreign *)';
@@ -354,7 +354,7 @@ test('session-stop-deny on adds and records the eight rules; off removes only ru
 
 // #439 C3: each switch owns its own list; a rule of one planted in the other's record is never touched.
 test('the stop plan and the cleaner plan each touch only their own fixed rules, with both switches on and off', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = stopHome(t, ['cleaner'], true);
   const deny = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
   const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
@@ -395,7 +395,7 @@ test('the stop plan and the cleaner plan each touch only their own fixed rules, 
 
 // #439 C7: a record whose stopDeny is not a list of strings refuses, as cleanerDeny does.
 test('a malformed stopDeny in the record refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = stopHome(t, [], true);
   installed(repo, h);
   const good = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
@@ -408,7 +408,7 @@ test('a malformed stopDeny in the record refuses', t => {
 // #439 C8: with settings.json not strict JSON, the merge leaves it alone and the record keeps stopDeny.
 // The apply refuses on such a file (the settings install tests cover that refusal), so the record is never rewritten there; the dry run plans no rule and the record stays byte for byte.
 test('settings.json that is not strict JSON: the dry run plans no stop rule and the record\'s stopDeny stays as it was', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = stopHome(t, [], true);
   installed(repo, h);
   const recordFile = join(h, '.pact-install.json');
@@ -457,7 +457,7 @@ const recordOf = h => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'ut
 
 // #603 C5: on, the dry run checks the gitconfig and warns, the install copies the helper, sets and records the two env keys beside the owner's own.
 test('agent-identity on: the helper installs byte for byte, the two env keys are set and recorded beside the owner\'s, and the dry run says the gitconfig is as expected', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = identityHome(t, true, { env: { KEEP: 'mine' } });
   const dry = installed(repo, h);
   assert.match(dry.stdout, /^agent-identity: on\r?\n {2}gitconfig as expected: yes\r?$/m, dry.out);
@@ -476,7 +476,7 @@ test('agent-identity on: the helper installs byte for byte, the two env keys are
 
 // #603 C5: off removes the tool and exactly the keys the install set, and a changed or missing gitconfig does not block turning it off.
 test('agent-identity off: the tool and the two recorded env keys go, the owner\'s keys stay, and a missing gitconfig does not refuse', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = identityHome(t, true, { env: { KEEP: 'mine' } });
   installed(repo, h);
   setIdentity(h, false);
@@ -492,7 +492,7 @@ test('agent-identity off: the tool and the two recorded env keys go, the owner\'
 
 // #603 C5: a key the owner changed after the install is theirs, so turning the switch off leaves it.
 test('agent-identity off leaves an env key the owner changed since the install', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = identityHome(t, true);
   installed(repo, h);
   writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ env: { GIT_CONFIG_GLOBAL: 'D:/mine', GIT_TERMINAL_PROMPT: '0' } })}\n`);
@@ -503,7 +503,7 @@ test('agent-identity off leaves an env key the owner changed since the install',
 
 // #603 C8: unset or false, nothing of the switch lands: no tool, no env key, no record key, and no line in the dry run.
 test('agent-identity unset or false: no helper, no env key, no record key, no identity line', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   for (const on of [undefined, false]) {
     const h = identityHome(t, on, { pin: null, gitconfig: null });
     const dry = installed(repo, h);
@@ -527,7 +527,7 @@ for (const row of [
   { id: 'owner-terminal-prompt', opts: { env: { GIT_TERMINAL_PROMPT: '1' } }, says: /settings\.json already sets env GIT_TERMINAL_PROMPT/ },
 ]) {
   test(`bad case: agent-identity on refuses with ${row.id}, in the dry run and the apply, and changes nothing`, t => {
-    const repo = makeRepo(t);
+    const repo = sharedRepo();
     const h = identityHome(t, true, row.opts);
     const before = listTree(h);
     const dry = install(repo, h);
@@ -539,7 +539,7 @@ for (const row of [
 
 // #603 C5: a git config that appears under the user's XDG folder after setup is refused as a changed include list; setup run with it there passes.
 test('agent-identity on: an XDG git config added after setup is refused, and one present at setup passes', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = identityHome(t, true, { nested: true });
   const xdg = join(dirname(h), '.config', 'git', 'config');
   mkdirSync(dirname(xdg), { recursive: true });
@@ -553,7 +553,7 @@ test('agent-identity on: an XDG git config added after setup is refused, and one
 
 // #603 C5: the refusal text names the part that differs and prints no line of the file.
 test('the gitconfig refusal prints only the fixed line, never a line of the file', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = identityHome(t, true, { gitconfig: hh => `${gitconfigFor(hh)}[core]\n  hooksPath = CANARY-LINE\n` });
   const r = install(repo, h);
   refused(r, /gitconfig as expected: no: other lines differ, run gh-app.mjs refresh/);
@@ -562,7 +562,7 @@ test('the gitconfig refusal prints only the fixed line, never a line of the file
 
 // #603 C5: a settings file that is not strict JSON is left untouched, and the dry run says the env keys are not set.
 test('agent-identity on with a settings.json that is not strict JSON: the dry run warns, the apply refuses, and settings.json and the record are untouched', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = identityHome(t, true);
   const bad = '{ // a comment\n  "permissions": { "deny": [] }\n}\n';
   writeFileSync(join(h, 'settings.json'), bad);

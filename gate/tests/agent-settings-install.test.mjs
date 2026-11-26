@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { plantModule, plantNoDefault } from './gate-files.mjs';
 import { REPO } from './text.mjs';
-import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const AGENT = readFileSync(join(REPO, 'claude', 'agents', 'integrity-lens.md'), 'utf8');
@@ -31,7 +31,7 @@ function dryRunHash(r) {
 }
 
 test('a configured install writes the rendered integrity-lens, records its hash, and removing the setting puts the committed file back', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, { schema: 1, agents: { 'integrity-lens': { model: 'sonnet', effort: 'low' } } });
   const dry = install(repo, h);
@@ -60,7 +60,7 @@ test('a configured install writes the rendered integrity-lens, records its hash,
 
 // #262: no setting is marked, in the dry run or the rules file; a person may run any agent on any model.
 test('a configured install sets a security-set lens and a shell lens: each WARN lists the setting plainly, and both files install', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' }, 'data-lens': { effort: 'medium' }, 'integrity-lens': { effort: 'high' } } });
   const dry = install(repo, h);
@@ -87,7 +87,7 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
 });
 
 test('bad case: an agent setting changed between the dry run and -Apply refuses by the rendered hash', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, { schema: 1, agents: { 'integrity-lens': { model: 'sonnet' } } });
   const hash = dryRunHash(install(repo, h));

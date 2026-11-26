@@ -6,12 +6,12 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { applyBound, home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
 import { contractText } from './text.mjs';
 
 // #261 C7
 test('dry run on a clean tree passes and shows Node, the check and the gate', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const r = install(repo, home(t));
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Node: .+ \(v\d+\.\d+\.\d+\)$/m);
@@ -80,7 +80,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
 
 // #264: the cut drift cases, retargeted to a live file that still installs. A refused apply changes nothing (the repo's rule on cutting install cases).
 test('bad case: a tampered live review file is drift, and --apply refuses and changes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
   const live = join(h, 'pact', 'review.md');
@@ -95,7 +95,7 @@ test('bad case: a tampered live review file is drift, and --apply refuses and ch
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a deleted live review file is drift, and --apply refuses and changes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   assert.equal(applyBound(repo, h).code, 0);
   rmSync(join(h, 'pact', 'review.md'));

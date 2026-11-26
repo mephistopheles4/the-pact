@@ -10,7 +10,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { homedir } from 'node:os';
 import { join, sep } from 'node:path';
 import { test } from 'node:test';
-import { git, install, makeRepo, refused, WIN, wrapCheck } from './install-harness.mjs';
+import { git, install, makeRepo, refused, sharedRepo, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { skipUnlessLinuxCi } from './text.mjs';
 import { longTmp, tempDir } from './tree.mjs';
@@ -103,7 +103,7 @@ function fileLink(t, target, at) {
 // ------------------------------------------------------------ projects that install
 
 test('a project nested under the throwaway home installs: only its rules file and record, the home untouched', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, ch } = layout(t);
   userFile(ch, 90);
   const proj = projectAt(join(homeDir, 'proj'), 80);
@@ -149,7 +149,7 @@ test('a project nested under the throwaway home installs: only its rules file an
 
 // #262 C21, C22: a project's own qualities list installs, and its dry run leads with the security-defaults line.
 test('a project with only a qualities list installs its table, and the dry run names it before every other warning', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, ch } = layout(t);
   const proj = join(homeDir, 'proj');
   mkdirSync(join(proj, '.claude'), { recursive: true });
@@ -170,7 +170,7 @@ test('a project with only a qualities list installs its table, and the dry run n
 
 // #288 C10, C13: a project with its own Cost limits installs end to end; the dry run names them with their row count and has no note.
 test('a project with a qualities list and costLimits installs both tables, and the dry run names the Cost limits with their row count', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, ch } = layout(t);
   const proj = join(homeDir, 'proj');
   mkdirSync(join(proj, '.claude'), { recursive: true });
@@ -208,7 +208,7 @@ test('a project with a qualities list and costLimits installs both tables, and t
 });
 
 test('siblings whose names share a prefix with the Claude folder install', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { root, homeDir, ch } = layout(t);
   const dotClaude2 = projectAt(join(homeDir, '.claude2'));
   const r = projInstall(repo, ch, dotClaude2, { apply: true, extra: ['--rendered-hash', projectHash(projInstall(repo, ch, dotClaude2))] });
@@ -225,7 +225,7 @@ test('siblings whose names share a prefix with the Claude folder install', t => 
 // ------------------------------------------------------------ refusals with nothing written
 
 test('bad case: a project install with no project file refuses, saying there is no project configuration', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, ch } = layout(t);
   const proj = join(homeDir, 'proj');
   mkdirSync(join(proj, '.claude'), { recursive: true });
@@ -236,7 +236,7 @@ test('bad case: a project install with no project file refuses, saying there is 
 });
 
 test('bad case: -Apply on a project install with no hash, a wrong hash or a cut-short hash refuses, with nothing written', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const hash = projectHash(projInstall(repo, ch, proj));
@@ -252,7 +252,7 @@ test('bad case: -Apply on a project install with no hash, a wrong hash or a cut-
 });
 
 test('bad case: a project configuration changed after the dry run refuses, with nothing written', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'), 60);
   const hash = projectHash(projInstall(repo, ch, proj));
@@ -266,7 +266,7 @@ test('bad case: a project configuration changed after the dry run refuses, with 
 
 /** Run a containment case: plant, then -Apply; refused, the project and the outside folder unchanged. */
 function containment(t, plant, why) {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { root, homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const outside = join(root, 'outside');
@@ -373,21 +373,21 @@ function relation(t, repo, ch, proj, watch, why) {
 const CLAUDE_REL = /FAIL project-home: the project folder is the Claude home folder named for this install, holds it, or is inside it/;
 
 test('bad case: a project equal to the Claude folder refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { root, ch } = layout(t);
   projectAt(ch);
   relation(t, repo, ch, ch, root, CLAUDE_REL);
 });
 
 test('bad case: a project holding the Claude folder refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { root, homeDir, ch } = layout(t);
   projectAt(homeDir);
   relation(t, repo, ch, homeDir, root, CLAUDE_REL);
 });
 
 test('bad case: a project inside the Claude folder refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { root, ch } = layout(t);
   const proj = projectAt(join(ch, 'proj'));
   relation(t, repo, ch, proj, root, CLAUDE_REL);
@@ -412,7 +412,7 @@ test('bad case: a project holding the Claude folder but not the home folder, wit
     t.skip('no folder outside the home folder can be made here (not run)');
     return;
   }
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const homeDir = join(root, 'home');
   const ch = join(homeDir, '.claude');
   mkdirSync(ch, { recursive: true });
@@ -424,7 +424,7 @@ test('bad case: a project holding the Claude folder but not the home folder, wit
 // ------------------------------------------------------------ git and Node stay out of the project
 
 test('git is never pointed at the project folder', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const { root, homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const marker = join(root, 'fsmonitor-ran');
