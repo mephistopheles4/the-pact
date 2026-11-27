@@ -78,7 +78,9 @@ body written as one escaped JSON string is where a mistake would land, which
 is why the body is a file and only the short text (title, quote, read-back)
 is inline. As `review.md` says, delete both files once their post
 ends, whatever the result (verified, failed, unverified, mismatch or
-unavailable), or once you drop it: they hold the owner's exact words. Keep a
+unavailable), or once you drop it: they hold the owner's exact words. After a
+failed edit, [check whether it landed](#after-exit-3-did-it-land) first, since
+the check reads the body file. Keep a
 file holding a lens report that the poster refused until the owner has
 answered, then delete it. Before the session ends, delete every such file
 still there, whatever the owner's answer.
@@ -207,7 +209,7 @@ poster renders the read-back line itself:
 
 `intent.text`, `intent.corrected`, `intent_skip`, `intent_none` and `start_none` are refused `post/owned-line` when a line
 holds a heading, a fence opening, an HTML heading tag or one of the poster's
-owned lines (below), read as that section says. An unclosed HTML comment or fold in the body before the signature is refused `text/hidden-line`.
+owned lines, matched as [How the poster builds the body](#how-the-poster-builds-the-body) says. An unclosed HTML comment or fold in the body before the signature is refused `text/hidden-line`.
 
 ### The two quotes
 
@@ -255,7 +257,7 @@ words started the intent:` or `No owner words started the task:` is owned too.
 
 A `body_file` that holds one outside a fence is refused `post/owned-line`. The
 poster matches a line in any case and behind quote and list markers, with its
-format characters removed, as written and after NFKC. It folds no markup, no
+invisible characters removed, as written and after NFKC. It folds no markup, no
 entities and no look-alike letters.
 
 ### Edits
@@ -269,7 +271,10 @@ the text between the poster's own parts, with no signature line, since the
 poster adds it. The post names the item (`issue`, `pr`, `comment`) and the
 item's own `signer`, and the poster renders the new body as it renders any
 other (How the poster builds the body). It appends nothing else: GitHub's edit
-history shows what changed.
+history shows what changed. An older item may hold `Edited:` lines under its
+signature. They are plain text now, which the poster no longer carries: leave
+them out of a status comment, and on any other item put them at the end of the
+`body_file`.
 
 An edit runs in two stages. Before any `gh` call it runs the shape, kind and
 owned-line checks and the per-field scans. After the login, the `as` check and
@@ -414,8 +419,8 @@ page and login are the ones the poster checked before it sent, never text from
 
 An edit ends the same ways, with its own words. Its link is the item's,
 known before it sends. Its exit 1 `NEXT:` line says the edit landed and must
-never be sent again. Its exit 3 line names the item and says to compare its body
-with the body that was sent. A failed or unusable read of the item, a 404 included,
+never be sent again. Its exit 3 line names the item and says to compare it with
+what was sent. A failed or unusable read of the item, a 404 included,
 is exit 4, with nothing sent. A dry run of an edit doesn't read the item, so
 the item's checks don't run, and it says so (Edits).
 
@@ -434,7 +439,7 @@ send:
 - **`issue-comment`:** `gh issue view <n> -R <owner/name> --comments`, or `gh pr view <n> -R <owner/name> --comments` on a pull request's conversation; its last comments
 - **`pull-request-review`:** `gh api --paginate repos/<owner/name>/pulls/<n>/reviews`, its last items
 - **`review-thread-reply`:** `gh api --paginate repos/<owner/name>/pulls/<n>/comments`, its last items
-- **`issue-edit`, `pull-request-edit`, `issue-comment-edit`, `review-thread-reply-edit`:** open the link the `NEXT:` line names and compare the item's body with the body file you sent, between the poster's own parts; if they match, never send the edit again, and tell the owner its link
+- **`issue-edit`, `pull-request-edit`, `issue-comment-edit`, `review-thread-reply-edit`:** open the link the `NEXT:` line names. The edit landed if the text between the item's own parts is your `body_file` and, where you moved the read-back, its `Read-back:` line names your `intent.comment`: then never send it again, and tell the owner its link
 
 If the post is there, don't post again: treat it as unverified, and give the
 owner its URL. If it isn't, tell the owner, and post again only on their word.
@@ -493,19 +498,20 @@ nothing sent.
 ## What the scans cover
 
 The content scan reads each text field above and the whole rendered body: as
-written; as two normalised copies, one with HTML comments removed and one with
-only their markers removed; and as the first copy with each link folded to its
-text and the marks `*`, `` ` ``, `~`, `[` and `]` removed. A normalised copy has
-invisible and control characters, markdown escapes and inline tags removed,
-character references decoded and NFKC applied, again until nothing changes, at
-most five rounds. It decodes a number of at most seven decimal or six hex
+written; as four normalised copies, with HTML comments removed or only their
+markers removed, and control characters stripped or kept; and as the copy with
+both removed, with each link folded to its text and the marks `*`, `` ` ``, `~`,
+`[` and `]` removed. A normalised copy has invisible characters, markdown
+escapes and inline tags removed, character references decoded and NFKC applied,
+again until nothing changes, at most five rounds. It decodes a number of at most seven decimal or six hex
 digits, and a name, with its semicolon, only from a short list in the poster's
 source, which holds every name whose value is a hidden character
 ([ADR 0177](adr/0177-the-poster-keeps-its-controls-and-drops-accident-checks.md)).
 
-Control characters are stripped though GitHub's comments show most of them
-as U+FFFD: stripping only ever adds refusals. The lists of names below are
-kept by hand from the poster's source; no test holds them.
+Control characters are read both ways: stripping one can join the halves of a
+split value, and one left in place can hold a tag together, so each reading
+refuses what the other misses. The lists of names below are kept by hand from
+the poster's source; no test holds them.
 
 - **No token-shape, URL-password or email rule.** The scan refuses no
   credential shape, password in a link or email address: the pact has
@@ -569,8 +575,8 @@ kept by hand from the poster's source; no test holds them.
 - **Fields the schema doesn't check beyond their pattern,** which are checked
   against patterns and bounds, not scanned: `repo`, `as`, `signer`, `head`,
   `base` and `via`.
-- **The body's shape.** No check reads a table, a fence, line wrapping or a
-  link's target. A create post whose body leaves a fence open posts, and the
+- **The body's shape.** No check refuses a body for its table, an open fence,
+  its line wrapping or a link's target. A create post whose body leaves a fence open posts, and the
   fence then swallows its own `Signed:` line, so every later edit of it is
   refused `edit/unsigned`.
 - **A session that sets out to get past them.** They catch accidents.

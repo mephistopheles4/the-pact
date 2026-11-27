@@ -339,7 +339,8 @@ when no other row answers the sentence.
   issue, use your label. Edit the status comment with `issue-comment-edit` and
   `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
   item, never from a kept file, and never removes text, except the status
-  comment's old `Edited:` lines. A pull request body
+  comment's old `Edited:` lines. On any other item, old `Edited:` lines go at
+  the end of your `body_file`: the poster doesn't carry them. A pull request body
   posted unsigned can't be edited through the poster: write only the changed
   line to a file, run an `issue-comment` post of kind `note` on <the issue it works on> with that
   file as its `body_file` and `--dry-run`
@@ -347,7 +348,8 @@ when no other row answers the sentence.
   on GitHub myself; never put a fix in the squash message, and never edit the
   body with plain `gh`. Delete both files
   once its post ends, whatever the result (verified, failed, unverified,
-  mismatch or unavailable), or once you drop it; keep one refused for a lens
+  mismatch or unavailable), after a failed edit once you have checked whether
+  it landed, or once you drop it; keep one refused for a lens
   report until I have answered, then delete it. Before the session ends,
   delete every such file still there, whatever my answer. `verified` means
   what landed is what was sent. Its scan, for hidden characters and a live

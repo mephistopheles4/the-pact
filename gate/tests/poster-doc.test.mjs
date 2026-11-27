@@ -128,7 +128,6 @@ test('C2: a wrong type for each field is refused post/type at its path', t => {
     ['pull-request', BASE['pull-request'], { draft: 'yes' }, 'draft'],
   ];
   for (const [surface, doc, change, where] of wrong) refuses(run(t, surface, { ...doc, ...change }), 'post/type', where);
-  refuses(run(t, 'issue-edit', { repo: TARGET, issue: 5, signer: 'build-524', reason: 5, body_file: 'body.md' }), 'post/unknown', 'reason');
   refuses(run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, source: 'tracker', comment: '5' }] }), 'post/type', 'quote[0].comment');
 });
 
@@ -201,7 +200,6 @@ test('C2: a post file that is not JSON, or whose top level is not an object, is 
 
 // #524 C2: fields that exist but are refused on a surface
 test('C2: a field that exists but is refused on a surface is refused post/field', t => {
-  refuses(run(t, 'issue-comment', { ...NOTE, reason: 'fixed' }), 'post/unknown', 'reason');
   refuses(run(t, 'pull-request', { ...BASE['pull-request'], labels: ['bug'] }), 'post/field', 'labels');
   refuses(run(t, 'issue-comment', { ...NOTE, title: 'A title' }), 'post/field', 'title');
   const twice = run(t, 'issue', { ...ISSUE, answers: 'issue 5' });
@@ -678,6 +676,9 @@ test('C4: a comment opened in a quote, with its closer after the quote, is refus
   // In the owner's words, with the closer in the body file.
   const inPassage = run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, text: 'Said <!-- aloud' }] }, { body: 'Then --> this.\n' });
   assert.ok(has(inPassage, 'text/hidden-line', 'body'), out(inPassage));
+  // An edit reads the whole body the same way (PACT-115 C4).
+  const onEdit = run(t, 'issue-comment-edit', { repo: TARGET, issue: 5, comment: 9001, signer: 'build-524', quote: [{ ...QUOTE, text: 'Said <!-- aloud' }], intent: INTENT, body_file: 'body.md' }, { body: 'Then --> this.\n' });
+  assert.ok(has(onEdit, 'text/hidden-line', 'body'), out(onEdit));
   // Entirely in the body file: a quoted opener, then the closer in a later paragraph.
   const inBody = run(t, 'issue-comment', NOTE, { body: '> <!-- a note\n\nThen --> this.\n' });
   refuses(inBody, 'text/hidden-line', 'body_file');

@@ -259,7 +259,10 @@ test('C6: a body file holding an owned line outside a fence is refused post/owne
     // Inside a fence a line is no owned line. An edit still reads the decision mark in the whole body (S6.4), fenced or not.
     const fenced = world();
     const f = edit(t, s, fenced, { body: `Text.\n\n\`\`\`text\n${line}\n\`\`\`\n` });
-    if (line.startsWith('Owner decision')) assert.ok(refusedBy(f, 'edit/decision', 'body_file'), `${line} inside a fence: ${text(f)}`);
+    if (line.startsWith('Owner decision')) {
+      assert.ok(refusedBy(f, 'edit/decision', 'body_file'), `${line} inside a fence: ${text(f)}`);
+      assert.equal(fenced.calls.length, 0);
+    }
     else assert.equal(f.code, 0, `${line} inside a fence: ${text(f)}`);
   }
   for (const line of [`Edited: a line (${LABEL})`, 'Edited: no label at all']) {
@@ -343,7 +346,7 @@ test('C11: mismatch, unverified, failed and unavailable, each with its NEXT line
   assert.deepEqual(unverified.lines.slice(-2), ['NEXT: the edit landed. Never send it again. Tell the owner, with the link below.', `RESULT: unverified ${url}`]);
   const failed = edit(t, s, world({ fail: { 'PATCH before': 'HTTP 502: Bad Gateway' } }));
   assert.equal(failed.code, 3);
-  assert.deepEqual(failed.lines.slice(-2), [`NEXT: the edit may have landed. Compare the body at ${url} with the body you sent before anything else. If they match, never send it again: tell the owner its link. If they don't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`, 'RESULT: failed']);
+  assert.deepEqual(failed.lines.slice(-2), [`NEXT: the edit may have landed. Before anything else, compare the item at ${url} with what you sent: the text between the poster's own parts against your body_file and, if you moved the read-back, its Read-back line. If both are as you sent them, never send it again: tell the owner its link. If either isn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`, 'RESULT: failed']);
   for (const w of [world({ fail: { [`GET ${PATHS[s]} before`]: 'HTTP 502: Bad Gateway' } }), world({ store: { ...items(), [PATHS[s]]: { id: 9001, body: SIGNED, user: 'not an object', issue_url: `${API}/issues/5` } } })]) {
     const r2 = edit(t, s, w);
     assert.equal(r2.code, 4, text(r2));
@@ -365,6 +368,9 @@ test('C12: a dry run prints the PATCH and sizes, runs the body checks, says what
   ]);
   const owned = edit(t, 'issue-edit', world(), { body: 'Signed: other\n', dry: true });
   assert.ok(refusedBy(owned, 'post/owned-line', 'body_file'), text(owned));
+  // A body that leaves a fence open would swallow its own Signed: line.
+  const open = edit(t, 'issue-edit', world(), { body: '```text\nleft open\n', dry: true });
+  assert.ok(refusedBy(open, 'edit/unsigned', 'body_file'), text(open));
 });
 
 // #503: the status comment, signed status-<n>. An item may still hold old Edited: lines, plain text now.
@@ -374,8 +380,12 @@ const STATUS_ITEM = `## Status: 0 for you, after Design round 2\n\nSigned: ${STA
 const STATUS_BODY = '## Status: 1 for you, after Test round 1\n';
 
 // #503 C4
-test('#503 C4: on a status edit, the author, target, signature, decision and plain-sight checks still refuse', t => {
+test('#503 C4: a status edit drops old Edited: lines, and the author, target, signature, decision and hidden-line checks still refuse', t => {
   const s = 'issue-comment-edit';
+  const kept = world({ store: items(STATUS_ITEM) });
+  const sent = edit(t, s, kept, { body: STATUS_BODY, signer: STATUS });
+  assert.equal(sent.code, 0, text(sent));
+  assert.equal(sentBody(kept), `${STATUS_BODY}\nSigned: ${STATUS}`);
   for (const [store, args, rule] of [
     [items(STATUS_ITEM, 'someone-else'), ARGS[s], 'edit/author'],
     [items(STATUS_ITEM), { issue: 5, comment: 9002 }, 'edit/target'],

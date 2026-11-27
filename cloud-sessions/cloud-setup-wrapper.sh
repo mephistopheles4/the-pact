@@ -1462,7 +1462,8 @@ when no other row answers the sentence.
   issue, use your label. Edit the status comment with `issue-comment-edit` and
   `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
   item, never from a kept file, and never removes text, except the status
-  comment's old `Edited:` lines. A pull request body
+  comment's old `Edited:` lines. On any other item, old `Edited:` lines go at
+  the end of your `body_file`: the poster doesn't carry them. A pull request body
   posted unsigned can't be edited through the poster: write only the changed
   line to a file, run an `issue-comment` post of kind `note` on <the issue it works on> with that
   file as its `body_file` and `--dry-run`
@@ -1470,7 +1471,8 @@ when no other row answers the sentence.
   on GitHub myself; never put a fix in the squash message, and never edit the
   body with plain `gh`. Delete both files
   once its post ends, whatever the result (verified, failed, unverified,
-  mismatch or unavailable), or once you drop it; keep one refused for a lens
+  mismatch or unavailable), after a failed edit once you have checked whether
+  it landed, or once you drop it; keep one refused for a lens
   report until I have answered, then delete it. Before the session ends,
   delete every such file still there, whatever my answer. `verified` means
   what landed is what was sent. Its scan, for hidden characters and a live
@@ -1678,7 +1680,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash eefcc57ba2943bb5a520020472e1058cdd133f842ca57e242ecd4b0f2568fae1 '.pact/review.md'
+check_hash ab4640ff345f318ed1dfce6d60b21244f2169743ed769e6b30775c64ee055f67 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1708,7 +1710,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy d858fa52b253"
+  echo "pact cloud copy b4db1c2839a2"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

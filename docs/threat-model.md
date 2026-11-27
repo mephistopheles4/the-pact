@@ -289,7 +289,7 @@ it.
   connector call.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
-  hidden text (a secret read as written and as two normalised copies, with
+  hidden text (a secret read as written and as normalised copies, with
   entities decoded and markup, tags and comments removed; a hidden character
   only as written), and refuses an edit of what its login didn't write. That
   holds for posts sent through it, and permission rules on `gh` don't see its

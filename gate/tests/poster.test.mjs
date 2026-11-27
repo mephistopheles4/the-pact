@@ -741,33 +741,69 @@ const pageOnly = text => inBody('<!-- x\n\n' + text + '\n\n-->');
     { id: '394-C9-mark-fold', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20)), fails: ['secret/env'], why: 'bold marks inside the shape' },
     { id: '394-C26-html-block-nbsp', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&ZeroWidthSpace;' + GH_TOKEN_SHAPE.slice(10, 20) + '<b c' + String.fromCharCode(0xa0) + '="x">' + GH_TOKEN_SHAPE.slice(20) + '\n</div>\n' }), fails: ['secret/env'], why: 'a tag with a no-break space before =, which the HTML parser reads in an HTML block' },
     { id: 'in-a-fence', plant: inBody('\n```\n' + ENV_SECRET + '\n```\n'), fails: ['secret/env'], why: 'a secret in a code block is still a secret' },
-    { id: 'number-out-of-range', plant: inBody('&#99999999;'), fails: [], why: 'a reference to no character is left as written' },
-    // PACT-115: the page-only forms of #394, which the scan reads no more. Each `why` names the form that now passes.
-    { id: '394-C5-padded-no-semicolon', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#00000000173' + GH_TOKEN_SHAPE.slice(10)), fails: [], why: 'a numeric reference past the old digit cap, with no semicolon' },
-    { id: '394-C7-page-decoded-tag', plant: pageOnly('&lt;b ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '&gt;'), fails: [], why: 'a decoded tag shape the page shows as text' },
-    { id: '394-C8-bare-fenced-tag', plant: inBody('\n~~~\n<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10) + '">\n~~~\n'), fails: [], why: 'a tag the page shows as text in a fence' },
-    { id: '394-C19-page-escaped-tag', plant: pageOnly('\\<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: [], why: 'an escaped tag shape split by a real tag' },
-    { id: '394-C20-page-code-span', plant: inBody('`<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '`' + GH_TOKEN_SHAPE.slice(10, 20) + '<i></i>' + GH_TOKEN_SHAPE.slice(20) + '">'), fails: [], why: 'a code span ending inside a tag shape' },
-    { id: '394-C22-filtered-tag-name', plant: inBody('<Title x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: [], why: 'a tag GitHub filters, shown as text' },
-    { id: '394-C23-non-ascii-tag-space', plant: inBody('<b y="1"' + String.fromCharCode(0xa0) + 'x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: [], why: 'a tag shape with a no-break space, which the grammar rejects' },
-    { id: '394-C21-legacy-no-semicolon', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&shy' + GH_TOKEN_SHAPE.slice(10) + '\n</div>\n' }), fails: [], why: 'a legacy name with no semicolon, in an HTML block' },
-    { id: '394-C17-raw-html-grammar', plant: pageOnly(GH_TOKEN_SHAPE.slice(0, 8) + '<span title="x>y"></span>' + GH_TOKEN_SHAPE.slice(8, 16) + '<?x y?>' + GH_TOKEN_SHAPE.slice(16, 24) + '<!X y>' + GH_TOKEN_SHAPE.slice(24, 30) + '<![CDATA[z]]>' + GH_TOKEN_SHAPE.slice(30)), fails: [], why: 'raw HTML the page hides, as its grammar reads it' },
-    { id: '394-C18-rejected-tag-run', plant: inBody('<b 1x="q" ' + GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20) + '>'), fails: [], why: 'a tag shape the grammar rejects, shown as text' },
-    { id: '394-C24-pi-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<?x>' + GH_TOKEN_SHAPE.slice(10) + '?>'), fails: [], why: 'a processing instruction the page ends at its first >' },
-    { id: '394-C24-cdata-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<![CDATA[x>' + GH_TOKEN_SHAPE.slice(10) + ']]>'), fails: [], why: 'a CDATA section the page ends at its first >' },
-    { id: '394-C25-quoted-tag', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n> ' + GH_TOKEN_SHAPE.slice(0, 10) + '<b a="x."\n> c="x">' + GH_TOKEN_SHAPE.slice(10) + '\n' }), fails: [], why: 'a tag carried onto the next line of a block quote' },
   ];
   test('poster scan: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) {
     test(`poster scan: ${r.id}`, async t => {
       const res = await run(r.plant(base()), t);
-      if (!r.fails.length) return assertPasses(res);
       assertFails(res, r.fails, r.says);
       await everyRow(res, t);
     });
   }
   test('poster scan: base passes after the rows', async t => assertPasses(await run(base(), t)));
 }
+
+// PACT-115 C4: what the scan's floor and the owned-line reading still refuse beyond the rows above, and the forms that now pass.
+test('C4: a secret split by a hidden name, a link or a control character in a tag, and a decision mark split by an invisible character, are refused; a page-only form and an out-of-range reference pass', t => {
+  const split = by => GH_TOKEN_SHAPE.slice(0, 10) + by + GH_TOKEN_SHAPE.slice(10);
+  const linked = address => `${GH_TOKEN_SHAPE.slice(0, 10)}[${GH_TOKEN_SHAPE.slice(10, 20)}](${address})${GH_TOKEN_SHAPE.slice(20)}`;
+  const inBlock = by => tree => ({ ...tree, 'body.md': `<div>\n${split(by)}\n</div>\n` });
+  const refused = {
+    'every single-character hidden name but ZeroWidthSpace, and a hex reference': [inBody(split('&ApplyFunction;&af;&InvisibleComma;&ic;&InvisibleTimes;&it;&NoBreak;&NegativeMediumSpace;&NegativeThickSpace;&NegativeThinSpace;&NegativeVeryThinSpace;&#xAD;')), 'secret/env'],
+    'a link whose address holds a quote': [inBody(linked('https://x.example/a"b')), 'secret/env'],
+    'a link whose address holds parentheses': [inBody(linked('https://x.example/a(b)')), 'secret/env'],
+    'a form feed holding a tag together': [inBlock(`<b${String.fromCharCode(0x0c)}c="x">`), 'secret/env'],
+    'a vertical tab holding a tag together': [inBlock(`<b${String.fromCharCode(0x0b)}c="x">`), 'secret/env'],
+    'an encoded form feed holding a tag together': [inBlock('<b&#12;c="x">'), 'secret/env'],
+    'a decision mark split by a combining grapheme joiner': [tree => ({ ...tree, 'body.md': `Own${String.fromCharCode(0x34f)}er decision, from chat.\n` }), 'post/owned-line'],
+  };
+  for (const [plant, rule] of Object.values(refused)) {
+    const res = runTree(plant(scanBase()), t);
+    assertFails(res, [rule]);
+    refusedQuietly(res, t);
+  }
+  const passing = {
+    // A reference to no character is left as written.
+    'number-out-of-range': inBody('&#99999999;'),
+    // A numeric reference past the old digit cap, with no semicolon.
+    '394-C5-padded-no-semicolon': inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#00000000173' + GH_TOKEN_SHAPE.slice(10)),
+    // A decoded tag shape the page shows as text.
+    '394-C7-page-decoded-tag': pageOnly('&lt;b ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '&gt;'),
+    // A tag the page shows as text in a fence.
+    '394-C8-bare-fenced-tag': inBody('\n~~~\n<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10) + '">\n~~~\n'),
+    // An escaped tag shape split by a real tag.
+    '394-C19-page-escaped-tag': pageOnly('\\<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'),
+    // A code span ending inside a tag shape.
+    '394-C20-page-code-span': inBody('`<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '`' + GH_TOKEN_SHAPE.slice(10, 20) + '<i></i>' + GH_TOKEN_SHAPE.slice(20) + '">'),
+    // A tag GitHub filters, shown as text.
+    '394-C22-filtered-tag-name': inBody('<Title x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'),
+    // A tag shape with a no-break space, which the grammar rejects.
+    '394-C23-non-ascii-tag-space': inBody('<b y="1"' + String.fromCharCode(0xa0) + 'x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'),
+    // A legacy name with no semicolon, in an HTML block.
+    '394-C21-legacy-no-semicolon': tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&shy' + GH_TOKEN_SHAPE.slice(10) + '\n</div>\n' }),
+    // Raw HTML the page hides, as its grammar reads it.
+    '394-C17-raw-html-grammar': pageOnly(GH_TOKEN_SHAPE.slice(0, 8) + '<span title="x>y"></span>' + GH_TOKEN_SHAPE.slice(8, 16) + '<?x y?>' + GH_TOKEN_SHAPE.slice(16, 24) + '<!X y>' + GH_TOKEN_SHAPE.slice(24, 30) + '<![CDATA[z]]>' + GH_TOKEN_SHAPE.slice(30)),
+    // A tag shape the grammar rejects, shown as text.
+    '394-C18-rejected-tag-run': inBody('<b 1x="q" ' + GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20) + '>'),
+    // A processing instruction the page ends at its first >.
+    '394-C24-pi-first-gt': inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<?x>' + GH_TOKEN_SHAPE.slice(10) + '?>'),
+    // A CDATA section the page ends at its first >.
+    '394-C24-cdata-first-gt': inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<![CDATA[x>' + GH_TOKEN_SHAPE.slice(10) + ']]>'),
+    // A tag carried onto the next line of a block quote.
+    '394-C25-quoted-tag': tree => ({ ...tree, 'body.md': 'A plain body.\n\n> ' + GH_TOKEN_SHAPE.slice(0, 10) + '<b a="x."\n> c="x">' + GH_TOKEN_SHAPE.slice(10) + '\n' }),
+  };
+  for (const plant of Object.values(passing)) assertPasses(runTree(plant(scanBase()), t));
+});
 
 // #246 C7: what passes; the scan is not a word filter
 test('plain words that look like the rules pass the scan', t => {

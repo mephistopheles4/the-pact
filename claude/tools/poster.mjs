@@ -24,9 +24,9 @@
 // `Signed:` line. The post's text fields are unverified: they catch accidents,
 // and are not a control.
 //
-// An edit reads the item first and refuses one its login didn't write, one the
-// post doesn't name, one not signed with the post's signer, and one holding a
-// decision mark. It sends the same parts as a create post and carries nothing
+// An edit reads the item first and refuses one its login didn't write, one that
+// isn't where the post says, one not signed with the post's signer, and one
+// holding a decision mark. It sends the same parts as a create post and carries nothing
 // forward from the item's body but its mark and `Answers:` line; GitHub's edit
 // history shows what changed. An item that opens with the owner's ask and the
 // read-back is an ask item (#524): its edit carries `quote` and `intent`, which
@@ -37,9 +37,9 @@
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every field and file, and scans the
 // exact text it would send for a live environment secret's value and hidden
-// text, as written and as two normalised copies; it refuses no token shape,
-// email address, path or session id (#326, #364, #366, #441). It checks nothing
-// else about the body's shape, and never rewrites it. Before it posts, it
+// text, as written and as normalised copies; it refuses no token shape,
+// email address, path or session id (#326, #364, #366, #441). It runs no table,
+// fence, wrap or link check, and never rewrites the body. Before it posts, it
 // checks that the repo's owner is the gh login, by name and again by what
 // GitHub returns for the repo (owner/repo, owner/github), and reads each
 // tracker comment a quote cites (post/tracker). The scans are a backstop for
@@ -515,7 +515,7 @@ function inComment(text, comment) {
 
 const allChat = quote => quote.every(q => q.source === 'chat');
 
-/** The lines a field may not hold (S3.3, S5.3): each is read as the page shows it. */
+/** The lines a field may not hold (S3.3, S5.3): each is read in the two views `views` gives, behind quote and list markers. */
 const FIXED_START = [
   /^read-back:/,
   /^answers:/,
@@ -534,7 +534,7 @@ const MARKER_RE = /^[ \t]*(?:>|[-*+](?=[ \t])|[0-9]{1,9}[.)](?=[ \t]))[ \t]*/;
 const OPENER_RE = /^(?:`{3,}|~{3,})/;
 
 /** One view of a line as the owned lines are matched: leading quote and list markers removed, a curly apostrophe straightened, trimmed, in lower case. */
-function pageLine(view) {
+function matchLine(view) {
   let s = view.replace(/[‘’]/g, "'");
   for (let prev = null; prev !== s;) {
     prev = s;
@@ -546,7 +546,7 @@ function pageLine(view) {
 /** Whether a line is an owned line (S5.3) in any of its views. */
 function isOwnedLine(line) {
   return views(line).some(v => {
-    const s = pageLine(v);
+    const s = matchLine(v);
     return OWNED_SIGNATURE_RE.test(s) || FIXED_START.some(re => re.test(s)) || s.includes(DECISION);
   });
 }
@@ -554,7 +554,7 @@ function isOwnedLine(line) {
 /** Whether a line is a heading, a fence opener or an HTML heading, in any view, once its leading markers are gone. */
 function isHeadingLine(line) {
   return views(line).some(v => {
-    const s = pageLine(v);
+    const s = matchLine(v);
     return HEADING_RE.test(s) || OPENER_RE.test(s) || HTML_HEADING_RE.test(v);
   });
 }
@@ -1003,11 +1003,14 @@ const ESCAPE_RE = /\\(?=[!-/:-@[-`{-~])/g;
 const TAG_RE = /<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>/g;
 // Every control character but tab, line feed and carriage return. GitHub's
 // comments show most of them as U+FFFD and a form feed as a space, and its
-// plain markdown mode drops the C0 ones; stripping them only adds refusals.
+// plain markdown mode drops the C0 ones.
 const CONTROL_RE = /[\0-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g;
 
+/** `s` without its invisible characters. */
+const stripInvisible = s => s.replace(INVISIBLE_RE, '');
+
 /** `s` without its invisible and control characters. */
-const stripUnseen = s => s.replace(INVISIBLE_RE, '').replace(CONTROL_RE, '');
+const stripUnseen = s => stripInvisible(s).replace(CONTROL_RE, '');
 
 /** `s` with every match of `re` removed, again until none is left, since a removal can join two pieces into a new match. At most 50 passes. */
 function removeAll(s, re) {
@@ -1021,26 +1024,33 @@ function removeAll(s, re) {
 }
 
 /**
- * The text as a reader sees it: invisible and control characters, markdown
- * escapes and inline tags removed, entities decoded and NFKC applied, repeated until
- * nothing changes, at most five rounds. HTML comments are removed with their
- * contents, as the page shows them; with `keepComments`, only their markers
- * go, as the source shows them.
+ * The text as a reader sees it: what `strip` removes (invisible and control
+ * characters unless another is given), markdown escapes and inline tags
+ * removed, entities decoded and NFKC applied, repeated until nothing changes,
+ * at most five rounds. HTML comments are removed with their contents, as the
+ * page shows them; with `keepComments`, only their markers go, as the source
+ * shows them.
  */
-export function normalise(text, keepComments = false) {
+export function normalise(text, keepComments = false, strip = stripUnseen) {
   let s = text;
   for (let round = 0; round < 5; round += 1) {
-    const unmarked = removeAll(stripUnseen(s), keepComments ? COMMENT_MARK_RE : COMMENT_RE);
-    const next = stripUnseen(decodeEntities(removeAll(unmarked.replace(ESCAPE_RE, ''), TAG_RE))).normalize('NFKC');
+    const unmarked = removeAll(strip(s), keepComments ? COMMENT_MARK_RE : COMMENT_RE);
+    const next = strip(decodeEntities(removeAll(unmarked.replace(ESCAPE_RE, ''), TAG_RE))).normalize('NFKC');
     if (next === s) break;
     s = next;
   }
   return s;
 }
 
-/** The normalised copies of a text, which the scan reads: its HTML comments removed with their contents, and with only their markers removed. */
+/**
+ * The normalised copies of a text, which the scan reads: its HTML comments
+ * removed with their contents, and with only their markers removed; each with
+ * control characters stripped, and with them kept. A control character can hold
+ * a tag together (`<b`, a form feed, `c="x">`), so each of the two readings
+ * refuses what the other misses.
+ */
 function copies(text) {
-  return [normalise(text), normalise(text, true)];
+  return [stripUnseen, stripInvisible].flatMap(strip => [normalise(text, false, strip), normalise(text, true, strip)]);
 }
 
 const LINK_PLAIN_RE = /!?\[([^[\]]*)\](?:\([^()]*\)|\[[^[\]]*\])?/g;
@@ -1252,9 +1262,9 @@ export function signatures(body) {
   });
 }
 
-/** The views of a text the edit and owned-line checks read: as written without format characters, and that after NFKC. */
+/** The views of a text the edit and owned-line checks read: as written without invisible characters, and that after NFKC. */
 function views(text) {
-  const plain = text.replace(/\p{Cf}/gu, '');
+  const plain = stripInvisible(text);
   return [plain, plain.normalize('NFKC')];
 }
 
@@ -1265,7 +1275,7 @@ export function hasDecision(body) {
 
 /** Whether a body holds a line that opens "Heard in chat by", an app's decision mark, in any view (#599, S8). */
 export function hasHeard(body) {
-  return linesOf(body).some(line => views(line).some(v => HEARD_START_RE.test(pageLine(v))));
+  return linesOf(body).some(line => views(line).some(v => HEARD_START_RE.test(matchLine(v))));
 }
 
 /** The refusals a body earns as the text an edit leaves, `where` naming whose body it is. */
@@ -1498,7 +1508,7 @@ const LANDED_MISMATCH = landedNext('the link below and the fields named above');
 const editLanded = form => `NEXT: the edit landed. Never send it again. Tell the owner, with ${form}.`;
 const EDIT_LANDED_LINK = editLanded('the link below');
 const EDIT_LANDED_MISMATCH = editLanded('the link below and the fields named above');
-const editFailedNext = url => `NEXT: the edit may have landed. Compare the body at ${url} with the body you sent before anything else. If they match, never send it again: tell the owner its link. If they don't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`;
+const editFailedNext = url => `NEXT: the edit may have landed. Before anything else, compare the item at ${url} with what you sent: the text between the poster's own parts against your body_file and, if you moved the read-back, its Read-back line. If both are as you sent them, never send it again: tell the owner its link. If either isn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`;
 
 // ---------------------------------------------------------------- one post
 
