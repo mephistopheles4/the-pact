@@ -28,8 +28,9 @@ Executed at `fdb4ef17` in isolated temporary directories (`<TMP>` only); live `~
 
 ## Record
 
-- `PACT-119`: spec approval decision (`8b2a56bc`), T1–T4 execution records (`3ea051ef`)
-- `PACT-120` (T1): `7d646286`
-- `PACT-121` (T2): `56da6fe1`, `a420117b`
-- `PACT-122` (T3): `99e821f6`, `dadf9079`
-- `PACT-123` (T4): `eb6080fc` (Round 2 final and `T5` `PACT-124` probe records follow on `PACT-123` / `PACT-124`)
+- `PACT-119`: spec approval decision (`8b2a56bc`), T1–T4 execution records (`3ea051ef`), push rollup (`457bfbd8`)
+- `PACT-120` (T1): `7d646286`, handoff (`63abdf42`)
+- `PACT-121` (T2): `56da6fe1`, early Windows probe (`a420117b`), handoff (`45680204`)
+- `PACT-122` (T3): `99e821f6`, `dadf9079`, handoff (`43454f45`)
+- `PACT-123` (T4): `eb6080fc`, Round 2 final (`69c68054`), status (`b6a8a385`)
+- `PACT-124` (T5): handoff (`fb4c24ef`); interactive probe and CI records follow on `PACT-124` / `PACT-119`

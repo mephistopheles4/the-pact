@@ -217,9 +217,10 @@ and `config.worktree` files read from clones by the guard; and the release job's
   bootstrap, so tag rulesets decide it. The bootstrap's `git` and the guard
   hook's `node` (across `claude.mjs`, `codex.mjs`, and `antigravity.mjs`, via
   the Windows `.cmd` launchers with `cmd.exe /d /c`,
-  `NoDefaultCurrentDirectoryInExePath=1` and cleared `NODE_OPTIONS`, or
-  `/usr/bin/env -u NODE_OPTIONS node` on POSIX) are never taken from the
-  working folder. To scope `git` and `gh` writes to the pinned owner's repos,
+  `NoDefaultCurrentDirectoryInExePath=1` and cleared `NODE_OPTIONS`, or on
+  POSIX via `/usr/bin/env -u NODE_OPTIONS node` for `claude.mjs` and
+  `env -u NODE_OPTIONS node` for `codex.mjs` and `antigravity.mjs`) are never
+  taken from the working folder. To scope `git` and `gh` writes to the pinned owner's repos,
   the guard reads `.git/config`, `gitdir:`, `commondir`, and `config.worktree`
   directly as bounded plain text (up to 1 MiB) and spawns zero `git`
   subprocesses in `cwd`, rejecting UNC/network/device paths, Windows

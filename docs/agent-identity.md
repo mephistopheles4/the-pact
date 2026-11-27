@@ -108,8 +108,7 @@ rest:
   editor's terminal) is tried after a failed mint, and `GIT_TERMINAL_PROMPT=0`
   doesn't stop it.
 - An SSH remote, a repository-local helper, a credential-bearing URL, an
-  `http.*.extraHeader` auth header, or an `insteadOf` rule in a terminal or
-  unpinned harness.
+  `http.*.extraHeader` auth header, or an `insteadOf` rule.
 - Your own `author.*`, `committer.*` and signing settings, which the include loads.
 - `GIT_CONFIG_GLOBAL` makes a session's `git config --global` write to the agent
   gitconfig, so `gh auth setup-git` swaps the helper out. The guard refuses a
