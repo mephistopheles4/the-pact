@@ -754,12 +754,13 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   };
 
   // Upward lookup from subdirectory and -C chaining exempt stranger repos (including via time -p / mise flags).
+  const strangerWork = strangerRepo.work.replaceAll('\\', '/');
   assert.equal(call('git commit -m x'), null);
-  assert.equal(call(`time -p env -C ${strangerRepo.work} git -C nested commit -m x`, { cwd: fx.home }), null);
+  assert.equal(call(`time -p env -C '${strangerWork}' git -C nested commit -m x`, { cwd: fx.home }), null);
   assert.equal(call('/usr/bin/time -p -- git commit -m x'), null);
-  assert.equal(call(`mise x -C ${strangerRepo.work} node@24 git commit -m x`), null);
-  assert.equal(call(`mise x -C ${strangerRepo.work} -- git commit -m x`, { cwd: fx.home }), null);
-  assert.equal(call(`mise -C ${strangerRepo.work} x -- git commit -m x`, { cwd: fx.home }), null);
+  assert.equal(call(`mise x -C '${strangerWork}' node@24 git commit -m x`), null);
+  assert.equal(call(`mise x -C '${strangerWork}' -- git commit -m x`, { cwd: fx.home }), null);
+  assert.equal(call(`mise -C '${strangerWork}' x -- git commit -m x`, { cwd: fx.home }), null);
   assert.equal(call('gh pr create -t x -b y'), null);
 
   // Account-scoped gh writes stay guarded even inside stranger cwd.
