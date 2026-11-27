@@ -2,10 +2,10 @@
 
 `agent-identity` in `~/.pact/config.json` is `true` or `false`, `false`
 when unset; the builder's Settings dialog shows it. A project configuration may
-not set it, and no preset or builder file turns it on. In Claude Code's
-`CLAUDE.md`, only the configuration notice names it; in harnesses without
-`settings-env` (`codex` and `antigravity`), `tool-gh-app` renders a one-line
-startup rule into `AGENTS.md`. While it is on, the pact guards git and `gh`
+not set it, and no preset or builder file turns it on. In Claude Code's `CLAUDE.md`, only the configuration notice names it; in
+harnesses without `settings-env` (`codex` and `antigravity`), the renderer
+adds a one-line `Use your pinned GitHub App` rule into `AGENTS.md`. While it is
+on, the pact guards git and `gh`
 writes across local sessions in Claude Code, Codex and Antigravity so
 owner-repo writes run as the GitHub App you create under your own account (see
 [the helper](reference.md#pact-tools)). The app's name is yours to choose: the
@@ -64,14 +64,15 @@ install into Claude Code refuses: run setup.
     `git` override/unset attempts (`-c credential.*`/`user.*`, `unset`,
     `--config-env`, `GIT_CONFIG_COUNT`/`GIT_CONFIG_PARAMETERS`, etc.).
   - **Antigravity (`antigravity.mjs`).** Intercepts both plain `gh` writes and
-    plain `git` writes missing `GIT_CONFIG_GLOBAL`. On unambiguous single simple
-    `git` `run_command` calls, it returns `overwrite` (rewriting `CommandLine`
-    with `GIT_CONFIG_GLOBAL` and `GIT_TERMINAL_PROMPT=0`) paired with
-    `decision: "force_ask"` (never `"allow"`). On compound, wrapped, or
-    overridden `git` commands, on `manage_task` (`send_input`) /
-    `send_command_input`, or if `force_ask` drops `overwrite` or fails to prompt,
-    it returns `deny` with the exact `GIT_CONFIG_GLOBAL` +
-    `GIT_TERMINAL_PROMPT=0` prefix to use.
+    plain `git` writes missing `GIT_CONFIG_GLOBAL`. On eligible single simple
+    `git` `run_command` calls, it unconditionally emits `decision: "force_ask"`
+    paired with `overwrite.CommandLine` (`GIT_CONFIG_GLOBAL` and
+    `GIT_TERMINAL_PROMPT=0`, never `"allow"`; verified in headless `agy -p`,
+    pending interactive confirmation, and switching simple `git` writes to
+    `deny` requires updating the hook code if a live probe fails). It returns
+    `deny` with the exact `GIT_CONFIG_GLOBAL` + `GIT_TERMINAL_PROMPT=0` prefix
+    on compound, wrapped, or overridden `git` commands and on `manage_task`
+    (`send_input`) / `send_command_input`.
   - **Codex (`codex.mjs`).** Denies plain `gh` writes and plain `git` writes
     missing `GIT_CONFIG_GLOBAL` with the exact `GIT_CONFIG_GLOBAL` +
     `GIT_TERMINAL_PROMPT=0` prefix to use.
@@ -156,8 +157,10 @@ A missing or changed gitconfig doesn't block this.
 
 1. Set `agent-identity` to `false` in `~/.pact/config.json`, run the dry run and
    apply **at the newer commit first**, so Claude Code's `PreToolUse` hook
-   entry, `env` keys, `.pact/guard/claude.mjs` (`claude.cmd`), `rules.json`, and
-   non-Claude `AGENTS.md` are removed cleanly. An older installer knows neither
+   entry, `env` keys, `.pact/guard/claude.mjs` (`claude.cmd`), the `identity`
+   block in `rules.json` (and `.pact/guard/` if `cleaner` is also off), and the
+   `Use your pinned GitHub App` rule in Codex and Antigravity `AGENTS.md` are
+   removed cleanly. An older installer knows neither
    `claude.mjs` (`claude.cmd`), nor the `identity` key in `rules.json`, nor
    `settings-env` in `harnesses/known.json`, refuses `agent-identity` when
    unsupported, and ignores `identityEnv`.

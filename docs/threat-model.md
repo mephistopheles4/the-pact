@@ -103,16 +103,19 @@ someone hands a session to load, and a decision model's answer.
   the provider is pinned in `~/.pact/github.json`, the guard denies plain `gh`
   writes on owner repos, account-scoped `gh` writes, and `git` override/unset
   attempts across all three harnesses, and in Codex and Antigravity intercepts
-  plain `git` writes missing `GIT_CONFIG_GLOBAL` — returning `overwrite`
-  (`CommandLine` with `GIT_CONFIG_GLOBAL` and `GIT_TERMINAL_PROMPT=0`) paired
-  with `force_ask` (never `allow`) on unambiguous single simple `git`
-  `run_command` calls in Antigravity (falling back to `deny` on compound,
-  wrapped, or overridden commands, `manage_task` / `send_command_input`, or if
-  `force_ask` drops `overwrite` or fails to prompt) and `deny` in Codex. By the
-  speed-bump boundary ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)),
+  plain `git` writes missing `GIT_CONFIG_GLOBAL`: on eligible single simple
+  `git` `run_command` calls in Antigravity, `antigravity.mjs` unconditionally
+  emits `decision: "force_ask"` paired with `overwrite.CommandLine`
+  (`GIT_CONFIG_GLOBAL` and `GIT_TERMINAL_PROMPT=0`, never `allow`; verified in
+  headless `agy -p`, pending interactive `T5` confirmation, and switching
+  simple `git` writes to `deny` requires updating the hook code if a live
+  probe fails), returning `deny` on compound, wrapped, or overridden commands,
+  `manage_task` (`send_input`), and `send_command_input`, and `deny` in Codex.
+  By the speed-bump boundary ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)),
   the guard catches ordinary command shapes and session mistakes, not
-  arbitrary-code-execution antivirus or obfuscated shell polyglots (`cd ..;`,
-  nested subshell or polyglot quote tricks) on trusted local shells. The hook
+  arbitrary-code-execution antivirus or obfuscated shell polyglots (`bash -c`
+  wrappers, `gh api repos/<stranger>/<repo>/forks`, nested subshell or
+  polyglot quote tricks) on trusted local shells. The hook
   denies on an error it catches (and fails closed with `pin` on a symlinked,
   oversized, or malformed `github.json` during a candidate `git`/`gh` call); a
   hook that can't start (on Windows, one whose `cmd.exe` or launcher is
@@ -359,17 +362,18 @@ a secret or a personal detail. Also accepted. Posts are public: a lens can
 send a secret out through a post, a builder file keeps what was typed into it,
 and a message to a cloud or Remote Control session leaves the machine when a
 session sends it. Who counts as you: a foreign token or a commit's email can
-read as the owner or as the owner's agent app. Unpinned non-Claude providers
-(`codex` or `antigravity` absent from `github.json`) pass through silently at
-runtime and write with the owner's own Git and `gh` credentials. Exempt
-`gh run` and `gh workflow` writes run under the owner's `gh` login while
+read as the owner or as the owner's agent app. Any provider unpinned in
+`github.json` at runtime (`codex` or `antigravity` absent from `apps`) passes
+through silently and writes with the owner's own Git and `gh` credentials.
+Exempt `gh run` and `gh workflow` writes run under the owner's `gh` login while
 `gh-app.mjs` holds `actions: read` only, and `git pull` is excluded from
 guarded `git` write subcommands (`git push` stays guarded). Each provider's
 gitconfig includes `~/.gitconfig`, so your own `author.*`, `committer.*` and
 signing settings still apply to commits ([agent identity](agent-identity.md#what-it-doesnt-stop)).
-A session can also still write as the owner via nested shell wrappers (`bash -c`,
-`pwsh -Command`, `cmd /c`, `Start-Process`) and other speed-bump parser or
-harness-spawn/timeout gaps ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)),
+A session can also still write as the owner via an unguarded custom harness,
+non-shell harness or MCP tools, nested shell wrappers (`bash -c`, `pwsh -Command`,
+`cmd /c`, `Start-Process`) and other speed-bump parser or harness-spawn/timeout
+gaps ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)),
 a global git write that rewrites the agent gitconfig (the next dry run refuses a
 rewritten Claude gitconfig), an SSH remote or `url.*.insteadOf` rewrite, an askpass
 program, a helper in a repository's own config, or a remote URL that carries
@@ -452,4 +456,4 @@ quadrantChart
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. `~/.pact` is outside Claude Code's protected paths, and no ask rule covers it. Not yet the owner's: PACT-105's other class widenings and placements; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. `~/.pact` is outside Claude Code's protected paths, and no ask rule covers it. Interactive Antigravity confirmation of `overwrite` + `force_ask` awaits `T5` (`PACT-124`). Not yet the owner's: PACT-105's other class widenings and placements; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).

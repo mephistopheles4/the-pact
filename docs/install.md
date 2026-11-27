@@ -36,7 +36,7 @@ Claude Code session on your machine.
 - [Updating later](#updating-later)
 - [Install from a release](#install-from-a-release)
 - [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
-- [The guard in Codex and Antigravity](#the-guard-in-codex-and-antigravity)
+- [The guard across harnesses](#the-guard-across-harnesses)
 - [What Antigravity doesn't do](#what-antigravity-doesnt-do)
 - [Roll back to an older version](#roll-back-to-an-older-version)
 - [Known limits](#known-limits)
@@ -76,7 +76,7 @@ A **harness** is a program the rules install into. The pact knows three, in
 [`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
 `codex` and `antigravity`. The install writes each one's rules and agents.
 [Skills](#skill-links-and-copies) give Codex and Antigravity the commands, and
-[the guard](#the-guard-in-codex-and-antigravity) adds a hook to those two, and to
+[the guard](#the-guard-across-harnesses) adds a hook to those two, and to
 Claude Code's `settings.json` when `agent-identity` is on.
 
 - **Detection.** A known harness is found when its `detect` folder exists
@@ -761,7 +761,7 @@ installer's own floor) and `node` on the PATH.
   and they outlive turning the window off and Claude Code's own transcript
   clean-up.
 
-## The guard in Codex and Antigravity
+## The guard across harnesses
 
 Claude Code keeps its cleaner permission rules and adds a `PreToolUse`
 (`Bash|PowerShell`) hook in `~/.claude/settings.json` for `claude.mjs` when

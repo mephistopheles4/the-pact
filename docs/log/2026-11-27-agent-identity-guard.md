@@ -1,6 +1,6 @@
 # Cross-harness agent identity guard
 
-**2026-11-27.** PACT-119 (sub-issues T1 PACT-120, T2 PACT-121, T3 PACT-122, T4 PACT-123), thorough tier on the sensitive route (auth). Spec `0010-agent-identity-guard.md` extends `agent-identity` guarding across Claude Code, Codex, and Antigravity under one configuration setting, closing plain `gh` writes across all three harnesses and plain `git` writes in Codex and Antigravity.
+**2026-11-27.** PACT-119 (sub-issues T1 PACT-120, T2 PACT-121, T3 PACT-122, T4 PACT-123, T5 PACT-124), thorough tier on the sensitive route (auth). Spec `0010-agent-identity-guard.md` extends `agent-identity` guarding across Claude Code, Codex, and Antigravity under one configuration setting, closing plain `gh` writes across all three harnesses and plain `git` writes in Codex and Antigravity.
 
 ## What was built
 
@@ -31,5 +31,5 @@ Executed at `fdb4ef17` in isolated temporary directories (`<TMP>` only); live `~
 - `PACT-119`: spec approval decision (`8b2a56bc`), T1–T4 execution records (`3ea051ef`)
 - `PACT-120` (T1): `7d646286`
 - `PACT-121` (T2): `56da6fe1`, `a420117b`
-- `PACT-122` (T3): `99e821f6`
-- `PACT-123` (T4): review and verification records on `PACT-123`
+- `PACT-122` (T3): `99e821f6`, `dadf9079`
+- `PACT-123` (T4): `eb6080fc` (Round 2 final and `T5` `PACT-124` probe records follow on `PACT-123` / `PACT-124`)
