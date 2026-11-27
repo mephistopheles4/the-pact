@@ -253,13 +253,15 @@ async function main() {
   const window = claude ? core.compactWindow(parsed) : 0;
   // The guard (spec 0007 S8): its command rules follow the switches, whichever harnesses are in. Its files and hooks
   // install while a harness with a guard hook is in and a rule is on.
-  const switches = !project && toolsOn.includes('cleaner') ? ['cleaner'] : [];
+  const identitySwitch = !project && core.identitySwitchOn(parsed);
+  const switches = project ? [] : [...(toolsOn.includes('cleaner') ? ['cleaner'] : []), ...(identitySwitch ? ['agent-identity'] : [])];
   const rules = core.guardRules(switches);
   const wired = switches.length ? taken.filter(h => core.builtParts(h).guard) : [];
-  const guardOn = wired.length > 0;
+  const claudeGuardOn = Boolean(claude && identitySwitch);
+  const guardOn = wired.length > 0 || claudeGuardOn;
   if (guardOn) core.checkGuardHome({ platform: process.platform, windowsHome: io.present(join(home, 'AppData')) });
-  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, guardOn)], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0, taken, guardOn), staged, commit);
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off', '--harness', core.harnessArg(taken, { guard: wired.length > 0, claudeGuard: claudeGuardOn })], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0, taken, wired.length > 0, claudeGuardOn), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const checkedOverlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   // After the hash check, and only then: the hook script's path and the window replace the overlay's two tokens.
@@ -345,8 +347,11 @@ async function main() {
       writeFileSync(live(stage, rel), bytes);
       destinations.push([rel, { dest, sha256: io.sha256(bytes), harness: core.PACT_ID }]);
     };
-    make(core.GUARD_TABLE_REL, core.GUARD_TABLE_DEST, core.guardTableText(rules));
-    if (process.platform === 'win32') for (const format of new Set(wired.map(h => h.hooks.format))) make(core.guardLauncherRel(format), core.guardLauncherDest(format), core.guardLauncherText(format));
+    make(core.GUARD_TABLE_REL, core.GUARD_TABLE_DEST, core.guardTableText(rules, identitySwitch ? { enabled: true, posterOn: toolsOn.includes('poster') } : null));
+    if (process.platform === 'win32') {
+      const launcherFormats = new Set([...wired.map(h => h.hooks.format), ...(claudeGuardOn ? ['claude'] : [])]);
+      for (const format of launcherFormats) make(core.guardLauncherRel(format), core.guardLauncherDest(format), core.guardLauncherText(format));
+    }
   }
   // The skill folders (spec 0007 S7): a link each, or the files copied where no link can be made.
   const wanted = core.skillsWanted(taken, on);
@@ -409,6 +414,8 @@ async function main() {
   // #482: the hooks and the window, merged by key.
   const compact = { window, script: hookScript, recorded: record ? record.autoCompactWindow : null, platform: process.platform };
   let compactBlock = claude ? [`auto-compact-window: ${window > 0 ? `on, ${window} tokens` : 'off'}`] : [];
+  let claudeGuardOp = null;
+  let claudeGuardGroup = null;
   const mergeTools = claude ? toolsOn : [];
   if (identityOn) identityBlock = identityChecks();
   if (settingsRel === null) settings = null;
@@ -426,13 +433,21 @@ async function main() {
     askPlan = core.cleanerAskPlan(liveSettings, mergeTools, record ? record.cleanerAsk : []);
     identity = core.identityEnvPlan(liveSettings, identityOn, record ? record.identityEnv : {}, core.identityEnvWanted(home));
     if (identity.conflicts.length) throw refusal('identity-env', `the agent-identity switch is on, but settings.json already sets env ${identity.conflicts.join(' and ')}; take it out first, since the install never overwrites your own env.`);
+    const claudeGuardScript = join(home, ...core.guardScriptRel('claude').split('/'));
+    const claudeGuardTarget = process.platform === 'win32' ? claudeGuardScript.replace(/\.mjs$/, '.cmd') : claudeGuardScript;
+    const claudeGuardEntry = claudeGuardOn ? core.claudeGuardHookEntry({ script: claudeGuardScript, platform: process.platform, systemRoot: process.env.SystemRoot }) : null;
+    const claudeGuardKey = core.pathKey(claudeGuardTarget, process.platform);
+    const claudeGuardCmd = claudeGuardEntry ? claudeGuardEntry.get('command') : (process.platform === 'win32' ? null : '/usr/bin/env');
+    const claudeGuardOpts = { entry: claudeGuardEntry, key: claudeGuardKey, platform: process.platform, command: claudeGuardCmd };
+    claudeGuardGroup = claudeGuardEntry ? new Map([['matcher', 'Bash|PowerShell'], ['hooks', [claudeGuardEntry]]]) : null;
+    claudeGuardOp = core.claudeGuardPlan(liveSettings, claudeGuardEntry, claudeGuardOpts).op;
     const applied = claude ? overlay : new Map();
     plain = core.overlayKeysPlan(liveSettings, applied, record ? record.entries.filter(e => e.path === settingsRel) : []);
-    merged = core.mergeSettings(liveSettings, applied, deny, compact, askPlan, identity, plain.drop);
+    merged = core.mergeSettings(liveSettings, applied, deny, compact, askPlan, identity, plain.drop, claudeGuardOpts);
     if (liveBytes === null) settings = claude ? 'would be created from the overlay' : 'unchanged';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
-      if (claude) notes = core.liveSettingsLines(liveSettings, overlay, compact);
+      if (claude) notes = core.liveSettingsLines(liveSettings, overlay, compact, claudeGuardOn ? { key: claudeGuardKey, platform: process.platform, command: claudeGuardCmd } : null);
     }
     changes = [...core.settingsChanges(liveSettings, applied, deny, askPlan, identity), ...plain.drop.map(k => `  - ${k}`)];
     compactBlock = core.compactLines(liveSettings, applied, compact);
@@ -443,7 +458,7 @@ async function main() {
   const lastEntries = claudeRecorded.filter(e => e.path === settingsRel);
   const entries = settingsRel === null || liveSettings === null
     ? claudeRecorded
-    : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: deny.record, ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record }) : [];
+    : claude ? core.settingsEntries({ harness: claude.id, path: settingsRel, merged, deny: deny.record, ask: askPlan.record, identityEnv: identity.record, window, hooks: overlay.get('hooks'), hash: io.sha256, overlayKeys: plain.record, claudeGuard: claudeGuardGroup }) : [];
   const settingsDrift = liveSettings === null ? [] : core.entryDrift(lastEntries.filter(e => !core.OVERLAY_KEYS.includes(e.key)), liveSettings);
   // The guard's hook, one keyed merge per hooks file (spec 0007 S8).
   const hooks = core.guardPlans(guardRecorded, wired.map(h => ({ harness: h.id, path: h.hooks.file, format: h.hooks.format, command: core.guardCommand({ script: join(home, ...core.guardScriptRel(h.hooks.format).split('/')), platform: process.platform, systemRoot: process.env.SystemRoot }) })));
@@ -505,6 +520,7 @@ async function main() {
       say(`settings.json: ${settings}`);
       if (settingsWill) for (const l of changes) say(l);
       for (const l of compactBlock) say(l);
+      if (claudeGuardOp) say(`  hook PreToolUse: ${claudeGuardOp}`);
       for (const l of identityBlock) say(l);
       for (const l of notes) say(l);
     }
@@ -513,7 +529,7 @@ async function main() {
   }
   // The line belongs to Codex's block; with Codex no longer taken or recorded there is none, so it stands alone.
   if (policyWill && !ids.includes('codex')) say(core.SHELL_POLICY_DRY_LINE);
-  if (guardOn) say(`Guard rules (${core.GUARD_TABLE_DEST}): ${rules.map(r => `${r.id} (${r.decision})`).join(', ')}`);
+  if (guardOn) say(core.guardRulesLine(rules, { identity: identitySwitch, wired: wired.length > 0 }));
   for (const w of p.warnings) say(`WARN: ${core.formatPlain(w)}`);
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
   const settingsCopied = settingsWill && liveBytes !== null;
@@ -611,6 +627,12 @@ async function main() {
   };
   // A hook goes before the files it runs are deleted, and comes after the files it runs are written, so no entry names a missing wrapper.
   for (const f of hooksWill.filter(f => !f.want.length)) writeHooks(f);
+  if (settingsWill && claudeGuardOp === 'removed') {
+    io.writeReplacing(settingsFile, core.settingsText(merged));
+    entriesNow = entriesNow.filter(e => e.key !== 'hooks.PreToolUse');
+    writeRecord();
+    say('merged settings.json');
+  }
   const stands = l => io.linkState(live(home, l.path), live(home, l.target)) === 'ours';
   // A link goes before the files it points at are deleted, and comes after they are written.
   for (const l of links.remove) {
@@ -649,7 +671,7 @@ async function main() {
     writeRecord();
     say(`linked ${l.path} -> ${l.target}`);
   }
-  if (settingsWill) {
+  if (settingsWill && claudeGuardOp !== 'removed') {
     io.writeReplacing(settingsFile, core.settingsText(merged));
     say('merged settings.json');
   }
@@ -701,10 +723,19 @@ async function main() {
   }
   if (claude) {
     const after = io.readOptional(settingsFile);
-    if (core.guardHolds(after === null ? null : core.readSettings(after.toString('utf8')))) say('OK       settings.json (auto mode, no retired ask rules)');
+    const afterMap = after === null ? null : core.readSettings(after.toString('utf8'));
+    if (core.guardHolds(afterMap)) say('OK       settings.json (auto mode, no retired ask rules)');
     else {
       say('MISMATCH settings.json (auto mode is off or a retired ask rule remains)');
       bad++;
+    }
+    if (liveSettings !== null && claudeGuardOn) {
+      const preEntries = entries.filter(e => e.key === 'hooks.PreToolUse');
+      if (afterMap !== null && preEntries.length && !core.entryDrift(preEntries, afterMap).length) say('OK       settings.json (PreToolUse guard hook)');
+      else {
+        say('MISMATCH settings.json (PreToolUse guard hook is not there)');
+        bad++;
+      }
     }
   }
   if (bad) {

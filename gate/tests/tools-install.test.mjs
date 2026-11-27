@@ -436,7 +436,7 @@ test('agent-identity on: the helper installs byte for byte, the two env keys are
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 });
 
-// #603 C5: off removes the tool and exactly the keys the install set, and a changed or missing gitconfig does not block turning it off.
+// #603 C5, #PACT-122 #PACT-119 C8: off removes the tool, guard files, PreToolUse hook and recorded env keys, and a missing gitconfig does not block turning it off.
 test('agent-identity off: the tool and the two recorded env keys go, the owner\'s keys stay, and a missing gitconfig does not refuse', t => {
   const repo = sharedRepo();
   const h = identityHome(t, true, { env: { KEEP: 'mine' } });
@@ -444,11 +444,13 @@ test('agent-identity off: the tool and the two recorded env keys go, the owner\'
   setIdentity(h, false);
   rmSync(join(h, '.pact', 'gh-app-claude.gitconfig'));
   const dry = installed(repo, h);
-  assert.match(dry.stdout, /^Delete: 1\r?\n {2}\.pact\/tools\/gh-app\.mjs\r?$/m, dry.out);
-  assert.equal(total(dry, 'Delete'), 1, dry.out);
+  assert.match(dry.stdout, /^ {2}\.pact\/tools\/gh-app\.mjs\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}\.pact\/guard\/rules\.json\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}hook PreToolUse: removed\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}- env\.GIT_CONFIG_GLOBAL\r?$/m, dry.out);
   assert.ok(!dry.stdout.includes('gitconfig as expected'), 'the check is skipped');
   assert.ok(!existsSync(join(h, ...GH_APP_LIVE)));
+  assert.ok(!existsSync(join(h, '.pact', 'guard', 'rules.json')));
   assert.deepEqual(liveEnv(h), { KEEP: 'mine' });
   assert.deepEqual(recordedEnv(h), {});
 });

@@ -347,3 +347,173 @@ test('shell policy: taking Codex with no mark in the record leaves config.toml, 
   assert.equal(readFileSync(at(h, POLICY), 'utf8'), text);
   assert.ok(!('shellPolicy' in record(h)));
 });
+
+// ------------------------------------------------------------ #PACT-122 #PACT-119 C8, C9, C12
+
+const CLAUDE_SETTINGS = '.claude/settings.json';
+const APP_PINS = {
+  owner: { login: 'example-owner', id: 1000001 },
+  apps: {
+    claude: { app_id: 2000001, slug: 'example-owner-claude', bot_login: 'example-owner-claude[bot]', bot_id: 3000001 },
+    codex: { app_id: 2000002, slug: 'example-owner-codex', bot_login: 'example-owner-codex[bot]', bot_id: 3000002 },
+    antigravity: { app_id: 2000003, slug: 'example-owner-antigravity', bot_login: 'example-owner-antigravity[bot]', bot_id: 3000003 },
+  },
+};
+const ALL_GUARD_FILES = [...(WIN ? ['antigravity.cmd', 'claude.cmd', 'codex.cmd'] : []), 'antigravity.mjs', 'claude.mjs', 'codex.mjs', 'guard.mjs', 'rules.json'].sort();
+
+const asClaude = (hook, input, opts = {}) => spawnSync(hook.command, hook.args, {
+  input: typeof input === 'string' ? input : JSON.stringify(input),
+  encoding: 'utf8',
+  cwd: opts.cwd,
+  env: { ...process.env, PATH: `${dirname(process.execPath)}${WIN ? ';' : ':'}${process.env.PATH ?? ''}`, ...(opts.env ?? {}) },
+});
+
+async function seedIdentityHome(t, extraConfig = {}, extraLive = {}) {
+  const { gitconfigText } = await import('../../claude/tools/gh-app.mjs');
+  const h = home(t);
+  const cfgText = gitconfigText({ home: h, nodePath: process.execPath, app: APP_PINS.apps.claude, provider: 'claude', xdg: false });
+  put(h, '.pact/github.json', APP_PINS);
+  put(h, '.pact/gh-app-claude.gitconfig', cfgText);
+  if (Object.keys(extraLive).length) put(h, CLAUDE_SETTINGS, extraLive);
+  config(h, { ...OFF, settings: { 'agent-identity': true, 'auto-compact-window': 0 }, ...extraConfig });
+  return h;
+}
+
+function makeOwnerGitRepo(t) {
+  const dir = join(home(t), 'owner-repo');
+  mkdirSync(dir, { recursive: true });
+  const r = spawnSync('git', ['init'], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const r2 = spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/example-owner/example-repo.git'], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r2.status, 0, r2.stderr);
+  return dir;
+}
+
+// #PACT-122 #PACT-119 C8, C9, C12
+test('C8, C9, C12: three-harness identity apply installs all launchers and rules within caps, suppresses pin login prints, and invokes all three rendered hooks end-to-end', async t => {
+  const repo = makeRepo(t);
+  const h = await seedIdentityHome(t, { tools: ['cleaner', 'poster'] }, { permissions: { defaultMode: 'auto' } });
+  put(h, CODEX, { hooks: { PreToolUse: [MINE] } });
+  put(h, AG, { mine: MY_GROUP });
+
+  const offHome = home(t);
+  put(offHome, '.pact/config.json', { schema: 1, tools: ['cleaner', 'poster'], commands: [], settings: { 'agent-identity': false, 'auto-compact-window': 0 }, harnesses: { install: ['claude', 'codex', 'antigravity'] } });
+  passed(applyBound(repo, offHome));
+  const claudeOffRules = readFileSync(at(offHome, '.claude/CLAUDE.md'));
+
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(dry.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): worktree-remove \(deny\), .*identity-gh \(deny\), identity-git \(overwrite-ask\/deny\)\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}hook PreToolUse: added\r?$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, /example-owner-claude|example-owner-codex|example-owner-antigravity/, dry.out);
+
+  const applied = applyBound(repo, h);
+  passed(applied);
+  assert.doesNotMatch(applied.stdout, /example-owner-claude|example-owner-codex|example-owner-antigravity/, applied.out);
+  assert.deepEqual(guardFiles(h), ALL_GUARD_FILES);
+
+  // Byte caps and zero Claude rules body drift across settings-env.
+  const body = text => text.slice(text.indexOf('\n## The moves'));
+  assert.equal(body(readFileSync(at(h, '.claude/CLAUDE.md'), 'utf8')), body(claudeOffRules.toString('utf8')));
+  assert.ok(readFileSync(at(h, '.gemini/AGENTS.md')).length <= 24000);
+  assert.ok(readFileSync(at(h, '.codex/AGENTS.md')).length <= 32768);
+  assert.match(readFileSync(at(h, '.gemini/AGENTS.md'), 'utf8'), /--provider antigravity/);
+  assert.match(readFileSync(at(h, '.codex/AGENTS.md'), 'utf8'), /--provider codex/);
+  assert.doesNotMatch(readFileSync(at(h, '.claude/CLAUDE.md'), 'utf8'), /--provider/);
+
+  const claudeSettings = json(h, CLAUDE_SETTINGS);
+  assert.equal(claudeSettings.autoCompactWindow, undefined);
+  const preGroup = claudeSettings.hooks.PreToolUse.find(g => g.matcher === 'Bash|PowerShell');
+  assert.ok(preGroup, 'Claude PreToolUse group installed');
+  const recHooks = record(h).entries.filter(e => e.path === CLAUDE_SETTINGS && e.key === 'hooks.PreToolUse');
+  assert.equal(recHooks.length, 1);
+
+  // Seed sibling provider gitconfigs and invoke every rendered launcher against an owner git repository.
+  const { gitconfigText } = await import('../../claude/tools/gh-app.mjs');
+  for (const p of ['codex', 'antigravity']) {
+    put(h, `.pact/gh-app-${p}.gitconfig`, gitconfigText({ home: h, nodePath: process.execPath, app: APP_PINS.apps[p], provider: p, xdg: false }));
+  }
+  const ownerDir = makeOwnerGitRepo(t);
+  const claudeHook = preGroup.hooks[0];
+  const claudeEnv = { HOME: h, USERPROFILE: h, GIT_CONFIG_GLOBAL: `${h.replaceAll('\\', '/')}/.pact/gh-app-claude.gitconfig`, GIT_TERMINAL_PROMPT: '0' };
+  const ghBlocked = asClaude(claudeHook, { tool_name: 'Bash', tool_input: { command: 'gh pr create -t test -b body' }, cwd: ownerDir }, { cwd: ownerDir, env: claudeEnv });
+  assert.equal(ghBlocked.status, 0, ghBlocked.stderr);
+  assert.equal(JSON.parse(ghBlocked.stdout).hookSpecificOutput.permissionDecision, 'deny');
+  const gitClean = asClaude(claudeHook, { tool_name: 'Bash', tool_input: { command: 'git commit -m ok' }, cwd: ownerDir }, { cwd: ownerDir, env: claudeEnv });
+  assert.equal(gitClean.status, 0, gitClean.stderr);
+  assert.equal(gitClean.stdout.trim(), '');
+
+  const codexCmd = json(h, CODEX).hooks.PreToolUse.find(g => g.matcher === '^Bash$' && g.hooks?.[0]?.statusMessage === 'pact-guard').hooks[0].command;
+  const codexOut = spawnSync(WIN ? 'powershell.exe' : '/bin/sh', WIN ? ['-NoProfile', '-Command', codexCmd] : ['-c', codexCmd], {
+    input: JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', cwd: ownerDir, tool_input: { command: 'git commit -m ok' } }),
+    encoding: 'utf8',
+    env: { ...process.env, HOME: h, USERPROFILE: h, PATH: `${dirname(process.execPath)}${WIN ? ';' : ':'}${process.env.PATH ?? ''}` },
+  });
+  assert.equal(codexOut.status, 2, `${codexOut.stdout}${codexOut.stderr}`);
+
+  const agCmd = json(h, AG)['pact-guard'].PreToolUse[0].hooks[0].command;
+  const agOut = spawnSync(WIN ? (process.env.ComSpec ?? 'cmd.exe') : '/bin/sh', WIN ? ['/d', '/s', '/c', `"${agCmd}"`] : ['-c', agCmd], {
+    input: JSON.stringify({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m ok', Cwd: ownerDir } } }),
+    encoding: 'utf8',
+    windowsVerbatimArguments: WIN,
+    env: { ...process.env, HOME: h, USERPROFILE: h, PATH: `${dirname(process.execPath)}${WIN ? ';' : ':'}${process.env.PATH ?? ''}` },
+  });
+  assert.equal(agOut.status, 0, agOut.stderr);
+  assert.equal(JSON.parse(agOut.stdout).decision, 'force_ask');
+
+  // Re-running dry run is clean.
+  assert.match(install(repo, h).stdout, /^Nothing to do\.\r?$/m);
+});
+
+// #PACT-122 #PACT-119 C8: Claude PreToolUse lifecycle stays independent of auto-compact-window, preserves user hooks, detects drift, writes before delete, and handles malformed live settings.
+test('C8: Claude PreToolUse stays independent of auto-compact-window, refuses matcher drift, merges before delete, and keeps bad settings untouched', async t => {
+  const repo = makeRepo(t);
+  const ownerHook = { type: 'command', command: 'echo owner', timeout: 5 };
+  const h = await seedIdentityHome(t, { settings: { 'agent-identity': true, 'auto-compact-window': 400000 } }, {
+    permissions: { defaultMode: 'auto' },
+    hooks: { PreToolUse: [{ matcher: 'Edit', hooks: [ownerHook] }] },
+  });
+  passed(applyBound(repo, h));
+  const afterBoth = json(h, CLAUDE_SETTINGS);
+  assert.ok(afterBoth.hooks.PreCompact && afterBoth.hooks.PreToolUse.length === 2);
+
+  // Turning auto-compact-window off keeps PreToolUse and removes PreCompact.
+  config(h, { ...OFF, settings: { 'agent-identity': true, 'auto-compact-window': 0 } });
+  passed(applyBound(repo, h));
+  const afterZeroWindow = json(h, CLAUDE_SETTINGS);
+  assert.equal(afterZeroWindow.hooks.PreCompact, undefined);
+  assert.equal(afterZeroWindow.hooks.PreToolUse.length, 2);
+
+  // Changing the matcher triggers drift refusal on reinstall.
+  afterZeroWindow.hooks.PreToolUse[1].matcher = 'Bash';
+  put(h, CLAUDE_SETTINGS, afterZeroWindow);
+  const driftRes = applyBound(repo, h);
+  refused(driftRes, /installed files or settings entries changed/);
+  assert.match(driftRes.out, /hooks\.PreToolUse/);
+
+  // Repairing drift, then turning agent-identity off with compact on preserves compact hooks and user PreToolUse hook, and merges before deleting guard files.
+  afterZeroWindow.hooks.PreToolUse[1].matcher = 'Bash|PowerShell';
+  put(h, CLAUDE_SETTINGS, afterZeroWindow);
+  config(h, { ...OFF, settings: { 'agent-identity': false, 'auto-compact-window': 400000 } });
+  const offRes = applyBound(repo, h);
+  passed(offRes);
+  assert.ok(offRes.stdout.indexOf(`merged ${CLAUDE_SETTINGS}`) < offRes.stdout.indexOf('deleted .pact/guard/claude.mjs'), offRes.out);
+  const afterIdOff = json(h, CLAUDE_SETTINGS);
+  assert.ok(afterIdOff.hooks.PreCompact);
+  assert.deepEqual(afterIdOff.hooks.PreToolUse, [{ matcher: 'Edit', hooks: [ownerHook] }]);
+  assert.deepEqual(guardFiles(h), []);
+
+  // Turning agent-identity back on when live hooks is an array refuses hooks-shape before writes.
+  config(h, { ...OFF, settings: { 'agent-identity': true, 'auto-compact-window': 0 } });
+  put(h, CLAUDE_SETTINGS, { permissions: { defaultMode: 'auto' }, hooks: [] });
+  refused(install(repo, h), /hooks is not a JSON object/);
+
+  // Turning agent-identity on when live settings is non-strict JSON warns and leaves settings untouched.
+  const badHome = await seedIdentityHome(t);
+  const corrupt = '{/* comment */ "permissions": {"defaultMode": "auto"}}';
+  put(badHome, CLAUDE_SETTINGS, corrupt);
+  const warnRes = install(repo, badHome);
+  passed(warnRes);
+  assert.match(warnRes.stdout, /WARN: settings\.json is not a strict JSON object/);
+  assert.equal(readFileSync(at(badHome, CLAUDE_SETTINGS), 'utf8'), corrupt);
+});
