@@ -289,8 +289,11 @@ it.
   connector call.
 - **The pact's tools.** The poster, when on, refuses a post that fails its
   strict JSON schema or whose text holds a live environment secret's value or
-  hidden text, and refuses an edit of what its login didn't write. That holds
-  for posts sent through it, and permission rules on `gh` don't see its calls.
+  hidden text (a secret read as written and as normalised copies, with
+  entities decoded and markup, tags and comments removed; a hidden character
+  only as written), and refuses an edit of what its login didn't write. That
+  holds for posts sent through it, and permission rules on `gh` don't see its
+  calls.
   Codex's and Antigravity's shells get every variable, secret-named ones
   included, and the pact sets no policy there: accepted under the trusted
   machine (spec 0007, S2 items 70 and 73), since agents in a project need its
@@ -376,7 +379,7 @@ Each "Also accepted" line above details what the class it names covers; it is no
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, and work that publishes or handles credentials can run below the thorough tier.
-- **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, except on the owner's private issue tracker (`docs/agents/issue-tracker.md`), and can carry a secret, a personal detail, a revealing path, hidden characters or a table row the poster's check doesn't read.
+- **Posts are public.** Reports, step logs, fix work for a reported hole and a session's own posts stay public, except on the owner's private issue tracker (`docs/agents/issue-tracker.md`), and can carry a secret, a personal detail, a revealing path, hidden characters, or a secret or hidden character in a page-only form the poster's copies don't read.
 - **Who counts as you.** Every session posts as the owner, or as a pinned agent app and can still write as the owner by the routes above; an app's key holder counts as the owner for code, and a session holding the owner's git or `gh` credentials can make a stable tag (S2 item 75). A lead can move work through its sessions, the record doesn't show who made a call, the poster's edit checks catch accidents only, and the author checker trusts a clone's `origin` by its path.
 
 ```mermaid

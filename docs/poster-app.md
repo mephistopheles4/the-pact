@@ -47,9 +47,7 @@ hold it: `post/owned-line`), and an item that holds one isn't edited
 
 `edit/confirm` accepts a decision by the pin's owner with the owner's mark, or by
 the bot with a `Heard in chat by <label>.` line naming its own signature label;
-a mark under the other author, or naming another label, is refused. The reason
-then reads `, confirmed, as heard in chat by <label>` where the owner's mark's
-reads `, heard by <label>`.
+a mark under the other author, or naming another label, is refused.
 
 ## Rule ids
 
