@@ -74,8 +74,10 @@ Design round 1 security refinements marked):
    prompt) on unambiguous `run_command` calls; fallback to `decision: "deny"`
    with an actionable reason on `manage_task` (`send_input`) /
    `send_command_input`, on shadowed/unsupported shell commands, and in Codex.
-   Claude Code keeps `settings.json` `env` injection for `git` and runs the
-   shared guard for plain `gh` writes.
+   Claude Code keeps `settings.json` `env` injection for normal `git` writes
+   and runs the shared guard for both plain `gh` writes and `git`
+   override/unset attempts (while skipping cleaner rules and keeping
+   `canOverwrite: false`).
 4. **Claude Code hook wiring:** a thin `claude/guard/claude.mjs` wrapper
    sharing `~/.pact/guard/guard.mjs` and `rules.json`, merged into
    `~/.claude/settings.json` `PreToolUse` (`Bash|PowerShell`) via a hardened
@@ -291,8 +293,9 @@ and callers.
 
 ### Precedence and entry point (`answerCall`)
 
-`answerCall({ command, provider, cwd, canOverwrite, env, tableFile, pinFile, platform })`
-evaluates one call and returns `null` or one decision object:
+`answerCall({ command, provider, cwd, canOverwrite, env, tableFile, pinFile, platform, shell })`
+evaluates one call and returns `null` or one decision object (`shell` is
+optional `'bash' | 'powershell'`, backwards-compatible when omitted):
 
 1. **Cleaner rules first** (for `provider !== 'claude'`, since Claude Code
    enforces cleaner via native `permissions.deny`/`ask`): `deny` beats `ask`,
@@ -302,7 +305,7 @@ evaluates one call and returns `null` or one decision object:
    `!doc.identity?.enabled`, return `null`. First scan `command` cleanly in both
    shell modes (`segmentsOf(command, true)` and `segmentsOf(command, false)`):
    if there is no candidate `gh` segment, no candidate `git` write/unknown-flag
-   segment (respecting `provider === 'claude'` skipping `git`), and no `env -S`
+   segment (checked across all three providers, including `claude`), and no `env -S`
    or unknown `env` flag candidate, return `null` WITHOUT reading `pinFile` (so
    a malformed `github.json` never locks out unrelated shell calls such as `ls`
    or repair commands). Otherwise resolve `pinFile` (default: `../github.json`
@@ -400,13 +403,17 @@ evaluates one call and returns `null` or one decision object:
          `Plain gh writes are blocked while agent-identity is on for <provider>. Use node "$HOME/.pact/tools/poster.mjs" for free-text GitHub posts, or node "$HOME/.pact/tools/gh-app.mjs" gh --provider <provider> -R <owner>/<repo> -- <args> for other writes (for assignees, pass --add-assignee <owner> explicitly; @me resolves to the app).`
        - Otherwise:
          `Plain gh writes are blocked while agent-identity is on for <provider>. Use node "$HOME/.pact/tools/gh-app.mjs" gh --provider <provider> -R <owner>/<repo> -- <args> (for assignees, pass --add-assignee <owner> explicitly; @me resolves to the app).`
-4. **Plain `git` write check** (`provider === 'antigravity' || provider === 'codex'`):
+4. **Plain `git` write check** (all three providers: `'claude'`, `'antigravity'`, `'codex'`; `'claude'` keeps `canOverwrite: false`):
    - Expected gitconfig path: `<pactDir>/gh-app-<provider>.gitconfig` (derived
      from `dirname(pinFile)`, forward-slashed).
    - **Evaluate each shell mode (`bash = true` and `bash = false`) independently**
      — never allow an assignment seen in one shell mode (such as a PowerShell
      `<# ... #>` block comment parsed as Bash) to satisfy a `git` segment in
-     the other mode. While exported `segmentsOf` stays backwards-compatible,
+     the other mode, and track `sawHeredoc` / `sawHereString` plus segment
+     identity keys (`segKey`) so cross-mode exemption is disabled when
+     `shell === 'bash'` or `bashMode.sawHeredoc` (for `ps*ExemptsBash`) or when
+     `shell === 'powershell'` or `psMode.sawHeredoc || psMode.sawHereString`
+     (for `bash*ExemptsPs`). While exported `segmentsOf` stays backwards-compatible,
      `answerCall` uses an internal separator-preserving walk over `;`, `&&`,
      `||`, `|`, `&`, `(`, `)`, `{`, `}`, and newlines (plus shell control
      keywords `if`, `then`, `elif`, `else`, `fi`, `for`, `while`, `until`,
@@ -550,7 +557,7 @@ evaluates one call and returns `null` or one decision object:
          - If eligible: return `{ decision: 'overwrite_ask', id:
            'identity-git', reason, overwriteCommand }` with fixed `reason`:
            `Setting GIT_CONFIG_GLOBAL for <provider> so git writes use the pinned app.`
-         - Otherwise (`canOverwrite` is false — `manage_task`,
+         - Otherwise (`canOverwrite` is false — `claude`, `manage_task`,
            `send_command_input`, `codex` — OR command is compound, wrapped, or
            overridden): return `{ decision: 'deny', id: 'identity-git',
            reason }` with fixed text naming the exact PowerShell/POSIX
@@ -727,10 +734,12 @@ is emitted only on Antigravity `run_command` to supply the rewritten command).
     'PowerShell'`, plain-object `tool_input`, `typeof tool_input.command ===
     'string'`, and optional `typeof input.cwd === 'string'` (any mismatch
     throws `GuardFailure('call')`).
-  - Passes `tableFile: new URL('./rules.json', import.meta.url)` to
+  - Passes `tableFile: new URL('./rules.json', import.meta.url)` and
+    `shell: input.tool_name === 'PowerShell' ? 'powershell' : 'bash'` to
     `guard.answerCall({ command: input.tool_input.command, provider: 'claude',
     cwd: typeof input.cwd === 'string' ? input.cwd : undefined, canOverwrite:
-    false, env: process.env, tableFile })`.
+    false, env: process.env, tableFile, shell })`, enforcing both `gh` writes
+    and `git` override/unset checks while skipping cleaner rules.
   - On `deny`: writes
     `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"..."}}`
     to stdout, exits 0.
@@ -748,7 +757,8 @@ is emitted only on Antigravity `run_command` to supply the rewritten command).
     'string' ? input.workspacePaths[0] : undefined)` (so multi-root workspaces
     with `workspacePaths.length > 1` fail closed instead of guessing `[0]`).
   - Passes `provider: 'antigravity'`, `cwd`, `canOverwrite: call.name ===
-    'run_command'`, `env: process.env`.
+    'run_command'`, `env: process.env`, `shell: process.platform === 'win32' ?
+    'powershell' : 'bash'`.
   - On `met.decision === 'overwrite_ask'`: writes
     `{"decision":"force_ask","reason":met.reason,"overwrite":{"CommandLine":met.overwriteCommand}}`
     and exits 0. Never emits `"allow"`. (If the post-T2 live probe shows
@@ -759,7 +769,8 @@ is emitted only on Antigravity `run_command` to supply the rewritten command).
   - On `met.decision === 'ask'` (cleaner override): keeps `force_ask` unchanged.
 - **`claude/guard/codex.mjs` (updated):**
   - Passes `provider: 'codex'`, `cwd: typeof input.cwd === 'string' ? input.cwd
-    : undefined`, `canOverwrite: false`, `env: process.env`.
+    : undefined`, `canOverwrite: false`, `env: process.env`,
+    `shell: process.platform === 'win32' ? 'powershell' : 'bash'`.
   - On `met.decision === 'deny'`: writes `met.reason` (when present) else the
     existing `The pact's guard blocks this command (rule <id>).` to stderr and
     exits 2.
@@ -1153,9 +1164,14 @@ is cheaper to reverse.
   mutated `env.HOME`/`env.USERPROFILE` (applied to `~/...` too), later unset/
   overridden (including `Copy-Item`/`cpi`/`cp`/`copy` `env:`, `Set-Variable`/
   `sv`/`rv`/`clv`, `@"..."@`, `"$(...)"`), or points elsewhere; evaluates Bash
-  and PowerShell modes independently with a separator-preserving internal walk;
-  passes read-only `git`, valid unshadowed exact-token assignments (`3` PS / `2`
-  Bash) with verified `.gitconfig`, and `claude` provider calls.
+  and PowerShell modes independently with a separator-preserving internal walk
+  (honoring optional `shell: 'bash' | 'powershell'` and disabling cross-mode
+  exemption on heredocs/here-strings); passes read-only `git`, valid
+  unshadowed exact-token assignments (`3` PS / `2` Bash) with verified
+  `.gitconfig`, and `claude` normal `git` writes when `env.GIT_CONFIG_GLOBAL`
+  matches `<home>/.pact/gh-app-claude.gitconfig` with
+  `GIT_TERMINAL_PROMPT=0` while denying `claude` `git` override/unset attempts
+  (`identity-git`, `canOverwrite: false`).
 - **C6 (Precedence and Antigravity `overwrite`):** `cleaner` `deny`/`ask` and
   `gh` `deny` beat `git` `overwrite_ask` in compound commands; Antigravity
   `run_command` honors explicit `Cwd` without falling back when `""`/relative
@@ -1170,7 +1186,10 @@ is cheaper to reverse.
   prefix.
 - **C7 (Claude Code wrapper, hardened launcher, and `settings.json` merge):**
   `claude/guard/claude.mjs` validates stdin cap/JSON/fields (`call` on
-  mismatch), answers `PreToolUse` in Claude's `hookSpecificOutput` shape, runs
+  mismatch), passes `shell` (`'powershell'`/`'bash'` from `tool_name`) and
+  `canOverwrite: false` to `answerCall` (enforcing `identity-gh` and
+  `identity-git` overrides/unsets while skipping cleaner rules), answers
+  `PreToolUse` in Claude's `hookSpecificOutput` shape, runs
   via `claude.cmd` (`LAUNCH_ANSWERS.claude` added in T2; `cmd.exe` +
   `NoDefaultCurrentDirectoryInExePath=1` + cleared `NODE_OPTIONS` + fail-closed
   denial) on Windows and `/usr/bin/env -u NODE_OPTIONS node` on POSIX, merges
@@ -1264,11 +1283,13 @@ its own PR after this spec is approved; per `AGENTS.md`, each PR changing
 adds the live probe entry):
 
 - **T1 Shared identity guard core:** S3 (`claude/guard/guard.mjs`, unit and
-  bad-case table tests in `gate/tests/guard.test.mjs`). Covers C1–C6, C11.
-  Dependencies: none.
+  bad-case table tests in `gate/tests/guard.test.mjs`, including optional
+  `shell` on `answerCall` and shared `git` override/unset guarding for
+  `claude`). Covers C1–C6, C11. Dependencies: none.
 - **T2 Harness wrappers and early `force_ask` probe:** S4
   (`claude/guard/claude.mjs`, `claude/guard/antigravity.mjs`,
-  `claude/guard/codex.mjs`, plus `LAUNCH_ANSWERS.claude` /
+  `claude/guard/codex.mjs` passing `shell` to `answerCall`, plus
+  `LAUNCH_ANSWERS.claude` /
   `guardLauncherText('claude')` in `gate/install-core.mjs`, wrapper/launcher
   tests and updated `guard.mjs` stubs in `gate/tests/guard.test.mjs`), plus the
   quick live Windows probe of Antigravity `overwrite` + `force_ask`
