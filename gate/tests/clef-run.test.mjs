@@ -4,7 +4,7 @@
 // here downloads or runs the real server.
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync as clefRm, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync as clefRm, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { request } from 'node:http';
@@ -13,7 +13,7 @@ import { after, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import * as clef from '../../claude/tools/clef.mjs';
 import { REPO } from './text.mjs';
-import { tempDir } from './tree.mjs';
+import { longTmp, tempDir } from './tree.mjs';
 
 const CLEF_PATH = join(REPO, 'claude', 'tools', 'clef.mjs');
 const SOURCE_TEXT = readFileSync(CLEF_PATH, 'utf8');
@@ -77,15 +77,21 @@ createServer((req, res) => {
 }).listen(Number(arg('--port')), '127.0.0.1');
 `;
 
+/** The fixture's own folder. On Windows a stopped server can hold it for a moment, so the removal retries, for about 3 s at most, then fails the test. */
+function fixtureDir(t) {
+  const d = mkdtempSync(join(longTmp(), 'clef-run-'));
+  t.after(() => clefRm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }));
+  return d;
+}
+
 /** A set-up clef folder with placeholder files, the stub, and its config. */
 function fixture(t, cfgExtra = {}) {
   // Registered before the folder's own clean-up, so the servers stop first: a running server holds its folder on Windows.
   const stoppers = [];
   t.after(async () => {
     for (const s of stoppers.reverse()) await Promise.resolve(s()).catch(() => {});
-    await sleep(WIN ? 400 : 0);
   });
-  const root = tempDir(t, 'clef-run-');
+  const root = fixtureDir(t);
   const cfgHome = join(root, 'cfg');
   const dir = join(cfgHome, 'pact-clef');
   const key = Object.keys(clef.SERVER.archives)[0];
