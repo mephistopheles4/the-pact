@@ -96,7 +96,7 @@ const GH_API_NOARG_FLAGS = Object.freeze(new Set(['-p', '--paginate', '--slurp',
 
 const CONTROL_KEYWORDS = Object.freeze(new Set(['if', 'then', 'elif', 'else', 'fi', 'for', 'while', 'until', 'select', 'do', 'done', 'case', 'esac', 'function', 'coproc']));
 const CONTROL_OPENERS = Object.freeze(new Set(['then', 'elif', 'else', 'do']));
-const CD_PROGRAMS = Object.freeze(new Set(['cd', 'pushd', 'set-location', 'sl', 'chdir']));
+const CD_PROGRAMS = Object.freeze(new Set(['cd', 'pushd', 'popd', 'set-location', 'push-location', 'pop-location', 'sl', 'chdir']));
 const PS_ENV_ITEM_CMDS = Object.freeze(new Set([
   'remove-item', 'set-item', 'clear-item', 'new-item', 'rename-item', 'move-item', 'copy-item',
   'del', 'rm', 'ri', 'si', 'cli', 'ni', 'erase', 'ren', 'rni', 'mv', 'mi', 'move', 'cpi', 'cp', 'copy',
@@ -245,6 +245,9 @@ function tokenizeMode(command, bash, depth = 0) {
   let prevTokenQuoted = false;
   let prevTokenEscaped = false;
   let current = '';
+  let curLast = '';
+  let curPrev = '';
+  let curHasSlash = false;
   let tokStart = -1;
   let started = false;
   let wasQuoted = false;
@@ -309,6 +312,22 @@ function tokenizeMode(command, bash, depth = 0) {
     }
   };
 
+  const addChar = ch => {
+    curPrev = curLast;
+    curLast = ch;
+    if (ch === '/' || ch === '\\') curHasSlash = true;
+    current += ch;
+  };
+
+  const addStr = s => {
+    const len = s.length;
+    if (len === 0) return;
+    curPrev = len >= 2 ? s[len - 2] : curLast;
+    curLast = s[len - 1];
+    if (!curHasSlash && (s.includes('/') || s.includes('\\'))) curHasSlash = true;
+    current += s;
+  };
+
   const endToken = (rawEnd = -1) => {
     if (started) {
       const lower = bash ? current : current.toLowerCase();
@@ -340,6 +359,9 @@ function tokenizeMode(command, bash, depth = 0) {
       prevTokenEscaped = wasEscaped;
     }
     current = '';
+    curLast = '';
+    curPrev = '';
+    curHasSlash = false;
     tokStart = -1;
     started = false;
     wasQuoted = false;
@@ -381,21 +403,21 @@ function tokenizeMode(command, bash, depth = 0) {
     heredocs = [];
   };
 
+  const mergeSubMode = sub => {
+    for (const s of sub.segments) segments.push(s);
+    hasNonSemiSep = true;
+    hasEnclosingOrPipeOrBg = true;
+    if (sub.hasControlKeyword) hasControlKeyword = true;
+    if (sub.sawComment) sawComment = true;
+    if (sub.sawHeredoc) sawHeredoc = true;
+    if (sub.hasDeepBacktick) hasDeepBacktick = true;
+    if (sub.hasRawNewline) { /* keep outer newline check separate */ }
+    if (sub.hasSubexprInDoubleQuotes) hasSubexprInDoubleQuotes = true;
+    if (sub.hasExpandableHereStringWithDollar) hasExpandableHereStringWithDollar = true;
+  };
+
   while (i < n) {
     const c = command[i];
-
-    const mergeSubMode = sub => {
-      for (const s of sub.segments) segments.push(s);
-      hasNonSemiSep = true;
-      hasEnclosingOrPipeOrBg = true;
-      if (sub.hasControlKeyword) hasControlKeyword = true;
-      if (sub.sawComment) sawComment = true;
-      if (sub.sawHeredoc) sawHeredoc = true;
-      if (sub.hasDeepBacktick) hasDeepBacktick = true;
-      if (sub.hasRawNewline) { /* keep outer newline check separate */ }
-      if (sub.hasSubexprInDoubleQuotes) hasSubexprInDoubleQuotes = true;
-      if (sub.hasExpandableHereStringWithDollar) hasExpandableHereStringWithDollar = true;
-    };
 
     // Inside a double-quoted string (either top-level or nested inside `"$(...)"`)
     if (inDoubleQuote) {
@@ -411,14 +433,14 @@ function tokenizeMode(command, bash, depth = 0) {
           continue;
         }
         if (c === '\\' && i + 1 < n && (command[i + 1] === '"' || command[i + 1] === '\\' || command[i + 1] === '`')) {
-          current += command[i + 1];
+          addChar(command[i + 1]);
           i += 2;
           continue;
         }
         if (c === '$' && command[i + 1] === '(') {
           hasBashSubst = true;
           parenStack.push(command[i + 2] === '(' ? { kind: 'arith-pending' } : { kind: 'group', caseStack: [] });
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -426,6 +448,9 @@ function tokenizeMode(command, bash, depth = 0) {
           prevTokenQuoted = false;
           prevTokenEscaped = false;
           current = '';
+          curLast = '';
+          curPrev = '';
+          curHasSlash = false;
           tokStart = -1;
           started = false;
           wasQuoted = false;
@@ -451,28 +476,28 @@ function tokenizeMode(command, bash, depth = 0) {
               const inner = unescapeBacktickBody(command.slice(i + 1, closeIdx), true);
               if (inner.trim() !== '') mergeSubMode(tokenizeMode(inner, true, depth + 1));
             }
-            current += command.slice(i, closeIdx + 1);
+            addStr(command.slice(i, closeIdx + 1));
             i = closeIdx + 1;
             continue;
           }
         }
-        current += c;
+        addChar(c);
         i++;
       } else {
         const cl = contLenAt(i);
         if (cl > 0) {
-          current += '\n';
+          addChar('\n');
           i += cl;
           continue;
         }
         if (c === '`' && i + 1 < n) {
-          current += command[i + 1];
+          addChar(command[i + 1]);
           i += 2;
           continue;
         }
         if (c === '"') {
           if (command[i + 1] === '"') {
-            current += '"';
+            addChar('"');
             i += 2;
           } else {
             inDoubleQuote = false;
@@ -484,7 +509,7 @@ function tokenizeMode(command, bash, depth = 0) {
           hasSubexprInDoubleQuotes = true;
           hasPsSubexpr = true;
           parenStack.push({ kind: 'group', caseStack: [] });
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -492,6 +517,9 @@ function tokenizeMode(command, bash, depth = 0) {
           prevTokenQuoted = false;
           prevTokenEscaped = false;
           current = '';
+          curLast = '';
+          curPrev = '';
+          curHasSlash = false;
           tokStart = -1;
           started = false;
           wasQuoted = false;
@@ -504,7 +532,7 @@ function tokenizeMode(command, bash, depth = 0) {
         }
         if (c === '$' && i + 6 <= n && command.slice(i, i + 6).toLowerCase() === '${env:') hasEnvBraced = true;
         if (c === '[' && /^\[(?:system\.)?environment\]::/i.test(command.slice(i, i + 26))) hasDotNetEnv = true;
-        current += c;
+        addChar(c);
         i++;
       }
       continue;
@@ -521,7 +549,7 @@ function tokenizeMode(command, bash, depth = 0) {
         i++;
       } else {
         startToken(i);
-        current += c;
+        addChar(c);
         i++;
       }
       continue;
@@ -531,7 +559,7 @@ function tokenizeMode(command, bash, depth = 0) {
     if (bash && c === '\\' && i + 1 < n && command[i + 1] === '\\') {
       startToken(i);
       wasEscaped = true;
-      current += '\\';
+      addChar('\\');
       i += 2;
       continue;
     }
@@ -560,12 +588,12 @@ function tokenizeMode(command, bash, depth = 0) {
     if (bash && c === '\\' && i + 1 < n && command[i + 1] !== '\n' && !(command[i + 1] === '\r' && command[i + 2] === '\n')) {
       startToken(i);
       wasEscaped = true;
-      current += command[i + 1];
+      addChar(command[i + 1]);
       i += 2;
       continue;
     } else if (!bash && c === '`' && i + 1 < n) {
       startToken(i);
-      current += command[i + 1];
+      addChar(command[i + 1]);
       i += 2;
       continue;
     }
@@ -577,14 +605,14 @@ function tokenizeMode(command, bash, depth = 0) {
       while (i < n) {
         if (command[i] === "'") {
           if (!bash && command[i + 1] === "'") {
-            current += "'";
+            addChar("'");
             i += 2;
           } else {
             i++;
             break;
           }
         } else {
-          current += command[i++];
+          addChar(command[i++]);
         }
       }
     } else if (bash && c === '$' && command[i + 1] === "'") {
@@ -596,10 +624,10 @@ function tokenizeMode(command, bash, depth = 0) {
           i++;
           break;
         } else if (command[i] === '\\' && i + 1 < n && (command[i + 1] === "'" || command[i + 1] === '\\')) {
-          current += command[i + 1];
+          addChar(command[i + 1]);
           i += 2;
         } else {
-          current += command[i++];
+          addChar(command[i++]);
         }
       }
     } else if (c === '"') {
@@ -630,11 +658,11 @@ function tokenizeMode(command, bash, depth = 0) {
         sawHereString = true;
         startToken(i);
         wasQuoted = true;
-        current += '@';
+        addChar('@');
         i = endIdx;
       } else {
         startToken(i);
-        current += c;
+        addChar(c);
         i++;
       }
     } else if (arithDepth === 0 && (bash || (!started && !stopParse)) && c === '<' && command.startsWith('<<', i) && !command.startsWith('<<<', i)) {
@@ -691,7 +719,7 @@ function tokenizeMode(command, bash, depth = 0) {
         i = j;
       } else {
         startToken(i);
-        current += '<<';
+        addStr('<<');
         i += 2;
       }
     } else if (c === '\n') {
@@ -741,6 +769,9 @@ function tokenizeMode(command, bash, depth = 0) {
           prevTokenQuoted = frame.prevTokenQuoted;
           prevTokenEscaped = frame.prevTokenEscaped;
           current = `${frame.current}$`;
+          curPrev = frame.curLast;
+          curLast = '$';
+          curHasSlash = frame.curHasSlash;
           tokStart = frame.tokStart;
           started = frame.started;
           wasQuoted = frame.wasQuoted;
@@ -757,11 +788,11 @@ function tokenizeMode(command, bash, depth = 0) {
       endSegment(sep, i);
       i += sep.length;
     } else if (!bash && !wasQuoted && c === '=' && i + 1 < n && command[i + 1] !== "'" && command[i + 1] !== '"' && command[i + 1] !== '$' && !/[ \t\r\n]/.test(command[i + 1]) && (
-      (tokens.length === 0 && started && PS_VAR_PREFIX_RE.test(current)) ||
+      (tokens.length === 0 && started && tokStart >= 0 && command[tokStart] === '$' && PS_VAR_PREFIX_RE.test(current)) ||
       (tokens.length === 1 && PS_VAR_PREFIX_RE.test(tokens[0]) && (!started || current === '+'))
     )) {
       if (started) {
-        current += '=';
+        addChar('=');
         endToken(i + 1);
       } else {
         tokens.push('=');
@@ -775,16 +806,18 @@ function tokenizeMode(command, bash, depth = 0) {
       ? (!started && (i + 1 === n || /[\s;&|(){}]/.test(command[i + 1])))
       : (
         (wasQuoted && psBraceDepth > 0) ||
-        (!current.endsWith('$') && !current.includes('/') && !current.includes('\\') && (
+        (curLast !== '$' && !curHasSlash && (
           !started ||
           psBraceDepth > 0 ||
           current === '.' ||
           current === '@' ||
-          current.endsWith('=@') ||
-          current.endsWith('=') ||
-          /^-[A-Za-z][A-Za-z0-9_-]*$/.test(current) ||
-          /^(?:catch|trap)\[/i.test(current) ||
-          PS_BLOCK_PREFIXES.has(current.toLowerCase()) ||
+          (curPrev === '=' && curLast === '@') ||
+          curLast === '=' ||
+          (current.length <= 64 && (
+            /^-[A-Za-z][A-Za-z0-9_-]*$/.test(current) ||
+            /^(?:catch|trap)\[/i.test(current) ||
+            PS_BLOCK_PREFIXES.has(current.toLowerCase())
+          )) ||
           PS_BLOCK_PREFIXES.has(tokens[0]?.toLowerCase() ?? '') ||
           tokens[0]?.toLowerCase() === 'function' ||
           tokens[0]?.toLowerCase() === 'filter'
@@ -797,21 +830,21 @@ function tokenizeMode(command, bash, depth = 0) {
     } else if (c === '{' && !bash && psBraceDepth > 0) {
       psLiteralBraceDepth++;
       startToken(i);
-      current += c;
+      addChar(c);
       i++;
     } else if (c === '}' && !bash && psLiteralBraceDepth > 0) {
       psLiteralBraceDepth--;
       startToken(i);
-      current += c;
+      addChar(c);
       i++;
     } else if (c === '}' && (!started || (!bash && psBraceDepth > 0))) {
       if (!bash && psBraceDepth > 0) psBraceDepth--;
       endSegment('}', i);
       i++;
     } else if (c === '&') {
-      if (current.endsWith('>') || command[i + 1] === '>') {
+      if (curLast === '>' || command[i + 1] === '>') {
         startToken(i);
-        current += c;
+        addChar(c);
         i++;
       } else if (command.startsWith('&&', i)) {
         endSegment('&&', i);
@@ -841,17 +874,17 @@ function tokenizeMode(command, bash, depth = 0) {
           if (inner.trim() !== '') mergeSubMode(tokenizeMode(inner, true, depth + 1));
         }
         startToken(i);
-        current += command.slice(i, closeIdx + 1);
+        addStr(command.slice(i, closeIdx + 1));
         i = closeIdx + 1;
       } else {
         startToken(i);
-        current += c;
+        addChar(c);
         i++;
       }
     } else {
-      markUnquotedScan(i, n);
+      if (c === '$' || c === '`' || c === '[') markUnquotedScan(i, n);
       startToken(i);
-      current += c;
+      addChar(c);
       i++;
     }
   }
@@ -864,6 +897,9 @@ function tokenizeMode(command, bash, depth = 0) {
     tokenOffsets = frame.tokenOffsets;
     prevTokenQuoted = frame.prevTokenQuoted;
     current = `${frame.current}$`;
+    curPrev = frame.curLast;
+    curLast = '$';
+    curHasSlash = frame.curHasSlash;
     tokStart = frame.tokStart;
     started = frame.started;
     wasQuoted = frame.wasQuoted;
@@ -899,7 +935,7 @@ export function segmentsOf(command, bash) {
 }
 
 // Words that only wrap the command that follows them.
-const WRAPPERS = new Set(['&', 'call']);
+const WRAPPERS = new Set(['&', 'call', '.']);
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const ENV_BIN = /^env(?:\.exe)?$/i;
 const MISE = /^mise(?:\.exe)?$/i;
@@ -1188,24 +1224,43 @@ const programName = t => (FAST_LOWER_PROG_RE.test(t) ? t : base(t).replace(/@[^@
 /** Whether the words from `at` begin with the rule's, `*` standing for one or more words. */
 function wordsMatch(tokens, at, words) {
   if (at >= tokens.length || programName(tokens[at]) !== words[0]) return false;
+  const wLen = words.length;
+  const tLen = tokens.length;
+  if (wLen >= 2 && words[1] !== '*' && tokens[at + 1] !== words[1]) return false;
   let t = at + 1;
   let w = 1;
-  while (w < words.length) {
+  while (w < wLen) {
     const gap = words[w] === '*';
     if (gap) w++;
     let end = w;
-    while (end < words.length && words[end] !== '*') end++;
-    const chunk = words.slice(w, end);
-    const fits = s => chunk.every((word, k) => tokens[s + k] === word);
+    while (end < wLen && words[end] !== '*') end++;
+    const chunkLen = end - w;
     if (!gap) {
-      if (!fits(t)) return false;
+      if (t + chunkLen > tLen) return false;
+      for (let k = 0; k < chunkLen; k++) {
+        if (tokens[t + k] !== words[w + k]) return false;
+      }
     } else {
       let s = t + 1;
-      while (s + chunk.length <= tokens.length && !fits(s)) s++;
-      if (s + chunk.length > tokens.length) return false;
+      let matched = false;
+      while (s + chunkLen <= tLen) {
+        let ok = true;
+        for (let k = 0; k < chunkLen; k++) {
+          if (tokens[s + k] !== words[w + k]) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) {
+          matched = true;
+          break;
+        }
+        s++;
+      }
+      if (!matched) return false;
       t = s;
     }
-    t += chunk.length;
+    t += chunkLen;
     w = end;
   }
   return true;
@@ -3349,8 +3404,8 @@ function buildGitconfigReason(provider) {
   return `The pinned gitconfig for ${provider} is missing or unreadable; run node "$HOME/.pact/tools/gh-app.mjs" setup --provider ${provider} (or refresh).`;
 }
 
-function buildGitDenyReason(provider, platform) {
-  if (platform === 'win32') {
+function buildGitDenyReason(provider, platform, shell) {
+  if (platform === 'win32' && shell !== 'bash') {
     return `Plain git writes are blocked while agent-identity is on for ${provider}. Prefix with $env:GIT_CONFIG_GLOBAL = "$env:USERPROFILE/.pact/gh-app-${provider}.gitconfig"; $env:GIT_TERMINAL_PROMPT = '0'; <command> so git writes use the pinned app.`;
   }
   return `Plain git writes are blocked while agent-identity is on for ${provider}. Prefix with GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-${provider}.gitconfig" GIT_TERMINAL_PROMPT=0 <command> so git writes use the pinned app.`;
@@ -3760,7 +3815,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   const bashGit = evalGitMode(bashStates, true, psStates.hasAnyModeGitAssign);
   if (bashGit.missingGitconfig) return { decision: 'deny', id: 'identity-gitconfig', reason: buildGitconfigReason(provider) };
   if (bashGit.hits.length > 0 && !psStates.hasAnyModeGitAssign && (bashStates.length > 1 || !canOverwrite || bashGit.hits[0].forceDeny)) {
-    return { decision: 'deny', id: 'identity-git', reason: buildGitDenyReason(provider, platform) };
+    return { decision: 'deny', id: 'identity-git', reason: buildGitDenyReason(provider, platform, shell) };
   }
   const psGit = evalGitMode(psStates, false, bashStates.hasAnyModeGitAssign);
   if (psGit.missingGitconfig) return { decision: 'deny', id: 'identity-gitconfig', reason: buildGitconfigReason(provider) };
@@ -3805,6 +3860,6 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   return {
     decision: 'deny',
     id: 'identity-git',
-    reason: buildGitDenyReason(provider, platform),
+    reason: buildGitDenyReason(provider, platform, shell),
   };
 }

@@ -763,7 +763,7 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   assert.equal(call(`mise -C '${strangerWork}' x -- git commit -m x`, { cwd: fx.home }), null);
   assert.equal(call('gh pr create -t x -b y'), null);
 
-  // Account-scoped gh writes stay guarded even inside stranger cwd.
+  // Account-scoped gh writes, Push-Location/Pop-Location/popd, and dot-operator wrappers stay guarded inside stranger cwd.
   for (const cmd of [
     'gh auth token',
     'gh auth setup-git',
@@ -774,7 +774,11 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
     'gh repo delete myrepo --yes',
     'gh repo create myrepo --public',
     'gh ssh-key add k.pub',
+    'Push-Location ..\\owner; gh pr merge 1',
+    'Pop-Location; gh pr merge 1',
+    'popd; gh pr merge 1',
   ]) assert.equal(call(cmd)?.id, 'identity-gh', cmd);
+  assert.equal(call('Push-Location ..\\owner; git push')?.id, 'identity-git');
   assert.equal(call('git --unknown-flag status')?.id, 'identity-git');
 
   // Comment line or inline comment ending with trailing backslash does not eat next config line.
@@ -943,6 +947,7 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     'gh api graphql -f query="mutation { x }"',
     'gh api graphql --input body.json',
     'gh api graphql -F query=@q.gql',
+    '. gh pr merge 1',
     'echo "x`" && gh pr create -t x -b y',
     'echo "x``\\"; gh pr create -t x -b y"',
     'echo @"\nsay "\ngh pr create -t x -b y\n"@',
@@ -1140,6 +1145,7 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     'time --bogus git commit -m x',
     'mise x -C . node@24 git commit -m x',
     'mise --bogus x git commit -m x',
+    '. git commit -m x',
     'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.p GIT_CONFIG_VALUE_0=push git p',
     'GIT_CONFIG_PARAMETERS="\'alias.p=push\'" git p',
     'GIT_CONFIG_SYSTEM=/tmp/evil git p',
@@ -1341,6 +1347,13 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     guard.answerCall({ command: big, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
     const elapsed = Date.now() - started;
     assert.ok(elapsed < 1000, `${unit} took ${elapsed} ms (>= 1000 ms)`);
+  }
+  {
+    const started = Date.now();
+    const res = guard.answerCall({ command: `gh pr merge 1\n${'${'.repeat(450000)}`, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
+    const elapsed = Date.now() - started;
+    assert.equal(res?.id, 'identity-gh');
+    assert.ok(elapsed < 1000, `brace pad took ${elapsed} ms (>= 1000 ms)`);
   }
 });
 
