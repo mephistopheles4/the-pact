@@ -162,7 +162,7 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
   assert.match(dry.stdout, /^WARN: `\.codex\/agents\/scout\.toml` names model `my-model`, which Codex may not have\r?$/m, dry.out);
   assert.doesNotMatch(dry.stdout, /`\.claude\/[^`]*` names model/);
   assert.doesNotMatch(dry.stdout, /does not build Antigravity/);
-  passed(applyBound(repo, h));
+  passed(applyBound(repo, h, { fresh: true }));
 
   const rules = read(h, '.codex/AGENTS.md');
   assert.match(rules, /^Here the planning model is `gpt-6\.2-sol`, the executor model `gpt-6\.2-sol` and the light model `gpt-6\.2-sol`\.$/m);
