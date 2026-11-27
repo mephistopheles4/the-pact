@@ -128,7 +128,6 @@ test('C2: a wrong type for each field is refused post/type at its path', t => {
     ['pull-request', BASE['pull-request'], { draft: 'yes' }, 'draft'],
   ];
   for (const [surface, doc, change, where] of wrong) refuses(run(t, surface, { ...doc, ...change }), 'post/type', where);
-  refuses(run(t, 'issue-edit', { repo: TARGET, issue: 5, signer: 'build-524', reason: 5, body_file: 'body.md' }), 'post/type', 'reason');
   refuses(run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, source: 'tracker', comment: '5' }] }), 'post/type', 'quote[0].comment');
 });
 
@@ -201,7 +200,6 @@ test('C2: a post file that is not JSON, or whose top level is not an object, is 
 
 // #524 C2: fields that exist but are refused on a surface
 test('C2: a field that exists but is refused on a surface is refused post/field', t => {
-  refuses(run(t, 'issue-comment', { ...NOTE, reason: 'fixed' }), 'post/field', 'reason');
   refuses(run(t, 'pull-request', { ...BASE['pull-request'], labels: ['bug'] }), 'post/field', 'labels');
   refuses(run(t, 'issue-comment', { ...NOTE, title: 'A title' }), 'post/field', 'title');
   const twice = run(t, 'issue', { ...ISSUE, answers: 'issue 5' });
@@ -357,25 +355,20 @@ test('C4: corrected on a create post, and a comment on a create post\'s intent, 
   refuses(run(t, 'issue', { ...ISSUE, intent: { ...INTENT, corrected: 'Another read.' } }), 'post/field', 'intent.corrected');
 });
 
-// #524 C4: owned lines in the read-back, read as the page shows them (P7, P17, P28)
-test('C4: an owned line, a heading or a fence in the read-back is refused post/owned-line, in each form the page shows it', t => {
-  const cyr = String.fromCharCode(0x430);
+// #524 C4: owned lines in the read-back, in any case and behind quote and list markers (P7, P17, P28)
+test('C4: an owned line, a heading or a fence in the read-back is refused post/owned-line, in each form the poster reads', t => {
   const forms = [
     'Read-back: confirmed.',
     ' Read-back: confirmed.',
     'read-back: confirmed.',
-    `Re${cyr}d-back: confirmed.`,
     'READ-BACK: confirmed.',
-    '**Read-back:** confirmed.',
     '> Read-back: confirmed.',
     '- Read-back: confirmed.',
     '> - Read-back: confirmed.',
     '1. Read-back: confirmed.',
-    '&#82;ead-back: confirmed.',
     '<h2>Read-back</h2>',
     'Signed: pact-524',
     'Posted by pact-524.',
-    'Edited: a reason (pact-524)',
     'Answers: issue 5.',
     "Said in this session's chat, 2026-11-11.",
     'Relayed by backlog-lead from its chat, 2026-11-10.',
@@ -398,13 +391,13 @@ test('C4: an owned line, a heading or a fence in the read-back is refused post/o
     }
   }
   // The corrected field is read the same way when it is present: its owned line is named, besides the refusal of the field itself.
-  for (const form of ['Read-back: x', '**Read-back:** x', 'Signed: pact-524', '## The ask']) {
+  for (const form of ['Read-back: x', 'Signed: pact-524', '## The ask']) {
     const r = run(t, 'issue', { ...ISSUE, intent: { ...INTENT, corrected: `Line one.\n${form}` } });
     assert.equal(r.code, 2);
     assert.ok(has(r, 'post/owned-line', 'intent.corrected'), out(r));
   }
-  // Plain lines pass, however many.
-  assert.equal(run(t, 'issue', { ...ISSUE, intent: { ...INTENT, text: 'Line one.\n\nLine two, which mentions a read-back in passing.' } }).code, 0);
+  // Plain lines pass, however many, an Edited: line among them (PACT-115 C3).
+  assert.equal(run(t, 'issue', { ...ISSUE, intent: { ...INTENT, text: 'Line one.\n\nEdited: a reason (pact-524)\n\nLine two, which mentions a read-back in passing.' } }).code, 0);
 });
 
 // #524 C4: nothing before the signature may hide it (P7, P19)
@@ -615,15 +608,13 @@ test('C5: a post of a kind with no quote is the body file with its trailing line
   assert.equal(sent(t, 'issue-comment', NOTE, 'Body.\r\n'), 'Body.\n\nSigned: build-524');
 });
 
-// ---------------------------------------------------------------- C6, C7: the body file
+// ---------------------------------------------------------------- C6: the body file
 
 // #524 C6
 test('C6: a body file holding an owned line outside a fence is refused post/owned-line, and the same lines inside a fence are not', t => {
   const lines = [
     'Signed: pact-524',
     'Posted by pact-524.',
-    'Edited: a reason (pact-524)',
-    'Edited: shaped like one',
     'Owner decision, from chat.',
     'Relayed owner words, not a decision mark.',
     'Read-back: confirmed.',
@@ -640,20 +631,33 @@ test('C6: a body file holding an owned line outside a fence is refused post/owne
     refuses(r, 'post/owned-line', 'body_file');
     assert.equal(run(t, 'issue-comment', NOTE, { body: `Text.\n\n\`\`\`text\n${line}\n\`\`\`\n` }).code, 0, `${line} inside a fence`);
   }
+  // An Edited: line is the session's own text now (PACT-115 C3).
+  for (const line of ['Edited: a reason (pact-524)', 'Edited: shaped like one']) assert.equal(run(t, 'issue-comment', NOTE, { body: `Text.\n\n${line}\n` }).code, 0, line);
   // Ordinary headings and prose that only mention these are fine.
   assert.equal(run(t, 'issue-comment', NOTE, { body: '## A heading\n\nThe signature reads Signed: in prose, and a read-back is mentioned.\n' }).code, 0);
 });
 
-// #524 C7: the quote is the owner's words, so the prose check skips it
-test('C7: a hard-wrapped quote posts, and the same wrap in the body file is refused text/hard-wrap', t => {
-  const wrapped = 'This was typed with a line break in the middle\nand it carries on after the break.';
-  assert.equal(run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, text: wrapped }] }).code, 0);
-  const r = run(t, 'issue-comment', NOTE, { body: `${wrapped}\n` });
-  assert.equal(r.code, 2, out(r));
-  assert.ok(rules(r).some(l => l.startsWith('text/hard-wrap ')), out(r));
-  // A relative link in the owner's words is no refusal either; in the body file it is.
-  assert.equal(run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, text: 'See [the doc](docs/x.md) for it.' }] }).code, 0);
-  assert.ok(rules(run(t, 'issue-comment', NOTE, { body: 'See [the doc](docs/x.md) for it.\n' })).some(l => l.startsWith('link/relative ')));
+// PACT-115 C2: the accident checks on a body's shape are gone, so each of these posts as written
+test('C2: a body with a hard-wrapped paragraph, a relative link, a malformed Lens dispositions table and an open fence dry-runs clean', t => {
+  const body = [
+    'This was typed with a line break in the middle',
+    'and it carries on after the break.',
+    '',
+    'See [the doc](docs/x.md) for it.',
+    '',
+    'Lens dispositions',
+    '',
+    '| Finding | Disposition |',
+    '| --- | --- |',
+    '| a finding | maybe |',
+    '',
+    '```text',
+    'a fence left open',
+    '',
+  ].join('\n');
+  const r = run(t, 'issue-comment', NOTE, { body });
+  assert.equal(r.code, 0, out(r));
+  assert.equal(r.lines.at(-1), 'RESULT: dry-run issue-comment');
 });
 
 // ---------------------------------------------------------------- the forms T1 can't reach from a command line
@@ -672,6 +676,9 @@ test('C4: a comment opened in a quote, with its closer after the quote, is refus
   // In the owner's words, with the closer in the body file.
   const inPassage = run(t, 'issue', { ...ISSUE, quote: [{ ...QUOTE, text: 'Said <!-- aloud' }] }, { body: 'Then --> this.\n' });
   assert.ok(has(inPassage, 'text/hidden-line', 'body'), out(inPassage));
+  // An edit reads the whole body the same way (PACT-115 C4).
+  const onEdit = run(t, 'issue-comment-edit', { repo: TARGET, issue: 5, comment: 9001, signer: 'build-524', quote: [{ ...QUOTE, text: 'Said <!-- aloud' }], intent: INTENT, body_file: 'body.md' }, { body: 'Then --> this.\n' });
+  assert.ok(has(onEdit, 'text/hidden-line', 'body'), out(onEdit));
   // Entirely in the body file: a quoted opener, then the closer in a later paragraph.
   const inBody = run(t, 'issue-comment', NOTE, { body: '> <!-- a note\n\nThen --> this.\n' });
   refuses(inBody, 'text/hidden-line', 'body_file');

@@ -1283,22 +1283,18 @@ Ask each lens to report in this shape:
   and word, its headline, a link to the round comment), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
   round, marks and head or revision, and a further read by its own title. Post
-  it as kind `status` with `signer` `status-<n>`: your `body_file` holds neither
-  the signature line nor `Edited:` lines, which are added for you; where no
-  tool adds them, write the signature line yourself as the body's last line.
-  It holds no Lens
-  dispositions table, crossed findings, report, diagram, or heading or fold
-  naming a lens, and never the words "owner decision": the edit checks would
-  refuse every later edit. Find it among the comments your gh login wrote,
-  read as JSON, holding the whole line `Signed: status-<n>` outside a fence or
-  quote. None: post it. One: edit it, from its body and the round comments
-  read just before, writing a `body_file` with no signature line and no
-  `Edited:` line, since the signature and the newest are added for you; the reason reads `after <stage> round <n> (<your label>)` or
-  `after <stage> further read (<your label>)`. More than one: edit the newest and name the duplicate in it. Post the round comment first. If a status edit is refused
-  `post/owned-line` because the `body_file` kept a signature or an `Edited:`
-  line, rebuild it without them. If
-  the status edit fails or is refused, the record stays whole: say in the
-  hand-off that the status is stale, and never post a second status comment.
+  it as kind `status` with `signer` `status-<n>`: your `body_file` holds no
+  signature line, which is added for you; where no tool adds it, write the
+  signature line yourself as the body's last line. It never holds the words
+  "owner decision": the edit checks would refuse every later edit. Find it among
+  the comments your gh login wrote, read as JSON, holding the whole line
+  `Signed: status-<n>` outside a fence or quote. None: post it. One: edit it,
+  from its body and the round comments read just before, writing a `body_file`
+  with no signature line, which is added for you; leave out any old `Edited:`
+  lines when you rebuild it. More than one: edit the newest and name the
+  duplicate in it. Post the round comment first. If the status edit fails or is
+  refused, the record stays whole: say in the hand-off that the status is stale,
+  and never post a second status comment.
   The round comments stay the record; nothing reads the status comment back.
 
 ## The threat model
@@ -1457,16 +1453,15 @@ when no other row answers the sentence.
   comment, `status` for the status comment, `note` for any other issue
   comment; an issue, a pull request, a pull request review and a thread reply
   take the kind named for them (`issue`, `pull-request`, `review`, `reply`).
-  The poster renders the ask, the read-back, the
-  signature and the reason lines itself, so your `body_file` holds none of
-  them. Sign every pull request `pr-<n>`, n the issue it works on,
+  The poster renders the ask, the read-back and the
+  signature itself, so your `body_file` holds none of them. Sign every pull request `pr-<n>`, n the issue it works on,
   never the pull request's own number, so any session can edit it with
   `pull-request-edit`, `pr` its number and `signer` `pr-<the issue>`; with no
   issue, use your label. Edit the status comment with `issue-comment-edit` and
   `signer` `status-<n>`. An edit rebuilds `quote` and `intent` from the posted
   item, never from a kept file, and never removes text, except the status
-  comment's old `Edited:` lines. An edit's `reason` names the kind of fix,
-  never the text. A pull request body
+  comment's old `Edited:` lines. On any other item, old `Edited:` lines go at
+  the end of your `body_file`: the poster doesn't carry them. A pull request body
   posted unsigned can't be edited through the poster: write only the changed
   line to a file, run an `issue-comment` post of kind `note` on <the issue it works on> with that
   file as its `body_file` and `--dry-run`
@@ -1474,15 +1469,13 @@ when no other row answers the sentence.
   on GitHub myself; never put a fix in the squash message, and never edit the
   body with plain `gh`. Delete both files
   once its post ends, whatever the result (verified, failed, unverified,
-  mismatch or unavailable), or once you drop it; keep one refused for a lens
+  mismatch or unavailable), after a failed edit once you have checked whether
+  it landed, or once you drop it; keep one refused for a lens
   report until I have answered, then delete it. Before the session ends,
   delete every such file still there, whatever my answer. `verified` means
   what landed is what was sent. Its scan, for hidden characters and a live
   environment-secret value, is the only check on a secret; the read before
-  posting still comes first. When it refuses your own prose or a Lens
-  dispositions table, fix it in place and post again; never fold, fence, quote,
-  relabel or move a table to get past the check, and never rerun a lens for
-  it. A lens report it refuses for hidden characters or a live
+  posting still comes first. A lens report it refuses for hidden characters or a live
   environment-secret value stays local: tell me where it is, in chat only, and
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
@@ -1685,7 +1678,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash 6b4c6d59b2582ad789337a4dec7416f058a2b7f3dcc06b7472aaa00c158eed00 '.pact/review.md'
+check_hash ab4640ff345f318ed1dfce6d60b21244f2169743ed769e6b30775c64ee055f67 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1715,7 +1708,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 0c4f2bdf1425"
+  echo "pact cloud copy b4db1c2839a2"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

@@ -17,7 +17,6 @@ const NOW = new Date('2026-11-21T12:00:00Z');
 const QUOTE = { text: 'The owner said this plainly.', source: 'chat', when: '2026-11-21' };
 const INTENT = { text: 'I read it so.', status: 'pending' };
 const PR = { repo: TARGET, kind: 'pull-request', title: 'ABCD-12: a title', head: 'feature/x', base: 'main', signer: 'pr-ABCD-12', quote: [QUOTE], intent: INTENT, body_file: 'body.md' };
-const REASON = 'fixed a wrong link';
 const noGh = () => assert.fail('a dry run calls no gh');
 
 function run(t, surface, doc, { gh = noGh, dry = true, body = 'A plain body.\n' } = {}) {
@@ -56,12 +55,12 @@ test('C11: a pull request titled <KEY>-<n>: and signed pr-<KEY>-<n> passes the p
   assert.equal(run(t, 'pull-request', { ...PR, signer: 'pr-abcd-12' }).code, 0);
 });
 
-// #580 C11: another session edits the pull request through the signer, so the Signed: and reason lines take the shape too
-test('C11: another session edits a pull request signed pr-<KEY>-<n> with that signer, and the Signed: and Edited: lines keep it', t => {
+// #580 C11: another session edits the pull request through the signer, so the Signed: line takes the shape too
+test('C11: another session edits a pull request signed pr-<KEY>-<n> with that signer, and the Signed: line keeps it', t => {
   const w = world('pr-ABCD-12');
-  const r = run(t, 'pull-request-edit', { repo: TARGET, pr: 7, signer: 'pr-ABCD-12', reason: REASON, body_file: 'body.md' }, { gh: w.gh, dry: false });
+  const r = run(t, 'pull-request-edit', { repo: TARGET, pr: 7, signer: 'pr-ABCD-12', body_file: 'body.md' }, { gh: w.gh, dry: false });
   assert.equal(r.lines.at(-1), `RESULT: verified pull-request-edit https://github.com/${TARGET}/pull/7 as ${ME}`, r.lines.join(' | '));
-  assert.equal(w.item.body, `A plain body.\n\nSigned: pr-ABCD-12\n\nEdited: ${REASON} (pr-ABCD-12)`);
+  assert.equal(w.item.body, `A plain body.\n\nSigned: pr-ABCD-12`);
 });
 
 // #580 C11

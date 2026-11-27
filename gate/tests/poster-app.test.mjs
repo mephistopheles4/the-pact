@@ -22,7 +22,6 @@ const POSTER = join(REPO, 'claude', 'tools', 'poster.mjs');
 const TARGET = `${OWNER}/sandbox`;
 const API = `https://api.github.com/repos/${TARGET}`;
 const LABEL = 'pact-604';
-const REASON = 'fixed a link';
 const WORDS = 'The owner said this plainly.';
 const SAID = "Said in this session's chat, 2026-11-11.";
 const MARK = 'Owner decision, from chat.';
@@ -317,7 +316,7 @@ test('PACT-104: a failed pin check or mint for the picked app sends nothing, and
 test('PACT-104: an edit as the codex bot of a comment the claude bot wrote is refused edit/author, and nothing is sent', async t => {
   const item = `A part.\n\nSigned: ${LABEL}\n`;
   const { s, bot } = pinnedAs(t, 'codex', { items: { [`repos/${TARGET}/issues/comments/9001`]: { id: 9001, body: item, user: { login: OTHER_CLAUDE.bot_login }, issue_url: `${API}/issues/5` } } });
-  const r = await run(t, s, 'issue-comment-edit', { issue: 5, comment: 9001, reason: REASON }, { as: bot });
+  const r = await run(t, s, 'issue-comment-edit', { issue: 5, comment: 9001 }, { as: bot });
   assert.ok(refusedBy(r, 'edit/author', 'item'), text(r));
   assert.equal(s.gh.writes().length, 0);
 });
@@ -415,14 +414,14 @@ test('S8: a body file line that opens "Heard in chat by" is refused post/owned-l
   assert.ok(hasHeard(`${HEARD}\n\nA body.`) && hasHeard('> * Heard  in chat by x.') && !hasHeard('We heard in chat by luck.'));
   const item = `${HEARD}\n\nAnswers: issue 5.\n\nA part.\n\nSigned: ${LABEL}\n`;
   const g = setup(t, { gh: github({ items: { [`repos/${TARGET}/issues/comments/9001`]: { id: 9001, body: item, user: { login: BOT }, issue_url: `${API}/issues/5` } } }) });
-  const e = await run(t, g, 'issue-comment-edit', { issue: 5, comment: 9001, reason: REASON });
+  const e = await run(t, g, 'issue-comment-edit', { issue: 5, comment: 9001 });
   assert.ok(refusedBy(e, 'edit/decision', 'item'), text(e));
   assert.equal(g.gh.writes().length, 0);
 });
 
 const ask = (readback = 'Read-back: not yet confirmed.') => `## The ask\n\n> ${WORDS}\n\n${SAID}\n\n## Understood intent\n\nI read it so.\n\n${readback}\n\nA session part.\n\nSigned: ${LABEL}\n`;
 const decisionItem = ({ mark = HEARD, signer = LABEL, login = BOT } = {}) => ({ id: 7001, user: { login }, issue_url: `${API}/issues/5`, body: `${mark}\n\nAnswers: issue 5.\n\n## The ask\n\n> Yes.\n\n${SAID}\n\n## Understood intent\n\nI read it so.\n\nRead-back: confirmed in this session's chat.\n\nThe decision's part.\n\nSigned: ${signer}\n` });
-const confirmDoc = { issue: 5, reason: REASON, quote: [{ text: WORDS, source: 'chat', when: '2026-11-11' }], intent: { text: 'I read it so.', status: 'confirmed', comment: 7001 } };
+const confirmDoc = { issue: 5, quote: [{ text: WORDS, source: 'chat', when: '2026-11-11' }], intent: { text: 'I read it so.', status: 'confirmed', comment: 7001 } };
 const editWorld = (t, dec) => setup(t, { gh: github({ items: { [`repos/${TARGET}/issues/5`]: { number: 5, body: ask(), user: { login: BOT } }, [`repos/${TARGET}/issues/comments/7001`]: dec } }) });
 
 // #604 S8: edit/confirm accepts the bot's own heard decision, and the owner's marked one, and no other pairing
@@ -430,14 +429,14 @@ test('S8: edit/confirm accepts the bot\'s "Heard in chat by" decision and the ow
   const heard = editWorld(t, decisionItem());
   const r = await run(t, heard, 'issue-edit', confirmDoc);
   assert.equal(r.code, 0, text(r));
-  assert.equal(sent(heard).body, `## The ask\n\n> ${WORDS}\n\n${SAID}\n\n## Understood intent\n\nI read it so.\n\nRead-back: confirmed in comment 7001.\n\nA plain body.\n\nSigned: ${LABEL}\n\nEdited: ${REASON}, confirmed, as heard in chat by ${LABEL} (${LABEL})`);
+  assert.equal(sent(heard).body, `## The ask\n\n> ${WORDS}\n\n${SAID}\n\n## Understood intent\n\nI read it so.\n\nRead-back: confirmed in comment 7001.\n\nA plain body.\n\nSigned: ${LABEL}`);
   assert.equal(heard.gh.writes()[0].as, 'app');
   ownerReads(heard);
   const owners = editWorld(t, decisionItem({ mark: MARK, login: OWNER }));
   const o = await run(t, owners, 'issue-edit', confirmDoc);
   assert.equal(o.code, 0, text(o));
   ownerReads(owners);
-  assert.ok(sent(owners).body.endsWith(`Edited: ${REASON}, heard by ${LABEL} (${LABEL})`));
+  assert.ok(sent(owners).body.endsWith(`Read-back: confirmed in comment 7001.\n\nA plain body.\n\nSigned: ${LABEL}`));
   for (const [what, dec] of [
     ['the owner\'s mark under the bot', decisionItem({ mark: MARK })],
     ['the heard mark under the owner', decisionItem({ login: OWNER })],
@@ -455,11 +454,11 @@ test('S8: edit/confirm accepts the bot\'s "Heard in chat by" decision and the ow
 test('S8: an edit refuses an item the owner\'s own account wrote, and carries one the bot wrote, as the bot', async t => {
   const item = login => ({ [`repos/${TARGET}/issues/5`]: { number: 5, body: `A plain body.\n\nSigned: ${LABEL}\n`, user: { login } } });
   const owned = setup(t, { gh: github({ items: item(OWNER) }) });
-  const r = await run(t, owned, 'issue-edit', { issue: 5, reason: REASON });
+  const r = await run(t, owned, 'issue-edit', { issue: 5 });
   assert.ok(refusedBy(r, 'edit/author', 'item'), text(r));
   assert.equal(owned.gh.writes().length, 0);
   const own = setup(t, { gh: github({ items: item(BOT) }) });
-  const ok = await run(t, own, 'issue-edit', { issue: 5, reason: REASON });
+  const ok = await run(t, own, 'issue-edit', { issue: 5 });
   assert.equal(ok.code, 0, text(ok));
   assert.equal(last(ok), `RESULT: verified issue-edit https://github.com/${TARGET}/issues/5 as ${BOT}`);
   assert.equal(own.gh.writes()[0].as, 'app');
