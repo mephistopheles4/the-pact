@@ -84,7 +84,7 @@ export const RETIRED_DENY = Object.freeze([
 // GUARD_DEST<name>.mjs only while a harness with a guard hook is in and a rule
 // is on. rules.json is made by the install beside them, never in a commit.
 export const GUARD_FORMATS = Object.freeze(['codex', 'antigravity']);
-export const GUARD_SCRIPTS = Object.freeze(['guard', ...GUARD_FORMATS]);
+export const GUARD_SCRIPTS = Object.freeze(['guard', 'claude', ...GUARD_FORMATS]);
 const GUARD_DEST = '.pact/guard/';
 export const GUARD_TABLE_REL = 'claude/guard/rules.json';
 export const GUARD_TABLE_DEST = `${GUARD_DEST}rules.json`;
@@ -1650,6 +1650,8 @@ export const guardLauncherRel = format => `claude/guard/${format}.cmd`;
 // What a launcher answers when its wrapper did not end as it should, in each harness's shape.
 const LAUNCH_FAILED = "The pact's guard failed (launch); run the pact's dry run.";
 const LAUNCH_ANSWERS = Object.freeze({
+  // Claude Code reads PreToolUse hookSpecificOutput on stdout with exit 0.
+  claude: ['echo {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"The pact\'s guard could not start; run the pact\'s dry run."}}', 'exit /b 0'],
   // Codex blocks on exit 2 with a reason, so 2 passes through.
   codex: ['if %ERRORLEVEL% EQU 2 exit /b 2', `echo ${LAUNCH_FAILED}>&2`, 'exit /b 2'],
   // Antigravity's documentation says a non-zero exit lets the call through, so the denial is its JSON answer.

@@ -204,7 +204,7 @@ const typed = Input => tool('manage_task', { Action: 'send_input', Input, TaskId
 /** Windows PowerShell by its full path, so a case may empty PATH. */
 const POWERSHELL = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 /** The shell the cases run each harness's hook under on Windows: Windows PowerShell for Codex, whose own pwsh the shells case covers, and cmd for Antigravity. */
-const SHELL = { codex: POWERSHELL, antigravity: 'cmd' };
+const SHELL = { claude: 'cmd', codex: POWERSHELL, antigravity: 'cmd' };
 
 /** The hook run as the harness runs it: the rendered command's exact text, through the platform's shell, the call on standard input. */
 function runHook(at, format, stdin, { env = {}, shell = SHELL[format], path } = {}) {
@@ -226,6 +226,16 @@ function denied(r, format, reason, decision = 'deny') {
     assert.equal(r.code, 2, JSON.stringify(r));
     assert.equal(r.stderr.trim(), reason, JSON.stringify(r));
     assert.equal(r.stdout, '');
+  } else if (format === 'claude') {
+    assert.equal(r.code, 0, JSON.stringify(r));
+    assert.deepEqual(JSON.parse(r.stdout), {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: reason,
+      },
+    }, JSON.stringify(r));
+    assert.equal(r.stderr, '');
   } else {
     assert.equal(r.code, 0, JSON.stringify(r));
     assert.deepEqual(JSON.parse(r.stdout), { decision, reason }, JSON.stringify(r));
@@ -249,6 +259,7 @@ for (const format of core.GUARD_FORMATS) {
     for (const command of ['git status', 'git commit -m "x; git worktree remove w"', "git commit -F - <<'EOF'\ngit worktree remove w\nEOF"]) assert.deepEqual(runHook(at, format, CALLS[format](command)), SILENT, command);
   });
 
+  // #PACT-121 #PACT-119 C2, C11
   test(`C14: ${format} denies, never allows, on a broken guard, table or call, and shows nothing of the call`, t => {
     const SECRET = 'SECRET_TOKEN_abc123';
     const call = CALLS[format](`git status ${SECRET}`);
@@ -275,13 +286,14 @@ for (const format of core.GUARD_FORMATS) {
       writeFileSync(script, text);
       check(runHook(at, format, call), code);
     };
-    plant(`export function answer( ${SECRET}`, 'guard');
+    plant(`export function answerCall( ${SECRET}`, 'guard');
     plant(`throw new Error('${SECRET}');`, 'guard');
-    plant(`export function answer() { throw new Error('${SECRET}'); }`, 'internal');
-    plant(`export function answer() { throw Object.assign(new Error('x'), { code: '${SECRET}' }); }`, 'internal');
-    plant(`export function answer() { return { decision: '${SECRET}' }; }`, 'internal');
-    plant(`export function answer() { process.nextTick(() => { throw new Error('${SECRET}'); }); return null; }`, 'internal');
-    plant(`export function answer() { Promise.reject(new Error('${SECRET}')); return null; }`, 'internal');
+    plant(`export function answerCall() { throw new Error('${SECRET}'); }`, 'internal');
+    plant(`export function answerCall() { throw Object.assign(new Error('x'), { code: '${SECRET}' }); }`, 'internal');
+    plant(`export function answerCall() { throw Object.assign(new Error('${SECRET}'), { code: 'pin' }); }`, 'pin');
+    plant(`export function answerCall() { return { decision: '${SECRET}' }; }`, 'internal');
+    plant(`export function answerCall() { process.nextTick(() => { throw new Error('${SECRET}'); }); return null; }`, 'internal');
+    plant(`export function answerCall() { Promise.reject(new Error('${SECRET}')); return null; }`, 'internal');
     rmSync(script);
     check(runHook(at, format, call), 'guard');
   });
@@ -1329,4 +1341,268 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     const elapsed = Date.now() - started;
     assert.ok(elapsed < 1000, `${unit} took ${elapsed} ms (>= 1000 ms)`);
   }
+});
+
+// ------------------------------------------------------------ PACT-121: harness wrappers and Claude launcher (Spec 0010 S4, S5)
+
+function makeWrapperPinAt(at, t, { posterOn = true, apps, owner = { login: 'OwnerLogin', id: 998877 } } = {}) {
+  const pactDir = dirname(at.dir);
+  const resolvedApps = apps ?? {
+    codex: { app_id: 11, slug: 'my-codex-app', bot_login: 'my-codex-app[bot]', bot_id: 22 },
+    antigravity: { app_id: 12, slug: 'my-ag-app', bot_login: 'my-ag-app[bot]', bot_id: 23 },
+    claude: { app_id: 13, slug: 'my-claude-app', bot_login: 'my-claude-app[bot]', bot_id: 24 },
+  };
+  writeFileSync(join(at.dir, 'rules.json'), JSON.stringify({ rules: ALL, identity: { enabled: true, posterOn } }));
+  writeFileSync(join(pactDir, 'github.json'), JSON.stringify({ owner, apps: resolvedApps }));
+  for (const p of Object.keys(resolvedApps)) writeFileSync(join(pactDir, `gh-app-${p}.gitconfig`), '[credential]\n\thelper = ""\n');
+  const ownerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/OwnerLogin/SECRET_REPO_XYZ.git' });
+  const strangerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/other-repo.git' });
+  return { pactDir, ownerRepo, strangerRepo };
+}
+
+// #PACT-121 #PACT-119 C7
+test('C7: GUARD_SCRIPTS includes claude while GUARD_FORMATS stays codex/antigravity and claude launcher emits PreToolUse deny', () => {
+  assert.deepEqual([...core.GUARD_FORMATS], ['codex', 'antigravity']);
+  assert.deepEqual([...core.GUARD_SCRIPTS], ['guard', 'claude', 'codex', 'antigravity']);
+  const launcher = core.guardLauncherText('claude');
+  assert.match(launcher, /set "NODE_OPTIONS="/);
+  assert.match(launcher, /set "NoDefaultCurrentDirectoryInExePath=1"/);
+  assert.match(launcher, /call node "%~dp0claude\.mjs"/);
+  assert.match(
+    launcher,
+    /echo \{"hookSpecificOutput":\{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"The pact's guard could not start; run the pact's dry run\."\}\}/,
+  );
+  assert.match(launcher, /\r\nexit \/b 0\r\n$/);
+});
+
+// #PACT-121 #PACT-119 C2, C7, C11
+test('C2, C7, C11: claude wrapper enforces gh and git overrides with shell hint, skips cleaner, answers hookSpecificOutput deny, and fails closed', t => {
+  const at = installed(t);
+  if (WIN) writeFileSync(join(at.dir, 'claude.cmd'), core.guardLauncherText('claude'));
+  const { pactDir, ownerRepo, strangerRepo } = makeWrapperPinAt(at, t);
+  const claudeCfg = join(pactDir, 'gh-app-claude.gitconfig').replaceAll('\\', '/');
+  const claudeEnv = { HOME: at.home, USERPROFILE: at.home, GIT_CONFIG_GLOBAL: claudeCfg, GIT_TERMINAL_PROMPT: '0' };
+  const call = (tool_name, command, cwd = ownerRepo.work) => ({ tool_name, tool_input: { command }, ...(cwd === undefined ? {} : { cwd }) });
+  const run = (stdin, opts = {}) => runHook(at, 'claude', stdin, { env: claudeEnv, ...opts });
+
+  // Plain gh writes deny in hookSpecificOutput shape for both Bash and PowerShell.
+  for (const toolName of ['Bash', 'PowerShell']) {
+    const ghRes = run(call(toolName, 'gh pr create -t SECRET_CMD_XYZ -b body'));
+    assert.equal(ghRes.code, 0, JSON.stringify(ghRes));
+    assert.equal(ghRes.stderr, '');
+    const parsed = JSON.parse(ghRes.stdout);
+    assert.equal(parsed.hookSpecificOutput.hookEventName, 'PreToolUse');
+    assert.equal(parsed.hookSpecificOutput.permissionDecision, 'deny');
+    assert.match(parsed.hookSpecificOutput.permissionDecisionReason, /poster\.mjs.*gh-app\.mjs" gh --provider claude/);
+    assert.doesNotMatch(ghRes.stdout, /SECRET_CMD_XYZ|SECRET_REPO_XYZ|OwnerLogin|998877|my-claude-app/);
+  }
+
+  // Shell hint matches tool_name: Bash rejects PowerShell $env:GH_REPO, PowerShell accepts it and rejects Bash export.
+  denied(run(call('Bash', '$env:GH_REPO = "Stranger/repo"; gh pr create -t x -b y')), 'claude', JSON.parse(run(call('Bash', 'gh pr create -t x -b y')).stdout).hookSpecificOutput.permissionDecisionReason);
+  assert.deepEqual(run(call('PowerShell', '$env:GH_REPO = "Stranger/repo"; gh pr create -t x -b y')), SILENT);
+  denied(run(call('PowerShell', 'export GH_REPO=Stranger/repo; gh pr create -t x -b y')), 'claude', JSON.parse(run(call('PowerShell', 'gh pr create -t x -b y')).stdout).hookSpecificOutput.permissionDecisionReason);
+  assert.deepEqual(run(call('Bash', 'export GH_REPO=Stranger/repo; gh pr create -t x -b y')), SILENT);
+
+  // Cleaner rules are skipped and normal settings-env git writes pass; overrides/unsets deny with identity-git (never overwrite).
+  assert.deepEqual(run(call('Bash', 'git worktree remove w')), SILENT);
+  assert.deepEqual(run(call('Bash', 'git commit -m x')), SILENT);
+  assert.deepEqual(run(call('Bash', 'git commit -m x', strangerRepo.work)), SILENT);
+  for (const cmd of ['env -u GIT_CONFIG_GLOBAL git push', 'git -c user.email=SECRET_CMD_XYZ commit -m x', 'GIT_CONFIG_GLOBAL=/tmp/other git commit -m x']) {
+    const r = run(call('Bash', cmd));
+    assert.equal(r.code, 0, JSON.stringify(r));
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.hookSpecificOutput.permissionDecision, 'deny');
+    assert.match(parsed.hookSpecificOutput.permissionDecisionReason, /Plain git writes are blocked while agent-identity is on for claude/);
+    assert.doesNotMatch(r.stdout, /SECRET_CMD_XYZ|SECRET_REPO_XYZ|OwnerLogin|998877|my-claude-app/);
+  }
+
+  // Missing or relative cwd fails closed on candidate writes, while non-candidates pass.
+  assert.deepEqual(run(call('Bash', 'ls -la', undefined)), SILENT);
+  for (const badCwd of [undefined, '', 'relative/path']) {
+    const r = run(call('Bash', 'git -c user.email=x commit -m y', badCwd));
+    assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, 'deny');
+  }
+
+  // Spy guard confirms exact answerCall arguments: provider, canOverwrite: false, shell per tool_name, and failure isolation.
+  const spy = installed(t);
+  if (WIN) writeFileSync(join(spy.dir, 'claude.cmd'), core.guardLauncherText('claude'));
+  writeFileSync(join(spy.dir, 'guard.mjs'), `
+    export function answerCall(opts) {
+      if (opts.command === 'CHECK_ARGS') {
+        const ok = opts.provider === 'claude' && opts.canOverwrite === false && opts.cwd === '/abs/dir' &&
+          (opts.shell === 'bash' || opts.shell === 'powershell');
+        return ok ? { decision: 'deny', id: 'identity-git', reason: 'shell=' + opts.shell } : { decision: 'ask', id: 'bad' };
+      }
+      if (opts.command === 'UNEXPECTED_ASK') return { decision: 'ask', id: 'cleaner' };
+      if (opts.command === 'UNEXPECTED_OW') return { decision: 'overwrite_ask', id: 'identity-git', reason: 'r', overwriteCommand: 'x' };
+      if (opts.command === 'PIN_ERR') throw Object.assign(new Error('SECRET_RAW'), { code: 'pin' });
+      return null;
+    }
+  `);
+  denied(runHook(spy, 'claude', call('Bash', 'CHECK_ARGS', '/abs/dir')), 'claude', 'shell=bash');
+  denied(runHook(spy, 'claude', call('PowerShell', 'CHECK_ARGS', '/abs/dir')), 'claude', 'shell=powershell');
+  denied(runHook(spy, 'claude', call('Bash', 'UNEXPECTED_ASK', '/abs/dir')), 'claude', failure('internal'));
+  denied(runHook(spy, 'claude', call('Bash', 'UNEXPECTED_OW', '/abs/dir')), 'claude', failure('internal'));
+  const pinErr = runHook(spy, 'claude', call('Bash', 'PIN_ERR', '/abs/dir'));
+  denied(pinErr, 'claude', failure('pin'));
+  assert.doesNotMatch(pinErr.stdout, /SECRET_RAW/);
+
+  // Malformed JSON, call schema, size, table, pin, missing guard, and NODE_OPTIONS crash all deny without leaking secrets.
+  const SECRET = 'SECRET_TOKEN_claude99';
+  const checkFail = (stdin, code, opts = {}) => {
+    const r = runHook(at, 'claude', stdin, opts);
+    denied(r, 'claude', failure(code));
+    assert.doesNotMatch(`${r.stdout}${r.stderr}`, new RegExp(SECRET));
+  };
+  for (const bad of ['', `{ ${SECRET}`]) checkFail(bad, 'input');
+  for (const bad of [
+    null,
+    [],
+    { tool_name: 'Write', tool_input: { command: SECRET } },
+    { tool_name: 'Bash', tool_input: [] },
+    { tool_name: 'Bash', tool_input: { command: 123 } },
+    { tool_name: 'Bash', tool_input: { command: SECRET }, cwd: 123 },
+    { tool_name: 'Bash', tool_input: { command: SECRET }, cwd: null },
+  ]) checkFail(JSON.stringify(bad), 'call');
+  checkFail(call('Bash', `${SECRET} ${'x'.repeat(guard.COMMAND_MAX)}`), 'size');
+  checkFail(`${SECRET}${' '.repeat(9 * 1024 * 1024)}`, 'size');
+
+  const envBadNode = { ...claudeEnv, NODE_OPTIONS: `--require=${join(at.home, 'missing.cjs')}` };
+  denied(runHook(at, 'claude', call('Bash', 'gh pr create -t x -b y'), { env: envBadNode }), 'claude', JSON.parse(run(call('Bash', 'gh pr create -t x -b y')).stdout).hookSpecificOutput.permissionDecisionReason);
+
+  writeFileSync(join(pactDir, 'github.json'), `{${SECRET}`);
+  checkFail(call('Bash', `gh pr create -t ${SECRET} -b y`), 'pin');
+  writeFileSync(join(at.dir, 'rules.json'), `{"rules": [${SECRET}`);
+  checkFail(call('Bash', `git status ${SECRET}`), 'table');
+  rmSync(join(at.dir, 'guard.mjs'));
+  checkFail(call('Bash', `git status ${SECRET}`), 'guard');
+
+  if (WIN) {
+    const noNode = { path: join(process.env.SystemRoot, 'System32'), env: { ERRORLEVEL: '0' } };
+    const r = runHook(at, 'claude', call('Bash', `git status ${SECRET}`), noNode);
+    assert.doesNotMatch(`${r.stdout}${r.stderr}`, /SECRET_TOKEN_claude99/);
+    assert.equal(r.code, 0, JSON.stringify(r));
+    assert.deepEqual(JSON.parse(r.stdout.trim().split(/\r?\n/).at(-1)), {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: "The pact's guard could not start; run the pact's dry run.",
+      },
+    });
+  }
+});
+
+// #PACT-121 #PACT-119 C2, C6, C11
+test('C2, C6, C11: antigravity wrapper handles overwrite_ask on run_command only, Cwd precedence, shell hint, and pin failures', t => {
+  const at = installed(t);
+  const { pactDir, ownerRepo, strangerRepo } = makeWrapperPinAt(at, t);
+  const cfgPath = join(pactDir, 'gh-app-antigravity.gitconfig').replaceAll('\\', '/');
+  const agEnv = { HOME: at.home, USERPROFILE: at.home };
+  const run = (call, opts = {}) => runHook(at, 'antigravity', call, { env: agEnv, ...opts });
+
+  // Simple git write on run_command returns force_ask + overwrite (never allow).
+  const ow = run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m "SECRET_CMD_XYZ"', Cwd: ownerRepo.work } }, stepIdx: 1 });
+  assert.equal(ow.code, 0, JSON.stringify(ow));
+  const owJson = JSON.parse(ow.stdout);
+  assert.equal(owJson.decision, 'force_ask');
+  assert.equal(owJson.reason, 'Setting GIT_CONFIG_GLOBAL for antigravity so git writes use the pinned app.');
+  const expectedPrefix = WIN
+    ? `$env:GIT_CONFIG_GLOBAL = '${cfgPath.replaceAll("'", "''")}'; $env:GIT_TERMINAL_PROMPT = '0'; `
+    : `GIT_CONFIG_GLOBAL='${cfgPath.replaceAll("'", "'\\''")}' GIT_TERMINAL_PROMPT=0 `;
+  assert.equal(owJson.overwrite.CommandLine, `${expectedPrefix}git commit -m "SECRET_CMD_XYZ"`);
+  assert.doesNotMatch(owJson.reason, /SECRET_CMD_XYZ|SECRET_REPO_XYZ|OwnerLogin|998877|my-ag-app/);
+
+  // Compound run_command, gh write, manage_task send_input, and send_command_input deny without overwrite.
+  for (const call of [
+    { toolCall: { name: 'run_command', args: { CommandLine: 'ls && git commit -m SECRET_CMD_XYZ', Cwd: ownerRepo.work } } },
+    { toolCall: { name: 'run_command', args: { CommandLine: 'gh pr create -t SECRET_CMD_XYZ -b body', Cwd: ownerRepo.work } } },
+    { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'git commit -m SECRET_CMD_XYZ\n', TaskId: 't' } }, cwd: ownerRepo.work },
+    { toolCall: { name: 'send_command_input', args: { CommandId: 'c', Input: 'git commit -m SECRET_CMD_XYZ\n' } }, cwd: ownerRepo.work },
+  ]) {
+    const r = run(call);
+    assert.equal(r.code, 0, JSON.stringify(r));
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.decision, 'deny', JSON.stringify(call));
+    assert.equal(parsed.overwrite, undefined, JSON.stringify(call));
+    assert.doesNotMatch(r.stdout, /SECRET_CMD_XYZ|SECRET_REPO_XYZ|OwnerLogin|998877|my-ag-app/);
+  }
+
+  // Cwd resolution: explicit Cwd wins (and "", relative, or non-string Cwd never fall back to input.cwd or workspacePaths); multi-root workspacePaths fails closed.
+  assert.deepEqual(run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m x', Cwd: strangerRepo.work } }, cwd: ownerRepo.work, workspacePaths: [ownerRepo.work] }), SILENT);
+  for (const badCwd of ['', './sub', 123, null]) {
+    const r = run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m x', Cwd: badCwd } }, cwd: strangerRepo.work, workspacePaths: [strangerRepo.work] });
+    assert.equal(JSON.parse(r.stdout).decision, 'force_ask', JSON.stringify(badCwd));
+  }
+  assert.deepEqual(run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m x' } }, cwd: strangerRepo.work, workspacePaths: [ownerRepo.work] }), SILENT);
+  assert.deepEqual(run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m x' } }, workspacePaths: [strangerRepo.work] }), SILENT);
+  assert.equal(JSON.parse(run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m x' } }, workspacePaths: [strangerRepo.work, ownerRepo.work] }).stdout).decision, 'force_ask');
+
+  // Shell hint matches process.platform (powershell on win32, bash otherwise), and manage_task never emits overwrite even on bad guard output.
+  const spy = installed(t);
+  writeFileSync(join(spy.dir, 'guard.mjs'), `
+    export function answerCall(opts) {
+      if (opts.command === 'CHECK_ARGS') {
+        const expectedShell = process.platform === 'win32' ? 'powershell' : 'bash';
+        const ok = opts.provider === 'antigravity' && opts.shell === expectedShell &&
+          opts.canOverwrite === (opts.cwd === '/rw') && typeof opts.canOverwrite === 'boolean';
+        return ok ? { decision: 'deny', id: 'identity-git', reason: 'ok:' + opts.shell + ':' + opts.canOverwrite } : { decision: 'ask', id: 'bad' };
+      }
+      if (opts.command === 'BAD_OW') return { decision: 'overwrite_ask', id: 'identity-git', reason: 'r', overwriteCommand: 'x' };
+      return null;
+    }
+  `);
+  const expectedShell = WIN ? 'powershell' : 'bash';
+  denied(runHook(spy, 'antigravity', { toolCall: { name: 'run_command', args: { CommandLine: 'CHECK_ARGS', Cwd: '/rw' } } }), 'antigravity', `ok:${expectedShell}:true`);
+  denied(runHook(spy, 'antigravity', { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'CHECK_ARGS', TaskId: 't' } }, cwd: '/ro' }), 'antigravity', `ok:${expectedShell}:false`);
+  denied(runHook(spy, 'antigravity', { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'BAD_OW', TaskId: 't' } }, cwd: '/ro' }), 'antigravity', failure('internal'));
+
+  // Corrupt pin fails closed with pin failure code and zero secret leak.
+  writeFileSync(join(pactDir, 'github.json'), '{SECRET_PIN');
+  const pinRes = run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m SECRET_CMD_XYZ', Cwd: ownerRepo.work } } });
+  denied(pinRes, 'antigravity', failure('pin'));
+  assert.doesNotMatch(pinRes.stdout, /SECRET_PIN|SECRET_CMD_XYZ/);
+});
+
+// #PACT-121 #PACT-119 C2, C6, C11
+test('C2, C6, C11: codex wrapper enforces gh and git with deny fallback, shell hint, cwd check, and pin failure', t => {
+  const at = installed(t);
+  const { pactDir, ownerRepo, strangerRepo } = makeWrapperPinAt(at, t);
+  const codexEnv = { HOME: at.home, USERPROFILE: at.home };
+  const call = (command, cwd) => ({ session_id: 's', ...(cwd === undefined ? {} : { cwd }), hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: 'u', tool_input: { command } });
+  const run = (stdin, opts = {}) => runHook(at, 'codex', stdin, { env: codexEnv, ...opts });
+
+  // Plain git and gh writes deny via exit 2 on stderr without overwrite or secret leakage.
+  const gitRes = run(call('git commit -m SECRET_CMD_XYZ', ownerRepo.work));
+  assert.equal(gitRes.code, 2, JSON.stringify(gitRes));
+  assert.equal(gitRes.stdout, '');
+  assert.match(gitRes.stderr, /Plain git writes are blocked while agent-identity is on for codex/);
+  assert.doesNotMatch(gitRes.stderr, /SECRET_CMD_XYZ|SECRET_REPO_XYZ|OwnerLogin|998877|my-codex-app/);
+
+  const ghRes = run(call('gh pr create -t SECRET_CMD_XYZ -b y', ownerRepo.work));
+  assert.equal(ghRes.code, 2, JSON.stringify(ghRes));
+  assert.match(ghRes.stderr, /poster\.mjs.*gh-app\.mjs" gh --provider codex/);
+  assert.doesNotMatch(ghRes.stderr, /SECRET_CMD_XYZ|SECRET_REPO_XYZ|OwnerLogin|998877|my-codex-app/);
+
+  // Stranger cwd passes; missing or non-string cwd fails closed.
+  assert.deepEqual(run(call('git commit -m x', strangerRepo.work)), SILENT);
+  for (const badCwd of [undefined, 123, null]) {
+    assert.equal(run(call('git commit -m x', badCwd)).code, 2, JSON.stringify(badCwd));
+  }
+
+  // Spy guard confirms provider, canOverwrite: false, and platform shell hint.
+  const spy = installed(t);
+  writeFileSync(join(spy.dir, 'guard.mjs'), `
+    export function answerCall(opts) {
+      const expectedShell = process.platform === 'win32' ? 'powershell' : 'bash';
+      const ok = opts.provider === 'codex' && opts.canOverwrite === false && opts.shell === expectedShell && opts.cwd === '/w';
+      return ok ? { decision: 'deny', id: 'identity-git', reason: 'ok:' + opts.shell } : { decision: 'ask', id: 'bad' };
+    }
+  `);
+  denied(runHook(spy, 'codex', call('ls', '/w')), 'codex', `ok:${WIN ? 'powershell' : 'bash'}`);
+
+  // Corrupt pin fails closed with pin failure code and zero secret leak.
+  writeFileSync(join(pactDir, 'github.json'), '{SECRET_PIN');
+  const pinRes = run(call('git commit -m SECRET_CMD_XYZ', ownerRepo.work));
+  denied(pinRes, 'codex', failure('pin'));
+  assert.doesNotMatch(pinRes.stderr, /SECRET_PIN|SECRET_CMD_XYZ/);
 });
