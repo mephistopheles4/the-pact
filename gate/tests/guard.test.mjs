@@ -466,3 +466,531 @@ test('bad case: seam A refuses a guard file it does not list, one in a subfolder
   assert.deepEqual(guardFails(seam(t, short, 'codex:guard')), ['guard-not-in-pact']);
   assert.deepEqual(guardFails(seam(t, short, 'codex:none')), []);
 });
+
+// ------------------------------------------------------------ PACT-120: identity guard core (Spec 0009 S3)
+
+function makePinFixture(t, { apps = { codex: { app_id: 11, slug: 'my-codex-app', bot_login: 'my-codex-app[bot]', bot_id: 22 }, antigravity: { app_id: 12, slug: 'my-ag-app', bot_login: 'my-ag-app[bot]', bot_id: 23 }, claude: { app_id: 13, slug: 'my-claude-app', bot_login: 'my-claude-app[bot]', bot_id: 24 } }, owner = { login: 'OwnerLogin', id: 99 }, withGitconfigs = ['codex', 'antigravity', 'claude'] } = {}) {
+  const home = tempDir(t, 'pact-id-');
+  const pactDir = join(home, '.pact');
+  const guardDir = join(pactDir, 'guard');
+  mkdirSync(guardDir, { recursive: true });
+  const tableFile = join(guardDir, 'rules.json');
+  const pinFile = join(pactDir, 'github.json');
+  writeFileSync(tableFile, JSON.stringify({ rules: ALL, identity: { enabled: true, posterOn: true } }));
+  writeFileSync(pinFile, JSON.stringify({ owner, apps }));
+  for (const p of withGitconfigs) writeFileSync(join(pactDir, `gh-app-${p}.gitconfig`), '[credential]\n\thelper = ""\n');
+  return { home, pactDir, guardDir, tableFile, pinFile };
+}
+
+function makeGitRepo(t, { remoteUrl = 'https://github.com/OwnerLogin/my-repo.git', extraConfig = '', worktreeConfig = null, linked = false } = {}) {
+  const root = tempDir(t, 'pact-repo-');
+  const work = join(root, 'repo');
+  mkdirSync(work, { recursive: true });
+  const baseCfg = `${remoteUrl ? `[remote "origin"]\n\turl = ${remoteUrl}\n` : ''}${extraConfig}`;
+  if (!linked) {
+    mkdirSync(join(work, '.git'));
+    writeFileSync(join(work, '.git', 'config'), baseCfg);
+  } else {
+    const common = join(root, 'main-git');
+    const wt = join(common, 'worktrees', 'wt1');
+    mkdirSync(wt, { recursive: true });
+    writeFileSync(join(work, '.git'), `gitdir: ${wt}\n`);
+    writeFileSync(join(wt, 'commondir'), '../..\n');
+    writeFileSync(join(common, 'config'), baseCfg);
+    if (worktreeConfig !== null) writeFileSync(join(wt, 'config.worktree'), worktreeConfig);
+  }
+  return { root, work };
+}
+
+// #PACT-120 #PACT-119 C1
+test('C1: parseTableDoc validates optional identity block strictly while parseTable stays backwards-compatible', () => {
+  const baseRules = JSON.parse(JSON.stringify(ALL));
+  const plain = JSON.stringify({ rules: baseRules });
+  const withId = JSON.stringify({ rules: baseRules, identity: { enabled: true, posterOn: false } });
+  assert.deepEqual(guard.parseTableDoc(plain), { rules: baseRules, identity: null });
+  assert.deepEqual(guard.parseTableDoc(withId), { rules: baseRules, identity: { enabled: true, posterOn: false } });
+  assert.deepEqual(guard.parseTable(withId), baseRules);
+
+  const badDocs = [
+    '[]',
+    'null',
+    JSON.stringify({ rules: baseRules, extra: 1 }),
+    JSON.stringify({ identity: { enabled: true, posterOn: true } }),
+    JSON.stringify({ rules: baseRules, identity: null }),
+    JSON.stringify({ rules: baseRules, identity: [] }),
+    JSON.stringify({ rules: baseRules, identity: {} }),
+    JSON.stringify({ rules: baseRules, identity: { enabled: true } }),
+    JSON.stringify({ rules: baseRules, identity: { enabled: false, posterOn: true } }),
+    JSON.stringify({ rules: baseRules, identity: { enabled: true, posterOn: 'yes' } }),
+    JSON.stringify({ rules: baseRules, identity: { enabled: true, posterOn: true, extra: 1 } }),
+  ];
+  for (const text of badDocs) assert.throws(() => guard.parseTableDoc(text), { code: 'table' }, text);
+});
+
+// #PACT-120 #PACT-119 C2
+test('C2: runtime pin gate reads lazily relative to tableFile and enforces readPin schema plus gitconfig file checks', async t => {
+  const { symlinkSync } = await import('node:fs');
+  const fx = makePinFixture(t);
+  const repo = makeGitRepo(t);
+
+  // Disabled identity passes through even if pin is corrupt.
+  const offTable = join(fx.guardDir, 'rules-off.json');
+  writeFileSync(offTable, JSON.stringify({ rules: ALL }));
+  writeFileSync(fx.pinFile, '{corrupt');
+  assert.equal(guard.answerCall({ command: 'gh pr create -t x -b y', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: offTable }), null);
+
+  // Lazy read: non-candidate commands pass without reading corrupt pinFile (defaulted from tableFile).
+  for (const cmd of ['ls -la', 'git status', 'git --version', 'git --help', 'node fix.mjs']) {
+    assert.equal(guard.answerCall({ command: cmd, provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), null, cmd);
+  }
+  // Claude skips git writes without touching corrupt pinFile.
+  assert.equal(guard.answerCall({ command: 'git commit -m x', provider: 'claude', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), null);
+
+  // Candidate commands fail closed on corrupt, BOM, oversize, directory, or schema-invalid pinFile.
+  assert.throws(() => guard.answerCall({ command: 'gh pr create -t x -b y', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
+  assert.throws(() => guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
+  assert.throws(() => guard.answerCall({ command: 'env -S "ls"', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
+
+  const goodPin = { owner: { login: 'OwnerLogin', id: 99 }, apps: { codex: { app_id: 11, slug: 'my-codex-app', bot_login: 'my-codex-app[bot]', bot_id: 22 } } };
+  const badPins = [
+    `\ufeff${JSON.stringify(goodPin)}`,
+    `${JSON.stringify(goodPin)}${' '.repeat(65537)}`,
+    JSON.stringify({ ...goodPin, extra: 1 }),
+    JSON.stringify({ owner: { login: 'OwnerLogin', id: 0 }, apps: goodPin.apps }),
+    JSON.stringify({ owner: { login: '-bad', id: 99 }, apps: goodPin.apps }),
+    JSON.stringify({ owner: goodPin.owner, apps: { other: goodPin.apps.codex } }),
+    JSON.stringify({ owner: goodPin.owner, apps: { codex: { app_id: 11, slug: 'BadCase', bot_login: 'BadCase[bot]', bot_id: 22 } } }),
+    JSON.stringify({ owner: goodPin.owner, apps: { codex: { app_id: 11, slug: 'my-codex-app', bot_login: 'wrong[bot]', bot_id: 22 } } }),
+    JSON.stringify({ owner: goodPin.owner, apps: { codex: { app_id: 11, slug: 'my-codex-app', bot_login: 'my-codex-app[bot]', bot_id: 22, extra: 1 } } }),
+  ];
+  for (const text of badPins) {
+    writeFileSync(fx.pinFile, text);
+    assert.throws(() => guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
+  }
+
+  // Symlink/junction pin fails closed with pin.
+  rmSync(fx.pinFile);
+  const pinTarget = join(fx.home, 'real.json');
+  writeFileSync(pinTarget, JSON.stringify(goodPin));
+  try {
+    symlinkSync(pinTarget, fx.pinFile, 'file');
+  } catch (e) {
+    if (e.code !== 'EPERM') throw e;
+    symlinkSync(join(fx.home, 'gone'), fx.pinFile, 'junction');
+  }
+  assert.throws(() => guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
+
+  // Absent pinFile (ENOENT) passes through, and unpinned provider passes through.
+  rmSync(fx.pinFile);
+  assert.equal(guard.answerCall({ command: 'gh pr create -t x -b y', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), null);
+  writeFileSync(fx.pinFile, JSON.stringify(goodPin));
+  assert.equal(guard.answerCall({ command: 'gh pr create -t x -b y', provider: 'antigravity', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), null);
+
+  // Missing or symlinked/junctioned gitconfig denies with identity-gitconfig BEFORE accepting GIT_CONFIG_GLOBAL.
+  const cfgPath = join(fx.pactDir, 'gh-app-codex.gitconfig');
+  rmSync(cfgPath);
+  const envWithCfg = { GIT_CONFIG_GLOBAL: cfgPath.replaceAll('\\', '/'), HOME: fx.home };
+  const missingRes = guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: envWithCfg, tableFile: fx.tableFile });
+  assert.equal(missingRes?.id, 'identity-gitconfig');
+  assert.match(missingRes.reason, /"\$HOME\/\.pact\/tools\/gh-app\.mjs" setup --provider codex/);
+  const realCfg = join(fx.home, 'real.gitconfig');
+  writeFileSync(realCfg, '[user]\n');
+  try {
+    symlinkSync(realCfg, cfgPath, 'file');
+  } catch (e) {
+    if (e.code !== 'EPERM') throw e;
+    symlinkSync(join(fx.home, 'gone'), cfgPath, 'junction');
+  }
+  const symRes = guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: envWithCfg, tableFile: fx.tableFile });
+  assert.equal(symRes?.id, 'identity-gitconfig');
+});
+
+// #PACT-120 #PACT-119 C3
+test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git push, URLs, and prose-flag safety', t => {
+  const fx = makePinFixture(t);
+  const ownerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/OwnerLogin/own.git' });
+  const call = (command, { provider = 'codex', cwd = ownerRepo.work, env = { HOME: fx.home }, platform = 'linux' } = {}) =>
+    guard.answerCall({ command, provider, cwd, canOverwrite: false, env, tableFile: fx.tableFile, platform });
+
+  // Stranger targets exempt; owner targets (case-insensitive) guard.
+  for (const cmd of [
+    'gh pr create -R Stranger/repo -t x -b y',
+    'gh pr create -RStranger/repo -t x -b y',
+    'gh pr create --repo=ghes.example.com/OwnerLogin/repo -t x -b y',
+    'gh pr merge https://github.com/Stranger/repo/pull/1',
+    'gh pr merge https://ghes.internal:443/OwnerLogin/repo/pull/1',
+    'gh api repos/Stranger/repo/issues -f title=hi',
+    'gh api repos/Stranger/repo/issues?state=open#top -X POST',
+    'gh api --hostname ghes.example.com /graphql -f query="mutation { x }"',
+    'gh repo delete Stranger/repo --yes',
+    'gh repo create StrangerOrg/new-repo --public',
+    'gh repo fork Stranger/repo --org StrangerOrg',
+    'gh project item-add 1 --owner StrangerOrg --url x',
+    'GH_REPO=Stranger/repo gh pr create -t x -b y',
+    'export GH_REPO=Stranger/repo; gh pr create -t x -b y',
+    '$env:GH_REPO = "Stranger/repo"; gh pr create -t x -b y',
+    'git push https://github.com/Stranger/repo.git main',
+    'git push ssh://git@github.com:22/Stranger/repo.git main',
+    'git push git@github.com:Stranger/repo.git main',
+    'git push --repo=https://github.com/OwnerLogin/own.git https://github.com/Stranger/repo.git main',
+  ]) assert.equal(call(cmd), null, cmd);
+
+  for (const cmd of [
+    'gh pr create -R ownerlogin/repo -t x -b y',
+    'gh pr create -R sub.github.com/OwnerLogin/repo -t x -b y',
+    'gh pr create --repo=https://@github.com/OwnerLogin/repo -t x -b y',
+    'gh pr create --repo=https://a@b@github.com/OwnerLogin/repo -t x -b y',
+    'gh pr create -t "-R Stranger/repo" -b y',
+    'gh pr create -t hi -R Stranger/repo',
+    'gh pr merge -R Stranger/repo https://github.com/OwnerLogin/repo/pull/1',
+    'gh api repos/OwnerLogin/repo/issues -f title=hi',
+    'gh api repos/Stranger/../OwnerLogin/repo/issues -f title=hi',
+    'gh api repos/%53tranger/repo/issues -f title=hi',
+    'gh api repos/{owner}/repo/issues -f title=hi',
+    'gh api repos/:owner/repo/issues -f title=hi',
+    'gh api --hostname "" /user/repos -X POST',
+    'gh api --hostname sub.github.com /user/repos -X POST',
+    'gh api --hostname ghes.example.com https://github.com/user/repos -X POST',
+    'gh api --hostname ghes.example.com -it repos/Stranger/repo',
+    'gh repo fork Stranger/repo',
+    'gh repo fork Stranger/repo --org @me',
+    'gh repo create new-repo --public',
+    'gh repo create -R Stranger/repo --public',
+    'gh repo delete myrepo --yes',
+    'gh repo rename Stranger/repo',
+    'gh repo deploy-key add -R Stranger/repo key.pub',
+    'gh project item-add 1 --owner @me --url x',
+    'GH_REPO=Stranger/repo; gh pr create -t x -b y',
+    'export GH_REPO=Stranger/repo; export GH_REPO=; gh pr create -t x -b y',
+    '$env:GH_REPO = "$OTHER"; gh pr create -t x -b y',
+    '$env:GH_REPO = "Stranger/repo"; $env:GH_REPO = $null; gh pr create -t x -b y',
+    'cd /tmp && gh pr create -R Stranger/repo -t x -b y',
+    'Set-Location C:\\tmp; git push https://github.com/Stranger/repo.git main',
+    'git push --unknown https://github.com/Stranger/repo.git main',
+    'git push https://github.com/Stranger//repo.git main',
+    'git push https://github.com/Stranger/%72epo.git main',
+    'git push https://github.com/Stranger/.. main',
+    'git push git@github.com:Stranger/.. main',
+    'git push git@github.com:onlyone main',
+    'git push https://github.com/-bad/repo.git main',
+  ]) assert.equal(call(cmd)?.decision, 'deny', cmd);
+
+  // Explicit env.GH_REPO works and is overridden by -R.
+  assert.equal(call('gh pr create -t x -b y', { env: { HOME: fx.home, GH_REPO: 'Stranger/repo' } }), null);
+  assert.equal(call('gh pr create -R OwnerLogin/repo -t x -b y', { env: { HOME: fx.home, GH_REPO: 'Stranger/repo' } })?.id, 'identity-gh');
+});
+
+// #PACT-120 #PACT-119 C3
+test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, and fail-closed symlink/UNC/include traps', async t => {
+  const { symlinkSync } = await import('node:fs');
+  const fx = makePinFixture(t);
+  const strangerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git' });
+  const sub = join(strangerRepo.work, 'nested', 'dir');
+  mkdirSync(sub, { recursive: true });
+  const call = (command, opts = {}) => {
+    const cwd = Object.hasOwn(opts, 'cwd') ? opts.cwd : sub;
+    const { env = { HOME: fx.home }, platform = 'linux' } = opts;
+    return guard.answerCall({ command, provider: 'codex', cwd, canOverwrite: false, env, tableFile: fx.tableFile, platform });
+  };
+
+  // Upward lookup from subdirectory and -C chaining exempt stranger repos.
+  assert.equal(call('git commit -m x'), null);
+  assert.equal(call(`env -C ${strangerRepo.work} git -C nested commit -m x`, { cwd: fx.home }), null);
+  assert.equal(call('gh pr create -t x -b y'), null);
+
+  // Linked worktree + worktreeConfig truthy values.
+  const wtStranger = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', linked: true, extraConfig: '[extensions]\n\tworktreeConfig\n', worktreeConfig: '' });
+  assert.equal(call('git commit -m x', { cwd: wtStranger.work }), null);
+  const wtInclude = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', linked: true, extraConfig: '[extensions]\n\tworktreeConfig = yes\n', worktreeConfig: '[include]\n\tpath = /x\n' });
+  assert.equal(call('git commit -m x', { cwd: wtInclude.work })?.id, 'identity-git');
+
+  // Multi-remote & gh-resolved ambiguity.
+  const multiSafe = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r1.git', extraConfig: '[remote "upstream"]\n\turl = https://github.com/Other/r2.git\n' });
+  assert.equal(call('gh pr create -t x -b y', { cwd: multiSafe.work }), null);
+  assert.equal(call('git push', { cwd: multiSafe.work })?.id, 'identity-git');
+  assert.equal(call('git push upstream main', { cwd: multiSafe.work }), null);
+  const multiNoUrl = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r1.git', extraConfig: '[remote "upstream"]\n\tfetch = +refs/heads/*:refs/remotes/upstream/*\n' });
+  assert.equal(call('gh pr create -t x -b y', { cwd: multiNoUrl.work })?.id, 'identity-gh');
+
+  // gh uses url (not pushurl); git push uses pushurl if set; other git uses both.
+  const splitUrls = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '\tpushurl = https://github.com/OwnerLogin/r.git\n' });
+  assert.equal(call('gh pr create -t x -b y', { cwd: splitUrls.work }), null);
+  assert.equal(call('git push', { cwd: splitUrls.work })?.id, 'identity-git');
+  assert.equal(call('git commit -m x', { cwd: splitUrls.work })?.id, 'identity-git');
+
+  // Fail closed on missing/bad cwd, UNC/drive-relative/drive-less on win32, --git-dir, GIT_DIR, -c remote.*, include, insteadOf, oversize.
+  for (const opts of [
+    { cwd: undefined },
+    { cwd: 'relative/path' },
+    { cwd: '\\\\server\\share\\repo', platform: 'win32' },
+    { cwd: '\\drive-less\\repo', platform: 'win32' },
+    { cwd: 'C:drive-relative', platform: 'win32' },
+    { cwd: fx.home }, // no .git up to root
+    { env: { HOME: fx.home, GIT_DIR: join(strangerRepo.work, '.git') } },
+    { env: { HOME: fx.home, GIT_CONFIG_COUNT: '1' } },
+  ]) assert.equal(call('git commit -m x', opts)?.id, 'identity-git', JSON.stringify(opts));
+
+  for (const cmd of [
+    `git --git-dir=${join(strangerRepo.work, '.git')} commit -m x`,
+    'git --exec-path=/tmp commit -m x',
+    'git --config-env=a=B commit -m x',
+    'git -c remote.origin.url=https://github.com/OwnerLogin/r.git push',
+    'git -c url.https://github.com/OwnerLogin/.insteadOf=https://github.com/Stranger/ commit -m x',
+  ]) assert.equal(call(cmd)?.id, 'identity-git', cmd);
+
+  const badInclude = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '[includeIf "gitdir:/x/"]\n\tpath = y\n' });
+  assert.equal(call('git commit -m x', { cwd: badInclude.work })?.id, 'identity-git');
+  const badUrlRew = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '[url "https://github.com/OwnerLogin/"]\n\tinsteadOf = https://github.com/Stranger/\n' });
+  assert.equal(call('git commit -m x', { cwd: badUrlRew.work })?.id, 'identity-git');
+
+  // Symlinked directory with .. collapse attempt (symlink/..) MUST fail closed before collapsing ..
+  const linkBase = tempDir(t, 'pact-sym-');
+  const symDir = join(linkBase, 'sym');
+  symlinkSync(sub, symDir, WIN ? 'junction' : 'dir');
+  assert.equal(call('git commit -m x', { cwd: `${symDir}/..` })?.id, 'identity-git');
+  assert.equal(call(`git -C "${symDir}/.." commit -m x`, { cwd: linkBase })?.id, 'identity-git');
+
+  // Oversize config (> 1 MiB) fails closed.
+  const bigRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: `# ${'x'.repeat(1024 * 1024)}\n` });
+  assert.equal(call('git commit -m x', { cwd: bigRepo.work })?.id, 'identity-git');
+});
+
+// #PACT-120 #PACT-119 C4
+test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and posterOn reason routing', t => {
+  const fx = makePinFixture(t);
+  const ownerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/OwnerLogin/own.git' });
+  const call = (command, { tableFile = fx.tableFile, provider = 'codex' } = {}) =>
+    guard.answerCall({ command, provider, cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile, platform: 'linux' });
+
+  // Closed reads, strict -h/--help, gh run/workflow, gh-app/poster pass.
+  for (const cmd of [
+    'gh pr list',
+    'gh pr view 1',
+    'gh issue status',
+    'gh auth status',
+    'gh -h',
+    'gh pr -h',
+    'gh pr create -h',
+    'gh --help',
+    'gh api --help',
+    'gh run rerun 123',
+    'gh workflow run deploy.yml',
+    'gh api repos/OwnerLogin/own/issues',
+    'gh api -X GET repos/OwnerLogin/own/issues -f per_page=10',
+    'gh api graphql -f query="query { viewer { login } }"',
+    'node "$HOME/.pact/tools/gh-app.mjs" gh --provider codex -R OwnerLogin/own -- pr create -t x -b y',
+    'node "$HOME/.pact/tools/poster.mjs" pr-comment 1',
+    'echo "x`"; gh pr list',
+    "echo $'a\\'b'; gh pr list",
+    'echo "a``"; gh pr list',
+    `$m = @'${' '.repeat(120)}\ngit worktree remove w\ngh pr create -t x -b y\n'@`,
+    "cat <<\\EOF\ngh pr create -t x -b y\nEOF",
+    "cat <<E'O'F\ngh pr create -t x -b y\nEOF",
+    'cat <<"E"OF\ngh pr create -t x -b y\nEOF',
+  ]) assert.equal(call(cmd), null, cmd);
+
+  // Writes and tokenizer bypass defenses deny.
+  for (const cmd of [
+    'gh pr create -t x -b y',
+    'gh pr create --body -h',
+    'gh -R OwnerLogin/own pr create -t x -b y',
+    'gh pr -R OwnerLogin/own create -t x -b y',
+    'gh auth token',
+    'gh auth status -t',
+    'gh auth status -at',
+    'gh auth status --show-token',
+    'gh auth -h',
+    'gh ssh-key add k.pub',
+    'gh gpg-key add k.asc',
+    'gh alias set co "pr checkout"',
+    'gh config set editor vim',
+    'gh extension install foo/bar',
+    'gh codespace create',
+    'gh secret set S -o Stranger -b v',
+    'gh secret set S -nu -b v',
+    'gh variable set V --user -b v',
+    'gh api repos/OwnerLogin/own/issues -f title=x',
+    'gh api -XPOST repos/OwnerLogin/own/issues',
+    'gh api -X POST -X GET repos/OwnerLogin/own/issues',
+    'gh api repos/OwnerLogin/own/issues --bogus',
+    'gh api -iX POST repos/OwnerLogin/own/issues',
+    'gh api graphql -f query="mutation { x }"',
+    'gh api graphql --input body.json',
+    'gh api graphql -F query=@q.gql',
+    'echo "x`" && gh pr create -t x -b y',
+    'echo "x``"; git commit -m y',
+    'echo @"\nsay "\ngh pr create -t x -b y\n"@',
+    "echo x@'\nsay '\ngh pr create -t x -b y\n'@",
+    'echo a<<EOF\ngit push\nEOF',
+    'echo 1<<EOF\ngit push\nEOF',
+    'echo --% <<EOF\ngit push\nEOF',
+    'echo --% "\ngit push\n"',
+  ]) assert.equal(call(cmd)?.decision, 'deny', cmd);
+
+  // --% after git fails closed as unknown leading flag.
+  assert.equal(call('git --% push')?.id, 'identity-git');
+
+  // posterOn routing in reason templates.
+  const free = call('gh pr create -t x -b y');
+  assert.equal(free?.id, 'identity-gh');
+  assert.match(free.reason, /poster\.mjs.*gh-app\.mjs" gh --provider codex/);
+  const nonFree = call('gh release create v1');
+  assert.equal(nonFree?.id, 'identity-gh');
+  assert.doesNotMatch(nonFree.reason, /poster\.mjs/);
+  assert.match(nonFree.reason, /gh-app\.mjs" gh --provider codex/);
+
+  const posterOffTable = join(fx.guardDir, 'rules-noposter.json');
+  writeFileSync(posterOffTable, JSON.stringify({ rules: ALL, identity: { enabled: true, posterOn: false } }));
+  const freeNoPoster = call('gh pr create -t x -b y', { tableFile: posterOffTable });
+  assert.doesNotMatch(freeNoPoster.reason, /poster\.mjs/);
+});
+
+// #PACT-120 #PACT-119 C5
+test('C5: git write guard checks all subcommands, env/global opts, shell-mode isolation, raw quoting, and disqualifiers', t => {
+  const fx = makePinFixture(t);
+  const ownerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/OwnerLogin/own.git' });
+  const cfgPath = join(fx.pactDir, 'gh-app-codex.gitconfig').replaceAll('\\', '/');
+  const call = (command, { env = { HOME: fx.home }, platform = 'linux', provider = 'codex' } = {}) =>
+    guard.answerCall({ command, provider, cwd: ownerRepo.work, canOverwrite: false, env, tableFile: fx.tableFile, platform });
+
+  // All 8 write subcommands guarded when unconfigured.
+  for (const sub of ['commit -m x', 'push', 'merge main', 'cherry-pick abc', 'revert abc', 'rebase main', 'tag v1', 'am p.patch']) {
+    assert.equal(call(`git ${sub}`)?.id, 'identity-git', sub);
+  }
+  // Reads and git pull pass.
+  for (const cmd of ['git status', 'git pull', 'git log -n 5', 'git diff', 'git --version', 'git --help']) assert.equal(call(cmd), null, cmd);
+
+  // Valid unshadowed assignments pass.
+  for (const cmd of [
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git commit -m x`,
+    `GIT_CONFIG_GLOBAL="${cfgPath}" git commit -m x`,
+    'GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-codex.gitconfig" git commit -m x',
+    'GIT_CONFIG_GLOBAL=~/.pact/gh-app-codex.gitconfig git commit -m x',
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`,
+    '$env:GIT_CONFIG_GLOBAL = "$HOME/.pact/gh-app-codex.gitconfig"; git commit -m x',
+  ]) assert.equal(call(cmd), null, cmd);
+  assert.equal(call('$env:GIT_CONFIG_GLOBAL = "$env:USERPROFILE/.pact/gh-app-codex.gitconfig"; git commit -m x', { env: { USERPROFILE: fx.home }, platform: 'win32' }), null);
+
+  // Invalid quoting, cross-mode smuggling, overrides, disqualifiers, and unknown flags deny.
+  for (const cmd of [
+    `<# export GIT_CONFIG_GLOBAL='${cfgPath}'; #> git commit -m x`,
+    `GIT_CONFIG_GLOBAL='$HOME/.pact/gh-app-codex.gitconfig' git commit -m x`,
+    `GIT_CONFIG_GLOBAL='~/.pact/gh-app-codex.gitconfig' git commit -m x`,
+    `env GIT_CONFIG_GLOBAL=~/.pact/gh-app-codex.gitconfig git commit -m x`,
+    `GIT_CONFIG_GLOBAL=\\$HOME/.pact/gh-app-codex.gitconfig git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = ${cfgPath}; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = "\`$HOME/.pact/gh-app-codex.gitconfig"; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '$env:USERPROFILE/.pact/gh-app-codex.gitconfig'; git commit -m x`,
+    `export -n GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}' extra=1; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}' extra; git commit -m x`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}' && git commit -m x`,
+    `if true; then export GIT_CONFIG_GLOBAL='${cfgPath}'; fi; git commit -m x`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; unset GIT_CONFIG_GLOBAL; git commit -m x`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; unset HOME; GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-codex.gitconfig" git commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' env -u GIT_CONFIG_GLOBAL git commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' env -iu FOO git commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git -c user.email=a@b.c commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git -c credential.helper=store commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git -c core.askPass=true commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git -c include.path=/x commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git -c http.extraHeader=x commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git --config-env=a=B commit -m x`,
+    `GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL='${cfgPath}' git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; Copy-Item env:BAD env:GIT_CONFIG_GLOBAL; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; sv GIT_CONFIG_GLOBAL x; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; $m = @"\n$x\n"@; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; cmd /c echo hi; git commit -m x`,
+    'env -P /usr/bin git push',
+    'env -S "git push"',
+    'git --unknown-flag status',
+    'git --attr-source=HEAD commit -m x',
+  ]) assert.equal(call(cmd)?.id, 'identity-git', cmd);
+
+  // Missing or mismatched HOME/USERPROFILE rejects $HOME/~/$env:USERPROFILE.
+  assert.equal(call('GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-codex.gitconfig" git commit -m x', { env: {} })?.id, 'identity-git');
+  assert.equal(call('GIT_CONFIG_GLOBAL=~/.pact/gh-app-codex.gitconfig git commit -m x', { env: { HOME: '/other' } })?.id, 'identity-git');
+
+  // Enclosing / | / & / subshell boundaries disqualify env.GIT_CONFIG_GLOBAL.
+  assert.equal(call('(git commit -m x)', { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call('echo x | git commit -m x', { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call('git status && git commit -m x', { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } }), null);
+});
+
+// #PACT-120 #PACT-119 C6
+test('C6: precedence (cleaner > gh > git) and Antigravity overwrite_ask vs deny gating', t => {
+  const fx = makePinFixture(t);
+  const ownerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/OwnerLogin/own.git' });
+  const cfgPath = join(fx.pactDir, 'gh-app-antigravity.gitconfig').replaceAll('\\', '/');
+  const call = (command, { canOverwrite = true, platform = 'win32', env = { USERPROFILE: fx.home } } = {}) =>
+    guard.answerCall({ command, provider: 'antigravity', cwd: ownerRepo.work, canOverwrite, env, tableFile: fx.tableFile, platform });
+
+  // Cleaner beats gh and git; gh beats git.
+  assert.equal(call('gh pr create -t x -b y && git worktree remove w')?.id, 'worktree-remove');
+  assert.equal(call('git commit -m x && gh pr create -t x -b y')?.id, 'identity-gh');
+
+  // Simple git write with canOverwrite=true yields overwrite_ask with shell-appropriate escaping.
+  const winOw = call('git commit -m "fix: msg"');
+  assert.equal(winOw?.decision, 'overwrite_ask');
+  assert.equal(winOw?.id, 'identity-git');
+  assert.equal(winOw?.overwriteCommand, `$env:GIT_CONFIG_GLOBAL = '${cfgPath.replaceAll("'", "''")}'; $env:GIT_TERMINAL_PROMPT = '0'; git commit -m "fix: msg"`);
+
+  const posixOw = call('git commit -m x', { platform: 'linux', env: { HOME: fx.home } });
+  assert.equal(posixOw?.decision, 'overwrite_ask');
+  assert.equal(posixOw?.overwriteCommand, `GIT_CONFIG_GLOBAL='${cfgPath.replaceAll("'", "'\\''")}' GIT_TERMINAL_PROMPT=0 git commit -m x`);
+
+  // Prose -c user.email inside -m still overwrites cleanly (inspected via parsed tokens, not substring).
+  assert.equal(call('git commit -m "-c user.email=x"')?.decision, 'overwrite_ask');
+
+  // Compound, wrapped, $(, backtick in -c, -c override, canOverwrite=false fall back to deny.
+  for (const [cmd, opts] of [
+    ['git commit -m x', { canOverwrite: false }],
+    ['ls && git commit -m x', {}],
+    ['env git commit -m x', {}],
+    ['time git commit -m x', {}],
+    ['echo $(git commit -m x)', {}],
+    ['git commit -m "$(echo hi)"', {}],
+    ['# lead\ngit commit -m x', {}],
+    ['set FOO=1; git commit -m x', {}],
+    ['FOO=1 git commit -m x', {}],
+    ['git -c user.name=bad commit -m x', {}],
+    ['git -c "u`ser.name=bad" commit -m x', {}],
+    ['git -c "a`b=c" commit -m x', {}],
+    ['git --config-env=a=B commit -m x', {}],
+  ]) {
+    const res = call(cmd, opts);
+    assert.equal(res?.decision, 'deny', cmd);
+    assert.equal(res?.id, 'identity-git', cmd);
+    assert.equal(res?.overwriteCommand, undefined, cmd);
+  }
+});
+
+// #PACT-120 #PACT-119 C11
+test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inputs complete under 1000 ms', t => {
+  const SECRET_CMD = 'SECRET_CMD_XYZ';
+  const SECRET_URL = 'https://github.com/OwnerLogin/SECRET_REPO_XYZ.git';
+  const fx = makePinFixture(t, { owner: { login: 'OwnerLogin', id: 998877 } });
+  const ownerRepo = makeGitRepo(t, { remoteUrl: SECRET_URL });
+
+  for (const [cmd, provider] of [
+    [`gh pr create -t ${SECRET_CMD} -b body`, 'codex'],
+    [`gh pr create -t ${SECRET_CMD} -b body`, 'claude'],
+    [`ls && git commit -m ${SECRET_CMD}`, 'antigravity'],
+    [`git -c user.email=${SECRET_CMD} commit -m x`, 'antigravity'],
+  ]) {
+    const res = guard.answerCall({ command: cmd, provider, cwd: ownerRepo.work, canOverwrite: true, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: 'linux' });
+    assert.equal(res?.decision, 'deny');
+    for (const leak of [SECRET_CMD, SECRET_URL, 'SECRET_REPO_XYZ', 'OwnerLogin', '998877', 'my-codex-app']) {
+      assert.ok(!res.reason.includes(leak), `${leak} leaked into ${res.reason}`);
+    }
+  }
+
+  for (const unit of ['mise x ', 'git -c a=b ', 'gh api -p ', 'env -u X ', `@"${' '.repeat(64)}`, 'a; ', 'x && ']) {
+    const big = unit.repeat(Math.floor(guard.COMMAND_MAX / unit.length));
+    const started = Date.now();
+    guard.answerCall({ command: big, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: 'linux' });
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 1000, `${unit} took ${elapsed} ms (>= 1000 ms)`);
+  }
+});
