@@ -498,7 +498,7 @@ nothing sent.
 ## What the scans cover
 
 The content scan reads each text field above and the whole rendered body: as
-written; as four normalised copies; and as the copy with comments removed and
+written; as six normalised copies; and as the copy with comments removed and
 control characters stripped, with each link folded to its text and the marks
 `*`, `` ` ``, `~`, `[` and `]` removed. A normalised copy has invisible
 characters, markdown escapes and inline tags removed, character references
@@ -506,20 +506,21 @@ decoded and NFKC applied, again until nothing changes, at most five rounds. It
 decodes a number of at most seven decimal or six hex digits, and a name only
 with its semicolon and only from a short list in the poster's source.
 
-Two of the four have HTML comments removed and two only their markers, and each
-pair reads one of two ways:
+There are three readings, and each makes two copies, one with HTML comments
+removed and one with only their markers removed:
 
 - control characters stripped, and every name on the short list decoded, which
   includes every name whose value is a hidden character;
+- control characters kept, and every name on the short list decoded;
 - control characters kept, and only the names the list held before those were
   added, as the scan before #394 read
   ([ADR 0177](adr/0177-the-poster-keeps-its-controls-and-drops-accident-checks.md)).
 
-Neither way replaces the other. Stripping a control character can join the
-halves of a split value, but one left in place can hold a tag together. An added
-name can show a split value, but it can also turn visible text into a tag that
-the copy then removes. The lists of names below are kept by hand from the
-poster's source; no test holds them.
+No reading replaces another. Stripping a control character can join the halves
+of a split value, but one left in place can hold a tag together. An added name
+can show a split value, but it can also turn visible text into a tag that the
+copy then removes. The lists of names below are kept by hand from the poster's
+source; no test holds them.
 
 - **No token-shape, URL-password or email rule.** The scan refuses no
   credential shape, password in a link or email address: the pact has

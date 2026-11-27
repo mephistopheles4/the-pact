@@ -1048,16 +1048,17 @@ export function normalise(text, keepComments = false, strip = stripUnseen, names
 }
 
 /**
- * The four normalised copies of a text, which the scan reads: its HTML
- * comments removed with their contents, and with only their markers removed;
- * each read two ways. One strips control characters and decodes every name in
- * `NAMED`. The other is the floor's reading: it keeps control characters, which
- * can hold a tag together (`<b`, a form feed, `c="x">`), and decodes the
- * floor's names only, since an added name can turn visible text into a tag. So
- * the floor's two copies are among the four.
+ * The six normalised copies of a text, which the scan reads: three readings,
+ * each with HTML comments removed with their contents, and with only their
+ * markers removed. One strips control characters and decodes every name in
+ * `NAMED`. One keeps control characters, which can hold a tag together (`<b`, a
+ * form feed, `c="x">`), and decodes every name. The last is the floor's: it
+ * keeps control characters and decodes the floor's names only, since an added
+ * name can turn visible text into a tag. So the floor's two copies are among
+ * the six.
  */
 function copies(text) {
-  return [[stripUnseen, NAMED], [stripInvisible, FLOOR_NAMED]]
+  return [[stripUnseen, NAMED], [stripInvisible, NAMED], [stripInvisible, FLOOR_NAMED]]
     .flatMap(([strip, names]) => [normalise(text, false, strip, names), normalise(text, true, strip, names)]);
 }
 
