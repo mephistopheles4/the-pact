@@ -238,7 +238,9 @@ const blocks = id => `The pact's guard blocks this command (rule ${id}).`;
 for (const format of core.GUARD_FORMATS) {
   test(`C12, C13: ${format} answers each rule's command in its own shape, and nothing for another command`, t => {
     const at = installed(t);
-    for (const r of core.GUARD_RULES) {
+    // Two rules go through the hook, one of each decision: worktree-remove (deny) and cleaner-override (ask). The answer's shape
+    // follows the decision, and "each rule of the table is met by its command" checks every rule's id and decision in process.
+    for (const r of ['worktree-remove', 'cleaner-override'].map(id => core.GUARD_RULES.find(x => x.id === id))) {
       const got = runHook(at, format, CALLS[format](ONE[r.id]));
       if (r.decision === 'deny') denied(got, format, blocks(r.id));
       else if (format === 'codex') denied(got, format, ASK_CODEX);
