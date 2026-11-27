@@ -444,6 +444,7 @@ test('agent-identity off: the tool and the two recorded env keys go, the owner\'
   setIdentity(h, false);
   rmSync(join(h, '.pact', 'gh-app-claude.gitconfig'));
   const dry = installed(repo, h);
+  assert.equal(total(dry, 'Delete'), process.platform === 'win32' ? 7 : 6, dry.out);
   assert.match(dry.stdout, /^ {2}\.pact\/tools\/gh-app\.mjs\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}\.pact\/guard\/rules\.json\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}hook PreToolUse: removed\r?$/m, dry.out);

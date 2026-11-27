@@ -1554,28 +1554,28 @@ test('the identity gitconfig verdict names the part that differs and prints no l
 
 // ------------------------------------------------------------ #PACT-122 #PACT-119 C8, C12
 
-// Bad cases for the shared guard command path check across both entry builders.
+// Bad cases for the command path check inside claudeGuardHookEntry.
 {
-  const posixBase = () => ({ script: '/home/user/.pact/guard/claude.mjs', platform: 'linux', systemRoot: null });
-  const winBase = () => ({ script: 'C:\\Users\\user\\.pact\\guard\\claude.mjs', platform: 'win32', systemRoot: 'C:\\WINDOWS' });
+  const base = () => ({ script: '/home/user/.pact/guard/claude.mjs', platform: 'linux', systemRoot: null });
+  const win = (patch) => () => ({ script: 'C:\\Users\\user\\.pact\\guard\\claude.mjs', platform: 'win32', systemRoot: 'C:\\WINDOWS', ...patch });
   const run = t => decided(() => core.claudeGuardHookEntry(t));
   const rows = [
-    { id: 'posix-relative', base: posixBase, plant: set('guard/claude.mjs', 'script'), fails: ['hook-command-path'], why: 'relative POSIX paths fail' },
-    { id: 'posix-dot-rel', base: posixBase, plant: set('.pact/guard/claude.mjs', 'script'), fails: ['hook-command-path'], why: 'leading-dot relative paths fail' },
-    { id: 'posix-ctrl', base: posixBase, plant: rep('user', 'user\n', 'script'), fails: ['hook-command-path'], why: 'control chars fail' },
-    { id: 'win-relative', base: winBase, plant: set('.pact\\guard\\claude.mjs', 'script'), fails: ['hook-command-path'], why: 'relative Windows paths fail' },
-    { id: 'win-ampersand', base: winBase, plant: rep('user', 'user&me', 'script'), fails: ['hook-command-path'], why: 'shell metacharacters fail' },
-    { id: 'win-unquoted-semi', base: winBase, plant: rep('user', 'a;b', 'script'), fails: ['hook-command-path'], why: 'unquoted cmd separator without spaces fails' },
-    { id: 'win-bad-sysroot', base: winBase, plant: set('C:\\Win dows', 'systemRoot'), fails: ['hook-command-path'], why: 'unexpected system root character fails' },
+    { id: 'posix-relative', plant: set('guard/claude.mjs', 'script'), fails: ['hook-command-path'], why: 'relative POSIX paths fail' },
+    { id: 'posix-dot-rel', plant: set('.pact/guard/claude.mjs', 'script'), fails: ['hook-command-path'], why: 'leading-dot relative paths fail' },
+    { id: 'posix-ctrl', plant: rep('user', 'user\n', 'script'), fails: ['hook-command-path'], why: 'control chars fail' },
+    { id: 'win-relative', plant: win({ script: '.pact\\guard\\claude.mjs' }), fails: ['hook-command-path'], why: 'relative Windows paths fail' },
+    { id: 'win-ampersand', plant: win({ script: 'C:\\Users\\user&me\\.pact\\guard\\claude.mjs' }), fails: ['hook-command-path'], why: 'shell metacharacters fail' },
+    { id: 'win-unquoted-semi', plant: win({ script: 'C:\\Users\\a;b\\.pact\\guard\\claude.mjs' }), fails: ['hook-command-path'], why: 'unquoted cmd separator without spaces fails' },
+    { id: 'win-bad-sysroot', plant: win({ systemRoot: 'C:\\Win dows' }), fails: ['hook-command-path'], why: 'unexpected system root character fails' },
   ];
   test('hook command path entry: base passes', async t => {
-    assertPasses(await run(posixBase()), t);
-    assertPasses(await run(winBase()), t);
+    assertPasses(await run(base()), t);
+    assertPasses(await run(win({})()), t);
   });
-  for (const r of rows) test(`hook command path entry: ${r.id}`, async t => assertFails(await run(r.plant(r.base())), r.fails, r.says));
+  for (const r of rows) test(`hook command path entry: ${r.id}`, async t => assertFails(await run(r.plant(base())), r.fails, r.says));
   test('hook command path entry: base passes after the rows', async t => {
-    assertPasses(await run(posixBase()), t);
-    assertPasses(await run(winBase()), t);
+    assertPasses(await run(base()), t);
+    assertPasses(await run(win({})()), t);
   });
 }
 

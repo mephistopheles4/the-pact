@@ -438,7 +438,9 @@ test('C8, C9, C12: three-harness identity apply installs all launchers and rules
   const claudeEnv = { HOME: h, USERPROFILE: h, GIT_CONFIG_GLOBAL: `${h.replaceAll('\\', '/')}/.pact/gh-app-claude.gitconfig`, GIT_TERMINAL_PROMPT: '0' };
   const ghBlocked = asClaude(claudeHook, { tool_name: 'Bash', tool_input: { command: 'gh pr create -t test -b body' }, cwd: ownerDir }, { cwd: ownerDir, env: claudeEnv });
   assert.equal(ghBlocked.status, 0, ghBlocked.stderr);
-  assert.equal(JSON.parse(ghBlocked.stdout).hookSpecificOutput.permissionDecision, 'deny');
+  const ghParsed = JSON.parse(ghBlocked.stdout).hookSpecificOutput;
+  assert.equal(ghParsed.permissionDecision, 'deny');
+  assert.match(ghParsed.permissionDecisionReason, /poster\.mjs.*gh-app\.mjs" gh --provider claude/);
   const gitClean = asClaude(claudeHook, { tool_name: 'Bash', tool_input: { command: 'git commit -m ok' }, cwd: ownerDir }, { cwd: ownerDir, env: claudeEnv });
   assert.equal(gitClean.status, 0, gitClean.stderr);
   assert.equal(gitClean.stdout.trim(), '');
@@ -450,6 +452,7 @@ test('C8, C9, C12: three-harness identity apply installs all launchers and rules
     env: { ...process.env, HOME: h, USERPROFILE: h, PATH: `${dirname(process.execPath)}${WIN ? ';' : ':'}${process.env.PATH ?? ''}` },
   });
   assert.equal(codexOut.status, 2, `${codexOut.stdout}${codexOut.stderr}`);
+  assert.match(codexOut.stderr, /Plain git writes are blocked while agent-identity is on for codex/, codexOut.stderr);
 
   const agCmd = json(h, AG)['pact-guard'].PreToolUse[0].hooks[0].command;
   const agOut = spawnSync(WIN ? (process.env.ComSpec ?? 'cmd.exe') : '/bin/sh', WIN ? ['/d', '/s', '/c', `"${agCmd}"`] : ['-c', agCmd], {
@@ -497,7 +500,9 @@ test('C8: Claude PreToolUse stays independent of auto-compact-window, refuses ma
   config(h, { ...OFF, settings: { 'agent-identity': false, 'auto-compact-window': 400000 } });
   const offRes = applyBound(repo, h);
   passed(offRes);
-  assert.ok(offRes.stdout.indexOf(`merged ${CLAUDE_SETTINGS}`) < offRes.stdout.indexOf('deleted .pact/guard/claude.mjs'), offRes.out);
+  const mergedIdx = offRes.stdout.indexOf('merged settings.json');
+  const deletedIdx = offRes.stdout.indexOf('deleted .pact/guard/claude.mjs');
+  assert.ok(mergedIdx >= 0 && deletedIdx >= 0 && mergedIdx < deletedIdx, offRes.out);
   const afterIdOff = json(h, CLAUDE_SETTINGS);
   assert.ok(afterIdOff.hooks.PreCompact);
   assert.deepEqual(afterIdOff.hooks.PreToolUse, [{ matcher: 'Edit', hooks: [ownerHook] }]);
