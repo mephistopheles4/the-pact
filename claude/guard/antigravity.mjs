@@ -72,13 +72,15 @@ try {
     const kind = what && Object.keys(what)[0];
     if (what === null || (kind && typeof what[kind] !== 'string')) failed('call');
     else if (kind) {
-      const cwd = call.name === 'run_command' && Object.hasOwn(call.args, 'Cwd')
-        ? (typeof call.args.Cwd === 'string' ? call.args.Cwd : undefined)
-        : (typeof input.cwd === 'string'
-          ? input.cwd
-          : (Array.isArray(input.workspacePaths) && input.workspacePaths.length === 1 && typeof input.workspacePaths[0] === 'string'
-            ? input.workspacePaths[0]
-            : undefined));
+      const cwd = call.name !== 'run_command'
+        ? undefined
+        : Object.hasOwn(call.args, 'Cwd')
+          ? (typeof call.args.Cwd === 'string' ? call.args.Cwd : undefined)
+          : (typeof input.cwd === 'string'
+            ? input.cwd
+            : (Array.isArray(input.workspacePaths) && input.workspacePaths.length === 1 && typeof input.workspacePaths[0] === 'string'
+              ? input.workspacePaths[0]
+              : undefined));
       code = 'guard';
       const guard = await import('./guard.mjs');
       code = 'internal';
