@@ -661,7 +661,7 @@ session.
 ## Install from a release
 
 Releases need the owner's switch, and the command is safe only once the
-owner's two tag rulesets exist: only the owner creates a tag but a candidate,
+owner's two tag rulesets exist: only the owner creates a tag but a beta,
 and no tag is ever updated or deleted. Run it from your home folder, or an empty folder outside every project: npm first reads the settings of a project around it. It replaces the clone and dry run:
 
 ```
@@ -681,16 +681,20 @@ then type the apply line it prints, which runs from any folder. A release lower 
 picks which copy of the command runs from the repo's tags, so each tag is code
 you run.
 
-Each passing change on `main` is first a release candidate, `v1.<n>.0-rc.<k>`;
-the owner promotes one to `v1.<n>.0`, from a checkout of `main` under their
-own account, with `node gate/release-promote.mjs v1.<n>.0-rc.<k>`. Add an option after the command to take
-another:
+Each passing change on `main` is first a beta, `v1.<n>.0-beta.<k>`; the owner
+promotes one to `v1.<n>.0`, from a checkout of `main` under their own account,
+with `node gate/release-promote.mjs v1.<n>.0-beta.<k>`. A legacy
+`v1.<n>.0-rc.<k>` tag is a beta too: it still installs, and ranks below every
+`-beta` of its minor. Make the first stable release from a `-beta`, never from
+an `-rc`: an `-rc` commit's bootstrap can't read `-beta` tags, and npx's default
+runs the bootstrap of the highest stable release, so it would hide every beta.
+Add an option after the command to take another tag:
 
-- `--channel beta` takes the newest tag, a release candidate included; a
-  stable `v1.<n>.0` outranks its own candidates. Anyone who can write to the
-  repo can make a candidate, on any commit.
-- `--release <tag>` takes exactly that tag, stable or candidate, such as
-  `--release v1.4.0-rc.2`, and refuses when it isn't there.
+- `--channel beta` takes the newest tag, a beta included; a stable `v1.<n>.0`
+  outranks its own betas. Anyone who can write to the repo can make a beta, on
+  any commit.
+- `--release <tag>` takes exactly that tag, stable or beta, such as
+  `--release v1.4.0-beta.2`, and refuses when it isn't there.
 
 A bad value, a major other than 1, or both options together is refused before
 anything is fetched.

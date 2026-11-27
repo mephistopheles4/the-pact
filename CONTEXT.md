@@ -49,7 +49,7 @@ Spec 0007 (`docs/spec/0007-harness-agnostic-pact.md`) says what is built when.
 - **Light model:** the model a harness runs scout on; empty means the executor model.
 - **The rule table** (a later ticket builds it): `~/.pact/guard/rules.json`, the pact's deny and ask rules as data, from which every harness's guards are made.
 - **The guard** (a later ticket): `~/.pact/guard/guard.mjs`, the one script that answers a shell call against the rule table, and its thin wrapper per harness.
-- **Release tag** (a later ticket): a tag named exactly `v1.<n>.0`, which the release job puts on `main`'s tip once `gate.yml` passed on the push. The highest `<n>` is the current release.
+- **Release tag:** a tag named exactly `v1.<n>.0`, `v1.<n>.0-beta.<k>` or `v1.<n>.0-rc.<k>`. A **stable release**, `v1.<n>.0`, is made by the owner with `gate/release-promote.mjs`; the highest `<n>` is the current release. A **beta**, `-beta.<k>`, is made by the release job on `main`'s tip once `gate.yml` passed on the push. A **legacy beta**, `-rc.<k>`, is still read, and no new one is made.
 
 ## The review lenses
 

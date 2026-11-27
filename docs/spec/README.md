@@ -13,6 +13,7 @@ None yet.
 
 ## All specs
 
+- [0009-beta-tags](0009-beta-tags.md) — a delta on 0007 S10: each green push to `main` tags a beta, `v1.<n>.0-beta.<k>`, and the legacy `-rc` tags are still read
 - [0008-per-harness-models-and-efforts](0008-per-harness-models-and-efforts.md) — a delta on 0007: per-harness agent models and tier efforts in a harness description, rendered by the install and set in Scriptorium, with one page of the setup across harnesses
 - [0007-harness-agnostic-pact](0007-harness-agnostic-pact.md) — the pact in a neutral home, `~/.pact`, rendered by one installer into Claude Code, Codex, Antigravity and a person's own harness, with one shared guard and tagged releases through `npx`
 - [0006-claude-workflows-wif](0006-claude-workflows-wif.md) — the Claude GitHub workflows, authenticated through Workload Identity Federation, under an exact allow-list of their own

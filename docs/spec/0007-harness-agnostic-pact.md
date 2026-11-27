@@ -760,6 +760,8 @@ The installer is today's, generalised from one home to many harnesses:
 
 ## S10 Packaging and releases
 
+Renamed in part by [0009](0009-beta-tags.md): each merge tags a beta, `v1.<n>.0-beta.<k>`.
+
 **The command:** `npx github:mephistopheles4/the-pact#semver:^1`. npm resolves
 the highest tag whose name ends in a `1.x.y` version, whatever comes before
 it, and runs the package's one `bin`, `pact`. When the default branch's tip

@@ -1,4 +1,4 @@
-// PACT-105 C23 and spec 0007 S10: what the release job's one script does,
+// PACT-105 C23, PACT-117 C2 to C4 and spec 0007 S10: what the release job's one script does,
 // run as the workflow writes it, and what the owner's promote command does,
 // both against a local stand-in for GitHub's API.
 import assert from 'node:assert/strict';
@@ -28,12 +28,12 @@ function script() {
 
 /**
  * One run of the workflow's script, or with `job: 'promote'` of the owner's
- * command, `node gate/release-promote.mjs <rc>`. `tips` are main's tip at each read, the last one
+ * command, `node gate/release-promote.mjs <beta>`. `tips` are main's tip at each read, the last one
  * repeating; `refs` maps a tag name to its object; `tags` an annotated tag
  * object's id to the commit it names. Returns the code, the output, every tag
  * the script created and the tokens it sent.
  */
-async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha('a'), token = 'test-token', fail = null, job = 'candidate', rc = '', compare = 'ahead' } = {}) {
+async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha('a'), token = 'test-token', fail = null, job = 'beta', beta = '', compare = 'ahead' } = {}) {
   const created = [];
   const requests = [];
   const sent = new Set();
@@ -49,7 +49,7 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
       if (fail && path.startsWith(fail)) return answer(500, {});
       if (req.method === 'GET' && path === 'git/ref/heads/main') return answer(200, { object: { type: 'commit', sha: tips[Math.min(reads++, tips.length - 1)] } });
       if (req.method === 'GET' && path === 'git/matching-refs/tags/v1.') return answer(200, Object.entries(refs).map(([name, object]) => ({ ref: `refs/tags/${name}`, object })));
-      // The comparison of a candidate's commit with main answers the status the test gives.
+      // The comparison of a beta's commit with main answers the status the test gives.
       if (req.method === 'GET' && /^compare\/[0-9a-f]{40}\.\.\.main$/.test(path)) return answer(200, { status: compare });
       const tag = /^git\/tags\/([0-9a-f]{40})$/.exec(path);
       // A tag object names a commit, given as its id, or another tag, given as { type: 'tag', sha }.
@@ -71,7 +71,7 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
     // The owner's command reads the token from GH_TOKEN, and never from the workflow's variables.
     delete env.TOKEN;
     env.GH_TOKEN = token;
-    args = [PROMOTE, rc];
+    args = [PROMOTE, beta];
   } else {
     const file = join(tempDir(t, 'pact-release-'), 'step');
     writeFileSync(file, script());
@@ -86,29 +86,32 @@ async function release(t, { tips = [sha('a')], refs = {}, tags = {}, head = sha(
 }
 
 const commit = c => ({ type: 'commit', sha: sha(c) });
-const RC_ONLY = /^refs\/tags\/v1\.\d+\.0-rc\.\d+$/;
+const BETA_ONLY = /^refs\/tags\/v1\.\d+\.0-beta\.\d+$/;
 
-test('release job: on a push with no release yet it tags main\'s tip v1.1.0-rc.1, with the token it was handed', async t => {
+test('release job: on a push with no stable release or beta yet it tags main\'s tip v1.1.0-beta.1, with the token it was handed', async t => {
   const got = await release(t);
   assert.equal(got.code, 0, got.out);
-  assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.1.0-rc.1', sha: sha('a') }]);
+  assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.1.0-beta.1', sha: sha('a') }]);
   assert.deepEqual(got.sent, ['Bearer test-token']);
+  // A legacy -rc does not count toward the beta's number.
+  const legacy = await release(t, { refs: { 'v1.1.0-rc.1': commit('b'), 'v1.1.0-rc.3': commit('c') } });
+  assert.deepEqual(legacy.created, [{ ref: 'refs/tags/v1.1.0-beta.1', sha: sha('a') }], legacy.out);
 });
 
-test('release job: a push numbers the next minor after the highest stable release, and counts candidates of that minor, ignoring other names', async t => {
-  const refs = { 'v1.2.0': commit('b'), 'v1.10.0': commit('c'), 'v1.12.0-rc.9': commit('b'), 'v1.11.0-rc.1': commit('b'), 'v1.11.0-rc.3': commit('c'), 'v1.99.1': commit('d'), 'v1.011.0': commit('d'), 'v1.50.0-rc1': commit('d'), 'v1.11.0-rc.03': commit('d') };
+test('release job: a push numbers the next minor after the highest stable release, and counts betas of that minor, ignoring other names', async t => {
+  const refs = { 'v1.2.0': commit('b'), 'v1.10.0': commit('c'), 'v1.12.0-beta.9': commit('b'), 'v1.11.0-beta.1': commit('b'), 'v1.11.0-beta.3': commit('c'), 'v1.11.0-rc.7': commit('c'), 'v1.99.1': commit('d'), 'v1.011.0': commit('d'), 'v1.50.0-beta1': commit('d'), 'v1.11.0-beta.03': commit('d') };
   const got = await release(t, { refs });
-  assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.11.0-rc.4', sha: sha('a') }], got.out);
-  // Bad case: candidates of a minor already released do not count toward the next one.
-  const next = await release(t, { refs: { 'v1.3.0': commit('b'), 'v1.3.0-rc.7': commit('c') } });
-  assert.deepEqual(next.created, [{ ref: 'refs/tags/v1.4.0-rc.1', sha: sha('a') }], next.out);
+  assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.11.0-beta.4', sha: sha('a') }], got.out);
+  // Bad case: betas of a minor already released do not count toward the next one.
+  const next = await release(t, { refs: { 'v1.3.0': commit('b'), 'v1.3.0-beta.7': commit('c') } });
+  assert.deepEqual(next.created, [{ ref: 'refs/tags/v1.4.0-beta.1', sha: sha('a') }], next.out);
 });
 
-test('release job: a push never makes a stable tag or a major, whatever the tags hold', async t => {
-  for (const refs of [{}, { 'v1.1.0': commit('b') }, { 'v1.1.0-rc.1': commit('b') }, { 'v2.0.0': commit('b'), 'v1.4.0-rc.2': commit('c') }]) {
+test('release job: a push never makes a stable tag, an -rc or a major, whatever the tags hold', async t => {
+  for (const refs of [{}, { 'v1.1.0': commit('b') }, { 'v1.1.0-rc.1': commit('b') }, { 'v1.1.0-beta.1': commit('b') }, { 'v2.0.0': commit('b'), 'v1.4.0-rc.2': commit('c') }]) {
     const got = await release(t, { refs });
     assert.equal(got.created.length, 1, got.out);
-    assert.match(got.created[0].ref, RC_ONLY, JSON.stringify(refs));
+    assert.match(got.created[0].ref, BETA_ONLY, JSON.stringify(refs));
   }
 });
 
@@ -124,8 +127,9 @@ test('release job: tags nothing when main moves between its first read and the t
   assert.deepEqual(got.created, []);
 });
 
-test('release job: tags nothing when a release or candidate already points at the commit, an annotated one included', async t => {
+test('release job: tags nothing when a release or beta already points at the commit, an annotated one included', async t => {
   assert.deepEqual((await release(t, { refs: { 'v1.1.0': commit('a') } })).created, []);
+  assert.deepEqual((await release(t, { refs: { 'v1.2.0-beta.1': commit('a') } })).created, []);
   assert.deepEqual((await release(t, { refs: { 'v1.2.0-rc.1': commit('a') } })).created, []);
   assert.deepEqual((await release(t, { refs: { 'v1.1.0': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: sha('a') } })).created, []);
 });
@@ -139,76 +143,85 @@ test('release job: fails and tags nothing with no token, a malformed commit or a
   }
 });
 
-const promote = (t, rc, more = {}) => release(t, { job: 'promote', rc, ...more });
+const promote = (t, beta, more = {}) => release(t, { job: 'promote', beta, ...more });
 
-test('promote command: tags the named candidate\'s commit with its stable release, an annotated candidate included, with the token it was given', async t => {
-  const refs = { 'v1.1.0': commit('b'), 'v1.2.0-rc.1': commit('c'), 'v1.2.0-rc.2': commit('d') };
-  const got = await promote(t, 'v1.2.0-rc.1', { refs });
+test('promote command: tags the named beta\'s commit with its stable release, an annotated or legacy -rc one included, with the token it was given', async t => {
+  const refs = { 'v1.1.0': commit('b'), 'v1.2.0-beta.1': commit('c'), 'v1.2.0-beta.2': commit('d') };
+  const got = await promote(t, 'v1.2.0-beta.1', { refs });
   assert.equal(got.code, 0, got.out);
   assert.deepEqual(got.created, [{ ref: 'refs/tags/v1.2.0', sha: sha('c') }]);
   assert.match(got.out, /v1\.2\.0 on c{40}/);
   assert.deepEqual(got.sent, ['Bearer test-token']);
-  const annotated = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: sha('d') } });
+  const annotated = await promote(t, 'v1.2.0-beta.2', { refs: { ...refs, 'v1.2.0-beta.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: sha('d') } });
   assert.deepEqual(annotated.created, [{ ref: 'refs/tags/v1.2.0', sha: sha('d') }], annotated.out);
   // A tag of a tag is followed to its commit.
-  const nested = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('f') }, [sha('f')]: sha('a') } });
+  const nested = await promote(t, 'v1.2.0-beta.2', { refs: { ...refs, 'v1.2.0-beta.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('f') }, [sha('f')]: sha('a') } });
   assert.deepEqual(nested.created, [{ ref: 'refs/tags/v1.2.0', sha: sha('a') }], nested.out);
   // Bad case: a chain of tags that reaches no commit within five levels tags nothing.
-  const loop = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('e') } } });
+  const loop = await promote(t, 'v1.2.0-beta.2', { refs: { ...refs, 'v1.2.0-beta.2': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('e') } } });
   assert.equal(loop.code, 1, loop.out);
   assert.deepEqual(loop.created, []);
-  // Another candidate that leads nowhere doesn't stop the one named.
-  const planted = await promote(t, 'v1.2.0-rc.2', { refs: { ...refs, 'v1.2.0-rc.9': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('e') } } });
+  // Another beta that leads nowhere, under either name, doesn't stop the one named.
+  const planted = await promote(t, 'v1.2.0-beta.2', { refs: { ...refs, 'v1.2.0-beta.9': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('e') } } });
   assert.equal(planted.code, 0, planted.out);
   assert.equal(planted.created.length, 1);
+  const stray = await promote(t, 'v1.2.0-beta.2', { refs: { ...refs, 'v1.2.0-rc.9': { type: 'tag', sha: sha('e') } }, tags: { [sha('e')]: { type: 'tag', sha: sha('e') } } });
+  assert.equal(stray.created.length, 1, stray.out);
+  // A legacy -rc promotes as a beta does.
+  const legacy = await promote(t, 'v1.2.0-rc.1', { refs: { 'v1.1.0': commit('b'), 'v1.2.0-rc.1': commit('c') } });
+  assert.deepEqual(legacy.created, [{ ref: 'refs/tags/v1.2.0', sha: sha('c') }], legacy.out);
   // With no stable release yet, the first minor is the next.
-  assert.deepEqual((await promote(t, 'v1.1.0-rc.1', { refs: { 'v1.1.0-rc.1': commit('c') } })).created, [{ ref: 'refs/tags/v1.1.0', sha: sha('c') }]);
+  assert.deepEqual((await promote(t, 'v1.1.0-beta.1', { refs: { 'v1.1.0-beta.1': commit('c') } })).created, [{ ref: 'refs/tags/v1.1.0', sha: sha('c') }]);
 });
 
-test('promote command: refuses, and tags nothing, a missing token, an input that is not a candidate tag, a candidate that does not exist, a minor already released or one that is not the next', async t => {
-  const refs = { 'v1.1.0': commit('b'), 'v1.2.0': commit('b'), 'v1.2.0-rc.1': commit('c'), 'v1.3.0-rc.1': commit('c'), 'v1.5.0-rc.1': commit('d') };
+test('promote command: refuses, and tags nothing, a missing token, an input that is not a beta tag, a beta that does not exist, a minor already released or one that is not the next', async t => {
+  const refs = { 'v1.1.0': commit('b'), 'v1.2.0': commit('b'), 'v1.2.0-beta.1': commit('c'), 'v1.3.0-beta.1': commit('c'), 'v1.5.0-beta.1': commit('d') };
   // The fourth field marks a row refused before any request reaches the server.
-  for (const [what, rc, more, quiet] of [
-    ['an empty token', 'v1.3.0-rc.1', { token: '' }, true],
+  for (const [what, named, more, quiet] of [
+    ['an empty token', 'v1.3.0-beta.1', { token: '' }, true],
     ['a stable tag', 'v1.3.0', undefined, true],
-    ['a major candidate', 'v2.3.0-rc.1', undefined, true],
-    ['a zero candidate number', 'v1.3.0-rc.0', undefined, true],
-    ['the old candidate spelling', 'v1.3.0-rc1', undefined, true],
-    ['trailing text', 'v1.3.0-rc.1 ', undefined, true],
+    ['a major beta', 'v2.3.0-beta.1', undefined, true],
+    ['a zero beta number', 'v1.3.0-beta.0', undefined, true],
+    ['a beta spelled without its dot', 'v1.3.0-beta1', undefined, true],
+    ['another pre-release name', 'v1.3.0-alpha.1', undefined, true],
+    ['a major legacy beta', 'v2.3.0-rc.1', undefined, true],
+    ['a zero legacy beta number', 'v1.3.0-rc.0', undefined, true],
+    ['a legacy beta spelled without its dot', 'v1.3.0-rc1', undefined, true],
+    ['trailing text', 'v1.3.0-beta.1 ', undefined, true],
     ['a branch name', 'main', undefined, true],
     ['nothing', '', undefined, true],
-    ['a candidate that does not exist', 'v1.3.0-rc.2'],
-    ['a minor already released', 'v1.2.0-rc.1'],
-    ['a minor past the next', 'v1.5.0-rc.1'],
+    ['a beta that does not exist', 'v1.3.0-beta.2'],
+    ['a minor already released', 'v1.2.0-beta.1'],
+    ['a minor past the next', 'v1.5.0-beta.1'],
   ]) {
-    const got = await promote(t, rc, { refs, ...more });
+    const got = await promote(t, named, { refs, ...more });
     assert.equal(got.code, 1, `${what}: ${got.out}`);
     assert.deepEqual(got.created, [], what);
     assert.equal(got.out.trim().split('\n').length, 1, `${what}: one line`);
     assert.doesNotMatch(got.out, /test-token/);
     if (quiet) assert.deepEqual(got.sent, [], `${what}: no request was made`);
   }
-  // Control: the next minor's candidate passes against the same tags.
-  assert.deepEqual((await promote(t, 'v1.3.0-rc.1', { refs })).created, [{ ref: 'refs/tags/v1.3.0', sha: sha('c') }]);
+  // Control: the next minor's beta passes against the same tags.
+  assert.deepEqual((await promote(t, 'v1.3.0-beta.1', { refs })).created, [{ ref: 'refs/tags/v1.3.0', sha: sha('c') }]);
 });
 
 test('promote command: tags a commit that is main\'s own, and refuses one main does not hold, with no ref request', async t => {
-  const refs = { 'v1.1.0-rc.1': commit('c') };
-  const same = await promote(t, 'v1.1.0-rc.1', { refs, compare: 'identical' });
+  const refs = { 'v1.1.0-beta.1': commit('c') };
+  const same = await promote(t, 'v1.1.0-beta.1', { refs, compare: 'identical' });
   assert.deepEqual(same.created, [{ ref: 'refs/tags/v1.1.0', sha: sha('c') }], same.out);
   assert.ok(same.requests.includes(`GET compare/${sha('c')}...main`), same.requests.join('\n'));
   // Bad cases: a commit that has left main's history, or that main is still behind.
   for (const status of ['diverged', 'behind']) {
-    const got = await promote(t, 'v1.1.0-rc.1', { refs, compare: status });
+    const got = await promote(t, 'v1.1.0-beta.1', { refs, compare: status });
     assert.equal(got.code, 1, `${status}: ${got.out}`);
-    assert.equal(got.out.trim(), "v1.1.0-rc.1's commit is not on main.", status);
+    assert.equal(got.out.trim(), "v1.1.0-beta.1's commit is not on main.", status);
     assert.deepEqual(got.created, [], status);
     assert.ok(!got.requests.includes('POST git/refs'), `${status}: ${got.requests.join('\n')}`);
   }
 });
 
 test('promote command: a run that cannot read the tags fails and tags nothing', async t => {
-  const got = await promote(t, 'v1.1.0-rc.1', { refs: { 'v1.1.0-rc.1': commit('c') }, fail: 'git/matching-refs' });
+  const got = await promote(t, 'v1.1.0-beta.1', { refs: { 'v1.1.0-beta.1': commit('c') }, fail: 'git/matching-refs' });
   assert.equal(got.code, 1, got.out);
   assert.deepEqual(got.created, []);
 });
