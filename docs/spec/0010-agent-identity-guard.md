@@ -1078,6 +1078,9 @@ is emitted only on Antigravity `run_command` to supply the rewritten command).
     `nohup`, `Start-Process`), PowerShell Unicode smart quotes (`\u2018-\u201e`),
     Bash mid-word `\\\r?\n` continuations, quoted heredoc delimiter whitespace,
     and `gh api repos/<stranger>/<repo>/forks`.
+  - Exotic cross-shell/nested-quoting parser polyglots (nested backticks pairing
+    escaped double/single quotes across subshells, `case` appearing as a pattern
+    word inside `"$(...)"`, and `$(! case ...)` inside arithmetic `((...))`).
   - Harness-level spawn/timeout fail-open semantics (Codex CLI `0.172.0` and
     Claude Code POSIX when `node` fails to spawn or hits the 15 s timeout;
     Codex remote-command host `cwd`).

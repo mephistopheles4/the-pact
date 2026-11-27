@@ -467,7 +467,7 @@ test('bad case: seam A refuses a guard file it does not list, one in a subfolder
   assert.deepEqual(guardFails(seam(t, short, 'codex:none')), []);
 });
 
-// ------------------------------------------------------------ PACT-120: identity guard core (Spec 0009 S3)
+// ------------------------------------------------------------ PACT-120: identity guard core (Spec 0010 S3)
 
 function makePinFixture(t, { apps = { codex: { app_id: 11, slug: 'my-codex-app', bot_login: 'my-codex-app[bot]', bot_id: 22 }, antigravity: { app_id: 12, slug: 'my-ag-app', bot_login: 'my-ag-app[bot]', bot_id: 23 }, claude: { app_id: 13, slug: 'my-claude-app', bot_login: 'my-claude-app[bot]', bot_id: 24 } }, owner = { login: 'OwnerLogin', id: 99 }, withGitconfigs = ['codex', 'antigravity', 'claude'] } = {}) {
   const home = tempDir(t, 'pact-id-');
@@ -979,6 +979,32 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     '/usr/bin/timeout -k 5 --signal=KILL --foreground -v 10 gh pr create -t x -b y',
     'timeout -- 10 gh pr create -t x -b y',
     'timeout --bogus 10 gh pr create -t x -b y',
+    'timeout +1.5e2s gh pr create -t x -b y',
+    'timeout infinity gh pr create -t x -b y',
+    'timeout weird gh pr create -t x -b y',
+    '>/dev/null gh pr create -t x -b y',
+    '2>$null gh pr create -t x -b y',
+    '>nul gh pr create -t x -b y',
+    '</dev/null gh pr create -t x -b y',
+    '2>&1 gh pr create -t x -b y',
+    '<<<x gh pr create -t x -b y',
+    '> /dev/null gh pr create -t x -b y',
+    '2> $null gh pr create -t x -b y',
+    '< file gh pr create -t x -b y',
+    '<<EOF gh pr create -t x -b y\nEOF',
+    '$m = @"\nhi $(gh pr create -t x -b y)\n"@',
+    'data{gh pr create -t x -b y}',
+    'data -SupportedCommand x {gh pr create -t x -b y}',
+    'catch[Exception]{gh pr create -t x -b y}',
+    'trap[Exception]{gh pr create -t x -b y}',
+    '1|ForEach-Object -Process{gh pr create -t x -b y}',
+    'icm{gh pr create -t x -b y}',
+    'invoke-command -ScriptBlock{gh pr create -t x -b y}',
+    'measure-command{gh pr create -t x -b y}',
+    "switch ('a/b') { 'a/b'{gh pr create -t x -b y} }",
+    'cmd a={gh pr create -t x -b y}',
+    '[string]$env:X = git push',
+    '$env:X += git push',
     "cat <<\\EOF\ngh pr list\nEOF\ngh pr create -t x -b y",
     "cat <<E'O'F\ngh pr list\nEOF\ngh pr create -t x -b y",
     'cat <<"E"OF\ngh pr list\nEOF\ngh pr create -t x -b y',
@@ -989,8 +1015,12 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
   // --% after git fails closed as unknown leading flag.
   assert.equal(call('git --% push')?.id, 'identity-git');
 
-  // Escaped semicolon in bash does not split segments; deep backticks inside double quotes fail closed.
+  // Escaped semicolon or escaped keyword in bash does not trigger control/separator semantics; deep backticks inside double quotes fail closed.
   assert.deepEqual(guard.segmentsOf('echo \\; gh pr create -t x -b y', true), [['echo', ';', 'gh', 'pr', 'create', '-t', 'x', '-b', 'y']]);
+  assert.equal(guard.answerCall({ command: 'echo "$( \\case x in a) echo hi )"; gh pr create -t x -b y', provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform, shell: 'bash' })?.decision, 'deny');
+  assert.equal(guard.answerCall({ command: `export GIT_CONFIG_GLOBAL='${join(fx.pactDir, 'gh-app-codex.gitconfig').replaceAll('\\', '/')}'; \\else; git commit -m x`, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform, shell: 'bash' }), null);
+  assert.equal(guard.answerCall({ command: `GIT_CONFIG_GLOBAL='${join(fx.pactDir, 'gh-app-codex.gitconfig').replaceAll('\\', '/')}' git commit -m x`, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform }), null);
+  assert.equal(guard.answerCall({ command: `env GIT_CONFIG_GLOBAL='${join(fx.pactDir, 'gh-app-codex.gitconfig').replaceAll('\\', '/')}' git commit -m x`, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform }), null);
   let deepCmd = 'gh pr create -t x -b y';
   for (let k = 8; k >= 0; k--) {
     const q = '\\'.repeat((1 << k) - 1) + '`';
@@ -1108,6 +1138,16 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     '${env:GIT_CONFIG_SYSTEM} = \'/x\'; git p',
     '${env:GIT_CONFIG_GLOBAL} = \'/tmp/evil\'; git p',
     `export GIT_CONFIG_GLOBAL='${cfgPath}'; GIT_CONFIG_GLOBAL='/tmp/evil'; git p`,
+    `GIT_CONFIG_GLOBAL=/tmp/evil; export GIT_CONFIG_GLOBAL; git p`,
+    `GIT_CONFIG_GLOBAL=/tmp/evil; declare -x GIT_CONFIG_GLOBAL; git p`,
+    `Set-Item env:GIT_CONFIG_COUNT 1; git p`,
+    `[Environment]::SetEnvironmentVariable('GIT_CONFIG_COUNT', '1'); git p`,
+    `$env:GIT_CONFIG_GLOBAL = (echo /tmp/evil); git p`,
+    `GIT_CONFIG_GLOBAL=$(echo /tmp/evil) git p`,
+    `[string]$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL += 'x'; git commit -m x`,
+    `>/dev/null export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`,
+    `>/dev/null $env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`,
     `$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git p`,
     `$env:GIT_CONFIG_COUNT='1'; git p`,
     `$env:GIT_DIR='/tmp/x'; git commit -m x`,
