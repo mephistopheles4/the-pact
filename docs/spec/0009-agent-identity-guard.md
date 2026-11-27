@@ -142,10 +142,11 @@ and callers.
     `!bash && !started` (`guard.mjs:73`) and scan past unlimited `[ \t]`
     before `\r?\n` (removing the 80-character `command.slice(i + 2, i + 80)`
     cap).
-  - For Bash heredoc delimiters (`<<`/`<<-`), restrict matching to `bash &&`
-    (`guard.mjs:80`) and unquote backslash escapes and single/double quotes
-    across the entire delimiter word (so `<<\EOF`, `<<E'O'F`, and `<<"E"OF`
-    all match `EOF`).
+  - For heredoc delimiters (`<<`/`<<-`) and PowerShell `--%`, restrict heredoc
+    matching to `(bash || (!started && !stopParse))`, handle PowerShell `--%`
+    stop-parsing to end of line (`stopParse` reset at `\n`), and unquote
+    backslash escapes and single/double quotes across the entire delimiter word
+    (so `<<\EOF`, `<<E'O'F`, and `<<"E"OF` all match `EOF`).
 
 ### Rule table (`~/.pact/guard/rules.json`)
 
