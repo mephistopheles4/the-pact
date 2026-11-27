@@ -516,6 +516,7 @@ test('C1: parseTableDoc validates optional identity block strictly while parseTa
     'null',
     JSON.stringify({ rules: baseRules, extra: 1 }),
     JSON.stringify({ identity: { enabled: true, posterOn: true } }),
+    JSON.stringify({ rules: [{ id: 'bad', decision: 'allow', words: ['git'] }], identity: { enabled: true, posterOn: true } }),
     JSON.stringify({ rules: baseRules, identity: null }),
     JSON.stringify({ rules: baseRules, identity: [] }),
     JSON.stringify({ rules: baseRules, identity: {} }),
@@ -525,6 +526,7 @@ test('C1: parseTableDoc validates optional identity block strictly while parseTa
     JSON.stringify({ rules: baseRules, identity: { enabled: true, posterOn: true, extra: 1 } }),
   ];
   for (const text of badDocs) assert.throws(() => guard.parseTableDoc(text), { code: 'table' }, text);
+  assert.throws(() => guard.answerCall({ command: 'ls', provider: 'codex', shell: 'zsh' }), { code: 'call' });
 });
 
 // #PACT-120 #PACT-119 C2
@@ -539,16 +541,16 @@ test('C2: runtime pin gate reads lazily relative to tableFile and enforces readP
   writeFileSync(fx.pinFile, '{corrupt');
   assert.equal(guard.answerCall({ command: 'gh pr create -t x -b y', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: offTable }), null);
 
-  // Lazy read: non-candidate commands pass without reading corrupt pinFile (defaulted from tableFile).
+  // Lazy read: non-candidate commands pass without reading corrupt pin (including claude non-candidate commands).
   for (const cmd of ['ls -la', 'git status', 'git --version', 'git --help', 'node fix.mjs']) {
     assert.equal(guard.answerCall({ command: cmd, provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), null, cmd);
+    assert.equal(guard.answerCall({ command: cmd, provider: 'claude', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), null, `claude:${cmd}`);
   }
-  // Claude skips git writes without touching corrupt pinFile.
-  assert.equal(guard.answerCall({ command: 'git commit -m x', provider: 'claude', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), null);
 
-  // Candidate commands fail closed on corrupt, BOM, oversize, directory, or schema-invalid pinFile.
+  // Candidate commands fail closed on corrupt, BOM, oversize, non-file URL, or schema-invalid pin (including claude git writes).
   assert.throws(() => guard.answerCall({ command: 'gh pr create -t x -b y', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
   assert.throws(() => guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
+  assert.throws(() => guard.answerCall({ command: 'git commit -m x', provider: 'claude', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
   assert.throws(() => guard.answerCall({ command: 'env -S "ls"', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
 
   const goodPin = { owner: { login: 'OwnerLogin', id: 99 }, apps: { codex: { app_id: 11, slug: 'my-codex-app', bot_login: 'my-codex-app[bot]', bot_id: 22 } } };
@@ -556,6 +558,7 @@ test('C2: runtime pin gate reads lazily relative to tableFile and enforces readP
     `\ufeff${JSON.stringify(goodPin)}`,
     `${JSON.stringify(goodPin)}${' '.repeat(65537)}`,
     JSON.stringify({ ...goodPin, extra: 1 }),
+    JSON.stringify({ owner: { login: 123, id: 99 }, apps: goodPin.apps }),
     JSON.stringify({ owner: { login: 'OwnerLogin', id: 0 }, apps: goodPin.apps }),
     JSON.stringify({ owner: { login: '-bad', id: 99 }, apps: goodPin.apps }),
     JSON.stringify({ owner: goodPin.owner, apps: { other: goodPin.apps.codex } }),
@@ -567,6 +570,7 @@ test('C2: runtime pin gate reads lazily relative to tableFile and enforces readP
     writeFileSync(fx.pinFile, text);
     assert.throws(() => guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile }), { code: 'pin' });
   }
+  assert.throws(() => guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: {}, tableFile: fx.tableFile, pinFile: new URL('https://example.com/p.json') }), { code: 'pin' });
 
   // Symlink/junction pin fails closed with pin.
   rmSync(fx.pinFile);
@@ -603,14 +607,18 @@ test('C2: runtime pin gate reads lazily relative to tableFile and enforces readP
   }
   const symRes = guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: envWithCfg, tableFile: fx.tableFile });
   assert.equal(symRes?.id, 'identity-gitconfig');
+  rmSync(cfgPath);
+  mkdirSync(cfgPath);
+  const dirRes = guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, canOverwrite: false, env: envWithCfg, tableFile: fx.tableFile });
+  assert.equal(dirRes?.id, 'identity-gitconfig');
 });
 
 // #PACT-120 #PACT-119 C3
 test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git push, URLs, and prose-flag safety', t => {
   const fx = makePinFixture(t);
   const ownerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/OwnerLogin/own.git' });
-  const call = (command, { provider = 'codex', cwd = ownerRepo.work, env = { HOME: fx.home }, platform = 'linux' } = {}) =>
-    guard.answerCall({ command, provider, cwd, canOverwrite: false, env, tableFile: fx.tableFile, platform });
+  const call = (command, { provider = 'codex', cwd = ownerRepo.work, env = { HOME: fx.home }, platform = process.platform, shell } = {}) =>
+    guard.answerCall({ command, provider, cwd, canOverwrite: false, env, tableFile: fx.tableFile, platform, shell });
 
   // Stranger targets exempt; owner targets (case-insensitive) guard.
   for (const cmd of [
@@ -618,7 +626,9 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'gh pr create -RStranger/repo -t x -b y',
     'gh pr create --repo=ghes.example.com/OwnerLogin/repo -t x -b y',
     'gh pr merge https://github.com/Stranger/repo/pull/1',
+    'gh pr merge https://github.com/Stranger/repo/',
     'gh pr merge https://ghes.internal:443/OwnerLogin/repo/pull/1',
+    'gh api -h',
     'gh api repos/Stranger/repo/issues -f title=hi',
     'gh api repos/Stranger/repo/issues?state=open#top -X POST',
     'gh api --hostname ghes.example.com /graphql -f query="mutation { x }"',
@@ -638,11 +648,16 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
   for (const cmd of [
     'gh pr create -R ownerlogin/repo -t x -b y',
     'gh pr create -R sub.github.com/OwnerLogin/repo -t x -b y',
+    'gh pr create --hostname ghes.example.com -R github.com/OwnerLogin/repo -t x -b y',
     'gh pr create --repo=https://@github.com/OwnerLogin/repo -t x -b y',
     'gh pr create --repo=https://a@b@github.com/OwnerLogin/repo -t x -b y',
     'gh pr create -t "-R Stranger/repo" -b y',
     'gh pr create -t hi -R Stranger/repo',
+    'gh pr create --draft https://github.com/Stranger/repo/pull/1',
+    'gh label create bug https://github.com/Stranger/repo',
+    'gh issue transfer https://github.com/Stranger/repo/issues/1 OwnerLogin/own',
     'gh pr merge -R Stranger/repo https://github.com/OwnerLogin/repo/pull/1',
+    'gh pr merge https://github.com/Stranger/',
     'gh api repos/OwnerLogin/repo/issues -f title=hi',
     'gh api repos/Stranger/../OwnerLogin/repo/issues -f title=hi',
     'gh api repos/%53tranger/repo/issues -f title=hi',
@@ -652,6 +667,8 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'gh api --hostname sub.github.com /user/repos -X POST',
     'gh api --hostname ghes.example.com https://github.com/user/repos -X POST',
     'gh api --hostname ghes.example.com -it repos/Stranger/repo',
+    'gh auth token --hostname ghes.example.com',
+    'gh auth setup-git --hostname ghes.example.com',
     'gh repo fork Stranger/repo',
     'gh repo fork Stranger/repo --org @me',
     'gh repo fork Stranger/repo --org OwnerLogin --org StrangerOrg',
@@ -665,6 +682,8 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'gh project item-add 1 --owner OwnerLogin --owner StrangerOrg --url x',
     'gh project item-add 1 --owner StrangerOrg --owner OwnerLogin --url x',
     'GH_REPO=Stranger/repo; gh pr create -t x -b y',
+    'GH_REPO=Stranger/repo env -u GH_REPO gh pr create -t x -b y',
+    'GH_REPO=Stranger/repo env -i gh pr create -t x -b y',
     'export GH_REPO=Stranger/repo; export GH_REPO=; gh pr create -t x -b y',
     '$env:GH_REPO = "$OTHER"; gh pr create -t x -b y',
     '$env:GH_REPO = "Stranger/repo"; $env:GH_REPO = $null; gh pr create -t x -b y',
@@ -680,6 +699,10 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'git push https://github.com/-bad/repo.git main',
   ]) assert.equal(call(cmd)?.decision, 'deny', cmd);
 
+  // Explicit shell rejects cross-shell GH_REPO forms.
+  assert.equal(call('$env:GH_REPO = "Stranger/repo"; gh pr create -t x -b y', { shell: 'bash' })?.decision, 'deny');
+  assert.equal(call('export GH_REPO=Stranger/repo; gh pr create -t x -b y', { shell: 'powershell' })?.decision, 'deny');
+
   // Explicit env.GH_REPO works and is overridden by -R.
   assert.equal(call('gh pr create -t x -b y', { env: { HOME: fx.home, GH_REPO: 'Stranger/repo' } }), null);
   assert.equal(call('gh pr create -R OwnerLogin/repo -t x -b y', { env: { HOME: fx.home, GH_REPO: 'Stranger/repo' } })?.id, 'identity-gh');
@@ -694,14 +717,33 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   mkdirSync(sub, { recursive: true });
   const call = (command, opts = {}) => {
     const cwd = Object.hasOwn(opts, 'cwd') ? opts.cwd : sub;
-    const { env = { HOME: fx.home }, platform = 'linux' } = opts;
+    const { env = { HOME: fx.home }, platform = process.platform } = opts;
     return guard.answerCall({ command, provider: 'codex', cwd, canOverwrite: false, env, tableFile: fx.tableFile, platform });
   };
 
-  // Upward lookup from subdirectory and -C chaining exempt stranger repos.
+  // Upward lookup from subdirectory and -C chaining exempt stranger repos (including via time -p / mise flags).
   assert.equal(call('git commit -m x'), null);
-  assert.equal(call(`env -C ${strangerRepo.work} git -C nested commit -m x`, { cwd: fx.home }), null);
+  assert.equal(call(`time -p env -C ${strangerRepo.work} git -C nested commit -m x`, { cwd: fx.home }), null);
+  assert.equal(call(`mise x -C ${strangerRepo.work} node@24 git commit -m x`), null);
   assert.equal(call('gh pr create -t x -b y'), null);
+
+  // Account-scoped gh writes stay guarded even inside stranger cwd.
+  for (const cmd of [
+    'gh auth token',
+    'gh auth setup-git',
+    'gh auth status -t',
+    'gh secret set S -o Stranger -b v',
+    'gh variable set V -u -b v',
+    'gh gist create f.txt',
+    'gh repo delete myrepo --yes',
+    'gh repo create myrepo --public',
+    'gh ssh-key add k.pub',
+  ]) assert.equal(call(cmd)?.id, 'identity-gh', cmd);
+  assert.equal(call('git --unknown-flag status')?.id, 'identity-git');
+
+  // Comment line ending with trailing backslash does not eat next config line.
+  const commentSlash = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '; comment \\\n[remote "upstream"]\n\turl = https://github.com/Other/r2.git\n' });
+  assert.equal(call('git push', { cwd: commentSlash.work })?.id, 'identity-git');
 
   // Linked worktree + worktreeConfig truthy values.
   const wtStranger = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', linked: true, extraConfig: '[extensions]\n\tworktreeConfig\n', worktreeConfig: '' });
@@ -709,13 +751,21 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   const wtInclude = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', linked: true, extraConfig: '[extensions]\n\tworktreeConfig = yes\n', worktreeConfig: '[include]\n\tpath = /x\n' });
   assert.equal(call('git commit -m x', { cwd: wtInclude.work })?.id, 'identity-git');
 
-  // Multi-remote & gh-resolved ambiguity.
+  // Multi-remote, pushDefault, branch.*.remote/pushRemote, & gh-resolved ambiguity.
   const multiSafe = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r1.git', extraConfig: '[remote "upstream"]\n\turl = https://github.com/Other/r2.git\n' });
   assert.equal(call('gh pr create -t x -b y', { cwd: multiSafe.work }), null);
   assert.equal(call('git push', { cwd: multiSafe.work })?.id, 'identity-git');
   assert.equal(call('git push upstream main', { cwd: multiSafe.work }), null);
   const multiNoUrl = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r1.git', extraConfig: '[remote "upstream"]\n\tfetch = +refs/heads/*:refs/remotes/upstream/*\n' });
   assert.equal(call('gh pr create -t x -b y', { cwd: multiNoUrl.work })?.id, 'identity-gh');
+  const pushDefaultRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '[remote]\n\tpushDefault = origin\n' });
+  assert.equal(call('git push', { cwd: pushDefaultRepo.work })?.id, 'identity-git');
+  const branchRemoteRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '[branch "main"]\n\tremote = origin\n' });
+  assert.equal(call('git push', { cwd: branchRemoteRepo.work })?.id, 'identity-git');
+  const branchPushRemoteRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '[branch "main"]\n\tpushRemote = origin\n' });
+  assert.equal(call('git push', { cwd: branchPushRemoteRepo.work })?.id, 'identity-git');
+  const ghResolvedRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '\tgh-resolved = base\n[remote "upstream"]\n\tfetch = +refs/heads/*:refs/remotes/upstream/*\n' });
+  assert.equal(call('gh pr create -t x -b y', { cwd: ghResolvedRepo.work })?.id, 'identity-gh');
 
   // gh uses url (not pushurl); git push uses pushurl if set; other git uses both.
   const splitUrls = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '\tpushurl = https://github.com/OwnerLogin/r.git\n' });
@@ -723,25 +773,29 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   assert.equal(call('git push', { cwd: splitUrls.work })?.id, 'identity-git');
   assert.equal(call('git commit -m x', { cwd: splitUrls.work })?.id, 'identity-git');
 
-  // Fail closed on missing/bad cwd, UNC/drive-relative/drive-less on win32, --git-dir, GIT_DIR, -c remote.*, include, insteadOf, oversize.
+  // Fail closed on missing/bad cwd, UNC/drive-relative/drive-less on win32, --git-dir, GIT_DIR, GIT_CONFIG_SYSTEM, -c remote.*/alias.*, include, insteadOf, oversize.
   for (const opts of [
     { cwd: undefined },
     { cwd: 'relative/path' },
     { cwd: '\\\\server\\share\\repo', platform: 'win32' },
     { cwd: '\\drive-less\\repo', platform: 'win32' },
     { cwd: 'C:drive-relative', platform: 'win32' },
+    { cwd: '/posix/path/rejected/on/win32', platform: 'win32' },
     { cwd: fx.home }, // no .git up to root
     { env: { HOME: fx.home, GIT_DIR: join(strangerRepo.work, '.git') } },
     { env: { HOME: fx.home, GIT_CONFIG_COUNT: '1' } },
+    { env: { HOME: fx.home, GIT_CONFIG_SYSTEM: '/dev/null' } },
   ]) assert.equal(call('git commit -m x', opts)?.id, 'identity-git', JSON.stringify(opts));
 
   for (const cmd of [
     `git --git-dir=${join(strangerRepo.work, '.git')} commit -m x`,
     'git --exec-path=/tmp commit -m x',
     'git --config-env=a=B commit -m x',
+    'git -c alias.p=push p',
     'git -c remote.origin.url=https://github.com/OwnerLogin/r.git push',
     'git -c url.https://github.com/OwnerLogin/.insteadOf=https://github.com/Stranger/ commit -m x',
-  ]) assert.equal(call(cmd)?.id, 'identity-git', cmd);
+    'unset GIT_DIR; GIT_CONFIG=/x git commit -m x',
+  ]) assert.equal(call(cmd, { env: { HOME: fx.home, GIT_DIR: join(strangerRepo.work, '.git') } })?.id, 'identity-git', cmd);
 
   const badInclude = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '[includeIf "gitdir:/x/"]\n\tpath = y\n' });
   assert.equal(call('git commit -m x', { cwd: badInclude.work })?.id, 'identity-git');
@@ -762,6 +816,15 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   writeFileSync(join(badWtDir.work, '.git'), 'gitdir: .\n');
   assert.equal(call('git commit -m x', { cwd: badWtDir.work })?.id, 'identity-git');
 
+  // Symlinked/junctioned .git entry fails closed.
+  const symGitRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git' });
+  const symGitTarget = join(tempDir(t, 'pact-gitlink-'), 'real-git');
+  mkdirSync(symGitTarget);
+  writeFileSync(join(symGitTarget, 'config'), '[remote "origin"]\n\turl = https://github.com/Stranger/r.git\n');
+  rmSync(join(symGitRepo.work, '.git'), { recursive: true, force: true });
+  symlinkSync(symGitTarget, join(symGitRepo.work, '.git'), WIN ? 'junction' : 'dir');
+  assert.equal(call('git commit -m x', { cwd: symGitRepo.work })?.id, 'identity-git');
+
   // Oversize config (> 1 MiB) fails closed.
   const bigRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: `# ${'x'.repeat(1024 * 1024)}\n` });
   assert.equal(call('git commit -m x', { cwd: bigRepo.work })?.id, 'identity-git');
@@ -772,7 +835,7 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
   const fx = makePinFixture(t);
   const ownerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/OwnerLogin/own.git' });
   const call = (command, { tableFile = fx.tableFile, provider = 'codex' } = {}) =>
-    guard.answerCall({ command, provider, cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile, platform: 'linux' });
+    guard.answerCall({ command, provider, cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile, platform: process.platform });
 
   // Closed reads, strict -h/--help, gh run/workflow, gh-app/poster pass.
   for (const cmd of [
@@ -830,11 +893,24 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     'gh api graphql --input body.json',
     'gh api graphql -F query=@q.gql',
     'echo "x`" && gh pr create -t x -b y',
-    'echo "x``"; git commit -m y',
+    'echo "x``\\"; gh pr create -t x -b y"',
     'echo @"\nsay "\ngh pr create -t x -b y\n"@',
-    "echo x@'\nsay '\ngh pr create -t x -b y\n'@",
+    "echo x@'\nsay '\n\"gh\" pr create -t x -b y\n'@",
     'echo a<<EOF\ngit push\nEOF',
     'echo 1<<EOF\ngit push\nEOF',
+    'echo << 2\ngit push',
+    'echo $(( 1 << 2 ))\ngit push',
+    '# comment \\\ngit push',
+    'echo \\" ; gh pr create -t x -b y',
+    'echo `" ; gh pr create -t x -b y',
+    'echo "$(echo "hi")"; gh pr create -t x -b y',
+    'echo "$(echo "hi"; gh pr create -t x -b y)"',
+    'echo "$(gh pr create -t "x" -b "y")"',
+    '&{gh pr create -t x -b y}',
+    '.{git commit -m x}',
+    "cat <<\\EOF\ngh pr list\nEOF\ngh pr create -t x -b y",
+    "cat <<E'O'F\ngh pr list\nEOF\ngh pr create -t x -b y",
+    'cat <<"E"OF\ngh pr list\nEOF\ngh pr create -t x -b y',
     'echo --% <<EOF\ngit push\nEOF',
     'echo --% "\ngit push\n"',
   ]) assert.equal(call(cmd)?.decision, 'deny', cmd);
@@ -862,8 +938,8 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
   const fx = makePinFixture(t);
   const ownerRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/OwnerLogin/own.git' });
   const cfgPath = join(fx.pactDir, 'gh-app-codex.gitconfig').replaceAll('\\', '/');
-  const call = (command, { env = { HOME: fx.home }, platform = 'linux', provider = 'codex' } = {}) =>
-    guard.answerCall({ command, provider, cwd: ownerRepo.work, canOverwrite: false, env, tableFile: fx.tableFile, platform });
+  const call = (command, { env = { HOME: fx.home }, platform = process.platform, provider = 'codex', shell } = {}) =>
+    guard.answerCall({ command, provider, cwd: ownerRepo.work, canOverwrite: false, env, tableFile: fx.tableFile, platform, shell });
 
   // All 8 write subcommands guarded when unconfigured.
   for (const sub of ['commit -m x', 'push', 'merge main', 'cherry-pick abc', 'revert abc', 'rebase main', 'tag v1', 'am p.patch']) {
@@ -906,10 +982,16 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `GIT_CONFIG_GLOBAL='${cfgPath}' git -c user.email=a@b.c commit -m x`,
     `GIT_CONFIG_GLOBAL='${cfgPath}' git -c credential.helper=store commit -m x`,
     `GIT_CONFIG_GLOBAL='${cfgPath}' git -c core.askPass=true commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git -c core.sshCommand=evil commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git -c remote.origin.url=x commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' git -c alias.p=push p`,
     `GIT_CONFIG_GLOBAL='${cfgPath}' git -c include.path=/x commit -m x`,
     `GIT_CONFIG_GLOBAL='${cfgPath}' git -c http.extraHeader=x commit -m x`,
     `GIT_CONFIG_GLOBAL='${cfgPath}' git --config-env=a=B commit -m x`,
     `GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL='${cfgPath}' git commit -m x`,
+    `GIT_CONFIG_SYSTEM=/dev/null GIT_CONFIG_GLOBAL='${cfgPath}' git commit -m x`,
+    `GIT_ASKPASS=/bin/false GIT_CONFIG_GLOBAL='${cfgPath}' git commit -m x`,
+    `SSH_ASKPASS=/bin/false GIT_CONFIG_GLOBAL='${cfgPath}' git commit -m x`,
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; Copy-Item env:BAD env:GIT_CONFIG_GLOBAL; git commit -m x`,
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; sv GIT_CONFIG_GLOBAL x; git commit -m x`,
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; $m = @"\n$x\n"@; git commit -m x`,
@@ -917,12 +999,18 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; echo $'\\''; git push; echo '; git commit -m x; echo '`,
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; echo $'\\''; git push; echo '; git push; echo '`,
     'env -P /usr/bin git push',
+    'env --sp git push',
     '/usr/bin/Env git push',
     'Env.exe -u X git commit -m x',
     'env -S "git push"',
     'git --unknown-flag status',
     'git --attr-source=HEAD commit -m x',
   ]) assert.equal(call(cmd)?.id, 'identity-git', cmd);
+
+  // Explicit shell rejects cross-shell assignments; heredoc/here-string cannot cross-satisfy modes.
+  assert.equal(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { shell: 'bash' })?.id, 'identity-git');
+  assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`, { shell: 'powershell' })?.id, 'identity-git');
+  assert.equal(call(`cat <<EOF\n\nEOF\n$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`)?.id, 'identity-git');
 
   // Missing or mismatched HOME/USERPROFILE rejects $HOME/~/$env:USERPROFILE.
   assert.equal(call('GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-codex.gitconfig" git commit -m x', { env: {} })?.id, 'identity-git');
@@ -932,6 +1020,23 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
   assert.equal(call('(git commit -m x)', { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
   assert.equal(call('echo x | git commit -m x', { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
   assert.equal(call('git status && git commit -m x', { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } }), null);
+
+  // Claude provider runs git override/unset guard while passing normal settings-env writes and skipping cleaner.
+  const claudeCfg = join(fx.pactDir, 'gh-app-claude.gitconfig').replaceAll('\\', '/');
+  const claudeEnv = { HOME: fx.home, GIT_CONFIG_GLOBAL: claudeCfg, GIT_TERMINAL_PROMPT: '0' };
+  assert.equal(call('git commit -m x', { provider: 'claude', env: claudeEnv }), null);
+  assert.equal(call('git push', { provider: 'claude', env: claudeEnv }), null);
+  assert.equal(call('git worktree remove w', { provider: 'claude', env: claudeEnv }), null);
+  for (const cmd of [
+    'env -u GIT_CONFIG_GLOBAL git push',
+    'GIT_CONFIG_GLOBAL=/tmp/other git commit -m x',
+    'GIT_TERMINAL_PROMPT=1 git push',
+    'git -c user.email=x commit -m y',
+    'git -c alias.p=push p',
+    'GIT_CONFIG_SYSTEM=/dev/null git push',
+    'GIT_ASKPASS=/bin/false git push',
+    'env -S "git push"',
+  ]) assert.equal(call(cmd, { provider: 'claude', env: claudeEnv })?.id, 'identity-git', `claude:${cmd}`);
 });
 
 // #PACT-120 #PACT-119 C6
@@ -958,9 +1063,20 @@ test('C6: precedence (cleaner > gh > git) and Antigravity overwrite_ask vs deny 
 
   // Prose -c user.email inside -m still overwrites cleanly (inspected via parsed tokens, not substring).
   assert.equal(call('git commit -m "-c user.email=x"')?.decision, 'overwrite_ask');
-  assert.equal(call('git -c "foo=bar" commit -m "a`b"')?.decision, 'overwrite_ask');
+  assert.equal(call('git -c "foo=bar" commit -m \'a`b\'')?.decision, 'overwrite_ask');
 
-  // Compound, wrapped, $(, backtick in -c, -c override, canOverwrite=false fall back to deny.
+  // Quoted single-quote in pin directory escapes cleanly in overwriteCommand on both shells.
+  const qHome = join(tempDir(t, 'pact-q-'), "o'x");
+  const qPact = join(qHome, '.pact');
+  mkdirSync(qPact, { recursive: true });
+  const qPin = join(qPact, 'github.json');
+  writeFileSync(qPin, JSON.stringify({ owner: { login: 'OwnerLogin', id: 99 }, apps: { antigravity: { app_id: 12, slug: 'my-ag-app', bot_login: 'my-ag-app[bot]', bot_id: 23 } } }));
+  const qCfg = join(qPact, 'gh-app-antigravity.gitconfig').replaceAll('\\', '/');
+  writeFileSync(qCfg, '[credential]\n\thelper = ""\n');
+  assert.equal(guard.answerCall({ command: 'git commit -m x', provider: 'antigravity', cwd: ownerRepo.work, canOverwrite: true, env: { USERPROFILE: qHome }, tableFile: fx.tableFile, pinFile: qPin, platform: 'win32' })?.overwriteCommand, `$env:GIT_CONFIG_GLOBAL = '${qCfg.replaceAll("'", "''")}'; $env:GIT_TERMINAL_PROMPT = '0'; git commit -m x`);
+  assert.equal(guard.answerCall({ command: 'git commit -m x', provider: 'antigravity', cwd: ownerRepo.work, canOverwrite: true, env: { HOME: qHome }, tableFile: fx.tableFile, pinFile: qPin, platform: 'linux' })?.overwriteCommand, `GIT_CONFIG_GLOBAL='${qCfg.replaceAll("'", "'\\''")}' GIT_TERMINAL_PROMPT=0 git commit -m x`);
+
+  // Compound, wrapped, $(, backtick/backslash escaping, unknown leading flag, -c override, canOverwrite=false fall back to deny.
   for (const [cmd, opts] of [
     ['git commit -m x', { canOverwrite: false }],
     ['ls && git commit -m x', {}],
@@ -971,7 +1087,14 @@ test('C6: precedence (cleaner > gh > git) and Antigravity overwrite_ask vs deny 
     ['# lead\ngit commit -m x', {}],
     ['set FOO=1; git commit -m x', {}],
     ['FOO=1 git commit -m x', {}],
+    ['git --unknown commit -m x', {}],
+    ['git \\commit -m x', {}],
+    ['git `commit -m x', {}],
+    ['git commit -m x `ls`', { platform: 'linux' }],
     ['git -c user.name=bad commit -m x', {}],
+    ['git -c remote.origin.url=x commit -m x', {}],
+    ['git -c core.sshCommand=x commit -m x', {}],
+    ['git -c alias.p=push p', {}],
     ['git -c "u`ser.name=bad" commit -m x', {}],
     ['git -c "a`b=c" commit -m x', {}],
     ['git -c "foo=bar" -c "baz`qux=1" commit -m x', {}],
@@ -997,7 +1120,7 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     [`ls && git commit -m ${SECRET_CMD}`, 'antigravity'],
     [`git -c user.email=${SECRET_CMD} commit -m x`, 'antigravity'],
   ]) {
-    const res = guard.answerCall({ command: cmd, provider, cwd: ownerRepo.work, canOverwrite: true, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: 'linux' });
+    const res = guard.answerCall({ command: cmd, provider, cwd: ownerRepo.work, canOverwrite: true, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
     assert.equal(res?.decision, 'deny');
     for (const leak of [SECRET_CMD, SECRET_URL, 'SECRET_REPO_XYZ', 'OwnerLogin', '998877', 'my-codex-app']) {
       assert.ok(!res.reason.includes(leak), `${leak} leaked into ${res.reason}`);
@@ -1007,7 +1130,7 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
   for (const unit of ['mise x ', 'git -c a=b ', 'gh api -p ', 'env -u X ', `@"${' '.repeat(64)}`, 'a; ', 'x && ']) {
     const big = unit.repeat(Math.floor(guard.COMMAND_MAX / unit.length));
     const started = Date.now();
-    guard.answerCall({ command: big, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: 'linux' });
+    guard.answerCall({ command: big, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
     const elapsed = Date.now() - started;
     assert.ok(elapsed < 1000, `${unit} took ${elapsed} ms (>= 1000 ms)`);
   }
