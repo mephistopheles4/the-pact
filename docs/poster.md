@@ -439,7 +439,7 @@ send:
 - **`issue-comment`:** `gh issue view <n> -R <owner/name> --comments`, or `gh pr view <n> -R <owner/name> --comments` on a pull request's conversation; its last comments
 - **`pull-request-review`:** `gh api --paginate repos/<owner/name>/pulls/<n>/reviews`, its last items
 - **`review-thread-reply`:** `gh api --paginate repos/<owner/name>/pulls/<n>/comments`, its last items
-- **`issue-edit`, `pull-request-edit`, `issue-comment-edit`, `review-thread-reply-edit`:** open the link the `NEXT:` line names. The edit landed if the text between the item's own parts is your `body_file` and, where you moved the read-back, its `Read-back:` line names your `intent.comment`: then never send it again, and tell the owner its link
+- **`issue-edit`, `pull-request-edit`, `issue-comment-edit`, `review-thread-reply-edit`:** read the body of the item the `NEXT:` line links, with the `gh api` command under [Edits](#edits). The edit landed if the text between the poster's own parts is your `body_file` and, where you moved the read-back, its `Read-back:` line names your `intent.comment`: then never send it again, and tell the owner its link
 
 If the post is there, don't post again: treat it as unverified, and give the
 owner its URL. If it isn't, tell the owner, and post again only on their word.
@@ -498,20 +498,28 @@ nothing sent.
 ## What the scans cover
 
 The content scan reads each text field above and the whole rendered body: as
-written; as four normalised copies, with HTML comments removed or only their
-markers removed, and control characters stripped or kept; and as the copy with
-both removed, with each link folded to its text and the marks `*`, `` ` ``, `~`,
-`[` and `]` removed. A normalised copy has invisible characters, markdown
-escapes and inline tags removed, character references decoded and NFKC applied,
-again until nothing changes, at most five rounds. It decodes a number of at most seven decimal or six hex
-digits, and a name, with its semicolon, only from a short list in the poster's
-source, which holds every name whose value is a hidden character
-([ADR 0177](adr/0177-the-poster-keeps-its-controls-and-drops-accident-checks.md)).
+written; as four normalised copies; and as the copy with comments removed and
+control characters stripped, with each link folded to its text and the marks
+`*`, `` ` ``, `~`, `[` and `]` removed. A normalised copy has invisible
+characters, markdown escapes and inline tags removed, character references
+decoded and NFKC applied, again until nothing changes, at most five rounds. It
+decodes a number of at most seven decimal or six hex digits, and a name only
+with its semicolon and only from a short list in the poster's source.
 
-Control characters are read both ways: stripping one can join the halves of a
-split value, and one left in place can hold a tag together, so each reading
-refuses what the other misses. The lists of names below are kept by hand from
-the poster's source; no test holds them.
+Two of the four have HTML comments removed and two only their markers, and each
+pair reads one of two ways:
+
+- control characters stripped, and every name on the short list decoded, which
+  includes every name whose value is a hidden character;
+- control characters kept, and only the names the list held before those were
+  added, as the scan before #394 read
+  ([ADR 0177](adr/0177-the-poster-keeps-its-controls-and-drops-accident-checks.md)).
+
+Neither way replaces the other. Stripping a control character can join the
+halves of a split value, but one left in place can hold a tag together. An added
+name can show a split value, but it can also turn visible text into a tag that
+the copy then removes. The lists of names below are kept by hand from the
+poster's source; no test holds them.
 
 - **No token-shape, URL-password or email rule.** The scan refuses no
   credential shape, password in a link or email address: the pact has
@@ -553,7 +561,7 @@ the poster's source; no test holds them.
     instruction, a declaration or a CDATA section;
   - a tag carried onto the next line of a block quote.
 - **An encoded hidden character,** such as `&#x200B;`, `&#8203` or
-  `&ZeroWidthSpace;`: every copy strips the character it decodes to.
+  `&ZeroWidthSpace;`: a copy that decodes it strips the character.
 - **A quote's provenance.** The fields are unverified (threat model, Who
   counts as you): `source` is the session's own word, so the rule that only a
   `chat` source can confirm a read-back catches a mistaken relay, not a session
@@ -575,10 +583,11 @@ the poster's source; no test holds them.
 - **Fields the schema doesn't check beyond their pattern,** which are checked
   against patterns and bounds, not scanned: `repo`, `as`, `signer`, `head`,
   `base` and `via`.
-- **The body's shape.** No check refuses a body for its table, an open fence,
-  its line wrapping or a link's target. A create post whose body leaves a fence open posts, and the
-  fence then swallows its own `Signed:` line, so every later edit of it is
-  refused `edit/unsigned`.
+- **The body's shape.** No check refuses a create post's body for its table, an
+  open fence, its line wrapping or a link's target. One that leaves a fence open
+  posts, and the fence then swallows its own `Signed:` line, so every later edit
+  of it is refused `edit/unsigned`. An edit whose new body leaves a fence open is
+  refused `edit/unsigned` too.
 - **A session that sets out to get past them.** They catch accidents.
 - **The poster itself.** Nothing checks the live file before a session runs
   it; the next dry run shows a changed one as drift (threat model, The pact gets loosened).

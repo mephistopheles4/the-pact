@@ -961,12 +961,17 @@ function hitsIn(text, ctx) {
   return hits.sort((a, b) => a.index - b.index);
 }
 
-const NAMED = Object.freeze({
+/** The names the scan read before #394, its floor. */
+const FLOOR_NAMED = Object.freeze({
   amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: String.fromCharCode(0xa0),
   lowbar: '_', hyphen: '-', dash: '-', period: '.', colon: ':', semi: ';', sol: '/', bsol: '\\',
   commat: '@', num: '#', excl: '!', equals: '=', plus: '+', percnt: '%', dollar: '$', tilde: '~',
   grave: '`', lpar: '(', rpar: ')', lsqb: '[', rsqb: ']', lcub: '{', rcub: '}', verbar: '|',
   ast: '*', quest: '?', tab: '\t', newline: '\n', zwj: '', zwnj: '', shy: '',
+});
+
+const NAMED = Object.freeze({
+  ...FLOOR_NAMED,
   // Every name in the HTML5 named character reference table (Python's
   // html.entities.html5) whose value holds a character `HIDDEN_RE` matches, so
   // none of them splits a secret unseen. In lower case, as `decodeEntities`
@@ -982,12 +987,12 @@ const NAMED = Object.freeze({
   vsubne: cp(0x228a, 0xfe00), vsupne: cp(0x228b, 0xfe00),
 });
 
-/** References decoded by name from `NAMED` above, case-insensitive, and numbers of at most seven decimal or six hex digits. */
-function decodeEntities(s) {
+/** References decoded by name from `names`, case-insensitive, and numbers of at most seven decimal or six hex digits. */
+function decodeEntities(s, names) {
   return s.replace(/&(?:#([0-9]{1,7});?|#[xX]([0-9A-Fa-f]{1,6});?|([A-Za-z][A-Za-z0-9]{1,31});)/g, (all, dec, hex, name) => {
     if (name !== undefined) {
       const key = name.toLowerCase();
-      return Object.hasOwn(NAMED, key) ? NAMED[key] : all;
+      return Object.hasOwn(names, key) ? names[key] : all;
     }
     const cp = dec !== undefined ? Number(dec) : parseInt(hex, 16);
     if (cp === 0 || cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) return all;
@@ -1026,16 +1031,16 @@ function removeAll(s, re) {
 /**
  * The text as a reader sees it: what `strip` removes (invisible and control
  * characters unless another is given), markdown escapes and inline tags
- * removed, entities decoded and NFKC applied, repeated until nothing changes,
- * at most five rounds. HTML comments are removed with their contents, as the
- * page shows them; with `keepComments`, only their markers go, as the source
- * shows them.
+ * removed, entities decoded (names from `names`) and NFKC applied, repeated
+ * until nothing changes, at most five rounds. HTML comments are removed with
+ * their contents, as the page shows them; with `keepComments`, only their
+ * markers go, as the source shows them.
  */
-export function normalise(text, keepComments = false, strip = stripUnseen) {
+export function normalise(text, keepComments = false, strip = stripUnseen, names = NAMED) {
   let s = text;
   for (let round = 0; round < 5; round += 1) {
     const unmarked = removeAll(strip(s), keepComments ? COMMENT_MARK_RE : COMMENT_RE);
-    const next = strip(decodeEntities(removeAll(unmarked.replace(ESCAPE_RE, ''), TAG_RE))).normalize('NFKC');
+    const next = strip(decodeEntities(removeAll(unmarked.replace(ESCAPE_RE, ''), TAG_RE), names)).normalize('NFKC');
     if (next === s) break;
     s = next;
   }
@@ -1043,14 +1048,17 @@ export function normalise(text, keepComments = false, strip = stripUnseen) {
 }
 
 /**
- * The normalised copies of a text, which the scan reads: its HTML comments
- * removed with their contents, and with only their markers removed; each with
- * control characters stripped, and with them kept. A control character can hold
- * a tag together (`<b`, a form feed, `c="x">`), so each of the two readings
- * refuses what the other misses.
+ * The four normalised copies of a text, which the scan reads: its HTML
+ * comments removed with their contents, and with only their markers removed;
+ * each read two ways. One strips control characters and decodes every name in
+ * `NAMED`. The other is the floor's reading: it keeps control characters, which
+ * can hold a tag together (`<b`, a form feed, `c="x">`), and decodes the
+ * floor's names only, since an added name can turn visible text into a tag. So
+ * the floor's two copies are among the four.
  */
 function copies(text) {
-  return [stripUnseen, stripInvisible].flatMap(strip => [normalise(text, false, strip), normalise(text, true, strip)]);
+  return [[stripUnseen, NAMED], [stripInvisible, FLOOR_NAMED]]
+    .flatMap(([strip, names]) => [normalise(text, false, strip, names), normalise(text, true, strip, names)]);
 }
 
 const LINK_PLAIN_RE = /!?\[([^[\]]*)\](?:\([^()]*\)|\[[^[\]]*\])?/g;
@@ -1508,7 +1516,7 @@ const LANDED_MISMATCH = landedNext('the link below and the fields named above');
 const editLanded = form => `NEXT: the edit landed. Never send it again. Tell the owner, with ${form}.`;
 const EDIT_LANDED_LINK = editLanded('the link below');
 const EDIT_LANDED_MISMATCH = editLanded('the link below and the fields named above');
-const editFailedNext = url => `NEXT: the edit may have landed. Before anything else, compare the item at ${url} with what you sent: the text between the poster's own parts against your body_file and, if you moved the read-back, its Read-back line. If both are as you sent them, never send it again: tell the owner its link. If either isn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`;
+const editFailedNext = url => `NEXT: the edit may have landed. Before anything else, compare the item at ${url} with what you sent: the text between the poster's own parts against your body_file and, if you moved the read-back, that its Read-back line names your intent.comment. If all of that holds, never send it again: tell the owner its link. If any of it doesn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`;
 
 // ---------------------------------------------------------------- one post
 
@@ -1737,7 +1745,7 @@ function trackerChecks(plan, login, io, ctx) {
 export const NEXT_FOR = Object.freeze({
   'edit/author': 'NEXT: the poster edits only an item its own login wrote. Post a new comment instead, or ask the owner to edit the item by hand.',
   'edit/target': "NEXT: the item isn't where the post says. Check the issue, pull request and comment numbers against the item's page and post again with the right ones. An issue number that is a pull request's, or a thread's first comment, can't be edited here.",
-  'edit/unsigned': 'NEXT: the item and the new body must each carry exactly one `Signed: <signer>` line for this post\'s signer. Edit only an item you signed with that signer. For an item posted unsigned, post a new comment, or ask the owner to type the fix on GitHub.',
+  'edit/unsigned': 'NEXT: the item and the new body must each carry exactly one `Signed: <signer>` line for this post\'s signer, outside a fence: a fence your body_file leaves open hides the new one, so close it. Edit only an item you signed with that signer. For an item posted unsigned, post a new comment, or ask the owner to type the fix on GitHub.',
   'edit/decision': 'NEXT: a body holding the words "owner decision" is never edited, even a quote of them. Post a new comment instead.',
   'edit/ask': "NEXT: an ask item's quote and intent must be the item's own, word for word. Rebuild them from the posted item, never from a kept file, or post a new comment instead.",
   'edit/status': "NEXT: a read-back moves only from pending to confirmed or corrected, and the move names the owner's decision comment in intent.comment. To leave it, send the item's own status, comment and corrected text unchanged.",

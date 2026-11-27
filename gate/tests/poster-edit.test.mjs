@@ -346,7 +346,7 @@ test('C11: mismatch, unverified, failed and unavailable, each with its NEXT line
   assert.deepEqual(unverified.lines.slice(-2), ['NEXT: the edit landed. Never send it again. Tell the owner, with the link below.', `RESULT: unverified ${url}`]);
   const failed = edit(t, s, world({ fail: { 'PATCH before': 'HTTP 502: Bad Gateway' } }));
   assert.equal(failed.code, 3);
-  assert.deepEqual(failed.lines.slice(-2), [`NEXT: the edit may have landed. Before anything else, compare the item at ${url} with what you sent: the text between the poster's own parts against your body_file and, if you moved the read-back, its Read-back line. If both are as you sent them, never send it again: tell the owner its link. If either isn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`, 'RESULT: failed']);
+  assert.deepEqual(failed.lines.slice(-2), [`NEXT: the edit may have landed. Before anything else, compare the item at ${url} with what you sent: the text between the poster's own parts against your body_file and, if you moved the read-back, that its Read-back line names your intent.comment. If all of that holds, never send it again: tell the owner its link. If any of it doesn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`, 'RESULT: failed']);
   for (const w of [world({ fail: { [`GET ${PATHS[s]} before`]: 'HTTP 502: Bad Gateway' } }), world({ store: { ...items(), [PATHS[s]]: { id: 9001, body: SIGNED, user: 'not an object', issue_url: `${API}/issues/5` } } })]) {
     const r2 = edit(t, s, w);
     assert.equal(r2.code, 4, text(r2));

@@ -765,6 +765,13 @@ test('C4: a secret split by a hidden name, a link or a control character in a ta
     'a form feed holding a tag together': [inBlock(`<b${String.fromCharCode(0x0c)}c="x">`), 'secret/env'],
     'a vertical tab holding a tag together': [inBlock(`<b${String.fromCharCode(0x0b)}c="x">`), 'secret/env'],
     'an encoded form feed holding a tag together': [inBlock('<b&#12;c="x">'), 'secret/env'],
+    // An added name decodes only where control characters are stripped: elsewhere it would turn visible text into a tag.
+    'an added hidden name beside text the old scan read as no tag': [inBody(`<&NoBreak;x title="${split('<i></i>')}">`), 'secret/env'],
+    // One case for each copy that no other copy reads.
+    'a form feed in a tag, inside a comment': [inBody(`<!-- ${split(`<b${String.fromCharCode(0x0c)}c="x">`)} -->`), 'secret/env'],
+    'a form feed in a tag, after a comment': [inBody(split(`<!-- x --><b${String.fromCharCode(0x0c)}c="x">`)), 'secret/env'],
+    'an encoded form feed beside a comment': [inBody(split('&#12;<!-- x -->')), 'secret/env'],
+    'an encoded form feed inside a comment': [inBody(`<!-- ${split('&#12;')} -->`), 'secret/env'],
     'a decision mark split by a combining grapheme joiner': [tree => ({ ...tree, 'body.md': `Own${String.fromCharCode(0x34f)}er decision, from chat.\n` }), 'post/owned-line'],
   };
   for (const [plant, rule] of Object.values(refused)) {
