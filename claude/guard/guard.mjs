@@ -1143,12 +1143,14 @@ function scanTimeoutWrapper(tokens, start) {
 }
 
 const FAST_LOWER_PROG_RE = /^[a-z0-9-]+$/;
+const FAST_WRAPPER_WORDS = new Set(['env', 'time', 'timeout', 'mise', 'npx', 'call']);
 /** The index of the program a segment runs, past its wrappers; the segment's length when there is none. */
 export function programAt(tokens) {
   let i = 0;
   for (;;) {
     const t = tokens[i];
     if (t === undefined) return tokens.length;
+    if (FAST_LOWER_PROG_RE.test(t) && !FAST_WRAPPER_WORDS.has(t)) return i;
     const redirNext = scanLeadingRedir(tokens, i);
     if (redirNext > i) {
       i = redirNext;
@@ -2443,6 +2445,8 @@ function splitAssign(tok, rawTok) {
 function parsePsEnvAssign(tokens, rawTokens) {
   if (tokens.length === 0) return null;
   const t0 = tokens[0];
+  const c0 = t0.charCodeAt(0);
+  if (c0 !== 36 && c0 !== 91) return null;
   const r0 = rawTokens[0] ?? '';
   if (/^['"]/.test(r0)) return null;
   const typeMatch = /^(\[[^\]\s]+\])(.+)$/.exec(t0);
@@ -2668,11 +2672,13 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
   };
 
   const segStates = [];
+  let hasAnyModeGitAssign = false;
+  let hasAnyModeGhRepo = false;
   for (let idx = 0; idx < modeInfo.segments.length; idx++) {
     const seg = modeInfo.segments[idx];
     const { tokens, rawTokens } = seg;
-    const at = programAt(tokens);
-    const prog = at < tokens.length ? programName(tokens[at]) : '';
+    const at = seg.at ?? programAt(tokens);
+    const prog = seg.prog ?? (at < tokens.length ? programName(tokens[at]) : '');
     let segSawDisqualifier = false;
 
     if (prog === 'cmd' && tokens.slice(at + 1).some(t => /^\/[cd](?:$|:)/i.test(t))) {
@@ -2868,7 +2874,7 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
         break;
       }
     }
-    if (!segSplitOrUnknown && at < tokens.length) {
+    if (!segSplitOrUnknown && at < tokens.length && (prog === 'env' || prog === 'time' || prog === 'timeout' || prog === 'mise')) {
       segSplitOrUnknown = inspectWrapperUnknown(tokens, at);
     }
 
@@ -2908,9 +2914,9 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
       }
     }
 
-    const envUnsetGitConfig = segEnvUnsets.some(u => isNameMatch(u, 'GIT_CONFIG_GLOBAL') || isNameMatch(u, 'GIT_TERMINAL_PROMPT'));
-    const envUnsetHome = segEnvUnsets.some(u => isNameMatch(u, 'HOME'));
-    const envUnsetUp = segEnvUnsets.some(u => isNameMatch(u, 'USERPROFILE'));
+    const envUnsetGitConfig = segEnvUnsets.length > 0 && segEnvUnsets.some(u => isNameMatch(u, 'GIT_CONFIG_GLOBAL') || isNameMatch(u, 'GIT_TERMINAL_PROMPT'));
+    const envUnsetHome = segEnvUnsets.length > 0 && segEnvUnsets.some(u => isNameMatch(u, 'HOME'));
+    const envUnsetUp = segEnvUnsets.length > 0 && segEnvUnsets.some(u => isNameMatch(u, 'USERPROFILE'));
 
     const envDisqualifiesGitConfig = segEnvCleared || envUnsetGitConfig;
     const anyGitConfigOverride =
@@ -2998,20 +3004,25 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
       ? idx
       : (!effectiveGhRepoTainted && effectiveGhRepo !== '' && effectiveGhRepo !== (envGhRepo ?? '') ? lastGhRepoAssignSegIdx : -1);
 
+    const stUsedModeAssign = inlineGitConfigOk || (baseGitConfigOk && curExportGitConfigOk && !envGitConfigOk);
+    const stUsedModeGhRepo = usedModeInlineGhRepo || (effectiveGhRepo !== '' && effectiveGhRepo !== (envGhRepo ?? ''));
+    if (stUsedModeAssign) hasAnyModeGitAssign = true;
+    if (stUsedModeGhRepo) hasAnyModeGhRepo = true;
+
     segStates.push({
       tokens,
       rawTokens,
       tokenOffsets: seg.tokenOffsets,
       at,
       prog,
-      startsWithAssign: ASSIGNMENT.test(tokens[0] ?? '') || isLiteralPsEnvAssign,
+      startsWithAssign: (tokens[0] !== undefined && tokens[0].includes('=') && ASSIGNMENT.test(tokens[0])) || isLiteralPsEnvAssign,
       segSawDisqualifier,
       segSplitOrUnknown,
       segEnvDirs,
       sawCdBefore: sawCd,
       sawEnvSplitBefore,
       gitConfigSatisfied: inlineGitConfigOk || baseGitConfigOk,
-      usedModeAssign: inlineGitConfigOk || (baseGitConfigOk && curExportGitConfigOk && !envGitConfigOk),
+      usedModeAssign: stUsedModeAssign,
       usedModeInlineGitConfig: inlineGitConfigOk,
       gitConfigAssignSegIdx,
       gitConfigOverrideInSeg: anyGitConfigOverride,
@@ -3020,7 +3031,7 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
       gitDirTainted: anyGitDirOrConfigTainted,
       effectiveGhRepo,
       effectiveGhRepoTainted,
-      usedModeGhRepo: usedModeInlineGhRepo || (effectiveGhRepo !== '' && effectiveGhRepo !== (envGhRepo ?? '')),
+      usedModeGhRepo: stUsedModeGhRepo,
       usedModeInlineGhRepo,
       ghRepoAssignSegIdx,
     });
@@ -3029,6 +3040,8 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
     if (segSplitOrUnknown?.type === 'env-split') sawEnvSplitBefore = true;
   }
 
+  segStates.hasAnyModeGitAssign = hasAnyModeGitAssign;
+  segStates.hasAnyModeGhRepo = hasAnyModeGhRepo;
   return segStates;
 }
 
@@ -3263,7 +3276,7 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform, scopeC
   if (ghInfo.group === 'repo') return { match: true };
 
   if (segState.gitDirTainted) return { match: true };
-  const ck = `gh:${JSON.stringify(segState.segEnvDirs)}`;
+  const ck = segState.segEnvDirs.length === 0 ? 'gh:' : `gh:${JSON.stringify(segState.segEnvDirs)}`;
   if (scopeCache?.has(ck)) return scopeCache.get(ck);
   const scopeRes = resolveCwdRepoScope({
     cwd,
@@ -3303,9 +3316,12 @@ function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform, scop
     if (GIT_SCOPE_OVERRIDE_KEY_RE.test(key)) return { match: true };
   }
 
-  const dirs = [...segState.segEnvDirs, ...gitInfo.dirs];
+  const hasDirs = segState.segEnvDirs.length > 0 || gitInfo.dirs.length > 0;
+  const dirs = hasDirs ? [...segState.segEnvDirs, ...gitInfo.dirs] : segState.segEnvDirs;
   const isGitPush = gitInfo.subcmd === 'push';
-  const ck = `git:${isGitPush ? 1 : 0}:${explicitRemoteName ?? ''}:${JSON.stringify(dirs)}`;
+  const ck = hasDirs
+    ? `git:${isGitPush ? 1 : 0}:${explicitRemoteName ?? ''}:${JSON.stringify(dirs)}`
+    : `git:${isGitPush ? 1 : 0}:${explicitRemoteName ?? ''}`;
   if (scopeCache?.has(ck)) return scopeCache.get(ck);
   const scopeRes = resolveCwdRepoScope({
     cwd,
@@ -3466,6 +3482,8 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
       const tokens = seg.tokens;
       const at = programAt(tokens);
       const prog = at < tokens.length ? programName(tokens[at]) : '';
+      seg.at = at;
+      seg.prog = prog;
 
       if (checkCleaner) {
         if (prog) {
@@ -3485,7 +3503,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
           }
         }
         if (denyContains.length > 0 || (bestDenyIdx === Infinity && askContains.length > 0)) {
-          const segText = tokens.join(' ');
+          const segText = tokens.length === 1 ? tokens[0] : tokens.length === 2 ? `${tokens[0]} ${tokens[1]}` : tokens.join(' ');
           for (const { ri, r } of denyContains) {
             if (ri < bestDenyIdx && containsMatch(segText, r.contains)) bestDenyIdx = ri;
           }
@@ -3515,7 +3533,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
             else if (gitInfo.subcmd && !GIT_BUILTIN_READ_SUBCOMMANDS.has(gitInfo.subcmd)) {
               sawNonBuiltinGit = true;
             }
-          } else if (inspectWrapperUnknown(tokens, at)) hasCandidate = true;
+          } else if ((prog === 'env' || prog === 'time' || prog === 'timeout' || prog === 'mise') && inspectWrapperUnknown(tokens, at)) hasCandidate = true;
         }
         if (sawConfigInjectionToken && sawNonBuiltinGit) hasCandidate = true;
       }
@@ -3574,22 +3592,20 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
     let maxTargetOffset = -1;
     let needsPrefixCheck = false;
     for (const h of hits) {
-      if (h.key === null || h.forceDeny) return false;
+      if (h.forceDeny || !h.st) return false;
       const st = h.st;
       if (
-        st && (
-          st.gitConfigOverrideInSeg ||
-          st.gitCountOrParamsTainted ||
-          st.envConfigInjectionActive ||
-          st.gitDirTainted ||
-          st.effectiveGhRepoTainted ||
-          st.sawCdBefore ||
-          st.sawEnvSplitBefore
-        )
+        st.gitConfigOverrideInSeg ||
+        st.gitCountOrParamsTainted ||
+        st.envConfigInjectionActive ||
+        st.gitDirTainted ||
+        st.effectiveGhRepoTainted ||
+        st.sawCdBefore ||
+        st.sawEnvSplitBefore
       ) {
         return false;
       }
-      const info = satisfiedInfo.get(h.key);
+      const info = satisfiedInfo.get(h.key ?? segKey(st));
       if (!info) return false;
       if (isUnknownShell && !info.isInline) return false;
       const assignSeg = exemptStates[info.assignSegIdx];
@@ -3619,7 +3635,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
 
   // 3. Plain gh write check (all providers; beats any git identity match)
   const segKey = st => `${st.tokenOffsets[st.at] ?? -1}:${JSON.stringify(st.tokens.slice(st.at))}`;
-  const evalGhMode = (states, isBash) => {
+  const evalGhMode = (states, isBash, otherHasModeGhRepo) => {
     const hits = [];
     const satisfiedInfo = new Map();
     let usedModeGhRepo = false;
@@ -3644,7 +3660,8 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
         if (ghInfo.isWrite) {
           const scope = checkGhOwnerScope(ghInfo, st, { ownerLogin, cwd, platform, scopeCache });
           if (scope.match) {
-            hits.push({ key: segKey(st), forceDeny: false, st, answer: { decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, ghInfo.isFreeText) } });
+            hits.push({ key: null, forceDeny: false, st, answer: { decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, ghInfo.isFreeText) } });
+            if (!otherHasModeGhRepo) break;
           } else if (st.usedModeGhRepo) {
             usedModeGhRepo = true;
             satisfiedInfo.set(segKey(st), {
@@ -3659,8 +3676,9 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
     return { hits, satisfiedInfo, usedModeGhRepo };
   };
 
-  const bashGh = evalGhMode(bashStates, true);
-  const psGh = evalGhMode(psStates, false);
+  const bashGh = evalGhMode(bashStates, true, psStates.hasAnyModeGhRepo);
+  if (bashGh.hits.length > 0 && !psStates.hasAnyModeGhRepo) return bashGh.hits[0].answer;
+  const psGh = evalGhMode(psStates, false, bashStates.hasAnyModeGhRepo);
   const bashGhExemptsPs = bashGh.hits.length === 0 && bashGh.usedModeGhRepo &&
     canCrossExempt(bashStates, psStates, psMode, psGh.hits, bashGh.satisfiedInfo, allowBashExempt);
   const psGhExemptsBash = psGh.hits.length === 0 && psGh.usedModeGhRepo &&
@@ -3683,7 +3701,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
     return gitconfigOkCache;
   };
 
-  const evalGitMode = (states, isBash) => {
+  const evalGitMode = (states, isBash, otherHasModeGitAssign) => {
     const hits = [];
     const satisfiedInfo = new Map();
     let guardedCount = 0;
@@ -3732,15 +3750,19 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
           }
           continue;
         }
-        hits.push({ key: segKey(st), forceDeny: hasCOverride, gitInfo, st });
+        hits.push({ key: null, forceDeny: hasCOverride, gitInfo, st });
+        if (!otherHasModeGitAssign && (states.length > 1 || !canOverwrite || hasCOverride)) break;
       }
     }
     return { hits, satisfiedInfo, guardedCount, usedModeAssign, missingGitconfig };
   };
 
-  const bashGit = evalGitMode(bashStates, true);
+  const bashGit = evalGitMode(bashStates, true, psStates.hasAnyModeGitAssign);
   if (bashGit.missingGitconfig) return { decision: 'deny', id: 'identity-gitconfig', reason: buildGitconfigReason(provider) };
-  const psGit = evalGitMode(psStates, false);
+  if (bashGit.hits.length > 0 && !psStates.hasAnyModeGitAssign && (bashStates.length > 1 || !canOverwrite || bashGit.hits[0].forceDeny)) {
+    return { decision: 'deny', id: 'identity-git', reason: buildGitDenyReason(provider, platform) };
+  }
+  const psGit = evalGitMode(psStates, false, bashStates.hasAnyModeGitAssign);
   if (psGit.missingGitconfig) return { decision: 'deny', id: 'identity-gitconfig', reason: buildGitconfigReason(provider) };
 
   const bashGitExemptsPs = bashGit.hits.length === 0 && bashGit.usedModeAssign &&
