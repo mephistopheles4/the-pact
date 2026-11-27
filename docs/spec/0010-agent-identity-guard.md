@@ -173,6 +173,17 @@ and callers.
 
 - **`GIT_WRITE_SUBCOMMANDS`:** `commit`, `push`, `merge`, `cherry-pick`,
   `revert`, `rebase`, `tag`, `am`.
+- **`GIT_BUILTIN_READ_SUBCOMMANDS`:** closed 32-command built-in read set
+  (`status`, `log`, `diff`, `show`, `ls-files`, `rev-parse`, `cat-file`,
+  `branch`, `remote`, `describe`, `shortlog`, `blame`, `grep`, `help`,
+  `version`, `for-each-ref`, `ls-remote`, `ls-tree`, `merge-base`, `name-rev`,
+  `reflog`, `show-ref`, `symbolic-ref`, `whatchanged`, `verify-commit`,
+  `verify-tag`, `check-ignore`, `check-attr`, `check-ref-format`,
+  `count-objects`, `fsck`, `var`). When config-injection env vars
+  (`GIT_CONFIG_COUNT`, `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_SYSTEM`, or inline /
+  non-expected `GIT_CONFIG_GLOBAL`) are active on a `git` segment and `subcmd`
+  is outside this set, `parseGitSegment` / Step 4 guards the segment (`deny`,
+  never `overwrite_ask`).
 - **`GIT_GLOBAL_OPTS` (complete arity table before the subcommand):**
   - Value-taking (separate next token OR attached `-C<dir>`, `-c<k>=<v>`,
     `--<opt>=<val>`): `-C`, `-c`, `--git-dir`, `--work-tree`, `--namespace`,
@@ -294,8 +305,9 @@ and callers.
 ### Precedence and entry point (`answerCall`)
 
 `answerCall({ command, provider, cwd, canOverwrite, env, tableFile, pinFile, platform, shell })`
-evaluates one call and returns `null` or one decision object (`shell` is
-optional `'bash' | 'powershell'`, backwards-compatible when omitted):
+evaluates one call and returns `null` or one decision object (`shell` accepts
+`'bash' | 'powershell' | 'unknown' | undefined`, failing closed with
+`GuardFailure('call')` on any other value):
 
 1. **Cleaner rules first** (for `provider !== 'claude'`, since Claude Code
    enforces cleaner via native `permissions.deny`/`ask`): `deny` beats `ask`,
@@ -409,11 +421,16 @@ optional `'bash' | 'powershell'`, backwards-compatible when omitted):
    - **Evaluate each shell mode (`bash = true` and `bash = false`) independently**
      — never allow an assignment seen in one shell mode (such as a PowerShell
      `<# ... #>` block comment parsed as Bash) to satisfy a `git` segment in
-     the other mode, and track `sawHeredoc` / `sawHereString` plus segment
-     identity keys (`segKey`) so cross-mode exemption is disabled when
-     `shell === 'bash'` or `bashMode.sawHeredoc` (for `ps*ExemptsBash`) or when
-     `shell === 'powershell'` or `psMode.sawHeredoc || psMode.sawHereString`
-     (for `bash*ExemptsPs`). While exported `segmentsOf` stays backwards-compatible,
+     the other mode. Track `sawHeredoc`, `sawHereString`, `sawComment`,
+     `sawStopParse`, subexpressions, and segment identity keys (`segKey`):
+     `shell === 'unknown'` disables both `allowBashExempt` and `allowPsExempt`
+     (permitting only inline same-mode assignments or exact `env`), `shell ===
+     'bash'` disables `allowPsExempt`, `shell === 'powershell'` disables
+     `allowBashExempt`, and when `shell === undefined`, cross-mode exemption
+     (`canCrossExempt`) succeeds only when both modes agree on the unquoted
+     standalone assignment segment (and prefix segments before the target)
+     without comments, heredocs, here-strings, `--%` (`sawStopParse`), or
+     embedded substitutions. While exported `segmentsOf` stays backwards-compatible,
      `answerCall` uses an internal separator-preserving walk over `;`, `&&`,
      `||`, `|`, `&`, `(`, `)`, `{`, `}`, and newlines (plus shell control
      keywords `if`, `then`, `elif`, `else`, `fi`, `for`, `while`, `until`,
@@ -508,8 +525,9 @@ optional `'bash' | 'powershell'`, backwards-compatible when omitted):
        `-C <dir>` cumulatively against `cwd`, and noting `--git-dir` / unknown
        leading flags.
      - If an unknown leading flag appears before the subcommand (unless sole
-       `--version`/`--help`) OR the first non-option token is in
-       `GIT_WRITE_SUBCOMMANDS`:
+       `--version`/`--help`), the first non-option token is in
+       `GIT_WRITE_SUBCOMMANDS`, OR `envConfigInjectionActive` is set while
+       `gitInfo.subcmd` is outside `GIT_BUILTIN_READ_SUBCOMMANDS`:
        - Check repo-owner scope (using chained `-C`, `--git-dir`/active
          `GIT_DIR`, unknown leading flags failing closed, and `git push`'s
          explicit remote/URL arg if any). If the repo clearly belongs to
@@ -747,7 +765,7 @@ is emitted only on Antigravity `run_command` to supply the rewritten command).
   - On any failure: writes the same `PreToolUse` `deny` JSON with
     `The pact's guard failed (<code>); run the pact's dry run.` and exits 0.
 - **`claude/guard/antigravity.mjs` (updated):**
-  - Resolves `cwd` as: when `call.name === 'run_command'` and `call.args !==
+  - Resolves `cwd` ONLY for `call.name === 'run_command'`: when `call.args !==
     undefined && Object.hasOwn(call.args, 'Cwd')`, pass `typeof call.args.Cwd
     === 'string' ? call.args.Cwd : undefined` directly to `answerCall` (do NOT
     fall back to `input.cwd` or `workspacePaths` when `Cwd` is present as `""`
@@ -756,9 +774,12 @@ is emitted only on Antigravity `run_command` to supply the rewritten command).
     input.workspacePaths.length === 1 && typeof input.workspacePaths[0] ===
     'string' ? input.workspacePaths[0] : undefined)` (so multi-root workspaces
     with `workspacePaths.length > 1` fail closed instead of guessing `[0]`).
+    For `manage_task` (`send_input`) and `send_command_input`, passes `cwd:
+    undefined` (so background task `.git/config` scoping fails closed while
+    explicit `-R Stranger/repo` targets still exempt in Step 1).
   - Passes `provider: 'antigravity'`, `cwd`, `canOverwrite: call.name ===
-    'run_command'`, `env: process.env`, `shell: process.platform === 'win32' ?
-    'powershell' : 'bash'`.
+    'run_command'`, `env: process.env`, `shell: call.name === 'run_command' ?
+    (process.platform === 'win32' ? 'powershell' : 'bash') : 'unknown'`.
   - On `met.decision === 'overwrite_ask'`: writes
     `{"decision":"force_ask","reason":met.reason,"overwrite":{"CommandLine":met.overwriteCommand}}`
     and exits 0. Never emits `"allow"`. (If the post-T2 live probe shows
