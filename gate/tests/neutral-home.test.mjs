@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, commitAll, git, home, install, makeRepo, passed, refused } from './install-harness.mjs';
+import { applyBound, commitAll, git, home, install, makeRepo, passed, refused, sharedRepo } from './install-harness.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -78,7 +78,7 @@ const neutral = text => NEUTRAL_RULES.reduce((s, [from, to]) => {
 const settings = (text, h) => JSON.parse(text, (_, v) => (typeof v === 'string' ? (h ? v.replaceAll('\\', '/').replace(h.replaceAll('\\', '/'), '<home>') : v.replaceAll('\\', '/')) : v));
 
 test('C3: the rules, agents, commands and settings written for Claude Code match the fixture but for the paths, the neutral phrases and the model roles', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(at(h, '.pact'));
   writeFileSync(at(h, '.pact/config.json'), CONFIG);
@@ -197,7 +197,7 @@ test('C5, C8, C9, C29: one apply writes each harness its own render, binds every
 
 // #262 for Codex's agents, which are .toml files: the record check, the owner's own file and the removal.
 test('bad case: Codex\'s .toml agents are the record\'s to check, the owner\'s to keep, and go with Codex', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(at(h, '.codex/agents'), { recursive: true });
   writeFileSync(at(h, '.codex/agents/data-lens.toml'), 'mine\n');
@@ -224,7 +224,7 @@ test('bad case: Codex\'s .toml agents are the record\'s to check, the owner\'s t
 });
 
 test('bad case: a skill file already in ~/.pact/skills that the record does not list refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   for (const dir of ['.codex', '.pact/skills/scriptorium']) mkdirSync(at(h, dir), { recursive: true });
   writeFileSync(at(h, '.pact/skills/scriptorium/SKILL.md'), 'mine\n');
@@ -246,7 +246,7 @@ test('C6: rules over a harness cap refuse the whole install', t => {
 // ------------------------------------------------------------ C18: what is not the record's, and a harness taken out
 
 test('C18: an unrecorded rules file refuses, an unrecorded agent stays yours, and a harness dropped from the list loses its recorded files', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   configure(h, ['claude', 'mine']);
   mkdirSync(at(h, '.mine/agents'), { recursive: true });
@@ -276,7 +276,7 @@ test('C18: an unrecorded rules file refuses, an unrecorded agent stays yours, an
 // ------------------------------------------------------------ C31: an empty install list
 
 test('C31: after an apply with an empty install list the record lists nothing and every recorded target is gone', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   // The cleaner on: its deny and ask rules leave with Claude Code, and none of them reads as drift.
   configure(h, ['claude', 'mine'], ['cleaner']);
@@ -305,7 +305,7 @@ test('C31: after an apply with an empty install list the record lists nothing an
 
 // Auto mode the owner had set before the install is theirs, and stays when Claude Code is taken out.
 test('C31: an overlay key the settings already held is not recorded, and stays', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   writeFileSync(at(h, '.claude/settings.json'), '{"permissions": {"defaultMode": "auto"}}\n');
   passed(applyBound(repo, h));
@@ -316,7 +316,7 @@ test('C31: an overlay key the settings already held is not recorded, and stays',
 });
 
 test('C31: an overlay key changed by hand after the install stays when Claude Code is taken out', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   passed(applyBound(repo, h));
   writeFileSync(at(h, '.claude/settings.json'), read(h, '.claude/settings.json').replace('"auto"', '"plan"'));
@@ -326,7 +326,7 @@ test('C31: an overlay key changed by hand after the install stays when Claude Co
 });
 
 test('bad case: an install record that is a link refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(at(h, '.pact'));
   const elsewhere = join(tempDir(t, 'pact-else-'), 'record.json');
@@ -350,7 +350,7 @@ test('bad case: a commit without harnesses/known.json refuses', t => {
 // ------------------------------------------------------------ C30
 
 test('C30: --home inside a git work tree refuses, and writes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const tree = tempDir(t, 'pact-tree-');
   git(tree, 'init', '-q');
   const h = join(tree, 'home');
