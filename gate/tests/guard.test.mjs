@@ -642,6 +642,7 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'git push https://github.com/Stranger/repo.git main',
     'git push ssh://git@github.com:22/Stranger/repo.git main',
     'git push git@github.com:Stranger/repo.git main',
+    'git push git@github.com:Stranger/repo/ main',
     'git push --repo=https://github.com/OwnerLogin/own.git https://github.com/Stranger/repo.git main',
   ]) assert.equal(call(cmd), null, cmd);
 
@@ -657,7 +658,14 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'gh label create bug https://github.com/Stranger/repo',
     'gh issue transfer https://github.com/Stranger/repo/issues/1 OwnerLogin/own',
     'gh pr merge -R Stranger/repo https://github.com/OwnerLogin/repo/pull/1',
+    'gh pr merge -R Stranger/repo -- https://github.com/OwnerLogin/repo/pull/1',
+    'gh repo delete Stranger/repo -- OwnerLogin/repo',
     'gh pr merge https://github.com/Stranger/',
+    'gh -R OwnerLogin/repo project item-add 1 --owner StrangerOrg --url x',
+    'gh project item-add 1 -R OwnerLogin/repo --owner StrangerOrg --url x',
+    'gh secret set S -R Stranger/repo -\\u -b v',
+    'gh secret set S -R Stranger/repo -\\o StrangerOrg -b v',
+    'gh variable set V -R Stranger/repo --u\\ser -b v',
     'gh api repos/OwnerLogin/repo/issues -f title=hi',
     'gh api repos/Stranger/../OwnerLogin/repo/issues -f title=hi',
     'gh api repos/%53tranger/repo/issues -f title=hi',
@@ -695,9 +703,15 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'git push https://github.com/Stranger/%72epo.git main',
     'git push https://github.com/Stranger/.. main',
     'git push git@github.com:Stranger/.. main',
+    'git push git@github.com:OwnerLogin/repo/ main',
     'git push git@github.com:onlyone main',
     'git push https://github.com/-bad/repo.git main',
   ]) assert.equal(call(cmd)?.decision, 'deny', cmd);
+
+  // Unknown shell rejects multi-line export and $env: GH_REPO while allowing inline/env.
+  assert.equal(guard.answerCall({ command: 'export GH_REPO=Stranger/repo; gh pr create -t x -b y', provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform, shell: 'unknown' })?.decision, 'deny');
+  assert.equal(guard.answerCall({ command: '$env:GH_REPO = "Stranger/repo"; gh pr create -t x -b y', provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform, shell: 'unknown' })?.decision, 'deny');
+  assert.equal(guard.answerCall({ command: 'GH_REPO=Stranger/repo gh pr create -t x -b y', provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform, shell: 'unknown' }), null);
 
   // Explicit shell rejects cross-shell GH_REPO forms.
   assert.equal(call('$env:GH_REPO = "Stranger/repo"; gh pr create -t x -b y', { shell: 'bash' })?.decision, 'deny');
@@ -724,7 +738,10 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   // Upward lookup from subdirectory and -C chaining exempt stranger repos (including via time -p / mise flags).
   assert.equal(call('git commit -m x'), null);
   assert.equal(call(`time -p env -C ${strangerRepo.work} git -C nested commit -m x`, { cwd: fx.home }), null);
+  assert.equal(call('/usr/bin/time -p -- git commit -m x'), null);
   assert.equal(call(`mise x -C ${strangerRepo.work} node@24 git commit -m x`), null);
+  assert.equal(call(`mise x -C ${strangerRepo.work} -- git commit -m x`, { cwd: fx.home }), null);
+  assert.equal(call(`mise -C ${strangerRepo.work} x -- git commit -m x`, { cwd: fx.home }), null);
   assert.equal(call('gh pr create -t x -b y'), null);
 
   // Account-scoped gh writes stay guarded even inside stranger cwd.
@@ -741,9 +758,13 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   ]) assert.equal(call(cmd)?.id, 'identity-gh', cmd);
   assert.equal(call('git --unknown-flag status')?.id, 'identity-git');
 
-  // Comment line ending with trailing backslash does not eat next config line.
+  // Comment line or inline comment ending with trailing backslash does not eat next config line.
   const commentSlash = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '; comment \\\n[remote "upstream"]\n\turl = https://github.com/Other/r2.git\n' });
   assert.equal(call('git push', { cwd: commentSlash.work })?.id, 'identity-git');
+  const inlineCommentSlash = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git ; trailing \\\n[remote "upstream"]\n\turl = https://github.com/OwnerLogin/r2.git\n' });
+  assert.equal(call('git push', { cwd: inlineCommentSlash.work })?.id, 'identity-git');
+  const safeInline = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git ; ok \\\n' });
+  assert.equal(call('git commit -m x', { cwd: safeInline.work }), null);
 
   // Linked worktree + worktreeConfig truthy values.
   const wtStranger = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', linked: true, extraConfig: '[extensions]\n\tworktreeConfig\n', worktreeConfig: '' });
@@ -794,8 +815,11 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
     'git -c alias.p=push p',
     'git -c remote.origin.url=https://github.com/OwnerLogin/r.git push',
     'git -c url.https://github.com/OwnerLogin/.insteadOf=https://github.com/Stranger/ commit -m x',
-    'unset GIT_DIR; GIT_CONFIG=/x git commit -m x',
-  ]) assert.equal(call(cmd, { env: { HOME: fx.home, GIT_DIR: join(strangerRepo.work, '.git') } })?.id, 'identity-git', cmd);
+  ]) assert.equal(call(cmd)?.id, 'identity-git', cmd);
+
+  assert.equal(call('unset GIT_DIR; GIT_CONFIG=/x git commit -m x', { env: { HOME: fx.home, GIT_DIR: join(strangerRepo.work, '.git') } })?.id, 'identity-git');
+  assert.equal(call('unset GIT_DIR; git commit -m x', { env: { HOME: fx.home, GIT_DIR: join(strangerRepo.work, '.git'), GIT_CONFIG: '/x' } })?.id, 'identity-git');
+  assert.equal(call('unset GIT_DIR; git commit -m x', { env: { HOME: fx.home, GIT_DIR: join(strangerRepo.work, '.git'), GIT_COMMON_DIR: '/x' } })?.id, 'identity-git');
 
   const badInclude = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '[includeIf "gitdir:/x/"]\n\tpath = y\n' });
   assert.equal(call('git commit -m x', { cwd: badInclude.work })?.id, 'identity-git');
@@ -804,6 +828,8 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
 
   // Symlinked directory with .. collapse attempt (symlink/..) and trailing .. on file expectation MUST fail closed.
   const linkBase = tempDir(t, 'pact-sym-');
+  mkdirSync(join(linkBase, '.git'), { recursive: true });
+  writeFileSync(join(linkBase, '.git', 'config'), '[remote "origin"]\n\turl = https://github.com/Stranger/r.git\n');
   const symDir = join(linkBase, 'sym');
   symlinkSync(sub, symDir, WIN ? 'junction' : 'dir');
   assert.equal(call('git commit -m x', { cwd: `${symDir}/..` })?.id, 'identity-git');
@@ -858,6 +884,8 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     'echo "x`"; gh pr list',
     "echo $'a\\'b'; gh pr list",
     'echo "a``"; gh pr list',
+    'echo "`ls`"',
+    'env --sp "ls"',
     `$m = @'${' '.repeat(120)}\ngit worktree remove w\ngh pr create -t x -b y\n'@`,
     "cat <<\\EOF\ngh pr create -t x -b y\nEOF",
     "cat <<E'O'F\ngh pr create -t x -b y\nEOF",
@@ -874,6 +902,9 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     'gh auth status -t',
     'gh auth status -at',
     'gh auth status --show-token',
+    'gh auth status -\\t',
+    'gh auth status -a\\t',
+    'gh auth status --sh\\ow-token',
     'gh auth -h',
     'gh ssh-key add k.pub',
     'gh gpg-key add k.asc',
@@ -900,14 +931,25 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     'echo 1<<EOF\ngit push\nEOF',
     'echo << 2\ngit push',
     'echo $(( 1 << 2 ))\ngit push',
+    'echo "x $(( 1 << 2 ))"\ngh pr create -t x -b y',
+    'echo $(( ((1)) << 2 ))\ngh pr create -t x -b y',
     '# comment \\\ngit push',
+    'echo \\\\\\\\\ngh pr create -t x -b y',
+    'echo \\\\\\\' ; gh pr create -t x -b y',
+    'echo \\\\\\" ; gh pr create -t x -b y',
     'echo \\" ; gh pr create -t x -b y',
     'echo `" ; gh pr create -t x -b y',
     'echo "$(echo "hi")"; gh pr create -t x -b y',
     'echo "$(echo "hi"; gh pr create -t x -b y)"',
     'echo "$(gh pr create -t "x" -b "y")"',
+    'echo "$(case x in a) gh pr create -t x -b y;; esac)"',
+    'echo "`gh pr create -t x -b y`"',
+    '`gh pr create -t x -b y`',
     '&{gh pr create -t x -b y}',
     '.{git commit -m x}',
+    'try{gh pr create -t x -b y}catch{}',
+    '1|%{gh pr create -t x -b y}',
+    '$x={gh pr create -t x -b y}',
     "cat <<\\EOF\ngh pr list\nEOF\ngh pr create -t x -b y",
     "cat <<E'O'F\ngh pr list\nEOF\ngh pr create -t x -b y",
     'cat <<"E"OF\ngh pr list\nEOF\ngh pr create -t x -b y',
@@ -917,6 +959,12 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
 
   // --% after git fails closed as unknown leading flag.
   assert.equal(call('git --% push')?.id, 'identity-git');
+
+  // Direct tokenizer segmentation checks for arithmetic, comment backslash, and PowerShell stop-parsing.
+  assert.deepEqual(guard.segmentsOf('echo $(( 1 << 2 ))\ngit push', true), [['echo', '$'], ['1', '<<', '2'], ['git', 'push']]);
+  assert.deepEqual(guard.segmentsOf('# comment \\\ngit push', true), [['git', 'push']]);
+  assert.deepEqual(guard.segmentsOf('echo --% `\ngit push', false), [['echo', '--%', '`'], ['git', 'push']]);
+  assert.deepEqual(guard.segmentsOf('gh api repos/{owner}/issues', false), [['gh', 'api', 'repos/{owner}/issues']]);
 
   // posterOn routing in reason templates.
   const free = call('gh pr create -t x -b y');
@@ -946,7 +994,7 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     assert.equal(call(`git ${sub}`)?.id, 'identity-git', sub);
   }
   // Reads and git pull pass.
-  for (const cmd of ['git status', 'git pull', 'git log -n 5', 'git diff', 'git --version', 'git --help']) assert.equal(call(cmd), null, cmd);
+  for (const cmd of ['git status', 'git pull', 'git log -n 5', 'git diff', 'git --version', 'git --help', 'GIT_CONFIG_COUNT=1 git status']) assert.equal(call(cmd), null, cmd);
 
   // Valid unshadowed assignments pass.
   for (const cmd of [
@@ -956,6 +1004,9 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     'GIT_CONFIG_GLOBAL=~/.pact/gh-app-codex.gitconfig git commit -m x',
     `export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`,
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL ='${cfgPath}'; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL= '${cfgPath}'; git commit -m x`,
     '$env:GIT_CONFIG_GLOBAL = "$HOME/.pact/gh-app-codex.gitconfig"; git commit -m x',
   ]) assert.equal(call(cmd), null, cmd);
   assert.equal(call('$env:GIT_CONFIG_GLOBAL = "$env:USERPROFILE/.pact/gh-app-codex.gitconfig"; git commit -m x', { env: { USERPROFILE: fx.home }, platform: 'win32' }), null);
@@ -1000,9 +1051,26 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; echo $'\\''; git push; echo '; git push; echo '`,
     'env -P /usr/bin git push',
     'env --sp git push',
+    'env --sp "git push"',
     '/usr/bin/Env git push',
     'Env.exe -u X git commit -m x',
     'env -S "git push"',
+    'time -p git commit -m x',
+    'time --bogus git commit -m x',
+    'mise x -C . node@24 git commit -m x',
+    'mise --bogus x git commit -m x',
+    'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.p GIT_CONFIG_VALUE_0=push git p',
+    'GIT_CONFIG_PARAMETERS="\'alias.p=push\'" git p',
+    'GIT_CONFIG_SYSTEM=/tmp/evil git p',
+    'GIT_CONFIG_GLOBAL=/tmp/evil git p',
+    `$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git commit -m x`,
+    `$env:GIT_CONFIG_COUNT='1'; git commit -m x`,
+    `$env:GIT_DIR='/tmp/x'; git commit -m x`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; GIT_TERMINAL_PROMPT=1; git commit -m x`,
+    `echo --% ; export GIT_CONFIG_GLOBAL='${cfgPath}'\ngit commit -m x`,
+    `echo $'\\''; export GIT_CONFIG_GLOBAL="${cfgPath}" # '\ngit commit -m x`,
+    `echo "a\\"; $env:GIT_CONFIG_GLOBAL = '${cfgPath}' # "\ngit commit -m x`,
+    `@'\nexport GIT_CONFIG_GLOBAL='${cfgPath}'\n'@\ngit commit -m x`,
     'git --unknown-flag status',
     'git --attr-source=HEAD commit -m x',
   ]) assert.equal(call(cmd)?.id, 'identity-git', cmd);
@@ -1011,6 +1079,15 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
   assert.equal(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { shell: 'bash' })?.id, 'identity-git');
   assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`, { shell: 'powershell' })?.id, 'identity-git');
   assert.equal(call(`cat <<EOF\n\nEOF\n$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`)?.id, 'identity-git');
+
+  // Unknown shell denies export and $env: GIT_CONFIG_GLOBAL while allowing inline and direct env.
+  assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; git push`, { shell: 'unknown' })?.id, 'identity-git');
+  assert.equal(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git push`, { shell: 'unknown' })?.id, 'identity-git');
+  assert.equal(call(`GIT_CONFIG_GLOBAL='${cfgPath}' git commit -m x`, { shell: 'unknown' }), null);
+  assert.equal(call('git commit -m x', { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath }, shell: 'unknown' }), null);
+
+  // Case-folded win32 env variable matching catches unset git_config_global.
+  assert.equal(call('unset git_config_global; git commit -m x', { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath }, platform: 'win32' })?.id, 'identity-git');
 
   // Missing or mismatched HOME/USERPROFILE rejects $HOME/~/$env:USERPROFILE.
   assert.equal(call('GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-codex.gitconfig" git commit -m x', { env: {} })?.id, 'identity-git');
@@ -1099,12 +1176,24 @@ test('C6: precedence (cleaner > gh > git) and Antigravity overwrite_ask vs deny 
     ['git -c "a`b=c" commit -m x', {}],
     ['git -c "foo=bar" -c "baz`qux=1" commit -m x', {}],
     ['git --config-env=a=B commit -m x', {}],
+    ['GIT_CONFIG_COUNT=1 git p', {}],
   ]) {
     const res = call(cmd, opts);
     assert.equal(res?.decision, 'deny', cmd);
     assert.equal(res?.id, 'identity-git', cmd);
     assert.equal(res?.overwriteCommand, undefined, cmd);
   }
+
+  // Curly single quotes in expected pin path disqualify win32 overwrite_ask.
+  const curlyHome = join(tempDir(t, 'pact-curly-'), 'o\u2019x');
+  const curlyPact = join(curlyHome, '.pact');
+  mkdirSync(curlyPact, { recursive: true });
+  const curlyPin = join(curlyPact, 'github.json');
+  writeFileSync(curlyPin, JSON.stringify({ owner: { login: 'OwnerLogin', id: 99 }, apps: { antigravity: { app_id: 12, slug: 'my-ag-app', bot_login: 'my-ag-app[bot]', bot_id: 23 } } }));
+  writeFileSync(join(curlyPact, 'gh-app-antigravity.gitconfig'), '[credential]\n\thelper = ""\n');
+  const curlyRes = guard.answerCall({ command: 'git commit -m x', provider: 'antigravity', cwd: ownerRepo.work, canOverwrite: true, env: { USERPROFILE: curlyHome }, tableFile: fx.tableFile, pinFile: curlyPin, platform: 'win32' });
+  assert.equal(curlyRes?.decision, 'deny');
+  assert.equal(curlyRes?.overwriteCommand, undefined);
 });
 
 // #PACT-120 #PACT-119 C11
@@ -1127,8 +1216,8 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     }
   }
 
-  for (const unit of ['mise x ', 'git -c a=b ', 'gh api -p ', 'env -u X ', `@"${' '.repeat(64)}`, 'a; ', 'x && ']) {
-    const big = unit.repeat(Math.floor(guard.COMMAND_MAX / unit.length));
+  for (const unit of ['git commit;', 'mise x ', 'git -c a=b ', 'gh api -p ', 'env -u X ', `@"${' '.repeat(64)}`, 'a; ', 'x && ']) {
+    const big = unit === 'git commit;' ? unit.repeat(80000) : unit.repeat(Math.floor(guard.COMMAND_MAX / unit.length));
     const started = Date.now();
     guard.answerCall({ command: big, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
     const elapsed = Date.now() - started;

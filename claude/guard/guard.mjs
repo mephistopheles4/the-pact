@@ -30,15 +30,22 @@ const fail = code => {
 };
 
 const PROVIDERS = Object.freeze(['claude', 'codex', 'antigravity']);
-const SHELLS = Object.freeze(['bash', 'powershell']);
+const SHELLS = Object.freeze(['bash', 'powershell', 'unknown']);
 const LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38})$/;
 const HOST_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
-const WIN_PATH_BAD = /["%!^&|<>$`\u201c\u201d\u201e\p{Cc}]/u;
+const WIN_PATH_BAD = /["%!^&|<>$`\u2018\u2019\u201a\u201b\u201c\u201d\u201e\p{Cc}]/u;
 
 // ------------------------------------------------------------ closed command & option tables
 
 const GIT_WRITE_SUBCOMMANDS = Object.freeze(new Set(['commit', 'push', 'merge', 'cherry-pick', 'revert', 'rebase', 'tag', 'am']));
+const GIT_BUILTIN_READ_SUBCOMMANDS = Object.freeze(new Set([
+  'status', 'log', 'diff', 'show', 'ls-files', 'rev-parse', 'cat-file',
+  'branch', 'remote', 'describe', 'shortlog', 'blame', 'grep', 'help', 'version',
+  'for-each-ref', 'ls-remote', 'ls-tree', 'merge-base', 'name-rev', 'reflog',
+  'show-ref', 'symbolic-ref', 'whatchanged', 'verify-commit', 'verify-tag',
+  'check-ignore', 'check-attr', 'check-ref-format', 'count-objects', 'fsck', 'var',
+]));
 const GIT_GLOBAL_VALUE_OPTS = Object.freeze(new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--super-prefix', '--exec-path', '--list-cmds', '--attr-source']));
 const GIT_GLOBAL_NOARG_OPTS = Object.freeze(new Set([
   '-p', '--paginate', '-P', '--no-pager', '--bare', '--no-replace-objects',
@@ -98,6 +105,7 @@ const PS_VAR_CMDS = Object.freeze(new Set(['set-variable', 'remove-variable', 'c
 const GIT_CONFIG_OVERRIDE_KEY_RE = /^(?:credential|user|author|committer|include|includeif|http|url|remote|alias)(?:\.|$)|^core\.(?:askpass|sshcommand)$/i;
 const GIT_SCOPE_OVERRIDE_KEY_RE = /^(?:remote|branch|url|include|includeif|alias)(?:\.|$)/i;
 const GIT_ALIAS_KEY_RE = /^alias(?:\.|$)/i;
+const PS_BLOCK_PREFIXES = Object.freeze(new Set(['try', 'catch', 'finally', 'else', 'do', 'begin', 'process', 'end', '%', '?']));
 
 // ------------------------------------------------------------ tokenizer
 
@@ -118,12 +126,38 @@ function buildLineIndex(command) {
   return { rawLast, strippedLast };
 }
 
+function findClosingBacktick(command, openIdx) {
+  let k = openIdx + 1;
+  while (k < command.length) {
+    if (command[k] === '\\' && k + 1 < command.length) k += 2;
+    else if (command[k] === '`') return k;
+    else k++;
+  }
+  return -1;
+}
+
+function unescapeBacktickBody(body, inDoubleQuote) {
+  let out = '';
+  for (let k = 0; k < body.length; k++) {
+    if (body[k] === '\\' && k + 1 < body.length) {
+      const nxt = body[k + 1];
+      if (nxt === '$' || nxt === '`' || nxt === '\\' || (inDoubleQuote && nxt === '"')) {
+        out += nxt;
+        k++;
+        continue;
+      }
+    }
+    out += body[k];
+  }
+  return out;
+}
+
 /**
  * Tokenize `command` in one shell mode (`bash` true/false), tracking raw tokens,
  * separators, comments, heredocs/here-strings, nested `"$(...)"`, inline line
  * continuations, and quoting metadata.
  */
-function tokenizeMode(command, bash) {
+function tokenizeMode(command, bash, depth = 0) {
   const hasRawNewline = /[\r\n]/.test(command);
   const n = command.length;
   const segments = [];
@@ -138,6 +172,7 @@ function tokenizeMode(command, bash) {
   let wasQuoted = false;
   let heredocs = [];
   let stopParse = false;
+  let sawStopParse = false;
   let sawComment = false;
   let sawHeredoc = false;
   let sawHereString = false;
@@ -153,10 +188,11 @@ function tokenizeMode(command, bash) {
 
   // Stack for quotes and nested `"$(...)"` plus arithmetic/brace tracking.
   let inDoubleQuote = false;
-  const dqStack = []; // each entry: { tokens, rawTokens, tokenOffsets, prevTokenQuoted, current, tokStart, started, wasQuoted, subParenDepth }
-  const parenStack = []; // 'group' | 'arith' | 'arith2'
+  const dqStack = []; // each entry: { tokens, rawTokens, tokenOffsets, prevTokenQuoted, current, tokStart, started, wasQuoted, subParenDepth, caseStack }
+  const parenStack = []; // 'group' | 'arith-pending' | 'arith'
   let arithDepth = 0;
   let psBraceDepth = 0;
+  let psLiteralBraceDepth = 0;
   let lineIndex = null;
 
   const contLenAt = idx => {
@@ -199,6 +235,17 @@ function tokenizeMode(command, bash) {
       if (!wasQuoted && CONTROL_KEYWORDS.has(lower)) {
         if (tokens.length === 0 || (!prevTokenQuoted && CONTROL_OPENERS.has(bash ? tokens.at(-1) : tokens.at(-1).toLowerCase()))) {
           hasControlKeyword = true;
+        }
+      }
+      if (bash && !wasQuoted && dqStack.length > 0) {
+        const frame = dqStack.at(-1);
+        const topCase = frame.caseStack.at(-1);
+        if (current === 'case' && (tokens.length === 0 || (!prevTokenQuoted && CONTROL_OPENERS.has(tokens.at(-1))))) {
+          frame.caseStack.push({ seenIn: false, atDepth: frame.subParenDepth });
+        } else if (current === 'in' && topCase && !topCase.seenIn && topCase.atDepth === frame.subParenDepth && tokens.length === 2 && tokens[0] === 'case') {
+          topCase.seenIn = true;
+        } else if (current === 'esac' && topCase && topCase.seenIn && topCase.atDepth === frame.subParenDepth && (tokens.length === 0 || (!prevTokenQuoted && CONTROL_OPENERS.has(tokens.at(-1))))) {
+          frame.caseStack.pop();
         }
       }
       tokens.push(current);
@@ -249,6 +296,18 @@ function tokenizeMode(command, bash) {
   while (i < n) {
     const c = command[i];
 
+    const mergeSubMode = sub => {
+      for (const s of sub.segments) segments.push(s);
+      hasNonSemiSep = true;
+      hasEnclosingOrPipeOrBg = true;
+      if (sub.hasControlKeyword) hasControlKeyword = true;
+      if (sub.sawComment) sawComment = true;
+      if (sub.sawHeredoc) sawHeredoc = true;
+      if (sub.hasRawNewline) { /* keep outer newline check separate */ }
+      if (sub.hasSubexprInDoubleQuotes) hasSubexprInDoubleQuotes = true;
+      if (sub.hasExpandableHereStringWithDollar) hasExpandableHereStringWithDollar = true;
+    };
+
     // Inside a double-quoted string (either top-level or nested inside `"$(...)"`)
     if (inDoubleQuote) {
       if (bash) {
@@ -262,14 +321,15 @@ function tokenizeMode(command, bash) {
           i++;
           continue;
         }
-        if (c === '\\' && i + 1 < n && (command[i + 1] === '"' || command[i + 1] === '\\')) {
+        if (c === '\\' && i + 1 < n && (command[i + 1] === '"' || command[i + 1] === '\\' || command[i + 1] === '`')) {
           current += command[i + 1];
           i += 2;
           continue;
         }
         if (c === '$' && command[i + 1] === '(') {
           hasBashSubst = true;
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, current, tokStart, started, wasQuoted, subParenDepth: 1 });
+          parenStack.push(command[i + 2] === '(' ? 'arith-pending' : 'group');
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, current, tokStart, started, wasQuoted, subParenDepth: 1, caseStack: [] });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -285,7 +345,19 @@ function tokenizeMode(command, bash) {
           i += 2;
           continue;
         }
-        if (c === '`') hasBashSubst = true;
+        if (c === '`') {
+          hasBashSubst = true;
+          const closeIdx = depth < 8 ? findClosingBacktick(command, i) : -1;
+          if (closeIdx !== -1) {
+            if (closeIdx > i + 1) {
+              const inner = unescapeBacktickBody(command.slice(i + 1, closeIdx), true);
+              if (inner.trim() !== '') mergeSubMode(tokenizeMode(inner, true, depth + 1));
+            }
+            current += command.slice(i, closeIdx + 1);
+            i = closeIdx + 1;
+            continue;
+          }
+        }
         current += c;
         i++;
       } else {
@@ -313,7 +385,8 @@ function tokenizeMode(command, bash) {
         if (c === '$' && command[i + 1] === '(') {
           hasSubexprInDoubleQuotes = true;
           hasPsSubexpr = true;
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, current, tokStart, started, wasQuoted, subParenDepth: 1 });
+          parenStack.push('group');
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, current, tokStart, started, wasQuoted, subParenDepth: 1, caseStack: [] });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -354,6 +427,14 @@ function tokenizeMode(command, bash) {
       continue;
     }
 
+    // Escaped backslash pairs in bash must run before line continuations and escaped quotes
+    if (bash && c === '\\' && i + 1 < n && command[i + 1] === '\\') {
+      startToken(i);
+      current += '\\';
+      i += 2;
+      continue;
+    }
+
     // Inline line continuation outside quotes, comments, here-strings, and stop-parsing
     const cl = contLenAt(i);
     if (cl > 0) {
@@ -368,19 +449,14 @@ function tokenizeMode(command, bash) {
       tokenOffsets.push(i);
       prevTokenQuoted = false;
       stopParse = true;
+      sawStopParse = true;
       i += 3;
       continue;
     }
 
     // Unquoted backslash / backtick quote escapes outside quotes
     if (bash && c === '\\' && i + 1 < n) {
-      if (command[i + 1] === '\\' && (command[i + 2] === "'" || command[i + 2] === '"')) {
-        startToken(i);
-        current += '\\';
-        i += 2;
-        continue;
-      }
-      if (command[i + 1] === "'" || command[i + 1] === '"') {
+      if (command[i + 1] === "'" || command[i + 1] === '"' || command[i + 1] === '`') {
         startToken(i);
         current += command[i + 1];
         i += 2;
@@ -525,7 +601,7 @@ function tokenizeMode(command, bash) {
     } else if (c === '(') {
       if (dqStack.length > 0) dqStack.at(-1).subParenDepth++;
       if (bash && parenStack.at(-1) === 'arith-pending') {
-        parenStack[parenStack.length - 1] = 'arith';
+        parenStack.push('arith');
         arithDepth++;
       } else if (bash && command[i + 1] === '(') {
         parenStack.push('arith-pending');
@@ -535,6 +611,15 @@ function tokenizeMode(command, bash) {
       endSegment('(', i);
       i++;
     } else if (c === ')') {
+      if (bash && dqStack.length > 0) {
+        const frame = dqStack.at(-1);
+        const topCase = frame.caseStack.at(-1);
+        if (topCase && topCase.seenIn && topCase.atDepth === frame.subParenDepth) {
+          endSegment(')', i);
+          i++;
+          continue;
+        }
+      }
       const top = parenStack.pop();
       if (top === 'arith') arithDepth = Math.max(0, arithDepth - 1);
       if (dqStack.length > 0) {
@@ -562,9 +647,22 @@ function tokenizeMode(command, bash) {
       const sep = command.startsWith('||', i) ? '||' : c;
       endSegment(sep, i);
       i += sep.length;
-    } else if (c === '{' && ((!started && (bash ? (i + 1 === n || /[\s;&|(){}]/.test(command[i + 1])) : true)) || (!bash && current === '.'))) {
+    } else if (c === '{' && (bash
+      ? (!started && (i + 1 === n || /[\s;&|(){}]/.test(command[i + 1])))
+      : (!started || current === '.' || current === '=' || (tokens.length === 0 && current.endsWith('=')) || PS_BLOCK_PREFIXES.has(current.toLowerCase()))
+    )) {
       if (!bash) psBraceDepth++;
       endSegment('{', i);
+      i++;
+    } else if (c === '{' && !bash && psBraceDepth > 0) {
+      psLiteralBraceDepth++;
+      startToken(i);
+      current += c;
+      i++;
+    } else if (c === '}' && !bash && psLiteralBraceDepth > 0) {
+      psLiteralBraceDepth--;
+      startToken(i);
+      current += c;
       i++;
     } else if (c === '}' && (!started || (!bash && psBraceDepth > 0))) {
       if (!bash && psBraceDepth > 0) psBraceDepth--;
@@ -586,6 +684,22 @@ function tokenizeMode(command, bash) {
         i++;
       } else {
         endSegment('&', i);
+        i++;
+      }
+    } else if (bash && c === '`') {
+      hasBashSubst = true;
+      const closeIdx = depth < 8 ? findClosingBacktick(command, i) : -1;
+      if (closeIdx !== -1) {
+        if (closeIdx > i + 1) {
+          const inner = unescapeBacktickBody(command.slice(i + 1, closeIdx), false);
+          if (inner.trim() !== '') mergeSubMode(tokenizeMode(inner, true, depth + 1));
+        }
+        startToken(i);
+        current += command.slice(i, closeIdx + 1);
+        i = closeIdx + 1;
+      } else {
+        startToken(i);
+        current += c;
         i++;
       }
     } else {
@@ -613,6 +727,7 @@ function tokenizeMode(command, bash) {
   return {
     segments,
     separators,
+    sawStopParse,
     sawComment,
     sawHeredoc,
     sawHereString,
@@ -753,39 +868,100 @@ function scanEnvWrapper(tokens, start) {
   return { next: i, ops, hasSplit, splitArg, unknownFlag };
 }
 
-function advanceMise(tokens, i, noDashesRef) {
-  i += 2;
-  const dashes = noDashesRef.value ? -1 : tokens.indexOf('--', i);
-  if (dashes !== -1) return dashes + 1;
-  noDashesRef.value = true;
-  while (tokens[i] !== undefined) {
-    const tok = tokens[i];
-    if (tok === '-C' || tok === '--cd' || tok === '-E' || tok === '--env' || tok === '-j' || tok === '--jobs') {
-      i += 2;
-    } else if (tok.startsWith('-C') || tok.startsWith('-j') || tok.startsWith('--cd=') || tok.startsWith('--env=') || tok.startsWith('--jobs=')) {
-      i++;
-    } else if (tok.startsWith('-') || tok.includes('@')) {
-      i++;
+function scanTimeWrapper(tokens, start) {
+  let k = start + 1;
+  while (k < tokens.length) {
+    const tok = tokens[k];
+    if (tok === '--') return { matched: true, unknownFlag: false, next: k + 1 };
+    if (tok === '-p' || tok === '--portability') {
+      k++;
+      continue;
+    }
+    if (tok.startsWith('-')) return { matched: true, unknownFlag: true, next: k };
+    break;
+  }
+  return { matched: true, unknownFlag: false, next: k };
+}
+
+function scanMiseWrapper(tokens, start) {
+  let k = start + 1;
+  const dirs = [];
+  let unknownFlag = false;
+  while (k < tokens.length) {
+    const tok = tokens[k];
+    if (tok === 'x' || tok === 'exec') break;
+    if (tok === '-C' || tok === '--cd') {
+      if (k + 1 >= tokens.length) { unknownFlag = true; break; }
+      dirs.push(tokens[k + 1]);
+      k += 2;
+    } else if (tok.startsWith('-C') && tok.length > 2) {
+      dirs.push(tok.slice(2));
+      k++;
+    } else if (tok.startsWith('--cd=')) {
+      dirs.push(tok.slice('--cd='.length));
+      k++;
+    } else if (tok === '-E' || tok === '--env' || tok === '-j' || tok === '--jobs') {
+      if (k + 1 >= tokens.length) { unknownFlag = true; break; }
+      k += 2;
+    } else if ((tok.startsWith('-E') && tok.length > 2) || tok.startsWith('--env=') || (tok.startsWith('-j') && tok.length > 2) || tok.startsWith('--jobs=')) {
+      k++;
+    } else if (tok === '-q' || tok === '--quiet' || tok === '-y' || tok === '--yes' || /^-[qy]+$/.test(tok)) {
+      k++;
+    } else if (tok.startsWith('-')) {
+      unknownFlag = true;
+      break;
     } else {
       break;
     }
   }
-  return i;
+  if (unknownFlag) return { matched: true, unknownFlag: true, next: k, dirs };
+  if (tokens[k] !== 'x' && tokens[k] !== 'exec') return { matched: false };
+  k++;
+  while (k < tokens.length) {
+    const tok = tokens[k];
+    if (tok === '--') {
+      k++;
+      break;
+    }
+    if (tok === '-C' || tok === '--cd') {
+      if (k + 1 >= tokens.length || tokens[k + 1] === '--') { unknownFlag = true; break; }
+      dirs.push(tokens[k + 1]);
+      k += 2;
+    } else if (tok.startsWith('-C') && tok.length > 2) {
+      dirs.push(tok.slice(2));
+      k++;
+    } else if (tok.startsWith('--cd=')) {
+      dirs.push(tok.slice('--cd='.length));
+      k++;
+    } else if (tok === '-E' || tok === '--env' || tok === '-j' || tok === '--jobs') {
+      if (k + 1 >= tokens.length || tokens[k + 1] === '--') { unknownFlag = true; break; }
+      k += 2;
+    } else if ((tok.startsWith('-E') && tok.length > 2) || tok.startsWith('--env=') || (tok.startsWith('-j') && tok.length > 2) || tok.startsWith('--jobs=')) {
+      k++;
+    } else if (tok === '-q' || tok === '--quiet' || tok === '-y' || tok === '--yes' || tok === '--raw' || /^-[qy]+$/.test(tok) || tok.includes('@')) {
+      k++;
+    } else if (tok.startsWith('-')) {
+      unknownFlag = true;
+      break;
+    } else {
+      break;
+    }
+  }
+  return { matched: true, unknownFlag, next: k, dirs };
 }
 
 const FAST_LOWER_PROG_RE = /^[a-z0-9-]+$/;
 /** The index of the program a segment runs, past its wrappers; the segment's length when there is none. */
 export function programAt(tokens) {
   let i = 0;
-  // Once no `--` lies ahead, none will for a later `mise` either; without this a long line of them is quadratic.
-  const noDashesRef = { value: false };
   for (;;) {
     const t = tokens[i];
     if (t === undefined) return tokens.length;
     if (WRAPPERS.has(t) || (t.includes('=') && ASSIGNMENT.test(t))) i++;
-    else if (t === 'time') {
-      i++;
-      while (tokens[i] === '-p' || tokens[i] === '--portability') i++;
+    else if (base(t) === 'time') {
+      const tw = scanTimeWrapper(tokens, i);
+      if (tw.unknownFlag) return i;
+      i = tw.next;
     } else if (t.length >= 3 && ENV_BIN.test(base(t))) {
       const ev = scanEnvWrapper(tokens, i);
       if (ev.hasSplit || ev.unknownFlag) return i;
@@ -794,8 +970,10 @@ export function programAt(tokens) {
     else if (t === 'timeout') {
       i++;
       if (/^[\d.]+[smhd]?$/.test(tokens[i] ?? '')) i++;
-    } else if (t.length >= 4 && MISE.test(base(t)) && /^(?:x|exec)$/.test(tokens[i + 1] ?? '')) {
-      i = advanceMise(tokens, i, noDashesRef);
+    } else if (t.length >= 4 && MISE.test(base(t))) {
+      const mw = scanMiseWrapper(tokens, i);
+      if (!mw.matched || mw.unknownFlag) return i;
+      i = mw.next;
     } else if (t.length >= 3 && NPX.test(base(t))) {
       i++;
       while (tokens[i]?.startsWith('-')) i += tokens[i] === '-p' || tokens[i] === '--package' ? 2 : 1;
@@ -1050,7 +1228,35 @@ function inspectEnvSplitOrUnknown(tokens, envIdx) {
   // Unknown env flag (including GNU long-option abbreviations like `--sp` / `--split`): fail closed on remaining tokens.
   if (hasGhTok || tail.some(t => /\bgh\b/i.test(t))) return { type: 'env-unknown', kind: 'gh' };
   if (hasGitTok || tail.some(t => /\bgit\b/i.test(t))) return { type: 'env-unknown', kind: 'git' };
-  if (tail.some(t => /^--sp/i.test(t) || /[\\$'"`;|&(){}<>\r\n=]/.test(t))) return { type: 'env-unknown', kind: 'ambiguous' };
+  if (/^--sp/i.test(tail[0] ?? '')) {
+    const first = tail[0];
+    const eqIdx = first.indexOf('=');
+    const spArgs = eqIdx !== -1 ? [first.slice(eqIdx + 1), ...tail.slice(1)] : tail.slice(1);
+    if (spArgs.length === 0 || spArgs.some(a => a === '' || /[\\$'"`;|&(){}<>\r\n=]/.test(a))) {
+      return { type: 'env-unknown', kind: 'ambiguous' };
+    }
+    return null;
+  }
+  if (tail.some(t => /[\\$'"`;|&(){}<>\r\n=]/.test(t))) return { type: 'env-unknown', kind: 'ambiguous' };
+  return null;
+}
+
+function inspectWrapperUnknown(tokens, idx) {
+  const t = tokens[idx];
+  if (!t) return null;
+  const b = base(t);
+  if (t.length >= 3 && ENV_BIN.test(b)) return inspectEnvSplitOrUnknown(tokens, idx);
+  let tail = null;
+  if (b === 'time') {
+    const tw = scanTimeWrapper(tokens, idx);
+    if (tw.unknownFlag) tail = tokens.slice(tw.next);
+  } else if (t.length >= 4 && MISE.test(b)) {
+    const mw = scanMiseWrapper(tokens, idx);
+    if (mw.matched && mw.unknownFlag) tail = tokens.slice(mw.next);
+  }
+  if (!tail) return null;
+  if (tail.some(x => programName(x) === 'gh' || /\bgh\b/i.test(x))) return { type: 'wrapper-unknown', kind: 'gh' };
+  if (tail.some(x => programName(x) === 'git' || /\bgit\b/i.test(x))) return { type: 'wrapper-unknown', kind: 'git' };
   return null;
 }
 
@@ -1426,7 +1632,10 @@ function parseGhSegment(tokens, at) {
   if (readVerbs.has(verb)) {
     if (group === 'auth' && verb === 'status') {
       const hasShowToken = restArgs.slice(0, restArgs.includes('--') ? restArgs.indexOf('--') : restArgs.length)
-        .some(tok => /^-[A-Za-z]*t/.test(tok) || tok === '--show-token' || tok.startsWith('--show-token='));
+        .some(rawTok => {
+          const tok = rawTok.replaceAll('\\', '');
+          return /^-[A-Za-z]*t/.test(tok) || tok === '--show-token' || tok.startsWith('--show-token=');
+        });
       if (hasShowToken) {
         return { isWrite: true, group, verb, isFreeText: false, accountScoped: true, globalRepos, hostnames: globalHostnames, afterVerb };
       }
@@ -1637,12 +1846,38 @@ function parseGitIni(text) {
   let curSub = '';
   const lines = text.split(/\r?\n/);
 
+  const scanPhysicalLine = (rawLine, inQ) => {
+    for (let k = 0; k < rawLine.length; k++) {
+      const ch = rawLine[k];
+      if (inQ) {
+        if (ch === '\\' && k + 1 < rawLine.length) k++;
+        else if (ch === '"') inQ = false;
+      } else {
+        if (ch === '"') inQ = true;
+        else if (ch === '#' || ch === ';') return { text: rawLine.slice(0, k), hasComment: true, inQ };
+      }
+    }
+    return { text: rawLine, hasComment: false, inQ };
+  };
+
   for (let li = 0; li < lines.length; li++) {
-    let line = lines[li];
-    const leadTrim = line.trimStart();
-    if (!leadTrim.startsWith('#') && !leadTrim.startsWith(';')) {
-      while (line.endsWith('\\') && li + 1 < lines.length) {
-        line = line.slice(0, -1) + lines[++li];
+    let line = '';
+    let inQ = false;
+    for (;;) {
+      const scanned = scanPhysicalLine(lines[li], inQ);
+      inQ = scanned.inQ;
+      if (scanned.hasComment) {
+        line += scanned.text;
+        break;
+      }
+      let trailingSlashes = 0;
+      for (let k = scanned.text.length - 1; k >= 0 && scanned.text[k] === '\\'; k--) trailingSlashes++;
+      if (trailingSlashes % 2 === 1 && li + 1 < lines.length) {
+        line += scanned.text.slice(0, -1);
+        li++;
+      } else {
+        line += scanned.text;
+        break;
       }
     }
     const trimmed = line.trim();
@@ -1998,6 +2233,39 @@ function splitAssign(tok, rawTok) {
   return { name: tok.slice(0, eq), val: tok.slice(eq + 1), rawRhs: rawTok.slice(rawEq + 1) };
 }
 
+function parsePsEnvAssign(tokens, rawTokens) {
+  if (tokens.length === 0) return null;
+  const t0 = tokens[0];
+  const r0 = rawTokens[0] ?? '';
+  if (/^['"]/.test(r0) || !t0.toLowerCase().startsWith('$env:')) return null;
+  const eq0 = t0.indexOf('=');
+  if (eq0 === -1) {
+    const varName = t0.slice(5);
+    if (!varName) return null;
+    if (tokens[1] === '=') {
+      const r1 = rawTokens[1] ?? '=';
+      if (r1.length > 1) return { varName, rawRhs: r1.slice(1), exactAllowed: tokens.length === 2 };
+      return { varName, rawRhs: rawTokens[2] ?? '', exactAllowed: tokens.length === 3 && rawTokens[2] !== undefined };
+    }
+    if (tokens[1]?.startsWith('=') && tokens[1].length > 1) {
+      return { varName, rawRhs: (rawTokens[1] ?? '').slice(1), exactAllowed: tokens.length === 2 };
+    }
+    return null;
+  }
+  const rawEq = r0.indexOf('=');
+  if (eq0 === t0.length - 1) {
+    const varName = t0.slice(5, -1);
+    if (!varName) return null;
+    if (rawEq !== -1 && rawEq < r0.length - 1) {
+      return { varName, rawRhs: r0.slice(rawEq + 1), exactAllowed: tokens.length === 1 };
+    }
+    return { varName, rawRhs: rawTokens[1] ?? '', exactAllowed: tokens.length === 2 && rawTokens[1] !== undefined };
+  }
+  const varName = t0.slice(5, eq0);
+  if (!varName) return null;
+  return { varName, rawRhs: rawEq === -1 ? '' : r0.slice(rawEq + 1), exactAllowed: tokens.length === 1 };
+}
+
 /**
  * Analyze a single shell mode linearly, computing per-segment state for
  * `GIT_CONFIG_GLOBAL`, `GH_REPO`, `GIT_DIR` / `GIT_CONFIG*`, askpass/system overrides, and `cd`/`env -S`.
@@ -2029,6 +2297,12 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
   const envVarAllowed = !globalModeDisqualified && !modeInfo.hasEnclosingOrPipeOrBg && !modeInfo.hasBashSubst;
 
   let curExportGitConfigOk = false;
+  let curExportNonExpectedGitConfig = Boolean(
+    envGitConfigGlobal &&
+    (!expectedGitconfig || normComparePath(envGitConfigGlobal, isWin) !== normComparePath(expectedGitconfig, isWin)),
+  );
+  let lastGitConfigAssignSegIdx = -1;
+  let lastGhRepoAssignSegIdx = -1;
   let gitConfigDisqualified = globalModeDisqualified || (envGitTerminalPrompt !== undefined && envGitTerminalPrompt !== '0');
   let envGitConfigOk = envVarAllowed && Boolean(expectedGitconfig && envGitConfigGlobal && normComparePath(envGitConfigGlobal, isWin) === normComparePath(expectedGitconfig, isWin));
 
@@ -2048,13 +2322,19 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
   const isNameMatch = (a, target) => (isWin || !bash ? a.toUpperCase() === target : a === target);
 
   const applyUnset = name => {
-    if (isNameMatch(name, 'GIT_CONFIG_GLOBAL') || isNameMatch(name, 'GIT_TERMINAL_PROMPT')) {
+    if (isNameMatch(name, 'GIT_CONFIG_GLOBAL')) {
+      curExportGitConfigOk = false;
+      envGitConfigOk = false;
+      curExportNonExpectedGitConfig = false;
+      lastGitConfigAssignSegIdx = -1;
+    } else if (isNameMatch(name, 'GIT_TERMINAL_PROMPT')) {
       curExportGitConfigOk = false;
       envGitConfigOk = false;
     }
     if (isNameMatch(name, 'GH_REPO')) {
       curGhRepo = '';
       ghRepoTainted = true;
+      lastGhRepoAssignSegIdx = -1;
     }
     if (isNameMatch(name, 'HOME')) homeTainted = true;
     if (isNameMatch(name, 'USERPROFILE')) userProfileTainted = true;
@@ -2066,16 +2346,25 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
     if (isNameMatch(name, 'GIT_ASKPASS') || isNameMatch(name, 'SSH_ASKPASS')) askpassTainted = true;
   };
 
-  const applyExportOrSet = (name, rawRhs, exactAllowed) => {
+  const applyExportOrSet = (name, rawRhs, exactAllowed, segIdx) => {
     if (isNameMatch(name, 'GIT_CONFIG_GLOBAL')) {
       if (exactAllowed && exportsAllowed && !gitConfigDisqualified && expectedGitconfig) {
         curExportGitConfigOk = evalGitConfigRhs(rawRhs, bash, {
           fromEnvWrapper: false, expectedPath: expectedGitconfig, homeDir, envHome, envUserProfile, homeTainted, userProfileTainted, isWin,
         });
-        if (!curExportGitConfigOk) envGitConfigOk = false;
+        if (curExportGitConfigOk) {
+          curExportNonExpectedGitConfig = false;
+          lastGitConfigAssignSegIdx = segIdx;
+        } else {
+          envGitConfigOk = false;
+          lastGitConfigAssignSegIdx = -1;
+          curExportNonExpectedGitConfig = rawRhs !== '' && rawRhs !== "''" && rawRhs !== '""' && (bash || rawRhs.toLowerCase() !== '$null');
+        }
       } else {
         curExportGitConfigOk = false;
         envGitConfigOk = false;
+        lastGitConfigAssignSegIdx = -1;
+        curExportNonExpectedGitConfig = rawRhs !== '' && rawRhs !== "''" && rawRhs !== '""' && (bash || rawRhs.toLowerCase() !== '$null');
       }
     } else if (isNameMatch(name, 'GH_REPO')) {
       if (exactAllowed && exportsAllowed && !globalModeDisqualified) {
@@ -2083,11 +2372,14 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
         if (r.ok) {
           curGhRepo = r.val;
           ghRepoTainted = false;
+          lastGhRepoAssignSegIdx = r.val !== '' ? segIdx : -1;
         } else {
           ghRepoTainted = true;
+          lastGhRepoAssignSegIdx = -1;
         }
       } else {
         ghRepoTainted = true;
+        lastGhRepoAssignSegIdx = -1;
       }
     } else if (isNameMatch(name, 'HOME')) {
       homeTainted = true;
@@ -2155,12 +2447,14 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
       const isExactExport = prog === 'export' && tokens.length === 2 && !hasFlag && ASSIGNMENT.test(tokens[1]);
       if (isExactExport) {
         const asg = splitAssign(tokens[1], rawTokens[1]);
-        if (asg) applyExportOrSet(asg.name, asg.rawRhs, true);
+        if (asg) applyExportOrSet(asg.name, asg.rawRhs, true, idx);
       } else {
         for (const a of args) {
           if (a.startsWith('-') || a.startsWith('+')) continue;
-          const name = a.includes('=') ? a.slice(0, a.indexOf('=')) : a;
-          applyExportOrSet(name, '', false);
+          const eqPos = a.indexOf('=');
+          const name = eqPos !== -1 ? a.slice(0, eqPos) : a;
+          const rhs = eqPos !== -1 ? a.slice(eqPos + 1) : '';
+          applyExportOrSet(name, rhs, false, idx);
         }
         if (hasFlag && args.some(a => isNameMatch(a.split('=')[0], 'GIT_CONFIG_GLOBAL'))) {
           curExportGitConfigOk = false;
@@ -2172,9 +2466,9 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
       }
     }
 
-    if (!bash && tokens[0]?.toLowerCase().startsWith('$env:') && tokens[1] === '=') {
-      const varName = tokens[0].slice(5);
-      applyExportOrSet(varName, rawTokens[2], tokens.length === 3);
+    const psEnvAssign = !bash ? parsePsEnvAssign(tokens, rawTokens) : null;
+    if (psEnvAssign) {
+      applyExportOrSet(psEnvAssign.varName, psEnvAssign.rawRhs, psEnvAssign.exactAllowed, idx);
     }
 
     // Inspect inline assignments and `env` wrappers in execution order on THIS segment
@@ -2205,16 +2499,19 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
     };
 
     let j = 0;
-    const noDashesRef = { value: false };
     while (j < at) {
       const t = tokens[j];
       const rt = rawTokens[j];
       if (ASSIGNMENT.test(t)) {
         recordInlineAssign(t, rt, false);
         j++;
-      } else if (t === 'time') {
-        j++;
-        while (tokens[j] === '-p' || tokens[j] === '--portability') j++;
+      } else if (base(t) === 'time') {
+        const tw = scanTimeWrapper(tokens, j);
+        if (tw.unknownFlag) {
+          segSplitOrUnknown = inspectWrapperUnknown(tokens, j);
+          break;
+        }
+        j = tw.next;
       } else if (t.length >= 3 && ENV_BIN.test(base(t))) {
         const probe = inspectEnvSplitOrUnknown(tokens, j);
         if (probe) {
@@ -2251,8 +2548,14 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
       } else if (t === 'timeout') {
         j++;
         if (/^[\d.]+[smhd]?$/.test(tokens[j] ?? '')) j++;
-      } else if (t.length >= 4 && MISE.test(base(t)) && /^(?:x|exec)$/.test(tokens[j + 1] ?? '')) {
-        j = advanceMise(tokens, j, noDashesRef);
+      } else if (t.length >= 4 && MISE.test(base(t))) {
+        const mw = scanMiseWrapper(tokens, j);
+        if (!mw.matched || mw.unknownFlag) {
+          segSplitOrUnknown = inspectWrapperUnknown(tokens, j);
+          break;
+        }
+        segEnvDirs.push(...mw.dirs);
+        j = mw.next;
       } else if (t.length >= 3 && NPX.test(base(t))) {
         j++;
         while (tokens[j]?.startsWith('-')) j += tokens[j] === '-p' || tokens[j] === '--package' ? 2 : 1;
@@ -2260,8 +2563,8 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
         break;
       }
     }
-    if (!segSplitOrUnknown && at < tokens.length && ENV_BIN.test(base(tokens[at]))) {
-      segSplitOrUnknown = inspectEnvSplitOrUnknown(tokens, at);
+    if (!segSplitOrUnknown && at < tokens.length) {
+      segSplitOrUnknown = inspectWrapperUnknown(tokens, at);
     }
 
     const isStandaloneAssign = at === tokens.length && tokens.every(t => ASSIGNMENT.test(t));
@@ -2272,9 +2575,18 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
         if (isNameMatch(asg.name, 'GIT_CONFIG_GLOBAL')) {
           curExportGitConfigOk = false;
           envGitConfigOk = false;
+          lastGitConfigAssignSegIdx = -1;
+          if (envGitConfigGlobal !== undefined && asg.val !== '' && (!expectedGitconfig || normComparePath(asg.val, isWin) !== normComparePath(expectedGitconfig, isWin))) {
+            curExportNonExpectedGitConfig = true;
+          }
         } else if (isNameMatch(asg.name, 'GH_REPO')) {
           if (curGhRepo) ghRepoTainted = true;
           curGhRepo = '';
+          lastGhRepoAssignSegIdx = -1;
+        } else if (isNameMatch(asg.name, 'GIT_TERMINAL_PROMPT') && asg.val !== '0') {
+          curExportGitConfigOk = false;
+          envGitConfigOk = false;
+          gitConfigDisqualified = true;
         } else if (isNameMatch(asg.name, 'HOME')) homeTainted = true;
         else if (isNameMatch(asg.name, 'USERPROFILE')) userProfileTainted = true;
         else if (isNameMatch(asg.name, 'GIT_CONFIG_COUNT') || isNameMatch(asg.name, 'GIT_CONFIG_PARAMETERS')) gitConfigCountTainted = true;
@@ -2320,13 +2632,40 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
       (curExportGitConfigOk || envGitConfigOk) &&
       !inlineGitConfigLast;
 
+    let inlineNonExpectedGitConfig = false;
+    if (inlineGitConfigLast !== null && !inlineGitConfigOk) {
+      const r = inlineGitConfigLast.rawRhs;
+      if (r !== '' && r !== "''" && r !== '""') {
+        const matchesExpectedInBashForm = !bash && expectedGitconfig && evalGitConfigRhs(r, true, {
+          fromEnvWrapper: inlineGitConfigLast.fromEnvWrapper,
+          expectedPath: expectedGitconfig,
+          homeDir,
+          envHome,
+          envUserProfile,
+          homeTainted: homeTainted || inlineTaintsHome || envUnsetHome,
+          userProfileTainted: userProfileTainted || inlineTaintsHome || envUnsetUp,
+          isWin,
+        });
+        if (!matchesExpectedInBashForm) inlineNonExpectedGitConfig = true;
+      }
+    }
+    const envConfigInjectionActive =
+      gitConfigCountTainted ||
+      inlineOverridesCount ||
+      gitConfigSystemTainted ||
+      inlineOverridesSystem ||
+      inlineNonExpectedGitConfig ||
+      (!inlineGitConfigLast && !segEnvCleared && !envUnsetGitConfig && curExportNonExpectedGitConfig);
+
     let effectiveGhRepo = segEnvClearedGhRepo ? '' : curGhRepo;
     let effectiveGhRepoTainted = segEnvClearedGhRepo ? false : ghRepoTainted;
+    let usedModeInlineGhRepo = false;
     if (bash && inlineGhRepoLast !== null) {
       const r = evalGhRepoRhs(inlineGhRepoLast, true);
       if (r.ok) {
         effectiveGhRepo = r.val;
         effectiveGhRepoTainted = false;
+        if (r.val !== '') usedModeInlineGhRepo = true;
       } else {
         effectiveGhRepoTainted = true;
       }
@@ -2335,25 +2674,37 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
     const anyGitDirOrConfigTainted =
       gitDirTainted || gitConfigTainted || gitCommonDirTainted || gitConfigSystemTainted || inlineOverridesGitDir || inlineOverridesSystem;
 
+    const gitConfigAssignSegIdx = inlineGitConfigOk
+      ? idx
+      : (baseGitConfigOk && curExportGitConfigOk && !envGitConfigOk ? lastGitConfigAssignSegIdx : -1);
+    const ghRepoAssignSegIdx = usedModeInlineGhRepo
+      ? idx
+      : (!effectiveGhRepoTainted && effectiveGhRepo !== '' && effectiveGhRepo !== (envGhRepo ?? '') ? lastGhRepoAssignSegIdx : -1);
+
     segStates.push({
       tokens,
       rawTokens,
       tokenOffsets: seg.tokenOffsets,
       at,
       prog,
-      startsWithAssign: ASSIGNMENT.test(tokens[0] ?? ''),
+      startsWithAssign: ASSIGNMENT.test(tokens[0] ?? '') || Boolean(psEnvAssign),
       segSplitOrUnknown,
       segEnvDirs,
       sawCdBefore: sawCd,
       sawEnvSplitBefore,
       gitConfigSatisfied: inlineGitConfigOk || baseGitConfigOk,
       usedModeAssign: inlineGitConfigOk || (baseGitConfigOk && curExportGitConfigOk && !envGitConfigOk),
+      usedModeInlineGitConfig: inlineGitConfigOk,
+      gitConfigAssignSegIdx,
       gitConfigOverrideInSeg: anyGitConfigOverride,
       gitCountOrParamsTainted: gitConfigCountTainted || inlineOverridesCount || gitConfigSystemTainted || inlineOverridesSystem,
+      envConfigInjectionActive,
       gitDirTainted: anyGitDirOrConfigTainted,
       effectiveGhRepo,
       effectiveGhRepoTainted,
-      usedModeGhRepo: effectiveGhRepo !== '' && effectiveGhRepo !== (envGhRepo ?? ''),
+      usedModeGhRepo: usedModeInlineGhRepo || (effectiveGhRepo !== '' && effectiveGhRepo !== (envGhRepo ?? '')),
+      usedModeInlineGhRepo,
+      ghRepoAssignSegIdx,
     });
 
     if (CD_PROGRAMS.has(prog)) sawCd = true;
@@ -2365,7 +2716,7 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
 
 // ------------------------------------------------------------ scope & decision helpers
 
-function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
+function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform, scopeCache }) {
   if (ghInfo.unknownFlag || segState.sawCdBefore || segState.sawEnvSplitBefore) return { match: true };
   if (ghInfo.group === 'auth') return { match: true };
 
@@ -2406,7 +2757,8 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
 
   if (ghInfo.group === 'secret' || ghInfo.group === 'variable') {
     const beforeDashes = ghInfo.restArgs.includes('--') ? ghInfo.restArgs.slice(0, ghInfo.restArgs.indexOf('--')) : ghInfo.restArgs;
-    for (const tok of beforeDashes) {
+    for (const rawTok of beforeDashes) {
+      const tok = rawTok.replaceAll('\\', '');
       if (
         tok === '-u' || tok === '--user' || tok.startsWith('--user=') ||
         tok === '-o' || tok.startsWith('-o') || tok === '--org' || tok.startsWith('--org=') ||
@@ -2468,13 +2820,15 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
   }
 
   if (ghInfo.group === 'project') {
+    const projectRepos = [...ghInfo.globalRepos];
     const ownerVals = [];
     let i = 0;
     while (i < ghInfo.afterVerb.length) {
       const t = ghInfo.afterVerb[i];
       if (t === '--') break;
-      const g = consumeGhGlobalFlag(ghInfo.afterVerb, i, [], []);
-      if (g.matched && g.ok) {
+      const g = consumeGhGlobalFlag(ghInfo.afterVerb, i, projectRepos, []);
+      if (g.matched) {
+        if (!g.ok) return { match: true };
         i = g.next;
         continue;
       }
@@ -2491,6 +2845,7 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
         i++;
       }
     }
+    if (projectRepos.length > 0) return { match: true };
     if (ownerVals.length === 0) return { match: true };
     for (const o of ownerVals) {
       if (!o || o.toLowerCase() === '@me' || !LOGIN_RE.test(o) || o.toLowerCase() === ownerLogin.toLowerCase()) return { match: true };
@@ -2515,28 +2870,36 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
   if (ghInfo.afterVerb) {
     let i = 0;
     let hitUnknown = false;
+    let afterDashes = false;
     while (i < ghInfo.afterVerb.length) {
       const t = ghInfo.afterVerb[i];
-      if (t === '--') break;
-      const g = consumeGhGlobalFlag(ghInfo.afterVerb, i, hitUnknown ? [] : cliTargets, []);
-      if (g.matched) {
-        if (!g.ok) return { match: true };
-        if (hitUnknown) sawTargetAfterUnknown = true;
-        i = g.next;
-        continue;
-      }
-      if (t.startsWith('-') && t !== '-') {
-        hitUnknown = true;
+      if (!afterDashes && t === '--') {
+        afterDashes = true;
         i++;
         continue;
       }
+      if (!afterDashes) {
+        const g = consumeGhGlobalFlag(ghInfo.afterVerb, i, hitUnknown ? [] : cliTargets, []);
+        if (g.matched) {
+          if (!g.ok) return { match: true };
+          if (hitUnknown) sawTargetAfterUnknown = true;
+          i = g.next;
+          continue;
+        }
+        if (t.startsWith('-') && t !== '-') {
+          hitUnknown = true;
+          i++;
+          continue;
+        }
+      }
       const looksLikeUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(t) || /^[^@/\s]+@[^:@/\s]+:/.test(t);
+      const isRepoPosTarget = ghInfo.group === 'repo' && GH_REPO_POSITIONAL_EXEMPT_VERBS.has(ghInfo.verb) && t.includes('/');
       if (hitUnknown) {
-        if (looksLikeUrl) sawTargetAfterUnknown = true;
+        if (looksLikeUrl || isRepoPosTarget) sawTargetAfterUnknown = true;
       } else {
         if (looksLikeUrl && allowPositionalUrl) {
           cliTargets.push(t);
-        } else if (ghInfo.group === 'repo' && GH_REPO_POSITIONAL_EXEMPT_VERBS.has(ghInfo.verb) && t.includes('/')) {
+        } else if (isRepoPosTarget) {
           cliTargets.push(t);
         }
       }
@@ -2567,7 +2930,9 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
   if (ghInfo.group === 'repo') return { match: true };
 
   if (segState.gitDirTainted) return { match: true };
-  return resolveCwdRepoScope({
+  const ck = `gh:${JSON.stringify(segState.segEnvDirs)}`;
+  if (scopeCache?.has(ck)) return scopeCache.get(ck);
+  const scopeRes = resolveCwdRepoScope({
     cwd,
     dirs: segState.segEnvDirs,
     explicitRemoteName: null,
@@ -2576,9 +2941,11 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
     ownerLogin,
     platform,
   });
+  scopeCache?.set(ck, scopeRes);
+  return scopeRes;
 }
 
-function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform }) {
+function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform, scopeCache }) {
   if (segState.sawCdBefore || segState.sawEnvSplitBefore) return { match: true };
   if (gitInfo.hasUnknownLeadingOpt || gitInfo.hasAliasOpt) return { match: true };
 
@@ -2595,7 +2962,7 @@ function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform }) {
     }
   }
 
-  if (gitInfo.hasGitDirOpt || gitInfo.hasConfigEnvOpt || gitInfo.hasExecPathOpt || segState.gitDirTainted || segState.gitCountOrParamsTainted) {
+  if (gitInfo.hasGitDirOpt || gitInfo.hasConfigEnvOpt || gitInfo.hasExecPathOpt || segState.gitDirTainted || segState.gitCountOrParamsTainted || segState.envConfigInjectionActive) {
     return { match: true };
   }
   for (const co of gitInfo.cOpts) {
@@ -2603,15 +2970,21 @@ function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform }) {
     if (GIT_SCOPE_OVERRIDE_KEY_RE.test(key)) return { match: true };
   }
 
-  return resolveCwdRepoScope({
+  const dirs = [...segState.segEnvDirs, ...gitInfo.dirs];
+  const isGitPush = gitInfo.subcmd === 'push';
+  const ck = `git:${isGitPush ? 1 : 0}:${explicitRemoteName ?? ''}:${JSON.stringify(dirs)}`;
+  if (scopeCache?.has(ck)) return scopeCache.get(ck);
+  const scopeRes = resolveCwdRepoScope({
     cwd,
-    dirs: [...segState.segEnvDirs, ...gitInfo.dirs],
+    dirs,
     explicitRemoteName,
-    isGitPush: gitInfo.subcmd === 'push',
+    isGitPush,
     isGh: false,
     ownerLogin,
     platform,
   });
+  scopeCache?.set(ck, scopeRes);
+  return scopeRes;
 }
 
 // ------------------------------------------------------------ entry point: answerCall
@@ -2739,6 +3112,20 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   let bestAskIdx = Infinity;
   let hasCandidate = false;
   const identityEnabled = Boolean(doc.identity?.enabled);
+  const resolvedPinPath = identityEnabled ? resolvePinPath(tableFile, pinFile) : null;
+  const expectedGitconfigGuess = resolvedPinPath
+    ? `${dirname(resolvedPinPath)}/gh-app-${provider}.gitconfig`.replaceAll('\\', '/')
+    : null;
+  const isWinPlatform = platform === 'win32';
+  const envHasConfigInjection = (() => {
+    for (const k of ['GIT_CONFIG_COUNT', 'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_SYSTEM']) {
+      const v = getEnvVar(env, k, isWinPlatform);
+      if (v !== undefined && v !== '') return true;
+    }
+    const g = getEnvVar(env, 'GIT_CONFIG_GLOBAL', isWinPlatform);
+    return Boolean(g && (!expectedGitconfigGuess || normComparePath(g, isWinPlatform) !== normComparePath(expectedGitconfigGuess, isWinPlatform)));
+  })();
+  const cmdMentionsGitConfig = /git_config_(?:count|parameters|system|global)/i.test(command);
 
   for (const modeInfo of [bashMode, psMode]) {
     for (const seg of modeInfo.segments) {
@@ -2778,8 +3165,13 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
 
       if (identityEnabled && !hasCandidate && at < tokens.length) {
         if (prog === 'gh') hasCandidate = true;
-        else if (prog === 'git' && parseGitSegment(tokens, at).isGuarded) hasCandidate = true;
-        else if (ENV_BIN.test(base(tokens[at])) && inspectEnvSplitOrUnknown(tokens, at)) hasCandidate = true;
+        else if (prog === 'git') {
+          const gitInfo = parseGitSegment(tokens, at);
+          if (gitInfo.isGuarded) hasCandidate = true;
+          else if ((envHasConfigInjection || cmdMentionsGitConfig) && gitInfo.subcmd && !GIT_BUILTIN_READ_SUBCOMMANDS.has(gitInfo.subcmd)) {
+            hasCandidate = true;
+          }
+        } else if (inspectWrapperUnknown(tokens, at)) hasCandidate = true;
       }
     }
   }
@@ -2790,27 +3182,81 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   // 2. Lazy identity pin gate
   if (!identityEnabled || !hasCandidate) return null;
 
-  const resolvedPinFile = resolvePinPath(tableFile, pinFile);
-  const pin = readPinFile(resolvedPinFile);
+  const pin = readPinFile(resolvedPinPath);
   if (!pin || !Object.hasOwn(pin.apps, provider)) return null;
 
   const ownerLogin = pin.owner.login;
-  const pactDir = dirname(resolvedPinFile);
+  const pactDir = dirname(resolvedPinPath);
   const homeDir = dirname(pactDir);
-  const expectedGitconfig = `${pactDir}/gh-app-${provider}.gitconfig`.replaceAll('\\', '/');
+  const expectedGitconfig = expectedGitconfigGuess;
+  const scopeCache = new Map();
 
   const analyzeOpts = { env, platform, expectedGitconfig, homeDir };
   const bashStates = analyzeMode(bashMode, true, analyzeOpts);
   const psStates = analyzeMode(psMode, false, analyzeOpts);
 
-  const allowBashExempt = shell !== 'powershell' && !psMode.sawComment && !psMode.sawHeredoc && !psMode.sawHereString;
-  const allowPsExempt = shell !== 'bash' && !bashMode.sawComment && !bashMode.sawHeredoc;
+  const isUnknownShell = shell === 'unknown';
+  const allowBashExempt = shell !== 'powershell' && !isUnknownShell;
+  const allowPsExempt = shell !== 'bash' && !isUnknownShell;
+
+  const segsAgree = (a, b) =>
+    a.rawTokens.length === b.rawTokens.length &&
+    a.tokenOffsets.every((off, idx) => off === b.tokenOffsets[idx] && a.rawTokens[idx] === b.rawTokens[idx]);
+
+  const canCrossExempt = (exemptStates, otherStates, otherMode, hits, satisfiedInfo, allowFlag) => {
+    if (hits.length === 0) return false;
+    if (!allowFlag && !isUnknownShell) return false;
+    if (
+      otherMode.sawComment ||
+      otherMode.sawHeredoc ||
+      otherMode.sawHereString ||
+      otherMode.sawStopParse ||
+      otherMode.hasSubexprInDoubleQuotes ||
+      otherMode.hasExpandableHereStringWithDollar ||
+      otherMode.hasBashSubst ||
+      otherMode.hasPsSubexpr
+    ) {
+      return false;
+    }
+    const otherByOffset = new Map();
+    for (const os of otherStates) {
+      const off = os.tokenOffsets[0] ?? -1;
+      if (!otherByOffset.has(off)) otherByOffset.set(off, os);
+    }
+    let maxTargetOffset = -1;
+    let needsPrefixCheck = false;
+    for (const h of hits) {
+      if (h.key === null) return false;
+      const info = satisfiedInfo.get(h.key);
+      if (!info) return false;
+      if (isUnknownShell && !info.isInline) return false;
+      const assignSeg = exemptStates[info.assignSegIdx];
+      if (!assignSeg) return false;
+      const otherAssign = otherByOffset.get(assignSeg.tokenOffsets[0] ?? -1);
+      if (!otherAssign || !segsAgree(assignSeg, otherAssign)) return false;
+      if (!info.isInline) {
+        needsPrefixCheck = true;
+        if (info.targetOffset > maxTargetOffset) maxTargetOffset = info.targetOffset;
+      }
+    }
+    if (needsPrefixCheck) {
+      let ei = 0;
+      let oi = 0;
+      while (ei < exemptStates.length && (exemptStates[ei].tokenOffsets[0] ?? 0) < maxTargetOffset) {
+        const es = exemptStates[ei++];
+        const os = otherStates[oi++];
+        if (!os || !segsAgree(es, os)) return false;
+      }
+      if (oi < otherStates.length && (otherStates[oi].tokenOffsets[0] ?? 0) < maxTargetOffset) return false;
+    }
+    return true;
+  };
 
   // 3. Plain gh write check (all providers; beats any git identity match)
   const segKey = st => `${st.tokenOffsets[st.at] ?? -1}:${JSON.stringify(st.tokens.slice(st.at))}`;
   const evalGhMode = (states, isBash) => {
     const hits = [];
-    const satisfiedKeys = new Set();
+    const satisfiedInfo = new Map();
     let usedModeGhRepo = false;
     for (const st of states) {
       if (!isBash && st.startsWithAssign) continue;
@@ -2827,41 +3273,50 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
       if (st.prog === 'gh') {
         const ghInfo = parseGhSegment(st.tokens, st.at);
         if (ghInfo.isWrite) {
-          const scope = checkGhOwnerScope(ghInfo, st, { ownerLogin, cwd, platform });
+          const scope = checkGhOwnerScope(ghInfo, st, { ownerLogin, cwd, platform, scopeCache });
           if (scope.match) {
             hits.push({ key: segKey(st), answer: { decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, ghInfo.isFreeText) } });
           } else if (st.usedModeGhRepo) {
             usedModeGhRepo = true;
-            satisfiedKeys.add(segKey(st));
+            satisfiedInfo.set(segKey(st), {
+              assignSegIdx: st.ghRepoAssignSegIdx,
+              isInline: st.usedModeInlineGhRepo,
+              targetOffset: st.tokenOffsets[st.at] ?? 0,
+            });
           }
         }
       }
     }
-    return { hits, satisfiedKeys, usedModeGhRepo };
+    return { hits, satisfiedInfo, usedModeGhRepo };
   };
 
   const bashGh = evalGhMode(bashStates, true);
   const psGh = evalGhMode(psStates, false);
-  const bashGhExemptsPs = allowBashExempt && bashGh.hits.length === 0 && bashGh.usedModeGhRepo && psGh.hits.every(h => h.key !== null && bashGh.satisfiedKeys.has(h.key));
-  const psGhExemptsBash = allowPsExempt && psGh.hits.length === 0 && psGh.usedModeGhRepo && bashGh.hits.every(h => h.key !== null && psGh.satisfiedKeys.has(h.key));
+  const bashGhExemptsPs = bashGh.hits.length === 0 && bashGh.usedModeGhRepo &&
+    canCrossExempt(bashStates, psStates, psMode, psGh.hits, bashGh.satisfiedInfo, allowBashExempt);
+  const psGhExemptsBash = psGh.hits.length === 0 && psGh.usedModeGhRepo &&
+    canCrossExempt(psStates, bashStates, bashMode, bashGh.hits, psGh.satisfiedInfo, allowPsExempt);
   if (bashGh.hits.length > 0 && !psGhExemptsBash) return bashGh.hits[0].answer;
   if (psGh.hits.length > 0 && !bashGhExemptsPs) return psGh.hits[0].answer;
 
   // 4. Plain git write check (all providers; claude passes normal settings-env writes and catches overrides/unsets)
 
+  let gitconfigOkCache = null;
   const verifyGitconfig = () => {
+    if (gitconfigOkCache !== null) return gitconfigOkCache;
     let gst;
     try {
       gst = lstatSync(expectedGitconfig);
+      gitconfigOkCache = !gst.isSymbolicLink() && gst.isFile();
     } catch {
-      return false;
+      gitconfigOkCache = false;
     }
-    return !gst.isSymbolicLink() && gst.isFile();
+    return gitconfigOkCache;
   };
 
   const evalGitMode = (states, isBash) => {
     const hits = [];
-    const satisfiedKeys = new Set();
+    const satisfiedInfo = new Map();
     let guardedCount = 0;
     let usedModeAssign = false;
     let missingGitconfig = false;
@@ -2878,29 +3333,34 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
       }
       if (st.prog === 'git') {
         const gitInfo = parseGitSegment(st.tokens, st.at);
-        if (!gitInfo.isGuarded) continue;
-        const scope = checkGitOwnerScope(gitInfo, st, { ownerLogin, cwd, platform });
+        const r9Guarded = st.envConfigInjectionActive && Boolean(gitInfo.subcmd) && !GIT_BUILTIN_READ_SUBCOMMANDS.has(gitInfo.subcmd);
+        if (!gitInfo.isGuarded && !r9Guarded) continue;
+        const scope = checkGitOwnerScope(gitInfo, st, { ownerLogin, cwd, platform, scopeCache });
         if (!scope.match) continue;
         guardedCount++;
         if (!verifyGitconfig()) {
           missingGitconfig = true;
           break;
         }
-        const hasCOverride = gitInfo.hasConfigEnvOpt || gitInfo.hasAliasOpt || gitInfo.cOpts.some(co => {
+        const hasCOverride = r9Guarded || gitInfo.hasConfigEnvOpt || gitInfo.hasAliasOpt || gitInfo.cOpts.some(co => {
           const key = co.val.includes('=') ? co.val.slice(0, co.val.indexOf('=')) : co.val;
           return GIT_CONFIG_OVERRIDE_KEY_RE.test(key);
         });
         if (st.gitConfigSatisfied && !hasCOverride) {
           if (st.usedModeAssign) {
             usedModeAssign = true;
-            satisfiedKeys.add(segKey(st));
+            satisfiedInfo.set(segKey(st), {
+              assignSegIdx: st.gitConfigAssignSegIdx,
+              isInline: st.usedModeInlineGitConfig,
+              targetOffset: st.tokenOffsets[st.at] ?? 0,
+            });
           }
           continue;
         }
         hits.push({ key: segKey(st), forceDeny: hasCOverride, gitInfo, st });
       }
     }
-    return { hits, satisfiedKeys, guardedCount, usedModeAssign, missingGitconfig };
+    return { hits, satisfiedInfo, guardedCount, usedModeAssign, missingGitconfig };
   };
 
   const bashGit = evalGitMode(bashStates, true);
@@ -2908,8 +3368,10 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   const psGit = evalGitMode(psStates, false);
   if (psGit.missingGitconfig) return { decision: 'deny', id: 'identity-gitconfig', reason: buildGitconfigReason(provider) };
 
-  const bashGitExemptsPs = allowBashExempt && bashGit.hits.length === 0 && bashGit.usedModeAssign && psGit.hits.every(h => h.key !== null && bashGit.satisfiedKeys.has(h.key));
-  const psGitExemptsBash = allowPsExempt && psGit.hits.length === 0 && psGit.usedModeAssign && bashGit.hits.every(h => h.key !== null && psGit.satisfiedKeys.has(h.key));
+  const bashGitExemptsPs = bashGit.hits.length === 0 && bashGit.usedModeAssign &&
+    canCrossExempt(bashStates, psStates, psMode, psGit.hits, bashGit.satisfiedInfo, allowBashExempt);
+  const psGitExemptsBash = psGit.hits.length === 0 && psGit.usedModeAssign &&
+    canCrossExempt(psStates, bashStates, bashMode, bashGit.hits, psGit.satisfiedInfo, allowPsExempt);
 
   const activeHit = bashGit.hits.length > 0 && !psGitExemptsBash
     ? bashGit.hits[0]
