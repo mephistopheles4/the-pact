@@ -681,6 +681,8 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'gh repo fork Stranger/repo --org @me',
     'gh repo fork Stranger/repo --org OwnerLogin --org StrangerOrg',
     'gh repo fork Stranger/repo --org StrangerOrg --org OwnerLogin',
+    'gh repo fork Stranger/repo --org StrangerOrg --bogus',
+    'gh repo fork Stranger/repo --bogus --org StrangerOrg',
     'gh repo create new-repo --public',
     'gh repo create -R Stranger/repo --public',
     'gh repo delete myrepo --yes',
@@ -689,7 +691,11 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'gh project item-add 1 --owner @me --url x',
     'gh project item-add 1 --owner OwnerLogin --owner StrangerOrg --url x',
     'gh project item-add 1 --owner StrangerOrg --owner OwnerLogin --url x',
+    'gh project item-add 1 --owner StrangerOrg --url x --owner OwnerLogin',
+    'gh project item-add 1 --owner StrangerOrg --bogus',
     'GH_REPO=Stranger/repo; gh pr create -t x -b y',
+    '$env:GH_REPO = "Stranger/repo"; unset GH_REPO; gh pr create -t x -b y',
+    'export GH_REPO=Stranger/repo; $env:GH_REPO = "OwnerLogin/own"; gh pr create -t x -b y',
     'GH_REPO=Stranger/repo env -u GH_REPO gh pr create -t x -b y',
     'GH_REPO=Stranger/repo env -i gh pr create -t x -b y',
     'export GH_REPO=Stranger/repo; export GH_REPO=; gh pr create -t x -b y',
@@ -886,6 +892,7 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     'echo "a``"; gh pr list',
     'echo "`ls`"',
     'env --sp "ls"',
+    'timeout --bogus 10 ls',
     `$m = @'${' '.repeat(120)}\ngit worktree remove w\ngh pr create -t x -b y\n'@`,
     "cat <<\\EOF\ngh pr create -t x -b y\nEOF",
     "cat <<E'O'F\ngh pr create -t x -b y\nEOF",
@@ -943,13 +950,35 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     'echo "$(echo "hi"; gh pr create -t x -b y)"',
     'echo "$(gh pr create -t "x" -b "y")"',
     'echo "$(case x in a) gh pr create -t x -b y;; esac)"',
+    'echo "$(if true; then case x in a) gh pr create -t x -b y;; esac; fi)"',
+    'echo "$(case x\nin a) gh pr create -t x -b y;; esac)"',
+    'echo $(( $(case x in a) echo 1;; esac) << 2 ))\ngh pr create -t x -b y',
+    '(( $(case x in a) echo 1;; esac) << 2 ))\ngit push',
     'echo "`gh pr create -t x -b y`"',
+    'echo `echo $\'\\\'\' \'`\' $\'\\\'\' ; gh pr create -t x -b y`',
     '`gh pr create -t x -b y`',
     '&{gh pr create -t x -b y}',
     '.{git commit -m x}',
     'try{gh pr create -t x -b y}catch{}',
     '1|%{gh pr create -t x -b y}',
+    '1|foreach-object{gh pr create -t x -b y}',
+    '1|where-object{gh pr create -t x -b y}',
+    '1|where{gh pr create -t x -b y}',
+    'trap{gh pr create -t x -b y}',
+    '$x=@{ a={gh pr create -t x -b y} }',
+    'switch(1){1{gh pr create -t x -b y}}',
     '$x={gh pr create -t x -b y}',
+    'g\\h pr create -t x -b y',
+    'e\\nv gh pr create -t x -b y',
+    '$env:X = <# #> gh pr create -t x -b y',
+    '$env:X = gh auth status -t',
+    '$env:X = git push',
+    '$env:X=git push',
+    '$env:X =git push',
+    '$env:X= git push',
+    '/usr/bin/timeout -k 5 --signal=KILL --foreground -v 10 gh pr create -t x -b y',
+    'timeout -- 10 gh pr create -t x -b y',
+    'timeout --bogus 10 gh pr create -t x -b y',
     "cat <<\\EOF\ngh pr list\nEOF\ngh pr create -t x -b y",
     "cat <<E'O'F\ngh pr list\nEOF\ngh pr create -t x -b y",
     'cat <<"E"OF\ngh pr list\nEOF\ngh pr create -t x -b y',
@@ -959,6 +988,15 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
 
   // --% after git fails closed as unknown leading flag.
   assert.equal(call('git --% push')?.id, 'identity-git');
+
+  // Escaped semicolon in bash does not split segments; deep backticks inside double quotes fail closed.
+  assert.deepEqual(guard.segmentsOf('echo \\; gh pr create -t x -b y', true), [['echo', ';', 'gh', 'pr', 'create', '-t', 'x', '-b', 'y']]);
+  let deepCmd = 'gh pr create -t x -b y';
+  for (let k = 8; k >= 0; k--) {
+    const q = '\\'.repeat((1 << k) - 1) + '`';
+    deepCmd = k === 0 ? `"${q}${deepCmd}${q}"` : `echo ${q}${deepCmd}${q}`;
+  }
+  assert.equal(call(`echo ${deepCmd}`)?.decision, 'deny');
 
   // Direct tokenizer segmentation checks for arithmetic, comment backslash, and PowerShell stop-parsing.
   assert.deepEqual(guard.segmentsOf('echo $(( 1 << 2 ))\ngit push', true), [['echo', '$'], ['1', '<<', '2'], ['git', 'push']]);
@@ -1063,17 +1101,45 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     'GIT_CONFIG_PARAMETERS="\'alias.p=push\'" git p',
     'GIT_CONFIG_SYSTEM=/tmp/evil git p',
     'GIT_CONFIG_GLOBAL=/tmp/evil git p',
-    `$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git commit -m x`,
-    `$env:GIT_CONFIG_COUNT='1'; git commit -m x`,
+    'GIT_CONFIG_""COUNT=1 git p',
+    '$env:GIT_`CONFIG_COUNT = \'1\'; git p',
+    '${env:GIT_CONFIG_COUNT} = \'1\'; git p',
+    '${env:GIT_CONFIG_PARAMETERS} = \'x\'; git p',
+    '${env:GIT_CONFIG_SYSTEM} = \'/x\'; git p',
+    '${env:GIT_CONFIG_GLOBAL} = \'/tmp/evil\'; git p',
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; GIT_CONFIG_GLOBAL='/tmp/evil'; git p`,
+    `$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git p`,
+    `$env:GIT_CONFIG_COUNT='1'; git p`,
     `$env:GIT_DIR='/tmp/x'; git commit -m x`,
+    `g\\it commit -m x`,
+    `e\\nv git commit -m x`,
+    `GIT_CONFIG_GLOBAL='${cfgPath}' e\\nv -u GIT_\\CONFIG_GLOBAL git commit -m x`,
+    `GIT_\\CONFIG_GLOBAL='${cfgPath}' git commit -m x`,
+    `git -c al\\ias.p=push p`,
+    `git -c rem\\ote.origin.url=x push`,
+    `git -c us\\er.email=x commit -m y`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; un\\set GIT_CONFIG_GLOBAL; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; unset GIT_CONFIG_GLOBAL; git commit -m x`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; Remove-Item env:GIT_CONFIG_GLOBAL; git commit -m x`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; $env:GIT_CONFIG_GLOBAL='/tmp/evil'; git commit -m x`,
     `export GIT_CONFIG_GLOBAL='${cfgPath}'; GIT_TERMINAL_PROMPT=1; git commit -m x`,
     `echo --% ; export GIT_CONFIG_GLOBAL='${cfgPath}'\ngit commit -m x`,
     `echo $'\\''; export GIT_CONFIG_GLOBAL="${cfgPath}" # '\ngit commit -m x`,
     `echo "a\\"; $env:GIT_CONFIG_GLOBAL = '${cfgPath}' # "\ngit commit -m x`,
-    `@'\nexport GIT_CONFIG_GLOBAL='${cfgPath}'\n'@\ngit commit -m x`,
+    `export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x; echo @'\nx\n'@`,
     'git --unknown-flag status',
     'git --attr-source=HEAD commit -m x',
   ]) assert.equal(call(cmd)?.id, 'identity-git', cmd);
+
+  // PowerShell config-injection / GIT_DIR overrides fail closed even inside a stranger repo.
+  const strangerGitRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git' });
+  for (const cmd of [
+    `$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git p`,
+    `$env:GIT_CONFIG_COUNT='1'; git p`,
+  ]) {
+    assert.equal(guard.answerCall({ command: cmd, provider: 'codex', cwd: strangerGitRepo.work, canOverwrite: false, env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath }, tableFile: fx.tableFile, platform: process.platform })?.id, 'identity-git', cmd);
+  }
+  assert.equal(guard.answerCall({ command: `$env:GIT_DIR='/tmp/x'; git commit -m x`, provider: 'codex', cwd: strangerGitRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform })?.id, 'identity-git');
 
   // Explicit shell rejects cross-shell assignments; heredoc/here-string cannot cross-satisfy modes.
   assert.equal(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { shell: 'bash' })?.id, 'identity-git');
