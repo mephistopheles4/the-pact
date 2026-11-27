@@ -3,8 +3,8 @@
 // ~/.pact or ~/.claude.
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { delimiter, dirname, join } from 'node:path';
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, delimiter, dirname, join } from 'node:path';
 import { COPY_DIRS, COPY_FILES, COPY_SKIP } from './copy-list.mjs';
 import { REPO } from './text.mjs';
 import { longTmp, tempDir } from './tree.mjs';
@@ -80,15 +80,28 @@ function buildRepo(root, mutate) {
   return root;
 }
 
+// The node starts this harness makes, to measure what a run costs. With
+// PACT_TEST_COUNT_STARTS naming a file, each test file's process appends
+// `<test file> <n>` to it on exit; without it nothing is written.
+let started = 0;
+if (process.env.PACT_TEST_COUNT_STARTS) {
+  process.on('exit', () => appendFileSync(process.env.PACT_TEST_COUNT_STARTS, `${basename(process.argv[1] ?? '')} ${started}\n`));
+}
+
+/** The node starts the harness has made in this process so far. */
+export const starts = () => started;
+
 /** Runs node with `args`, one of which must name the Node install script (#153). */
 export function spawnNodeInstall(args, options) {
   if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstall: no argument names the Node install script, so this is not an install');
+  started += 1;
   return spawnSync(process.execPath, args, options);
 }
 
 /** spawnNodeInstall's async form, for a test that signals or waits on a running install. */
 export function spawnNodeInstallAsync(args, options) {
   if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstallAsync: no argument names the Node install script, so this is not an install');
+  started += 1;
   return spawn(process.execPath, args, options);
 }
 
