@@ -109,6 +109,7 @@ function tokenizeMode(command, bash) {
   const separators = [];
   let tokens = [];
   let rawTokens = [];
+  let tokenOffsets = [];
   let prevTokenQuoted = false;
   let current = '';
   let tokStart = -1;
@@ -154,6 +155,7 @@ function tokenizeMode(command, bash) {
       }
       tokens.push(current);
       rawTokens.push(tokStart >= 0 && rawEnd >= tokStart ? command.slice(tokStart, rawEnd) : current);
+      tokenOffsets.push(tokStart);
       prevTokenQuoted = wasQuoted;
     }
     current = '';
@@ -165,10 +167,11 @@ function tokenizeMode(command, bash) {
   const endSegment = (sep, rawEnd = -1) => {
     endToken(rawEnd);
     if (tokens.length) {
-      segments.push({ tokens, rawTokens });
+      segments.push({ tokens, rawTokens, tokenOffsets });
     }
     tokens = [];
     rawTokens = [];
+    tokenOffsets = [];
     prevTokenQuoted = false;
     if (sep) {
       separators.push(sep);
@@ -218,6 +221,7 @@ function tokenizeMode(command, bash) {
     if (!bash && !started && c === '-' && command.startsWith('--%', i) && (i + 3 === n || /[ \t\r\n]/.test(command[i + 3]))) {
       tokens.push('--%');
       rawTokens.push('--%');
+      tokenOffsets.push(i);
       prevTokenQuoted = false;
       stopParse = true;
       i += 3;
@@ -356,6 +360,7 @@ function tokenizeMode(command, bash) {
       endToken(i);
       tokens.push('<<');
       rawTokens.push('<<');
+      tokenOffsets.push(i);
       prevTokenQuoted = false;
       i = j;
     } else if (c === '\n') {
@@ -390,6 +395,7 @@ function tokenizeMode(command, bash) {
       } else if (tokens.length === 0 && !started) {
         tokens.push('&');
         rawTokens.push('&');
+        tokenOffsets.push(i);
         prevTokenQuoted = false;
         i++;
       } else {
@@ -551,7 +557,7 @@ export function programAt(tokens) {
     const t = tokens[i];
     if (t === undefined) return tokens.length;
     if (WRAPPERS.has(t) || (t.includes('=') && ASSIGNMENT.test(t))) i++;
-    else if ((t === 'env' || t.length > 3 && (t.includes('env') || t.includes('ENV'))) && ENV_BIN.test(base(t))) {
+    else if (t.length >= 3 && ENV_BIN.test(base(t))) {
       const ev = scanEnvWrapper(tokens, i);
       if (ev.hasSplit || ev.unknownFlag) return i;
       i = ev.next;
@@ -559,7 +565,7 @@ export function programAt(tokens) {
     else if (t === 'timeout') {
       i++;
       if (/^[\d.]+[smhd]?$/.test(tokens[i] ?? '')) i++;
-    } else if (t.length >= 4 && (t.includes('mise') || t.includes('MISE')) && MISE.test(base(t)) && /^(?:x|exec)$/.test(tokens[i + 1] ?? '')) {
+    } else if (t.length >= 4 && MISE.test(base(t)) && /^(?:x|exec)$/.test(tokens[i + 1] ?? '')) {
       // The command is what follows mise's own `--`; without one, it follows
       // the options and the tool@version words.
       i += 2;
@@ -569,7 +575,7 @@ export function programAt(tokens) {
         noDashes = true;
         while (tokens[i] !== undefined && (tokens[i].startsWith('-') || tokens[i].includes('@'))) i++;
       }
-    } else if (t.length >= 3 && (t.includes('npx') || t.includes('NPX')) && NPX.test(base(t))) {
+    } else if (t.length >= 3 && NPX.test(base(t))) {
       i++;
       while (tokens[i]?.startsWith('-')) i += tokens[i] === '-p' || tokens[i] === '--package' ? 2 : 1;
     } else return i;
@@ -1356,6 +1362,10 @@ function resolveNoSymlinks(baseAbs, rawPath, platform, { expectDir = false, expe
 
   const finalPath = buildAbsPath(root, curParts);
   try {
+    const fst = lstatSync(finalPath);
+    if (fst.isSymbolicLink()) return null;
+    if (expectDir && !fst.isDirectory()) return null;
+    if (expectFile && !fst.isFile()) return null;
     const real = realpathSync(finalPath);
     if (/^[\\/]{2}/.test(real)) return null;
   } catch {
@@ -2089,6 +2099,7 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
     segStates.push({
       tokens,
       rawTokens,
+      tokenOffsets: seg.tokenOffsets,
       at,
       prog,
       startsWithAssign: ASSIGNMENT.test(tokens[0] ?? ''),
@@ -2176,18 +2187,18 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
 
   if (ghInfo.group === 'repo') {
     if (ghInfo.verb === 'fork') {
-      // Exempt ONLY on clean non-@me non-owner `--org <org>` before unknown flag
-      let orgVal = null;
+      // Exempt ONLY on clean non-@me non-owner `--org <org>` before unknown flag, with all `--org` flags agreeing
+      const orgVals = [];
       let i = 0;
       while (i < ghInfo.afterVerb.length) {
         const t = ghInfo.afterVerb[i];
         if (t === '--') break;
         if (t === '--org') {
           if (i + 1 >= ghInfo.afterVerb.length) return { match: true };
-          orgVal = ghInfo.afterVerb[i + 1];
+          orgVals.push(ghInfo.afterVerb[i + 1]);
           i += 2;
         } else if (t.startsWith('--org=')) {
-          orgVal = t.slice('--org='.length);
+          orgVals.push(t.slice('--org='.length));
           i++;
         } else if (t.startsWith('-')) {
           break;
@@ -2195,8 +2206,13 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
           i++;
         }
       }
-      if (!orgVal || orgVal.toLowerCase() === '@me' || !LOGIN_RE.test(orgVal)) return { match: true };
-      return { match: orgVal.toLowerCase() === ownerLogin.toLowerCase() };
+      if (orgVals.length === 0) return { match: true };
+      for (const o of orgVals) {
+        if (!o || o.toLowerCase() === '@me' || !LOGIN_RE.test(o) || o.toLowerCase() === ownerLogin.toLowerCase()) return { match: true };
+      }
+      const firstOrg = orgVals[0].toLowerCase();
+      if (!orgVals.every(o => o.toLowerCase() === firstOrg)) return { match: true };
+      return { match: false };
     }
 
     if (ghInfo.verb === 'create') {
@@ -2222,7 +2238,7 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
   }
 
   if (ghInfo.group === 'project') {
-    let ownerVal = null;
+    const ownerVals = [];
     let i = 0;
     while (i < ghInfo.afterVerb.length) {
       const t = ghInfo.afterVerb[i];
@@ -2234,10 +2250,10 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
       }
       if (t === '--owner') {
         if (i + 1 >= ghInfo.afterVerb.length) return { match: true };
-        ownerVal = ghInfo.afterVerb[i + 1];
+        ownerVals.push(ghInfo.afterVerb[i + 1]);
         i += 2;
       } else if (t.startsWith('--owner=')) {
-        ownerVal = t.slice('--owner='.length);
+        ownerVals.push(t.slice('--owner='.length));
         i++;
       } else if (t.startsWith('-')) {
         break;
@@ -2245,8 +2261,13 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform }) {
         i++;
       }
     }
-    if (!ownerVal || ownerVal.toLowerCase() === '@me' || !LOGIN_RE.test(ownerVal)) return { match: true };
-    return { match: ownerVal.toLowerCase() === ownerLogin.toLowerCase() };
+    if (ownerVals.length === 0) return { match: true };
+    for (const o of ownerVals) {
+      if (!o || o.toLowerCase() === '@me' || !LOGIN_RE.test(o) || o.toLowerCase() === ownerLogin.toLowerCase()) return { match: true };
+    }
+    const firstOwner = ownerVals[0].toLowerCase();
+    if (!ownerVals.every(o => o.toLowerCase() === firstOwner)) return { match: true };
+    return { match: false };
   }
 
   // Validate --hostname if passed on non-api gh commands (github.com is default; non-github.com without matching host is checked below)
@@ -2381,7 +2402,7 @@ function buildGitDenyReason(provider, platform) {
   return `Plain git writes are blocked while agent-identity is on for ${provider}. Prefix with GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-${provider}.gitconfig" GIT_TERMINAL_PROMPT=0 <command> so git writes use the pinned app.`;
 }
 
-function isOverwriteEligible(command, bashMode, psMode, bashSegState, psSegState, gitInfo, expectedGitconfig, env, platform) {
+function isOverwriteEligible(command, bashMode, psMode, bashSegState, psSegState, bashGitInfo, psGitInfo, expectedGitconfig, env, platform) {
   const isWin = platform === 'win32';
   if (/[\r\n\0\p{Cc}]/u.test(expectedGitconfig)) return false;
   if (isWin && WIN_PATH_BAD.test(expectedGitconfig)) return false;
@@ -2397,17 +2418,19 @@ function isOverwriteEligible(command, bashMode, psMode, bashSegState, psSegState
 
   if (isWin && (/^\s*set\s+/i.test(command) || /^\s*[A-Za-z_][A-Za-z0-9_]*=/.test(command))) return false;
   if (bashSegState.gitConfigOverrideInSeg || psSegState.gitConfigOverrideInSeg) return false;
-  if (gitInfo.hasConfigEnvOpt) return false;
+  if (bashGitInfo.hasConfigEnvOpt || psGitInfo.hasConfigEnvOpt) return false;
 
   const envCount = getEnvVar(env, 'GIT_CONFIG_COUNT', isWin);
   const envParams = getEnvVar(env, 'GIT_CONFIG_PARAMETERS', isWin);
   if ((envCount !== undefined && envCount !== '') || (envParams !== undefined && envParams !== '')) return false;
 
-  for (const co of gitInfo.cOpts) {
-    const key = co.val.includes('=') ? co.val.slice(0, co.val.indexOf('=')) : co.val;
-    if (GIT_CONFIG_OVERRIDE_KEY_RE.test(key)) return false;
-    const rawTok = psSegState.rawTokens[co.rawIdx] ?? '';
-    if (rawTok.includes('`')) return false;
+  for (const [info, segState] of [[bashGitInfo, bashSegState], [psGitInfo, psSegState]]) {
+    for (const co of info.cOpts) {
+      const key = co.val.includes('=') ? co.val.slice(0, co.val.indexOf('=')) : co.val;
+      if (GIT_CONFIG_OVERRIDE_KEY_RE.test(key)) return false;
+      const rawTok = segState.rawTokens[co.rawIdx] ?? '';
+      if (rawTok.includes('`')) return false;
+    }
   }
   return true;
 }
@@ -2526,44 +2549,43 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   ];
 
   // 3. Plain gh write check (all providers; beats any git identity match)
+  const segKey = st => `${st.tokenOffsets[st.at] ?? -1}:${JSON.stringify(st.tokens.slice(st.at))}`;
   const evalGhMode = (states, isBash) => {
     const hits = [];
-    let writeCount = 0;
+    const satisfiedKeys = new Set();
     let usedModeGhRepo = false;
     for (const st of states) {
       if (!isBash && st.startsWithAssign) continue;
       if (st.segSplitOrUnknown?.kind === 'gh') {
-        writeCount++;
-        hits.push({ decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, false) });
+        hits.push({ key: null, answer: { decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, false) } });
         continue;
       }
       if (st.segSplitOrUnknown?.type === 'env-split' && st.segSplitOrUnknown.badSplit && provider === 'claude') {
-        writeCount++;
-        hits.push({ decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, false) });
+        hits.push({ key: null, answer: { decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, false) } });
         continue;
       }
       if (st.prog === 'gh') {
         const ghInfo = parseGhSegment(st.tokens, st.at);
         if (ghInfo.isWrite) {
-          writeCount++;
           const scope = checkGhOwnerScope(ghInfo, st, { ownerLogin, cwd, platform });
           if (scope.match) {
-            hits.push({ decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, ghInfo.isFreeText) });
+            hits.push({ key: segKey(st), answer: { decision: 'deny', id: 'identity-gh', reason: buildGhReason(provider, doc.identity.posterOn, ghInfo.isFreeText) } });
           } else if (st.usedModeGhRepo) {
             usedModeGhRepo = true;
+            satisfiedKeys.add(segKey(st));
           }
         }
       }
     }
-    return { hits, writeCount, usedModeGhRepo };
+    return { hits, satisfiedKeys, usedModeGhRepo };
   };
 
   const bashGh = evalGhMode(bashStates, true);
   const psGh = evalGhMode(psStates, false);
-  const bashGhExemptsPs = bashGh.hits.length === 0 && bashGh.usedModeGhRepo && !psMode.sawComment && psGh.writeCount <= bashGh.writeCount;
-  const psGhExemptsBash = psGh.hits.length === 0 && psGh.usedModeGhRepo && !bashMode.sawComment && bashGh.writeCount <= psGh.writeCount;
-  if (bashGh.hits.length > 0 && !psGhExemptsBash) return bashGh.hits[0];
-  if (psGh.hits.length > 0 && !bashGhExemptsPs) return psGh.hits[0];
+  const bashGhExemptsPs = bashGh.hits.length === 0 && bashGh.usedModeGhRepo && !psMode.sawComment && psGh.hits.every(h => h.key !== null && bashGh.satisfiedKeys.has(h.key));
+  const psGhExemptsBash = psGh.hits.length === 0 && psGh.usedModeGhRepo && !bashMode.sawComment && bashGh.hits.every(h => h.key !== null && psGh.satisfiedKeys.has(h.key));
+  if (bashGh.hits.length > 0 && !psGhExemptsBash) return bashGh.hits[0].answer;
+  if (psGh.hits.length > 0 && !bashGhExemptsPs) return psGh.hits[0].answer;
 
   // 4. Plain git write check (`antigravity` and `codex` only)
   if (provider !== 'antigravity' && provider !== 'codex') return null;
@@ -2580,6 +2602,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
 
   const evalGitMode = (states, isBash) => {
     const hits = [];
+    const satisfiedKeys = new Set();
     let guardedCount = 0;
     let usedModeAssign = false;
     let missingGitconfig = false;
@@ -2591,7 +2614,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
           missingGitconfig = true;
           break;
         }
-        hits.push({ forceDeny: true, gitInfo: null, st });
+        hits.push({ key: null, forceDeny: true, gitInfo: null, st });
         continue;
       }
       if (st.prog === 'git') {
@@ -2609,13 +2632,16 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
           return GIT_CONFIG_OVERRIDE_KEY_RE.test(key);
         });
         if (st.gitConfigSatisfied && !hasCOverride) {
-          if (st.usedModeAssign) usedModeAssign = true;
+          if (st.usedModeAssign) {
+            usedModeAssign = true;
+            satisfiedKeys.add(segKey(st));
+          }
           continue;
         }
-        hits.push({ forceDeny: hasCOverride, gitInfo, st });
+        hits.push({ key: segKey(st), forceDeny: hasCOverride, gitInfo, st });
       }
     }
-    return { hits, guardedCount, usedModeAssign, missingGitconfig };
+    return { hits, satisfiedKeys, guardedCount, usedModeAssign, missingGitconfig };
   };
 
   const bashGit = evalGitMode(bashStates, true);
@@ -2623,8 +2649,8 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   const psGit = evalGitMode(psStates, false);
   if (psGit.missingGitconfig) return { decision: 'deny', id: 'identity-gitconfig', reason: buildGitconfigReason(provider) };
 
-  const bashGitExemptsPs = bashGit.hits.length === 0 && bashGit.usedModeAssign && !psMode.sawComment && psGit.guardedCount <= bashGit.guardedCount;
-  const psGitExemptsBash = psGit.hits.length === 0 && psGit.usedModeAssign && !bashMode.sawComment && bashGit.guardedCount <= psGit.guardedCount;
+  const bashGitExemptsPs = bashGit.hits.length === 0 && bashGit.usedModeAssign && !psMode.sawComment && psGit.hits.every(h => h.key !== null && bashGit.satisfiedKeys.has(h.key));
+  const psGitExemptsBash = psGit.hits.length === 0 && psGit.usedModeAssign && !bashMode.sawComment && bashGit.hits.every(h => h.key !== null && psGit.satisfiedKeys.has(h.key));
 
   const activeHit = bashGit.hits.length > 0 && !psGitExemptsBash
     ? bashGit.hits[0]
@@ -2641,18 +2667,21 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
     !multiGuarded &&
     activeHit.gitInfo &&
     bashStates.length === 1 &&
-    psStates.length === 1 &&
-    isOverwriteEligible(command, bashMode, psMode, bashStates[0], psStates[0], activeHit.gitInfo, expectedGitconfig, env, platform)
+    psStates.length === 1
   ) {
-    const overwriteCommand = platform === 'win32'
-      ? `$env:GIT_CONFIG_GLOBAL = '${expectedGitconfig.replaceAll("'", "''")}'; $env:GIT_TERMINAL_PROMPT = '0'; ${command}`
-      : `GIT_CONFIG_GLOBAL='${expectedGitconfig.replaceAll("'", "'\\''")}' GIT_TERMINAL_PROMPT=0 ${command}`;
-    return {
-      decision: 'overwrite_ask',
-      id: 'identity-git',
-      reason: `Setting GIT_CONFIG_GLOBAL for ${provider} so git writes use the pinned app.`,
-      overwriteCommand,
-    };
+    const bashGitInfo = parseGitSegment(bashStates[0].tokens, bashStates[0].at);
+    const psGitInfo = parseGitSegment(psStates[0].tokens, psStates[0].at);
+    if (isOverwriteEligible(command, bashMode, psMode, bashStates[0], psStates[0], bashGitInfo, psGitInfo, expectedGitconfig, env, platform)) {
+      const overwriteCommand = platform === 'win32'
+        ? `$env:GIT_CONFIG_GLOBAL = '${expectedGitconfig.replaceAll("'", "''")}'; $env:GIT_TERMINAL_PROMPT = '0'; ${command}`
+        : `GIT_CONFIG_GLOBAL='${expectedGitconfig.replaceAll("'", "'\\''")}' GIT_TERMINAL_PROMPT=0 ${command}`;
+      return {
+        decision: 'overwrite_ask',
+        id: 'identity-git',
+        reason: `Setting GIT_CONFIG_GLOBAL for ${provider} so git writes use the pinned app.`,
+        overwriteCommand,
+      };
+    }
   }
 
   return {

@@ -654,16 +654,21 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'gh api --hostname ghes.example.com -it repos/Stranger/repo',
     'gh repo fork Stranger/repo',
     'gh repo fork Stranger/repo --org @me',
+    'gh repo fork Stranger/repo --org OwnerLogin --org StrangerOrg',
+    'gh repo fork Stranger/repo --org StrangerOrg --org OwnerLogin',
     'gh repo create new-repo --public',
     'gh repo create -R Stranger/repo --public',
     'gh repo delete myrepo --yes',
     'gh repo rename Stranger/repo',
     'gh repo deploy-key add -R Stranger/repo key.pub',
     'gh project item-add 1 --owner @me --url x',
+    'gh project item-add 1 --owner OwnerLogin --owner StrangerOrg --url x',
+    'gh project item-add 1 --owner StrangerOrg --owner OwnerLogin --url x',
     'GH_REPO=Stranger/repo; gh pr create -t x -b y',
     'export GH_REPO=Stranger/repo; export GH_REPO=; gh pr create -t x -b y',
     '$env:GH_REPO = "$OTHER"; gh pr create -t x -b y',
     '$env:GH_REPO = "Stranger/repo"; $env:GH_REPO = $null; gh pr create -t x -b y',
+    '$env:GH_REPO = \'Stranger/repo\'; echo $\'\\\'\'; gh pr create -t x -b y; echo \'; gh issue close 1; echo \'',
     'cd /tmp && gh pr create -R Stranger/repo -t x -b y',
     'Set-Location C:\\tmp; git push https://github.com/Stranger/repo.git main',
     'git push --unknown https://github.com/Stranger/repo.git main',
@@ -743,12 +748,19 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   const badUrlRew = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: '[url "https://github.com/OwnerLogin/"]\n\tinsteadOf = https://github.com/Stranger/\n' });
   assert.equal(call('git commit -m x', { cwd: badUrlRew.work })?.id, 'identity-git');
 
-  // Symlinked directory with .. collapse attempt (symlink/..) MUST fail closed before collapsing ..
+  // Symlinked directory with .. collapse attempt (symlink/..) and trailing .. on file expectation MUST fail closed.
   const linkBase = tempDir(t, 'pact-sym-');
   const symDir = join(linkBase, 'sym');
   symlinkSync(sub, symDir, WIN ? 'junction' : 'dir');
   assert.equal(call('git commit -m x', { cwd: `${symDir}/..` })?.id, 'identity-git');
   assert.equal(call(`git -C "${symDir}/.." commit -m x`, { cwd: linkBase })?.id, 'identity-git');
+  const dotdotRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', linked: true });
+  writeFileSync(join(dotdotRepo.work, '.git'), `gitdir: ${dotdotRepo.root}/main-git/worktrees/wt1\n`);
+  writeFileSync(join(dotdotRepo.root, 'main-git', 'worktrees', 'wt1', 'commondir'), '../..\n');
+  assert.equal(call('git commit -m x', { cwd: dotdotRepo.work }), null);
+  const badWtDir = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', linked: true });
+  writeFileSync(join(badWtDir.work, '.git'), 'gitdir: .\n');
+  assert.equal(call('git commit -m x', { cwd: badWtDir.work })?.id, 'identity-git');
 
   // Oversize config (> 1 MiB) fails closed.
   const bigRepo = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r.git', extraConfig: `# ${'x'.repeat(1024 * 1024)}\n` });
@@ -902,7 +914,11 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; sv GIT_CONFIG_GLOBAL x; git commit -m x`,
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; $m = @"\n$x\n"@; git commit -m x`,
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; cmd /c echo hi; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; echo $'\\''; git push; echo '; git commit -m x; echo '`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; echo $'\\''; git push; echo '; git push; echo '`,
     'env -P /usr/bin git push',
+    '/usr/bin/Env git push',
+    'Env.exe -u X git commit -m x',
     'env -S "git push"',
     'git --unknown-flag status',
     'git --attr-source=HEAD commit -m x',
@@ -942,6 +958,7 @@ test('C6: precedence (cleaner > gh > git) and Antigravity overwrite_ask vs deny 
 
   // Prose -c user.email inside -m still overwrites cleanly (inspected via parsed tokens, not substring).
   assert.equal(call('git commit -m "-c user.email=x"')?.decision, 'overwrite_ask');
+  assert.equal(call('git -c "foo=bar" commit -m "a`b"')?.decision, 'overwrite_ask');
 
   // Compound, wrapped, $(, backtick in -c, -c override, canOverwrite=false fall back to deny.
   for (const [cmd, opts] of [
@@ -957,6 +974,7 @@ test('C6: precedence (cleaner > gh > git) and Antigravity overwrite_ask vs deny 
     ['git -c user.name=bad commit -m x', {}],
     ['git -c "u`ser.name=bad" commit -m x', {}],
     ['git -c "a`b=c" commit -m x', {}],
+    ['git -c "foo=bar" -c "baz`qux=1" commit -m x', {}],
     ['git --config-env=a=B commit -m x', {}],
   ]) {
     const res = call(cmd, opts);
