@@ -1533,12 +1533,16 @@ test('C2, C6, C11: antigravity wrapper handles overwrite_ask on run_command only
   assert.equal(owJson.overwrite.CommandLine, `${expectedPrefix}git commit -m "SECRET_CMD_XYZ"`);
   assert.doesNotMatch(owJson.reason, /SECRET_CMD_XYZ|SECRET_REPO_XYZ|OwnerLogin|998877|my-ag-app/);
 
-  // Compound run_command, gh write, manage_task send_input, and send_command_input deny without overwrite (even with stranger workspacePaths/cwd), while explicit -R stranger exempts.
+  // Compound run_command, gh write, manage_task send_input, and send_command_input deny without overwrite (even with stranger workspacePaths/cwd or cross-line export/$env: under unknown shell), while explicit -R stranger exempts.
   for (const call of [
     { toolCall: { name: 'run_command', args: { CommandLine: 'ls && git commit -m SECRET_CMD_XYZ', Cwd: ownerRepo.work } } },
     { toolCall: { name: 'run_command', args: { CommandLine: 'gh pr create -t SECRET_CMD_XYZ -b body', Cwd: ownerRepo.work } } },
     { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'git commit -m SECRET_CMD_XYZ\n', TaskId: 't' } }, cwd: strangerRepo.work, workspacePaths: [strangerRepo.work] },
     { toolCall: { name: 'send_command_input', args: { CommandId: 'c', Input: 'git commit -m SECRET_CMD_XYZ\n' } }, cwd: strangerRepo.work, workspacePaths: [strangerRepo.work] },
+    { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m SECRET_CMD_XYZ\n`, TaskId: 't' } }, cwd: strangerRepo.work, workspacePaths: [strangerRepo.work] },
+    { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: `export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m SECRET_CMD_XYZ\n`, TaskId: 't' } }, cwd: strangerRepo.work, workspacePaths: [strangerRepo.work] },
+    { toolCall: { name: 'send_command_input', args: { CommandId: 'c', Input: '$env:GH_REPO = "Stranger/repo"; gh pr create -t SECRET_CMD_XYZ -b y\n' } }, cwd: strangerRepo.work, workspacePaths: [strangerRepo.work] },
+    { toolCall: { name: 'send_command_input', args: { CommandId: 'c', Input: 'export GH_REPO=Stranger/repo; gh pr create -t SECRET_CMD_XYZ -b y\n' } }, cwd: strangerRepo.work, workspacePaths: [strangerRepo.work] },
   ]) {
     const r = run(call);
     assert.equal(r.code, 0, JSON.stringify(r));
@@ -1548,6 +1552,7 @@ test('C2, C6, C11: antigravity wrapper handles overwrite_ask on run_command only
     assert.doesNotMatch(r.stdout, /SECRET_CMD_XYZ|SECRET_REPO_XYZ|OwnerLogin|998877|my-ag-app/);
   }
   assert.deepEqual(run({ toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'gh pr create -R Stranger/repo -t x -b y\n', TaskId: 't' } }, cwd: ownerRepo.work }), SILENT);
+  assert.deepEqual(run({ toolCall: { name: 'send_command_input', args: { CommandId: 'c', Input: `GIT_CONFIG_GLOBAL='${cfgPath}' git commit -m x\n` } }, cwd: ownerRepo.work }), SILENT);
 
   // Cwd resolution: explicit Cwd wins (and "", relative, or non-string Cwd never fall back to input.cwd or workspacePaths); multi-root workspacePaths fails closed.
   assert.deepEqual(run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m x', Cwd: strangerRepo.work } }, cwd: ownerRepo.work, workspacePaths: [ownerRepo.work] }), SILENT);
@@ -1559,7 +1564,7 @@ test('C2, C6, C11: antigravity wrapper handles overwrite_ask on run_command only
   assert.deepEqual(run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m x' } }, workspacePaths: [strangerRepo.work] }), SILENT);
   assert.equal(JSON.parse(run({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m x' } }, workspacePaths: [strangerRepo.work, ownerRepo.work] }).stdout).decision, 'force_ask');
 
-  // Shell hint matches process.platform on run_command, and background tools always pass cwd=undefined and never emit overwrite.
+  // Shell hint matches process.platform on run_command, and background tools always pass cwd=undefined, shell=unknown, and never emit overwrite.
   const spy = installed(t);
   writeFileSync(join(spy.dir, 'guard.mjs'), `
     export function answerCall(opts) {
@@ -1570,8 +1575,8 @@ test('C2, C6, C11: antigravity wrapper handles overwrite_ask on run_command only
         return ok ? { decision: 'deny', id: 'identity-git', reason: 'ok:' + opts.shell + ':' + opts.canOverwrite } : { decision: 'ask', id: 'bad' };
       }
       if (opts.command === 'CHECK_BG') {
-        const ok = opts.provider === 'antigravity' && opts.canOverwrite === false && opts.cwd === undefined;
-        return ok ? { decision: 'deny', id: 'identity-git', reason: 'bg:ok' } : { decision: 'ask', id: 'bad' };
+        const ok = opts.provider === 'antigravity' && opts.canOverwrite === false && opts.cwd === undefined && opts.shell === 'unknown';
+        return ok ? { decision: 'deny', id: 'identity-git', reason: 'bg:ok:' + opts.shell } : { decision: 'ask', id: 'bad' };
       }
       if (opts.command === 'BAD_OW') return { decision: 'overwrite_ask', id: 'identity-git', reason: 'r', overwriteCommand: 'x' };
       return null;
@@ -1579,8 +1584,8 @@ test('C2, C6, C11: antigravity wrapper handles overwrite_ask on run_command only
   `);
   const expectedShell = WIN ? 'powershell' : 'bash';
   denied(runHook(spy, 'antigravity', { toolCall: { name: 'run_command', args: { CommandLine: 'CHECK_ARGS', Cwd: '/rw' } } }), 'antigravity', `ok:${expectedShell}:true`);
-  denied(runHook(spy, 'antigravity', { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'CHECK_BG', TaskId: 't' } }, cwd: '/ro', workspacePaths: ['/ro'] }), 'antigravity', 'bg:ok');
-  denied(runHook(spy, 'antigravity', { toolCall: { name: 'send_command_input', args: { CommandId: 'c', Input: 'CHECK_BG' } }, cwd: '/ro', workspacePaths: ['/ro'] }), 'antigravity', 'bg:ok');
+  denied(runHook(spy, 'antigravity', { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'CHECK_BG', TaskId: 't' } }, cwd: '/ro', workspacePaths: ['/ro'] }), 'antigravity', 'bg:ok:unknown');
+  denied(runHook(spy, 'antigravity', { toolCall: { name: 'send_command_input', args: { CommandId: 'c', Input: 'CHECK_BG' } }, cwd: '/ro', workspacePaths: ['/ro'] }), 'antigravity', 'bg:ok:unknown');
   denied(runHook(spy, 'antigravity', { toolCall: { name: 'manage_task', args: { Action: 'send_input', Input: 'BAD_OW', TaskId: 't' } }, cwd: '/ro' }), 'antigravity', failure('internal'));
 
   // Corrupt pin fails closed with pin failure code and zero secret leak.

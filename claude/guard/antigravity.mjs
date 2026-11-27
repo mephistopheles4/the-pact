@@ -91,7 +91,7 @@ try {
         canOverwrite: call.name === 'run_command',
         env: process.env,
         tableFile: TABLE,
-        shell: process.platform === 'win32' ? 'powershell' : 'bash',
+        shell: call.name === 'run_command' ? (process.platform === 'win32' ? 'powershell' : 'bash') : 'unknown',
       });
       if (met?.decision === 'overwrite_ask') {
         if (call.name === 'run_command' && typeof met.reason === 'string' && typeof met.overwriteCommand === 'string') {
