@@ -40,7 +40,7 @@ test('node: a dry run on a clean tree passes, shows the pin, the check, the gate
 
 // The bootstrap passes the runner only the variables it names; an inherited NODE_OPTIONS (a preload) is not among them.
 test('node: an inherited NODE_OPTIONS preload runs in the bootstrap, the one process it was set for, and never in the runner the bootstrap starts', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   const marks = tempDir(t, 'pact-opts-marks-');
   const preload = join(tempDir(t, 'pact-opts-preload-'), 'preload.cjs');

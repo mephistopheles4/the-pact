@@ -4104,7 +4104,7 @@ No gate test was added: since ADR 0069 the gate holds no rule text word for word
 
 ## The poster's scan reads page-faithful copies
 
-**2026-10-26** — #394, thorough tier on the sensitive route (secrets, input validation), planned, built and tested on Opus at high by pact-394 and, after its context ran out, 394-finish, led by Oracle Head Chef. The owner set the route; the lead decided the questions at level 3, and the owner's own words decided the accepted risks and, through the lead, the goal the spec was approved under.
+**2026-10-26.** #394, thorough tier on the sensitive route (secrets, input validation), planned, built and tested on Opus at high by pact-394 and, after its context ran out, 394-finish, led by Oracle Head Chef. The owner set the route; the lead decided the questions at level 3, and the owner's own words decided the accepted risks and, through the lead, the goal the spec was approved under.
 
 adversarial-lens found the gap in the Test review of #391 and #392: the scan decoded only a short list of named references, so a known-shape secret split by any other reference stayed split in every copy it read while the page could show it whole. The plan reproduced it at the base with a token-shaped test string and probed each form through GitHub's renderer with harmless strings. Besides the named references, it found zero-padded numeric references, control characters and decoded tag shapes that a later removal ate.
 

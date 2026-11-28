@@ -269,9 +269,9 @@ PROXY_LINE_PROGRAM_EOF
 echo "== Node"
 MISE_VERSION=2026.10.14
 MISE_SHA256=5bc573bc91c2571ee371f5d570cf6f8d51af3ef343b124a6609b9fec7f0d47f2
-NODE_VERSION=24.22.1
-NODE_TAR_SHA256=eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c
-NODE_BIN_SHA256=e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb
+NODE_VERSION=24.22.3
+NODE_TAR_SHA256=061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2
+NODE_BIN_SHA256=a7ec1b37e6ff9d187e4198c5b6df9a4eb1c74dd31804fb3bac55cc4ceca1ac01
 NODE_FAILED=
 MISE_OK=0
 MISE_BIN=/root/.local/bin/mise
@@ -1713,7 +1713,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy b843a4c77351"
+  echo "pact cloud copy d98f78add4f9"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
