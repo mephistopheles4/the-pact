@@ -105,6 +105,7 @@ test('a command behind quotes, wrappers, separators, paths or either shell\'s co
     "<# don't #> git worktree remove w",
     "# it's fine\ngit worktree remove w",
     "cat <<'EOF'\ntext\nEOF\ngit worktree remove w",
+    '<<Q\nB\n<<B\ngit worktree remove w',
     'git worktree remove',
   ]) assert.equal(guard.judge(command, ALL)?.decision, 'deny', command);
   for (const command of ['npx claude rm 1', 'npx -y claude@2 rm 1', 'claude.cmd rm 1']) assert.equal(guard.judge(command, ALL)?.id, 'session-remove', command);
@@ -1453,7 +1454,7 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     }
   }
 
-  for (const unit of ['git commit;', 'mise x ', 'git -c a=b ', 'gh api -p ', 'env -u X ', `@"${' '.repeat(64)}`, 'a; ', 'x && ']) {
+  for (const unit of ['git commit;', 'mise x ', 'git -c a=b ', 'gh api -p ', 'env -u X ', `@"${' '.repeat(64)}`, 'a; ', 'x && ', '<< a ']) {
     const big = unit === 'git commit;' ? unit.repeat(80000) : unit.repeat(Math.floor(guard.COMMAND_MAX / unit.length));
     const started = Date.now();
     guard.answerCall({ command: big, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
