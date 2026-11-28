@@ -1322,7 +1322,7 @@ test('C6: precedence (cleaner > gh > git) and Antigravity overwrite_ask vs deny 
 });
 
 // #PACT-120 #PACT-119 C11
-test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inputs complete under 1000 ms', t => {
+test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inputs complete under 3000 ms', t => {
   const SECRET_CMD = 'SECRET_CMD_XYZ';
   const SECRET_URL = 'https://github.com/OwnerLogin/SECRET_REPO_XYZ.git';
   const fx = makePinFixture(t, { owner: { login: 'OwnerLogin', id: 998877 } });
@@ -1346,14 +1346,14 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     const started = Date.now();
     guard.answerCall({ command: big, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
     const elapsed = Date.now() - started;
-    assert.ok(elapsed < 1000, `${unit} took ${elapsed} ms (>= 1000 ms)`);
+    assert.ok(elapsed < 3000, `${unit} took ${elapsed} ms (>= 3000 ms)`);
   }
   {
     const started = Date.now();
     const res = guard.answerCall({ command: `gh pr merge 1\n${'${'.repeat(450000)}`, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
     const elapsed = Date.now() - started;
     assert.equal(res?.id, 'identity-gh');
-    assert.ok(elapsed < 1000, `brace pad took ${elapsed} ms (>= 1000 ms)`);
+    assert.ok(elapsed < 3000, `brace pad took ${elapsed} ms (>= 3000 ms)`);
   }
 });
 

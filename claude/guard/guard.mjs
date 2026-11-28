@@ -238,7 +238,7 @@ function tokenizeMode(command, bash, depth = 0) {
   const hasRawNewline = /[\r\n]/.test(command);
   const n = command.length;
   const segments = [];
-  const separators = [];
+  let hasAnySeparator = false;
   let tokens = [];
   let rawTokens = [];
   let tokenOffsets = [];
@@ -330,12 +330,15 @@ function tokenizeMode(command, bash, depth = 0) {
 
   const endToken = (rawEnd = -1) => {
     if (started) {
-      const lower = bash ? current : current.toLowerCase();
+      const len = current.length;
       const unescapedWord = !wasQuoted && !wasEscaped;
       const prevUnescapedWord = !prevTokenQuoted && !prevTokenEscaped;
-      if (unescapedWord && CONTROL_KEYWORDS.has(lower)) {
-        if (tokens.length === 0 || (prevUnescapedWord && CONTROL_OPENERS.has(bash ? tokens.at(-1) : tokens.at(-1).toLowerCase()))) {
-          hasControlKeyword = true;
+      if (unescapedWord && len >= 2 && len <= 8) {
+        const lower = bash ? current : current.toLowerCase();
+        if (CONTROL_KEYWORDS.has(lower)) {
+          if (tokens.length === 0 || (prevUnescapedWord && CONTROL_OPENERS.has(bash ? tokens.at(-1) : tokens.at(-1).toLowerCase()))) {
+            hasControlKeyword = true;
+          }
         }
       }
       if (bash) {
@@ -353,7 +356,7 @@ function tokenizeMode(command, bash, depth = 0) {
         }
       }
       tokens.push(current);
-      rawTokens.push(tokStart >= 0 && rawEnd >= tokStart ? command.slice(tokStart, rawEnd) : current);
+      rawTokens.push(unescapedWord && tokStart >= 0 && rawEnd - tokStart === len ? current : (tokStart >= 0 && rawEnd >= tokStart ? command.slice(tokStart, rawEnd) : current));
       tokenOffsets.push(tokStart);
       prevTokenQuoted = wasQuoted;
       prevTokenEscaped = wasEscaped;
@@ -372,14 +375,14 @@ function tokenizeMode(command, bash, depth = 0) {
     endToken(rawEnd);
     if (tokens.length) {
       segments.push({ tokens, rawTokens, tokenOffsets });
+      tokens = [];
+      rawTokens = [];
+      tokenOffsets = [];
     }
-    tokens = [];
-    rawTokens = [];
-    tokenOffsets = [];
     prevTokenQuoted = false;
     prevTokenEscaped = false;
     if (sep) {
-      separators.push(sep);
+      hasAnySeparator = true;
       if (sep !== ';' && sep !== '\n') {
         hasNonSemiSep = true;
         if (sep === '|' || sep === '&' || sep === '(' || sep === ')' || sep === '{' || sep === '}') {
@@ -457,7 +460,7 @@ function tokenizeMode(command, bash, depth = 0) {
           wasEscaped = false;
           hasNonSemiSep = true;
           hasEnclosingOrPipeOrBg = true;
-          separators.push('(');
+          hasAnySeparator = true;
           i += 2;
           continue;
         }
@@ -526,7 +529,7 @@ function tokenizeMode(command, bash, depth = 0) {
           wasEscaped = false;
           hasNonSemiSep = true;
           hasEnclosingOrPipeOrBg = true;
-          separators.push('(');
+          hasAnySeparator = true;
           i += 2;
           continue;
         }
@@ -908,7 +911,7 @@ function tokenizeMode(command, bash, depth = 0) {
 
   return {
     segments,
-    separators,
+    hasAnySeparator,
     sawStopParse,
     sawComment,
     sawHeredoc,
@@ -1347,8 +1350,65 @@ function firstMet(rules, met) {
  * counts. A deny anywhere beats an ask.
  */
 export function judge(command, rules) {
-  const segments = [...segmentsOf(command, true), ...segmentsOf(command, false)].map(tokens => ({ tokens, at: programAt(tokens), text: tokens.join(' ') }));
-  return firstMet(rules, rule => segments.some(s => (rule.words ? wordsMatch(s.tokens, s.at, rule.words) : containsMatch(s.text, rule.contains))));
+  if (rules.length === 0) return null;
+  const denyRulesByWord = new Map();
+  const askRulesByWord = new Map();
+  const denyContains = [];
+  const askContains = [];
+  for (let ri = 0; ri < rules.length; ri++) {
+    const r = rules[ri];
+    if (r.words) {
+      const map = r.decision === 'deny' ? denyRulesByWord : askRulesByWord;
+      let list = map.get(r.words[0]);
+      if (!list) {
+        list = [];
+        map.set(r.words[0], list);
+      }
+      list.push({ ri, r });
+    } else {
+      (r.decision === 'deny' ? denyContains : askContains).push({ ri, r });
+    }
+  }
+  let bestDenyIdx = Infinity;
+  let bestAskIdx = Infinity;
+  for (const bash of [true, false]) {
+    const { segments } = tokenizeMode(command, bash);
+    for (let si = 0; si < segments.length; si++) {
+      const tokens = segments[si].tokens;
+      const at = programAt(tokens);
+      const prog = at < tokens.length ? programName(tokens[at]) : '';
+      if (prog) {
+        const dList = denyRulesByWord.get(prog);
+        if (dList) {
+          for (const { ri, r } of dList) {
+            if (ri < bestDenyIdx && wordsMatch(tokens, at, r.words)) bestDenyIdx = ri;
+          }
+        }
+        if (bestDenyIdx === Infinity) {
+          const aList = askRulesByWord.get(prog);
+          if (aList) {
+            for (const { ri, r } of aList) {
+              if (ri < bestAskIdx && wordsMatch(tokens, at, r.words)) bestAskIdx = ri;
+            }
+          }
+        }
+      }
+      if (denyContains.length > 0 || (bestDenyIdx === Infinity && askContains.length > 0)) {
+        const segText = tokens.length === 1 ? tokens[0] : tokens.length === 2 ? `${tokens[0]} ${tokens[1]}` : tokens.join(' ');
+        for (const { ri, r } of denyContains) {
+          if (ri < bestDenyIdx && containsMatch(segText, r.contains)) bestDenyIdx = ri;
+        }
+        if (bestDenyIdx === Infinity) {
+          for (const { ri, r } of askContains) {
+            if (ri < bestAskIdx && containsMatch(segText, r.contains)) bestAskIdx = ri;
+          }
+        }
+      }
+    }
+  }
+  if (bestDenyIdx < Infinity) return { decision: 'deny', id: rules[bestDenyIdx].id };
+  if (bestAskIdx < Infinity) return { decision: 'ask', id: rules[bestAskIdx].id };
+  return null;
 }
 
 /** `judgeBy` on the text and the table beside this file, once the text is one the guard reads. */
@@ -3439,7 +3499,7 @@ function isOverwriteEligible(command, bashMode, psMode, bashSegState, psSegState
   if (bashMode.hasRawNewline || psMode.hasRawNewline) return false;
   if (bashMode.sawComment || psMode.sawComment) return false;
   if (bashMode.hasNonSemiSep || psMode.hasNonSemiSep) return false;
-  if (bashMode.separators.length > 0 || psMode.separators.length > 0) return false;
+  if (bashMode.hasAnySeparator || psMode.hasAnySeparator) return false;
   if (bashMode.segments.length !== 1 || psMode.segments.length !== 1) return false;
   if (bashSegState.at !== 0 || psSegState.at !== 0) return false;
   if (programName(bashSegState.tokens[0]) !== 'git' || programName(psSegState.tokens[0]) !== 'git') return false;

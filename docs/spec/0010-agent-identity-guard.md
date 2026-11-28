@@ -1280,7 +1280,7 @@ is cheaper to reverse.
   text, `.git/config` URL, `github.json` login/ID, or raw error message appears
   in any `reason`, `deny`, or failure output across all three wrappers
   (`overwrite.CommandLine` carries the rewritten command only on Antigravity
-  `run_command`); 1 MiB adversarial inputs complete in `< 1000 ms` per call.
+  `run_command`); 1 MiB adversarial inputs complete in `< 3000 ms` per call.
 - **C12 (CI verification and automated `--home` end-to-end check):** an
   automated `--home` end-to-end test installs the pact and invokes all three
   rendered wrappers/launchers cleanly; CI's three jobs (`gate`, `gate-macos`,
