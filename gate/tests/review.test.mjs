@@ -326,7 +326,7 @@ test("review.md's coverage hint item names the tool, the scratch folder and the 
     'The hint changes no sort, severity, disposition, `auto` mark or route',
     'never the JSON line printed before it, which goes in no post',
     'a refused run puts its `REFUSED` line there',
-    'a round that sends any logs one checkpoint line for them, naming the repo and the count sent, counting each run that reached `jev`, a failed one included',
+    'a round that sends any logs one checkpoint line for them, naming the repo and the count sent, counting every `ask` run with `jev` chosen, except one refused with a word other than `coverage/internal`',
   ]) {
     assert.ok(item.includes(says), `the item does not say: ${says}`);
   }

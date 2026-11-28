@@ -139,7 +139,8 @@ Ask each lens to report in this shape:
   model only. A repo listed for `jev` in `~/.pact/coverage.json` is my standing
   pick for that repo's sends, with no checkpoint per call; a round that sends any
   logs one checkpoint line for them, naming the repo and the count sent, counting
-  each run that reached `jev`, a failed one included.
+  every `ask` run with `jev` chosen, except one refused with a word other than
+  `coverage/internal`.
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,
   and a further read runs again the same way; every report it returned stays

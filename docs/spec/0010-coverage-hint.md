@@ -387,8 +387,8 @@ first form would run a file the working folder holds.)
   local model only. A repo listed for `jev` in `~/.pact/coverage.json` is
   the owner's standing pick for that repo's sends, with no checkpoint per
   call; a round that sends any logs one checkpoint line for them, naming the
-  repo and the count sent, counting each run that reached `jev`, a failed one
-  included.
+  repo and the count sent, counting every `ask` run with `jev` chosen, except
+  one refused with a word other than `coverage/internal`.
 
 ## S7 What leaves the machine
 
@@ -424,8 +424,8 @@ first form would run a file the working folder holds.)
     only. A session that calls TypeSafe itself with the key, or edits the
     choice file, gets past them all, and any proxy or gateway holding a
     certificate authority Node trusts, one added through `NODE_EXTRA_CA_CERTS`
-    or in the system store under `--use-system-ca`, reads the key and the
-    findings: of the certificate settings, the tool checks only
+    or in the system store under `--use-system-ca`, among others, reads the
+    key and the findings: of the certificate settings, the tool checks only
     `NODE_TLS_REJECT_UNAUTHORIZED`. Rules it rests on: the read before
     posting, at most ten a round."
   - **Scope, Also out:** TypeSafe, as a provider the user chose, like

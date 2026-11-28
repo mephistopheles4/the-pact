@@ -315,7 +315,7 @@ secret or personal detail the scan doesn't read.
   TypeSafe itself with the key, or edits the choice file, gets past them all,
   and any proxy or gateway holding a certificate authority Node trusts, one
   added through `NODE_EXTRA_CA_CERTS` or in the system store under
-  `--use-system-ca`, reads the key and the findings: of the certificate
+  `--use-system-ca`, among others, reads the key and the findings: of the certificate
   settings, the tool checks only `NODE_TLS_REJECT_UNAUTHORIZED`. Rules it rests
   on: the read before posting, at most ten a round.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
