@@ -6,13 +6,15 @@
 
 Two choices, each its own. In Scriptorium, tick `coverage` under the tools and pick a model under **Install a decision-one model**; or write them in `~/.pact/config.json`, then apply the install.
 
+The commands here are for a POSIX shell. In PowerShell, write each script's path in quotes from `$HOME`: `"$HOME/.pact/tools/clef.mjs"` and `"$HOME/.pact/tools/coverage.mjs"`.
+
 | Model | `~/.pact/config.json` | What else to do |
 | --- | --- | --- |
 | Clef Flash, the default | `"tools": ["clef", "coverage"]`, `"decision-model": "clef-flash"` | `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes` ([clef.md](clef.md)) |
-| Clef Full | `"tools": ["clef", "coverage"]`, `"decision-model": "clef-full"` | `clef setup --variant full`, then the same with `--yes` |
+| Clef Full | `"tools": ["clef", "coverage"]`, `"decision-model": "clef-full"` | `node ~/.pact/tools/clef.mjs setup --variant full`, then the same with `--yes` |
 | Jev | `"tools": ["coverage"]`, `"decision-model": "jev"` | read [TypeSafe's terms](#typesafes-terms), set the key, list the repos |
 
-With no `decision-model` key the tool asks the local Clef, whichever variant is set up. With a variant named, the other never answers for it (`unavailable (clef-variant)`). The tool reads the key at each run; a project configuration can't set it.
+With no `decision-model` key the tool asks the local Clef, whichever variant is set up. With a variant named, the other never answers for it (`unavailable (clef-variant)`). The tool reads `decision-model` at each run, so a change needs no install; a project configuration can't set it.
 
 ## What it sends, and where
 

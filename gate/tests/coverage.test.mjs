@@ -197,6 +197,11 @@ test('draft: the classes under the heading and each out-of-scope paragraph outsi
   for (const sep of [String.fromCodePoint(0x2028), String.fromCodePoint(0x2029)]) {
     assert.deepEqual(coverage.draftEntries(lines(`#${' '.repeat(3000)}${sep}x${sep}x`, '', risks)).entries, { posts_are_public: 'Posts are public. They are.' });
   }
+  // Plain spaces alone make the match cost the square of the line's length, so a long line is not tried as a heading.
+  const pad = ' '.repeat(80_000);
+  for (const line of [`# a${pad}b`, `# a${pad}#${pad}!`]) {
+    assert.deepEqual(coverage.draftEntries(lines(line, '', risks)).entries, { posts_are_public: 'Posts are public. They are.' });
+  }
   assert.ok(process.hrtime.bigint() - started < 2_000_000_000n, 'a crafted heading line does not stall the draft');
 });
 
