@@ -13,6 +13,7 @@ None yet.
 
 ## All specs
 
+- [0014-easy-asks](0014-easy-asks.md) — a closed list of two easy asks in the rules file, adding an opt-in tool that sends and holds nothing to the config and a Scriptorium rebuild with the installed kit, taken as checkpoints no one holds, a lead in Auto mode included; the install's apply stays the owner's
 - [0012-app-wherever-installed](0012-app-wherever-installed.md) — a delta on 0010: the agent app mints for any repo an installation covers, found through GitHub's API, falls back to the owner's own credentials where none does, keeps the owner's global git writes, and the guard routes every github.com write through it
 - [0011-coverage-hint](0011-coverage-hint.md) — an opt-in `coverage` tool: for each security finding, a decision model (local Clef by default, or Jev by the user's per-project choice) answers small questions per threat-model entry, and the round comment shows "likely covered", "unsure" or "no entry found" as a hint no rule acts on; with a delta on 0002 for full Clef
 - [0010-agent-identity-guard](0010-agent-identity-guard.md) — cross-harness agent identity guard across Claude Code, Codex and Antigravity under agent-identity, with Antigravity overwrite + ask, plain-text repo-owner scoping, rendered startup guidance and --provider doc fixes

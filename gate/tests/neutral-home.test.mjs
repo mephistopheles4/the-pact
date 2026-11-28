@@ -60,6 +60,8 @@ const fixture = rel => lf(readFileSync(join(FIXTURE, ...rel.split('/')), 'utf8')
 const NEUTRAL_RULES = [
   ['## How Claude helps', '## How the agent helps'],
   ["Claude's own\n  permission prompts and classifier blocks still stop you; these rules add no\n  stop of their own.", "Your harness's own\n  permission prompts and blocks still stop you; these rules add no stop of\n  their own."],
+  // PACT-71: the Easy asks bullet follows Checkpoints.
+  ['  their own.\n- **Keep the record**', "  their own.\n- **Easy asks.** Two asks are easy: an edit that only adds an opt-in pact\n  tool to my pact configuration's tools list, for a tool that sends, fetches\n  and posts nothing off the machine and holds no identity; and rebuilding my\n  Scriptorium page from my own saved file as it stands, with the installed\n  Scriptorium kit. Run its dry run or check yourself, never through `npx`,\n  and put its verdict and counts in the record, never its raw output; where\n  you can't run it, the ask isn't easy. Each is a checkpoint as above that\n  no one holds, a lead in Auto mode included. Never easy: an install's apply,\n  `mise trust`, or a step that changes a security default, turns a control\n  off or loosens it, writes a secret, changes who a session acts as, or\n  starts anything that sends, fetches or posts off the machine, now or later.\n- **Keep the record**"],
   ['| none | Opus, low |', '| none | planning model, low |'],
   ['| Opus, medium | Sonnet, medium |', '| planning model, medium | executor model, medium |'],
   ['| Opus, high | Sonnet, medium |\n', '| planning model, high | executor model, medium |\n\nHere the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.\n'],
