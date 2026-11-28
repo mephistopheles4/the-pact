@@ -1259,7 +1259,8 @@ Ask each lens to report in this shape:
   status comment. This is not step 2's placement call, which stays on the local
   model only. A repo listed for `jev` in `~/.pact/coverage.json` is my standing
   pick for that repo's sends, with no checkpoint per call; a round that sends any
-  logs one checkpoint line for them, naming the repo and the count sent.
+  logs one checkpoint line for them, naming the repo and the count sent, counting
+  each run that reached `jev`, a failed one included.
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,
   and a further read runs again the same way; every report it returned stays
@@ -1698,7 +1699,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash d7d00e2f3f658c403e05dd0478e2ec755c9152e8c11ef4e40d0159199e87dbb1 '.pact/review.md'
+check_hash ed552c17214d3310beb9d399f7f36d7687bbd124a8e900ac72efb7233d4c3e22 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1728,7 +1729,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy ecf7413e5e40"
+  echo "pact cloud copy 9db6925f8926"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
