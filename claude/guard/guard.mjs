@@ -497,6 +497,9 @@ function tokenizeMode(command, bash, depth = 0) {
     if (sub.hasRawNewline) { /* keep outer newline check separate */ }
     if (sub.hasSubexprInDoubleQuotes) hasSubexprInDoubleQuotes = true;
     if (sub.hasExpandableHereStringWithDollar) hasExpandableHereStringWithDollar = true;
+    if (sub.hasEnvBraced) hasEnvBraced = true;
+    if (sub.hasDotNetEnv) hasDotNetEnv = true;
+    if (sub.hasPsSubexpr) hasPsSubexpr = true;
   };
 
   const isPsBlockHead = t0 => {
@@ -2797,8 +2800,8 @@ function splitAssign(tok, rawTok) {
   };
 }
 
-function parsePsEnvAssign(tokens, rawTokens) {
-  let k = 0;
+function parsePsEnvAssign(tokens, rawTokens, start = 0) {
+  let k = start;
   while (k < tokens.length && isPsTypeCast(tokens[k])) k++;
   const tk = tokens[k];
   if (tk === undefined) return null;
@@ -2814,7 +2817,7 @@ function parsePsEnvAssign(tokens, rawTokens) {
     hasInlineCast = true;
     lhs = tk.slice(after);
   }
-  const hasTypeCast = k > 0 || hasInlineCast;
+  const hasTypeCast = k > start || hasInlineCast;
   const lowerLhs = lhs.toLowerCase();
   let varName = '';
   let rest = '';
@@ -2836,7 +2839,7 @@ function parsePsEnvAssign(tokens, rawTokens) {
     return null;
   }
   if (!varName) return null;
-  const tainted = hasTypeCast;
+  const tainted = hasTypeCast || start > 0;
   if (rest === '') {
     const op = tokens[k + 1];
     if (op === '=' || op === '+=') {
@@ -2874,6 +2877,40 @@ const GUARDED_ENV_NAMES = new Set([
   'GIT_DIR', 'GIT_CONFIG', 'GIT_COMMON_DIR', 'GIT_CONFIG_SYSTEM',
   'GIT_CONFIG_COUNT', 'GIT_CONFIG_PARAMETERS', 'GIT_ASKPASS', 'SSH_ASKPASS',
 ]);
+
+function collectChainedPsEnvVars(tok, nextTok) {
+  const found = [];
+  let eq = tok.indexOf('=');
+  while (eq !== -1) {
+    if (eq + 1 >= tok.length) break;
+    let p = eq + 1;
+    if (tok[p] === '[') {
+      const after = scanBalancedBrackets(tok, p);
+      if (after === -1) break;
+      p = after;
+    }
+    const subLower = tok.slice(p, p + 6).toLowerCase();
+    if (subLower.startsWith('$env:')) {
+      const eq2 = tok.indexOf('=', p + 5);
+      if (eq2 !== -1) {
+        const opStart = eq2 > p + 5 && tok[eq2 - 1] === '+' ? eq2 - 1 : eq2;
+        const v = tok.slice(p + 5, opStart);
+        if (v) found.push(v);
+      } else if (nextTok === '=' || nextTok === '+=') {
+        const v = tok.slice(p + 5);
+        if (v) found.push(v);
+      }
+    } else if (subLower === '${env:') {
+      const cb = tok.indexOf('}', p + 6);
+      if (cb > p + 6 && (tok[cb + 1] === '=' || tok.startsWith('+=', cb + 1) || (cb + 1 === tok.length && (nextTok === '=' || nextTok === '+=')))) {
+        const v = tok.slice(p + 6, cb);
+        if (v) found.push(v);
+      }
+    }
+    eq = tok.indexOf('=', eq + 1);
+  }
+  return found;
+}
 
 /**
  * Analyze a single shell mode linearly, computing per-segment state for
@@ -3129,6 +3166,27 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
     if (psEnvAssign) {
       applyExportOrSet(psEnvAssign.varName, psEnvAssign.rawRhs, isLiteralPsEnvAssign, idx, psEnvAssign.taintedAssign);
       if (isGuardedName(psEnvAssign.varName)) segSawDisqualifier = true;
+    }
+    if (!bash && tokens.length > 0) {
+      let pos = 0;
+      while (pos < tokens.length) {
+        if (pos > 0) {
+          const chained = parsePsEnvAssign(tokens, rawTokens, pos);
+          if (chained) {
+            applyExportOrSet(chained.varName, chained.rawRhs, false, idx, true);
+            if (isGuardedName(chained.varName)) segSawDisqualifier = true;
+          }
+        }
+        if (isPsVarPrefix(tokens[pos]) && tokens[pos].includes('=') && !/^['"]/.test(rawTokens[pos] ?? '')) {
+          for (const v of collectChainedPsEnvVars(tokens[pos], tokens[pos + 1])) {
+            applyExportOrSet(v, '', false, idx, true);
+            if (isGuardedName(v)) segSawDisqualifier = true;
+          }
+        }
+        const nextPos = scanPsAssign(tokens, pos);
+        if (nextPos <= pos) break;
+        pos = nextPos;
+      }
     }
 
     // Inspect inline assignments and `env` wrappers in execution order on THIS segment
@@ -3883,10 +3941,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
 
       if (identityEnabled && !hasCandidate) {
         if (!sawConfigInjectionToken) {
-          if (
-            (PS_ENV_ITEM_CMDS.has(prog) && tokens.slice(at + 1).some(t => /(?:^|[^A-Za-z0-9_])env:/i.test(t))) ||
-            (prog === 'cmd' && tokens.slice(at + 1).some(t => /^\/[cd](?:$|:)/i.test(t)))
-          ) {
+          if (PS_ENV_ITEM_CMDS.has(prog) && tokens.slice(at + 1).some(t => /(?:^|[^A-Za-z0-9_])env:/i.test(t))) {
             sawConfigInjectionToken = true;
           } else {
             for (let ti = 0; ti < tokens.length; ti++) {

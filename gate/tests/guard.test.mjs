@@ -1042,7 +1042,7 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
   ]) assert.equal(call(cmd)?.decision, 'deny', cmd);
 
   // Argument data starting with .'...' is not split into a dot-source wrapper.
-  assert.equal(call("echo .'gh'"), null);
+  assert.deepEqual(guard.segmentsOf("echo .'gh'", false), [['echo', '.gh']]);
 
   // --% after git fails closed as unknown leading flag.
   assert.equal(call('git --% push')?.id, 'identity-git');
@@ -1189,7 +1189,11 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `$k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1'); git p`,
     `$x='GIT_CONFIG_'+'COUNT'; Set-Item "env:$x" 1; git p`,
     `GIT_TERMINAL_PROMPT=1 git p`,
-    `\${env:GIT_CONFIG_COUNT}='1'; git p`,
+    `\${env:x}='1'; git p`,
+    `$x = $env:GIT_CONFIG_COUNT = '1'; git p`,
+    `$x = $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
+    `$x=$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git commit -m x`,
+    `$x = @"\n$($k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1'))\n"@; git p`,
     `[string] $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
     `[string[]]$env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
     `$env:GIT_DIR='/tmp/x'; git commit -m x`,
@@ -1221,13 +1225,21 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `$k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1'); git p`,
     `$x='GIT_CONFIG_'+'COUNT'; Set-Item "env:$x" 1; git p`,
     `GIT_TERMINAL_PROMPT=1 git p`,
-    `\${env:GIT_CONFIG_COUNT}='1'; git p`,
+    `\${env:x}='1'; git p`,
+    `$x = $env:GIT_CONFIG_COUNT = '1'; git p`,
+    `$x = $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
+    `$x=$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git commit -m x`,
+    `$x = @"\n$($k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1'))\n"@; git p`,
     `[string] $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
     `[string[]]$env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
   ]) {
     assert.equal(guard.answerCall({ command: cmd, provider: 'codex', cwd: strangerGitRepo.work, canOverwrite: false, env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath }, tableFile: fx.tableFile, platform: process.platform })?.id, 'identity-git', cmd);
   }
   assert.equal(guard.answerCall({ command: `$env:GIT_DIR='/tmp/x'; git commit -m x`, provider: 'codex', cwd: strangerGitRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform })?.id, 'identity-git');
+  assert.equal(call(`$x=$env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call(`$x = $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call(`$x=$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; $x = $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`)?.id, 'identity-git');
 
   // Explicit shell rejects cross-shell assignments; heredoc/here-string cannot cross-satisfy modes.
   assert.equal(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { shell: 'bash' })?.id, 'identity-git');
@@ -1397,7 +1409,7 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
   for (const [label, command, expectedId] of [
     ['ps var eq DoS', '[' + 'a='.repeat(450000) + '; gh pr merge 1', 'identity-gh'],
     ['ps cast eq DoS', '[' + 'A'.repeat(400000) + '] ' + 'a='.repeat(200000) + '; git push', 'identity-git'],
-    ['dot-quote command pos', 'command '.repeat(50000) + " .''".repeat(50000) + '; gh pr merge 1', 'identity-gh'],
+    ['dot-quote command pos', 'call '.repeat(50000) + " .''".repeat(50000) + '; gh pr merge 1', 'identity-gh'],
   ]) {
     const started = Date.now();
     const res = guard.answerCall({ command, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
