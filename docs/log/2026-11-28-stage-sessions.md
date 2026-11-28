@@ -1,6 +1,6 @@
 # A stage's own work runs in a session
 
-**2026-11-28.** PACT-97. The tier table gives each stage a model, but nothing said how sessions move between stages, and a lead had told a session to build in a subagent on another model. The owner asked that the point be control: the rule belongs to the move "Stay the owner", and the model split is a reference. Standard tier, not on the sensitive list. The design is [spec 0013](../spec/0013-stage-sessions.md), amended into [ADR 0180](../adr/0180-a-session-splits-where-the-model-changes.md).
+**2026-11-28.** PACT-97. The tier table gives each stage a model, but nothing said how sessions move between stages, and a lead had told a session to build in a subagent on another model. The owner asked that the point be control: the rule belongs to the move "Stay the owner", and the model split is a reference. Standard tier, not on the sensitive list. The design is [spec 0013](../spec/0013-stage-sessions.md), recorded in [ADR 0180](../adr/0180-a-session-splits-where-the-model-changes.md), which amends ADR 0011.
 
 ## What was built
 

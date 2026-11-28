@@ -1,8 +1,8 @@
 # Spec: a stage's own work runs in a session; a new model means a new session
 
-Status: draft 3, after the spec pair's two rounds (the second final), with
-their fixes folded in; three final-round mediums are drafted fixes for the
-owner (S9).
+Status: built from draft 3, which the lead session approved for Build after
+the spec pair's two rounds (the second final), with their fixes folded in.
+The picks in S9 are the owner's to confirm or reverse.
 The spec counts once it is on `main`.
 
 - **Business driver:** the owner's ask: the rule is control, and the model
@@ -209,7 +209,8 @@ ADR index its line.
 - **The grimoire follow-up** is proposed in the result and filed when this PR
   merges, its trigger: before head-chef's next change to its starting
   reference.
-- **Security, open, decided at spec approval, before Build:** every model
+- **Security, open for the owner.** No security pair runs, by the lead
+  session's pick at spec approval; the owner hasn't answered. Every model
   seam starts a session from the record on the issue, a route the threat
   model already accepts ("Text into a session"). The change makes it the
   usual path but adds no input, permission or tool. Recommended: no security
