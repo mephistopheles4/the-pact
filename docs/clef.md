@@ -1,14 +1,123 @@
 # `clef`, the local decision model's runner
 
-`clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. It serves one of two models at a time: Clef-Flash (`flash`, the default) or full Clef (`full`, a larger model). Off by default: put `clef` on the `tools` list (in Scriptorium, pick a Clef model under **Install a decision-one model**) and apply the install, and `~/.pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
+`clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. It serves one of two models at a time: Clef-Flash (`flash`, the default) or full Clef (`full`, a larger model). It is off by default. [Turn it on](#turn-it-on) puts `clef` on your tools list; the install copies one script, `~/.pact/tools/clef.mjs`, and setup fetches the rest.
 
-The design is [spec 0002](spec/0002-clef-runner.md), and [spec 0011](spec/0011-coverage-hint.md#s9-full-clef-in-clef) adds full Clef; this page is for the owner and for anyone who turns it on. Every command is `node ~/.pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
+The design is [spec 0002](spec/0002-clef-runner.md); [spec 0003](spec/0003-clef-macos.md) and [spec 0005](spec/0005-clef-everywhere.md) add platforms, and [spec 0011](spec/0011-coverage-hint.md#s9-full-clef-in-clef) adds full Clef. This page is for anyone who turns it on. Every command is `node ~/.pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
 
-## What it fetches, and how much room it needs
+<!-- toc -->
+
+- [Platforms](#platforms)
+- [What your machine needs](#what-your-machine-needs)
+  - [On Linux](#on-linux)
+  - [On Windows](#on-windows)
+  - [On macOS](#on-macos)
+- [Turn it on](#turn-it-on)
+- [What it fetches](#what-it-fetches)
+- [Example machines](#example-machines)
+  - [A Windows x64 machine with a GPU](#a-windows-x64-machine-with-a-gpu)
+  - [One-off runs on CPU](#one-off-runs-on-cpu)
+- [Commands](#commands)
+- [How a caller uses it](#how-a-caller-uses-it)
+- [Things to know](#things-to-know)
+- [When the supervisor dies](#when-the-supervisor-dies)
+- [macOS](#macos)
+- [Turning it off and removing it](#turning-it-off-and-removing-it)
+
+<!-- /toc -->
+
+## Platforms
+
+| Platform | Setup picks | Run with the real server | Not run |
+| --- | --- | --- | --- |
+| Windows x64 | Vulkan when it finds the loader, else CPU | CPU, in a [one-off run](#one-off-runs-on-cpu); Vulkan on the owner's [example machine](#a-windows-x64-machine-with-a-gpu) | Vulkan on any other machine |
+| Windows arm64 | CPU | CPU, in a one-off run | Vulkan, which is not offered yet |
+| Linux x64 (glibc) | Vulkan when it finds the loader, else CPU | CPU, in a one-off run | Vulkan |
+| Linux arm64 (glibc) | CPU | CPU, in a one-off run | Vulkan, which is not offered yet |
+| macOS arm64 (Apple Silicon) | Metal, or CPU with `--cpu` | None | Metal and CPU |
+| macOS x64 (Intel) | CPU | CPU, in a one-off run without `-nr`, an argument CPU builds now get | The current arguments |
+
+`setpriv` is a program from util-linux; `ls /usr/bin/setpriv` shows whether you have it. Without it Clef uses [the keeper](#when-the-supervisor-dies) to end the server, and setup needs nothing more from you.
+
+No CI job runs the real server: CI tests the tool with a stub. Setup refuses any other system, and a Linux without glibc (Alpine and other musl systems), with `clef-platform`.
+
+## What your machine needs
+
+- **Disk:** about 7.6 GB free for `flash` and 22 GB for `full`, on the drive that holds your Claude home folder ([what it fetches](#what-it-fetches)).
+- **Memory:** 16 GB of RAM for `flash`. In the [one-off runs](#one-off-runs-on-cpu) on 15 and 16 GB machines the server peaked at 5.1 to 6.7 GiB, with the arguments of that time. `full` is unmeasured.
+- **Node 24 or later, built for your CPU.** `node -p "process.version + ' ' + process.arch"` shows both. An x64 node on an arm64 Windows machine, or under Rosetta on Apple Silicon, picks an x64 CPU build, which runs emulated; use an arm64 node.
+- **The system libraries** for your platform, below. No download holds them.
+
+### On Linux
+
+| Needs | x64 | arm64 | Does setup check it? |
+| --- | --- | --- | --- |
+| glibc | 2.34 or newer | 2.38 or newer: Ubuntu 24.04 or Debian 13 or later (Ubuntu 22.04 is refused) | Yes |
+| `libstdc++.so.6` | `GLIBCXX_3.4.30` and `CXXABI_1.3.13` | `GLIBCXX_3.4.32` and `CXXABI_1.3.15` | No |
+| `libgcc_s.so.1` | `GCC_3.4` | `GCC_3.0` | No |
+| `libgomp.so.1` | `GOMP_4.5` | `GOMP_4.5` | No |
+| OpenSSL 3: `libssl.so.3` and `libcrypto.so.3` | `OPENSSL_3.0.0` | `OPENSSL_3.0.0` | No |
+| `libvulkan.so.1` | For the Vulkan build only | Not used | It picks Vulkan when it finds it |
+
+Check glibc with `ldd --version`. Then find the libraries:
+
+```sh
+/sbin/ldconfig -p | grep -E 'libssl\.so\.3|libcrypto\.so\.3|libstdc\+\+\.so\.6|libgcc_s\.so\.1|libgomp\.so\.1'
+```
+
+All five should be listed, for your CPU. To check a version floor, search the file that command names. For `libstdc++`, with your path:
+
+```sh
+grep -ao 'GLIBCXX_3\.4\.[0-9]*' /path/to/libstdc++.so.6 | sort -Vu | tail -n 1
+grep -ao 'CXXABI_1\.3\.[0-9]*' /path/to/libstdc++.so.6 | sort -Vu | tail -n 1
+```
+
+Do the same with `'GCC_[0-9][0-9.]*'` on `libgcc_s.so.1`, `'GOMP_[0-9][0-9.]*'` on `libgomp.so.1` and `'OPENSSL_[0-9][0-9.]*'` on `libssl.so.3`. The newest version printed must be the floor or newer.
+
+### On Windows
+
+The **Microsoft Visual C++ Redistributable** for your CPU. Setup refuses `clef-platform` without it. In PowerShell, each of these should print `True` (arm64 doesn't need the third):
+
+```powershell
+Test-Path "$env:SystemRoot\System32\MSVCP140.dll"
+Test-Path "$env:SystemRoot\System32\VCRUNTIME140.dll"
+Test-Path "$env:SystemRoot\System32\VCRUNTIME140_1.dll"
+```
+
+The Vulkan build also uses `vulkan-1.dll` from the same folder, which a GPU driver installs; without it setup picks CPU.
+
+### On macOS
+
+macOS 13.3 or later, the builds' floor. [macOS](#macos) says what differs there.
+
+## Turn it on
+
+In PowerShell, write the path in the commands below as `"$HOME/.pact/tools/clef.mjs"`.
+
+1. **Get the pact.** Clef installs with it, and the install also changes every Claude Code session on your machine, so read [Install the pact](install.md) from the top first. If you have no clone yet, [clone it](install.md#2-clone-the-repo).
+2. **Put `clef` on your tools list.** If you have no `~/.pact/config.json`, first copy `config.json` and `blocks/` from the clone's [`builder/default-config/`](../builder/default-config/) into `~/.pact/`. Your file replaces the pact's default configuration whole, and this copy keeps the default rules. Then add `"tools": ["clef"]` to `~/.pact/config.json`, beside any tool already listed. In Scriptorium, picking a Clef model under **Install a decision-one model** lists `clef` too.
+3. **Apply the install:** read [the dry run](install.md#4-run-the-dry-run-and-read-it), then run [the apply command it prints](install.md#5-install-with---apply). `~/.pact/tools/clef.mjs` appears.
+4. **Set it up.** The first command prints the plan and fetches nothing; check the platform and reason it names. The second downloads about 6.7 GB.
+
+   ```sh
+   node ~/.pact/tools/clef.mjs setup
+   node ~/.pact/tools/clef.mjs setup --yes
+   ```
+
+5. **Start it**, and repeat until the line it prints holds `"state":"ready"`:
+
+   ```sh
+   node ~/.pact/tools/clef.mjs ensure --wait 60
+   ```
+
+   If the line says `not-set-up`, run step 4 again. If it says `failed`, run `clef status`; `clef stop` clears the failure, so the next `ensure` tries again. If the server stopped while loading, see [How a caller uses it](#how-a-caller-uses-it).
+
+[How a caller uses it](#how-a-caller-uses-it) shows what to send it.
+
+## What it fetches
 
 Only `clef setup --yes` fetches anything, and only these, each checked by size and sha256 before it is kept:
 
-- **A llama.cpp server build** (tag `b12211`, MIT license) from `github.com/ggml-org/llama.cpp`, 23 to 38 MB, one archive for your platform. The license files the pin table names are kept beside it: llama.cpp's `LICENSE` on Linux, and on Windows only `LICENSE-LLVM-OpenMP`, since the Windows archive holds no llama.cpp `LICENSE`. That license is the repository's own file at the pinned tag, [`LICENSE` at b12211](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) (MIT; byte for byte the file the Linux archive carries, sha256 `94f29bbe…`).
+- **A llama.cpp server build** (tag `b12211`, MIT license) from `github.com/ggml-org/llama.cpp`, 12 to 38 MB, one archive for your platform. The license files the pin table names are kept beside it: llama.cpp's `LICENSE` on Linux and macOS, and on Windows only `LICENSE-LLVM-OpenMP`, since the Windows archive holds no llama.cpp `LICENSE`. That license is the repository's own file at the pinned tag, [`LICENSE` at b12211](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) (MIT; byte for byte the file the Linux archive carries, sha256 `94f29bbe…`).
 - **One model**, the variant you pick, at one pinned commit, Apache-2.0 per its model card:
 
 | Variant | File | From | Size | Free disk to plan for |
@@ -18,9 +127,27 @@ Only `clef setup --yes` fetches anything, and only these, each checked by size a
 
 The free disk is on the drive that holds your Claude home folder: setup refuses when the model, the archive, the unpacked files and a 10% margin do not fit. Downloads redirect only to a fixed list of hosts, over `https:` only. Everything lands in the clef folder, `<Claude home>/pact-clef/`, which no install writes or deletes.
 
-RAM and VRAM for `flash`, measured on the owner's Windows machine (Vulkan, a discrete GPU with 32 GB, Q4_K_M, `-c 65536 -ub 8192 -b 8192`): the server's peak working set was about **7.0 GiB** of RAM, and the GPU's memory use rose by about **7.8 GiB** at load and **7.9 GiB** after a 4,766-token prompt. That is about 1.1 GiB more GPU memory than the earlier `-c 16384 -ub 4096 -b 4096`, measured the same way. CPU and Metal are not measured under these arguments. A warm answer to a 4,766-token state took 527 to 645 ms. With the earlier arguments and a small state, a cold start (nothing running to ready) took about 5 seconds with the model in the file cache, and a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
+## Example machines
+
+Each is one machine, not a promise for yours.
+
+### A Windows x64 machine with a GPU
+
+The owner's machine: Vulkan, a discrete GPU with 32 GB, `flash` (Q4_K_M), `-c 65536 -ub 8192 -b 8192`. The server's peak working set was about **7.0 GiB** of RAM, and the GPU's memory use rose by about **7.8 GiB** at load and **7.9 GiB** after a 4,766-token prompt. That is about 1.1 GiB more GPU memory than the earlier `-c 16384 -ub 4096 -b 4096`, measured the same way. A warm answer to a 4,766-token state took 527 to 645 ms. With the earlier arguments and a small state, a cold start (nothing running to ready) took about 5 seconds with the model in the file cache, and a warm answer through the supervisor took a median of 41 ms (95th percentile 54 ms).
 
 **`full` is unmeasured:** its memory use with the current arguments, its load time and its answer time have not been measured on any platform.
+
+### One-off runs on CPU
+
+Before these platforms were added, the pinned server and the `flash` model ran six test cases on each machine below ([spec 0005 U10](spec/0005-clef-everywhere.md#u10-the-experiment-and-what-it-found)). The arguments were those of that time, `-c 16384 -ub 4096 -b 4096`, plus `-nr` except on the Intel Mac. They are now `-c 65536 -ub 8192 -b 8192`, and this page has no CPU figures for those. Ready is the time from the server's start. These are one-off runs, not a promise for yours.
+
+| Machine | CPU | CPUs, RAM | Ready | Median answer | Server's peak memory |
+| --- | --- | --- | --- | --- | --- |
+| Windows x64 | AMD EPYC 7763 | 4, 16 GB | 3 s | 17 s | 5.1 GiB |
+| Linux x64 | Intel Xeon 6975P-C | 4, 15 GB | 2 s | 8 s | 6.7 GiB |
+| Linux arm64 | Neoverse N2 | 4, 16 GB | 2 s | 19 s | 6.7 GiB |
+| Windows arm64 | Cobalt 100 | 4, 16 GB | 4 s | 16 s | 5.1 GiB |
+| macOS x64 (Intel) | Intel i7-8700B | 4, 14 GB | 113 s | not recorded; each took 34 to 70 s, with verbose logging | not recorded |
 
 ## Commands
 
@@ -38,9 +165,7 @@ A refusal is one line, `REFUSED <word>: <reason>`. Every mode but `ensure` ends 
 
 **Changing the variant.** Run `clef stop`, then `clef setup --variant <variant> --yes`; setup refuses `clef-running` while a supervisor lives. `flash` is the default, so a `setup` with no `--variant` selects `flash`, whatever was set up before. A downloaded model stays on disk when you switch, and switching back hashes it instead of downloading it again; both together take about 26 GB. `remove --yes` deletes them. A `setup.json` written before variants existed reads as `flash`.
 
-**Backend and speed.** Setup picks Vulkan when it finds the Vulkan loader (a file check; nothing runs), else CPU; `--cpu` forces CPU. On CPU a call takes about 2 seconds, so people without a GPU are expected to leave the tool off. The supervisor answers `no-answer` after 180 s with nothing from the server on CPU, and 60 s on a GPU. A call on CPU can therefore take up to 180 s, and the text in its `state` can make it slow.
-
-**Platforms.** Windows x64 is the target. Linux x64 is built and unit-tested in CI and has not been run end to end. macOS arm64 (Apple Silicon) is built and tested in CI on macOS 15, on CPU with a stub server, and has not been run end to end on Metal or on CPU; [macOS](#macos) says what differs there.
+**Backend and speed.** The [platform table](#platforms) says what setup picks; `--cpu` forces CPU. In the [one-off runs](#one-off-runs-on-cpu) a CPU answer took 8 to 23 s on Linux and Windows and 34 to 70 s on the Intel Mac, and it **can take up to 3 minutes** on a slow machine; the text in its `state` can make it slow. The supervisor answers `no-answer` after 180 s with nothing from the server on CPU, and 60 s on a GPU. Give a caller's own timeout the same room. The [coverage hint](coverage.md) gives up after 60 s, so on a CPU it can end `unavailable (timeout)`.
 
 ## How a caller uses it
 
@@ -57,7 +182,7 @@ This interface is V1's. It changes only through a spec change, which adds a `v` 
 
 `--wait n` (0 to 60 seconds, default 0) waits for `ready`. A start that fails is recorded in `run.fail`; `stop` clears it.
 
-**A server that ends while loading** the model gets one more line, on `ensure`'s stderr and in `status`: `the server stopped while loading the model on <platform key> (<code>); this build may not support this CPU or system. See docs/clef.md`. On a GPU build it adds ``; try `clef setup --cpu` ``. `<code>` is the server's exit code or signal name, and `unknown` on the [keeper](#macos). `run.fail` records the stage, `load` or `serve`, that code and the platform key. The line is said of the build that is set up only, and `status` drops it once a server is ready.
+**A server that ends while loading** the model gets one more line, on `ensure`'s stderr and in `status`: `the server stopped while loading the model on <platform key> (<code>); this build may not support this CPU or system. See docs/clef.md`. On a GPU build it adds ``; try `clef setup --cpu` ``. `<code>` is the server's exit code or signal name, and `unknown` on the [keeper](#when-the-supervisor-dies). `run.fail` records the stage, `load` or `serve`, that code and the platform key. The line shows only while the recorded platform key is the set-up one, and `status` drops it once a server is ready. Check [what your machine needs](#what-your-machine-needs) first.
 
 **`run.json`**, in the clef folder, holds `port`, `run`, `pid`, `serverPid` and `started`. Any program on the machine may call the supervisor: it takes no token.
 
@@ -75,20 +200,31 @@ The supervisor stops itself after 30 minutes with no forwarded request, when the
 - **Pin age.** A pin is made only when each pinned file is at least 14 days old. A release asset's age counts from the later of its `created_at` and `updated_at`; the model's counts from the Hugging Face Hub's own record of that file's last change (the tree API's `lastCommit` date at the pinned commit), which a commit pushed with git can set to any date ([ADR 0166](adr/0166-a-pinned-download-is-at-least-14-days-old.md) says what a pin PR checks). Review holds the rule; the tool does not check it when it runs.
 - **A pin bump.** After an install that changes the pin table, `ensure` reports `not-set-up` with `pin-changed` (and `status` shows the old tag) until you run `clef stop` and then `clef setup --yes` (add `--variant full` if you use full Clef). Setup refuses `clef-running` while a supervisor lives.
 - **`CLAUDE_CONFIG_DIR`.** A value you set is accepted only as an absolute path, and the tool refuses it (`clef-home`) when the command starts from a folder that contains that Claude home folder, because a cloned project's settings can set that variable. Start from beside your Claude home folder, or from a subfolder of it other than `pact-clef/`, instead.
-- **Linux.** Where `/usr/bin/setpriv` exists, the server starts through it, so the kernel ends it when its supervisor dies. Without it, the supervisor starts the server through the keeper, with its record, described under [macOS](#macos). Either way, the next `ensure`, `stop`, `setup --yes` or `remove --yes` also ends any server left running from the clef folder's `runtime/`, so one that outlives both a supervisor and a keeper killed with `SIGKILL` runs only until then. One exception: on the keeper, `setup` refuses `clef-orphan` while a recorded server is still loading (without `--yes`, while it runs at all), and `clef stop` ends it.
 - **Prompt size.** The server takes a prompt of up to 8,192 tokens, its batch size, counting the state, the questions and the model's own template. As a rough guide, 18,702 characters of English state came to 4,766 tokens, so keep a state under about 30,000 characters. A longer prompt gets `502 {"error":"no-answer"}`, and a body over 256 KB gets `413` first.
 - **Logs.** `serve.log` in the clef folder holds counts, timings and reason words only, capped at 1 MB.
 
+## When the supervisor dies
+
+The server should not outlive its supervisor. What ends it depends on the platform:
+
+| Platform | What ends the server |
+| --- | --- |
+| Windows | A job object: the server ends with the supervisor |
+| Linux with `/usr/bin/setpriv` | The server starts through it, so the kernel ends the server |
+| Linux without it, and macOS | The keeper |
+
+- **The keeper.** The supervisor starts a small keeper (`clef keep`, the same script, reached over a channel only the supervisor holds), and the keeper starts the server. When the supervisor dies, the channel closes and the keeper ends the server. `clef keep` run by hand refuses `clef-keep`.
+- **The record.** If the supervisor and the keeper are both killed, the server can outlive them. On the keeper, `run.server` records its pid and port. The next `ensure`, `stop`, `setup --yes` or `remove --yes` ends it, but only once it refuses a request with no key and with a wrong key and then takes the run's key. A record from before the last boot, or one whose port answers otherwise, is removed and nothing is ended.
+- **Linux's second check.** On Linux, the next `ensure`, `stop`, `setup --yes` or `remove --yes` also ends any server left running from the clef folder's `runtime/`, so one that outlives both a supervisor and a keeper killed with `SIGKILL` runs only until then. One exception: on the keeper, `setup` refuses `clef-orphan` while a recorded server is still loading (without `--yes`, while it runs at all), and `clef stop` ends it.
+- **An orphan still loading, on macOS.** While a recorded server is still loading, `ensure` says `starting` and starts nothing. `stop` prints `orphan still loading (pid <n>); run stop again` and exits 1. `remove --yes` exits 1 and deletes nothing, setup refuses `clef-orphan`, and `status` prints the pid. Run `clef stop` again once it has loaded. A server that never loads stays until you end that pid yourself or reboot; check first with `ps -p <pid>` that the pid is a `llama-server`, since a pid can be reused.
+- **What isn't covered, on macOS.** A server started in the moment before `run.server` is written, whose supervisor and keeper are then both killed, is not recorded. Find it with `ps` and end it yourself.
+
 ## macOS
 
-- **What it needs.** An Apple Silicon Mac on macOS 13.3 or later (the build's floor), with an arm64 Node 24. Expect 16 GB of memory to be the floor; that was set under the earlier `-c 16384 -ub 4096 -b 4096`, and the current arguments are unmeasured on a Mac. Setup picks Metal, and `--cpu` picks CPU. Intel Macs, and an x64 node under Rosetta, are refused with `clef-platform`.
+- **What it needs.** A Mac on macOS 13.3 or later, with Node 24. On Apple Silicon with an arm64 node, setup picks Metal, and `--cpu` picks CPU. On an Intel Mac, and with an x64 node on Apple Silicon, it picks the Intel CPU build. Expect 16 GB of memory to be the floor; on Apple Silicon that was set under the earlier `-c 16384 -ub 4096 -b 4096`, and the current arguments are unmeasured on a Mac.
 - **Quarantine.** The tool's own downloads carry no quarantine mark. If macOS still blocks `llama-server` at start ("cannot be opened" or "not verified"), run `clef verify` first. Once it passes, run `xattr -dr com.apple.quarantine <clef folder>/runtime`.
 - **The files.** `run.key` is mode 0600.
-- **The keeper.** macOS has no way to end a child when its parent dies. So the supervisor starts a small keeper (`clef keep`, the same script, reached over a channel only the supervisor holds), and the keeper starts the server. When the supervisor dies, the channel closes and the keeper ends the server. `clef keep` run by hand refuses `clef-keep`.
-- **The record.** If the supervisor and the keeper are both killed, the server can outlive them. `run.server` records its pid and port. The next `ensure`, `stop`, `setup --yes` or `remove --yes` ends it, but only once it refuses a request with no key and with a wrong key and then takes the run's key. A record from before the last boot, or one whose port answers otherwise, is removed and nothing is ended.
-- **An orphan still loading.** While a recorded server is still loading, `ensure` says `starting` and starts nothing. `stop` prints `orphan still loading (pid <n>); run stop again` and exits 1. `remove --yes` exits 1 and deletes nothing, setup refuses `clef-orphan`, and `status` prints the pid. Run `clef stop` again once it has loaded. A server that never loads stays until you end that pid yourself or reboot; check first with `ps -p <pid>` that the pid is a `llama-server`, since a pid can be reused.
-- **Two more controls.** On macOS the caller's `TMPDIR` passes to the server, beside the named environment. A pin PR checks each Mach-O file in the build: thin arm64, no flags, its `minos` printed. The threat model lists both.
-- **What isn't covered.** A server started in the moment before `run.server` is written, whose supervisor and keeper are then both killed, is not recorded. Find it with `ps` and end it yourself.
+- **Two more controls.** On macOS the caller's `TMPDIR` passes to the server, beside the named environment. A pin PR checks each Mach-O file in the build: thin, built for the row's CPU, no flags, its `minos` printed. The threat model lists both.
 
 ## Turning it off and removing it
 
