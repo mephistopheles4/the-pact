@@ -23,7 +23,7 @@ const GOOD = "console.log('a tool');\n";
 // #280 C3
 test('the pact tool list is one list: the install keeps the same names in the same order', () => {
   assert.deepEqual([...INSTALL_TOOLS], [...PACT_TOOLS]);
-  assert.deepEqual([...PACT_TOOLS], ['poster', 'cleaner', 'clef', 'gh-app']);
+  assert.deepEqual([...PACT_TOOLS], ['poster', 'cleaner', 'clef', 'coverage', 'gh-app']);
   assert.ok(Object.isFrozen(PACT_TOOLS) && Object.isFrozen(INSTALL_TOOLS));
 });
 
@@ -196,9 +196,9 @@ test('clef on: the TOOLS line names it, in PACT_TOOLS order, and the rules file 
   assert.deepEqual(renderWith(t, null).lines.filter(l => l.startsWith('TOOLS')), ['TOOLS none'], 'off by default');
 });
 
-// PACT-61 adversarial F2: the renderer fails closed for a tool with no part. Only these two may have none; a new tool is added here on purpose, with its reason.
-test('the tools that name nothing in the rules file are exactly gh-app and clef, and every other pact tool has a part that fills when it is on', t => {
-  assert.deepEqual([...TOOLS_WITHOUT_PART], ['gh-app', 'clef']);
+// PACT-61 adversarial F2: the renderer fails closed for a tool with no part. Only these three may have none; a new tool is added here on purpose, with its reason.
+test('the tools that name nothing in the rules file are exactly gh-app, clef and coverage, and every other pact tool has a part that fills when it is on', t => {
+  assert.deepEqual([...TOOLS_WITHOUT_PART], ['gh-app', 'clef', 'coverage']);
   const withPart = PACT_TOOLS.filter(n => !TOOLS_WITHOUT_PART.includes(n));
   assert.deepEqual(withPart, ['poster', 'cleaner']);
   const off = readFileSync(join(renderWith(t, '{"schema": 1, "tools": []}').out, 'CLAUDE.md'), 'utf8');
@@ -222,6 +222,41 @@ test('a project configuration may not hold tools', t => {
   const proj = tempDir(t, 'pact-project-');
   mkdirSync(join(proj, '.claude'));
   writeFileSync(join(proj, '.claude', 'pact-config.json'), '{"schema": 1, "settings": {"usage-pause": 50}, "tools": ["poster"]}');
+  const r = runCore('render', ['project', tempDir(t, 'pact-render-out-'), tempDir(t, 'pact-render-home-'), proj]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.stdout, /^FAIL project-key: /m, r.out);
+});
+
+// ------------------------------------------------------------ the renderer: the decision-model key
+
+// PACT-128 C13
+{
+  const base = () => ({ config: '{"schema": 1, "tools": ["coverage"], "decision-model": "jev"}' });
+  const run = ({ config }, t) => {
+    const r = renderWith(t, config);
+    return moduleResult(r.code, r.stdout, r.stderr);
+  };
+  const rows = [{ id: 'unknown-model', plant: () => ({ config: '{"schema": 1, "decision-model": "clef"}' }), fails: ['config-decision-model'], says: /decision-model must be clef-flash, clef-full or jev/, why: 'three names and no other' }];
+  test('render decision-model key: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`render decision-model key: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('render decision-model key: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
+
+// PACT-128 C13
+test('the renderer reports a named decision model after the TOOLS line, and prints no line when none is named', t => {
+  for (const model of ['clef-flash', 'clef-full', 'jev']) {
+    const r = renderWith(t, `{"schema": 1, "tools": ["coverage"], "decision-model": "${model}"}`);
+    assert.equal(r.code, 0, r.out);
+    assert.deepEqual(r.lines.slice(-3), ['TOOLS coverage', `DECISION-MODEL ${model}`, 'RESULT: pass']);
+  }
+  assert.ok(!renderWith(t, '{"schema": 1, "tools": ["coverage"]}').lines.some(l => l.startsWith('DECISION-MODEL')));
+});
+
+// PACT-128 C13
+test('a project configuration may not hold decision-model', t => {
+  const proj = tempDir(t, 'pact-project-');
+  mkdirSync(join(proj, '.claude'));
+  writeFileSync(join(proj, '.claude', 'pact-config.json'), '{"schema": 1, "settings": {"usage-pause": 50}, "decision-model": "jev"}');
   const r = runCore('render', ['project', tempDir(t, 'pact-render-out-'), tempDir(t, 'pact-render-home-'), proj]);
   assert.equal(r.code, 1, r.out);
   assert.match(r.stdout, /^FAIL project-key: /m, r.out);

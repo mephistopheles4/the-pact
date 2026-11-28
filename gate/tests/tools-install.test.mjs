@@ -545,3 +545,25 @@ test('agent-identity on with a settings.json that is not strict JSON: the dry ru
   assert.equal(readFileSync(join(h, '.claude', 'settings.json'), 'utf8'), bad, 'settings.json is untouched');
   assert.ok(!existsSync(join(h, '.pact', 'install.json')), 'no record is written');
 });
+
+// PACT-128 C13
+test('coverage on: the dry run warns and names its next step, the apply adds the script byte for byte, and the chosen model sets what else it asks for', t => {
+  const repo = sharedRepo();
+  const h = homeWith(t, ['coverage']);
+  const dry = installed(repo, h);
+  const lines = r => r.stdout.split(/\r?\n/);
+  const needs = '  WARN: coverage needs a decision model: turn on clef, or set "decision-model": "jev" in .pact/config.json.';
+  assert.ok(lines(dry).includes('  coverage: on'), dry.out);
+  assert.ok(lines(dry).includes('  WARN: the user configuration turns on the pact tool coverage; it installs to .pact/tools/coverage.mjs and asks a local Clef by default; with `jev` chosen as the decision model, it sends the security findings and threat-model entries of each repo listed in ~/.pact/coverage.json to TypeSafe.'), dry.out);
+  assert.ok(lines(dry).includes(needs) && lines(dry).includes('  coverage next step: set up clef, or set "decision-model" to "jev" and set TYPESAFE_API_KEY; docs/coverage.md says what it does.'), dry.out);
+  assert.deepEqual(readFileSync(join(h, '.pact', 'tools', 'coverage.mjs')), readFileSync(join(repo, 'claude', 'tools', 'coverage.mjs')));
+  const chosen = (tools, model) => {
+    const dir = homeWith(t, tools);
+    writeFileSync(join(dir, '.pact', 'config.json'), `${JSON.stringify({ schema: 1, tools, 'decision-model': model })}\n`);
+    const r = install(repo, dir);
+    passed(r);
+    return lines(r);
+  };
+  assert.ok(!chosen(['coverage'], 'jev').includes(needs));
+  assert.ok(chosen(['clef', 'coverage'], 'clef-full').some(l => l.includes('clef.mjs setup --variant full`')));
+});

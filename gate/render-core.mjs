@@ -113,6 +113,7 @@
 //                                          mode prints RETIRED-NAME qualities <agent>)
 //   COMMANDS none, or the commands the configuration turns on, comma-joined, in PACT_COMMANDS order
 //   TOOLS none, or the tools the configuration turns on, comma-joined, in PACT_TOOLS order
+//   DECISION-MODEL <clef-flash|clef-full|jev>   (only when the configuration names one)
 //   SKILL <repo> <commit> <path>   (one per skill path, in list order; none with no configuration)
 //   RESULT: pass
 //
@@ -210,7 +211,9 @@ const BLOCK_MAX = 16 * 1024;
 const BLOCK_PATH_MAX = 200;
 const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
-const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands', 'tools', 'skills', 'harnesses']);
+const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands', 'tools', 'decision-model', 'skills', 'harnesses']);
+// The decision models `decision-model` may name: the one the coverage tool asks. A project may not set the key.
+const DECISION_MODELS = Object.freeze(['clef-flash', 'clef-full', 'jev']);
 const HARNESS_ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
 // Skill sources (#183 T4a): named for the cloud setup to fetch; the render only
 // checks them and reports each path. builder/parts.mjs's skillsProblems holds
@@ -333,7 +336,7 @@ const settingRule = (name, spec) => (spec.kind === 'switch' ? `${name} must be t
 // names its command (PACT-80): a lead may run a cleaner only when the
 // user-level rules name its program.
 // The pact tools that name nothing in the rules file, so a tool being on adds no part for them.
-export const TOOLS_WITHOUT_PART = Object.freeze(['gh-app', 'clef']);
+export const TOOLS_WITHOUT_PART = Object.freeze(['gh-app', 'clef', 'coverage']);
 const TOOL_PARTS = new Map([
   ['poster', Object.freeze({
     mark: 'tool-poster',
@@ -809,7 +812,7 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
   let ok = true;
   const keys = Object.keys(doc);
   if (keys.some(k => !TOP_KEYS.includes(k))) {
-    fail('config-key', 'a key that is not schema, settings, edits, agents, commands, tools, skills or harnesses');
+    fail('config-key', 'a key that is not schema, settings, edits, agents, commands, tools, decision-model, skills or harnesses');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -835,6 +838,14 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
   if (Object.hasOwn(doc, 'tools')) {
     tools = checkTools(doc.tools, fail);
     if (tools === null) ok = false;
+  }
+  let decisionModel = null;
+  if (Object.hasOwn(doc, 'decision-model')) {
+    if (DECISION_MODELS.includes(doc['decision-model'])) decisionModel = doc['decision-model'];
+    else {
+      fail('config-decision-model', 'decision-model must be clef-flash, clef-full or jev');
+      ok = false;
+    }
   }
   let skills = [];
   if (Object.hasOwn(doc, 'skills')) {
@@ -871,7 +882,7 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
   }
   // #603 (S7): the agent-identity switch, and only it, adds gh-app to the tools the render turns on.
   if (tools !== null && values.some(([k, v]) => k === 'agent-identity' && v === true)) tools = PACT_TOOLS.filter(c => c === 'gh-app' || tools.includes(c));
-  return ok ? { values, retired, edits, agents, commands, tools, skills } : null;
+  return ok ? { values, retired, edits, agents, commands, tools, decisionModel, skills } : null;
 }
 
 /** The harnesses key's outer shape (spec 0007 S5). */
@@ -1503,6 +1514,7 @@ function run(argv, report) {
   let agents = [];
   let commands = [];
   let tools = [];
+  let decisionModel = null;
   let skills = [];
   if (config === NONE) head.push('CONFIG none');
   else {
@@ -1529,12 +1541,14 @@ function run(argv, report) {
     if (kind === 'default') head[0] = `CONFIG default ${hash}`;
     commands = checked.commands;
     tools = checked.tools;
+    decisionModel = checked.decisionModel;
     skills = checked.skills;
   }
   // Exactly one COMMANDS line, from the buffer the digest hashes (#203, S8),
   // and one TOOLS line straight after it (#280).
   head.push(`COMMANDS ${commands.length ? commands.join(',') : 'none'}`);
   head.push(`TOOLS ${tools.length ? tools.join(',') : 'none'}`);
+  if (decisionModel !== null) head.push(`DECISION-MODEL ${decisionModel}`);
   // One SKILL line per skill path, in list order, after the TOOLS line (#183 T4a). Each field passed its pattern.
   head.push(...skills.map(k => `SKILL ${k.repo} ${k.commit} ${k.path}`));
 

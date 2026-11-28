@@ -106,7 +106,7 @@ function blocks(markdown) {
   let open = null;
   let fence = null;
   let blank = false;
-  for (const line of markdown.replace(/^﻿/, '').split(/\r\n|\r|\n/)) {
+  for (const line of markdown.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/)) {
     if (fence !== null) {
       const close = FENCE_RE.exec(line);
       if (close && close[1][0] === fence[0] && close[1].length >= fence.length && line.trim() === close[1]) fence = null;
@@ -291,7 +291,7 @@ function repoReader({ dir, base, env, cwd, spawn, platform }) {
 function entriesAt(reader) {
   const hash = reader.shortHash();
   const reviewed = reader.file(ENTRIES_PATH);
-  if (reviewed !== null) return { ...parseEntries(reviewed.replace(/^﻿/, '')), source: `${ENTRIES_PATH}@${hash}` };
+  if (reviewed !== null) return { ...parseEntries(reviewed.replace(/^\uFEFF/, '')), source: `${ENTRIES_PATH}@${hash}` };
   const model = reader.file(MODEL_PATH);
   if (model === null) return null;
   return checkEntries({ v: 1, source: `${MODEL_PATH}@${hash}`, ...draftEntries(model) });
@@ -668,7 +668,7 @@ async function ask({ options }, io, entry) {
   const choice = readChoice(io.account);
   entry.backend = choice.model ?? 'clef';
   const raw = readUtf8(resolve(io.cwd, options['--finding']), 'coverage/finding', 'the finding file');
-  const text = findingText(raw.replace(/^﻿/, ''));
+  const text = findingText(raw.replace(/^\uFEFF/, ''));
   entry.finding = createHash('sha256').update(text).digest('hex');
   const reader = repoReader({ dir: options['--repo-dir'], base: options['--base'], ...io });
   reader.shortHash();

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-J0p+5AG/VYdKWej5D5mzFY8zqAWgf9rPc/iftlvR8VE='; style-src 'sha256-nZA7IW6ch0b3zv3WKjrW3Bl1e+9Hc4SgpU1D8Qh9Wig='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-McHVIUyVd1RcReJVPGRKaGSKBCpi3393zHQfnLNfLi0='; style-src 'sha256-nZA7IW6ch0b3zv3WKjrW3Bl1e+9Hc4SgpU1D8Qh9Wig='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -6855,7 +6855,7 @@ function initialState() {
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
   // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
   // #183 T4a: skills holds the skill sources, named for the cloud setup to fetch, as the builder file gives them; a save writes them into config.json.
-  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, identity: PACT.identitySwitch.def, agents, agentsAt: JSON.parse(JSON.stringify(agents)), own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, harnesses: { take: {}, models: {}, add: {}, remove: [], agentModels: {} }, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
+  return { usage: PACT.setting.def, session: null, compact: PACT.compact.def, identity: PACT.identitySwitch.def, agents, agentsAt: JSON.parse(JSON.stringify(agents)), own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, decisionModel: null, harnesses: { take: {}, models: {}, add: {}, remove: [], agentModels: {} }, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
 }
 
 /** Each agent's fields the person changed on this page, by agent name. */
@@ -6999,6 +6999,8 @@ function buildFiles(state) {
   if (Array.isArray(state.commands)) config.commands = OPT_COMMANDS.map(c => c.name).filter(n => state.commands.includes(n));
   // The pact tools the person set (#280), in the installer's order; off unless listed.
   if (Array.isArray(state.tools)) config.tools = OPT_TOOLS.map(c => c.name).filter(n => state.tools.includes(n));
+  // The decision model, written only when the person chose one on the page.
+  if (state.decisionModel) config['decision-model'] = state.decisionModel;
   // Harnesses (spec 0007 S11): nothing is written until the person changes one; then the changes are written over what the page knew of the pact folder.
   const changes = changesOf(state);
   if (harnessesChanged(changes)) {
@@ -7101,6 +7103,8 @@ function keepFolderKeys(files, existing, changes, touched = {}) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { files };
   const changed = Boolean(changes) && harnessesChanged(changes);
   const kept = lists.filter(k => Object.hasOwn(doc, k) && !Object.hasOwn(built, k));
+  // The decision model goes with the tools list: left as is, both stay the folder's.
+  if (Object.hasOwn(doc, 'decision-model') && !Object.hasOwn(built, 'tools')) kept.push('decision-model');
   if (!changed && Object.hasOwn(doc, 'harnesses')) kept.push('harnesses');
   // Agent settings: a field the person didn't change on the page (`touched`) stays the folder's; one they changed is the
   // page's, which writes nothing for the pact's own value. An agent saved with its own file takes none.
@@ -7499,8 +7503,16 @@ const ALWAYS_COMMAND = { name: 'scriptorium', what: 'Always installed: the build
 const OPT_TOOLS = Object.freeze([
   { name: 'poster', what: "Posts free text to GitHub as your gh account, edits what a session posted, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which a dry run with --review-folder shows." },
   { name: 'cleaner', what: "Removes leftover worktrees under .claude/worktrees/ and their local branches, only those it named back and you said yes to; it forces only on an override pair you gave for that run. Turning it on adds a rule to the rules file, deny rules on raw removal commands and two ask rules on remove --override to settings.json." },
-  { name: 'clef', what: "Runs Clef, the local decision model, with no Ollama. When you run its setup, it downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only. It adds nothing to the rules file." },
+  { name: 'clef', label: 'Install a decision-one model', what: "Clef Flash and Clef Full are local decision models, run with no Ollama. Choosing one turns on the tool clef: when you run its setup, it downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only. Jev runs at TypeSafe, and choosing it installs nothing here. It adds nothing to the rules file." },
+  { name: 'coverage', what: "Adds an advisory coverage hint for a security finding: it asks the decision model whether the project's threat model already covers it, and rules nothing. With Clef nothing leaves this machine; with Jev, the findings of the repos you list go to TypeSafe. It adds nothing to the rules file." },
 ]);
+// The decision models the menu offers, the default first; a save writes the one chosen as decision-model.
+const DECISION_MODELS = Object.freeze([
+  { name: 'clef-flash', label: 'Clef Flash (default): local, about 6.7 GB' },
+  { name: 'clef-full', label: 'Clef Full: local, about 19.5 GB' },
+  { name: 'jev', label: "Jev: TypeSafe's API, nothing to install" },
+]);
+const JEV_NOTICE = 'Jev runs at TypeSafe, not on this machine. Set TYPESAFE_API_KEY in your environment, and list each repo Jev may be sent in ~/.pact/coverage.json: for a listed repo, the coverage hint sends security findings and threat-model entries to TypeSafe. Read docs/coverage.md for its terms first.';
 // #262 addendum 3: a save writes agent files and never deletes one, and every file in agents/ installs.
 const AGENTS_NOTE = 'An agent file a save writes is yours: an install never writes over it, and a save deletes nothing.';
 
@@ -9324,15 +9336,41 @@ function boot() {
       });
       return el('label', { class: 'command-row av-check' }, box, el('code', { text: c.name }), el('span', { class: 'av-annot', text: c.what }));
     };
+    // The clef row: one box for a decision model, and the menu it enables. A local choice lists clef; Jev installs nothing.
+    const modelRow = c => {
+      const model = state.decisionModel;
+      const box = el('input', { type: 'checkbox', 'aria-label': c.label });
+      box.checked = model !== null;
+      const menu = el('select', { 'aria-label': 'Decision model' }, ...DECISION_MODELS.map(m => el('option', { value: m.name, text: m.label })));
+      menu.value = model ?? DECISION_MODELS[0].name;
+      menu.disabled = model === null;
+      const choose = next => {
+        const now = Array.isArray(state.tools) ? state.tools.filter(n => n !== c.name) : [];
+        state.decisionModel = next;
+        state.tools = next !== null && next !== 'jev' ? [...now, c.name] : now;
+        renderSettings();
+        renderOutput();
+      };
+      box.addEventListener('change', () => choose(box.checked ? DECISION_MODELS[0].name : null));
+      menu.addEventListener('change', () => choose(menu.value));
+      return el(
+        'div',
+        { class: 'acc-stack' },
+        el('label', { class: 'command-row av-check' }, box, el('span', { text: c.label }), el('span', { class: 'av-annot', text: c.what })),
+        el('div', { class: 'command-row' }, el('span'), el('span'), menu),
+        model === 'jev' ? el('p', { class: 'av-callout av-callout--caution', role: 'status', text: JEV_NOTICE }) : null,
+      );
+    };
     const leave = chip('Leave as is', set === null, () => {
       state.tools = null;
+      state.decisionModel = null;
       renderSettings();
       renderOutput();
     }, set === null ? '' : 'av-tool-chip--ghost', true);
     return el(
       'div',
       { class: 'acc-stack' },
-      ...OPT_TOOLS.map(row),
+      ...OPT_TOOLS.map(c => (c.label ? modelRow(c) : row(c))),
       el('div', { class: 'chips' }, leave),
       el('p', { class: 'av-annot', text: set === null ? 'Left as is: a save keeps the tools list already in your config.json. Tick or untick one to set the list here instead.' : 'Set here: a save writes this list, and the next install adds or deletes those tools. Leave as is keeps your config.json\'s own list instead.' }),
     );

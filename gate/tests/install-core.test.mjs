@@ -350,6 +350,7 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     { id: 'tools-unknown-name', plant: rep('TOOLS poster', 'TOOLS sender'), fails: ['render-unknown-line'], why: 'a name that is not a pact tool' },
     { id: 'tools-repeat', plant: rep('TOOLS poster', 'TOOLS poster,poster'), fails: ['render-unknown-line'], why: 'one name twice' },
     { id: 'tools-none-and-name', plant: rep('TOOLS poster', 'TOOLS none,poster'), fails: ['render-unknown-line'], why: 'none stands alone' },
+    { id: 'two-decision-models', plant: rep('TOOLS poster', 'TOOLS poster\nDECISION-MODEL jev\nDECISION-MODEL jev'), fails: ['render-unknown-line'], why: 'one model line at most' },
     { id: 'line-between-commands-and-tools', plant: t => ({ in: t.in.replace(`AGENT data-lens sonnet high ${H('f')} security-set override local\n`, '').replace('COMMANDS finis\n', `COMMANDS finis\nAGENT data-lens sonnet high ${H('f')} security-set override local\n`) }), fails: ['render-unknown-line'], says: /TOOLS line does not come straight after its COMMANDS line/, why: 'straight after, not merely later' },
     { id: 'tools-line-out-of-order', plant: t => ({ in: t.in.replace('COMMANDS finis\nTOOLS poster', 'TOOLS poster\nCOMMANDS finis') }), fails: ['render-unknown-line'], why: 'the TOOLS line comes straight after the COMMANDS line' },
     // #183 T4a C5: SKILL lines, one per skill path, only after the TOOLS line, each name once, 100 at most.
@@ -387,6 +388,7 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     // #280 C3
     { id: 'tool-on', plant: rep('TOOLS none', 'TOOLS poster'), fails: ['render-none-extras'], says: /a pact tool with no configuration/, why: 'a named tool with CONFIG none' },
     { id: 'no-tools-line', plant: rep('TOOLS none\n', ''), fails: ['render-tools-missing'], why: 'TOOLS none is still printed' },
+    { id: 'decision-model', plant: rep('TOOLS none', 'TOOLS none\nDECISION-MODEL jev'), fails: ['render-none-extras'], says: /a decision model with no configuration/, why: 'a named model with CONFIG none' },
     // #183 T4a C5
     { id: 'skill', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/x\nRESULT'), fails: ['render-none-extras'], says: /a skill source with no configuration/, why: 'a skill path with CONFIG none' },
   ];
@@ -1068,13 +1070,14 @@ test('the tools block lists every pact tool, on or off, says which this commit l
     '  poster: on',
     '  cleaner: on',
     '  clef: off (not in this commit)',
+    '  coverage: off (not in this commit)',
     '  To turn one on, list its name in .pact/config.json, for example: "tools": ["poster"]',
     "  WARN: the user configuration turns on the pact tool poster; it installs to .pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
     // #438 S2.4
     "  WARN: the user configuration turns on the pact tool cleaner; it installs to .pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.",
   ]);
-  assert.deepEqual(core.toolsBlock([], ['claude/tools/poster.mjs']).slice(1), ['  poster: off', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  To turn one on, list its name in .pact/config.json, for example: "tools": ["poster"]']);
-  assert.deepEqual(core.toolsBlock([], []).slice(1), ['  poster: off (not in this commit)', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  No pact tool that can be turned on is in this commit.']);
+  assert.deepEqual(core.toolsBlock([], ['claude/tools/poster.mjs']).slice(1), ['  poster: off', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  coverage: off (not in this commit)', '  To turn one on, list its name in .pact/config.json, for example: "tools": ["poster"]']);
+  assert.deepEqual(core.toolsBlock([], []).slice(1), ['  poster: off (not in this commit)', '  cleaner: off (not in this commit)', '  clef: off (not in this commit)', '  coverage: off (not in this commit)', '  No pact tool that can be turned on is in this commit.']);
   // PACT-61 S4: clef's WARN line, word for word.
   const clefOn = core.toolsBlock(['clef'], ['claude/tools/clef.mjs']);
   assert.deepEqual(clefOn.at(-2), '  WARN: the user configuration turns on the pact tool clef; it installs to .pact/tools/clef.mjs and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.');
@@ -1082,6 +1085,28 @@ test('the tools block lists every pact tool, on or off, says which this commit l
   assert.deepEqual(clefOn.at(-1), '  clef next step: run `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes`; docs/clef.md says what it does.');
   // With clef off, no next-step line.
   assert.ok(!core.toolsBlock([], ['claude/tools/clef.mjs']).some(l => l.includes('next step')));
+});
+
+// PACT-128 C13: coverage's WARN line word for word, what it says with no model set up, and clef's step for the full variant.
+test('the tools block for coverage: its warning, the missing-model warning, both next steps, and the variant the chosen model needs', () => {
+  const both = ['claude/tools/clef.mjs', 'claude/tools/coverage.mjs'];
+  const needs = '  WARN: coverage needs a decision model: turn on clef, or set "decision-model": "jev" in .pact/config.json.';
+  const next = '  coverage next step: set up clef, or set "decision-model" to "jev" and set TYPESAFE_API_KEY; docs/coverage.md says what it does.';
+  const alone = core.toolsBlock(['coverage'], both, null);
+  assert.deepEqual(alone.slice(-3), [
+    '  WARN: the user configuration turns on the pact tool coverage; it installs to .pact/tools/coverage.mjs and asks a local Clef by default; with `jev` chosen as the decision model, it sends the security findings and threat-model entries of each repo listed in ~/.pact/coverage.json to TypeSafe.',
+    needs,
+    next,
+  ]);
+  for (const [on, model] of [[['coverage'], 'jev'], [['clef', 'coverage'], null], [['clef', 'coverage'], 'clef-flash']]) {
+    const block = core.toolsBlock(on, both, model);
+    assert.ok(!block.includes(needs), `${on} ${model}`);
+    assert.equal(block.at(-1), next);
+  }
+  assert.ok(core.toolsBlock(['coverage'], both, 'clef-flash').includes(needs), 'a clef model named with clef off still has none');
+  const full = core.toolsBlock(['clef'], both, 'clef-full');
+  assert.equal(full.at(-1), '  clef next step: run `node ~/.pact/tools/clef.mjs setup --variant full`, then the same with `--yes`; docs/clef.md says what it does.');
+  assert.ok(!core.toolsBlock([], both, 'jev').some(l => l.includes('coverage next step') || l === needs), 'off, nothing prints');
 });
 
 // ------------------------------------------------------------ settings JSON and the merge (S8, L4 to L9)
