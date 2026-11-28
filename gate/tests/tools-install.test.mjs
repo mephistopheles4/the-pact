@@ -555,7 +555,7 @@ test('coverage on: the dry run warns and names its next step, the apply adds the
   const needs = '  WARN: coverage needs a decision model: turn on clef, or set "decision-model": "jev" in .pact/config.json.';
   assert.ok(lines(dry).includes('  coverage: on'), dry.out);
   assert.ok(lines(dry).includes('  WARN: the user configuration turns on the pact tool coverage; it installs to .pact/tools/coverage.mjs and asks a local Clef by default; with `jev` chosen as the decision model, it sends the security findings and threat-model entries of each repo listed in ~/.pact/coverage.json to TypeSafe.'), dry.out);
-  assert.ok(lines(dry).includes(needs) && lines(dry).includes('  coverage next step: set up clef, or set "decision-model" to "jev", set TYPESAFE_API_KEY and list each repo in ~/.pact/coverage.json; docs/coverage.md says what it does.'), dry.out);
+  assert.ok(lines(dry).includes(needs) && lines(dry).includes('  coverage next step: set up clef; or, for jev, set "decision-model" to "jev", set TYPESAFE_API_KEY and list each repo in ~/.pact/coverage.json; docs/coverage.md says what it does.'), dry.out);
   assert.deepEqual(readFileSync(join(h, '.pact', 'tools', 'coverage.mjs')), readFileSync(join(repo, 'claude', 'tools', 'coverage.mjs')));
   const chosen = (tools, model) => {
     const dir = homeWith(t, tools);

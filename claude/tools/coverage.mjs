@@ -90,13 +90,23 @@ const bare = (pairs = []) => {
 // ---------------------------------------------------------------- the draft (S2)
 
 const FENCE_RE = /^\s*(`{3,}|~{3,})/;
-const HEADING_RE = /^ {0,3}(#{1,6})(?:\s+(.*?))??(?:\s+#+)?\s*$/;
-/** The longest line tried as a heading: the match's cost grows with the square of a line of spaces. */
-const MAX_HEADING = 1000;
+const HEADING_OPEN_RE = /^ {0,3}(#{1,6})(?!\S)/;
 const ITEM_RE = /^(\s*)(?:[-*+]|\d{1,9}[.)])\s+(.*)$/;
 const CLASS_RE = /accepted threat classes|accepted risks/i;
 const plain = s => s.replace(/\*|`/g, '');
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 48);
+
+/** A heading line's level and text, or null. No regex runs over the line's tail, so no line's length slows it. */
+function headingOf(line) {
+  const open = HEADING_OPEN_RE.exec(line);
+  if (!open) return null;
+  const rest = line.slice(open[0].length).trim();
+  let end = rest.length;
+  while (end > 0 && rest[end - 1] === '#') end -= 1;
+  // A closing run of # is dropped only when a space sets it off, or it is the whole of the rest.
+  const closes = end === 0 || /\s/.test(rest[end - 1]);
+  return { level: open[1].length, text: closes ? rest.slice(0, end).trimEnd() : rest };
+}
 
 /**
  * The text of a Markdown file as blocks: headings, paragraphs and top-level
@@ -108,7 +118,7 @@ function blocks(markdown) {
   let open = null;
   let fence = null;
   let blank = false;
-  // A line or paragraph separator reads as a space: a regex dot skips both, which made a crafted heading line stall the match.
+  // A line or paragraph separator reads as a space: a regex dot skips both, which let a crafted line stall a match.
   for (const line of markdown.replace(/^\uFEFF/, '').replace(/[\u2028\u2029]/g, ' ').split(/\r\n|\r|\n/)) {
     if (fence !== null) {
       const close = FENCE_RE.exec(line);
@@ -126,11 +136,11 @@ function blocks(markdown) {
       if (open?.kind === 'paragraph') open = null;
       continue;
     }
-    const heading = line.length <= MAX_HEADING ? HEADING_RE.exec(line) : null;
+    const heading = headingOf(line);
     const item = ITEM_RE.exec(line);
     const indented = /^\s/.test(line);
     if (heading) {
-      out.push({ kind: 'heading', level: heading[1].length, text: heading[2] ?? '' });
+      out.push({ kind: 'heading', ...heading });
       open = null;
     } else if (item && !(open?.kind === 'item' && item[1].length > open.indent)) {
       open = { kind: 'item', indent: item[1].length, bullet: !/^\s*\d/.test(line), lines: [item[2].trim()] };
