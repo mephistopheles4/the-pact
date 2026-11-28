@@ -39,6 +39,7 @@ effort, and what never goes in. For what the pact is and why, read the
 | `athanor.json` | The repo's [athanor](https://github.com/mephistopheles4/athanor) configuration: the Linux run's image, and `full` and `fast` as its commands, for a local, offline run of the gate's tests | Never installed |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 | `evals/` | The eval generator, a tool the owner runs on request: `gen.mjs` writes each case in `cases/` with the pact's rules text, and any files its `with.txt` names, as the appended system prompt and without, prints the `claude plugin eval` commands, and `check`s a first run; its README gives the limits | Never installed |
+| `docs/threat-entries.json` | This repo's entries for the [coverage hint](coverage.md): the threat model's accepted classes and out-of-scope text, with the class on text steering a session split by source and the scope paragraph by sentence group. A gate test holds it to `docs/threat-model.md` | Never installed |
 | `docs/rule-reasons.md` | Why each rule is in the rules file: one row per rule, naming the gap no other guardrail covers. | Never installed |
 | `docs/img/` | The README's figures, and `build.mjs`, which renders them from their sources in `docs/img/src/` | Never installed |
 
