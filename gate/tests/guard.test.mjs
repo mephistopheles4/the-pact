@@ -1314,9 +1314,9 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
   assert.equal(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { shell: 'bash' })?.id, 'identity-git');
   assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`, { shell: 'powershell' })?.id, 'identity-git');
   assert.equal(call(`cat <<EOF\n\nEOF\n$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`)?.id, 'identity-git');
-  assert.match(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { platform: 'win32', shell: 'bash' })?.reason ?? '', /GIT_CONFIG_GLOBAL="\$HOME\//);
-  assert.match(call('ls && git commit -m x', { platform: 'win32', shell: 'bash' })?.reason ?? '', /GIT_CONFIG_GLOBAL="\$HOME\//);
-  assert.match(call('git commit -m x', { platform: 'win32', shell: 'powershell' })?.reason ?? '', /\$env:GIT_CONFIG_GLOBAL = "\$env:USERPROFILE\//);
+  assert.match(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { platform: 'win32', shell: 'bash' })?.reason ?? '', /Put GIT_CONFIG_GLOBAL='/);
+  assert.match(call('ls && git commit -m x', { platform: 'win32', shell: 'bash' })?.reason ?? '', /Put GIT_CONFIG_GLOBAL='/);
+  assert.match(call('git commit -m x', { platform: 'win32', shell: 'powershell' })?.reason ?? '', /Start the call with \$env:GIT_CONFIG_GLOBAL = '/);
 
   // Unknown shell denies export and $env: GIT_CONFIG_GLOBAL while allowing inline and direct env.
   assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; git push`, { shell: 'unknown' })?.id, 'identity-git');
@@ -1454,7 +1454,7 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     }
   }
 
-  for (const unit of ['git commit;', 'mise x ', 'git -c a=b ', 'gh api -p ', 'env -u X ', `@"${' '.repeat(64)}`, 'a; ', 'x && ', '<< a ']) {
+  for (const unit of ['git commit;', 'mise x ', 'git -c a=b ', 'gh api -p ', 'env -u X ', `@"${' '.repeat(64)}`, 'a; ', 'x && ', '<< a ', 'git * ', 'git ', '@\' ', '(', '"', 'env -u ']) {
     const big = unit === 'git commit;' ? unit.repeat(80000) : unit.repeat(Math.floor(guard.COMMAND_MAX / unit.length));
     const started = Date.now();
     guard.answerCall({ command: big, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
@@ -1792,4 +1792,88 @@ test('C2, C6, C11: codex wrapper enforces gh and git with deny fallback, shell h
   const pinRes = run(call('git commit -m SECRET_CMD_XYZ', ownerRepo.work));
   denied(pinRes, 'codex', failure('pin'));
   assert.doesNotMatch(pinRes.stderr, /SECRET_PIN|SECRET_CMD_XYZ/);
+});
+
+// ------------------------------------------------------------ PACT-130: the identity-git refusal names a prefix that passes
+
+function identityHome(t, name) {
+  const home = join(tempDir(t, 'pact-130-'), name);
+  const pactDir = join(home, '.pact');
+  mkdirSync(join(pactDir, 'guard'), { recursive: true });
+  const tableFile = join(pactDir, 'guard', 'rules.json');
+  writeFileSync(tableFile, JSON.stringify({ rules: ALL, identity: { enabled: true, posterOn: true } }));
+  writeFileSync(join(pactDir, 'github.json'), JSON.stringify({ owner: { login: 'OwnerLogin', id: 99 }, apps: { codex: { app_id: 11, slug: 'my-codex-app', bot_login: 'my-codex-app[bot]', bot_id: 22 }, antigravity: { app_id: 12, slug: 'my-ag-app', bot_login: 'my-ag-app[bot]', bot_id: 23 }, claude: { app_id: 13, slug: 'my-claude-app', bot_login: 'my-claude-app[bot]', bot_id: 24 } } }));
+  for (const p of ['codex', 'antigravity', 'claude']) writeFileSync(join(pactDir, `gh-app-${p}.gitconfig`), '[credential]\n\thelper = ""\n');
+  return { home, tableFile, gitconfig: p => join(pactDir, `gh-app-${p}.gitconfig`).replaceAll('\\', '/') };
+}
+
+// Each wrapper's shell on this platform, the writes it refuses, and how the
+// refusal's prefix goes on: right before each git command (Bash form), or at
+// the start of a call of its own, then the bare write (PowerShell form).
+const REFUSALS = [
+  { provider: 'claude', shell: 'bash', env: fx => ({ GIT_CONFIG_GLOBAL: fx.gitconfig('claude'), GIT_TERMINAL_PROMPT: '0' }), commands: ['(git commit -m x)', 'git commit -m x | cat'] },
+  ...(WIN ? [{ provider: 'claude', shell: 'powershell', env: fx => ({ GIT_CONFIG_GLOBAL: fx.gitconfig('claude'), GIT_TERMINAL_PROMPT: '0' }), commands: ['git commit -m x\nif ($LASTEXITCODE -ne 0) { Write-Host no }'] }] : []),
+  { provider: 'codex', shell: WIN ? 'powershell' : 'bash', env: () => ({}), commands: ['git commit -m x', ...(WIN ? [] : ['(git commit -m x)'])] },
+  { provider: 'antigravity', shell: 'unknown', env: () => ({}), commands: ['git commit -m x', '(git commit -m x)'] },
+];
+const BASH_PREFIX = /(GIT_CONFIG_GLOBAL=(?:'[^']*'|"(?:[^"\\]|\\.)*") GIT_TERMINAL_PROMPT=0)/;
+const PS_PREFIX = /(\$env:GIT_CONFIG_GLOBAL = (?:'(?:[^']|'')*'|"[^"]*"); \$env:GIT_TERMINAL_PROMPT = '0';)/;
+
+// #PACT-130 C2 C3
+test('C2, C3: an identity-git refusal\'s prefix, put where its text says, passes the write, with HOME and USERPROFILE absent or present', t => {
+  const repo = makeGitRepo(t);
+  for (const name of ['home', "o'x"]) {
+    const fx = identityHome(t, name);
+    for (const row of REFUSALS) {
+      for (const [withHome, withProfile] of [[true, true], [false, true], [true, false], [false, false]]) {
+        const env = { ...(withHome ? { HOME: fx.home } : {}), ...(withProfile ? { USERPROFILE: fx.home } : {}), ...row.env(fx) };
+        const ask = command => guard.answerCall({ command, provider: row.provider, cwd: repo.work, env, tableFile: fx.tableFile, shell: row.shell });
+        for (const command of row.commands) {
+          const at = JSON.stringify({ name, ...row, withHome, withProfile, command });
+          const refused = ask(command);
+          assert.equal(refused?.id, 'identity-git', at);
+          const ps = PS_PREFIX.exec(refused.reason)?.[1];
+          const bash = BASH_PREFIX.exec(refused.reason)?.[1];
+          assert.ok(ps ?? bash, `${at} ${refused.reason}`);
+          const rewritten = ps ? `${ps} git commit -m x` : command.replace('git ', `${bash} git `);
+          assert.equal(ask(rewritten), null, `${at} ${rewritten}`);
+        }
+      }
+    }
+  }
+});
+
+// #PACT-130 C4
+test('C4: a gitconfig path the guard would refuse as a literal keeps the $HOME / $env:USERPROFILE prefix', t => {
+  const repo = makeGitRepo(t);
+  const fx = identityHome(t, 'o$x');
+  const ask = shell => guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, env: { HOME: fx.home, USERPROFILE: fx.home }, tableFile: fx.tableFile, shell });
+  assert.match(ask('bash').reason, /Put GIT_CONFIG_GLOBAL="\$HOME\/\.pact\/gh-app-codex\.gitconfig" GIT_TERMINAL_PROMPT=0 right before each git command/);
+  if (WIN) {
+    assert.match(ask('powershell').reason, /Start the call with \$env:GIT_CONFIG_GLOBAL = "\$env:USERPROFILE\/\.pact\/gh-app-codex\.gitconfig"; \$env:GIT_TERMINAL_PROMPT = '0'; then the git write/);
+    // A character PowerShell reads as a quote or that cmd.exe expands.
+    const curly = identityHome(t, 'o’x');
+    assert.match(guard.answerCall({ command: 'git commit -m x', provider: 'codex', cwd: repo.work, env: { USERPROFILE: curly.home }, tableFile: curly.tableFile, shell: 'powershell' }).reason, /Start the call with \$env:GIT_CONFIG_GLOBAL = "\$env:USERPROFILE\//);
+  }
+});
+
+// #PACT-130 C6
+test('C6: the claude hook, run with no HOME, refuses a git write in a subshell, a pipe or a PowerShell block, and passes it with the prefix its refusal names', t => {
+  const at = installed(t);
+  if (WIN) writeFileSync(join(at.dir, 'claude.cmd'), core.guardLauncherText('claude'));
+  const { pactDir, ownerRepo } = makeWrapperPinAt(at, t);
+  // Claude Code's hook environment on Windows has USERPROFILE but no HOME.
+  const env = { HOME: undefined, USERPROFILE: at.home, GIT_CONFIG_GLOBAL: join(pactDir, 'gh-app-claude.gitconfig').replaceAll('\\', '/'), GIT_TERMINAL_PROMPT: '0' };
+  const run = (tool_name, command) => runHook(at, 'claude', { tool_name, tool_input: { command }, cwd: ownerRepo.work }, { env });
+  const cases = [['Bash', '(git commit -m x)'], ['Bash', 'git commit -m x | cat'], ...(WIN ? [['PowerShell', 'git commit -m x\nif ($LASTEXITCODE -ne 0) { Write-Host no }']] : [])];
+  for (const [tool, command] of cases) {
+    const r = run(tool, command);
+    const reason = JSON.parse(r.stdout || '{}').hookSpecificOutput?.permissionDecisionReason ?? '';
+    assert.match(reason, /Plain git writes are blocked while agent-identity is on for claude/, JSON.stringify(r));
+    const ps = PS_PREFIX.exec(reason)?.[1];
+    const bash = BASH_PREFIX.exec(reason)?.[1];
+    assert.ok(ps ?? bash, reason);
+    const rewritten = ps ? `${ps} git commit -m x` : command.replace('git ', `${bash} git `);
+    assert.deepEqual(run(tool, rewritten), SILENT, rewritten);
+  }
 });
