@@ -102,6 +102,8 @@ Design round 1 security refinements marked):
    `git` in `cwd`, rejecting UNC/network paths and symlinks). Account-level
    `gh` writes stay guarded regardless of `cwd`. Third-party repos pass
    through; unreadable, missing, or unresolvable remotes fail closed (guarded).
+   [Spec 0012](0012-app-wherever-installed.md) widens the `git` side to every
+   GitHub repo.
 9. **Guarded git subcommands:** `commit`, `push`, `merge`, `cherry-pick`,
    `revert`, `rebase`, `tag`, `am` (`git pull` stays excluded as an accepted
    residual recorded in S7).
@@ -600,6 +602,11 @@ evaluates one call and returns `null` or one decision object (`shell` accepts
              form) / `"$HOME/.pact/gh-app-<provider>.gitconfig"` (Bash form).
 
 ### Plain-text repo-owner resolution (no `git` subprocess)
+
+[Spec 0012](0012-app-wherever-installed.md) changes the `git` side: a `git`
+write is guarded on every GitHub repo, whoever owns it. Where this spec
+limits a write to owner repos, or has another GitHub owner pass, that holds
+for `gh` writes only.
 
 - **Step 1 (explicit target slots only — asymmetric prose-flag safety):**
   - If any prior segment before the evaluated `gh` or `git` segment changes
