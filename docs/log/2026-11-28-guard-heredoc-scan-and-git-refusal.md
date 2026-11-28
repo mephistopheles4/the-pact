@@ -26,7 +26,7 @@ The tier is Standard. The owner said "its not sensitive" (relayed by the lead), 
   - an unknown shell gets the Bash form;
   - a path that would not pass as a literal keeps the old variable form.
 
-  Spec 0010 S3 is amended to match. Tests: +2 −0. One test checks that each provider's refusal prefix, put where its text says, passes, with `HOME` and `USERPROFILE` each absent and present, and a home holding `'`. The other covers the paths that keep the variable form.
+  Spec 0010 S3 is amended to match. The C11 `answerCall` timing loop now holds all ten inputs of the `judge` timing test, each bounded at 3,000 ms. A hook that times out lets the call through, so the hook's own entry point is bounded on every CI runner. Tests: +2 −0. One test checks that each provider's refusal prefix, put where its text says, passes, with `HOME` and `USERPROFILE` each absent and present, and a home holding `'`. The other covers the paths that keep the variable form.
 
 ## The Test review
 
