@@ -13,6 +13,7 @@ import { CAPABILITIES, EFFORT_SLOT } from './harnesses.mjs';
 import { AGENT_EFFORTS, RENDERED_REL, Refusal, TOOL_TABLES, builtParts } from './install-core.mjs';
 
 export const ROLES = Object.freeze(['planning', 'executor', 'light']);
+const PROVIDERS = Object.freeze(['claude', 'codex', 'antigravity']);
 // Claude's model names, an alias or a full ID: a rules text that holds one names a model outright (C8).
 const MODEL_NAME_RE = /\b(?:Opus|Sonnet|Haiku|Fable|claude-(?:opus|sonnet|haiku|fable)[A-Za-z0-9.-]*[A-Za-z0-9])\b/g;
 const OPEN_RE = /^ *<!-- pact:(if|unless) ([a-z][a-z0-9-]*) -->\r?$/;
@@ -125,7 +126,10 @@ function effortWarnings(lines, h, warn) {
 function rulesFor(rules, h, warn) {
   const m = h.models;
   const line = m && `Here the planning model is \`${m.planning}\`, the executor model \`${m.executor}\` and the light model \`${m.light ?? m.executor}\`.${Object.values(m).some(v => v?.includes(EFFORT_SLOT)) ? ` For \`${EFFORT_SLOT}\`, take the effort the tier table gives.` : ''}`;
-  const lines = blocksFor(rules, h, 'the rules file').split('\n');
+  const keep = (kind, c) => (c === 'settings-env' && kind === 'unless' && !PROVIDERS.includes(h.id) ? false : h.capabilities.includes(c) === (kind === 'if'));
+  let blockText = blocks(rules, keep, 'the rules file');
+  if (PROVIDERS.includes(h.id) && !h.capabilities.includes('settings-env')) blockText = blockText.replaceAll('__PACT_PROVIDER__', h.id);
+  const lines = blockText.split('\n');
   effortWarnings(lines, h, warn);
   return lines.flatMap(l => (MODELS_RE.test(l) ? (line ? ['', line] : []) : [l])).join('\n');
 }

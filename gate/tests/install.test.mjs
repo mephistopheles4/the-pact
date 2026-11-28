@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, sharedInstall, sharedRepo, total, WIN, wrapCheck } from './install-harness.mjs';
+import { applyBound, basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, sharedInstall, sharedRepo, starts, total, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { runCore } from './gate-run.mjs';
 import { READ_ONLY, agent, forClaude, plainAgent, withoutOpenMarks } from './text.mjs';
@@ -63,6 +63,26 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
   assert.ok(existsSync(join(h, '.claude', 'agents', 'my-own.md')));
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) assert.ok(existsSync(join(h, '.claude', 'agents', f)), f);
   assert.equal(readdirSync(join(h, '.pact', 'backups')).length, 2);
+});
+
+// PACT-126 C3: applyBound's kept hash only picks a likely one, so a stale pick costs a start and changes nothing else.
+test('applyBound with a stale kept hash falls back to a dry run, and installs what a fresh apply installs', t => {
+  const repo = makeRepo(t);
+  passed(applyBound(repo, home(t)));
+  const md = join(repo, 'claude', 'CLAUDE.md');
+  writeFileSync(md, `${readFileSync(md, 'utf8')}A changed line.\n`);
+  commitAll(repo);
+  const kept = home(t);
+  const before = starts();
+  passed(applyBound(repo, kept));
+  assert.equal(starts() - before, 3, 'the stale apply, the dry run and the apply');
+  const fresh = home(t);
+  const beforeFresh = starts();
+  passed(applyBound(repo, fresh, { fresh: true }));
+  assert.equal(starts() - beforeFresh, 2, 'fresh: the dry run and the apply, past the kept hash');
+  // Backup names carry a timestamp.
+  const tree = h => listTree(h).map(p => p.replace(/\\/g, '/')).filter(p => !p.startsWith('.pact/backups/'));
+  assert.deepEqual(tree(kept), tree(fresh));
 });
 
 // ------------------------------------------------------------ gate fingerprints

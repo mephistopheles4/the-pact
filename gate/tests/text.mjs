@@ -12,7 +12,7 @@ export const RENDER = join(GATE, 'render.mjs');
 
 // The open marks the pact source carries (#53), written out here rather than
 // read from gate/render.mjs, so the tests' expected render is their own.
-export const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'tool-cleaner', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
+export const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'tool-cleaner', 'tool-gh-app', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 const OPEN_MARK_LINE_RE = new RegExp(`^ *<!-- pact:(?:begin|end) (?:${OPEN_MARKS.join('|')}) -->$`);
 
 /** The no-configuration render, computed independently: `text` with its open-mark lines removed. */
@@ -31,7 +31,7 @@ export function withoutOpenMarks(text) {
  */
 export function forClaude(text) {
   return text
-    .replace(/<!-- pact:unless (?:subagents|tool-limits) -->\n[\s\S]*?<!-- pact:end -->\n/g, '')
+    .replace(/<!-- pact:unless (?:subagents|tool-limits|settings-env) -->\n[\s\S]*?<!-- pact:end -->\n/g, '')
     .replace(/^<!-- pact:(?:if [a-z-]+|end) -->\n/gm, '')
     .replace('<!-- pact:models -->\n', '\nHere the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.\n')
     .replace(/^model: planning$/m, 'model: opus')

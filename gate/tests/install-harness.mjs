@@ -3,8 +3,8 @@
 // ~/.pact or ~/.claude.
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { delimiter, dirname, join } from 'node:path';
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, delimiter, dirname, join } from 'node:path';
 import { COPY_DIRS, COPY_FILES, COPY_SKIP } from './copy-list.mjs';
 import { REPO } from './text.mjs';
 import { longTmp, tempDir } from './tree.mjs';
@@ -80,15 +80,28 @@ function buildRepo(root, mutate) {
   return root;
 }
 
+// The node starts this harness makes, to measure what a run costs. With
+// PACT_TEST_COUNT_STARTS naming a file, each test file's process appends
+// `<test file> <n>` to it on exit; without it nothing is written.
+let started = 0;
+if (process.env.PACT_TEST_COUNT_STARTS) {
+  process.on('exit', () => appendFileSync(process.env.PACT_TEST_COUNT_STARTS, `${basename(process.argv[1] ?? '')} ${started}\n`));
+}
+
+/** The node starts the harness has made in this process so far. */
+export const starts = () => started;
+
 /** Runs node with `args`, one of which must name the Node install script (#153). */
 export function spawnNodeInstall(args, options) {
   if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstall: no argument names the Node install script, so this is not an install');
+  started += 1;
   return spawnSync(process.execPath, args, options);
 }
 
 /** spawnNodeInstall's async form, for a test that signals or waits on a running install. */
 export function spawnNodeInstallAsync(args, options) {
   if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstallAsync: no argument names the Node install script, so this is not an install');
+  started += 1;
   return spawn(process.execPath, args, options);
 }
 
@@ -159,15 +172,49 @@ export function renderedHash(r) {
   return m[1];
 }
 
+// The rendered hash applyBound last saw, per key, in this test file's process.
+const seenHashes = new Map();
+let detectRels = null;
+
+/**
+ * What decides which hash is likely: the repo, and in the home the
+ * configuration, the blocks, the harnesses found and the ones recorded. It only
+ * picks a hash to try: the install checks it, so a wrong pick costs a start.
+ */
+function hashKey(repo, home) {
+  detectRels ??= JSON.parse(readFileSync(join(REPO, 'harnesses', 'known.json'), 'utf8')).map(h => h.detect.replace(/^~\//, ''));
+  const at = rel => join(home, ...rel.split('/'));
+  const config = at('.pact/config.json');
+  const record = at('.pact/install.json');
+  return JSON.stringify([
+    repo,
+    existsSync(config) ? readFileSync(config, 'base64') : null,
+    listTree(at('.pact/blocks')),
+    detectRels.map(rel => existsSync(at(rel))),
+    existsSync(record) ? [JSON.parse(readFileSync(record, 'utf8')).harnesses] : null,
+  ]);
+}
+
 /**
  * --apply bound by the rendered hash a dry run of the same repo and home shows
  * (#183 T4a): every home install renders a configuration, the pact's default
  * when the home folder holds none, so --apply needs the hash. The dry run is
- * an install of its own.
+ * an install of its own, so the apply first tries the hash last seen for a
+ * likely-same repo and home, and does the dry run only when there is none or the
+ * install refuses it as stale. `fresh` always does the dry run first, for a
+ * test of that binding.
  */
-export function applyBound(repo, home, opts = {}) {
-  const dry = install(repo, home, { ...opts, apply: false });
-  return install(repo, home, { apply: true, ...opts, extra: [...(opts.extra ?? []), '--rendered-hash', renderedHash(dry)] });
+export function applyBound(repo, home, { fresh = false, ...opts } = {}) {
+  const key = hashKey(repo, home);
+  const apply = hash => install(repo, home, { apply: true, ...opts, extra: [...(opts.extra ?? []), '--rendered-hash', hash] });
+  const kept = fresh ? undefined : seenHashes.get(key);
+  if (kept !== undefined) {
+    const r = apply(kept);
+    if (!/^REFUSED: the hash given with --rendered-hash is not /m.test(r.stdout)) return r;
+  }
+  const hash = renderedHash(install(repo, home, { ...opts, apply: false }));
+  seenHashes.set(key, hash);
+  return apply(hash);
 }
 
 /**

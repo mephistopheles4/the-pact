@@ -72,7 +72,7 @@ const PACT_HOOKS = Object.freeze(['compact-handoff']);
 // The parts a harness may take, and the form of its id (spec 0007 S5).
 const HARNESS_PARTS = Object.freeze(['rules', 'agents', 'commands', 'guard']);
 // The shared guard (spec 0007 S8): exactly claude/guard/<name>.mjs, installed to .pact/guard/<name>.mjs only when a harness takes the guard part.
-const GUARD_SCRIPTS = Object.freeze(['guard', 'codex', 'antigravity']);
+const GUARD_SCRIPTS = Object.freeze(['guard', 'claude', 'codex', 'antigravity']);
 const HARNESS_ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
 // Settings that run a command, load code or reach a tool server. Refused by
 // name as an object key at any depth of the overlay, whatever the settings

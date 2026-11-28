@@ -39,7 +39,7 @@ const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
   cleaner: ' and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.',
   clef: ' and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.',
-  'gh-app': ' and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS in every session runs as the app; an askpass program, an SSH remote and a global git write still go around it (docs/agent-identity.md).',
+  'gh-app': ' and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS and guarded GitHub writes run as each pinned provider app across supported harnesses, with PreToolUse guards stopping unpinned writes; an askpass program, an SSH remote, an unguarded harness and a global git write outside guarded shells still go around it (docs/agent-identity.md).',
 });
 // The pact's guard rules as data (spec 0007 S8). Claude Code's permission rules
 // below are made from this table, and so is rules.json, which the shared guard
@@ -84,7 +84,7 @@ export const RETIRED_DENY = Object.freeze([
 // GUARD_DEST<name>.mjs only while a harness with a guard hook is in and a rule
 // is on. rules.json is made by the install beside them, never in a commit.
 export const GUARD_FORMATS = Object.freeze(['codex', 'antigravity']);
-export const GUARD_SCRIPTS = Object.freeze(['guard', ...GUARD_FORMATS]);
+export const GUARD_SCRIPTS = Object.freeze(['guard', 'claude', ...GUARD_FORMATS]);
 const GUARD_DEST = '.pact/guard/';
 export const GUARD_TABLE_REL = 'claude/guard/rules.json';
 export const GUARD_TABLE_DEST = `${GUARD_DEST}rules.json`;
@@ -992,11 +992,13 @@ export function targetsOf(h) {
   return { id: h.id, ...(p.rules ? { rules: h.rules.path } : {}), ...(p.agents ? { agents: h.agents.dir } : {}), ...(p.commands ? { commands: h.commands.dir } : {}), ...(p.skills ? { skills: h.skills.dir } : {}), ...(p.settings ? { settings: h.hooks.file } : {}) };
 }
 
-/** Seam A's --harness value for the harnesses that are in: `none`, or each id with the parts it takes; `guard` only while the rule table holds a rule. */
-export function harnessArg(harnesses, guard = false) {
+/** Seam A's --harness value for the harnesses that are in: `none`, or each id with the parts it takes; `guard` for wired harnesses and `claudeGuard` for Claude Code. */
+export function harnessArg(harnesses, opts = false) {
+  const { guard, claudeGuard } = typeof opts === 'object' && opts !== null ? opts : { guard: Boolean(opts), claudeGuard: false };
   const list = harnesses.map(h => {
     const p = builtParts(h);
-    const parts = ['rules', 'agents', 'commands', ...(guard ? ['guard'] : [])].filter(k => p[k]);
+    const takesGuard = (guard && p.guard) || (claudeGuard && h.id === 'claude');
+    const parts = ['rules', 'agents', 'commands', ...(takesGuard ? ['guard'] : [])].filter(k => k === 'guard' || p[k]);
     return `${h.id}:${parts.length ? parts.join('+') : 'none'}`;
   });
   return list.length ? list.join(',') : 'none';
@@ -1014,7 +1016,7 @@ export function harnessArg(harnesses, guard = false) {
  * installs. A staged file of no known kind pairs with null, which no INSTALL
  * line can match.
  */
-export function expectedCopySet(stagedRels, commands = [], tools = [], compact = false, harnesses = [], guard = false) {
+export function expectedCopySet(stagedRels, commands = [], tools = [], compact = false, harnesses = [], guard = false, claudeGuard = false) {
   const out = [];
   const kitOn = commands.includes(KIT_COMMAND);
   const rels = [...stagedRels];
@@ -1023,7 +1025,7 @@ export function expectedCopySet(stagedRels, commands = [], tools = [], compact =
   const pact = (rel, dest) => {
     if (harnesses.length) out.push([rel, dest]);
   };
-  const guarded = guard && parts.some(p => p.guard);
+  const guarded = (guard && parts.some(p => p.guard)) || (claudeGuard && parts.some(p => p.id === 'claude'));
   const each = (rel, part, tail) => {
     for (const p of parts) if (p[part] && !rendered.has(p.id)) out.push([rel, `@${p.id}/${tail}`]);
   };
@@ -1356,7 +1358,7 @@ function retiredIn(live) {
  * `hooks` never go through that deep merge: they merge by key (hooksPlan), and
  * `autoCompactWindow` follows `compact.window` (#482).
  */
-export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY, identity = NO_IDENTITY, overlayDrop = []) {
+export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT, ask = NO_DENY, identity = NO_IDENTITY, overlayDrop = [], claudeGuard = null) {
   // #482: hooks never go through the deep merge, which would replace an owner's list; they merge by key below.
   const plain = new Map(overlay);
   plain.delete('hooks');
@@ -1370,6 +1372,11 @@ export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPAC
     const had = live.get('autoCompactWindow');
     if (compact.window > 0) m.set('autoCompactWindow', new Num(String(compact.window)));
     else if (compact.recorded !== null && had instanceof Num && had.raw === String(compact.recorded)) m.delete('autoCompactWindow');
+  }
+  if (claudeGuard !== null) {
+    const cg = claudeGuardPlan(m, claudeGuard.entry ?? null, claudeGuard);
+    if (cg.hooks === undefined) m.delete('hooks');
+    else m.set('hooks', cg.hooks);
   }
   for (const k of LIVE_OWN_SETTINGS) if (live.has(k)) m.set(k, live.get(k));
   const pa = isMap(live.get('permissions')) ? live.get('permissions') : new Map();
@@ -1448,7 +1455,7 @@ export function overlayKeysPlan(live, overlay, recorded) {
 const NO_COMPACT = Object.freeze({ window: 0, script: null, recorded: null, platform: 'linux' });
 
 /** A path as the key compares it: forward slashes, doubled ones joined, and case folded on Windows. */
-const pathKey = (p, platform) => {
+export const pathKey = (p, platform) => {
   const s = String(p).replace(/\\/g, '/').replace(/\/+/g, '/');
   return platform === 'win32' ? s.toLowerCase() : s;
 };
@@ -1627,8 +1634,18 @@ function denyPlan(live, fixed, on, recorded, list = 'deny') {
 /** The rules the switches leave on: `on` names the switches that are. */
 export const guardRules = on => GUARD_RULES.filter(r => on.includes(r.switch));
 
-/** rules.json's text for those rules. */
-export const guardTableText = rules => `${JSON.stringify({ rules }, null, 2)}\n`;
+/** rules.json's text for those rules, with optional identity configuration. */
+export const guardTableText = (rules, identity = null) => `${JSON.stringify(identity?.enabled ? { rules, identity: { enabled: true, posterOn: Boolean(identity.posterOn) } } : { rules }, null, 2)}\n`;
+
+/** The dry run's Guard rules line, covering cleaner rules and identity guard rules when active. */
+export function guardRulesLine(rules, { identity = false, wired = false } = {}) {
+  const items = rules.map(r => `${r.id} (${r.decision})`);
+  if (identity) {
+    items.push('identity-gh (deny)');
+    if (wired) items.push('identity-git (overwrite-ask/deny)');
+  }
+  return `Guard rules (${GUARD_TABLE_DEST}): ${items.join(', ')}`;
+}
 
 /** The line the dry run and the apply print when a Codex hook entry is new or changed (C15). */
 export const CODEX_TRUST_LINE = 'Codex: open /hooks and trust pact-guard; until then Codex runs unguarded.';
@@ -1650,6 +1667,8 @@ export const guardLauncherRel = format => `claude/guard/${format}.cmd`;
 // What a launcher answers when its wrapper did not end as it should, in each harness's shape.
 const LAUNCH_FAILED = "The pact's guard failed (launch); run the pact's dry run.";
 const LAUNCH_ANSWERS = Object.freeze({
+  // Claude Code reads PreToolUse hookSpecificOutput on stdout with exit 0.
+  claude: ['echo {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"The pact\'s guard could not start; run the pact\'s dry run."}}', 'exit /b 0'],
   // Codex blocks on exit 2 with a reason, so 2 passes through.
   codex: ['if %ERRORLEVEL% EQU 2 exit /b 2', `echo ${LAUNCH_FAILED}>&2`, 'exit /b 2'],
   // Antigravity's documentation says a non-zero exit lets the call through, so the denial is its JSON answer.
@@ -1690,16 +1709,112 @@ const WIN_PATH_UNQUOTED_BAD = /^[^ ]*[();,=][^ ]*$/;
  * 1, passes the code on. cmd hands those last words to the launcher, which
  * ignores them.
  */
-export function guardCommand({ script, platform, systemRoot }) {
+function checkGuardScriptPath({ script, platform, systemRoot }) {
   if (platform === 'win32') {
     const root = String(systemRoot || 'C:\\Windows');
     if (!/^[A-Za-z]:\\[A-Za-z0-9_.\\-]+$/.test(root) || !/^[A-Za-z]:\\/.test(script) || WIN_PATH_BAD.test(script) || WIN_PATH_UNQUOTED_BAD.test(script)) refuse('hook-command-path', "the guard's path or the Windows folder holds a character the hook command can't carry, or is not a full path.");
     // SystemRoot's case differs between environments (C:\WINDOWS, C:\Windows); one spelling keeps the entry the same.
-    const folder = root.replace(/\\$/, '').replace(/^[a-z]/, d => d.toUpperCase()).replace(/\\windows$/i, '\\Windows');
-    return `${folder}\\System32\\cmd.exe /d /c call "${script.replace(/\.mjs$/, '.cmd')}" ; exit $LASTEXITCODE`;
+    return root.replace(/\\$/, '').replace(/^[a-z]/, d => d.toUpperCase()).replace(/\\windows$/i, '\\Windows');
   }
   if (!script.startsWith('/') || /\p{Cc}/u.test(script)) refuse('hook-command-path', "the guard's path holds a character the hook command can't carry, or is not a full path.");
+  return null;
+}
+
+export function guardCommand({ script, platform, systemRoot }) {
+  const folder = checkGuardScriptPath({ script, platform, systemRoot });
+  if (platform === 'win32') return `${folder}\\System32\\cmd.exe /d /c call "${script.replace(/\.mjs$/, '.cmd')}" ; exit $LASTEXITCODE`;
   return `env -u NODE_OPTIONS node '${script.replaceAll("'", `'\\''`)}'`;
+}
+
+/** The hardened Claude Code PreToolUse hook entry for `claude.cmd` (win32) or `claude.mjs` (POSIX). */
+export function claudeGuardHookEntry({ script, platform, systemRoot }) {
+  const folder = checkGuardScriptPath({ script, platform, systemRoot });
+  if (platform === 'win32') {
+    return new Map([['type', 'command'], ['command', `${folder}\\System32\\cmd.exe`], ['args', ['/d', '/c', 'call', script.replace(/\.mjs$/, '.cmd')]], ['timeout', new Num('15')]]);
+  }
+  return new Map([['type', 'command'], ['command', '/usr/bin/env'], ['args', ['-u', 'NODE_OPTIONS', 'node', script]], ['timeout', new Num('15')]]);
+}
+
+const CLAUDE_GUARD_MATCHER = 'Bash|PowerShell';
+
+/**
+ * Recognizes the pact's Claude Code PreToolUse inner hook: exact type, timeout 15,
+ * exact command (or System32\cmd.exe on win32), and exact args prefix + normalized
+ * pathKey on the script/launcher arg. Leaves user PreToolUse hooks untouched.
+ */
+export function isClaudeGuardHook(h, claudeGuardKey, platform, expectedCommand = null) {
+  if (!isMap(h) || h.size !== 4 || h.get('type') !== 'command') return false;
+  const t = h.get('timeout');
+  if (!(t instanceof Num) || t.raw !== '15') return false;
+  const cmd = h.get('command');
+  const a = h.get('args');
+  if (!Array.isArray(a) || a.length !== 4 || typeof a[3] !== 'string' || pathKey(a[3], platform) !== claudeGuardKey) return false;
+  if (platform === 'win32') {
+    const cmdOk = expectedCommand !== null ? cmd === expectedCommand : typeof cmd === 'string' && /^[A-Za-z]:\\[A-Za-z0-9_.\\-]+\\System32\\cmd\.exe$/.test(cmd);
+    return cmdOk && a[0] === '/d' && a[1] === '/c' && a[2] === 'call';
+  }
+  return cmd === (expectedCommand ?? '/usr/bin/env') && a[0] === '-u' && a[1] === 'NODE_OPTIONS' && a[2] === 'node';
+}
+
+/**
+ * Merges or removes the pact's PreToolUse group in Claude Code's settings.json
+ * independently of auto-compact-window. Refuses `hooks-shape` if live `hooks`
+ * is non-map or `hooks.PreToolUse` is non-array when adding/updating.
+ */
+export function claudeGuardPlan(live, wantEntry, { key, platform, command = null }) {
+  const expectedCommand = wantEntry ? wantEntry.get('command') : command;
+  const isOurs = h => isClaudeGuardHook(h, key, platform, expectedCommand);
+  const liveHooks = live.get('hooks');
+  if (wantEntry) {
+    if (liveHooks !== undefined && !isMap(liveHooks)) refuse('hooks-shape', "settings.json's hooks is not a JSON object, so the pact's guard cannot be added; fix the file first.");
+    const out = new Map(liveHooks ?? []);
+    const list = out.get('PreToolUse');
+    if (list !== undefined && !Array.isArray(list)) refuse('hooks-shape', "settings.json's hooks.PreToolUse is not a list, so the pact's guard cannot be added; fix the file first.");
+    const wantGroup = new Map([['matcher', CLAUDE_GUARD_MATCHER], ['hooks', [wantEntry]]]);
+    const mine = (list ?? []).flatMap(g => innerHooks(g).filter(isOurs).map(h => [isMap(g) ? g.get('matcher') : undefined, canonical(h)]));
+    const held = mine.length === 1 && mine[0][0] === CLAUDE_GUARD_MATCHER && mine[0][1] === canonical(wantEntry);
+    if (held) return { hooks: new Map(liveHooks), op: null };
+    if (mine.length === 0) {
+      out.set('PreToolUse', [...(list ?? []), wantGroup]);
+      return { hooks: out, op: 'added' };
+    }
+    let place = -1;
+    const kept = [];
+    let updatedInPlace = false;
+    for (const g of list) {
+      const inner = innerHooks(g);
+      if (!inner.some(isOurs)) {
+        kept.push(g);
+        continue;
+      }
+      if (!updatedInPlace && isMap(g) && g.get('matcher') === CLAUDE_GUARD_MATCHER) {
+        updatedInPlace = true;
+        const at = inner.findIndex(isOurs);
+        kept.push(new Map([...g, ['hooks', inner.flatMap((h, i) => (i === at ? [wantEntry] : isOurs(h) ? [] : [h]))]]));
+        continue;
+      }
+      const rest = inner.filter(h => !isOurs(h));
+      if (rest.length) kept.push(new Map([...g, ['hooks', rest]]));
+      else if (place < 0) place = kept.length;
+    }
+    if (!updatedInPlace) kept.splice(place < 0 ? kept.length : place, 0, wantGroup);
+    out.set('PreToolUse', kept);
+    return { hooks: out, op: 'updated' };
+  }
+  if (liveHooks === undefined || !isMap(liveHooks)) return { hooks: liveHooks, op: null };
+  const out = new Map(liveHooks);
+  const list = out.get('PreToolUse');
+  if (!Array.isArray(list)) return { hooks: liveHooks, op: null };
+  const kept = list.flatMap(g => {
+    const inner = innerHooks(g);
+    const rest = inner.filter(h => !isOurs(h));
+    if (rest.length === inner.length) return [g];
+    return rest.length ? [new Map([...g, ['hooks', rest]])] : [];
+  });
+  if (canonical(kept) === canonical(list)) return { hooks: liveHooks, op: null };
+  if (kept.length) out.set('PreToolUse', kept);
+  else out.delete('PreToolUse');
+  return { hooks: out.size === 0 ? undefined : out, op: 'removed' };
 }
 
 // Where each harness keeps its PreToolUse list, and what the pact's group there holds: `matcher` the tools that
@@ -1846,7 +1961,7 @@ export function guardPathReason(rel, throughLink) {
  * and the value's hash. An entry the
  * merged settings don't hold (a hook event that isn't a list) is left out.
  */
-export function settingsEntries({ harness, path, merged, deny, ask, identityEnv, window, hooks, hash, overlayKeys = [] }) {
+export function settingsEntries({ harness, path, merged, deny, ask, identityEnv, window, hooks, hash, overlayKeys = [], claudeGuard = null }) {
   const out = [];
   // The value as the record reads it back: plain JSON, a number a number.
   const add = (key, value) => out.push({ harness, path, key, value: JSON.parse(JSON.stringify(toJsonValue(value))), sha256: hash(Buffer.from(canonical(value), 'utf8')) });
@@ -1861,6 +1976,7 @@ export function settingsEntries({ harness, path, merged, deny, ask, identityEnv,
     add('autoCompactWindow', new Num(String(window)));
     for (const [event, groups] of hooks ?? []) for (const g of groups) for (const h of innerHooks(g)) add(`hooks.${event}`, h);
   }
+  if (claudeGuard !== null) add('hooks.PreToolUse', claudeGuard);
   return out.filter(e => !entryDrift([e], merged).length);
 }
 
@@ -1871,11 +1987,13 @@ export function entryDrift(entries, live) {
   const env = isMap(live.get('env')) ? live.get('env') : new Map();
   const hooks = isMap(live.get('hooks')) ? live.get('hooks') : new Map();
   for (const e of entries) {
-    const want = canonical(toMaps(e.value));
+    const val = toMaps(e.value);
+    const want = canonical(val);
     const [top, name = ''] = e.key.split('.');
     let held;
     if (top === 'permissions') held = listOf(permissions.get(name)).some(r => canonical(r) === want);
     else if (top === 'env') held = env.has(name) && canonical(env.get(name)) === want;
+    else if (e.key === 'hooks.PreToolUse') held = isMap(val) && listOf(hooks.get(name)).some(g => isMap(g) && canonical(g.get('matcher') ?? null) === canonical(val.get('matcher')) && innerHooks(val).every(h => innerHooks(g).some(x => canonical(x) === canonical(h))));
     else if (top === 'hooks') held = listOf(hooks.get(name)).some(g => innerHooks(g).some(h => canonical(h) === want));
     else held = live.has(e.key) && canonical(live.get(e.key)) === want;
     if (!held) out.push(`${e.path} ${formatPlain(e.key)} (the pact's entry changed since the install)`);
@@ -1926,20 +2044,27 @@ export function identityEnvPlan(live, on, recorded, wanted) {
  */
 export const identityNodeOk = p => typeof p === 'string' && /^(?:[A-Za-z]:[\\/]|\/)/.test(p) && /^node(?:\.exe)?$/i.test(p.split(/[\\/]/).at(-1)) && !/["\p{Cc}]/u.test(p);
 
+const PIN_PROVIDERS = Object.freeze(['claude', 'codex', 'antigravity']);
+const PIN_LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const PIN_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38})$/;
+
 /** The claude app's entry in github.json's text, or null when the file is not the pin's exact shape or holds no claude app. Nothing is looked up. */
 export function identityPinApp(text) {
   let pin;
   try {
-    pin = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+    pin = JSON.parse(text);
   } catch {
     return null;
   }
   const keys = (o, want) => o !== null && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length === want.length && want.every(k => Object.hasOwn(o, k));
-  if (!keys(pin, ['owner', 'apps']) || !keys(pin.owner, ['login', 'id']) || pin.apps === null || typeof pin.apps !== 'object' || Array.isArray(pin.apps)) return null;
-  const a = pin.apps.claude;
   const isId = n => Number.isSafeInteger(n) && n > 0;
-  if (!keys(a, ['app_id', 'slug', 'bot_login', 'bot_id']) || !isId(a.app_id) || !isId(a.bot_id) || typeof a.slug !== 'string' || !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(a.slug) || a.bot_login !== `${a.slug}[bot]`) return null;
-  return { app_id: a.app_id, slug: a.slug, bot_login: a.bot_login, bot_id: a.bot_id };
+  if (!keys(pin, ['owner', 'apps']) || !keys(pin.owner, ['login', 'id']) || typeof pin.owner.login !== 'string' || !PIN_LOGIN_RE.test(pin.owner.login) || !isId(pin.owner.id)) return null;
+  if (pin.apps === null || typeof pin.apps !== 'object' || Array.isArray(pin.apps)) return null;
+  for (const [p, v] of Object.entries(pin.apps)) {
+    if (!PIN_PROVIDERS.includes(p) || !keys(v, ['app_id', 'slug', 'bot_login', 'bot_id']) || !isId(v.app_id) || !isId(v.bot_id) || typeof v.slug !== 'string' || !PIN_SLUG_RE.test(v.slug) || v.bot_login !== `${v.slug}[bot]`) return null;
+  }
+  const a = Object.hasOwn(pin.apps, 'claude') ? pin.apps.claude : null;
+  return a ? { app_id: a.app_id, slug: a.slug, bot_login: a.bot_login, bot_id: a.bot_id } : null;
 }
 
 /** One gitconfig value, as gh-app.mjs writes it: raw when plain, else quoted with " and \ escaped. */
@@ -2061,15 +2186,16 @@ function bannedKeys(v) {
  * once, capped; env names are only counted, since a name can say what a secret
  * is for.
  */
-export function liveSettingsLines(live, overlay, compact = NO_COMPACT) {
+export function liveSettingsLines(live, overlay, compact = NO_COMPACT, claudeGuard = null) {
   const out = [];
   for (const k of bannedKeys(live)) if (!LIVE_OWN_SETTINGS.includes(k)) out.push(`WARN: settings.json holds ${k}, a command-running setting the pact never sets.`);
   // #482: a hook the pact did not install, once per event; the pact's own, matched by key, draw nothing.
   const lh = live.get('hooks');
-  if (isMap(lh) && compact.script !== null) {
-    const key = pathKey(compact.script, compact.platform);
+  if (isMap(lh) && (compact.script !== null || claudeGuard !== null)) {
+    const key = compact.script === null ? null : pathKey(compact.script, compact.platform);
+    const ours = (event, h) => (key !== null && isPactHook(h, key, compact.platform)) || (event === 'PreToolUse' && claudeGuard !== null && isClaudeGuardHook(h, claudeGuard.key, claudeGuard.platform, claudeGuard.command));
     for (const [event, groups] of lh) {
-      if (Array.isArray(groups) && groups.some(g => innerHooks(g).some(h => !isPactHook(h, key, compact.platform)))) out.push(`WARN: settings.json holds a hook the pact did not install: ${eventShown(event)}`);
+      if (Array.isArray(groups) && groups.some(g => innerHooks(g).some(h => !ours(event, h)))) out.push(`WARN: settings.json holds a hook the pact did not install: ${eventShown(event)}`);
     }
   }
   const lp = live.get('permissions');

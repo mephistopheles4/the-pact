@@ -267,9 +267,9 @@ PROXY_LINE_PROGRAM_EOF
 echo "== Node"
 MISE_VERSION=2026.10.14
 MISE_SHA256=5bc573bc91c2571ee371f5d570cf6f8d51af3ef343b124a6609b9fec7f0d47f2
-NODE_VERSION=24.22.1
-NODE_TAR_SHA256=eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c
-NODE_BIN_SHA256=e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb
+NODE_VERSION=24.22.3
+NODE_TAR_SHA256=061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2
+NODE_BIN_SHA256=a7ec1b37e6ff9d187e4198c5b6df9a4eb1c74dd31804fb3bac55cc4ceca1ac01
 NODE_FAILED=
 MISE_OK=0
 MISE_BIN=/root/.local/bin/mise
@@ -1480,12 +1480,15 @@ when no other row answers the sentence.
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
   can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
-  in `~/.pact/github.json`; run `gh-app.mjs status` and count the app
+  in `~/.pact/github.json`; run `node ~/.pact/tools/gh-app.mjs status --provider <provider>`
+  — in PowerShell, `node "$HOME/.pact/tools/gh-app.mjs" status --provider <provider>` —
+  for `claude`, `codex` or `antigravity`, and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
-  `gh-app.mjs gh`, and set each post's `as` to the app's bot login
-  (`<slug>[bot]`). Assigning is the
-  one exception: apps can't be assigned, so it stays on my login through plain
-  `gh`. The status comment is the one your posting identity wrote; an older one
+  `gh-app.mjs gh --provider <provider>`, and set each post's `as` to the app's bot login
+  (`<slug>[bot]`). Assigning runs through
+  `node ~/.pact/tools/gh-app.mjs gh --provider <provider> -R <owner>/<repo> -- issue/pr edit <n> --add-assignee <owner>`
+  (naming my login explicitly, because `@me` resolves to the app and apps can't be assigned).
+  The status comment is the one your posting identity wrote; an older one
   by my account stays as it is. A tier or triage label you apply through the app
   doesn't count: my confirmation sets the tier, and you log it as a checkpoint.
 
@@ -1678,7 +1681,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash ab4640ff345f318ed1dfce6d60b21244f2169743ed769e6b30775c64ee055f67 '.pact/review.md'
+check_hash 5bef4554c3b55dd7c5824c8c0855a1430f5856859daada2c70eb5cf294d88fb8 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1708,7 +1711,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy b4db1c2839a2"
+  echo "pact cloud copy d98f78add4f9"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
