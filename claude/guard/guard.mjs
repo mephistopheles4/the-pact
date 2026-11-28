@@ -3958,9 +3958,24 @@ function buildGitconfigReason(provider) {
   return `The pinned gitconfig for ${provider} is missing or unreadable; run node "$HOME/.pact/tools/gh-app.mjs" setup --provider ${provider} (or refresh).`;
 }
 
-function buildGitDenyReason(provider, platform, shell) {
-  if (platform === 'win32' && shell !== 'bash') {
+// The prefix names the gitconfig as a quoted literal, which the
+// GIT_CONFIG_GLOBAL check accepts whatever HOME or USERPROFILE hold: a hook's
+// environment can lack HOME (Claude Code's on Windows does) while the shell
+// that runs the command sets it. A path the check would refuse as a literal
+// keeps the variable form. An unknown shell (Antigravity's send_input) gets
+// the Bash form, the only one the check accepts there.
+function buildGitDenyReason(provider, platform, shell, gitconfig) {
+  const literal = typeof gitconfig === 'string' && !/[$`\p{Cc}]/u.test(gitconfig) && !gitconfig.startsWith('~');
+  if (platform === 'win32' && shell !== 'bash' && shell !== 'unknown') {
+    if (literal && !WIN_PATH_BAD.test(gitconfig)) {
+      return `Plain git writes are blocked while agent-identity is on for ${provider}. Run the git write in a call with no block, pipe, subshell, && or ||, after $env:GIT_CONFIG_GLOBAL = '${gitconfig.replaceAll("'", "''")}'; $env:GIT_TERMINAL_PROMPT = '0'; so git writes use the pinned app.`;
+    }
     return `Plain git writes are blocked while agent-identity is on for ${provider}. Prefix with $env:GIT_CONFIG_GLOBAL = "$env:USERPROFILE/.pact/gh-app-${provider}.gitconfig"; $env:GIT_TERMINAL_PROMPT = '0'; <command> so git writes use the pinned app.`;
+  }
+  if (literal) {
+    // Bash takes no escaped ' inside single quotes, and neither does the check.
+    const quoted = gitconfig.includes("'") ? `"${gitconfig.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"` : `'${gitconfig}'`;
+    return `Plain git writes are blocked while agent-identity is on for ${provider}. Put GIT_CONFIG_GLOBAL=${quoted} GIT_TERMINAL_PROMPT=0 right before the git command (inside any subshell or pipe too) so git writes use the pinned app.`;
   }
   return `Plain git writes are blocked while agent-identity is on for ${provider}. Prefix with GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-${provider}.gitconfig" GIT_TERMINAL_PROMPT=0 <command> so git writes use the pinned app.`;
 }
@@ -4373,7 +4388,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   const bashGit = evalGitMode(bashStates, true, psStates.hasAnyModeGitAssign);
   if (bashGit.missingGitconfig) return { decision: 'deny', id: 'identity-gitconfig', reason: buildGitconfigReason(provider) };
   if (bashGit.hits.length > 0 && !psStates.hasAnyModeGitAssign && (bashStates.length > 1 || !canOverwrite || bashGit.hits[0].forceDeny)) {
-    return { decision: 'deny', id: 'identity-git', reason: buildGitDenyReason(provider, platform, shell) };
+    return { decision: 'deny', id: 'identity-git', reason: buildGitDenyReason(provider, platform, shell, expectedGitconfig) };
   }
   const psGit = evalGitMode(psStates, false, bashStates.hasAnyModeGitAssign);
   if (psGit.missingGitconfig) return { decision: 'deny', id: 'identity-gitconfig', reason: buildGitconfigReason(provider) };
@@ -4418,6 +4433,6 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
   return {
     decision: 'deny',
     id: 'identity-git',
-    reason: buildGitDenyReason(provider, platform, shell),
+    reason: buildGitDenyReason(provider, platform, shell, expectedGitconfig),
   };
 }
