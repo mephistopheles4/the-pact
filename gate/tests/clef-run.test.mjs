@@ -567,6 +567,85 @@ test('serve: a folder that is not set up fails with clef-setup and run.fail setu
   assert.equal(existsSync(f.record), false, 'the stub never started');
 });
 
+// ------------------------------------------------------------ the forward timeout (spec 0005 U8)
+
+// #PACT-93 C-U12
+test('forwardTimeoutMs: 180 s on a CPU backend, 60 s on each GPU backend', () => {
+  assert.deepEqual(['cpu', 'vulkan', 'metal'].map(clef.forwardTimeoutMs), [180_000, 60_000, 60_000]);
+});
+
+// #PACT-93 C-U12: scaled by 0.01, the CPU bound is 1.8 s and the GPU bound 0.6 s; the stub answers after 1 s.
+for (const [backend, status] of [['cpu', 200], ['vulkan', 502]]) {
+  test(`serve: on a ${backend} setup, an answer between the two bounds is ${status}`, async t => {
+    const f = fixture(t, { answerDelayMs: 1000 });
+    const setup = JSON.parse(readFileSync(f.p.setup, 'utf8'));
+    writeFileSync(f.p.setup, JSON.stringify({ ...setup, backend }));
+    await startServe(t, f, { forwardScale: 0.01 });
+    const { port } = (await ready(f)).run;
+    const r = await call({ port, body: { state: {}, questions: QUESTIONS } });
+    assert.equal(r.status, status, r.text);
+    if (status === 502) assert.deepEqual(JSON.parse(r.text), { error: 'no-answer' });
+  });
+}
+
+// ------------------------------------------------------------ a server that ends while loading (spec 0005 U18)
+
+// #PACT-93 C-U13: the exit code is known on the setpriv and job-object lines; the keeper's message carries none.
+for (const [line, code] of [['setpriv', 1], ['keeper', 'unknown']]) {
+  test(`serve on the ${line} line: a server that exits before ready records stage load and code ${code}`, async t => {
+    const f = fixture(t, { exitAfterMs: 300, notReady: true });
+    const h = await startServe(t, f, { line, keeperPidMs: 5000 });
+    assert.equal(await h.done, 'exit');
+    const { time, ...fail } = JSON.parse(readFileSync(f.run.fail, 'utf8'));
+    assert.deepEqual(fail, { reason: 'exit', stage: 'load', code, platform: Object.keys(clef.SERVER.archives)[0] });
+  });
+}
+
+// #PACT-93 C-U13 (spec 0005 U18: a later exit is stage serve, and the load line is a load crash's alone)
+test('serve: a server that ends after ready records stage serve, and no load line is said', async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f);
+  const live = await ready(f);
+  const said = async () => (await clef.statusRun({ dir: f.dir })).lines.filter(l => l.startsWith('the server stopped while loading'));
+  // An earlier load crash's record says nothing once a server is ready.
+  writeFileSync(f.run.fail, JSON.stringify({ time: Date.now(), reason: 'exit', stage: 'load', code: 1, platform: Object.keys(clef.SERVER.archives)[0] }));
+  assert.deepEqual(await said(), []);
+  process.kill(live.run.serverPid, 'SIGKILL');
+  assert.equal(await h.done, 'exit');
+  assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).stage, 'serve');
+  assert.deepEqual(await said(), []);
+  assert.deepEqual(await ensure(f), { out: { state: 'failed', reason: 'exit' }, code: 4 });
+});
+
+const loadLine = (key, code) => `the server stopped while loading the model on ${key} (${code}); this build may not support this CPU or system. See docs/clef.md`;
+
+// #PACT-93 C-U13: the whole line is compared, so it can hold no server text, run id or run.key value.
+test('ensure and status: after a load crash both say the fixed line, and add setup --cpu on a GPU backend only', async t => {
+  const f = fixture(t, { exitAfterMs: 300, notReady: true });
+  const key = Object.keys(clef.SERVER.archives)[0];
+  const line = loadLine(key, 1);
+  const supervisorCommand = wrapperFor(f, `, line: 'setpriv'`);
+  f.stoppers.push(() => stopFixture(f));
+  assert.deepEqual(await ensure(f, { wait: 20, supervisorCommand }), { out: { state: 'failed', reason: 'exit' }, code: 4, note: line });
+  const said = [];
+  const errs = [];
+  // CLAUDE_CONFIG_DIR names the fixture's own home, so main works on the same clef folder.
+  assert.equal(await clef.main(['ensure'], { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: fixtureDir(t), chdir: () => {}, out: l => said.push(l), err: l => errs.push(l) }), 4);
+  assert.deepEqual(said, ['{"state":"failed","reason":"exit"}']);
+  assert.deepEqual(errs, [line]);
+  assert.ok((await clef.statusRun({ dir: f.dir })).lines.includes(line));
+  const setup = JSON.parse(readFileSync(f.p.setup, 'utf8'));
+  writeFileSync(f.p.setup, JSON.stringify({ ...setup, backend: 'vulkan' }));
+  const gpu = `${line}; try \`clef setup --cpu\``;
+  assert.equal((await ensure(f, { supervisorCommand })).note, gpu);
+  assert.ok((await clef.statusRun({ dir: f.dir })).lines.includes(gpu));
+  // A record another build left, as before a new setup, is not said of this one.
+  const fail = JSON.parse(readFileSync(f.run.fail, 'utf8'));
+  writeFileSync(f.run.fail, JSON.stringify({ ...fail, platform: 'another-key' }));
+  assert.equal((await ensure(f, { supervisorCommand })).note, undefined);
+  assert.ok(!(await clef.statusRun({ dir: f.dir })).lines.some(l => l.startsWith('the server stopped while loading')));
+});
+
 // ------------------------------------------------------------ ensure, stop, status, remove
 
 function wrapperFor(f, extra = '') {

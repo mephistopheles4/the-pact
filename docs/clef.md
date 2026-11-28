@@ -38,7 +38,7 @@ A refusal is one line, `REFUSED <word>: <reason>`. Every mode but `ensure` ends 
 
 **Changing the variant.** Run `clef stop`, then `clef setup --variant <variant> --yes`; setup refuses `clef-running` while a supervisor lives. `flash` is the default, so a `setup` with no `--variant` selects `flash`, whatever was set up before. A downloaded model stays on disk when you switch, and switching back hashes it instead of downloading it again; both together take about 26 GB. `remove --yes` deletes them. A `setup.json` written before variants existed reads as `flash`.
 
-**Backend and speed.** Setup picks Vulkan when it finds the Vulkan loader (a file check; nothing runs), else CPU; `--cpu` forces CPU. On CPU a call takes about 2 seconds, so people without a GPU are expected to leave the tool off.
+**Backend and speed.** Setup picks Vulkan when it finds the Vulkan loader (a file check; nothing runs), else CPU; `--cpu` forces CPU. On CPU a call takes about 2 seconds, so people without a GPU are expected to leave the tool off. The supervisor answers `no-answer` after 180 s with nothing from the server on CPU, and 60 s on a GPU. A call on CPU can therefore take up to 180 s, and the text in its `state` can make it slow.
 
 **Platforms.** Windows x64 is the target. Linux x64 is built and unit-tested in CI and has not been run end to end. macOS arm64 (Apple Silicon) is built and tested in CI on macOS 15, on CPU with a stub server, and has not been run end to end on Metal or on CPU; [macOS](#macos) says what differs there.
 
@@ -56,6 +56,8 @@ This interface is V1's. It changes only through a spec change, which adds a `v` 
 | `failed` | the last start failed less than 10 minutes ago; `reason` is `exit` or `timeout`; it starts nothing | 4 |
 
 `--wait n` (0 to 60 seconds, default 0) waits for `ready`. A start that fails is recorded in `run.fail`; `stop` clears it.
+
+**A server that ends while loading** the model gets one more line, on `ensure`'s stderr and in `status`: `the server stopped while loading the model on <platform key> (<code>); this build may not support this CPU or system. See docs/clef.md`. On a GPU build it adds ``; try `clef setup --cpu` ``. `<code>` is the server's exit code or signal name, and `unknown` on the [keeper](#macos). `run.fail` records the stage, `load` or `serve`, that code and the platform key. The line is said of the build that is set up only, and `status` drops it once a server is ready.
 
 **`run.json`**, in the clef folder, holds `port`, `run`, `pid`, `serverPid` and `started`. Any program on the machine may call the supervisor: it takes no token.
 

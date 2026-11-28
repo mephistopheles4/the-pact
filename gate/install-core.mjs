@@ -38,7 +38,7 @@ const HOOK_WINDOW_TOKEN = '__PACT_WINDOW__';
 const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
   cleaner: ' and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.',
-  clef: ' and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.',
+  clef: ' and, when you run its setup, downloads a llama.cpp server build (about 12–38 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.',
   coverage: ' and asks a local Clef by default; with `jev` chosen as the decision model, it sends the security findings and threat-model entries of each repo listed in ~/.pact/coverage.json to TypeSafe.',
   'gh-app': ' and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS and guarded GitHub writes run as each pinned provider app across supported harnesses, with PreToolUse guards stopping unpinned writes; an askpass program, an SSH remote, an unguarded harness and a global git write outside guarded shells still go around it (docs/agent-identity.md).',
 });
