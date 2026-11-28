@@ -531,6 +531,73 @@ function releaseProblems(src) {
   return [...new Set(out)];
 }
 
+// PACT-93 (spec 0005 U7): the end-to-end workflow's filter (the tool, the cases, the script, the installer's modules and itself) and its five jobs.
+const E2E_PATHS = [
+  'claude/tools/clef.mjs',
+  'docs/clef-cases.json',
+  'gate/tests/clef-e2e.mjs',
+  'gate/install.mjs',
+  'gate/install-run.mjs',
+  'gate/install-core.mjs',
+  'gate/install-io.mjs',
+  'gate/paths.mjs',
+  'gate/harnesses.mjs',
+  'gate/harness-render.mjs',
+  'gate/project-core.mjs',
+  'gate/render-core.mjs',
+  'gate/seam-a-core.mjs',
+  'gate/review-core.mjs',
+  'gate/shared.mjs',
+  'gate/contained.mjs',
+  '.github/workflows/clef-e2e.yml',
+];
+const E2E_ON = { pull_request: { paths: E2E_PATHS }, push: { branches: ['main'], paths: E2E_PATHS }, workflow_dispatch: null };
+// A group of its own: gate.yml's is repo-wide, so a run that shared it would cancel gate.
+const E2E_CONCURRENCY = { group: "clef-e2e-${{ github.event_name == 'pull_request' && github.ref || github.sha }}", 'cancel-in-progress': 'true' };
+const E2E_JOBS = [
+  ['clef-e2e-linux-x64', 'ubuntu-24.04', 'linux-x64-cpu'],
+  ['clef-e2e-linux-x64-keeper', 'ubuntu-24.04', 'linux-x64-cpu'],
+  ['clef-e2e-linux-arm64', 'ubuntu-24.04-arm', 'linux-arm64-cpu'],
+  ['clef-e2e-windows-x64', 'windows-2025', 'win32-x64-cpu'],
+  ['clef-e2e-windows-arm64', 'windows-11-arm', 'win32-arm64-cpu'],
+];
+// The keeper job alone moves setpriv aside, so its run takes the keeper line.
+const HIDE_SETPRIV = { name: 'Hide setpriv, so the keeper line runs', run: 'sudo mv /usr/bin/setpriv /usr/bin/setpriv.off' };
+
+/**
+ * Where the end-to-end workflow breaks its allow-list, as plain sentences; empty
+ * when it keeps it. Each job is compared whole, so no other runner, step, key,
+ * shell or run line passes, and none can be skipped or carry on after an error.
+ */
+function e2eProblems(src, gateSrc) {
+  const code = codeOf(src);
+  const out = commonProblems(src);
+  let w;
+  try {
+    w = readYaml(code);
+  } catch (e) {
+    return [...out, `is not in the YAML the check reads: ${e.message}`];
+  }
+  for (const k of Object.keys(w)) if (!['name', 'on', 'permissions', 'concurrency', 'jobs'].includes(k)) out.push(extraKey('the file', k));
+  if (w.name !== 'clef-e2e') out.push('is not named clef-e2e');
+  if (!sameSet(w.on, E2E_ON)) out.push('runs on other triggers or paths than its own');
+  if (!sameSet(w.concurrency, E2E_CONCURRENCY)) out.push('does not hold its own concurrency group');
+  const jobs = isMap(w.jobs) ? w.jobs : {};
+  if (!same(Object.keys(jobs), E2E_JOBS.map(([id]) => id))) out.push('holds other jobs than its five');
+  const pin = action => new RegExp(`uses: (${action}@[0-9a-f]{40})`).exec(codeOf(gateSrc))?.[1];
+  for (const [id, runner, key] of E2E_JOBS) {
+    const steps = [
+      { uses: pin('actions/checkout'), with: { 'persist-credentials': 'false' } },
+      { uses: pin('actions/setup-node'), with: { 'node-version': '24' } },
+      ...(id.endsWith('-keeper') ? [HIDE_SETPRIV] : []),
+      // Git Bash runs the env -u line unchanged; pwsh, the Windows default, would not.
+      { name: 'Clef end to end', ...(runner.startsWith('windows') ? { shell: 'bash' } : {}), run: `env -u NODE_OPTIONS node gate/tests/clef-e2e.mjs "$RUNNER_TEMP/clef-e2e" ${key}` },
+    ];
+    if (!sameSet(jobs[id], { name: id, 'runs-on': runner, 'timeout-minutes': '45', steps })) out.push(`${id} is not the job its allow-list holds`);
+  }
+  return out;
+}
+
 // A file allowed a load the check can't read, with why it can't load a test file.
 const UNREAD_LOADS = new Map([['gate/install-run.mjs', "loads a gate module's core from the staged copy, by names the runner holds; the install stages no test file"]]);
 
@@ -575,7 +642,7 @@ function folderProblems(files) {
   const out = [];
   if (!files.has('gate.yml')) out.push('has no gate.yml');
   for (const [name, src] of files) {
-    const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : name === 'release.yml' ? releaseProblems(src) : commonProblems(src);
+    const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : Object.hasOwn(CLAUDE, name) ? claudeProblems(src, files.get('gate.yml') ?? '', name) : name === 'release.yml' ? releaseProblems(src) : name === 'clef-e2e.yml' ? e2eProblems(src, files.get('gate.yml') ?? '') : commonProblems(src);
     out.push(...problems.map(p => `${name} ${p}`));
     if (isReviewFile(name)) out.push(`${name} ${REVIEW_GONE}`);
     // #356: the reader splits lines on a line feed alone, so any other break, or a control character but a tab, could hide a key from it.
@@ -796,6 +863,34 @@ for (const [label, other, says] of [
   test(`bad case: the folder check catches a second workflow file that ${label}`, () => {
     const files = new Map([...realFolder(), ['other.yml', other]]);
     assert.ok(folderProblems(files).includes(says), folderProblems(files).join('\n'));
+  });
+}
+
+const E2E = join(WORKFLOWS, 'clef-e2e.yml');
+// #PACT-93 C-U9
+test('the end-to-end workflow keeps its allow-list', () => {
+  assert.deepEqual(e2eProblems(readFileSync(E2E, 'utf8'), readFileSync(WORKFLOW, 'utf8')), []);
+});
+
+const OTHER_JOB = id => `${id} is not the job its allow-list holds`;
+// #PACT-93 C-U9: each bad case spec 0005 U7 names, through the folder check, which hands the file to its allow-list.
+for (const [label, plant, says] of [
+  ['holds a sixth job', s => `${s}  clef-e2e-extra:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo ok\n`, 'holds other jobs than its five'],
+  ['lacks a path', s => s.replace('      - gate/paths.mjs\n', ''), 'runs on other triggers or paths than its own'],
+  ["starts its group as gate's", s => s.replace('group: clef-e2e-', 'group: gate-'), 'does not hold its own concurrency group'],
+  ['lets a job carry on after an error', s => s.replace('    timeout-minutes: 45\n', '    timeout-minutes: 45\n    continue-on-error: true\n'), OTHER_JOB('clef-e2e-linux-x64')],
+  ['runs another key', s => s.replace('clef-e2e" linux-arm64-cpu', 'clef-e2e" linux-x64-cpu'), OTHER_JOB('clef-e2e-linux-arm64')],
+  ['runs sudo in another job', s => s.replace('      - name: Clef end to end\n', '      - run: sudo true\n      - name: Clef end to end\n'), OTHER_JOB('clef-e2e-linux-x64')],
+  ['runs on another runner', s => s.replace('runs-on: windows-11-arm', 'runs-on: windows-latest'), OTHER_JOB('clef-e2e-windows-arm64')],
+  ['runs a Windows step outside bash', s => s.replace('        shell: bash\n', ''), OTHER_JOB('clef-e2e-windows-x64')],
+]) {
+  test(`bad case: the end-to-end allow-list catches a workflow that ${label}`, () => {
+    const files = realFolder();
+    const src = files.get('clef-e2e.yml').replace(/\r\n/g, '\n');
+    const planted = plant(src);
+    assert.notEqual(planted, src, 'the plant changed the file');
+    const got = folderProblems(new Map([...files, ['clef-e2e.yml', planted]]));
+    assert.ok(got.includes(`clef-e2e.yml ${says}`), got.join('\n'));
   });
 }
 
