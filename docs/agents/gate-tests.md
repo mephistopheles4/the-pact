@@ -124,7 +124,7 @@ runs only, never a host run of `gate/tests/run.mjs`.
   no changed paths and runs only `fast`, a pass that tests nothing of the
   change.
 - **Never Test evidence.** Nothing comes back but the output and the exit
-  code: no record file. So a run is never Test evidence, which stays CI's two
+  code: no record file. So a run is never Test evidence, which stays CI's three
   jobs, and nothing from it is posted.
 - **Not the container for outsiders' code.** athanor ships the working tree,
   not a clone checked against a PR's head commit, so it is not the container

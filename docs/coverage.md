@@ -74,6 +74,8 @@ A `REFUSED coverage/<word>` line (exit 2) says why nothing was asked. A request 
 
 A long finding that is mostly code can come back `unavailable (status-502)` from a local Clef while still under that limit: the model counts tokens, and code takes more of them. Shorten the evidence and ask again.
 
+The tool waits 60 s for an answer. A local Clef on a CPU [can take up to 3 minutes](clef.md#commands), so there the hint can end `unavailable (timeout)`.
+
 ## The log
 
 Each `ask` appends one line to `<Claude home>/pact-coverage/log.jsonl`: the time, the `--ref`, a hash of the finding, the repo, the entries' source, the model, the scores and the outcome. It never holds the finding's text, an entry's text or the key. At 1 MB it becomes `log.1.jsonl`, replacing the older one. No install writes or deletes that folder.

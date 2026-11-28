@@ -166,7 +166,7 @@ A refusal is one line, `REFUSED <word>: <reason>`. Every mode but `ensure` ends 
 
 **Changing the variant.** Run `clef stop`, then `clef setup --variant <variant> --yes`; setup refuses `clef-running` while a supervisor lives. `flash` is the default, so a `setup` with no `--variant` selects `flash`, whatever was set up before. A downloaded model stays on disk when you switch, and switching back hashes it instead of downloading it again; both together take about 26 GB. `remove --yes` deletes them. A `setup.json` written before variants existed reads as `flash`.
 
-**Backend and speed.** The [platform table](#platforms) says what setup picks; `--cpu` forces CPU. A CPU answer took 7 to 24 s on [CI's runners](#cis-runners-on-cpu), and **can take up to 3 minutes** on a slow machine; the text in its `state` can make it slow. The supervisor answers `no-answer` after 180 s with nothing from the server on CPU, and 60 s on a GPU. Give a caller's own timeout the same room.
+**Backend and speed.** The [platform table](#platforms) says what setup picks; `--cpu` forces CPU. A CPU answer took 7 to 24 s on [CI's runners](#cis-runners-on-cpu), and **can take up to 3 minutes** on a slow machine; the text in its `state` can make it slow. The supervisor answers `no-answer` after 180 s with nothing from the server on CPU, and 60 s on a GPU. Give a caller's own timeout the same room. The [coverage hint](coverage.md) gives up after 60 s, so on a CPU it can end `unavailable (timeout)`.
 
 ## How a caller uses it
 
@@ -227,7 +227,7 @@ The server should not outlive its supervisor. What ends it depends on the platfo
 
 ## Field reports
 
-**A server that ends while loading** the model gets one more line, on `ensure`'s stderr and in `status`: `the server stopped while loading the model on <platform key> (<code>); this build may not support this CPU or system. See docs/clef.md, Field reports`. On a GPU build it adds ``; try `clef setup --cpu` ``. `<code>` is the server's exit code or signal name, and `unknown` on the [keeper](#when-the-supervisor-dies). `run.fail` records the stage, `load` or `serve`, that code and the platform key. The line is said of the build that is set up only, and `status` drops it once a server is ready. Check [what your machine needs](#what-your-machine-needs) first.
+**A server that ends while loading** the model gets one more line, on `ensure`'s stderr and in `status`: `the server stopped while loading the model on <platform key> (<code>); this build may not support this CPU or system. See docs/clef.md, Field reports`. On a GPU build it adds ``; try `clef setup --cpu` ``. `<code>` is the server's exit code or signal name, and `unknown` on the [keeper](#when-the-supervisor-dies). `run.fail` records the stage, `load` or `serve`, that code and the platform key. The line shows only while the recorded platform key is the set-up one, and `status` drops it once a server is ready. Check [what your machine needs](#what-your-machine-needs) first.
 
 If Clef stops or answers wrongly on your machine, you can send a [Clef field report](https://github.com/mephistopheles4/the-pact/issues/new?template=clef-field-report.yml).
 
