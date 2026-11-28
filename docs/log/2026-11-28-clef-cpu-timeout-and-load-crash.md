@@ -28,3 +28,4 @@ It also built a public issue form for field reports, with its test, a "Field rep
 - The decision to remove the jobs: PACT-93, [comment 0f15e3c9](https://linear.app/mephistopheles4/issue/PACT-93/pact-85-t3-clef-end-to-end-in-ci-the-cpu-timeout-and-the-load-crash#comment-0f15e3c9).
 - Test further read on `e9f38ed5`, the removal, with the two reports verbatim: PACT-93, [comment eef31f62](https://linear.app/mephistopheles4/issue/PACT-93/pact-85-t3-clef-end-to-end-in-ci-the-cpu-timeout-and-the-load-crash#comment-eef31f62).
 - The decision to remove the field report: PACT-93, [comment 29fb994f](https://linear.app/mephistopheles4/issue/PACT-93/pact-85-t3-clef-end-to-end-in-ci-the-cpu-timeout-and-the-load-crash#comment-29fb994f).
+- Test further read on `cce86ec5`, that removal, with the three reports verbatim: PACT-93, [comment 36f2f0d6](https://linear.app/mephistopheles4/issue/PACT-93/pact-85-t3-clef-end-to-end-in-ci-the-cpu-timeout-and-the-load-crash#comment-36f2f0d6).
