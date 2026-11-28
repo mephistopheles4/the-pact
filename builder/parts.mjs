@@ -102,7 +102,7 @@ export const DEFAULT_PARTS = Object.freeze({
     { lead: 'Sense the work', text: 'What kind of work is it, how big, how risky, and do I know enough to plan it? Size sets how much checking it needs. A target I can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it.' },
     { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right.' },
     { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly gets a checkpoint: the agent's own pick, logged and flagged, which I review after. The harder a step is to undo, the more care its checkpoint takes." },
-    { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
+    { lead: 'Stay the owner', text: "I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence. A stage's own work runs where I can open it, steer it and stop it." },
   ],
   tiers: [
     { id: 'quick', name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'planning model, low' },

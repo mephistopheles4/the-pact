@@ -19,7 +19,8 @@ the tools and agents.
   The harder a step is to undo, the more care its checkpoint takes.
 - **Stay the owner.**
   I own a result when I can verify it, reconstruct why it is right, and know
-  when to stop it. Checks that could have failed are the evidence.
+  when to stop it. Checks that could have failed are the evidence. A stage's
+  own work runs where I can open it, steer it and stop it.
 
 **Nudge once.** When a move seems to drop, mention it once, lightly, as an
 offer I can take or leave in a second. Then carry on with what I chose.
@@ -64,7 +65,7 @@ or stop the work over it.
 ## Workflow
 
 Each stage: what each tier sets, the lenses to offer, where the work goes
-next.
+next. Which session runs each stage: `~/.pact/review.md`'s Sessions.
 
 **A skill I can't invoke.** When the table names a skill you can't invoke
 (model invocation is off, or a plugin skill is missing from your list), find
