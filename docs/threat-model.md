@@ -200,8 +200,7 @@ Codex and Antigravity, and there before typed input; and the release job's token
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
-- **The decision model, when on:** a model of one of two pinned variants. A pin
-  table (fixed repos, one per variant; per-file size and
+- **The decision model, when on.** A pin table (fixed repos, one per variant; per-file size and
   sha256, checked before keeping); fixed redirect hosts, `https:` only; its
   archive readers, writing only pinned names; a pin-time Mach-O check (thin
   arm64, no flags); a fixed working folder and environment (on macOS, also

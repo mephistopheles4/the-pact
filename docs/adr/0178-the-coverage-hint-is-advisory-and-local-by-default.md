@@ -21,7 +21,7 @@ The owner asked for an advisory version now, because sessions keep proposing fix
 
 ## What it costs
 
-- **A wrong "likely covered" could lead the owner to wave a real finding through.** The hint says it is not a ruling and can say "unsure". How often it is confidently wrong is checked by hand before the first release, and a later change can measure it from the tool's local log.
+- **A wrong "likely covered" could lead the owner to wave a real finding through.** The hint says it is not a ruling and can say "unsure". How often it is confidently wrong is checked by hand at Test (the spec's claim 15), and a later change can measure it from the tool's local log.
 - **The draft leaves out the "Also accepted" lines,** so a finding only they cover can get "no entry found".
 - **What went to TypeSafe can't be deleted request by request** ([its terms](../coverage.md#typesafes-terms)).
 
