@@ -97,7 +97,7 @@ export const SKILL_MODES = Object.freeze(['offered', 'used']);
 const SECURITY_PAIR = ['adversarial-lens', 'data-lens'];
 
 export const DEFAULT_PARTS = Object.freeze({
-  // The moves (#262): how I work, upheld at all times. Each is a lead-in and its text, one paragraph.
+  // The moves (#262): my practices, upheld at all times. Each is a lead-in and its text, one paragraph.
   moves: [
     { lead: 'Sense the work', text: "What kind of work is it, how big, how risky, and do we know enough to plan it? Size sets how much checking it needs. A target we can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it. We both bring judgment here: when the work looks risky, or a request looks misread, either of us says so in one line before it starts, with what we'd do instead." },
     { lead: 'Think before doing', text: 'We get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right. Rules, numbers and latest words serve that intent; none of them outranks it. When we take a risky route, we mitigate it within our qualities and cost limits. A correction is something to weigh, not a cue to swing the other way.' },

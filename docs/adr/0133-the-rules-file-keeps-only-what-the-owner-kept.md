@@ -1,5 +1,7 @@
 # The rules file keeps only what the owner kept
 
+Amended by [ADR 0181](0181-judgment-comes-from-both-sides-in-the-first-two-moves.md) (2026-11-28): two moves now say what the agent does.
+
 The rules file's prose outside the Scriptorium parts is cut to the owner's list 1 (#464 T4). Seven items go: the opening note and its "Scriptorium builds this" markers, How Claude helps' intro, Build what you were given, Bring me decisions, Finish the build, Say a mismatch first, and How much checking's intro. Always mine, the cleaner and the effort line stay as one line each. The rest is trimmed to the text on the issue. The record's and the poster's rules move to review.md's Posting section, the cleaner's how-to to its own `show` output, Prototype first to the default workflow's Plan stage, and Nudge once to a line under the moves. A decline of the sensitive route or its offer at Test no longer has to be typed in the working session's own chat. This narrows ADR 0128's chat rule for declines, and ADR 0116's Nudge once is shorter.
 
 ## Why
