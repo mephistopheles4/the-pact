@@ -320,12 +320,11 @@ function tokenizeMode(command, bash, depth = 0) {
       nlFrom = afterIdx;
       nlAt = command.indexOf('\n', afterIdx);
     }
-    const firstNl = nlAt;
-    if (firstNl === -1) return false;
+    if (nlAt === -1) return false;
     if (!lineIndex) lineIndex = buildLineIndex(command);
     const map = strip ? lineIndex.strippedLast : lineIndex.rawLast;
     const lastPos = map.get(word);
-    return lastPos !== undefined && lastPos > firstNl;
+    return lastPos !== undefined && lastPos > nlAt;
   };
 
   const markUnquotedScan = (idx, lim) => {
