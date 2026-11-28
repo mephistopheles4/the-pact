@@ -374,6 +374,35 @@ export function skillText(p, k) {
   return `${tick(k.skill)}${k.command ? `'s ${tick(k.command)} command` : ''}: ${k.mode}, ${whenWords(p, k)}`;
 }
 
+// A stage's skills run in their order in g.skills (PACT-99): the three below read and change only that order.
+
+/** A skill's place among its stage's skills, switched-off ones counted: { i, m }, i from 1. */
+export function skillPlace(g, k) {
+  const at = (g.skills || []).filter(x => x.stage === k.stage);
+  return { i: at.indexOf(k) + 1, m: at.length };
+}
+
+/** Swap a skill with its nearest neighbour at its stage, earlier (d = -1) or later (d = 1); false when it has none there. */
+export function moveSkill(g, k, d) {
+  const list = g.skills || [];
+  const from = list.indexOf(k);
+  if (from < 0) return false;
+  let to = from + d;
+  while (to >= 0 && to < list.length && list[to].stage !== k.stage) to += d;
+  if (to < 0 || to >= list.length) return false;
+  [list[from], list[to]] = [list[to], list[from]];
+  return true;
+}
+
+/** Wire a skill to a stage: one that changes stage goes last there; one wired to its own stage stays put. */
+export function wireSkill(g, k, stage) {
+  if (k.stage === stage) return;
+  k.stage = stage;
+  const list = g.skills || [];
+  const at = list.indexOf(k);
+  if (at >= 0) list.push(...list.splice(at, 1));
+}
+
 /** A link's words: back, on or ahead, by the order the work takes the stages. */
 export function linkText(g, l, order = stagesInOrder(g)) {
   const i = order.findIndex(s => s.id === l.from);

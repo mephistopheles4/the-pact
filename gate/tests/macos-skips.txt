@@ -16,3 +16,6 @@ seam-a.test.mjs bad case: two agents whose names differ only in case
 guard.test.mjs C12: on Windows a node or cmd planted in the working folder never runs
 guard.test.mjs C12: on Windows each shell a harness may use passes the wrapper's answer on
 guard.test.mjs C14: on Windows a launcher whose wrapper can't run, or ends any other way, denies
+clef-run.test.mjs Linux without setpriv: a sweep leaves a live supervisor's server, and a supervisor killed outright leaves no server behind within 2 seconds
+clef-run.test.mjs Linux without setpriv: with the keeper sent SIGKILL, the supervisor ends the server, records run.fail and stops
+clef-run.test.mjs Linux without setpriv: with the supervisor and the keeper both killed, ensure under another's lock leaves the orphan, the keyed probe finds it, and the next ensure ends it through the /proc sweep
