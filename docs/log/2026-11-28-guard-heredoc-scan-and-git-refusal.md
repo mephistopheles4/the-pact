@@ -35,6 +35,7 @@ The tier is Standard. The owner said "its not sensitive" (relayed by the lead), 
 - **PR 701, round 1.** The QA pair and the standards pair ran. Integrity-lens found that nothing failed if the reuse's reset was dropped, and the first added case answers that. In athanor, that mutation fails it.
 - **Round 2 (final).** It noted that the `<< a ` timing case fails on the unfixed code only on slow runners: in athanor's Linux container the base passes at about 0.8 s.
 - **CI on PR 701's head `764db2d8`.** The timing test took 2,271 ms on gate, 4,314 ms on gate-macos and 4,850 ms on gate-windows.
+- **The second PR, round 1.** The QA pair and the standards pair ran. Behaviour-lens compared head and base on 1,008 refused calls, and no decision changed. The reader and conventions lenses found wordings that could send a refused session into a second refusal, and a spec label that named a platform where the code picks by shell. All were fixed. The manual no-`HOME` hook check became the third test.
 
 ## Not done here
 
@@ -47,4 +48,11 @@ Revert either PR, then run the install's dry run and apply. Nothing is migrated.
 
 ## Record
 
-- The ticket: PACT-130 on Linear. Its comments hold the spec and the review rounds.
+- `PACT-130`:
+  - spec revision 2 (`5990488e`);
+  - Design round 1 (`19191b91`);
+  - Design round 2, final, with revision 3's changes (`b8e6d9c5`);
+  - PR 701's Test round 1 (`884c81c0`) and round 2, final (`4c0ac065`);
+  - this PR's Test round 1 (`4b776d46`);
+  - the status comment (`1221444c`), which links each later round.
+- The C6 probe is a test, so it has no record of its own.
