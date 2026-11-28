@@ -631,6 +631,14 @@ test('ensure and status: after a load crash both say the fixed line, and add set
   assert.ok((await clef.statusRun({ dir: f.dir })).lines.includes(gpu));
 });
 
+// #PACT-93 C-U13: a public report asks for what U18 lists and nothing else.
+test('the field-report form asks for the closed list, and says the report is public', () => {
+  const form = readFileSync(join(REPO, '.github', 'ISSUE_TEMPLATE', 'clef-field-report.yml'), 'utf8');
+  assert.deepEqual([...form.matchAll(/^ {4}id: (\S+)$/gm)].map(m => m[1]), ['status', 'platform', 'build', 'os', 'cpu', 'node', 'stage']);
+  assert.equal([...form.matchAll(/^ {2}- type: /gm)].length, 8, 'the notice and the seven fields');
+  assert.match(form, /This report is \*\*public\*\*\. Put no path, account name, log or server output in it/);
+});
+
 // ------------------------------------------------------------ ensure, stop, status, remove
 
 function wrapperFor(f, extra = '') {
