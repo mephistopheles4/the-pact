@@ -219,6 +219,13 @@ function runHook(at, format, stdin, { env = {}, shell = SHELL[format], path } = 
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
+/** The format's wrapper run by node itself, past the hook command and its shell, the call on standard input. */
+function runWrapper(at, format, call) {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toLowerCase() !== 'node_options'));
+  const r = spawnSync(process.execPath, [join(at.dir, `${format}.mjs`)], { cwd: at.cwd, input: JSON.stringify(call), encoding: 'utf8', env, timeout: 60_000 });
+  return { code: r.status, stdout: r.stdout, stderr: r.stderr };
+}
+
 const SILENT = { code: 0, stdout: '', stderr: '' };
 /** The answer in the harness's own deny shape, with `reason`. */
 function denied(r, format, reason, decision = 'deny') {
@@ -238,12 +245,16 @@ const blocks = id => `The pact's guard blocks this command (rule ${id}).`;
 for (const format of core.GUARD_FORMATS) {
   test(`C12, C13: ${format} answers each rule's command in its own shape, and nothing for another command`, t => {
     const at = installed(t);
-    for (const r of core.GUARD_RULES) {
-      const got = runHook(at, format, CALLS[format](ONE[r.id]));
+    const answered = (got, r) => {
       if (r.decision === 'deny') denied(got, format, blocks(r.id));
       else if (format === 'codex') denied(got, format, ASK_CODEX);
       else denied(got, format, `The pact's guard asks the owner before this command (rule ${r.id}).`, 'force_ask');
-    }
+    };
+    // Two rules go through the hook, one of each decision: worktree-remove (deny) and cleaner-override (ask). Every other rule
+    // goes to the wrapper by node alone, with no shell to start, so a wrapper that answers one rule differently is still caught.
+    const hooked = ['worktree-remove', 'cleaner-override'].map(id => core.GUARD_RULES.find(x => x.id === id));
+    for (const r of hooked) answered(runHook(at, format, CALLS[format](ONE[r.id])), r);
+    for (const r of core.GUARD_RULES.filter(x => !hooked.includes(x))) answered(runWrapper(at, format, CALLS[format](ONE[r.id])), r);
     // The tokenizer's cases reach the guard whole through the hook: later lines, continuations, quotes.
     for (const command of ['ls\ngit worktree remove w', 'git worktree \\\nremove w', 'git worktree `\nremove w', "cat <<'EOF'\ntext\nEOF\ngit worktree remove w", '"git" \'worktree\' remove "w x"']) denied(runHook(at, format, CALLS[format](command)), format, blocks('worktree-remove'));
     for (const command of ['git status', 'git commit -m "x; git worktree remove w"', "git commit -F - <<'EOF'\ngit worktree remove w\nEOF"]) assert.deepEqual(runHook(at, format, CALLS[format](command)), SILENT, command);

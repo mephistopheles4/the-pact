@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, commitAll, home, install, makeRepo, passed, refused } from './install-harness.mjs';
+import { applyBound, commitAll, home, install, makeRepo, passed, refused, sharedRepo } from './install-harness.mjs';
 
 const at = (h, rel) => join(h, ...rel.split('/'));
 const read = (h, rel) => readFileSync(at(h, rel), 'utf8');
@@ -34,7 +34,7 @@ const SKILLS = '.agents/skills';
 const links = h => (record(h).links ?? []).map(l => [l.harness, l.path, l.target]).sort();
 
 test('C19: one apply links each skill and records the link; a command turned off and a harness taken out lose only their own links', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = codexHome(t);
   config(h, ['finis', 'scry']);
   put(h, `${SKILLS}/mine/SKILL.md`, 'mine\n');
@@ -73,7 +73,7 @@ test('C19: one apply links each skill and records the link; a command turned off
 });
 
 test('C18: a skill folder the record does not list is yours and left as is; a recorded link replaced since the install is drift', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = codexHome(t);
   config(h, ['finis', 'scry']);
   put(h, `${SKILLS}/scry/SKILL.md`, 'mine\n');
@@ -98,7 +98,7 @@ test('C18: a skill folder the record does not list is yours and left as is; a re
 });
 
 test('bad case: a record link the install may not act on is warned about and skipped, links in another shape refuse, and so does a skills folder that is a link', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = codexHome(t);
   config(h, ['finis']);
   passed(applyBound(repo, h));
@@ -206,7 +206,7 @@ test('C19: where a link cannot be made, the dry run says so and the install copi
 
 // agy 1.2.14 lists no skill whose folder is a link, as its probe's log records, so Antigravity's are copied.
 test('C19: a harness that does not discover a linked skill gets copies, beside another harness\'s links, and they come out again', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = codexHome(t);
   mkdirSync(at(h, '.gemini/config'), { recursive: true });
   config(h, ['finis'], ['codex', 'antigravity']);
