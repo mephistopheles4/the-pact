@@ -354,9 +354,11 @@ secret or personal detail the scan doesn't read.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
   each token it mints to one repo and a permission set, for any repo an
   installation of the pinned app covers, found through GitHub's API. Where none
-  covers it, git gets the owner's own credential and `gh` runs as the owner's
-  login; a remembered "not installed" lasts ten minutes, and a planted one only
-  sends a write out as the owner, as before. It holds against accidents only: any process
+  covers it, `git-credential` answers with the owner's own credential, to
+  whatever asks it, so a session can read that credential for any such repo, a
+  made-up one included; `gh` mode and the poster refuse it. A remembered "not
+  installed" lasts ten minutes, unchecked against the pin; a planted one sends
+  a git write out as the owner. It holds against accidents only: any process
   running as the owner can read the key or ask git's helper for a token. Setup,
   refresh, the poster and the checker check the pin against GitHub's records (the app,
   the bot, the owner). That doesn't hold against a process that edits both the
@@ -402,7 +404,8 @@ non-shell harness or MCP tools, nested shell wrappers (`bash -c`, `pwsh -Command
 `cmd /c`, `Start-Process`) and other speed-bump parser or harness-spawn/timeout
 gaps ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)),
 a global git write that rewrites the agent gitconfig (the next dry run refuses a
-rewritten Claude gitconfig), an SSH remote or `url.*.insteadOf` rewrite, an askpass
+rewritten pact line, or a credential, url, http or include section below the
+marker, in the Claude gitconfig; other lines below it are the owner's and pass), an SSH remote or `url.*.insteadOf` rewrite, an askpass
 program, a helper in a repository's own config, or a remote URL that carries
 credentials or an `http.*.extraHeader` with an auth header. Rules alone hold
 those, and `status --provider <provider>` reports each git-helper escape it can see. Whoever holds an app's key can

@@ -4,11 +4,15 @@
 
 ## What was built
 
-- **`gh-app.mjs`:** `mintToken` finds the app's installation through `/repos/<owner>/<name>/installation`, for any owner, and refuses another app's. A 404 is the new refusal `install/none`, remembered for ten minutes beside the token cache. `repo/owner` is gone.
-- **The fallback:** `git-credential get` answers `install/none` with the owner's credential from `git credential fill` under the owner's normal config; `gh` mode runs `gh` as the owner's login. Both say so on stderr. No other refusal falls back, and the poster never does.
-- **The owner's lines:** the gitconfig ends with a marker line; setup and refresh keep what follows it, and the install compares only what comes before.
+- **`gh-app.mjs`:** `mintToken` finds the app's installation through `/repos/<owner>/<name>/installation`, for any owner, and refuses another app's. A 404 is the new refusal `install/none`, remembered for ten minutes beside the token cache; any other answer to the lookup is `net`. `repo/owner` is gone.
+- **The fallback:** `git-credential get` answers `install/none` with the owner's credential from `git credential fill` under the owner's normal config, and says so on stderr. No other refusal falls back. `gh` mode and the poster refuse `install/none`.
+- **The owner's lines:** the gitconfig ends with a marker line; setup and refresh keep what follows it, refusing a credential, url, http or include section there, and the install compares only what comes before, flagging such a section.
 - **SSH remotes:** accepted and documented in `agent-identity.md`.
-- **Tests: +11 −3.** Three rows that held the old owner rule went (`repo-outside-owner`, `foreign-installation`, `another-owner`); the gh test and the poster's another-account row changed to the new behaviour.
+- **Tests: +13 −4.** Four rows or tests that held the old owner rule went (`repo-outside-owner`, `foreign-installation`, `another-owner`, the poster's another-account row); the gh test changed to the new behaviour.
+
+## The first Test round
+
+The security pair found that draft 1's `gh` fallback ran `gh` as the owner with arguments that could reach any repo (a high from the data lens), and that lines below the marker could put a credential helper back unseen. Both were fixed. That any caller of the helper can read the owner's credential for a repo the app isn't on is written into the threat model and comes to the owner as an accepted-risk candidate.
 
 ## Rolling back
 

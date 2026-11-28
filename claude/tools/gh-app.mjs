@@ -18,11 +18,12 @@
 //
 // A token is minted for any repo an installation of the pinned app covers,
 // whoever owns it. Where none covers the repo, git-credential answers with the
-// owner's own credential (git credential fill under the owner's normal config)
-// and gh runs as the owner's own gh login. The bot stays the commit author.
+// owner's own credential (git credential fill under the owner's normal config);
+// gh mode refuses such a repo. The bot stays the commit author.
 //
-// <p> is claude, codex or antigravity. No mode prints a token: mintToken is a
-// module export only, and git-credential get answers git on git's own pipe.
+// <p> is claude, codex or antigravity. No mode prints an app token: mintToken is a
+// module export only, and git-credential get answers git on git's own pipe, which
+// is also where it relays the owner's own credential for a repo the app isn't on.
 // Every mode catches every error at its top level and prints one fixed
 // reason line, never an error's message, a stack or JSON it failed to parse.
 // Exit codes: 0 done (a refused git-credential call too), 1 refused or
@@ -649,12 +650,27 @@ function iniValue(v, force = false) {
  */
 export const OWNER_MARKER = '# pact: the lines below are yours; setup and refresh keep them';
 
-/** The owner's lines of a gitconfig: what follows the marker, or, in a file written before the marker, what follows its last pact line. */
+/**
+ * A section below the marker that could change where a credential comes from or
+ * goes: a helper, a URL rewrite, an http header or setting, or another file pulled in.
+ */
+export const OWNER_LINES_REFUSED = /^\s*\[\s*(?:credential|url|http|include|includeif)\b/im;
+
+/**
+ * The owner's lines of a gitconfig: what follows the marker, or, in a file
+ * written before the marker, what follows its last pact line. Lines that open a
+ * credential, url, http or include section are refused, so setup and refresh
+ * never carry one forward.
+ */
 export function ownerLines(text) {
   if (typeof text !== 'string') return '';
-  for (const end of [`\n${OWNER_MARKER}\n`, '\n  useHttpPath = true\n']) {
-    const i = text.indexOf(end);
-    if (i >= 0) return text.slice(i + end.length);
+  // A file saved with Windows line endings keeps its lines too.
+  for (const end of [new RegExp(`\\r?\\n${OWNER_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\r?\\n`), /\r?\n {2}useHttpPath = true\r?\n/]) {
+    const m = end.exec(text);
+    if (!m) continue;
+    const tail = text.slice(m.index + m[0].length);
+    if (OWNER_LINES_REFUSED.test(tail)) refuse('gitconfig');
+    return tail;
   }
   return '';
 }
@@ -874,7 +890,8 @@ function sslVerifyOffByEnv(env) {
  * leads back here ends. True when it printed a username and password for git.
  */
 function ownerCredential(io, path) {
-  const env = cleanEnv(io.env, { [FALLBACK_ENV]: '1', GIT_TERMINAL_PROMPT: '0' });
+  // GIT_TERMINAL_PROMPT doesn't stop Git Credential Manager's own login window; GCM_INTERACTIVE does.
+  const env = cleanEnv(io.env, { [FALLBACK_ENV]: '1', GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' });
   for (const k of Object.keys(env)) if (k.toUpperCase() === 'GIT_CONFIG_GLOBAL') delete env[k];
   const r = makeRun(io)('git', ['credential', 'fill'], { env, input: `protocol=https\nhost=github.com\npath=${path}\n\n` });
   if (!r.ok) return false;
@@ -917,25 +934,20 @@ async function gitCredential(io, provider, op) {
 
 /**
  * gh with a `gh`-set token in GH_TOKEN, from a fresh empty folder; output lines
- * that hold the token are withheld. Where no installation of the app covers the
- * repo, gh runs as the owner's own gh login instead, and says so on stderr.
+ * that hold the token are withheld. A repo no installation covers is refused
+ * (install/none), never run as the owner: the token narrowed to one repo is what
+ * bounds gh's other arguments.
  */
 async function ghMode(io, provider, repoArg, args) {
   // The first argument is the subcommand: a leading flag could hide a forbidden one from the check.
   if (args.length === 0 || String(args[0]).startsWith('-') || GH_FORBIDDEN_FIRST.has(String(args[0]).toLowerCase())) refuse('gh');
   const repo = parseRepo(repoArg);
-  const GH_REPO = `${repo.owner}/${repo.name}`;
-  let token = null;
-  try {
-    token = await mintToken({ provider, repo, set: 'gh' }, io);
-  } catch (e) {
-    if (!(e instanceof Refusal && e.id === 'install/none')) throw e;
-    say(io, 'gh-app: the app is not installed on that repository; gh runs as your own login', 'err');
-  }
-  if (token) guard(io, token);
-  const r = makeRun(io)('gh', args, { env: cleanEnv(io.env, token ? { GH_TOKEN: token, GH_REPO } : { GH_REPO }), keep: true });
+  const token = await mintToken({ provider, repo, set: 'gh' }, io);
+  guard(io, token);
+  const run = makeRun(io);
+  const r = run('gh', args, { env: cleanEnv(io.env, { GH_TOKEN: token, GH_REPO: `${repo.owner}/${repo.name}` }), keep: true });
   for (const [text, stream] of [[r.stdout, 'out'], [r.stderr, 'err']]) {
-    for (const l of text.split(/\r?\n/)) if (l !== '') io[stream](`${token && l.includes(token) ? '(withheld)' : l}\n`);
+    for (const l of text.split(/\r?\n/)) if (l !== '') io[stream](`${l.includes(token) ? '(withheld)' : l}\n`);
   }
   return r.ok ? 0 : 1;
 }

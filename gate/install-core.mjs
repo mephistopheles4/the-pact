@@ -2121,6 +2121,8 @@ export function identityGitconfigVerdict(whole, expected) {
   const end = `\n${IDENTITY_OWNER_MARKER}\n`;
   const at = whole.indexOf(end);
   const actual = at < 0 ? whole : whole.slice(0, at + end.length);
+  // The owner's lines are not compared, but one that opens a credential, url, http or include section could put a helper back, as OWNER_LINES_REFUSED in gh-app.mjs refuses.
+  if (at >= 0 && /^\s*\[\s*(?:credential|url|http|include|includeif)\b/im.test(whole.slice(at + end.length))) return { ok: false, parts: ['your lines below the marker set credential, url, http or include (remove them first)'] };
   if (actual === expected) return { ok: true, parts: [] };
   const split = text => {
     const lines = text.split(/\r?\n/);

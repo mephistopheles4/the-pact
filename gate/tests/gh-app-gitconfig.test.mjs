@@ -7,7 +7,7 @@ import { copyFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } fr
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { ownerLines } from '../../claude/tools/gh-app.mjs';
+import { OWNER_MARKER, ownerLines } from '../../claude/tools/gh-app.mjs';
 import { identityGitconfigText } from '../install-core.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -94,7 +94,8 @@ test('the agent gitconfig under real git: a global write lands below the marker'
   const w = world(t);
   assert.equal(w.git(['config', '--global', 'alias.mine', 'status']).status, 0);
   const text = readFileSync(w.env.GIT_CONFIG_GLOBAL, 'utf8');
-  assert.match(ownerLines(text), /\[alias\]\s+mine = status/);
+  assert.match(text.split(`\n${OWNER_MARKER}\n`)[1] ?? '', /\[alias\]\s+mine = status/);
+  assert.equal(ownerLines(text), text.split(`\n${OWNER_MARKER}\n`)[1]);
 });
 
 // #603 C4: a refused mint fails the fill with no prompt, and the canary never comes out: no fall back to the owner's helper.

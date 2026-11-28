@@ -1,6 +1,7 @@
 # Spec: the agent app wherever it is installed
 
-Status: draft 1, written with T1's build. A delta on
+Status: draft 2, after T1's first Test round (the QA pair and the security
+pair), with their fixes folded in. A delta on
 [0010](0010-agent-identity-guard.md): its repo-owner scoping moves from the
 owner's name to the app's installations, in T2. Everything else in 0010
 holds. The spec counts once it is on `main`.
@@ -34,9 +35,13 @@ holds. The spec counts once it is on `main`.
    owner's normal config, `GIT_TERMINAL_PROMPT=0`, and
    `PACT_GH_APP_OWNER_FALLBACK=1`, which makes a helper reached from that git
    refuse at once. It passes on only the `username` and `password` lines and
-   says on stderr that it used the owner's credentials. `gh` mode runs `gh`
-   without `GH_TOKEN`, as the owner's login, and says so. The poster does not
-   fall back: it refuses, as it refuses any helper refusal.
+   says on stderr that it used the owner's credentials; `GCM_INTERACTIVE=never`
+   keeps Git Credential Manager from opening a window. `gh` mode and the poster
+   do not fall back: they refuse `install/none`. (Draft 1 ran `gh` as the
+   owner; the security pair showed its other arguments reach any repo, so it
+   went.) Any caller of the helper, a session included, can read the owner's
+   credential for a repo the app isn't on: written into the threat model as an
+   accepted-risk candidate for the owner.
 3. **SSH remotes: accepted and documented (T1).** The commit is the bot's, the
    push uses the owner's SSH key. `status` already prints
    `remote protocol: ssh`; `agent-identity.md` says how to move the push to
@@ -45,8 +50,11 @@ holds. The spec counts once it is on `main`.
 4. **The owner's global writes are kept (T1).** The gitconfig's last pact line
    is `# pact: the lines below are yours; setup and refresh keep them`. Setup
    and refresh keep what follows it, and in a file written before the marker,
-   what follows `  useHttpPath = true`. The install's verdict compares only the
-   text through the marker. A key git adds inside a pact section is the
+   what follows `  useHttpPath = true`, with either line ending. A
+   `[credential]`, `[url]`, `[http]`, `[include]` or `[includeIf]` section
+   among those lines makes setup and refresh refuse and the install's verdict
+   fail, since it could put a helper back. Otherwise the verdict compares only
+   the text through the marker. A key git adds inside a pact section is the
    pact's.
 5. **The guard draws the same line (T2).** The guard's owner test
    (`resolveOwnerMatch`, and the two-segment shorthand in `evalRepoShorthand`)
@@ -68,11 +76,12 @@ holds. The spec counts once it is on `main`.
   with the fallback variable set; when that git gives no credential, stdout is
   empty; no other refusal runs it; a helper run with the variable set refuses.
 - **C4:** `gh` mode runs with the app's token on an installed repo of another
-  account, and with no `GH_TOKEN` and a stderr line where the app isn't
-  installed.
+  account, and refuses `install/none` without running `gh`.
 - **C5:** setup and refresh keep the owner's lines, with and without the
-  marker; the install's verdict ignores them and still sees a changed pact
-  line; under real git, a `git config --global` write lands below the marker.
+  marker and with CRLF endings; they refuse a credential, url, http or include
+  section there; the install's verdict ignores the owner's lines, flags such a
+  section and still sees a changed pact line; under real git, a
+  `git config --global` write lands below the marker.
 - **C6 (T2):** with the guard on, a plain `gh` or `git` write to a github.com
   repo of any owner is guarded; a non-GitHub host passes; account-scoped
   writes are as before.
