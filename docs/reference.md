@@ -113,7 +113,7 @@ The rules file's Workflow table runs the same six stages, Plan to Maintain: what
 |---|---|---|
 | athanor | `scripts/toc.mjs` | `adopted` |
 | grimoire | `scripts/toc.mjs` | `adopted` |
-| stacks | `scripts/toc.mjs` | `planned` |
+| stacks | `scripts/toc.mjs` | `adopted` |
 
 ## What never goes in here
 
