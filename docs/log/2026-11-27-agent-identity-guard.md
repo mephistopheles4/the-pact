@@ -20,17 +20,22 @@ Executed at `fdb4ef17` in isolated temporary directories (`<TMP>` only); live `~
 2. **Claude Code CLI (`claude -p`, `2.1.332`):** Under isolated temp `HOME`/`USERPROFILE`, `init` reported Windows `cwd` and exited `1` (`Not logged in · Please run /login`), so unauthenticated `--home` isolation cannot fire authenticated hooks; `cmd.exe` launcher behavior holds.
 3. **Antigravity headless CLI (`agy -p`, `1.5.18`):** Under isolated `HOME`/`USERPROFILE` (`<TMP>/home/.gemini/config/hooks.json`), on `run_command` (`git commit -m test`), `agy` invoked `antigravity.cmd` (`hasCwd: true`, `workspacePathsLen: 1`), `antigravity.mjs` returned `decision: "force_ask"` + `overwrite.CommandLine`, and `agy` both applied `overwrite.CommandLine` (`GIT_CONFIG_GLOBAL` + `GIT_TERMINAL_PROMPT=0`) and honored `force_ask` by refusing headless auto-execution (`request-review` `TOOL_ERROR`). No fallback to `"deny"` was needed.
 
+## Live dogfooding confirmation (T5, redacted)
+
+Executed interactively against a live `--apply` install at `3c6ca78b` on the owner's machine (no bot login, app ID, bot ID, slug, owner ID, or local paths logged):
+
+- **Antigravity UI:** interactive `run_command` triggered `antigravity.cmd`, returned `decision: "force_ask"` paired with `overwrite.CommandLine`, and prompted the owner in the UI with the rewritten `GIT_CONFIG_GLOBAL` + `GIT_TERMINAL_PROMPT=0` command.
+- **Claude Code & Codex:** owner-verified live in both harnesses across plain `git`/`gh` write checks and identity routing.
+
 ## Left open
 
-- **T5 (`PACT-124`):** full interactive Antigravity UI prompt probe against a throwaway `--home` install and throwaway local repo (`C13`).
-- **CI verification:** `gate`, `gate-macos`, and `gate-windows` on the pushed head before landing and live install apply (`C12`).
 - **Owner-accepted security residuals (`S2` items 6–7, 9, 11; `ADR 0175`):** unpinned non-Claude provider pass-through, `gh run`/`gh workflow` write exemption while `CLAIM_PERMISSIONS` holds `actions: read` only (`PACT-95`), `git pull` exclusion, `~/.gitconfig` `author.*` inheritance, and the speed-bump parser/harness boundary.
 
 ## Record
 
-- `PACT-119`: spec approval decision (`8b2a56bc`), T1–T4 execution records (`3ea051ef`), push rollup (`457bfbd8`)
+- `PACT-119`: spec approval decision (`8b2a56bc`), T1–T4 execution records (`3ea051ef`), push rollup (`457bfbd8`), Round 1 (`f8833487`), Round 2 final (`1fb6139f`), reopened Round 1 (`defe665d`), reopened Round 2 final (`5c2a07be`), reopened Round 1 on `65fedf20` (`0764d20a`), reopened Round 2 final on `f971f235` (`5d795923`); `Test further read` and CI links live on `PACT-119` / `PACT-124`
 - `PACT-120` (T1): `7d646286`, handoff (`63abdf42`)
 - `PACT-121` (T2): `56da6fe1`, early Windows probe (`a420117b`), handoff (`45680204`)
 - `PACT-122` (T3): `99e821f6`, `dadf9079`, handoff (`43454f45`)
 - `PACT-123` (T4): `eb6080fc`, Round 2 final (`69c68054`), status (`b6a8a385`)
-- `PACT-124` (T5): handoff (`fb4c24ef`); interactive probe and CI records follow on `PACT-124` / `PACT-119`
+- `PACT-124` (T5): handoff (`fb4c24ef`); final probe and CI completion record on `PACT-124`

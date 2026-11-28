@@ -107,7 +107,7 @@ someone hands a session to load, and a decision model's answer.
   `git` `run_command` calls in Antigravity, `antigravity.mjs` unconditionally
   emits `decision: "force_ask"` paired with `overwrite.CommandLine`
   (`GIT_CONFIG_GLOBAL` and `GIT_TERMINAL_PROMPT=0`, never `allow`; verified in
-  headless `agy -p`, pending interactive `T5` confirmation, and switching
+  headless `agy -p` and live interactive Antigravity `T5` dogfooding, and switching
   simple `git` writes to `deny` requires updating the hook code if a live
   probe fails), returning `deny` on compound, wrapped, or overridden commands,
   `manage_task` (`send_input`), and `send_command_input`, and `deny` in Codex.
@@ -457,4 +457,4 @@ quadrantChart
 
 ## Open gaps
 
-No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. `~/.pact` is outside Claude Code's protected paths, and no ask rule covers it. Interactive Antigravity confirmation of `overwrite` + `force_ask` awaits `T5` (`PACT-124`). Not yet the owner's: PACT-105's other class widenings and placements; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).
+No setting yet for trusted accounts on a team repo. The poster's edit checks read the source text, not GitHub's rendered page. `~/.pact` is outside Claude Code's protected paths, and no ask rule covers it. Not yet the owner's: PACT-105's other class widenings and placements; treat each as open ([ADR 0173](adr/0173-the-threat-model-takes-codex-and-antigravity.md)).

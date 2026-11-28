@@ -266,12 +266,13 @@ function tokenizeMode(command, bash, depth = 0) {
   let curDashState = 0; // 0 = no, 1 = leading '-', 2 = valid ^-[A-Za-z][A-Za-z0-9_-]*$
   let curPsVarState = 1; // 0 = dead, 1 = start, 2 = '[', 3 = in '[...]', 4 = closed ']', 5 = matched (?:[...])*$
   let curBracketDepth = 0;
+  let curPsVarBrace = false;
   let segPsPrefixState = 0; // 0 = 0+ [type] tokens, 1 = [type]* + 1 [type]*$var token, 2 = other
-  let segPsHasEq = false;
   let psCmdPosCursor = 0;
   let psCmdPosLocked = false;
   let tokStart = -1;
   let started = false;
+  let curStartQuoted = false;
   let wasQuoted = false;
   let wasEscaped = false;
   let heredocs = [];
@@ -411,10 +412,9 @@ function tokenizeMode(command, bash, depth = 0) {
   const endToken = (rawEnd = -1) => {
     if (started) {
       if (!bash) {
-        if (!wasQuoted && (current.endsWith('=') || current === '=' || current === '+=')) segPsHasEq = true;
         if (segPsPrefixState === 0 && !wasQuoted && curPsVarState === 4) {
           segPsPrefixState = 0;
-        } else if (segPsPrefixState === 0 && !wasQuoted && curPsVarState === 5) {
+        } else if (segPsPrefixState === 0 && !curStartQuoted && curPsVarState === 5) {
           segPsPrefixState = (current.endsWith('=') || current.endsWith(',')) ? 0 : 1;
         } else if (segPsPrefixState === 1 && !wasQuoted && (current === '=' || current === '+=' || current === ',')) {
           segPsPrefixState = 0;
@@ -461,8 +461,10 @@ function tokenizeMode(command, bash, depth = 0) {
     curDashState = 0;
     curPsVarState = 1;
     curBracketDepth = 0;
+    curPsVarBrace = false;
     tokStart = -1;
     started = false;
+    curStartQuoted = false;
     wasQuoted = false;
     wasEscaped = false;
   };
@@ -478,7 +480,6 @@ function tokenizeMode(command, bash, depth = 0) {
     prevTokenQuoted = false;
     prevTokenEscaped = false;
     segPsPrefixState = 0;
-    segPsHasEq = false;
     psCmdPosCursor = 0;
     psCmdPosLocked = false;
     if (sep) {
@@ -624,7 +625,7 @@ function tokenizeMode(command, bash, depth = 0) {
         if (c === '$' && command[i + 1] === '(') {
           hasBashSubst = true;
           parenStack.push(command[i + 2] === '(' ? { kind: 'arith-pending' } : { kind: 'group', caseStack: [] });
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, curPsVarState, curBracketDepth, segPsPrefixState, segPsHasEq, psCmdPosCursor, psCmdPosLocked, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, curPsVarState, curBracketDepth, curPsVarBrace, segPsPrefixState, psCmdPosCursor, psCmdPosLocked, tokStart, started, curStartQuoted, wasQuoted, wasEscaped, subParenDepth: 1 });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -639,12 +640,13 @@ function tokenizeMode(command, bash, depth = 0) {
           curDashState = 0;
           curPsVarState = 1;
           curBracketDepth = 0;
+          curPsVarBrace = false;
           segPsPrefixState = 0;
-    segPsHasEq = false;
           psCmdPosCursor = 0;
           psCmdPosLocked = false;
           tokStart = -1;
           started = false;
+          curStartQuoted = false;
           wasQuoted = false;
           wasEscaped = false;
           hasNonSemiSep = true;
@@ -701,7 +703,7 @@ function tokenizeMode(command, bash, depth = 0) {
           hasSubexprInDoubleQuotes = true;
           hasPsSubexpr = true;
           parenStack.push({ kind: 'group', caseStack: [] });
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, curPsVarState, curBracketDepth, segPsPrefixState, segPsHasEq, psCmdPosCursor, psCmdPosLocked, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, curPsVarState, curBracketDepth, curPsVarBrace, segPsPrefixState, psCmdPosCursor, psCmdPosLocked, tokStart, started, curStartQuoted, wasQuoted, wasEscaped, subParenDepth: 1 });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -716,12 +718,13 @@ function tokenizeMode(command, bash, depth = 0) {
           curDashState = 0;
           curPsVarState = 1;
           curBracketDepth = 0;
+          curPsVarBrace = false;
           segPsPrefixState = 0;
-    segPsHasEq = false;
           psCmdPosCursor = 0;
           psCmdPosLocked = false;
           tokStart = -1;
           started = false;
+          curStartQuoted = false;
           wasQuoted = false;
           wasEscaped = false;
           hasNonSemiSep = true;
@@ -799,6 +802,7 @@ function tokenizeMode(command, bash, depth = 0) {
     }
 
     if (c === "'") {
+      if (!started) curStartQuoted = true;
       startToken(i);
       wasQuoted = true;
       i++;
@@ -816,6 +820,7 @@ function tokenizeMode(command, bash, depth = 0) {
         }
       }
     } else if (bash && c === '$' && command[i + 1] === "'") {
+      if (!started) curStartQuoted = true;
       startToken(i);
       wasQuoted = true;
       i += 2;
@@ -831,6 +836,7 @@ function tokenizeMode(command, bash, depth = 0) {
         }
       }
     } else if (c === '"') {
+      if (!started) curStartQuoted = true;
       startToken(i);
       wasQuoted = true;
       inDoubleQuote = true;
@@ -976,14 +982,14 @@ function tokenizeMode(command, bash, depth = 0) {
           curDashState = 0;
           curPsVarState = frame.curPsVarState;
           curBracketDepth = frame.curBracketDepth;
+          curPsVarBrace = frame.curPsVarBrace;
           stepPsVarChar('$');
           segPsPrefixState = frame.segPsPrefixState;
-    segPsHasEq = frame.segPsHasEq;
-          segPsHasEq = frame.segPsHasEq;
           psCmdPosCursor = frame.psCmdPosCursor;
           psCmdPosLocked = frame.psCmdPosLocked;
           tokStart = frame.tokStart;
           started = frame.started;
+          curStartQuoted = frame.curStartQuoted;
           wasQuoted = frame.wasQuoted;
           wasEscaped = frame.wasEscaped;
           inDoubleQuote = true;
@@ -997,9 +1003,9 @@ function tokenizeMode(command, bash, depth = 0) {
       const sep = command.startsWith('||', i) ? '||' : c;
       endSegment(sep, i);
       i += sep.length;
-    } else if (!bash && !wasQuoted && c === '=' && i + 1 < n && command[i + 1] !== "'" && command[i + 1] !== '"' && !/[ \t\r\n]/.test(command[i + 1]) && (
-      (segPsPrefixState === 0 && started && curPsVarState === 5) ||
-      (segPsPrefixState === 1 && (!started || current === '+'))
+    } else if (!bash && !curPsVarBrace && c === '=' && i + 1 < n && command[i + 1] !== "'" && command[i + 1] !== '"' && !/[ \t\r\n]/.test(command[i + 1]) && (
+      (segPsPrefixState === 0 && started && !curStartQuoted && curPsVarState === 5) ||
+      (segPsPrefixState === 1 && !wasQuoted && (!started || current === '+'))
     )) {
       if (started) {
         addChar('=');
@@ -1011,12 +1017,11 @@ function tokenizeMode(command, bash, depth = 0) {
         prevTokenQuoted = false;
         prevTokenEscaped = false;
         segPsPrefixState = 0;
-        segPsHasEq = true;
       }
       i++;
-    } else if (!bash && !wasQuoted && !segPsHasEq && c === ',' && (
-      (segPsPrefixState === 0 && started && curPsVarState === 5) ||
-      (segPsPrefixState === 1 && !started)
+    } else if (!bash && !curPsVarBrace && c === ',' && (command[i + 1] === '$' || command[i + 1] === '[') && (
+      (segPsPrefixState === 0 && started && !curStartQuoted && curPsVarState === 5) ||
+      (segPsPrefixState === 1 && !started && !wasQuoted)
     )) {
       if (started) {
         addChar(',');
@@ -1029,6 +1034,16 @@ function tokenizeMode(command, bash, depth = 0) {
         prevTokenEscaped = false;
         segPsPrefixState = 0;
       }
+      i++;
+    } else if (!bash && !curPsVarBrace && !curStartQuoted && curPsVarState === 5 && curLast === '$' && c === '{') {
+      curPsVarBrace = true;
+      startToken(i);
+      addChar(c);
+      i++;
+    } else if (!bash && curPsVarBrace && c === '}') {
+      curPsVarBrace = false;
+      startToken(i);
+      addChar(c);
       i++;
     } else if (c === '{' && (bash
       ? (!started && (i + 1 === n || /[\s;&|(){}]/.test(command[i + 1])))
@@ -1133,13 +1148,14 @@ function tokenizeMode(command, bash, depth = 0) {
     curHasSlash = frame.curHasSlash;
     curPsVarState = frame.curPsVarState;
     curBracketDepth = frame.curBracketDepth;
+    curPsVarBrace = frame.curPsVarBrace;
     stepPsVarChar('$');
     segPsPrefixState = frame.segPsPrefixState;
-    segPsHasEq = frame.segPsHasEq;
     psCmdPosCursor = frame.psCmdPosCursor;
     psCmdPosLocked = frame.psCmdPosLocked;
     tokStart = frame.tokStart;
     started = frame.started;
+    curStartQuoted = frame.curStartQuoted;
     wasQuoted = frame.wasQuoted;
     endSegment(null, n);
   }
@@ -2923,6 +2939,94 @@ const GUARDED_ENV_NAMES = new Set([
   'GIT_CONFIG_COUNT', 'GIT_CONFIG_PARAMETERS', 'GIT_ASKPASS', 'SSH_ASKPASS',
 ]);
 
+function findLastUnquotedPsEqInTok(rawTok) {
+  let inSq = false;
+  let inDq = false;
+  let inVarBrace = false;
+  let tokIdx = 0;
+  let lastEqOff = -1;
+  let ri = 0;
+  const rn = rawTok.length;
+  while (ri < rn) {
+    const ch = rawTok[ri];
+    if (inSq) {
+      if (ch === "'") {
+        if (rawTok[ri + 1] === "'") {
+          tokIdx++;
+          ri += 2;
+        } else {
+          inSq = false;
+          ri++;
+        }
+      } else {
+        tokIdx++;
+        ri++;
+      }
+      continue;
+    }
+    if (inDq) {
+      if (ch === '`') {
+        if (rawTok[ri + 1] === '\n') {
+          tokIdx++;
+          ri += 2;
+        } else if (rawTok[ri + 1] === '\r' && rawTok[ri + 2] === '\n') {
+          tokIdx++;
+          ri += 3;
+        } else if (ri + 1 < rn) {
+          tokIdx++;
+          ri += 2;
+        } else {
+          tokIdx++;
+          ri++;
+        }
+      } else if (ch === '"') {
+        if (rawTok[ri + 1] === '"') {
+          tokIdx++;
+          ri += 2;
+        } else {
+          inDq = false;
+          ri++;
+        }
+      } else {
+        tokIdx++;
+        ri++;
+      }
+      continue;
+    }
+    if (ch === '`' && ri + 1 < rn) {
+      tokIdx++;
+      ri += 2;
+      continue;
+    }
+    if (ch === "'") {
+      inSq = true;
+      ri++;
+      continue;
+    }
+    if (ch === '"') {
+      inDq = true;
+      ri++;
+      continue;
+    }
+    if (!inVarBrace && ch === '$' && rawTok[ri + 1] === '{') {
+      inVarBrace = true;
+      tokIdx += 2;
+      ri += 2;
+      continue;
+    }
+    if (inVarBrace && ch === '}') {
+      inVarBrace = false;
+      tokIdx++;
+      ri++;
+      continue;
+    }
+    if (!inVarBrace && ch === '=') lastEqOff = tokIdx;
+    tokIdx++;
+    ri++;
+  }
+  return lastEqOff;
+}
+
 function collectSegmentPsEnvAssigns(tokens, rawTokens) {
   let start = 0;
   while (start < tokens.length) {
@@ -2933,12 +3037,15 @@ function collectSegmentPsEnvAssigns(tokens, rawTokens) {
   if (start >= tokens.length) return [];
   if (/^['"]/.test(rawTokens[start] ?? '')) return [];
   if (!isPsVarPrefix(tokens[start]) && !isPsTypeCast(tokens[start])) return [];
-  let firstEqTok = -1;
   let lastEqTok = -1;
+  let lastEqOff = -1;
   for (let m = start; m < tokens.length; m++) {
-    if (!/^['"]/.test(rawTokens[m] ?? '') && tokens[m].includes('=')) {
-      if (firstEqTok === -1) firstEqTok = m;
+    const rt = rawTokens[m];
+    if (!rt || /^['"]/.test(rt) || !rt.includes('=')) continue;
+    const eqOff = findLastUnquotedPsEqInTok(rt);
+    if (eqOff !== -1) {
       lastEqTok = m;
+      lastEqOff = eqOff;
     }
   }
   if (lastEqTok === -1) return [];
@@ -2978,11 +3085,14 @@ function collectSegmentPsEnvAssigns(tokens, rawTokens) {
         }
       }
       if (varName) {
-        const isTarget =
+        const beforeLastEq = m < lastEqTok || (m === lastEqTok && end <= lastEqOff);
+        const isTarget = beforeLastEq && (
           tok[end] === '=' ||
           tok.startsWith('+=', end) ||
           (end === tok.length && nextIsEq) ||
-          (m < firstEqTok && (tok[end] === ',' || (end === tok.length && nextIsComma)));
+          tok[end] === ',' ||
+          (end === tok.length && nextIsComma)
+        );
         if (isTarget) found.push(varName);
         p = lower.indexOf('$', end);
       } else {
