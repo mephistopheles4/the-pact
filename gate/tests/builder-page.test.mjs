@@ -1592,6 +1592,10 @@ test('stub page: one box enables a decision-model menu that starts at Clef Flash
     const text = P.ids.output.text;
     return [/"decision-model": "([a-z-]+)"/.exec(text)?.[1] ?? null, /"tools": (\[[^\]]*\])/.exec(text)?.[1].replace(/\s/g, '') ?? null];
   };
+  let focused = null;
+  Object.getPrototypeOf(P.ids.settings).focus = function () {
+    focused = this;
+  };
   const choose = (n, key, value) => {
     n[key] = value;
     n.listeners.change.forEach(f => f({}));
@@ -1614,6 +1618,15 @@ test('stub page: one box enables a decision-model menu that starts at Clef Flash
   // The commands list has a Leave as is of its own, above the tools'.
   P.find(P.ids.settings, n => n.tag === 'button' && n.text.startsWith('Leave as is')).at(-1).click();
   assert.deepEqual([box().checked, saved()], [false, [null, null]]);
+  // Each change redraws the section, so the focus goes to the new copy of the control that was changed.
+  choose(box(), 'checked', true);
+  assert.equal(focused, box());
+  choose(menu(), 'value', 'jev');
+  assert.equal(focused, menu());
+  const described = P.find(P.ids.settings, n => n.attrs.id !== undefined && n.attrs.id === menu().attrs['aria-describedby']);
+  assert.deepEqual(described.map(n => n.text), [notice], 'the menu is described by the notice');
+  choose(menu(), 'value', 'clef-flash');
+  assert.equal(menu().attrs['aria-describedby'], undefined);
 });
 
 // PACT-128 C13

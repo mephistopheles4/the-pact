@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-McHVIUyVd1RcReJVPGRKaGSKBCpi3393zHQfnLNfLi0='; style-src 'sha256-nZA7IW6ch0b3zv3WKjrW3Bl1e+9Hc4SgpU1D8Qh9Wig='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-HUYQdkCJOfBrQLCMPD2owOj0A6T8EGrcQyFLeF5eSH0='; style-src 'sha256-0IVEz81iFQJ6B0dhRN1gICHhUYcNS0JgFl8wZ4jRoq0='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1171,6 +1171,9 @@ html, body { margin: 0; }
 #values .prose { max-width: 110ch; }
 .value-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
 .command-row { display: grid; grid-template-columns: 1.5rem 9.5rem 1fr; gap: var(--av-s2); align-items: baseline; }
+.model-row > select { min-width: 0; max-width: 100%; }
+/* On a narrow screen the third column is too small to show the chosen model. */
+@media (max-width: 600px) { .model-row > span + span { display: none; } .model-row > select { grid-column: 2 / -1; } }
 input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
 input[type="checkbox"] { accent-color: var(--av-ink); }
 input[type="checkbox"]:not(:disabled), label:has(> input[type="checkbox"]:not(:disabled)) { cursor: pointer; }
@@ -9323,6 +9326,8 @@ function boot() {
     });
     return el('label', { class: 'command-row av-check' }, box, el('code', { text: PACT.identitySwitch.name }), el('span', { class: 'av-annot', text: 'Sessions act as their own GitHub App' }));
   }
+  /** The newest drawing of the decision model's box and menu. */
+  let modelControls;
   function toolsSection() {
     const set = state.tools;
     const row = c => {
@@ -9344,21 +9349,25 @@ function boot() {
       const menu = el('select', { 'aria-label': 'Decision model' }, ...DECISION_MODELS.map(m => el('option', { value: m.name, text: m.label })));
       menu.value = model ?? DECISION_MODELS[0].name;
       menu.disabled = model === null;
-      const choose = next => {
+      if (model === 'jev') menu.setAttribute('aria-describedby', 'jev-notice');
+      modelControls = { box, menu };
+      // The redraw replaces both controls, so the focus goes to the new copy of the one that was changed.
+      const choose = (next, changed) => {
         const now = Array.isArray(state.tools) ? state.tools.filter(n => n !== c.name) : [];
         state.decisionModel = next;
         state.tools = next !== null && next !== 'jev' ? [...now, c.name] : now;
         renderSettings();
         renderOutput();
+        modelControls[changed].focus({ preventScroll: true });
       };
-      box.addEventListener('change', () => choose(box.checked ? DECISION_MODELS[0].name : null));
-      menu.addEventListener('change', () => choose(menu.value));
+      box.addEventListener('change', () => choose(box.checked ? DECISION_MODELS[0].name : null, 'box'));
+      menu.addEventListener('change', () => choose(menu.value, 'menu'));
       return el(
         'div',
         { class: 'acc-stack' },
         el('label', { class: 'command-row av-check' }, box, el('span', { text: c.label }), el('span', { class: 'av-annot', text: c.what })),
-        el('div', { class: 'command-row' }, el('span'), el('span'), menu),
-        model === 'jev' ? el('p', { class: 'av-callout av-callout--caution', role: 'status', text: JEV_NOTICE }) : null,
+        el('div', { class: 'command-row model-row' }, el('span'), el('span'), menu),
+        model === 'jev' ? el('p', { id: 'jev-notice', class: 'av-callout av-callout--caution', role: 'status', text: JEV_NOTICE }) : null,
       );
     };
     const leave = chip('Leave as is', set === null, () => {
@@ -9372,7 +9381,7 @@ function boot() {
       { class: 'acc-stack' },
       ...OPT_TOOLS.map(c => (c.label ? modelRow(c) : row(c))),
       el('div', { class: 'chips' }, leave),
-      el('p', { class: 'av-annot', text: set === null ? 'Left as is: a save keeps the tools list already in your config.json. Tick or untick one to set the list here instead.' : 'Set here: a save writes this list, and the next install adds or deletes those tools. Leave as is keeps your config.json\'s own list instead.' }),
+      el('p', { class: 'av-annot', text: set === null ? 'Left as is: a save keeps the tools list and the decision model already in your config.json. Change one here to set both here instead.' : 'Set here: a save writes this list and the model chosen above, and the next install adds or deletes those tools. Leave as is keeps your config.json\'s own list and model instead.' }),
     );
   }
   /**
