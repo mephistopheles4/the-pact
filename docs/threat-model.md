@@ -313,9 +313,11 @@ secret or personal detail the scan doesn't read.
   the scan, the per-repo list read from the user's own file and the repo's
   `origin`, and no cloud session; against accidents only. A session that calls
   TypeSafe itself with the key, or edits the choice file, gets past them all,
-  and a proxy the environment names, with a certificate authority the
-  environment adds, sees the key and the findings. Rules it rests on: the read
-  before posting, at most ten a round.
+  and any proxy or gateway holding a certificate authority Node trusts, one
+  added through `NODE_EXTRA_CA_CERTS` or in the system store under
+  `--use-system-ca`, reads the key and the findings: of the certificate
+  settings, the tool checks only `NODE_TLS_REJECT_UNAUTHORIZED`. Rules it rests
+  on: the read before posting, at most ten a round.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
   each token it mints to one repo and a permission set, and refuses a repo
   outside the pinned owner. It holds against accidents only: any process
@@ -336,7 +338,8 @@ encoded secret included, and so does an open hole's detail; a clone whose `origi
 listed repo is sent as that repo, and so is a finding passed with another listed
 repo's folder; the key sits in the environment of every session where it is set,
 and a steered session sending it, or calling TypeSafe with it, fits Text steers
-a session. Who counts as you: a foreign token or a commit's email can
+a session; while zero data retention is not confirmed in writing, a send through
+`jev` fits no accepted class and comes to the owner. Who counts as you: a foreign token or a commit's email can
 read as the owner or as the owner's agent app. Codex and Antigravity sessions
 push with the owner's own Git credentials, whatever `agent-identity` says. A
 session can still write as
@@ -383,7 +386,8 @@ Codex with OpenAI's, Antigravity with Google's, and GitHub; TypeSafe, as a
 provider the user chose, like Anthropic, while zero data retention is confirmed
 in writing; the provider of a synced or backed-up copy, though
 [`install.md`](install.md)'s rule to never sync, share or commit the backups
-folders still holds.
+folders still holds. While zero data retention is not confirmed in writing, a
+send through `jev` fits no accepted class and comes to the owner.
 
 **Root of trust:** the owner's GitHub account and the owner's private issue
 tracker account. Whoever controls either counts as the owner, and so do whoever and whatever the owner admits to that tracker.

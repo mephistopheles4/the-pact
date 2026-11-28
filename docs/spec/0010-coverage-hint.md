@@ -385,7 +385,8 @@ first form would run a file the working folder holds.)
   local model only. A repo listed for `jev` in `~/.pact/coverage.json` is
   the owner's standing pick for that repo's sends, with no checkpoint per
   call; a round that sends any logs one checkpoint line for them, naming the
-  repo and the count sent.
+  repo and the count sent, counting each run that reached `jev`, a failed one
+  included.
 
 ## S7 What leaves the machine
 
@@ -419,13 +420,18 @@ first form would run a file the working folder holds.)
     only in its header, the scan, the per-repo list read from the user's own
     file and the repo's `origin`, and no cloud session; against accidents
     only. A session that calls TypeSafe itself with the key, or edits the
-    choice file, gets past them all, and a proxy the environment names, with a
-    certificate authority the environment adds, sees the key and the findings.
-    Rules it rests on: the read before posting, at most ten a round."
+    choice file, gets past them all, and any proxy or gateway holding a
+    certificate authority Node trusts, one added through `NODE_EXTRA_CA_CERTS`
+    or in the system store under `--use-system-ca`, reads the key and the
+    findings: of the certificate settings, the tool checks only
+    `NODE_TLS_REJECT_UNAUTHORIZED`. Rules it rests on: the read before
+    posting, at most ten a round."
   - **Scope, Also out:** TypeSafe, as a provider the user chose, like
-    Anthropic, while zero data retention is confirmed in writing. Nothing
-    enforces the condition. This is its own checkpoint, logged for the owner,
-    who may still rule on it.
+    Anthropic, while zero data retention is confirmed in writing. The scope
+    paragraph then ends: "While zero data retention is not confirmed in
+    writing, a send through `jev` fits no accepted class and comes to the
+    owner." Nothing enforces the condition. This is its own checkpoint, logged
+    for the owner, who may still rule on it.
   - **Text into a session, Crosses:** "`coverage`'s answer and hint, from
     any backend, Jev's included", bounded by the answer check.
   - **Accepted, `jev` path:** a new "Also accepted" line under What leaves
@@ -435,7 +441,9 @@ first form would run a file the working folder holds.)
     whose `origin` names a listed repo is sent as that repo, and so is a
     finding passed with another listed repo's folder; the key sits in the
     environment of every session where it is set, and a steered session
-    sending it, or calling TypeSafe with it, fits Text steers a session.
+    sending it, or calling TypeSafe with it, fits Text steers a session;
+    while zero data retention is not confirmed in writing, a send through
+    `jev` fits no accepted class and comes to the owner.
   - **Accepted, any backend:** in A session takes checkpoints alone's line on
     a decision model's numbers: "any `coverage` backend's numbers; outside
     text in a finding or in an entries file, its ids included, can steer the
