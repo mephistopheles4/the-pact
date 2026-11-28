@@ -140,7 +140,7 @@ const READY = Object.freeze({ ensure: { url: 'http://127.0.0.1:4567', state: 're
  * A fixture world: a home, a Claude home, a scratch folder, a repo, and the
  * tool copied beside a stub clef. `run(argv)` runs one mode in-process.
  */
-async function world(t, { files = WITH_ENTRIES, origin, config, clef = READY, finding = FINDING, env = {} } = {}) {
+async function world(t, { files = WITH_ENTRIES, origin, model, pact, config, clef = READY, finding = FINDING, env = {} } = {}) {
   const home = tempDir(t, 'pact-coverage-home-');
   const claude = tempDir(t, 'pact-coverage-claude-');
   const scratch = tempDir(t, 'pact-coverage-scratch-');
@@ -150,9 +150,10 @@ async function world(t, { files = WITH_ENTRIES, origin, config, clef = READY, fi
     writeFileSync(join(tools, 'clef.mjs'), STUB_CLEF);
     writeFileSync(join(tools, 'plan.json'), JSON.stringify(clef));
   }
-  if (config !== undefined) {
-    mkdirSync(join(home, '.pact'));
-    writeFileSync(join(home, '.pact', 'coverage.json'), typeof config === 'string' ? config : JSON.stringify(config));
+  mkdirSync(join(home, '.pact'));
+  const mine = pact ?? (model === undefined ? undefined : { schema: 1, tools: ['coverage'], 'decision-model': model });
+  for (const [name, value] of [['config.json', mine], ['coverage.json', config]]) {
+    if (value !== undefined) writeFileSync(join(home, '.pact', name), typeof value === 'string' ? value : JSON.stringify(value));
   }
   const findingFile = join(scratch, 'finding.txt');
   writeFileSync(findingFile, finding);
@@ -171,7 +172,7 @@ async function world(t, { files = WITH_ENTRIES, origin, config, clef = READY, fi
   return { home, claude, scratch, tools, repo: r, run, ask, calls, log, logFile, findingFile };
 }
 
-const JEV = Object.freeze({ backend: 'jev', jev_repos: ['example/listed'] });
+const JEV = Object.freeze({ model: 'jev', config: Object.freeze({ jev_repos: ['example/listed'] }) });
 const KEY = 'tsk_fixture-key-0123456789';
 
 // ------------------------------------------------------------ claim 1: the draft
@@ -450,8 +451,8 @@ const REPLIES = [
 
 // PACT-128 C7
 test('answer check: anything but one number from 0 to 1 for each id sent makes the hint unavailable, with nothing of the body', async t => {
-  for (const [backend, config] of [['clef', undefined], ['jev', JEV]]) {
-    const w = await world(t, { config, env: { TYPESAFE_API_KEY: KEY } });
+  for (const [backend, choice] of [['clef', {}], ['jev', JEV]]) {
+    const w = await world(t, { ...choice, env: { TYPESAFE_API_KEY: KEY } });
     const shaped = body => (backend === 'jev' && typeof body !== 'string' ? { model: 'jev-1', usage: {}, answers: body } : body);
     const rows = [
       ...REPLIES.map(([name, body, word]) => [name, req => json(shaped(body(req))), word]),
@@ -483,18 +484,54 @@ test('answer check: anything but one number from 0 to 1 for each id sent makes t
 
 // ------------------------------------------------------------ claim 8: the choice file and the repo
 
+const FULL = Object.freeze({ ...READY, status: READY.status.replace('variant: flash', 'variant: full') });
+
 // PACT-128 C8
-test('choice file: none means clef; any other key or value is refused', async t => {
-  const none = await world(t);
-  const f = stubFetch();
-  assert.equal((await none.ask({ fetch: f.fetch })).code, 0);
-  assert.ok(f.sent.every(s => s.url === 'http://127.0.0.1:4567/v1/systemone'), f.sent[0].url);
-  for (const config of ['{', '[]', { backend: 'other' }, { backend: 'jev', jev_repos: 'example/listed' }, { jev_repos: ['no-slash'] }, { jev_repos: [1] }, { host: 'x' }]) {
-    const w = await world(t, { config });
-    const g = stubFetch();
-    const r = await w.ask({ fetch: g.fetch });
-    assert.match(r.out, /^REFUSED coverage\/config: /, JSON.stringify(config));
-    assert.deepEqual([r.code, g.sent.length], [2, 0]);
+test('choice: with no decision model named, the local clef answers as it is set up; a named variant answers only as itself', async t => {
+  for (const [model, clef, backend] of [
+    [undefined, READY, 'clef-flash'],
+    [undefined, FULL, 'clef-full'],
+    ['clef-flash', READY, 'clef-flash'],
+    ['clef-full', FULL, 'clef-full'],
+  ]) {
+    const w = await world(t, { model, clef });
+    const f = stubFetch();
+    const r = await w.ask({ fetch: f.fetch });
+    assert.equal(r.code, 0, r.out);
+    assert.ok(r.lines[1].startsWith(`> Coverage hint (${backend}, `), r.out);
+    assert.ok(f.sent.every(s => s.url === 'http://127.0.0.1:4567/v1/systemone'), f.sent[0].url);
+    assert.deepEqual((await w.run(['status'])).lines.slice(0, 2), [`backend: ${model ?? 'clef'}`, 'ready: yes']);
+  }
+  for (const [model, clef] of [['clef-full', READY], ['clef-flash', FULL]]) {
+    const w = await world(t, { model, clef });
+    const f = stubFetch();
+    const r = await w.ask({ fetch: f.fetch });
+    assert.deepEqual([r.code, r.lines.at(-1), f.sent.length], [1, 'RESULT: fail clef-variant', 0], r.out);
+    assert.deepEqual((await w.run(['status'])).lines.slice(0, 2), [`backend: ${model}`, 'ready: no (clef-variant)']);
+  }
+});
+
+// PACT-128 C8
+test('choice: any other model, a config.json that is not one object, and a bad coverage.json are refused', async t => {
+  const rows = [
+    { pact: '{' },
+    { pact: '[]' },
+    { model: 'clef' },
+    { model: null },
+    { model: ['jev'] },
+    { config: '{' },
+    { config: '[]' },
+    { config: { backend: 'jev' } },
+    { config: { jev_repos: 'example/listed' } },
+    { config: { jev_repos: ['no-slash'] } },
+    { config: { jev_repos: [1] } },
+  ];
+  for (const choice of rows) {
+    const w = await world(t, choice);
+    const f = stubFetch();
+    const r = await w.ask({ fetch: f.fetch });
+    assert.match(r.out, /^REFUSED coverage\/config: /, JSON.stringify(choice));
+    assert.deepEqual([r.code, f.sent.length, w.calls().length], [2, 0, 0], JSON.stringify(choice));
   }
 });
 
@@ -502,7 +539,7 @@ test('choice file: none means clef; any other key or value is refused', async t 
 test('jev sends only for a listed repo, read from the folder\'s origin; no option names another', async t => {
   const env = { TYPESAFE_API_KEY: KEY };
   for (const origin of ['https://github.com/example/listed.git', 'https://github.com/example/listed', 'git@github.com:example/listed.git']) {
-    const w = await world(t, { config: JEV, origin, env });
+    const w = await world(t, { ...JEV, origin, env });
     const f = stubFetch();
     assert.equal((await w.ask({ fetch: f.fetch })).code, 0, origin);
     assert.ok(f.sent.length === 3 && f.sent.every(s => s.url === 'https://api.typesafe.ai/v1/systemone'));
@@ -512,13 +549,13 @@ test('jev sends only for a listed repo, read from the folder\'s origin; no optio
     assert.equal(w.calls().length, 0, 'jev starts no local server');
   }
   for (const origin of ['https://github.com/example/other.git', null, 'https://gitlab.com/example/listed.git', 'https://github.com.example.com/example/listed.git', 'ssh://git@github.com/example/listed.git', 'https://github.com/example/listed/extra']) {
-    const w = await world(t, { config: JEV, origin, env });
+    const w = await world(t, { ...JEV, origin, env });
     const f = stubFetch();
     const r = await w.ask({ fetch: f.fetch });
     assert.match(r.out, /^REFUSED coverage\/not-listed: /, String(origin));
     assert.deepEqual([r.code, f.sent.length, w.calls().length], [2, 0, 0], 'it falls back to no other backend');
   }
-  const w = await world(t, { config: JEV, env });
+  const w = await world(t, { ...JEV, env });
   const r = await w.ask({}, ['--repo', 'example/listed']);
   assert.match(r.out, /^REFUSED coverage\/usage: /);
 });
@@ -533,7 +570,7 @@ test('jev: no key, certificate checks off and a cloud session are each refused b
     [{ TYPESAFE_API_KEY: KEY, NODE_TLS_REJECT_UNAUTHORIZED: '0' }, 'coverage/tls'],
     [{ TYPESAFE_API_KEY: KEY, CLAUDE_CODE_REMOTE: 'true' }, 'coverage/cloud'],
   ]) {
-    const w = await world(t, { config: JEV, env });
+    const w = await world(t, { ...JEV, env });
     const f = stubFetch();
     const r = await w.ask({ fetch: f.fetch });
     assert.match(r.out, new RegExp(`^REFUSED ${word}: [^\\n]*\\nRESULT: refused ${word}$`), r.out);
@@ -543,7 +580,7 @@ test('jev: no key, certificate checks off and a cloud session are each refused b
 
 // PACT-128 C9
 test('the key travels only in its header, and shows in no output or log line', async t => {
-  const w = await world(t, { config: JEV, env: { TYPESAFE_API_KEY: KEY } });
+  const w = await world(t, { ...JEV, env: { TYPESAFE_API_KEY: KEY } });
   const f = stubFetch();
   const out = [(await w.ask({ fetch: f.fetch })).out];
   for (const s of f.sent) {
@@ -557,7 +594,7 @@ test('the key travels only in its header, and shows in no output or log line', a
   const status = await w.run(['status']);
   assert.deepEqual(status.lines, ['backend: jev', 'ready: yes', 'key: set', 'repo: example/listed', 'log: 3 lines', 'RESULT: pass']);
   out.push(status.out);
-  const bare = await world(t, { config: JEV });
+  const bare = await world(t, { ...JEV });
   assert.ok((await bare.run(['status'])).lines.includes('key: missing'));
   assert.ok(!`${out.join('\n')}${readFileSync(w.logFile, 'utf8')}`.includes(KEY));
 });
@@ -614,7 +651,7 @@ test('scan: jev refuses a secret, a hidden character, the home folder and the us
   for (const [finding, word, says] of rows) {
     const inEntry = JSON.stringify({ ...ENTRIES, entries: { text_steers: finding } });
     for (const options of [{ finding }, { files: { 'docs/threat-entries.json': inEntry } }]) {
-      const w = await world(t, { config: JEV, env, ...options });
+      const w = await world(t, { ...JEV, env, ...options });
       const f = stubFetch();
       const r = await w.ask({ fetch: f.fetch, ...personal });
       assert.match(r.out, new RegExp(`^REFUSED ${word}: `), r.out);
@@ -623,7 +660,7 @@ test('scan: jev refuses a secret, a hidden character, the home folder and the us
       for (const secret of ['fixture-secret-value-1', KEY, cp(0x200b), 'fixture person', user]) assert.ok(!r.out.toLowerCase().includes(secret.toLowerCase()), `${word} printed ${JSON.stringify(secret)}`);
     }
   }
-  const w = await world(t, { config: JEV, env });
+  const w = await world(t, { ...JEV, env });
   assert.equal((await w.ask({ ...personal, userName: 'a' })).code, 0, 'a user name under 3 characters is not matched');
   const local = await world(t, { env, finding: 't\nfixture-secret-value-1 signed fixtureuser' });
   const f = stubFetch();
@@ -671,22 +708,22 @@ test('clef: not ready, missing, an unknown variant or a url off this machine is 
 
 // PACT-128 C11
 test('size: state and questions past 30,000 characters are refused before any request, on clef and on jev', async t => {
-  const sized = async (config, chars) => {
+  const sized = async (choice, chars) => {
     const entries = Object.fromEntries(Array.from({ length: 9 },(_, i) => [`e${i}`, 'x'.repeat(i === 0 ? chars : 3000)]));
-    const w = await world(t, { config, env: { TYPESAFE_API_KEY: KEY }, files: { 'docs/threat-entries.json': JSON.stringify({ v: 1, source: 's', entries, scope: {} }) } });
+    const w = await world(t, { ...choice, env: { TYPESAFE_API_KEY: KEY }, files: { 'docs/threat-entries.json': JSON.stringify({ v: 1, source: 's', entries, scope: {} }) } });
     const f = stubFetch();
     const r = await w.ask({ fetch: f.fetch });
     return { r, f, w };
   };
   // The length of the largest request with a one-character first entry sets the edge.
-  const probe = await sized(undefined, 1);
+  const probe = await sized({}, 1);
   const length = Math.max(...probe.f.sent.map(s => JSON.stringify(s.body.state).length + JSON.stringify(s.body.questions).length));
   const edge = 30_000 - length + 1;
   assert.ok(edge > 0 && edge < 3999, String(length));
-  for (const config of [undefined, JEV]) {
-    const at = await sized(config, edge);
+  for (const choice of [{}, JEV]) {
+    const at = await sized(choice, edge);
     assert.equal(at.r.code, 0, at.r.out);
-    const over = await sized(config, edge + 1);
+    const over = await sized(choice, edge + 1);
     assert.match(over.r.out, /^REFUSED coverage\/size: /);
     assert.deepEqual([over.r.code, over.f.sent.length, over.w.calls().length], [2, 0, 0]);
   }
@@ -696,7 +733,7 @@ test('size: state and questions past 30,000 characters are refused before any re
 
 // PACT-128 C12
 test('log: one line for a pass, a refusal and an unavailable run, with the fields and none of the finding', async t => {
-  const w = await world(t, { config: JEV, env: { TYPESAFE_API_KEY: KEY } });
+  const w = await world(t, { ...JEV, env: { TYPESAFE_API_KEY: KEY } });
   const usage = { input_tokens: 120, note: 'CANARY-USAGE', nested: { n: 1 }, 'Bad Key': 3, output_tokens: 12 };
   await w.ask({ fetch: stubFetch(answered(() => 0.9, { usage })).fetch }, ['--ref', 'PACT-128/test-1/F2']);
   await w.ask({ fetch: stubFetch((req, n) => (n === 1 ? json('{}', 429) : answered(() => 0.4, { usage: { input_tokens: 5 } })(req))).fetch });

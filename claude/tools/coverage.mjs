@@ -12,10 +12,10 @@
 // Run it from a scratch folder outside every repo, never from a repo.
 //
 // What leaves the machine: nothing with a local Clef, the default. With `jev`,
-// which only the user's own ~/.pact/coverage.json can choose, and only for the
-// repos it lists: the finding's text and the entries file's `entries` and
-// `scope` maps, to one fixed host. The key is read from TYPESAFE_API_KEY and
-// travels only in the Authorization header.
+// chosen by `decision-model` in the user's own ~/.pact/config.json, and only
+// for the repos their ~/.pact/coverage.json lists: the finding's text and the
+// entries file's `entries` and `scope` maps, to one fixed host. The key is read
+// from TYPESAFE_API_KEY and travels only in the Authorization header.
 //
 // Output is fixed words, names from the entries file and numbers. A refusal is
 // one line `REFUSED <word>: <reason>` and the last line is a RESULT line; no
@@ -427,28 +427,46 @@ export function personalIn(texts, { homeDir, userName }) {
 
 // ---------------------------------------------------------------- the choice (S5)
 
-/** The user's choice: ~/.pact/coverage.json, never a repo file. With no file, the backend is `clef`. */
-export function readChoice(home) {
-  const bad = why => refuse('coverage/config', why);
+const MODELS = ['clef-flash', 'clef-full', 'jev'];
+
+/** One of the user's own files under ~/.pact, as an object, or null when there is none. */
+function userFile(home, name) {
+  const bad = why => refuse('coverage/config', `~/.pact/${name} ${why}`);
   let text;
   try {
-    text = readFileSync(join(home, '.pact', 'coverage.json'), 'utf8');
+    text = readFileSync(join(home, '.pact', name), 'utf8');
   } catch (e) {
-    if (e.code === 'ENOENT') return { backend: 'clef', jevRepos: [] };
-    bad('~/.pact/coverage.json cannot be read');
+    if (e.code === 'ENOENT') return null;
+    bad('cannot be read');
   }
   let doc;
   try {
-    doc = JSON.parse(text.replace(/^﻿/, ''));
+    doc = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch {
-    bad('~/.pact/coverage.json is not JSON');
+    bad('is not JSON');
   }
-  if (!isObj(doc)) bad('~/.pact/coverage.json is not one JSON object');
-  for (const k of Object.keys(doc)) if (!['backend', 'jev_repos'].includes(k)) bad('a key outside backend and jev_repos');
-  const { backend = 'clef', jev_repos: jevRepos = [] } = doc;
-  if (backend !== 'clef' && backend !== 'jev') bad('backend is not clef or jev');
-  if (!Array.isArray(jevRepos) || !jevRepos.every(r => typeof r === 'string' && REPO_RE.test(r))) bad('jev_repos is not a list of owner/name');
-  return { backend, jevRepos };
+  if (!isObj(doc)) bad('is not one JSON object');
+  return doc;
+}
+
+/**
+ * The user's choice, from two files of their own and never a repo file:
+ * `decision-model` in config.json, whose other keys are the installer's, and
+ * `jev_repos` in coverage.json. `model` is null when none is named, which
+ * means the local Clef as it is set up.
+ */
+export function readChoice(home) {
+  const pact = userFile(home, 'config.json');
+  let model = null;
+  if (pact !== null && Object.hasOwn(pact, 'decision-model')) {
+    model = pact['decision-model'];
+    if (!MODELS.includes(model)) refuse('coverage/config', `decision-model in ~/.pact/config.json is not ${MODELS.join(', ')}`);
+  }
+  const own = userFile(home, 'coverage.json') ?? {};
+  if (Object.keys(own).some(k => k !== 'jev_repos')) refuse('coverage/config', '~/.pact/coverage.json holds a key other than jev_repos');
+  const { jev_repos: jevRepos = [] } = own;
+  if (!Array.isArray(jevRepos) || !jevRepos.every(r => typeof r === 'string' && REPO_RE.test(r))) refuse('coverage/config', 'jev_repos is not a list of owner/name');
+  return { model, jevRepos };
 }
 
 // ---------------------------------------------------------------- the backends (S5)
@@ -515,11 +533,19 @@ export function jevAdapter({ key, fetch, timeoutMs = TIMEOUT_MS }) {
   };
 }
 
+/** The installed clef.mjs, beside this script. */
+const clefScript = () => join(dirname(fileURLToPath(import.meta.url)), 'clef.mjs');
+
+/** Whether `variant`, from clef's status, is one that may answer for the chosen `model`. */
+const serves = (variant, model) => VARIANTS.includes(variant) && (model === null || model === `clef-${variant}`);
+const variantIn = status => /^variant: (\S+)\r?$/m.exec(status)?.[1];
+
 /**
  * Asks the installed clef.mjs for a ready local server: `ensure --wait 60`,
  * then `status`. It never runs setup or starts a download.
  */
-function startClef({ script, execPath, env, cwd, spawn }) {
+function startClef({ model: chosen, execPath, env, cwd, spawn }) {
+  const script = clefScript();
   if (!existsSync(script)) unavailable('clef-missing');
   const childEnv = Object.fromEntries(Object.entries(env).filter(([k]) => k.toUpperCase() !== 'TYPESAFE_API_KEY'));
   const run = (args, timeout) => String(spawn(execPath, [script, ...args], { cwd, env: childEnv, encoding: 'utf8', timeout, windowsHide: true, shell: false }).stdout ?? '');
@@ -532,8 +558,8 @@ function startClef({ script, execPath, env, cwd, spawn }) {
   if (ensured?.state !== 'ready') unavailable(`clef-${CLEF_STATES.includes(ensured?.state) ? ensured.state : 'failed'}`);
   if (typeof ensured.url !== 'string' || !LOOPBACK_RE.test(ensured.url)) unavailable('clef-failed');
   const status = run(['status'], 30_000);
-  const variant = /^variant: (\S+)\r?$/m.exec(status)?.[1];
-  if (!VARIANTS.includes(variant)) unavailable('clef-variant');
+  const variant = variantIn(status);
+  if (!serves(variant, chosen)) unavailable('clef-variant');
   const model = /^model: ([0-9a-f]{1,64})\r?$/m.exec(status)?.[1] ?? null;
   return { url: ensured.url, backend: `clef-${variant}`, model };
 }
@@ -640,7 +666,7 @@ function entriesMode({ options, words }, io) {
 async function ask({ options }, io, entry) {
   const { env, out } = io;
   const choice = readChoice(io.account);
-  entry.backend = choice.backend;
+  entry.backend = choice.model ?? 'clef';
   const raw = readUtf8(resolve(io.cwd, options['--finding']), 'coverage/finding', 'the finding file');
   const text = findingText(raw.replace(/^﻿/, ''));
   entry.finding = createHash('sha256').update(text).digest('hex');
@@ -659,7 +685,7 @@ async function ask({ options }, io, entry) {
 
   let backend;
   let send;
-  if (choice.backend === 'jev') {
+  if (choice.model === 'jev') {
     if (entry.repo === null || !choice.jevRepos.includes(entry.repo)) refuse('coverage/not-listed', "this folder's origin is not a repo listed in jev_repos");
     if (env.NODE_TLS_REJECT_UNAUTHORIZED === '0') refuse('coverage/tls', 'NODE_TLS_REJECT_UNAUTHORIZED turns certificate checks off');
     if (env.CLAUDE_CODE_REMOTE) refuse('coverage/cloud', 'a cloud session sends nothing to jev');
@@ -673,7 +699,7 @@ async function ask({ options }, io, entry) {
     backend = 'jev';
     send = jevAdapter({ key, fetch: io.fetch, timeoutMs: io.timeoutMs });
   } else {
-    const clef = startClef({ script: join(dirname(fileURLToPath(import.meta.url)), 'clef.mjs'), execPath: io.execPath, env, cwd: io.cwd, spawn: io.spawn });
+    const clef = startClef({ model: choice.model, execPath: io.execPath, env, cwd: io.cwd, spawn: io.spawn });
     backend = clef.backend;
     entry.backend = backend;
     entry.model = clef.model;
@@ -727,19 +753,22 @@ async function askMode(args, io) {
 function statusMode(io) {
   const choice = readChoice(io.account);
   const dir = logFolder(io);
-  const out = [`backend: ${choice.backend}`];
-  if (choice.backend === 'jev') {
+  const out = [`backend: ${choice.model ?? 'clef'}`];
+  if (choice.model === 'jev') {
     const key = io.env.TYPESAFE_API_KEY ? 'set' : 'missing';
     const ready = key === 'set' && choice.jevRepos.length > 0 && io.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0' && !io.env.CLAUDE_CODE_REMOTE;
     out.push(`ready: ${ready ? 'yes' : 'no'}`, `key: ${key}`, ...(choice.jevRepos.length ? choice.jevRepos.map(r => `repo: ${r}`) : ['repos: none']));
   } else {
-    const script = join(dirname(fileURLToPath(import.meta.url)), 'clef.mjs');
+    const script = clefScript();
     let ready = 'no (clef-missing)';
     if (existsSync(script)) {
       // `status` starts nothing; `ask` starts a set-up clef that is stopped.
       const text = String(io.spawn(io.execPath, [script, 'status'], { cwd: io.cwd, env: io.env, encoding: 'utf8', timeout: 30_000, windowsHide: true, shell: false }).stdout ?? '');
       const run = /^run: (ready|starting|stopped)\r?$/m.exec(text)?.[1];
-      ready = /^setup: none\r?$/m.test(text) ? 'no (clef-not-set-up)' : run === 'ready' ? 'yes' : `no (clef-${run ?? 'failed'})`;
+      const variant = variantIn(text);
+      if (/^setup: none\r?$/m.test(text)) ready = 'no (clef-not-set-up)';
+      else if (variant !== undefined && !serves(variant, choice.model)) ready = 'no (clef-variant)';
+      else ready = run === 'ready' ? 'yes' : `no (clef-${run ?? 'failed'})`;
     }
     out.push(`ready: ${ready}`);
   }
