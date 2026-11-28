@@ -5,7 +5,10 @@ Status: approved at 9987584 after spec round 2 (final), the lead's decision
 93, flagged for the owner's review (no spec round; the security pair reads it
 at T1's Test): U5's allowed list gains the OpenSSL 3 and Visual C++ runtime
 names its first report found, U4 gains a Visual C++ runtime check at setup, C-U3 a
-claim for it, and U9 names both as system needs with the glibc floors. Amends
+claim for it, and U9 names both as system needs with the glibc floors.
+**Amended at T2** by the lead's decision 90, flagged for the owner's review (no
+spec round): on Linux's keeper line, U6 adds 0003 M6's record and keyed probe,
+and C-U5 a claim for them. Amends
 [0002-clef-runner](0002-clef-runner.md) and builds on
 [0003-clef-macos](0003-clef-macos.md); everything they say holds unless a
 section here replaces it. The spec counts once it is on `main`.
@@ -265,8 +268,11 @@ code changes:
   parent's own parent from `/proc/<ppid>/stat`. When the grandparent is a live
   supervisor, the parent is its keeper and the server is not an orphan. No
   `cmdline` or `exe` of another process is read (0002 S7). A keeper whose supervisor is gone ends
-  its server itself; the sweep ends any server it missed. 0003 M6's record
-  and keyed probe stay darwin's only.
+  its server itself; the sweep ends any server it missed. **Amended at T2
+  (decision 90):** on the keeper line, Linux also gets 0003 M6's record
+  (`run.server`) and keyed probe (`probeProps`, `sweepServer`), as darwin
+  does, so setup's `clef-orphan` refusal covers it too. 0003's code keys on the
+  line, not the platform.
 - **The refusal goes,** in both places: `planSetup` and `main` no longer
   refuse `clef-setpriv`. The word leaves the tool's header list and
   `docs/clef.md`.
@@ -547,8 +553,9 @@ evidence on its own head.
   supervisor ends the stub and records `run.fail`; with both sent `SIGKILL`,
   the next `ensure` ends the orphan through the `/proc` sweep; a sweep while
   a keeper-launched server's supervisor lives ends nothing; a sweep while
-  another `ensure` holds `run.lock` ends nothing. These tests are on both
-  skip lists.
+  another `ensure` holds `run.lock` ends nothing; and the keyed probe finds
+  an orphan that the `/proc` sweep would also end (decision 90). These tests
+  are on both skip lists.
 - **C-U6** Setup on Linux without `/usr/bin/setpriv` passes the plan; no
   mode prints `clef-setpriv`.
 - **C-U7** Each U7 job passes on the PR's head: install, setup, verify,
