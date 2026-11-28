@@ -117,9 +117,8 @@ The session took these picks, each logged as a checkpoint:
    "I actually want Clef to be usable by everything on the machine").
 7. **Backend:** Vulkan when setup finds the Vulkan loader (S6), else CPU;
    `clef setup --cpu` forces CPU.
-8. **Platforms:** Windows x64, run end to end in T4. Linux x64 is built and
-   unit-tested in CI, and not run end to end in this work; `docs/clef.md`
-   says so. macOS is in through [0003](0003-clef-macos.md).
+8. **Platforms:** [0005](0005-clef-everywhere.md) U1 names them and what runs
+   end to end. macOS is in through [0003](0003-clef-macos.md).
 
 ## S3 Terms
 
@@ -558,18 +557,19 @@ as a control change.
 | Re-hash at each start vs. at setup and verify | Setup and verify | Files at rest are the machine's; a 6.7 GB hash per start costs seconds to minutes |
 | Supervisor in front vs. clients call llama-server | Supervisor | One place for the idle timer, token, routes and answer check |
 | Q4_K_M (6.7 GB) vs. Q8_0 (9.7 GB) | Q4_K_M; C14 measures the match | Smaller and faster; the spike measured Q8 only |
-| A Linux end-to-end run vs. unit tests only | Unit tests, stated in the doc | The owner's machine is Windows; nobody runs Linux here today |
+| A Linux end-to-end run vs. unit tests only | Replaced by [0005](0005-clef-everywhere.md) U7, which runs it in CI | See 0005 U13 |
 | A process spawn per call vs. a kept URL | Kept URL, `ensure` on failure | A warm call is ~40 ms; a node start costs as much |
 
 ## S13 Target environments
 
 - **The owner's Windows 11 x64 machine,** Node 24 under mise, a discrete GPU
   and a Vulkan loader. The node clef-pilot runs is the one setup recorded.
-- **Linux x64** (Ubuntu 22.04 or later, glibc), CPU or Vulkan: CI's `gate`
-  job runs the tests; no end-to-end run.
+- **Linux x64** (glibc), CPU or Vulkan: CI's `gate` job runs the tests;
+  [0005](0005-clef-everywhere.md) U7 runs it end to end, and U1 and U5 give
+  the platforms and floors.
 - **CI:** `gate` and `gate-windows`. No test downloads a real archive or
   model, or runs the real server; tests use fixtures and a stub server
-  through S7's seams.
+  through S7's seams. The end-to-end run, outside the gate suite, is 0005 U7.
 
 ## S14 Acceptance claims
 
@@ -736,9 +736,9 @@ reads this spec, each ticket's diff and T4's clef-pilot edit.
 
 ## S17 Out of scope (deferred)
 
-- Windows on ARM, CUDA or ROCm builds. (macOS moved into [0003](0003-clef-macos.md).)
-- A Linux end-to-end run, until someone turns `clef` on on Linux or CI gains
-  a Linux machine that can run the model.
+- CUDA or ROCm builds. (macOS moved into [0003](0003-clef-macos.md); Windows
+  on ARM and the Linux end-to-end run moved into
+  [0005](0005-clef-everywhere.md).)
 - Clef 27B, other quants, and the mmproj (image) file.
 - A pact hook that calls Clef on every tool call.
 - Auto-update of pins.

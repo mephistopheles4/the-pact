@@ -101,9 +101,9 @@ The session took these picks, each logged as a checkpoint:
 
 - **The pick.** `pickPlatform` maps `darwin` with `arch === 'arm64'` to
   `darwin-arm64-metal` ("Apple Silicon: Metal"), or to `darwin-arm64-cpu`
-  with `--cpu` ("CPU forced by --cpu"). `darwin` on `x64` refuses
-  `clef-platform` with this text: "no build for Intel Macs; on Apple Silicon,
-  run setup with an arm64 node, not one under Rosetta". No probe runs on
+  with `--cpu` ("CPU forced by --cpu"). `darwin` on `x64` is
+  [0005](0005-clef-everywhere.md) U4's, which replaces this spec's Rosetta
+  refusal. No probe runs on
   macOS, because every Apple Silicon Mac has Metal.
 - **The archive reader** (shared with Linux). One link to a kept file uses
   T1's copy field (`destNames`), as `libggml-base.so.0` does today. A chain
@@ -381,11 +381,10 @@ The session took these picks, each logged as a checkpoint:
 
 ## M12 Out of scope (deferred)
 
-- Intel Macs (`darwin-x64`). The asset exists at b12211; add it when someone
-  asks.
+- Intel Macs (`darwin-x64`): now [0005](0005-clef-everywhere.md) U3 and U4.
 - A Metal or CPU end-to-end run, until M3's trigger.
 - Signing or notarising the server ourselves.
-- The keeper on Linux or Windows.
+- The keeper on Windows. On Linux it is [0005](0005-clef-everywhere.md) U6's.
 
 ## M13 Acceptance claims
 
