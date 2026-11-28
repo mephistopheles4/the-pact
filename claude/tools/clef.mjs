@@ -1335,12 +1335,14 @@ const START_TIMEOUT_MS = 180_000;
 const MAX_BODY = 256 * 1024;
 const MAX_REPLY = 1 << 20;
 const MAX_QUESTIONS = 64;
-const FORWARD_TIMEOUT_MS = 60_000;
 /** How long the supervisor waits for the keeper's {pid} (spec 0003 M5). */
 const KEEPER_PID_MS = 10_000;
 const LOG_CAP = 1 << 20;
 /** The only names from the caller's environment that reach the supervisor and the server (S7). */
 const ENV_PASS = Object.freeze(['SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LOCALAPPDATA', 'XDG_RUNTIME_DIR']);
+
+/** How long the supervisor waits for the server's answer (spec 0005 U8): a CPU takes far longer than a GPU. */
+export const forwardTimeoutMs = backend => (backend === 'cpu' ? 180_000 : 60_000);
 
 /** The files the supervisor keeps in the clef folder. */
 export const runPaths = dir => ({ run: join(dir, 'run.json'), lock: join(dir, 'run.lock'), key: join(dir, 'run.key'), fail: join(dir, 'run.fail'), log: join(dir, 'serve.log'), server: join(dir, 'run.server') });
@@ -1386,12 +1388,20 @@ function logLine(dir, line) {
   }
 }
 
-function writeFail(dir, reason, now = Date.now) {
+/** Writes run.fail. `exit` is { stage, code } when the server itself ended (spec 0005 U18). */
+function writeFail(dir, reason, now = Date.now, exit = {}) {
   try {
-    writeFileSync(runPaths(dir).fail, `${JSON.stringify({ time: now(), reason })}\n`, { mode: 0o600 });
+    writeFileSync(runPaths(dir).fail, `${JSON.stringify({ time: now(), reason, ...exit })}\n`, { mode: 0o600 });
   } catch {
     // nothing to record to
   }
+}
+
+/** Spec 0005 U18: the fixed line for a server that ended while loading, or null. It holds the platform key and the recorded code, and no server text, token or key. */
+function loadCrashLine(fail, setup) {
+  if (fail?.reason !== 'exit' || fail.stage !== 'load') return null;
+  const hint = setup.backend === 'cpu' ? '' : '; try `clef setup --cpu`';
+  return `the server stopped while loading the model on ${quote(setup.platform)} (${quote(fail.code)}); this build may not support this CPU or system. See docs/clef.md, Field reports${hint}`;
 }
 
 /** The environment the supervisor and the server run with: a named list from the caller, a fixed PATH, and on Linux the runtime folder as the library path. */
@@ -1874,9 +1884,10 @@ function freePort() {
  * Resolves { done, stop } once it is serving; `done` resolves with the reason.
  * Test seams are parameters here only: exe and exePrefix (the server program),
  * pdeathsig, exists (the file test that picks the lifetime line), the timings,
- * scriptUrl, and onKeeperOptions (shown the options the keeper is forked with).
+ * scriptUrl, forwardScale (shortens the forward timeout), and onKeeperOptions
+ * (shown the options the keeper is forked with).
  */
-export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, models = MODELS, exe, exePrefix = [], pdeathsig = true, exists = existsSync, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform, exists }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig), onKeeperOptions = () => {} }) {
+export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, models = MODELS, exe, exePrefix = [], pdeathsig = true, exists = existsSync, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform, exists }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig), onKeeperOptions = () => {}, forwardScale = 1 }) {
   const ready = notSetUp(dir, platform, server, models);
   if (!ready.setup) {
     writeFail(dir, 'exit', now);
@@ -2034,7 +2045,9 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const serverPidOf = () => (useKeeper ? serverPid : child.pid);
   childExited.then(() => {
     if (!stopping) {
-      writeFail(dir, 'exit', now);
+      // A child with no pid never started, so nothing ended. The keeper's message carries no code, and the keeper's own is not the server's.
+      const code = useKeeper ? 'unknown' : (child.signalCode ?? child.exitCode);
+      writeFail(dir, 'exit', now, child.pid === undefined ? {} : { stage: isReady ? 'serve' : 'load', code });
       stop('exit');
     }
   });
@@ -2095,7 +2108,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
       const t0 = Date.now();
       let r;
       try {
-        r = await httpJson({ port: serverPort, path: '/v1/systemone', method: 'POST', token: serverKey, body: { state: parsed.state, questions: parsed.questions }, timeoutMs: FORWARD_TIMEOUT_MS });
+        r = await httpJson({ port: serverPort, path: '/v1/systemone', method: 'POST', token: serverKey, body: { state: parsed.state, questions: parsed.questions }, timeoutMs: forwardTimeoutMs(ready.setup.backend) * forwardScale });
       } finally {
         inFlight--;
         lastForward = now();
@@ -2167,8 +2180,9 @@ function stateOf(live) {
 }
 
 /**
- * `clef ensure` (S7): one result, { out, code }. It never fetches. States: ready,
- * starting, not-set-up (exit 3), failed (exit 4).
+ * `clef ensure` (S7): one result, { out, code }, with `note`, a line for stderr,
+ * after a load crash. It never fetches. States: ready, starting, not-set-up
+ * (exit 3), failed (exit 4).
  */
 export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, models = MODELS, now = Date.now, procRoot, kill, liveCheck = liveSupervisor, line = lifetimeLine({ platform }), sweep = sweepServer }) {
   const rp = runPaths(dir);
@@ -2178,17 +2192,19 @@ export async function ensure({ dir, wait = 0, platform = process.platform, env =
   if (!setup.setup) return { out: { state: 'not-set-up', reason: setup.reason }, code: 3 };
   const failed = () => {
     const f = readJsonFile(rp.fail);
-    return f && typeof f.time === 'number' && now() - f.time < FAIL_BACKOFF_MS ? { state: 'failed', reason: ['exit', 'timeout'].includes(f.reason) ? f.reason : 'exit' } : null;
+    if (!f || typeof f.time !== 'number' || now() - f.time >= FAIL_BACKOFF_MS) return null;
+    const note = loadCrashLine(f, setup.setup);
+    return { out: { state: 'failed', reason: ['exit', 'timeout'].includes(f.reason) ? f.reason : 'exit' }, code: 4, ...(note ? { note } : {}) };
   };
   const lastFail = failed();
-  if (lastFail) return { out: lastFail, code: 4 };
+  if (lastFail) return lastFail;
   let live = await liveCheck(dir);
   const waitFor = async () => {
     for (;;) {
       live = await liveSupervisor(dir);
       if (live && (live.health.ready || secs === 0 || Date.now() >= deadline)) return { out: stateOf(live), code: 0 };
       const f = failed();
-      if (f) return { out: f, code: 4 };
+      if (f) return f;
       if (Date.now() >= deadline) return live ? { out: stateOf(live), code: 0 } : { out: { state: 'starting' }, code: 0 };
       await sleep(100);
     }
@@ -2272,6 +2288,8 @@ export async function statusRun({ dir, platform = process.platform, server = SER
   if (isServerRecord(orphan)) lines.push(`orphan: pid ${orphan.pid}`);
   const f = readJsonFile(runPaths(dir).fail);
   lines.push(`last failure: ${f && ['exit', 'timeout'].includes(f.reason) ? f.reason : 'none'}`);
+  const crash = setup ? loadCrashLine(f, setup) : null;
+  if (crash) lines.push(crash);
   return { lines, code: 0 };
 }
 
@@ -2320,8 +2338,8 @@ const quote = s => JSON.stringify(String(s)).slice(1, -1);
 
 const MODES = Object.freeze({ setup: ['--cpu', '--yes'], verify: [], ensure: [], serve: [], stop: [], status: [], remove: ['--yes'] });
 
-/** Runs one mode. `io` is { out(line), }; returns the exit code. */
-export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome(), serveOptions = {}, real = realOf, sweep = sweepServer, orphanWaitMs = 60_000 } = {}) {
+/** Runs one mode. `out` and `err` take a line for stdout and stderr; returns the exit code. */
+export async function main(argv, { env = process.env, platform = process.platform, arch = process.arch, execPath = process.execPath, cwd = process.cwd(), out = l => process.stdout.write(`${l}\n`), err = l => process.stderr.write(`${l}\n`), transport = makeTransport(), exists = existsSync, free, chdir = process.chdir.bind(process), account = accountHome(), serveOptions = {}, real = realOf, sweep = sweepServer, orphanWaitMs = 60_000 } = {}) {
   const refuse = (word, why) => {
     out(`REFUSED ${word}: ${why}`);
     out(`RESULT: refused ${word}`);
@@ -2413,6 +2431,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
     if (mode === 'ensure') {
       const r = await ensure({ dir, wait, platform, env, execPath });
       out(JSON.stringify(r.out));
+      if (r.note) err(r.note);
       return r.code;
     }
     if (mode === 'serve') {
