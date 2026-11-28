@@ -1032,6 +1032,9 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     '$env:X += git push',
     '$x = $env:X=gh pr merge 1',
     '$x =$y=gh pr merge 1',
+    '$a ,$b=gh pr merge 1',
+    '$a ,$b = gh pr merge 1',
+    `$x = @"\n$( @'\n' )\n'@; gh pr merge 1 )\n"@`,
     "$x = .'gh' pr merge 1",
     "$x=.'git' push",
     "[string]$x=.'gh' pr merge 1",
@@ -1046,6 +1049,7 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
   // Argument data starting with .'...' is not split into a dot-source wrapper.
   assert.deepEqual(guard.segmentsOf("echo .'gh'", false), [['echo', '.gh']]);
   assert.equal(guard.judge('$x = $y=git branch -D main', ALL)?.decision, 'deny');
+  assert.equal(guard.judge('$a ,$b = git branch -D main', ALL)?.decision, 'deny');
 
   // --% after git fails closed as unknown leading flag.
   assert.equal(call('git --% push')?.id, 'identity-git');
@@ -1112,6 +1116,7 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `$env:GIT_CONFIG_GLOBAL= '${cfgPath}'; git commit -m x`,
     '$env:GIT_CONFIG_GLOBAL = "$HOME/.pact/gh-app-codex.gitconfig"; git commit -m x',
     `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; $x = $env:GIT_CONFIG_GLOBAL; git commit -m x`,
+    `$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; $x = $env:GIT_CONFIG_GLOBAL,'a=b'; git commit -m x`,
   ]) assert.equal(call(cmd), null, cmd);
   assert.equal(call('$env:GIT_CONFIG_GLOBAL = "$env:USERPROFILE/.pact/gh-app-codex.gitconfig"; git commit -m x', { env: { USERPROFILE: fx.home }, platform: 'win32' }), null);
 
@@ -1203,9 +1208,16 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `$x = $y=git push`,
     `$x =$y=git push`,
     `$a, $b = git push`,
+    `$a ,$b = git push`,
+    `$a ,$b=git push`,
+    `$a,$b=git push`,
+    `$a ,[string]$b = git push`,
     `$x =$env:GIT_CONFIG_COUNT='1'; git p`,
+    `$env:GIT_CONFIG_COUNT,$env:GIT_CONFIG_KEY_0,$env:GIT_CONFIG_VALUE_0=1,'alias.p','push'; git p`,
+    `$env:GIT_CONFIG_COUNT ,$b = 1, 2; git p`,
     `$x = @"\n$( # )\n$k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1') )\n"@; git p`,
     `$x = @"\n$( <# ) #>\n$k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1') )\n"@; git p`,
+    `$x = @"\n$( @'\n' )\n'@; $k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1') )\n"@; git p`,
     `$env:GIT_DIR='/tmp/x'; git commit -m x`,
     `g\\it commit -m x`,
     `e\\nv git commit -m x`,
@@ -1255,6 +1267,11 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
   assert.equal(call(`$x = $y=[string] $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
   assert.equal(call(`$a, $env:GIT_CONFIG_GLOBAL = '1', '/tmp/evil'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
   assert.equal(call(`$env:GIT_CONFIG_GLOBAL, $b = '/tmp/evil', '1'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call(`$env:GIT_CONFIG_GLOBAL,$b='/tmp/evil','1'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call(`$a,$env:GIT_CONFIG_GLOBAL,$c='1','/tmp/evil','3'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call(`$a,$b,$env:GIT_CONFIG_GLOBAL='1','2','/tmp/evil'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call(`$env:GIT_CONFIG_GLOBAL ,$b = '/tmp/evil', '1'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
+  assert.equal(call(`$a ,$env:GIT_CONFIG_GLOBAL ,$b = '1', '/tmp/evil', '2'; git commit -m x`, { env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath } })?.id, 'identity-git');
   assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; $x = $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`)?.id, 'identity-git');
 
   // Explicit shell rejects cross-shell assignments; heredoc/here-string cannot cross-satisfy modes.
