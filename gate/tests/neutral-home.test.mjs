@@ -56,7 +56,7 @@ const CONFIG = '{"schema": 1, "commands": ["make-it-so", "finis", "scry"], "tool
 const moved = text => text.replaceAll('.claude/pact/handoff/', '.pact/handoffs/').replaceAll('.claude/pact/', '.pact/').replaceAll('in my Claude folder beside', 'in `~/.pact` beside');
 const lf = text => text.replaceAll('\r\n', '\n');
 const fixture = rel => lf(readFileSync(join(FIXTURE, ...rel.split('/')), 'utf8'));
-/** Every other change to the rules since the fixture: the stage-session sentences (spec 0012), then the neutral phrases, the model roles and the models line (spec 0007 S6, S7). */
+/** Every other change to the rules since the fixture: the stage-session sentences (spec 0013), then the neutral phrases, the model roles and the models line (spec 0007 S6, S7). */
 const NEUTRAL_RULES = [
   ["  when to stop it. Checks that could have failed are the evidence.", "  when to stop it. Checks that could have failed are the evidence. A stage's\n  own work runs where I can open it, steer it and stop it."],
   ["Each stage: what each tier sets, the lenses to offer, where the work goes\nnext.", "Each stage: what each tier sets, the lenses to offer, where the work goes\nnext. Which session runs each stage: `~/.pact/review.md`'s Sessions."],

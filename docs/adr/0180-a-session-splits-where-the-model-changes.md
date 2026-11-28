@@ -1,6 +1,6 @@
 # A session splits where the model changes
 
-A stage's own work runs in a session the owner can open, steer and stop, never in a subagent. A session carries the next stage while its model stays the same, and a new model means a new session, started from the record. A change of effort alone splits nothing. The design is [spec 0012](../spec/0012-stage-sessions.md); the rule sessions read is [`review.md`'s Sessions](../../claude/review.md#sessions).
+A stage's own work runs in a session the owner can open, steer and stop, never in a subagent. A session carries the next stage while its model stays the same, and a new model means a new session, started from the record. A change of effort alone splits nothing. The design is [spec 0013](../spec/0013-stage-sessions.md); the rule sessions read is [`review.md`'s Sessions](../../claude/review.md#sessions).
 
 This amends [ADR 0011](0011-one-model-per-session.md): its split at every phase boundary becomes a split where the model changes.
 

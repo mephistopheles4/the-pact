@@ -123,12 +123,12 @@ In `docs/rule-reasons.md`, with no row added:
   changes, and a model switch drops the prompt cache and makes the new model
   carry the old context."
 
-A new ADR, `docs/adr/0179-a-session-splits-where-the-model-changes.md`
+A new ADR, `docs/adr/0180-a-session-splits-where-the-model-changes.md`
 (re-check against `origin/main` before writing; take the next free number if
-0179 is taken),
+0180 is taken; 0179 was, by an open change),
 amends [ADR 0011](../adr/0011-one-model-per-session.md): a session splits
 where the model changes, not at every phase boundary, and a stage's own work
-never runs in a subagent. ADR 0011 gains an "Amended by 0179" line, and the
+never runs in a subagent. ADR 0011 gains an "Amended by 0180" line, and the
 ADR index its line.
 
 ## S6 Generated copies and records
@@ -167,7 +167,7 @@ ADR index its line.
    (Read at Test against the base, not a test: a count would pin the work.)
 3. **The reference** holds S4's five items and the Posting sentence, each as
    written. (Read at Test.)
-4. **The reasons and the ADR.** Both S5 rows carry their added text; ADR 0179
+4. **The reasons and the ADR.** Both S5 rows carry their added text; ADR 0180
    exists and ADR 0011 points to it. (Read at Test.)
 5. **Generated copies** are current: the full suite passes on CI's three jobs
    on the reviewed head, including the builder-page, default-config and
