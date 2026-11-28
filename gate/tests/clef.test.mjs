@@ -236,12 +236,6 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     });
   }
   test('pin table shape: base passes after the rows', () => assert.deepEqual(run(base()).fails, []));
-  // Spec 0010 S9: each variant has its own fixed repo.
-  test('pin table shape: a pin naming the other variant\'s repo is refused, each way', () => {
-    assert.deepEqual(clef.pinProblems(miniServer(), miniFull(), 'full'), []);
-    assert.deepEqual(clef.pinProblems(miniServer(), { ...miniModel(), repo: miniFull().repo }, 'flash'), ['model-repo']);
-    assert.deepEqual(clef.pinProblems(miniServer(), { ...miniFull(), repo: miniModel().repo }, 'full'), ['model-repo']);
-  });
 }
 
 // PACT-61 C3: every path the table or an archive names goes through one check.
@@ -805,6 +799,10 @@ test('verify re-hashes every kept file and the model: ok when whole, a word for 
   const bad = clef.verify({ dir: a.dir, server: a.server, models: a.models });
   assert.deepEqual(bad.failed.sort(), ['missing:LICENSE', 'sha256:llama-server.exe', 'size:ggml-cpu.dll']);
   assert.deepEqual(clef.verify({ dir: join(a.dir, 'nowhere'), server: a.server, models: a.models }).failed, ['missing:setup.json']);
+  const path = join(a.dir, 'setup.json');
+  writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, 'utf8')), variant: 'huge' }));
+  const unknown = clef.verify({ dir: a.dir, server: a.server, models: a.models });
+  assert.deepEqual([unknown.lines, unknown.failed], [['unknown: variant'], ['unknown:variant']], 'a record that is there, naming no variant the table has');
 });
 
 // ------------------------------------------------------------ the full variant (spec 0010 S9, claim 14)

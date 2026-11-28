@@ -1309,9 +1309,14 @@ export function verify({ dir, server = SERVER, models = MODELS }) {
     lines.push(`${word}: ${label}`);
     if (word !== 'ok') failed.push(`${word}:${label}`);
   };
-  if (!setup || !server.archives[setup.platform] || !model) {
+  if (!setup || !server.archives[setup.platform]) {
     lines.push('missing: setup.json');
     failed.push('missing:setup.json');
+    return { lines, failed };
+  }
+  if (!model) {
+    lines.push('unknown: variant');
+    failed.push('unknown:variant');
     return { lines, failed };
   }
   const a = server.archives[setup.platform];
