@@ -77,7 +77,9 @@ test('applyBound with a stale kept hash falls back to a dry run, and installs wh
   passed(applyBound(repo, kept));
   assert.equal(starts() - before, 3, 'the stale apply, the dry run and the apply');
   const fresh = home(t);
+  const beforeFresh = starts();
   passed(applyBound(repo, fresh, { fresh: true }));
+  assert.equal(starts() - beforeFresh, 2, 'fresh: the dry run and the apply, past the kept hash');
   // Backup names carry a timestamp.
   const tree = h => listTree(h).map(p => p.replace(/\\/g, '/')).filter(p => !p.startsWith('.pact/backups/'));
   assert.deepEqual(tree(kept), tree(fresh));
