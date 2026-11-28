@@ -771,6 +771,23 @@ test('sweepOrphans: ends a process whose exe lies under runtime/ and whose paren
   assert.deepEqual(killed.sort(), [101, 102]);
 });
 
+// Spec 0010 S9, claim 14: the recorded variant picks the served model, and it changes only after a stop.
+test('a full setup is served from the full model file, and main refuses a variant change while that supervisor runs', async t => {
+  const f = fixture(t);
+  f.stoppers.push(() => stopFixture(f));
+  const full = clef.paths(f.dir, clef.SERVER, clef.MODELS.full).model;
+  writeFileSync(full, 'x');
+  writeFileSync(f.p.setup, JSON.stringify({ ...JSON.parse(readFileSync(f.p.setup, 'utf8')), model: clef.MODELS.full.sha256, variant: 'full' }));
+  await startServe(t, f);
+  await ready(f);
+  const { args } = await f.recorded();
+  assert.equal(args[args.indexOf('-m') + 1], full);
+  const out = [];
+  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, platform: 'win32', arch: 'x64', exists: () => true, out: l => out.push(l) };
+  assert.equal(await clef.main(['setup', '--variant', 'flash', '--yes'], base), 2);
+  assert.equal(out.at(-1), 'RESULT: refused clef-running');
+});
+
 // ------------------------------------------------------------ setup's new refusals (main)
 
 test('main: setup refuses clef-running while a supervisor is live, and clef-setpriv on Linux without /usr/bin/setpriv, each before any fetch', async t => {

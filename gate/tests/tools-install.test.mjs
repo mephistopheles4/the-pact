@@ -186,7 +186,7 @@ test('clef on: the dry run warns, the apply adds .pact/tools/clef.mjs and no oth
   const before = filesOf(folder);
   const dry = installed(repo, on);
   assert.match(dry.stdout, /^ {2}clef: on\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact tool clef; it installs to \.pact\/tools\/clef\.mjs and, when you run its setup, downloads a llama\.cpp server build \(about 25–39 MB\) and a Clef model \(about 6\.7 GB\) from GitHub and Hugging Face, then runs them on this machine, listening on 127\.0\.0\.1 only\.\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact tool clef; it installs to \.pact\/tools\/clef\.mjs and, when you run its setup, downloads a llama\.cpp server build \(about 25–39 MB\) and a Clef model \(about 6\.7 GB, or about 19\.5 GB for the full variant\) from GitHub and Hugging Face, then runs them on this machine, listening on 127\.0\.0\.1 only\.\r?$/m, dry.out);
   const added = Object.keys(filesOf(on)).filter(f => !f.startsWith('.claude/pact-clef/') && !(f in filesOf(off)));
   assert.deepEqual(added, ['.pact/tools/clef.mjs']);
   assert.deepEqual(readFileSync(join(on, '.pact', 'tools', 'clef.mjs')), readFileSync(join(repo, 'claude', 'tools', 'clef.mjs')));
