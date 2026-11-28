@@ -826,6 +826,7 @@ test('remove: without --yes it deletes nothing; with --yes it stops a live super
 
 // ------------------------------------------------------------ the orphan sweep (Linux's /proc)
 
+// #PACT-92 C-U5 (spec 0005 U6): a keeper is told by its own parent, read from its stat, and never by its command line.
 test('sweepOrphans: ends a process whose exe lies under runtime/ and whose parent is not the live supervisor, and nothing else', t => {
   if (WIN) return t.skip('/proc is Linux only');
   const f = fixture(t);
@@ -843,13 +844,19 @@ test('sweepOrphans: ends a process whose exe lies under runtime/ and whose paren
     mk(104, '/usr/bin/node', 1);
     mk(105, `${under}x/llama-server`, 1);
     mk(106, null, 1);
+    // 107's parent is a child of the live supervisor and has no command line to read. 108's parent reads like a keeper and is not its child.
+    mk(107, `${under}/b1/llama-server`, 700);
+    mk(700, null, 555);
+    mk(108, `${under}/b1/llama-server`, 800);
+    mk(800, null, 1);
+    writeFileSync(join(proc, '800', 'cmdline'), 'node\0clef.mjs\0keep\0');
   } catch {
     return t.skip('this machine cannot make a link');
   }
   const killed = [];
   const ended = clef.sweepOrphans({ dir: f.dir, procRoot: proc, kill: pid => killed.push(pid), liveSupervisorPid: 555 });
-  assert.deepEqual([...ended].sort(), [101, 102]);
-  assert.deepEqual(killed.sort(), [101, 102]);
+  assert.deepEqual([...ended].sort(), [101, 102, 108]);
+  assert.deepEqual(killed.sort(), [101, 102, 108]);
 });
 
 // Spec 0011 S9, claim 14: the recorded variant picks the served model, and it changes only after a stop.
@@ -876,6 +883,12 @@ test('main: setup refuses clef-running while a supervisor is live, on Linux with
   f.stoppers.push(() => stopFixture(f));
   const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome };
   const out = [];
+  // #PACT-92 C-U6: with nothing running, setup's plan on Linux without setpriv gets past every check of main's own. A host with no glibc is refused for that, by the plan.
+  const code = await clef.main(['setup'], { ...base, platform: 'linux', arch: 'x64', exists: () => false, free: Number.MAX_SAFE_INTEGER, out: l => out.push(l) });
+  assert.equal(out.at(-1), clef.runtimeGlibc() === null ? 'RESULT: refused clef-platform' : 'RESULT: pass', out.join('\n'));
+  assert.equal(code, clef.runtimeGlibc() === null ? 2 : 0);
+  assert.ok(!out.join('\n').includes('clef-setpriv'));
+  out.length = 0;
   await startServe(t, f);
   await ready(f);
   // #PACT-92 C-U6: Linux without setpriv is not refused for it, so setup reaches the next check.
