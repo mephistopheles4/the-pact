@@ -13,6 +13,7 @@ None yet.
 
 ## All specs
 
+- [0012-app-wherever-installed](0012-app-wherever-installed.md) — a delta on 0010: the agent app mints for any repo an installation covers, found through GitHub's API, falls back to the owner's own credentials where none does, keeps the owner's global git writes, and the guard routes every github.com write through it
 - [0011-coverage-hint](0011-coverage-hint.md) — an opt-in `coverage` tool: for each security finding, a decision model (local Clef by default, or Jev by the user's per-project choice) answers small questions per threat-model entry, and the round comment shows "likely covered", "unsure" or "no entry found" as a hint no rule acts on; with a delta on 0002 for full Clef
 - [0010-agent-identity-guard](0010-agent-identity-guard.md) — cross-harness agent identity guard across Claude Code, Codex and Antigravity under agent-identity, with Antigravity overwrite + ask, plain-text repo-owner scoping, rendered startup guidance and --provider doc fixes
 - [0009-beta-tags](0009-beta-tags.md) — a delta on 0007 S10: each green push to `main` tags a beta, `v1.<n>.0-beta.<k>`, and the legacy `-rc` tags are still read

@@ -3,10 +3,11 @@
 // is in a temporary folder, the environment is built from scratch, and no check prints what `fill` returned.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { OWNER_MARKER, ownerLines } from '../../claude/tools/gh-app.mjs';
 import { identityGitconfigText } from '../install-core.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -86,6 +87,15 @@ test('the agent gitconfig under real git: the bot is the author, and a repositor
   assert.equal(w.git(['config', 'user.email']).stdout.trim(), `${APP.bot_id}+${APP.bot_login}@users.noreply.github.com`);
   assert.equal(w.git(['config', '--local', 'user.name', 'Repo Own']).status, 0);
   assert.equal(w.git(['config', 'user.name']).stdout.trim(), 'Repo Own');
+});
+
+// #PACT-125 C5: under real git, a `git config --global` write in a session lands below the marker, where refresh keeps it.
+test('the agent gitconfig under real git: a global write lands below the marker', t => {
+  const w = world(t);
+  assert.equal(w.git(['config', '--global', 'alias.mine', 'status']).status, 0);
+  const text = readFileSync(w.env.GIT_CONFIG_GLOBAL, 'utf8');
+  assert.match(text.split(`\n${OWNER_MARKER}\n`)[1] ?? '', /\[alias\]\s+mine = status/);
+  assert.equal(ownerLines(text), text.split(`\n${OWNER_MARKER}\n`)[1]);
 });
 
 // #603 C4: a refused mint fails the fill with no prompt, and the canary never comes out: no fall back to the owner's helper.
