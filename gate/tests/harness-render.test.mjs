@@ -2,7 +2,7 @@
 // render in gate/harness-render.mjs. neutral-home.test.mjs runs it in a real
 // install.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderHarnesses } from '../harness-render.mjs';
@@ -326,4 +326,46 @@ test('Codex’s agent files, rendered from its known description, keep their byt
   const off = '\n\n[features]\napps = false\nplugins = false\nmemories = false\nrequest_permissions_tool = false\n';
   assert.equal(file(r, 'rendered/codex/agents/data-lens.toml'), `name = "data-lens"\ndescription = "Reads for leaks. Not for \\"style\\"."\nmodel = "gpt-6.2-sol"\nmodel_reasoning_effort = "high"\ndeveloper_instructions = '''\n${SHELL_READS}\n\n# data-lens\n\nRead.\n'''${off}`);
   assert.equal(file(r, 'rendered/codex/agents/scout.toml'), `name = "scout"\ndescription = "Searches."\nmodel = "gpt-6.2-sol"\nmodel_reasoning_effort = "medium"\ndeveloper_instructions = '''\n${SHELL_READS}\n\n# scout\n'''${off}`);
+});
+
+// #PACT-122 #PACT-119 C9
+test('C9: identity rules render per provider for codex and antigravity within caps, strip for settings-env and custom own harnesses, and leave default render unchanged', t => {
+  const renderWithIdentity = on => {
+    const hm = tempDir(t, 'pact-id-render-home-');
+    const out = tempDir(t, 'pact-id-render-out-');
+    if (on !== null) {
+      const pactDir = join(hm, '.pact');
+      mkdirSync(pactDir, { recursive: true });
+      writeFileSync(join(pactDir, 'config.json'), JSON.stringify({ schema: 1, settings: { 'agent-identity': on } }));
+    }
+    const res = runCore('render', [join(REPO, 'claude', 'CLAUDE.md'), out, hm, join(REPO, 'builder', 'default-config')]);
+    assertPasses(moduleResult(res.code, res.stdout, res.stderr));
+    return readFileSync(join(out, 'CLAUDE.md'), 'utf8');
+  };
+  const offRules = renderWithIdentity(false);
+  const onRules = renderWithIdentity(true);
+  const own = h('mine', { capabilities: [] });
+  const list = [known('claude'), known('codex'), known('antigravity'), own];
+  const offOut = render(list, { rules: offRules, agents: new Map(), commands: new Map() });
+  const onOut = render(list, { rules: onRules, agents: new Map(), commands: new Map() });
+  const stripNotice = s => s.replace(/\*\*Configuration in effect\.\*\*[^\n]*\nValues set:[^\n]*\n/, '');
+
+  // Off produces zero identity text across all harnesses.
+  for (const id of ['claude', 'codex', 'antigravity', 'mine']) {
+    const text = rulesOf(offOut, id);
+    assert.doesNotMatch(text, /__PACT_PROVIDER__|Use your pinned GitHub App/);
+  }
+  // On strips the rule for settings-env (claude) and unknown providers (mine), leaving claude unchanged aside from the notice.
+  assert.equal(stripNotice(rulesOf(onOut, 'claude')), stripNotice(rulesOf(offOut, 'claude')));
+  assert.doesNotMatch(rulesOf(onOut, 'claude'), /__PACT_PROVIDER__|Use your pinned GitHub App/);
+  assert.doesNotMatch(rulesOf(onOut, 'mine'), /__PACT_PROVIDER__|Use your pinned GitHub App/);
+
+  // Codex and Antigravity get their provider-specific rules within byte caps.
+  for (const [id, cap] of [['codex', 32768], ['antigravity', 24000]]) {
+    const text = rulesOf(onOut, id);
+    assert.doesNotMatch(text, /__PACT_PROVIDER__/);
+    assert.ok(text.includes(`gh-app-${id}.gitconfig"`), `${id} gitconfig`);
+    assert.ok(text.includes(`gh-app.mjs" gh --provider ${id}\``), `${id} gh-app provider`);
+    assert.ok(Buffer.byteLength(text, 'utf8') <= cap, `${id} within ${cap} bytes`);
+  }
 });

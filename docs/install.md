@@ -36,7 +36,7 @@ Claude Code session on your machine.
 - [Updating later](#updating-later)
 - [Install from a release](#install-from-a-release)
 - [The auto-compact window and its hooks](#the-auto-compact-window-and-its-hooks)
-- [The guard in Codex and Antigravity](#the-guard-in-codex-and-antigravity)
+- [The guard across harnesses](#the-guard-across-harnesses)
 - [What Antigravity doesn't do](#what-antigravity-doesnt-do)
 - [Roll back to an older version](#roll-back-to-an-older-version)
 - [Known limits](#known-limits)
@@ -76,7 +76,8 @@ A **harness** is a program the rules install into. The pact knows three, in
 [`harnesses/known.json`](../harnesses/known.json): `claude` (Claude Code),
 `codex` and `antigravity`. The install writes each one's rules and agents.
 [Skills](#skill-links-and-copies) give Codex and Antigravity the commands, and
-[the guard](#the-guard-in-codex-and-antigravity) adds a hook to those two.
+[the guard](#the-guard-across-harnesses) adds a hook to those two, and to
+Claude Code's `settings.json` when `agent-identity` is on.
 
 - **Detection.** A known harness is found when its `detect` folder exists
   (`~/.claude`, `~/.codex`, `~/.gemini/config`).
@@ -414,6 +415,13 @@ parts:
     WARN: the user configuration turns on the pact tool cleaner; it installs to .pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.
   ```
 
+  `gh-app` is turned on by `agent-identity` in `settings` (never `tools`), and
+  prints its own `WARN:` line when `agent-identity` is on:
+
+  ```text
+    WARN: the agent-identity switch turns on the pact tool gh-app; it installs to .pact/tools/gh-app.mjs and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS and guarded GitHub writes run as each pinned provider app across supported harnesses, with PreToolUse guards stopping unpinned writes; an askpass program, an SSH remote, an unguarded harness and a global git write outside guarded shells still go around it (docs/agent-identity.md).
+  ```
+
   To turn Clef on, list `"clef"` in `tools`; after the apply, run `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes` ([clef.md](clef.md)).
 
   The cleaner on adds eighteen deny rules on raw worktree and branch
@@ -530,8 +538,10 @@ It installs these files in your home folder:
 - `.pact/tools/cleaner.mjs`, only while your `tools` list turns the cleaner
   on, with its deny rules and two ask rules in `settings.json`. Taking it out of the list
   deletes it and the rules it added at the next install;
-- `.pact/tools/gh-app.mjs` and two `env` keys in `settings.json`, only while the
-  `agent-identity` setting is on ([agent-identity](agent-identity.md));
+- `.pact/tools/gh-app.mjs`, two `env` keys and a `PreToolUse` hook entry in
+  `settings.json`, and `~/.pact/guard/` identity rules and launchers across
+  active harnesses, only while the `agent-identity` setting is on
+  ([agent-identity](agent-identity.md));
 - `.pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the
@@ -751,26 +761,39 @@ installer's own floor) and `node` on the PATH.
   and they outlive turning the window off and Claude Code's own transcript
   clean-up.
 
-## The guard in Codex and Antigravity
+## The guard across harnesses
 
-Claude Code keeps its permission rules. Codex and Antigravity, and a harness of
-your own whose hooks file takes either one's format, get the same rules from a
-hook the install adds.
+Claude Code keeps its cleaner permission rules and adds a `PreToolUse`
+(`Bash|PowerShell`) hook in `~/.claude/settings.json` for `claude.mjs` when
+`agent-identity` is on (independently of `auto-compact-window`). Codex and
+Antigravity, and a harness of your own whose hooks file takes either one's
+format, get the active rules from a `pact-guard` hook the install adds.
 
-- **When.** Only while a rule is on and the install takes such a harness. The
-  command rules follow the cleaner
-  ([cleaner.md](cleaner.md) lists the commands).
-- **What it writes.** `~/.pact/guard/`: the guard, a wrapper per format, and
-  `rules.json`, the rules that are on. And one `pact-guard` hook, run before a
-  shell command (in Antigravity also before input typed into a running program), in each harness's hooks file (`~/.codex/hooks.json`,
-  `~/.gemini/config/hooks.json`). Your own hooks stay, the record lists only the
-  pact's entry, and the apply backs up each hooks file it changes.
-- **On Windows** the install also writes a launcher beside each wrapper,
-  `~/.pact/guard/<harness>.cmd`, and the hook calls it through `cmd.exe` and
-  passes its exit code on, so one command works under PowerShell, where Codex
-  runs hooks, and under `cmd`. A home path holding `%`, `!`, `^`, `&`, `$`, a
-  backtick or a curly double quote refuses (`hook-command-path`), and so does
-  one with no space that holds `(`, `)`, `;`, `,` or `=`.
+- **When.** Only while `cleaner` or `agent-identity` is on and the install takes
+  such a harness (or `claude` with `agent-identity` on). Command rules follow
+  the cleaner ([cleaner.md](cleaner.md) lists the commands), and identity rules
+  follow [agent identity](agent-identity.md) when `agent-identity` is on.
+- **What it writes.** `~/.pact/guard/`: the shared guard (`guard.mjs`),
+  `rules.json` (adding `"identity": { "enabled": true, "posterOn": <boolean> }`
+  when `agent-identity` is on), and the wrappers (`claude.mjs`, `codex.mjs`,
+  `antigravity.mjs`). In Codex and Antigravity (and matching `harnesses.own`
+  entries), the install adds one `pact-guard` hook in each harness's hooks file
+  (`~/.codex/hooks.json`, `~/.gemini/config/hooks.json`, run before shell
+  commands and in Antigravity also before input typed into a running program). In
+  Claude Code when `agent-identity` is on, it merges a `PreToolUse`
+  (`Bash|PowerShell`) group into `~/.claude/settings.json` calling
+  `~/.pact/guard/claude.cmd` on Windows or `/usr/bin/env -u NODE_OPTIONS node
+  ~/.pact/guard/claude.mjs` on POSIX. Your own hooks stay, the record lists only
+  the pact's entries, and the apply backs up each hooks file and `settings.json`
+  it changes.
+- **On Windows** the install also writes a `.cmd` launcher beside each active
+  guarded wrapper (`~/.pact/guard/claude.cmd` when `agent-identity` is on for
+  Claude Code, and `codex.cmd`/`antigravity.cmd` for active Codex/Antigravity
+  formats), and the hook calls it through `cmd.exe` and passes its exit code
+  on, so one command works under PowerShell, where Codex runs hooks, and under
+  `cmd`. A home path holding `%`, `!`, `^`, `&`, `$`, a backtick or a curly
+  double quote refuses (`hook-command-path`), and so does one with no space that
+  holds `(`, `)`, `;`, `,` or `=`.
 - **A Windows home from Linux or macOS,** such as a WSL install into it,
   refuses (`guard-windows-home`) while a guard would be written: a home that
   holds `AppData` is a Windows one, and Windows couldn't run that hook.
@@ -780,11 +803,21 @@ hook the install adds.
   nothing. The dry run and the apply say so when the entry
   is new or changed. An update to the guard or its rules needs no new
   trust, and trust never checks them.
-- **What it answers.** It refuses a command a rule denies. A rule that asks
-  prompts you in Antigravity and is refused in Codex. Any other command gets no
-  answer, so the harness's own permissions decide. A guard that fails refuses
-  every call its hook matches with `The pact's guard failed (<code>); run the
-  pact's dry run.`
+- **What it answers.** It refuses a command a rule denies. Cleaner `ask` rules
+  prompt (`force_ask`) in Antigravity and deny in Codex. Under `agent-identity`,
+  when the provider is pinned in `~/.pact/github.json` (unpinned Codex and
+  Antigravity pass through; a symlinked, oversized, or malformed `github.json`
+  fails closed `pin`), `identity-gh` denies plain `gh` writes on owner repos
+  and account-scoped `gh` writes across all three harnesses, and `identity-git`
+  in Codex and Antigravity checks `~/.pact/gh-app-<provider>.gitconfig` and
+  either rewrites `CommandLine` with `GIT_CONFIG_GLOBAL` +
+  `GIT_TERMINAL_PROMPT=0` paired with `force_ask` on unambiguous single simple
+  `git` `run_command` calls in Antigravity, or denies (on compound/wrapped/
+  overridden commands, `manage_task` / `send_command_input`, in Codex, and on
+  `claude` `git` override/unset attempts). Any other command gets no answer, so
+  the harness's own permissions decide. A guard that fails refuses every call
+  its hook matches with `The pact's guard failed (<code>); run the pact's dry
+  run.` (in Claude Code, as a `PreToolUse` `deny` JSON).
 - **A speed bump, not a gate.** Another spelling gets past it, a command inside
   `bash -c "..."` included, and so does one typed into a shell that is already
   running, which Codex runs no hook for; Antigravity's hook reads a typed line,
@@ -794,11 +827,15 @@ hook the install adds.
   the launcher denies both, so there only a missing `cmd.exe` or launcher stops
   the hook from starting.
 - **Refusals.** A hooks file that is not strict JSON, holds its hooks in another
-  shape, or sits behind a link refuses the dry run. A pact entry changed since
-  the install is drift.
-- **Off.** Turning every rule off, or taking the harness out of the install
-  list, removes the entry, and the files once no harness takes them. Do that and
-  apply before you roll back to a commit without the guard.
+  shape, or sits behind a link refuses the dry run, and `settings.json` refuses
+  `hooks-shape` if `hooks` is not a map or `hooks.PreToolUse` is not a list. A
+  pact entry (or Claude `PreToolUse` `matcher`) changed since the install is
+  drift.
+- **Off.** Turning both `cleaner` and `agent-identity` off, or taking the
+  harness out of the install list, removes the hook entries (merging
+  `settings.json` before deleting `.pact/guard/` files), and removes
+  `.pact/guard/` once no harness takes it. Do that and apply at the newer commit
+  before you roll back to a commit without the guard or without `claude.mjs`.
 
 ## What Antigravity doesn't do
 
@@ -903,8 +940,13 @@ of the configuration:
   ask rules, so they would stay in `settings.json`, where they look like your
   own. A pact from before the `claude rm` rules also drops those two from its
   record and leaves them there.
-- **`agent-identity`** (set it to `false`): an older installer ignores
-  `identityEnv`, so its two `env` keys stay in `settings.json`. [Steps](agent-identity.md#rolling-back).
+- **`agent-identity`** (set it to `false` and apply at the newer commit first):
+  an older installer ignores `identityEnv`, knows neither `claude.mjs`
+  (`claude.cmd`) nor `PreToolUse` hook entries nor the `identity` key in
+  `rules.json` nor `settings-env` in `harnesses/known.json`, so turning it off
+  at the newer commit removes the `env` keys, Claude Code's `PreToolUse` hook
+  entry, guard scripts/launchers, and non-Claude `AGENTS.md` rule cleanly before
+  checkout. [Steps](agent-identity.md#rolling-back).
 - **The auto-compact window** (set `auto-compact-window` to `0`): an older
   installer keeps your live hook entries but deletes the hook script it
   doesn't know, so every session would call a missing file. Stop if

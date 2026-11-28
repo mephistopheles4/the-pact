@@ -8,9 +8,18 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **In a repo under [Linear](issue-tracker.md#linear),** the work lives
   there, and its rules replace the assignee step.
 - **A session assigns the issue it takes.** When it starts work on an issue,
-  it runs `gh issue edit <n> --add-assignee '@me'`. If it stops before the work
-  is done, it removes itself with `--remove-assignee '@me'`.
+  it assigns the owner (`--add-assignee`); if it stops before the work is done,
+  it removes the assignee (`--remove-assignee`). While an agent app is pinned,
+  run
+  `node ~/.pact/tools/gh-app.mjs gh --provider <provider> -R <owner>/<repo> -- issue edit <n> --add-assignee <owner>`
+  (or `--remove-assignee <owner>`; in PowerShell,
+  `node "$HOME/.pact/tools/gh-app.mjs"`), naming the owner's login explicitly
+  (`@me` resolves to the app); with no app pinned, run
+  `gh issue edit <n> --add-assignee '@me'` (or `--remove-assignee '@me'`).
 - **Each PR a session opens gets the owner as assignee,** under Linear too:
+  while an agent app is pinned, run
+  `node ~/.pact/tools/gh-app.mjs gh --provider <provider> -R <owner>/<repo> -- pr edit <n> --add-assignee <owner>`
+  naming the owner's login explicitly; with no app pinned, run
   `gh pr edit <n> --add-assignee '@me'`.
 - **Plans:** a plan, its review rounds and its probe records live on the
   issue, as the body and comments. When a spec is cut into tickets, the spec

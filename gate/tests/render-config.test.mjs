@@ -557,7 +557,8 @@ test('the renderer declares exactly four settings', () => {
   assert.deepEqual([...table[1].matchAll(/^  \['([a-z-]+)', /gm)].map(m => m[1]), ['usage-pause', 'usage-pause-session', 'auto-compact-window', 'agent-identity']);
 });
 
-// #603 C8: the agent-identity switch has no part in the rules file, so only the notice line changes.
+// #603 C8, #PACT-122 #PACT-119 C9: agent-identity fills the conditional gh-app guidance in the raw render when on, and empties it when off (harness rendering strips settings-env later).
+const GH_APP_LINE = '- **Use your pinned GitHub App:** set `GIT_CONFIG_GLOBAL` to `"$env:USERPROFILE/.pact/gh-app-__PACT_PROVIDER__.gitconfig"` (POSIX: `"$HOME/.pact/gh-app-__PACT_PROVIDER__.gitconfig"`) and `GIT_TERMINAL_PROMPT=0` on git writes, and run GitHub writes through `"$HOME/.pact/tools/poster.mjs"` (when on) or `node "$HOME/.pact/tools/gh-app.mjs" gh --provider __PACT_PROVIDER__`.';
 test('"agent-identity": true prints VALUE agent-identity on and TOOLS gh-app; false prints off and TOOLS none', t => {
   for (const [v, word, tools] of [[true, 'on', 'gh-app'], [false, 'off', 'none']]) {
     const bytes = Buffer.from(`{"schema": 1, "settings": {"agent-identity": ${v}}}\n`);
@@ -565,7 +566,9 @@ test('"agent-identity": true prints VALUE agent-identity on and TOOLS gh-app; fa
     assert.equal(r.code, 0, r.out);
     assert.match(r.stdout, new RegExp(`^VALUE agent-identity ${word}$`, 'm'), r.out);
     assert.match(r.stdout, new RegExp(`^TOOLS ${tools}$`, 'm'), r.out);
-    assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', `agent-identity ${word}`));
+    let want = expected(read(SOURCE), digestOf(bytes), 75).replace('usage-pause 75', `agent-identity ${word}`);
+    if (v) want = want.replace('<!-- pact:unless settings-env -->\n<!-- pact:end -->', `<!-- pact:unless settings-env -->\n${GH_APP_LINE}\n<!-- pact:end -->`);
+    assert.equal(r.bytes.toString('utf8'), want);
   }
 });
 // #603 C8: with the switch on, gh-app joins the listed tools in PACT_TOOLS order and fills no part of the rules file.

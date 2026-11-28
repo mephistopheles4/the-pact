@@ -8,7 +8,7 @@
     "commands": { "dir": "~/.claude/commands" },
     "hooks": { "file": "~/.claude/settings.json", "format": "claude" },
     "models": { "planning": "opus", "executor": "sonnet", "light": "haiku" },
-    "capabilities": ["subagents", "tool-limits", "cleaner", "archive", "native-rules"]
+    "capabilities": ["subagents", "tool-limits", "cleaner", "archive", "native-rules", "settings-env"]
   },
   {
     "id": "codex",
