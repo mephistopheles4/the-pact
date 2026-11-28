@@ -13,7 +13,8 @@ None yet.
 
 ## All specs
 
-- [0010-coverage-hint](0010-coverage-hint.md) — an opt-in `coverage` tool: for each security finding, a decision model (local Clef by default, or Jev by the user's per-project choice) answers small questions per threat-model entry, and the round comment shows "likely covered", "unsure" or "no entry found" as a hint no rule acts on; with a delta on 0002 for full Clef
+- [0011-coverage-hint](0011-coverage-hint.md) — an opt-in `coverage` tool: for each security finding, a decision model (local Clef by default, or Jev by the user's per-project choice) answers small questions per threat-model entry, and the round comment shows "likely covered", "unsure" or "no entry found" as a hint no rule acts on; with a delta on 0002 for full Clef
+- [0010-agent-identity-guard](0010-agent-identity-guard.md) — cross-harness agent identity guard across Claude Code, Codex and Antigravity under agent-identity, with Antigravity overwrite + ask, plain-text repo-owner scoping, rendered startup guidance and --provider doc fixes
 - [0009-beta-tags](0009-beta-tags.md) — a delta on 0007 S10: each green push to `main` tags a beta, `v1.<n>.0-beta.<k>`, and the legacy `-rc` tags are still read
 - [0008-per-harness-models-and-efforts](0008-per-harness-models-and-efforts.md) — a delta on 0007: per-harness agent models and tier efforts in a harness description, rendered by the install and set in Scriptorium, with one page of the setup across harnesses
 - [0007-harness-agnostic-pact](0007-harness-agnostic-pact.md) — the pact in a neutral home, `~/.pact`, rendered by one installer into Claude Code, Codex, Antigravity and a person's own harness, with one shared guard and tagged releases through `npx`

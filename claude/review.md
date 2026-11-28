@@ -381,12 +381,15 @@ when no other row answers the sentence.
   never post it or edit it to get past the scan. If it ends unavailable,
   refuses for a reason no text fix clears, or refuses twice for a reason you
   can't explain, that is a heads-up: leave it unposted, tell me, and go on with the work. With an agent app pinned (one
-  in `~/.pact/github.json`; run `gh-app.mjs status` and count the app
+  in `~/.pact/github.json`; run `node ~/.pact/tools/gh-app.mjs status --provider <provider>`
+  — in PowerShell, `node "$HOME/.pact/tools/gh-app.mjs" status --provider <provider>` —
+  for `claude`, `codex` or `antigravity`, and count the app
   only if it prints "pin check: pass"), write to GitHub only through the poster or
-  `gh-app.mjs gh`, and set each post's `as` to the app's bot login
-  (`<slug>[bot]`). Assigning is the
-  one exception: apps can't be assigned, so it stays on my login through plain
-  `gh`. The status comment is the one your posting identity wrote; an older one
+  `gh-app.mjs gh --provider <provider>`, and set each post's `as` to the app's bot login
+  (`<slug>[bot]`). Assigning runs through
+  `node ~/.pact/tools/gh-app.mjs gh --provider <provider> -R <owner>/<repo> -- issue/pr edit <n> --add-assignee <owner>`
+  (naming my login explicitly, because `@me` resolves to the app and apps can't be assigned).
+  The status comment is the one your posting identity wrote; an older one
   by my account stays as it is. A tier or triage label you apply through the app
   doesn't count: my confirmation sets the tier, and you log it as a checkpoint.
 

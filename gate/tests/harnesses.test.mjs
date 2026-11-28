@@ -37,7 +37,8 @@ test('known.json describes claude, codex and antigravity as spec 0007 S5 tables 
   assert.equal(claude.skills, null);
   assert.deepEqual(claude.hooks, { file: '.claude/settings.json', format: 'claude' });
   assert.deepEqual(claude.models, { planning: 'opus', executor: 'sonnet', light: 'haiku' });
-  assert.deepEqual(claude.capabilities, ['subagents', 'tool-limits', 'cleaner', 'archive', 'native-rules']);
+  // #PACT-122 #PACT-119 C9
+  assert.deepEqual(claude.capabilities, ['subagents', 'tool-limits', 'cleaner', 'archive', 'native-rules', 'settings-env']);
   assert.equal(claude.defaultInstall, true);
   const codex = byId(list, 'codex');
   assert.deepEqual([codex.detect, codex.rules, codex.agents, codex.skills, codex.hooks], ['.codex', { path: '.codex/AGENTS.md', cap: null, sharedCap: 32768 }, { dir: '.codex/agents', format: 'codex-toml' }, { dir: '.agents/skills' }, { file: '.codex/hooks.json', format: 'codex' }]);

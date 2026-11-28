@@ -777,7 +777,7 @@ test('sweepOrphans: ends a process whose exe lies under runtime/ and whose paren
   assert.deepEqual(killed.sort(), [101, 102]);
 });
 
-// Spec 0010 S9, claim 14: the recorded variant picks the served model, and it changes only after a stop.
+// Spec 0011 S9, claim 14: the recorded variant picks the served model, and it changes only after a stop.
 test('a full setup is served from the full model file, and main refuses a variant change while that supervisor runs', async t => {
   const f = fixture(t);
   f.stoppers.push(() => stopFixture(f));

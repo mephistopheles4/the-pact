@@ -10,10 +10,14 @@
 
 import { writeSync } from 'node:fs';
 
-const FAILURES = ['input', 'size', 'call', 'table', 'guard', 'internal'];
+const FAILURES = ['input', 'size', 'call', 'table', 'guard', 'pin', 'internal'];
 const INPUT_MAX = 8 * 1024 * 1024;
+const TABLE = new URL('./rules.json', import.meta.url);
 
+let answered = false;
 function deny(reason) {
+  if (answered) return;
+  answered = true;
   process.exitCode = 2;
   writeSync(2, `${reason}\n`);
 }
@@ -45,8 +49,16 @@ try {
       code = 'guard';
       const guard = await import('./guard.mjs');
       code = 'internal';
-      const met = guard.answer(input.tool_input.command);
-      if (met?.decision === 'deny') deny(`The pact's guard blocks this command (rule ${met.id}).`);
+      const met = guard.answerCall({
+        command: input.tool_input.command,
+        provider: 'codex',
+        cwd: typeof input.cwd === 'string' ? input.cwd : undefined,
+        canOverwrite: false,
+        env: process.env,
+        tableFile: TABLE,
+        shell: process.platform === 'win32' ? 'powershell' : 'bash',
+      });
+      if (met?.decision === 'deny') deny(typeof met.reason === 'string' ? met.reason : `The pact's guard blocks this command (rule ${met.id}).`);
       else if (met?.decision === 'ask') deny('This needs the owner: ask them to run it in a terminal.');
       else if (met !== null) failed('internal');
     }

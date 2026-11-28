@@ -471,7 +471,7 @@ export const MODEL = Object.freeze({
   sha256: 'eef2968c238a80d49d340430f22410ea3db9934ad1c6fdb233a503cbf9a9b54e',
 });
 
-/** The `full` model (spec 0010 S9): the 27B. */
+/** The `full` model (spec 0011 S9): the 27B. */
 const FULL_MODEL = Object.freeze({
   repo: 'ggml-org/Clef-GGUF',
   commit: '415c1d23f2355fb087cfd4cdb2c04ff6422f4970',

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The coverage hint (spec 0010). An opt-in pact tool: for one security finding
+// The coverage hint (spec 0011). An opt-in pact tool: for one security finding
 // it asks a decision model two questions about each entry of the project's
 // threat model and one about each out-of-scope paragraph, and prints a hint.
 // The hint is advisory: it rules nothing, and no rule reads it back.

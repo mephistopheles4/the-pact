@@ -1519,12 +1519,13 @@ test('the identity node check takes any absolute path to a program called node, 
 const APP = { app_id: 2000001, slug: 'example-owner-claude', bot_login: 'example-owner-claude[bot]', bot_id: 3000001 };
 const pinJson = (apps = { claude: APP }, owner = { login: 'example-owner', id: 1000001 }) => json({ owner, apps });
 
-// #603 C5: the claude app is read from github.json by its exact shape, and nothing else counts.
+// #603 C5, #PACT-122 #PACT-119 C8: strict pin parsing matches the runtime validator, rejecting BOM, bad logins, zero/negative ids, uppercase slugs, and unknown or malformed provider apps.
 test('the identity pin read takes the exact pin shape with a claude app, and nothing looser', () => {
   assert.deepEqual(core.identityPinApp(pinJson()), APP);
-  assert.deepEqual(core.identityPinApp(`\ufeff${pinJson()}`), APP);
+  assert.deepEqual(core.identityPinApp(pinJson({ claude: APP, codex: { app_id: 2000002, slug: 'o-codex', bot_login: 'o-codex[bot]', bot_id: 3000002 } })), APP);
   for (const [name, text] of [
     ['not json', '{'],
+    ['bom before json', `\ufeff${pinJson()}`],
     ['no claude app', pinJson({ codex: APP })],
     ['an extra field on the app', pinJson({ claude: { ...APP, extra: 1 } })],
     ['a missing field', pinJson({ claude: { app_id: 1, slug: 'a', bot_login: 'a[bot]' } })],
@@ -1532,9 +1533,14 @@ test('the identity pin read takes the exact pin shape with a claude app, and not
     ['a string id', pinJson({ claude: { ...APP, bot_id: '3000001' } })],
     ['an extra top key', json({ owner: { login: 'o', id: 1 }, apps: { claude: APP }, more: 1 })],
     ['an owner with no id', pinJson({ claude: APP }, { login: 'o' })],
+    ['an owner login starting with hyphen', pinJson({ claude: APP }, { login: '-owner', id: 1 })],
+    ['zero owner id', pinJson({ claude: APP }, { login: 'owner', id: 0 })],
     ['an array for apps', json({ owner: { login: 'o', id: 1 }, apps: [APP] })],
     ['null apps', json({ owner: { login: 'o', id: 1 }, apps: null })],
     ['a slug with a space', pinJson({ claude: { ...APP, slug: 'a b', bot_login: 'a b[bot]' } })],
+    ['an uppercase slug', pinJson({ claude: { ...APP, slug: 'Example-App', bot_login: 'Example-App[bot]' } })],
+    ['unknown provider key in apps', pinJson({ claude: APP, gemini: { app_id: 2, slug: 'g-app', bot_login: 'g-app[bot]', bot_id: 3 } })],
+    ['malformed sibling provider app', pinJson({ claude: APP, codex: { ...APP, bot_id: -5 } })],
     ['a zero app id', pinJson({ claude: { ...APP, app_id: 0 } })],
     ['a negative bot id', pinJson({ claude: { ...APP, bot_id: -1 } })],
     ['a string app id', pinJson({ claude: { ...APP, app_id: '2000001' } })],
@@ -1570,4 +1576,138 @@ test('the identity gitconfig verdict names the part that differs and prints no l
   assert.equal(said(core.identityGitconfigVerdict(want.replace('nodejs', 'CANARY-LINE').replace('[user]', '  path = CANARY-PATH\n[user]'), want)), 'gitconfig as expected: no: node path differs, include list differs, run gh-app.mjs refresh');
   assert.equal(core.identityGitconfigVerdict(want.replaceAll('\n', '\r\n'), want).ok, false, 'a rewritten line ending is a difference');
   for (const v of [node, inc, other]) assert.ok(!/CANARY|nodejs|useHttpPath|\.gitconfig/.test(said(v)));
+});
+
+// ------------------------------------------------------------ #PACT-122 #PACT-119 C8, C12
+
+// Bad cases for the command path check inside claudeGuardHookEntry.
+{
+  const base = () => ({ script: '/home/user/.pact/guard/claude.mjs', platform: 'linux', systemRoot: null });
+  const win = (patch) => () => ({ script: 'C:\\Users\\user\\.pact\\guard\\claude.mjs', platform: 'win32', systemRoot: 'C:\\WINDOWS', ...patch });
+  const run = t => decided(() => core.claudeGuardHookEntry(t));
+  const rows = [
+    { id: 'posix-relative', plant: set('guard/claude.mjs', 'script'), fails: ['hook-command-path'], why: 'relative POSIX paths fail' },
+    { id: 'posix-dot-rel', plant: set('.pact/guard/claude.mjs', 'script'), fails: ['hook-command-path'], why: 'leading-dot relative paths fail' },
+    { id: 'posix-ctrl', plant: rep('user', 'user\n', 'script'), fails: ['hook-command-path'], why: 'control chars fail' },
+    { id: 'win-relative', plant: win({ script: '.pact\\guard\\claude.mjs' }), fails: ['hook-command-path'], why: 'relative Windows paths fail' },
+    { id: 'win-ampersand', plant: win({ script: 'C:\\Users\\user&me\\.pact\\guard\\claude.mjs' }), fails: ['hook-command-path'], why: 'shell metacharacters fail' },
+    { id: 'win-unquoted-semi', plant: win({ script: 'C:\\Users\\a;b\\.pact\\guard\\claude.mjs' }), fails: ['hook-command-path'], why: 'unquoted cmd separator without spaces fails' },
+    { id: 'win-bad-sysroot', plant: win({ systemRoot: 'C:\\Win dows' }), fails: ['hook-command-path'], why: 'unexpected system root character fails' },
+  ];
+  test('hook command path entry: base passes', async t => {
+    assertPasses(await run(base()), t);
+    assertPasses(await run(win({})()), t);
+  });
+  for (const r of rows) test(`hook command path entry: ${r.id}`, async t => assertFails(await run(r.plant(base())), r.fails, r.says));
+  test('hook command path entry: base passes after the rows', async t => {
+    assertPasses(await run(base()), t);
+    assertPasses(await run(win({})()), t);
+  });
+}
+
+// Bad cases for the structural hooks object check when adding the hardened entry.
+{
+  const want = core.claudeGuardHookEntry({ script: '/home/user/.pact/guard/claude.mjs', platform: 'linux', systemRoot: null });
+  const base = () => ({ in: json({ hooks: { PreToolUse: [], PostCompact: [] } }) });
+  const run = t => decided(() => core.claudeGuardPlan(core.readSettings(t.in), want, { key: '/home/user/.pact/guard/claude.mjs', platform: 'linux' }));
+  const rows = [
+    { id: 'hooks-array', plant: set(json({ hooks: [] })), fails: ['hooks-shape'], says: /hooks is not a JSON object/, why: 'array hooks root refuses' },
+    { id: 'hooks-string', plant: set(json({ hooks: 'bad' })), fails: ['hooks-shape'], says: /hooks is not a JSON object/, why: 'scalar hooks root refuses' },
+    { id: 'pretooluse-object', plant: set(json({ hooks: { PreToolUse: {} } })), fails: ['hooks-shape'], says: /hooks\.PreToolUse is not a list/, why: 'object PreToolUse refuses' },
+    { id: 'pretooluse-string', plant: set(json({ hooks: { PreToolUse: 'echo hi' } })), fails: ['hooks-shape'], says: /hooks\.PreToolUse is not a list/, why: 'scalar PreToolUse refuses' },
+  ];
+  test('hardened hook shape check: base passes', async t => assertPasses(await run(base()), t));
+  for (const r of rows) test(`hardened hook shape check: ${r.id}`, async t => assertFails(await run(r.plant(base())), r.fails, r.says));
+  test('hardened hook shape check: base passes after the rows', async t => assertPasses(await run(base()), t));
+}
+
+// #PACT-122 #PACT-119 C8: exact entry shapes on Windows and POSIX, matcher matching, in-place updates preserving owner hooks, and clean removal.
+test('hardened hook entry shapes, planner transitions, and live settings checks behave cleanly across platforms', () => {
+  const posix = core.claudeGuardHookEntry({ script: '/home/u/.pact/guard/claude.mjs', platform: 'linux', systemRoot: null });
+  assert.deepEqual(JSON.parse(core.settingsText(posix)), { type: 'command', command: '/usr/bin/env', args: ['-u', 'NODE_OPTIONS', 'node', '/home/u/.pact/guard/claude.mjs'], timeout: 15 });
+  const win = core.claudeGuardHookEntry({ script: 'C:\\Users\\u\\.pact\\guard\\claude.mjs', platform: 'win32', systemRoot: 'c:\\WINDOWS\\' });
+  assert.deepEqual(JSON.parse(core.settingsText(win)), { type: 'command', command: 'C:\\Windows\\System32\\cmd.exe', args: ['/d', '/c', 'call', 'C:\\Users\\u\\.pact\\guard\\claude.cmd'], timeout: 15 });
+
+  const posixKey = '/home/u/.pact/guard/claude.mjs';
+  const winKey = 'c:/users/u/.pact/guard/claude.cmd';
+  assert.equal(core.isClaudeGuardHook(posix, posixKey, 'linux'), true);
+  assert.equal(core.isClaudeGuardHook(win, winKey, 'win32'), true);
+  assert.equal(core.isClaudeGuardHook(win, 'C:/Users/U/.pact/guard/claude.cmd', 'win32', 'C:\\Windows\\System32\\cmd.exe'), false, 'raw unnormalized key does not match folded winKey');
+  assert.equal(core.isClaudeGuardHook(core.readSettings(json({ type: 'command', command: '/usr/bin/env', args: ['-u', 'NODE_OPTIONS', 'node', posixKey], timeout: 10 })), posixKey, 'linux'), false);
+  assert.equal(core.isClaudeGuardHook(core.readSettings(json({ type: 'command', command: '/bin/env', args: ['-u', 'NODE_OPTIONS', 'node', posixKey], timeout: 15 })), posixKey, 'linux'), false);
+
+  const userHook = { type: 'command', command: 'echo mine', timeout: 5 };
+  const liveWithUser = core.readSettings(json({ hooks: { PreToolUse: [{ matcher: 'Edit', hooks: [userHook] }] } }));
+  const added = core.claudeGuardPlan(liveWithUser, posix, { key: posixKey, platform: 'linux' });
+  assert.equal(added.op, 'added');
+  const afterAdd = new Map([['hooks', added.hooks]]);
+  assert.equal(added.hooks.get('PreToolUse').length, 2);
+  assert.equal(core.claudeGuardPlan(afterAdd, posix, { key: posixKey, platform: 'linux' }).op, null, 'idempotent on second pass');
+
+  // A shared group holding both a user hook and our hook under a wrong matcher splits our hook out to the canonical matcher and keeps the user hook.
+  const sharedWrongMatcher = core.readSettings(json({
+    hooks: {
+      PreToolUse: [{ matcher: 'Bash', hooks: [userHook, JSON.parse(core.settingsText(posix))] }],
+    },
+  }));
+  const fixed = core.claudeGuardPlan(sharedWrongMatcher, posix, { key: posixKey, platform: 'linux' });
+  assert.equal(fixed.op, 'updated');
+  const preList = fixed.hooks.get('PreToolUse');
+  assert.equal(preList.length, 2);
+  assert.equal(preList[0].get('matcher'), 'Bash');
+  assert.deepEqual(preList[0].get('hooks').map(h => JSON.parse(core.settingsText(h))), [userHook]);
+  assert.equal(preList[1].get('matcher'), 'Bash|PowerShell');
+
+  // Removal drops only our hook and removes the root hooks map if nothing remains.
+  const removed = core.claudeGuardPlan(new Map([['hooks', fixed.hooks]]), null, { key: posixKey, platform: 'linux', command: '/usr/bin/env' });
+  assert.equal(removed.op, 'removed');
+  assert.equal(removed.hooks.get('PreToolUse').length, 1);
+  const removedOnly = core.claudeGuardPlan(afterAdd, null, { key: posixKey, platform: 'linux', command: '/usr/bin/env' });
+  assert.equal(removedOnly.op, 'removed');
+  assert.equal(removedOnly.hooks.get('PreToolUse').length, 1);
+  const pureOurs = core.readSettings(json({ hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell', hooks: [JSON.parse(core.settingsText(posix))] }] } }));
+  assert.deepEqual(core.claudeGuardPlan(pureOurs, null, { key: posixKey, platform: 'linux', command: '/usr/bin/env' }), { hooks: undefined, op: 'removed' });
+
+  // Merge, settings entries, drift, and live warnings handle the hardened hook independently of auto-compact-window.
+  const overlay = core.readSettings(json({ permissions: { defaultMode: 'auto' } }));
+  const claudeGroup = core.readSettings(json({ matcher: 'Bash|PowerShell', hooks: [JSON.parse(core.settingsText(posix))] }));
+  const guardOpts = { entry: posix, key: posixKey, platform: 'linux', command: '/usr/bin/env' };
+  const mergedNoCompact = core.mergeSettings(new Map(), overlay, undefined, { window: 0, script: '/h/c.mjs', recorded: null, platform: 'linux' }, undefined, undefined, [], guardOpts);
+  assert.equal(mergedNoCompact.has('autoCompactWindow'), false);
+  assert.equal(mergedNoCompact.get('hooks').get('PreToolUse').length, 1);
+
+  const entries = core.settingsEntries({ harness: 'claude', path: '.claude/settings.json', merged: mergedNoCompact, deny: [], ask: [], identityEnv: {}, window: 0, hooks: new Map(), hash: sha256, overlayKeys: [], claudeGuard: claudeGroup });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].key, 'hooks.PreToolUse');
+  assert.deepEqual(core.entryDrift(entries, mergedNoCompact), []);
+  // Adding a sibling user hook inside the same group passes drift, whereas changing the matcher drifts.
+  const withSibling = core.readSettings(json({ hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell', hooks: [userHook, JSON.parse(core.settingsText(posix))] }] } }));
+  assert.deepEqual(core.entryDrift(entries, withSibling), []);
+  const wrongMatcherLive = core.readSettings(json({ hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [JSON.parse(core.settingsText(posix))] }] } }));
+  assert.equal(core.entryDrift(entries, wrongMatcherLive).length, 1);
+
+  assert.equal(core.liveSettingsLines(mergedNoCompact, overlay, { window: 0, script: '/h/c.mjs', recorded: null, platform: 'linux' }, { key: posixKey, platform: 'linux', command: '/usr/bin/env' }).some(l => l.includes('did not install')), false);
+  assert.equal(core.liveSettingsLines(mergedNoCompact, overlay, { window: 0, script: '/h/c.mjs', recorded: null, platform: 'linux' }, null).some(l => l.includes('did not install: PreToolUse')), true);
+  assert.equal(core.liveSettingsLines(withSibling, overlay, { window: 0, script: '/h/c.mjs', recorded: null, platform: 'linux' }, { key: posixKey, platform: 'linux', command: '/usr/bin/env' }).some(l => l.includes('did not install: PreToolUse')), true);
+});
+
+// #PACT-122 #PACT-119 C8: harness selection flags, copy set guard inclusion, rules table shape, and guard summary formatting.
+test('harness guard flags, guard copy set, guard table payload, and summary line cover identity combinations', () => {
+  const codex = { id: 'codex', rules: { path: '.codex/AGENTS.md' }, hooks: { file: '.codex/hooks.json', format: 'codex' } };
+  assert.equal(core.harnessArg([CLAUDE], { guard: false, claudeGuard: false }), 'claude:rules+agents+commands');
+  assert.equal(core.harnessArg([CLAUDE], { guard: false, claudeGuard: true }), 'claude:rules+agents+commands+guard');
+  assert.equal(core.harnessArg([CLAUDE, codex], { guard: true, claudeGuard: true }), 'claude:rules+agents+commands+guard,codex:rules+guard');
+  assert.equal(core.harnessArg([CLAUDE, codex], { guard: true, claudeGuard: false }), 'claude:rules+agents+commands,codex:rules+guard');
+
+  const guardStaged = ['claude/CLAUDE.md', 'claude/guard/guard.mjs', 'claude/guard/claude.mjs', 'claude/guard/codex.mjs', 'claude/guard/antigravity.mjs'];
+  assert.equal(core.expectedCopySet(guardStaged, [], [], false, [CLAUDE], false, false).some(([rel]) => rel.startsWith('claude/guard/')), false);
+  assert.equal(core.expectedCopySet(guardStaged, [], [], false, [CLAUDE], false, true).filter(([rel]) => rel.startsWith('claude/guard/')).length, 4);
+
+  const tableOff = JSON.parse(core.guardTableText([{ id: 'r', decision: 'deny' }], null));
+  assert.deepEqual(tableOff, { rules: [{ id: 'r', decision: 'deny' }] });
+  const tableOn = JSON.parse(core.guardTableText([], { enabled: true, posterOn: true }));
+  assert.deepEqual(tableOn, { rules: [], identity: { enabled: true, posterOn: true } });
+
+  assert.equal(core.guardRulesLine([{ id: 'worktree-remove', decision: 'deny' }], { identity: true, wired: false }), 'Guard rules (.pact/guard/rules.json): worktree-remove (deny), identity-gh (deny)');
+  assert.equal(core.guardRulesLine([], { identity: true, wired: true }), 'Guard rules (.pact/guard/rules.json): identity-gh (deny), identity-git (overwrite-ask/deny)');
 });

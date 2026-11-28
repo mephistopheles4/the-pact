@@ -1,6 +1,6 @@
 # `coverage`, the coverage hint
 
-`coverage` is an opt-in pact tool. For one security finding it asks a decision model whether the project's threat model already covers it, and prints a hint. **The hint is advisory.** It rules nothing, changes no severity or disposition, and a control that failed is never covered. The design is [spec 0010](spec/0010-coverage-hint.md).
+`coverage` is an opt-in pact tool. For one security finding it asks a decision model whether the project's threat model already covers it, and prints a hint. **The hint is advisory.** It rules nothing, changes no severity or disposition, and a control that failed is never covered. The design is [spec 0011](spec/0011-coverage-hint.md).
 
 ## Turning it on
 
@@ -59,7 +59,7 @@ node ~/.pact/tools/coverage.mjs entries --repo-dir <repo folder> --base <ref>
 In PowerShell, write the script as `"$HOME/.pact/tools/coverage.mjs"`.
 
 - `ask` reads the finding file (the headline, then the evidence, at most 8,000 characters) and the project's entries at the base: `docs/threat-entries.json`, else a draft from `docs/threat-model.md`. It prints a line of numbers for the session, the hint line, and a result line.
-- `entries` prints that draft, to edit into `docs/threat-entries.json` ([the entries file](spec/0010-coverage-hint.md#s2-the-entries-file)). It sends nothing.
+- `entries` prints that draft, to edit into `docs/threat-entries.json` ([the entries file](spec/0011-coverage-hint.md#s2-the-entries-file)). It sends nothing.
 - `status` prints the model, whether it is ready, for Jev whether the key is set and the listed repos, and the log's line count.
 
 | Hint | Means |

@@ -2,13 +2,16 @@
 
 `agent-identity` in `~/.pact/config.json` is `true` or `false`, `false`
 when unset; the builder's Settings dialog shows it. A project configuration may
-not set it, and no preset or builder file turns it on. It has no part in the
-rules file; only the notice line names it. While it is on,
-git over HTTPS in every local session runs as the GitHub App you create under your own
-account (see [the helper](reference.md#pact-tools)). The app's name is yours to
-choose: the examples use "Mephisto's Homunculus" for Claude Code, "Mephisto's
-Wagner" for Codex and "Mephisto's Euphorion" for Antigravity, and nothing in the
-pact names them.
+not set it, and no preset or builder file turns it on. In Claude Code's `CLAUDE.md`, only the configuration notice names it; in
+harnesses without `settings-env` (`codex` and `antigravity`), the renderer
+adds a one-line `Use your pinned GitHub App` rule into `AGENTS.md`. While it is
+on, the pact guards git and `gh`
+writes across local sessions in Claude Code, Codex and Antigravity so
+owner-repo writes run as the GitHub App you create under your own account (see
+[the helper](reference.md#pact-tools)). The app's name is yours to choose: the
+examples use "Mephisto's Homunculus" for Claude Code, "Mephisto's Wagner" for
+Codex and "Mephisto's Euphorion" for Antigravity, and nothing in the pact names
+them.
 
 <!-- toc -->
 
@@ -25,86 +28,158 @@ pact names them.
 
 ## Setting it up
 
-The switch needs the app pinned in `~/.pact/github.json` and its
+The switch needs each provider's app pinned in `~/.pact/github.json` and its
 gitconfig, `~/.pact/gh-app-<provider>.gitconfig`, which `gh-app.mjs setup`
-writes per provider; the install wires only Claude's. The helper isn't
-installed until the switch is on, so run setup from the clone (`node claude/tools/gh-app.mjs setup`), under the Node the install will run
-under (an absolute path to a program called `node`, not a shim). Without both the
-install refuses: run setup.
+writes per provider (`claude`, `codex` or `antigravity`). The install checks
+`claude`'s pin and gitconfig before writing; Codex and Antigravity skip
+install-time pin checks and enforce at hook runtime whenever that provider is
+pinned. The helper isn't installed until the switch is on, so run setup from the
+clone (`node claude/tools/gh-app.mjs setup --provider <provider> --app-id <n> --key <downloaded .pem>`),
+under the Node the install will run under (an absolute path to a program called
+`node`, not a shim; run `node ~/.pact/tools/gh-app.mjs refresh --provider <provider>`
+after moving or upgrading Node). Without `claude`'s pin and gitconfig, an
+install into Claude Code refuses: run setup.
 
 ## What it does
 
 - **The tool.** The renderer adds `gh-app` to the `TOOLS` line (the `tools` list
   still refuses it), so the install copies `~/.pact/tools/gh-app.mjs`,
   with its own WARN in the dry run.
-- **Two `env` keys** in `settings.json`: `GIT_CONFIG_GLOBAL`, pointing at the
-  gitconfig, and `GIT_TERMINAL_PROMPT` as `0`. The install records them in
-  the `entries` of `install.json`. The gitconfig includes your own global
-  git config, sets the bot as `user.name` and `user.email` (your own `author.*`
-  settings still win; see below), and drops Git Credential Manager, so a failed
-  mint fails an HTTPS push.
+- **Two `env` keys in Claude Code's `settings.json`.** `GIT_CONFIG_GLOBAL`,
+  pointing at `gh-app-claude.gitconfig`, and `GIT_TERMINAL_PROMPT` as `0`. The
+  install records them in the `entries` of `install.json`. The gitconfig
+  includes your own global git config, sets the bot as `user.name` and
+  `user.email` (your own `author.*` settings still win; see below), and drops
+  Git Credential Manager, so a failed mint fails an HTTPS push.
+- **Cross-harness identity guard (`~/.pact/guard/`).** Installs the shared guard
+  (`guard.mjs`), `rules.json` (with `"identity": { "enabled": true, "posterOn": <boolean> }`),
+  and the per-harness wrappers even when `cleaner` is off:
+  - **Claude Code (`claude.mjs`).** Merges a `PreToolUse` (`Bash|PowerShell`)
+    hook into `~/.claude/settings.json` running `claude.mjs` through a hardened
+    launcher (`~/.pact/guard/claude.cmd` via `cmd.exe /d /c call` with
+    `NoDefaultCurrentDirectoryInExePath=1` and cleared `NODE_OPTIONS` on
+    Windows; `/usr/bin/env -u NODE_OPTIONS node` on POSIX). Claude Code keeps
+    `settings.json` `env` injection for normal `git` writes, and the hook
+    denies plain `gh` writes on owner repos, account-scoped `gh` writes, and
+    `git` override/unset attempts (`-c credential.*`/`user.*`, `unset`,
+    `--config-env`, `GIT_CONFIG_COUNT`/`GIT_CONFIG_PARAMETERS`, etc.).
+  - **Antigravity (`antigravity.mjs`).** Intercepts both plain `gh` writes and
+    plain `git` writes missing `GIT_CONFIG_GLOBAL`. On eligible single simple
+    `git` `run_command` calls, it unconditionally emits `decision: "force_ask"`
+    paired with `overwrite.CommandLine` (`GIT_CONFIG_GLOBAL` and
+    `GIT_TERMINAL_PROMPT=0`, never `"allow"`; verified in headless `agy -p`,
+    pending interactive confirmation, and switching simple `git` writes to
+    `deny` requires updating the hook code if a live probe fails). It returns
+    `deny` with the exact `GIT_CONFIG_GLOBAL` + `GIT_TERMINAL_PROMPT=0` prefix
+    on compound, wrapped, or overridden `git` commands and on `manage_task`
+    (`send_input`) / `send_command_input`.
+  - **Codex (`codex.mjs`).** Denies plain `gh` writes and plain `git` writes
+    missing `GIT_CONFIG_GLOBAL` with the exact `GIT_CONFIG_GLOBAL` +
+    `GIT_TERMINAL_PROMPT=0` prefix to use.
+- **Runtime pin, gitconfig, and repo-owner scoping.** At hook runtime, identity
+  rules lazily read `~/.pact/github.json` only when a command holds a candidate
+  `gh` or `git` segment (`env -S` or unknown `env` flag included). When
+  `github.json` is absent or the provider has no entry in `pin.apps`, the
+  provider passes through silently; a symlinked, oversized, or malformed
+  `github.json` fails closed (`pin`). Before accepting or rewriting any
+  repo-scoped `git` write, the guard checks that
+  `~/.pact/gh-app-<provider>.gitconfig` exists as a regular non-symlink file,
+  denying with `gh-app.mjs setup --provider <provider>` (or `refresh`) guidance
+  otherwise. Repo-bound `git` and `gh` writes are scoped to `pin.owner.login`
+  repos by inspecting explicit targets (`-R`/`--repo`, `GH_REPO`, `gh api`
+  endpoint, `git push` target) and reading `.git/config` directly as plain text
+  without spawning `git` (rejecting UNC/network paths and symlinks); third-party
+  and non-owner org repos pass through, while account-scoped `gh` writes and
+  unreadable or unresolvable remotes fail closed (guarded). `gh run` and
+  `gh workflow` writes and `git pull` are exempt.
+- **Session guidance.** Renders a one-line `Use your pinned GitHub App` rule
+  into `AGENTS.md` for Codex and Antigravity naming each provider's gitconfig
+  path and `gh-app.mjs` / `poster.mjs` routes.
 - **Left alone.** Your terminal and the cloud copy.
 
 ## What it doesn't stop
 
-Your own credentials stay reachable by these routes. `node
-~/.pact/tools/gh-app.mjs status` reports the askpass program, an SSH
+Your own credentials stay reachable by these routes. `node ~/.pact/tools/gh-app.mjs status --provider <provider>`
+(for `claude`, `codex` or `antigravity`) reports the askpass program, an SSH
 remote, a URL rewrite and a helper set after the pact's; it does not report the
 rest:
 
 - An askpass program (`GIT_ASKPASS`, `core.askPass`, `SSH_ASKPASS`, often set by an
   editor's terminal) is tried after a failed mint, and `GIT_TERMINAL_PROMPT=0`
   doesn't stop it.
-- An SSH remote or an `insteadOf` rule, `git -c credential.helper=...`, and plain
-  `gh`.
+- An SSH remote, a repository-local helper, a credential-bearing URL, an
+  `http.*.extraHeader` auth header, or an `insteadOf` rule.
 - Your own `author.*`, `committer.*` and signing settings, which the include loads.
 - `GIT_CONFIG_GLOBAL` makes a session's `git config --global` write to the agent
-  gitconfig, so `gh auth setup-git` swaps the helper out. The next dry run refuses
-  until you run `refresh`.
+  gitconfig, so `gh auth setup-git` swaps the helper out. The guard refuses a
+  missing or symlinked gitconfig, and the next dry run refuses a changed Claude
+  gitconfig until you run `node ~/.pact/tools/gh-app.mjs refresh --provider <provider>`.
+- Nested shell wrappers (`bash -c`, `pwsh -Command`, `cmd /c`, `Start-Process`),
+  `git pull` (excluded from guarded `git` write subcommands), `gh run` and
+  `gh workflow` writes (exempt while `gh-app.mjs` holds `actions: read` only),
+  and unpinned non-Claude providers.
 - The helper script, the gitconfig, `NODE_OPTIONS` and the Node program stay
   writable by your account, and `setup` and `refresh` write any Node, so only the next dry run
-  refuses a changed gitconfig.
+  refuses a changed Claude gitconfig.
 
 ## What the install checks
 
-With the switch on, before any write:
+With the switch on and `claude` in the install list, before any write:
 
-- `.pact/github.json` holds a `claude` app of the pin's exact shape.
-- The gitconfig equals the text setup writes, which the install computes with its
-  own copy of `gitconfigText` from `gh-app.mjs` (a test holds them equal), under
-  its own Node, which must be an absolute path to a program called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
+- `.pact/github.json` holds a `claude` app of the pin's exact shape (matching
+  `gh-app.mjs`).
+- `gh-app-claude.gitconfig` equals the text setup writes, which the install
+  computes with its own copy of `gitconfigText` from `gh-app.mjs` (a test holds
+  them equal), under its own Node, which must be an absolute path to a program
+  called `node`. The dry run prints `gitconfig as expected: yes`, or `no`
   with the part that differs (node path, include list or other lines) and "run
   gh-app.mjs refresh", and refuses on a `no`. It never prints a line of the file.
 - Your own `env` doesn't already set either key. The install never overwrites it.
 
+Codex and Antigravity skip install-time pin and gitconfig checks so one config
+works before every provider is pinned.
+
 A `settings.json` that isn't strict JSON is never changed: the dry run warns that
-the two keys are not set, and the apply refuses.
+the `env` keys and `PreToolUse` hook are not set, and the apply refuses.
 
 ## Turning it off
 
 Set it to `false`, dry run, and apply on your word. The tool goes, and so do the
-recorded `env` keys. A key you wrote yourself stays. A recorded key you changed
-shows as drift and the apply refuses: put its value back, or follow
-[Updating later](install.md#updating-later). A missing or changed gitconfig
-doesn't block this.
+recorded `env` keys, Claude Code's `PreToolUse` hook entry, the `identity`
+block in `rules.json` (and `.pact/guard/` if `cleaner` is also off), and the
+`Use your pinned GitHub App` rule in Codex and Antigravity `AGENTS.md`. A key or
+hook you wrote yourself stays. A recorded key you changed shows as drift and the
+apply refuses: put its value back, or follow [Updating later](install.md#updating-later).
+A missing or changed gitconfig doesn't block this.
 
 ## Rolling back
 
-Turn the switch off first, as above, take `agent-identity` out of
-`~/.pact/config.json`, then revert each ticket's merge and reinstall
-from a dry run after the four rollback checks in
-[Roll back to an older version](install.md#roll-back-to-an-older-version). An older
-installer refuses the `agent-identity` key and ignores `identityEnv`, so reverting
-first would leave the two `env` keys in `settings.json`, pointing at a gitconfig.
+1. Set `agent-identity` to `false` in `~/.pact/config.json`, run the dry run and
+   apply **at the newer commit first**, so Claude Code's `PreToolUse` hook
+   entry, `env` keys, `.pact/guard/claude.mjs` (`claude.cmd`), the `identity`
+   block in `rules.json` (and `.pact/guard/` if `cleaner` is also off), and the
+   `Use your pinned GitHub App` rule in Codex and Antigravity `AGENTS.md` are
+   removed cleanly. An older installer knows neither
+   `claude.mjs` (`claude.cmd`), nor the `identity` key in `rules.json`, nor
+   `settings-env` in `harnesses/known.json`, refuses `agent-identity` when
+   unsupported, and ignores `identityEnv`.
+2. Take `agent-identity` out of `~/.pact/config.json` when rolling back to a
+   commit before it existed.
+3. Run the four rollback checks in
+   [Roll back to an older version](install.md#roll-back-to-an-older-version)
+   before any checkout.
+4. Revert or check out the verified commit, run the dry run, and apply on your
+   go-ahead (re-enabling `agent-identity: true` afterward if rolling back only
+   this feature onto a commit that supports it).
 
 ## Retiring an app
 
-1. For Claude Code, turn the switch off and apply first: `forget` refuses while
-   the settings `env` points at the gitconfig.
+1. For Claude Code, turn `agent-identity` off and apply first: `forget` refuses
+   while `settings.json` `env` points at `gh-app-claude.gitconfig`.
 2. Delete the app's key in the app's settings on GitHub.
-3. From the clone, run `node claude/tools/gh-app.mjs forget --provider claude`
-   (the installed copy went with step 1). It revokes the cached tokens and deletes
-   the credentials, the pin entry and the gitconfig.
+3. From the clone, run `node claude/tools/gh-app.mjs forget --provider <provider>`
+   (for `claude`, `codex` or `antigravity`). It revokes the cached tokens and
+   deletes the credentials, the pin entry and the gitconfig.
 4. Uninstall the app, which revokes every live token.
 
 ## A leaked key
@@ -115,7 +190,8 @@ In this order:
 2. Generate a new key. GitHub needs one before the old one can go.
 3. Delete the old key on GitHub.
 4. Install the app again on all your repos.
-5. Run `gh-app.mjs setup` with the new key. It revokes the cached tokens.
+5. Run `gh-app.mjs setup --provider <provider> --app-id <n> --key <downloaded .pem>`
+   with the new key. It revokes the cached tokens.
 
 Pushes fail closed in between; no `forget` or switch-off is needed. Use this order for any suspected leak: a personal account
 keeps no record of a key's use. After an account compromise, do it for each app,

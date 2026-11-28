@@ -196,14 +196,15 @@ test('clef on: the TOOLS line names it, in PACT_TOOLS order, and the rules file 
   assert.deepEqual(renderWith(t, null).lines.filter(l => l.startsWith('TOOLS')), ['TOOLS none'], 'off by default');
 });
 
-// PACT-61 adversarial F2: the renderer fails closed for a tool with no part. Only these three may have none; a new tool is added here on purpose, with its reason.
-test('the tools that name nothing in the rules file are exactly gh-app, clef and coverage, and every other pact tool has a part that fills when it is on', t => {
-  assert.deepEqual([...TOOLS_WITHOUT_PART], ['gh-app', 'clef', 'coverage']);
+// #PACT-122 #PACT-119 C9: clef and coverage are the tools with no rules part; gh-app fills its part when agent-identity is on.
+test('the tools that name nothing in the rules file are exactly clef and coverage, and every other pact tool has a part that fills when it is on', t => {
+  assert.deepEqual([...TOOLS_WITHOUT_PART], ['clef', 'coverage']);
   const withPart = PACT_TOOLS.filter(n => !TOOLS_WITHOUT_PART.includes(n));
-  assert.deepEqual(withPart, ['poster', 'cleaner']);
+  assert.deepEqual(withPart, ['poster', 'cleaner', 'gh-app']);
   const off = readFileSync(join(renderWith(t, '{"schema": 1, "tools": []}').out, 'CLAUDE.md'), 'utf8');
   for (const name of withPart) {
-    const on = readFileSync(join(renderWith(t, `{"schema": 1, "tools": ["${name}"]}`).out, 'CLAUDE.md'), 'utf8');
+    const cfg = name === 'gh-app' ? '{"schema": 1, "settings": {"agent-identity": true}}' : `{"schema": 1, "tools": ["${name}"]}`;
+    const on = readFileSync(join(renderWith(t, cfg).out, 'CLAUDE.md'), 'utf8');
     assert.ok(on.length > off.length, `${name} adds its part to the rules file`);
   }
 });

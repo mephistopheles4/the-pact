@@ -1,4 +1,4 @@
-// The coverage tool (spec 0010, S2 to S5 and S8). Every test passes fetch as an
+// The coverage tool (spec 0011, S2 to S5 and S8). Every test passes fetch as an
 // argument, over a fixture home and a fixture Claude home, with an environment
 // built here, so no test reaches a model and none reads the caller's key.
 import assert from 'node:assert/strict';

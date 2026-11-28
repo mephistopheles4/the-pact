@@ -128,7 +128,7 @@ const miniServer = (zipBuf = ZIP()) => ({
 /** A one-row Linux table whose row names the glibc floor it needs (spec 0005 U3). */
 const linuxServer = (glibc = '2.35') => ({ ...miniServer(), archives: { 'linux-x64-cpu': { ...miniServer().archives['win32-x64-cpu'], asset: 'llama-b1-bin-ubuntu-x64.tar.gz', kind: 'tgz', glibc } } });
 const miniModel = () => ({ repo: 'ggml-org/Clef-Flash-GGUF', commit: 'a'.repeat(40), file: 'Clef-Flash-Q4_K_M.gguf', size: MODEL_BYTES.length, sha256: sha(MODEL_BYTES) });
-// Spec 0010 S9: a second pinned model, `full`, from the full model's own repo.
+// Spec 0011 S9: a second pinned model, `full`, from the full model's own repo.
 const FULL_BYTES = Buffer.from('a somewhat larger full model file');
 const miniFull = () => ({ repo: 'ggml-org/Clef-GGUF', commit: 'b'.repeat(40), file: 'Clef-Q4_K_M.gguf', size: FULL_BYTES.length, sha256: sha(FULL_BYTES) });
 const miniModels = () => ({ flash: miniModel(), full: miniFull() });
@@ -151,7 +151,7 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
   assert.equal(clef.SERVER.repo, 'ggml-org/llama.cpp');
   assert.equal(clef.MODEL.repo, 'ggml-org/Clef-Flash-GGUF');
   assert.ok(Object.isFrozen(clef.SERVER) && Object.isFrozen(clef.MODEL) && Object.isFrozen(clef.SERVER.archives) && Object.isFrozen(clef.SOURCES));
-  // Spec 0010 S9: the full model's pin, its repo fixed too, and both ends of the research copy's sha256.
+  // Spec 0011 S9: the full model's pin, its repo fixed too, and both ends of the research copy's sha256.
   assert.equal(clef.MODELS.flash, clef.MODEL);
   assert.deepEqual(Object.keys(clef.MODELS), ['flash', 'full']);
   assert.equal(clef.MODELS.full.repo, 'ggml-org/Clef-GGUF');
@@ -643,7 +643,7 @@ test('setup with the real table prints the real plan and still fetches nothing',
     { id: 'windows-without-vcruntime140', plant: () => ({ exists: p => !/VCRUNTIME140\.dll$/i.test(p) }), fails: ['clef-platform'], why: 'VCRUNTIME140.dll is missing from System32' },
     { id: 'windows-x64-without-vcruntime140-1', plant: () => ({ exists: p => !/VCRUNTIME140_1\.dll$/i.test(p) }), fails: ['clef-platform'], why: 'the x64 build also needs VCRUNTIME140_1.dll' },
     { id: 'bad-pin', plant: () => ({ models: { ...miniModels(), flash: { ...miniModel(), commit: 'main' } } }), fails: ['clef-pin'], why: 'a table that fails its shape check fetches nothing' },
-    // Spec 0010 S9.
+    // Spec 0011 S9.
     { id: 'flash-pin-names-the-full-repo', plant: () => ({ models: { ...miniModels(), flash: { ...miniModel(), repo: miniFull().repo } } }), fails: ['clef-pin'], why: 'the flash pin stays in the flash repo' },
     { id: 'full-pin-names-the-flash-repo', plant: () => ({ variant: 'full', models: { ...miniModels(), full: { ...miniFull(), repo: miniModel().repo } } }), fails: ['clef-pin'], why: 'the full pin stays in the full repo' },
     { id: 'too-little-space-for-full', plant: () => ({ variant: 'full', free: 1000, models: { ...miniModels(), full: { ...miniFull(), size: 5000 } } }), fails: ['clef-space'], why: 'the free-space check counts the variant\'s model' },
@@ -805,7 +805,7 @@ test('verify re-hashes every kept file and the model: ok when whole, a word for 
   assert.deepEqual([unknown.lines, unknown.failed], [['unknown: variant'], ['unknown:variant']], 'a record that is there, naming no variant the table has');
 });
 
-// ------------------------------------------------------------ the full variant (spec 0010 S9, claim 14)
+// ------------------------------------------------------------ the full variant (spec 0011 S9, claim 14)
 
 const statusOf = async a => (await clef.statusRun({ dir: a.dir, server: a.server, models: a.models })).lines;
 

@@ -12,14 +12,16 @@
 
 import { writeSync } from 'node:fs';
 
-const FAILURES = ['input', 'size', 'call', 'table', 'guard', 'internal'];
+const FAILURES = ['input', 'size', 'call', 'table', 'guard', 'pin', 'internal'];
 const INPUT_MAX = 8 * 1024 * 1024;
+const TABLE = new URL('./rules.json', import.meta.url);
 
 let answered = false;
-function say(decision, reason) {
+function say(decision, reason, overwrite) {
   if (answered) return;
   answered = true;
-  writeSync(1, `${JSON.stringify({ decision, reason })}\n`);
+  const out = overwrite === undefined ? { decision, reason } : { decision, reason, overwrite };
+  writeSync(1, `${JSON.stringify(out)}\n`);
 }
 const failed = code => say('deny', `The pact's guard failed (${FAILURES.includes(code) ? code : 'internal'}); run the pact's dry run.`);
 
@@ -50,6 +52,8 @@ function judged(name, args) {
 
 const SAYS = { deny: 'blocks this command', ask: 'asks the owner before this command' };
 
+const isPlainObject = x => x !== null && typeof x === 'object' && !Array.isArray(x);
+
 let code = 'input';
 try {
   // Read to the end even when it is too long, so the harness's write never fails.
@@ -64,17 +68,44 @@ try {
     const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     code = 'call';
     const call = input?.toolCall;
-    const what = call?.args ? judged(call.name, call.args) : null;
+    const what = isPlainObject(call?.args) ? judged(call.name, call.args) : null;
     const kind = what && Object.keys(what)[0];
     if (what === null || (kind && typeof what[kind] !== 'string')) failed('call');
     else if (kind) {
+      const cwd = call.name !== 'run_command'
+        ? undefined
+        : Object.hasOwn(call.args, 'Cwd')
+          ? (typeof call.args.Cwd === 'string' ? call.args.Cwd : undefined)
+          : (typeof input.cwd === 'string'
+            ? input.cwd
+            : (Array.isArray(input.workspacePaths) && input.workspacePaths.length === 1 && typeof input.workspacePaths[0] === 'string'
+              ? input.workspacePaths[0]
+              : undefined));
       code = 'guard';
       const guard = await import('./guard.mjs');
       code = 'internal';
-      const met = guard.answer(what.command);
-      // An answer that is neither a deny nor an ask is not one the guard gives.
-      if (met?.decision === 'deny' || met?.decision === 'ask') say(met.decision === 'deny' ? 'deny' : 'force_ask', `The pact's guard ${SAYS[met.decision]} (rule ${met.id}).`);
-      else if (met) failed('internal');
+      const met = guard.answerCall({
+        command: what.command,
+        provider: 'antigravity',
+        cwd,
+        canOverwrite: call.name === 'run_command',
+        env: process.env,
+        tableFile: TABLE,
+        shell: call.name === 'run_command' ? (process.platform === 'win32' ? 'powershell' : 'bash') : 'unknown',
+      });
+      if (met?.decision === 'overwrite_ask') {
+        if (call.name === 'run_command' && typeof met.reason === 'string' && typeof met.overwriteCommand === 'string') {
+          say('force_ask', met.reason, { CommandLine: met.overwriteCommand });
+        } else {
+          failed('internal');
+        }
+      } else if (met?.decision === 'deny') {
+        say('deny', typeof met.reason === 'string' ? met.reason : `The pact's guard ${SAYS.deny} (rule ${met.id}).`);
+      } else if (met?.decision === 'ask') {
+        say('force_ask', `The pact's guard ${SAYS.ask} (rule ${met.id}).`);
+      } else if (met !== null) {
+        failed('internal');
+      }
     }
   }
 } catch (e) {
