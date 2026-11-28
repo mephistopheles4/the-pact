@@ -1025,13 +1025,24 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     "switch ('a/b') { 'a/b'{gh pr create -t x -b y} }",
     'cmd a={gh pr create -t x -b y}',
     '[string]$env:X = git push',
+    '[string] $x = gh pr merge 1',
+    '[string[]]$x = git push',
+    '[string[]] $x = gh pr merge 1',
+    '[object][string]$x=git push',
     '$env:X += git push',
+    "$x = .'gh' pr merge 1",
+    "$x=.'git' push",
+    "[string]$x=.'gh' pr merge 1",
+    "2>$null .'gh' pr merge 1",
     "cat <<\\EOF\ngh pr list\nEOF\ngh pr create -t x -b y",
     "cat <<E'O'F\ngh pr list\nEOF\ngh pr create -t x -b y",
     'cat <<"E"OF\ngh pr list\nEOF\ngh pr create -t x -b y',
     'echo --% <<EOF\ngit push\nEOF',
     'echo --% "\ngit push\n"',
   ]) assert.equal(call(cmd)?.decision, 'deny', cmd);
+
+  // Argument data starting with .'...' is not split into a dot-source wrapper.
+  assert.equal(call("echo .'gh'"), null);
 
   // --% after git fails closed as unknown leading flag.
   assert.equal(call('git --% push')?.id, 'identity-git');
@@ -1175,6 +1186,12 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     `>/dev/null $env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`,
     `$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git p`,
     `$env:GIT_CONFIG_COUNT='1'; git p`,
+    `$k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1'); git p`,
+    `$x='GIT_CONFIG_'+'COUNT'; Set-Item "env:$x" 1; git p`,
+    `GIT_TERMINAL_PROMPT=1 git p`,
+    `\${env:GIT_CONFIG_COUNT}='1'; git p`,
+    `[string] $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
+    `[string[]]$env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
     `$env:GIT_DIR='/tmp/x'; git commit -m x`,
     `g\\it commit -m x`,
     `e\\nv git commit -m x`,
@@ -1201,6 +1218,12 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
   for (const cmd of [
     `$env:GIT_CONFIG_GLOBAL='/tmp/evil'; git p`,
     `$env:GIT_CONFIG_COUNT='1'; git p`,
+    `$k='GIT_CONFIG_'+'COUNT'; [Environment]::SetEnvironmentVariable($k,'1'); git p`,
+    `$x='GIT_CONFIG_'+'COUNT'; Set-Item "env:$x" 1; git p`,
+    `GIT_TERMINAL_PROMPT=1 git p`,
+    `\${env:GIT_CONFIG_COUNT}='1'; git p`,
+    `[string] $env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
+    `[string[]]$env:GIT_CONFIG_GLOBAL = '/tmp/evil'; git commit -m x`,
   ]) {
     assert.equal(guard.answerCall({ command: cmd, provider: 'codex', cwd: strangerGitRepo.work, canOverwrite: false, env: { HOME: fx.home, GIT_CONFIG_GLOBAL: cfgPath }, tableFile: fx.tableFile, platform: process.platform })?.id, 'identity-git', cmd);
   }
@@ -1210,7 +1233,7 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
   assert.equal(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { shell: 'bash' })?.id, 'identity-git');
   assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`, { shell: 'powershell' })?.id, 'identity-git');
   assert.equal(call(`cat <<EOF\n\nEOF\n$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`)?.id, 'identity-git');
-  assert.match(call('git commit -m x', { platform: 'win32', shell: 'bash' })?.reason ?? '', /GIT_CONFIG_GLOBAL="\$HOME\//);
+  assert.match(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { platform: 'win32', shell: 'bash' })?.reason ?? '', /GIT_CONFIG_GLOBAL="\$HOME\//);
   assert.match(call('ls && git commit -m x', { platform: 'win32', shell: 'bash' })?.reason ?? '', /GIT_CONFIG_GLOBAL="\$HOME\//);
   assert.match(call('git commit -m x', { platform: 'win32', shell: 'powershell' })?.reason ?? '', /\$env:GIT_CONFIG_GLOBAL = "\$env:USERPROFILE\//);
 
@@ -1370,6 +1393,17 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     const elapsed = Date.now() - started;
     assert.equal(res?.id, 'identity-git');
     assert.ok(elapsed < 3000, `upper token0 brace pad took ${elapsed} ms (>= 3000 ms)`);
+  }
+  for (const [label, command, expectedId] of [
+    ['ps var eq DoS', '[' + 'a='.repeat(450000) + '; gh pr merge 1', 'identity-gh'],
+    ['ps cast eq DoS', '[' + 'A'.repeat(400000) + '] ' + 'a='.repeat(200000) + '; git push', 'identity-git'],
+    ['dot-quote command pos', 'command '.repeat(50000) + " .''".repeat(50000) + '; gh pr merge 1', 'identity-gh'],
+  ]) {
+    const started = Date.now();
+    const res = guard.answerCall({ command, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
+    const elapsed = Date.now() - started;
+    assert.equal(res?.id, expectedId, label);
+    assert.ok(elapsed < 3000, `${label} took ${elapsed} ms (>= 3000 ms)`);
   }
 });
 

@@ -110,7 +110,6 @@ const PS_BLOCK_PREFIXES = Object.freeze(new Set([
   'foreach', 'foreach-object', 'where', 'where-object', 'trap', 'filter',
   'data', 'icm', 'invoke-command', 'measure-command',
 ]));
-const PS_VAR_PREFIX_RE = /^(?:\[[^\]\s]+\])?\$/;
 
 // ------------------------------------------------------------ tokenizer
 
@@ -250,6 +249,11 @@ function tokenizeMode(command, bash, depth = 0) {
   let curHasSlash = false;
   let curHead = '';
   let curDashState = 0; // 0 = no, 1 = leading '-', 2 = valid ^-[A-Za-z][A-Za-z0-9_-]*$
+  let curPsVarState = 1; // 0 = dead, 1 = start, 2 = '[', 3 = in '[...]', 4 = closed ']', 5 = matched (?:[...])*$
+  let curBracketDepth = 0;
+  let segPsPrefixState = 0; // 0 = 0+ [type] tokens, 1 = [type]* + 1 [type]*$var token, 2 = other
+  let psCmdPosCursor = 0;
+  let psCmdPosLocked = false;
   let tokStart = -1;
   let started = false;
   let wasQuoted = false;
@@ -307,6 +311,44 @@ function tokenizeMode(command, bash, depth = 0) {
     }
   };
 
+  const stepPsVarChar = ch => {
+    if (curPsVarState === 0 || curPsVarState === 5) return;
+    if (curPsVarState === 1 || curPsVarState === 4) {
+      if (ch === '$') {
+        curPsVarState = 5;
+      } else if (ch === '[') {
+        curPsVarState = 2;
+        curBracketDepth = 1;
+      } else {
+        curPsVarState = 0;
+      }
+      return;
+    }
+    if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n') {
+      curPsVarState = 0;
+      curBracketDepth = 0;
+      return;
+    }
+    if (curPsVarState === 2) {
+      if (ch === ']') {
+        curPsVarState = 0;
+        curBracketDepth = 0;
+      } else if (ch === '[') {
+        curBracketDepth = 2;
+        curPsVarState = 3;
+      } else {
+        curPsVarState = 3;
+      }
+      return;
+    }
+    if (ch === '[') {
+      curBracketDepth++;
+    } else if (ch === ']') {
+      curBracketDepth--;
+      if (curBracketDepth === 0) curPsVarState = 4;
+    }
+  };
+
   const startToken = idx => {
     if (!started) {
       started = true;
@@ -316,6 +358,7 @@ function tokenizeMode(command, bash, depth = 0) {
 
   const addChar = ch => {
     if (curHead.length < 8) curHead += ch;
+    if (curPsVarState !== 0 && curPsVarState !== 5) stepPsVarChar(ch);
     if (current.length === 0) {
       curDashState = ch === '-' ? 1 : 0;
     } else if (curDashState === 1) {
@@ -333,6 +376,9 @@ function tokenizeMode(command, bash, depth = 0) {
     const len = s.length;
     if (len === 0) return;
     if (curHead.length < 8) curHead += s.slice(0, 8 - curHead.length);
+    for (let si = 0; si < len && curPsVarState !== 0 && curPsVarState !== 5; si++) {
+      stepPsVarChar(s[si]);
+    }
     if (current.length === 0) {
       curDashState = /^-[A-Za-z][A-Za-z0-9_-]*$/.test(s) ? 2 : (s === '-' ? 1 : 0);
     } else if (curDashState === 1) {
@@ -348,6 +394,15 @@ function tokenizeMode(command, bash, depth = 0) {
 
   const endToken = (rawEnd = -1) => {
     if (started) {
+      if (!bash) {
+        if (segPsPrefixState === 0 && !wasQuoted && curPsVarState === 4) {
+          segPsPrefixState = 0;
+        } else if (segPsPrefixState === 0 && !wasQuoted && curPsVarState === 5) {
+          segPsPrefixState = 1;
+        } else {
+          segPsPrefixState = 2;
+        }
+      }
       const len = current.length;
       const unescapedWord = !wasQuoted && !wasEscaped;
       const prevUnescapedWord = !prevTokenQuoted && !prevTokenEscaped;
@@ -385,6 +440,8 @@ function tokenizeMode(command, bash, depth = 0) {
     curHasSlash = false;
     curHead = '';
     curDashState = 0;
+    curPsVarState = 1;
+    curBracketDepth = 0;
     tokStart = -1;
     started = false;
     wasQuoted = false;
@@ -401,6 +458,9 @@ function tokenizeMode(command, bash, depth = 0) {
     }
     prevTokenQuoted = false;
     prevTokenEscaped = false;
+    segPsPrefixState = 0;
+    psCmdPosCursor = 0;
+    psCmdPosLocked = false;
     if (sep) {
       hasAnySeparator = true;
       if (sep !== ';' && sep !== '\n') {
@@ -445,6 +505,78 @@ function tokenizeMode(command, bash, depth = 0) {
     return PS_BLOCK_PREFIXES.has(l) || l === 'function' || l === 'filter';
   };
 
+  const isPsAtCmdPos = () => {
+    if (tokens.length === 0) return true;
+    if (psCmdPosLocked) return false;
+    let idx = psCmdPosCursor;
+    while (idx < tokens.length) {
+      const t = tokens[idx];
+      if (/^(?:\d*(?:>>?|<<<|<>|<)|&>>?)$/.test(t)) {
+        if (tokens[idx + 1] === undefined) return false;
+        idx += 2;
+        psCmdPosCursor = idx;
+        continue;
+      }
+      if (t === '<<' || /^(?:\d*(?:>>?|<<<|<>|<)|&>>?).+$/.test(t)) {
+        idx++;
+        psCmdPosCursor = idx;
+        continue;
+      }
+      if (WRAPPERS.has(t) || (t.includes('=') && ASSIGNMENT.test(t))) {
+        idx++;
+        psCmdPosCursor = idx;
+        continue;
+      }
+      const psNext = scanPsAssign(tokens, idx);
+      if (psNext > idx) {
+        idx = psNext;
+        psCmdPosCursor = idx;
+        continue;
+      }
+      const bt = base(t);
+      let next = -1;
+      let multiOk = true;
+      if (bt === 'time') {
+        const tw = scanTimeWrapper(tokens, idx);
+        multiOk = !tw.unknownFlag;
+        next = tw.next;
+      } else if (t.length >= 3 && ENV_BIN.test(bt)) {
+        const ev = scanEnvWrapper(tokens, idx);
+        multiOk = !ev.hasSplit && !ev.unknownFlag;
+        next = ev.next;
+      } else if (TIMEOUT_BIN.test(bt)) {
+        const tw = scanTimeoutWrapper(tokens, idx);
+        multiOk = !tw.unknownFlag;
+        next = tw.next;
+      } else if (t.length >= 4 && MISE.test(bt)) {
+        const mw = scanMiseWrapper(tokens, idx);
+        multiOk = mw.matched && !mw.unknownFlag;
+        next = mw.next;
+      } else if (t.length >= 3 && NPX.test(bt)) {
+        let k = idx + 1;
+        while (tokens[k]?.startsWith('-')) k += tokens[k] === '-p' || tokens[k] === '--package' ? 2 : 1;
+        next = k;
+      }
+      if (next !== -1) {
+        if (!multiOk) {
+          psCmdPosCursor = idx;
+          psCmdPosLocked = true;
+          return false;
+        }
+        idx = next;
+        if (idx < tokens.length) psCmdPosCursor = idx;
+        continue;
+      }
+      let k = idx;
+      while (k < tokens.length && isPsTypeCast(tokens[k])) k++;
+      if (k === tokens.length || (isPsVarPrefix(tokens[k]) && k === tokens.length - 1)) return false;
+      psCmdPosCursor = idx;
+      psCmdPosLocked = true;
+      return false;
+    }
+    return true;
+  };
+
   while (i < n) {
     const c = command[i];
 
@@ -469,7 +601,7 @@ function tokenizeMode(command, bash, depth = 0) {
         if (c === '$' && command[i + 1] === '(') {
           hasBashSubst = true;
           parenStack.push(command[i + 2] === '(' ? { kind: 'arith-pending' } : { kind: 'group', caseStack: [] });
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, curPsVarState, curBracketDepth, segPsPrefixState, psCmdPosCursor, psCmdPosLocked, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -482,6 +614,11 @@ function tokenizeMode(command, bash, depth = 0) {
           curHasSlash = false;
           curHead = '';
           curDashState = 0;
+          curPsVarState = 1;
+          curBracketDepth = 0;
+          segPsPrefixState = 0;
+          psCmdPosCursor = 0;
+          psCmdPosLocked = false;
           tokStart = -1;
           started = false;
           wasQuoted = false;
@@ -540,7 +677,7 @@ function tokenizeMode(command, bash, depth = 0) {
           hasSubexprInDoubleQuotes = true;
           hasPsSubexpr = true;
           parenStack.push({ kind: 'group', caseStack: [] });
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, curPsVarState, curBracketDepth, segPsPrefixState, psCmdPosCursor, psCmdPosLocked, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -553,6 +690,11 @@ function tokenizeMode(command, bash, depth = 0) {
           curHasSlash = false;
           curHead = '';
           curDashState = 0;
+          curPsVarState = 1;
+          curBracketDepth = 0;
+          segPsPrefixState = 0;
+          psCmdPosCursor = 0;
+          psCmdPosLocked = false;
           tokStart = -1;
           started = false;
           wasQuoted = false;
@@ -807,6 +949,12 @@ function tokenizeMode(command, bash, depth = 0) {
           curHasSlash = frame.curHasSlash;
           curHead = frame.curHead.length < 8 ? `${frame.curHead}$` : frame.curHead;
           curDashState = 0;
+          curPsVarState = frame.curPsVarState;
+          curBracketDepth = frame.curBracketDepth;
+          stepPsVarChar('$');
+          segPsPrefixState = frame.segPsPrefixState;
+          psCmdPosCursor = frame.psCmdPosCursor;
+          psCmdPosLocked = frame.psCmdPosLocked;
           tokStart = frame.tokStart;
           started = frame.started;
           wasQuoted = frame.wasQuoted;
@@ -823,8 +971,8 @@ function tokenizeMode(command, bash, depth = 0) {
       endSegment(sep, i);
       i += sep.length;
     } else if (!bash && !wasQuoted && c === '=' && i + 1 < n && command[i + 1] !== "'" && command[i + 1] !== '"' && command[i + 1] !== '$' && !/[ \t\r\n]/.test(command[i + 1]) && (
-      (tokens.length === 0 && started && tokStart >= 0 && (command[tokStart] === '$' || command[tokStart] === '[') && PS_VAR_PREFIX_RE.test(current)) ||
-      (tokens.length === 1 && PS_VAR_PREFIX_RE.test(tokens[0]) && (!started || current === '+'))
+      (segPsPrefixState === 0 && started && curPsVarState === 5) ||
+      (segPsPrefixState === 1 && (!started || current === '+'))
     )) {
       if (started) {
         addChar('=');
@@ -912,7 +1060,7 @@ function tokenizeMode(command, bash, depth = 0) {
         addChar(c);
         i++;
       }
-    } else if (!bash && c === '.' && tokens.length === 0 && !started && (command[i + 1] === "'" || command[i + 1] === '"')) {
+    } else if (!bash && c === '.' && !started && (command[i + 1] === "'" || command[i + 1] === '"') && isPsAtCmdPos()) {
       tokens.push('.');
       rawTokens.push('.');
       tokenOffsets.push(i);
@@ -938,6 +1086,12 @@ function tokenizeMode(command, bash, depth = 0) {
     curPrev = frame.curLast;
     curLast = '$';
     curHasSlash = frame.curHasSlash;
+    curPsVarState = frame.curPsVarState;
+    curBracketDepth = frame.curBracketDepth;
+    stepPsVarChar('$');
+    segPsPrefixState = frame.segPsPrefixState;
+    psCmdPosCursor = frame.psCmdPosCursor;
+    psCmdPosLocked = frame.psCmdPosLocked;
     tokStart = frame.tokStart;
     started = frame.started;
     wasQuoted = frame.wasQuoted;
@@ -1216,6 +1370,52 @@ function scanTimeoutWrapper(tokens, start) {
   return { matched: true, unknownFlag: false, next: k };
 }
 
+function scanBalancedBrackets(s, start) {
+  let k = start;
+  const n = s.length;
+  while (k < n && s[k] === '[') {
+    let depth = 1;
+    let inner = 0;
+    k++;
+    while (k < n && depth > 0) {
+      const ch = s[k++];
+      if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n') return -1;
+      if (ch === '[') {
+        inner++;
+        depth++;
+      } else if (ch === ']') {
+        depth--;
+        if (depth === 0 && inner === 0) return -1;
+      } else {
+        inner++;
+      }
+    }
+    if (depth !== 0) return -1;
+  }
+  return k;
+}
+
+const isPsTypeCast = t => t.length >= 3 && t[0] === '[' && t[t.length - 1] === ']' && scanBalancedBrackets(t, 0) === t.length;
+
+function isPsVarPrefix(t) {
+  if (t.length === 0) return false;
+  if (t[0] === '$') return true;
+  if (t[0] !== '[' || !t.includes(']')) return false;
+  const after = scanBalancedBrackets(t, 0);
+  return after !== -1 && t[after] === '$';
+}
+
+function scanPsAssign(tokens, i) {
+  let k = i;
+  while (k < tokens.length && isPsTypeCast(tokens[k])) k++;
+  const v = tokens[k];
+  if (v === undefined || !isPsVarPrefix(v)) return i;
+  const op = tokens[k + 1];
+  if (op === '=' || op === '+=') return k + 2;
+  if (v.endsWith('=')) return k + 1;
+  return i;
+}
+
 const FAST_LOWER_PROG_RE = /^[a-z0-9-]+$/;
 const FAST_WRAPPER_WORDS = new Set(['env', 'time', 'timeout', 'mise', 'npx', 'call']);
 /** The index of the program a segment runs, past its wrappers; the segment's length when there is none. */
@@ -1239,20 +1439,25 @@ export function programAt(tokens) {
       const ev = scanEnvWrapper(tokens, i);
       if (ev.hasSplit || ev.unknownFlag) return i;
       i = ev.next;
-    } else if (PS_VAR_PREFIX_RE.test(t) && (tokens[i + 1] === '=' || tokens[i + 1] === '+=')) i += 2;
-    else if (PS_VAR_PREFIX_RE.test(t) && t.endsWith('=')) i++;
-    else if (TIMEOUT_BIN.test(base(t))) {
-      const tw = scanTimeoutWrapper(tokens, i);
-      if (tw.unknownFlag) return i;
-      i = tw.next;
-    } else if (t.length >= 4 && MISE.test(base(t))) {
-      const mw = scanMiseWrapper(tokens, i);
-      if (!mw.matched || mw.unknownFlag) return i;
-      i = mw.next;
-    } else if (t.length >= 3 && NPX.test(base(t))) {
-      i++;
-      while (tokens[i]?.startsWith('-')) i += tokens[i] === '-p' || tokens[i] === '--package' ? 2 : 1;
-    } else return i;
+    } else {
+      const psNext = scanPsAssign(tokens, i);
+      if (psNext > i) {
+        i = psNext;
+        continue;
+      }
+      if (TIMEOUT_BIN.test(base(t))) {
+        const tw = scanTimeoutWrapper(tokens, i);
+        if (tw.unknownFlag) return i;
+        i = tw.next;
+      } else if (t.length >= 4 && MISE.test(base(t))) {
+        const mw = scanMiseWrapper(tokens, i);
+        if (!mw.matched || mw.unknownFlag) return i;
+        i = mw.next;
+      } else if (t.length >= 3 && NPX.test(base(t))) {
+        i++;
+        while (tokens[i]?.startsWith('-')) i += tokens[i] === '-p' || tokens[i] === '--package' ? 2 : 1;
+      } else return i;
+    }
   }
 }
 
@@ -2593,15 +2798,23 @@ function splitAssign(tok, rawTok) {
 }
 
 function parsePsEnvAssign(tokens, rawTokens) {
-  if (tokens.length === 0) return null;
-  const t0 = tokens[0];
-  const c0 = t0.charCodeAt(0);
+  let k = 0;
+  while (k < tokens.length && isPsTypeCast(tokens[k])) k++;
+  const tk = tokens[k];
+  if (tk === undefined) return null;
+  const c0 = tk.charCodeAt(0);
   if (c0 !== 36 && c0 !== 91) return null;
-  const r0 = rawTokens[0] ?? '';
-  if (/^['"]/.test(r0)) return null;
-  const typeMatch = /^(\[[^\]\s]+\])(.+)$/.exec(t0);
-  const hasTypeCast = Boolean(typeMatch);
-  const lhs = typeMatch ? typeMatch[2] : t0;
+  const rk = rawTokens[k] ?? '';
+  if (/^['"]/.test(rk)) return null;
+  let hasInlineCast = false;
+  let lhs = tk;
+  if (c0 === 91) {
+    const after = scanBalancedBrackets(tk, 0);
+    if (after <= 0 || tk[after] !== '$') return null;
+    hasInlineCast = true;
+    lhs = tk.slice(after);
+  }
+  const hasTypeCast = k > 0 || hasInlineCast;
   const lowerLhs = lhs.toLowerCase();
   let varName = '';
   let rest = '';
@@ -2625,20 +2838,20 @@ function parsePsEnvAssign(tokens, rawTokens) {
   if (!varName) return null;
   const tainted = hasTypeCast;
   if (rest === '') {
-    const op = tokens[1];
+    const op = tokens[k + 1];
     if (op === '=' || op === '+=') {
       const isPlusEq = op === '+=';
-      const r1 = rawTokens[1] ?? op;
+      const r1 = rawTokens[k + 1] ?? op;
       if (r1.length > op.length) {
-        return { varName, rawRhs: r1.slice(op.length), exactAllowed: tokens.length === 2 && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
+        return { varName, rawRhs: r1.slice(op.length), exactAllowed: tokens.length === k + 2 && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
       }
-      return { varName, rawRhs: rawTokens[2] ?? '', exactAllowed: tokens.length === 3 && rawTokens[2] !== undefined && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
+      return { varName, rawRhs: rawTokens[k + 2] ?? '', exactAllowed: tokens.length === k + 3 && rawTokens[k + 2] !== undefined && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
     }
     if (op?.startsWith('=') || op?.startsWith('+=')) {
       const isPlusEq = op.startsWith('+=');
       const opLen = isPlusEq ? 2 : 1;
       if (op.length > opLen) {
-        return { varName, rawRhs: (rawTokens[1] ?? '').slice(opLen), exactAllowed: tokens.length === 2 && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
+        return { varName, rawRhs: (rawTokens[k + 1] ?? '').slice(opLen), exactAllowed: tokens.length === k + 2 && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
       }
     }
     return null;
@@ -2646,14 +2859,14 @@ function parsePsEnvAssign(tokens, rawTokens) {
   const isPlusEq = rest.startsWith('+=');
   const opStr = isPlusEq ? '+=' : '=';
   if (!rest.startsWith(opStr)) return null;
-  const rawOp = r0.indexOf(opStr);
+  const rawOp = rk.indexOf(opStr);
   if (rest === opStr) {
-    if (rawOp !== -1 && rawOp + opStr.length < r0.length) {
-      return { varName, rawRhs: r0.slice(rawOp + opStr.length), exactAllowed: tokens.length === 1 && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
+    if (rawOp !== -1 && rawOp + opStr.length < rk.length) {
+      return { varName, rawRhs: rk.slice(rawOp + opStr.length), exactAllowed: tokens.length === k + 1 && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
     }
-    return { varName, rawRhs: rawTokens[1] ?? '', exactAllowed: tokens.length === 2 && rawTokens[1] !== undefined && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
+    return { varName, rawRhs: rawTokens[k + 1] ?? '', exactAllowed: tokens.length === k + 2 && rawTokens[k + 1] !== undefined && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
   }
-  return { varName, rawRhs: rawOp === -1 ? '' : r0.slice(rawOp + opStr.length), exactAllowed: tokens.length === 1 && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
+  return { varName, rawRhs: rawOp === -1 ? '' : rk.slice(rawOp + opStr.length), exactAllowed: tokens.length === k + 1 && !tainted && !isPlusEq, taintedAssign: tainted || isPlusEq };
 }
 
 const GUARDED_ENV_NAMES = new Set([
@@ -2998,30 +3211,33 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
         j = ev.next;
       } else if (WRAPPERS.has(t)) {
         j++;
-      } else if (PS_VAR_PREFIX_RE.test(t) && (tokens[j + 1] === '=' || tokens[j + 1] === '+=')) {
-        j += 2;
-      } else if (PS_VAR_PREFIX_RE.test(t) && t.endsWith('=')) {
-        j++;
-      } else if (TIMEOUT_BIN.test(base(t))) {
-        const tw = scanTimeoutWrapper(tokens, j);
-        if (tw.unknownFlag) {
-          segSplitOrUnknown = inspectWrapperUnknown(tokens, j);
-          break;
-        }
-        j = tw.next;
-      } else if (t.length >= 4 && MISE.test(base(t))) {
-        const mw = scanMiseWrapper(tokens, j);
-        if (!mw.matched || mw.unknownFlag) {
-          segSplitOrUnknown = inspectWrapperUnknown(tokens, j);
-          break;
-        }
-        segEnvDirs.push(...mw.dirs);
-        j = mw.next;
-      } else if (t.length >= 3 && NPX.test(base(t))) {
-        j++;
-        while (tokens[j]?.startsWith('-')) j += tokens[j] === '-p' || tokens[j] === '--package' ? 2 : 1;
       } else {
-        break;
+        const psNext = scanPsAssign(tokens, j);
+        if (psNext > j) {
+          j = psNext;
+          continue;
+        }
+        if (TIMEOUT_BIN.test(base(t))) {
+          const tw = scanTimeoutWrapper(tokens, j);
+          if (tw.unknownFlag) {
+            segSplitOrUnknown = inspectWrapperUnknown(tokens, j);
+            break;
+          }
+          j = tw.next;
+        } else if (t.length >= 4 && MISE.test(base(t))) {
+          const mw = scanMiseWrapper(tokens, j);
+          if (!mw.matched || mw.unknownFlag) {
+            segSplitOrUnknown = inspectWrapperUnknown(tokens, j);
+            break;
+          }
+          segEnvDirs.push(...mw.dirs);
+          j = mw.next;
+        } else if (t.length >= 3 && NPX.test(base(t))) {
+          j++;
+          while (tokens[j]?.startsWith('-')) j += tokens[j] === '-p' || tokens[j] === '--package' ? 2 : 1;
+        } else {
+          break;
+        }
       }
     }
     if (!segSplitOrUnknown && at < tokens.length && (prog === 'env' || prog === 'time' || prog === 'timeout' || prog === 'mise')) {
@@ -3624,7 +3840,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
     const g = getEnvVar(env, 'GIT_CONFIG_GLOBAL', isWinPlatform);
     return Boolean(g && (!expectedGitconfigGuess || normComparePath(g, isWinPlatform) !== normComparePath(expectedGitconfigGuess, isWinPlatform)));
   })();
-  let sawConfigInjectionToken = envHasConfigInjection;
+  let sawConfigInjectionToken = envHasConfigInjection || psMode.hasDotNetEnv || psMode.hasEnvBraced;
   let sawNonBuiltinGit = false;
 
   for (const modeInfo of [bashMode, psMode]) {
@@ -3667,11 +3883,18 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
 
       if (identityEnabled && !hasCandidate) {
         if (!sawConfigInjectionToken) {
-          for (let ti = 0; ti < tokens.length; ti++) {
-            const tok = tokens[ti];
-            if (tok.length >= 16 && /git_config_(?:count|parameters|system|global)/i.test(tok)) {
-              sawConfigInjectionToken = true;
-              break;
+          if (
+            (PS_ENV_ITEM_CMDS.has(prog) && tokens.slice(at + 1).some(t => /(?:^|[^A-Za-z0-9_])env:/i.test(t))) ||
+            (prog === 'cmd' && tokens.slice(at + 1).some(t => /^\/[cd](?:$|:)/i.test(t)))
+          ) {
+            sawConfigInjectionToken = true;
+          } else {
+            for (let ti = 0; ti < tokens.length; ti++) {
+              const tok = tokens[ti];
+              if (tok.length >= 16 && /git_(?:config_(?:count|parameters|system|global)|terminal_prompt)/i.test(tok)) {
+                sawConfigInjectionToken = true;
+                break;
+              }
             }
           }
         }
