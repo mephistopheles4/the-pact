@@ -9,6 +9,25 @@ with where it lives, its text and a proposal.
 
 <!-- toc -->
 
+- [Answers](#answers)
+- [How it was checked](#how-it-was-checked)
+  - [The three kinds](#the-three-kinds)
+- [Rows to rule on first](#rows-to-rule-on-first)
+- [The pact](#the-pact)
+  - [Rules file and its parts](#rules-file-and-its-parts)
+  - [review.md and review-diagrams.md](#reviewmd-and-review-diagramsmd)
+  - [The agents](#the-agents)
+  - [AGENTS.md and docs/agents](#agentsmd-and-docsagents)
+- [grimoire](#grimoire)
+  - [Enforced elsewhere](#enforced-elsewhere)
+  - [Stands in for judgment](#stands-in-for-judgment)
+  - [Product rules and controls, grouped](#product-rules-and-controls-grouped)
+- [athanor](#athanor)
+- [stacks](#stacks)
+- [Jev's second opinion](#jevs-second-opinion)
+- [Negatives that remove a stop](#negatives-that-remove-a-stop)
+- [What the audit didn't settle](#what-the-audit-didnt-settle)
+
 <!-- /toc -->
 
 ## Answers
@@ -38,9 +57,12 @@ with where it lives, its text and a proposal.
   handling) or the pact's own trust controls, which the threat model names
   and no other guardrail holds. Few rows are left for Claude's training to
   cover, and those are mostly the secret rules, said three or four times.
-- **Jev was skipped.** `TYPESAFE_API_KEY` is set in neither the process,
-  user nor machine environment, so the second opinion the issue offers
-  didn't run. No row is marked for a Jev disagreement.
+- **Jev's second opinion backs the secret cuts and challenges the P
+  bucket.** Jev (`jev-1.14.0`) read each rule's text alone. It agrees on 68
+  rows, disagrees on 52 and isn't sure on 110: see
+  [Jev's second opinion](#jevs-second-opinion). Its clearest signal is that
+  every copy of the secret rule scores 0.80 to 0.91 for "a careful assistant
+  avoids this unprompted". It reads 26 of the P rows as judgment.
 
 ## How it was checked
 
@@ -421,6 +443,74 @@ the article means cutting its scoreboard row in the same change.
 | s35 | `docs/agents/issue-tracker.md:129` | it is never added to the row to make the check pass | P | Keep. The index's integrity. |
 | s36 | `docs/agents/issue-tracker.md:251` | Do not drop it to shorten the round trips. (`--paginate`) | P | Keep. A dropped `--paginate` reads a short list as whole. |
 
+## Jev's second opinion
+
+Run on 2026-11-28 against `jev-latest`, which answered as `jev-1.14.0`: 46
+requests, 920 questions. The key came from the owner's Proton Pass through
+`pass-hello`, injected into the one process; it is in no file, log or post.
+Only rule text went out, and all four repos are public.
+
+**What Jev was asked.** Four Noul questions per row, each quoting the rule
+text, with no file, kind, proposal or enforcer:
+
+1. *product:* is the rule about what software itself must or must not do,
+   rather than how an agent should act?
+2. *boundary:* does it stop an agent trusting text, code or approvals from
+   someone other than the owner, or stop private data leaving the machine?
+3. *training:* would a careful AI coding assistant, with no project rules,
+   already avoid what it forbids?
+4. *judgment:* is there an ordinary situation where a careful agent would be
+   right to do what it forbids?
+
+**How code reads the answers.** P when product or boundary is above 0.7;
+otherwise E when training is above 0.7; otherwise J when judgment is above
+0.7; otherwise unsure. Each row's Jev kind is compared with this sheet's,
+with P·control counted as P.
+
+**How far to trust it.**
+
+- The *judgment* question doesn't separate the kinds. Its mean is 0.70 on J
+  rows and 0.67 on P rows, so a Jev J is weak evidence.
+- The *training* question sits between 0.3 and 0.7 on 150 rows. Jev can't
+  see hooks, rulesets or CI, so a tool-enforced E row (n11, n68, g03, s24
+  ...) scoring low here is expected, not a disagreement on the facts.
+- *product* and *boundary* are decisive on most rows (38 and 36 in the
+  middle band).
+
+**Where it agrees, strongly.** Every copy of the secret rule, and the other
+"training covers it" cuts, score high on *training*: n01 0.85, n10 0.91, n46
+0.80, n57 0.90, g07 0.83, g09 0.87, a19 0.89, a21 0.84. Some of these show
+as "E→P" below only because they also score high on *boundary*, and code
+checks *boundary* first. The cut stands either way.
+
+**Rows marked for the owner.** The issue marks every row where Jev disagrees
+or isn't sure. That is 162 of the 230, too many to work through one by one,
+so the strong signals come first.
+
+- **Look at first:** Jev says a careful assistant already avoids it
+  (*training* ≥ 0.84) where this sheet says keep. n36 (never post to get past
+  the scan), n54 (state your login in chat only), s27 (never weaken a gate to
+  pass), s35 (never add to the index row to pass the check).
+- **The P bucket.** Jev reads these P rows as agent rules that judgment could
+  bend: n23, n34, n40, n41, n43, n50, n58, n59, n62, n66, n72, n74, n75, n77,
+  g75, g78, g79, g80, a04, a06, a12, a20, a25, s15, s21, s34. It is a fair
+  challenge to how wide P is here. This sheet counts the pact's review and
+  record contracts, and the lenses' scopes, as product rules. Under the
+  issue's narrower "what the software must do", several of these would move
+  to J, the pact's lens and test-writing rules first.
+- **Disagree, other directions:** P→E n06, n45, n61; E→P g08, s01, s07,
+  s08 (gated invariants that are also product rules: both readings hold);
+  E→J g05, g06, a03, a22 (Jev can't see the rulesets or CI that hold them);
+  J→E n81, g38, g42, g48; J→P g15, g27, s25.
+- **Unsure** (no question past 0.7). E: n11, n19, n35, n37, n51, n68, g01,
+  g02, g03, s03, s04, s05, s16, s17, s23, s24. P: n02, n03, n04, n09, n12,
+  n13, n14, n15, n16, n18, n21, n22, n24, n25, n26, n28, n29, n30, n31, n32,
+  n33, n38, n42, n44, n48, n49, n52, n53, n60, n64, n65, n67, n73, n76, g69,
+  g71, g73, g81, g82, g83, g84, a02, a07, a08, a09, a11, a13, s06, s30, s36.
+  J: n08, n20, n39, n47, n63, n69, n71, n84, g10, g11, g13, g14, g18, g20,
+  g23, g24, g28, g30, g33, g36, g37, g39, g40, g41, g43, g45, g50, g51, g53,
+  g54, g55, g56, g58, g60, g63, g65, g66, g67, a23, s09, s14, s20, s31, s32.
+
 ## Negatives that remove a stop
 
 These hold a negative word but take no judgment away: each removes a wait.
@@ -432,9 +522,6 @@ They are not rows.
 
 ## What the audit didn't settle
 
-- **Jev.** No second classifier ran (no `TYPESAFE_API_KEY`). The kinds are
-  one reader's, checked against the files only where a row names an
-  enforcer.
 - **Assumed enforcers.** Rows marked "assumed" lean on Claude's training,
   npm's policy or Claude Code's default settings scope, none tested here.
 - **Not read in full:** athanor's and stacks' threat models, glossaries and
