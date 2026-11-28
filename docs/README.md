@@ -21,7 +21,7 @@ Where each doc is and when to read it.
 | --- | --- |
 | [install.md](install.md) | You install, back up or roll back the pact by hand. |
 | [reference.md](reference.md) | You need to know what is in the repo and where each part installs. |
-| [agent-identity.md](agent-identity.md), [poster.md](poster.md), [poster-app.md](poster-app.md), [cleaner.md](cleaner.md), [clef.md](clef.md) | You use the agent identity switch, the poster, the cleaner or Clef. |
+| [agent-identity.md](agent-identity.md), [poster.md](poster.md), [poster-app.md](poster-app.md), [cleaner.md](cleaner.md), [clef.md](clef.md), [coverage.md](coverage.md) | You use the agent identity switch, the poster, the cleaner, Clef or the coverage hint. |
 | [threat-model.md](threat-model.md) | You rule on a security finding. |
 | [rule-reasons.md](rule-reasons.md) | You add or change a rule in the rules file. |
 | [adr/README.md](adr/README.md), [log/](log/), [spec/](spec/) | You look for a decision, a dated change log or a spec. |

@@ -25,7 +25,7 @@ export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium'
 // configuration's tools list names it; gh-app is the exception: it is on the
 // list so seam A takes its file, but the tools list refuses it, and only the
 // agent-identity switch (a later ticket of #599) installs it.
-export const PACT_TOOLS = Object.freeze(['poster', 'cleaner', 'clef', 'gh-app']);
+export const PACT_TOOLS = Object.freeze(['poster', 'cleaner', 'clef', 'coverage', 'gh-app']);
 const TOOLS_DEST = '.pact/tools/';
 // The pact's hook script (#482), the install's own copy of PACT_HOOKS in gate/seam-a-core.mjs: claude/hooks/<name>.mjs installs to HOOKS_DEST<name>.mjs only while the auto-compact window is on.
 export const PACT_HOOKS = Object.freeze(['compact-handoff']);
@@ -38,7 +38,8 @@ const HOOK_WINDOW_TOKEN = '__PACT_WINDOW__';
 const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
   cleaner: ' and removes worktrees and local branches in the repository it runs in, and stops a finished background session in a worktree it removes. Its deny rules on raw removal commands are a speed bump, not a gate.',
-  clef: ' and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.',
+  clef: ' and, when you run its setup, downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.',
+  coverage: ' and asks a local Clef by default; with `jev` chosen as the decision model, it sends the security findings and threat-model entries of each repo listed in ~/.pact/coverage.json to TypeSafe.',
   'gh-app': ' and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS and guarded GitHub writes run as each pinned provider app across supported harnesses, with PreToolUse guards stopping unpinned writes; an askpass program, an SSH remote, an unguarded harness and a global git write outside guarded shells still go around it (docs/agent-identity.md).',
 });
 // The pact's guard rules as data (spec 0007 S8). Claude Code's permission rules
@@ -592,6 +593,7 @@ function retiredSettingWarn(name, value, where, project) {
 export const identitySwitchOn = parsed => parsed.values.get('agent-identity') === 'on';
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
+const DECISION_MODEL_RE = /^DECISION-MODEL (clef-flash|clef-full|jev)$/;
 // A skill source's path (#183 T4a), as the renderer checks it: owner/name, a full commit, a relative folder whose last segment is the skill's name.
 const SKILL_LINE_RE = /^SKILL ([A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+ )(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt] )[A-Za-z0-9._-]+) ([0-9a-f]{40}) ([A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*)$/;
 const SKILL_PATHS_MAX = 100;
@@ -609,7 +611,8 @@ export const DEFAULT_CONFIG_NAME = 'Level 3 · Full';
  * and one AGENT per lens; with none, none of those, and COMMANDS none. The
  * COMMANDS line names pact commands, each once, in PACT_COMMANDS order (#203).
  * One TOOLS line follows it straight after, naming pact tools the same way
- * (#280), and none with no configuration.
+ * (#280), and none with no configuration. At most one DECISION-MODEL line
+ * follows, none with no configuration.
  * A CONFIG line names a user file, the pact's default (#183 T4a) or none; the
  * digest is taken over "user" or "default" to match. SKILL lines follow the
  * TOOLS line, one per skill path, none with no configuration (#183 T4a).
@@ -628,6 +631,7 @@ export function parseRenderLines(lines, { project, hash }) {
   const agentSets = new Map();
   let commands = null;
   let tools = null;
+  let decisionModel = null;
   let commandsAt = -1;
   let toolsAt = -1;
   const skills = [];
@@ -696,6 +700,8 @@ export function parseRenderLines(lines, { project, hash }) {
       if (order.length !== names.length || order.some((c, i) => c !== names[i])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       tools = order;
       toolsAt = at;
+    } else if ((m = DECISION_MODEL_RE.exec(l)) && toolsAt >= 0 && decisionModel === null) {
+      decisionModel = m[1];
     } else refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
   }
   if (!renderHash || !diffHash || configs.length !== 1) refuse('render-counts', 'the renderer did not report exactly one output hash, one diff hash and one configuration line.');
@@ -711,6 +717,7 @@ export function parseRenderLines(lines, { project, hash }) {
     if (digest || values.size || edits.size || agentSets.size || retiredNames.length || retiredSettings.size) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit, a retired name or an agent setting with no configuration.');
     if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
     if (tools.length) refuse('render-none-extras', 'the renderer reported a pact tool with no configuration.');
+    if (decisionModel !== null) refuse('render-none-extras', 'the renderer reported a decision model with no configuration.');
     if (skills.length) refuse('render-none-extras', 'the renderer reported a skill source with no configuration.');
   } else {
     // A retired name is reported only for a part the configuration edits with a block file (#302).
@@ -719,7 +726,7 @@ export function parseRenderLines(lines, { project, hash }) {
     for (const e of edits.values()) if (e.path) text += `block ${e.path} ${e.sha256}\n`;
     if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('render-digest', "the renderer's configuration digest is missing or does not match the configuration hashes it reported.");
   }
-  return { renderHash, diffHash, config, digest, values, edits, blockHashes, retiredNames, retiredSettings, agentSets, commands, tools, skills };
+  return { renderHash, diffHash, config, digest, values, edits, blockHashes, retiredNames, retiredSettings, agentSets, commands, tools, decisionModel, skills };
 }
 
 /**
@@ -1222,9 +1229,9 @@ export function commandsBlock(on, stagedRels, listed = []) {
 /**
  * The Tools block of a dry run (#280): every pact tool, on or off, how to turn
  * one on, and a WARN line for each tool on, naming where it installs and what
- * it does.
+ * it does. `model` is the configuration's decision model, or null.
  */
-export function toolsBlock(on, stagedRels) {
+export function toolsBlock(on, stagedRels, model = null) {
   const staged = new Set(stagedRels);
   const out = ['Tools:'];
   // #599: gh-app is not listed here; only the agent-identity switch installs it, never this list.
@@ -1236,7 +1243,12 @@ export function toolsBlock(on, stagedRels) {
   if (on.includes('gh-app')) out.push('  gh-app: on (the agent-identity switch)');
   for (const name of on) out.push(`  WARN: ${name === 'gh-app' ? 'the agent-identity switch' : 'the user configuration'} turns on the pact tool ${name}; it installs to ${TOOLS_DEST}${name}.mjs${TOOL_WARNS[name]}`);
   // PACT-81: a new installer learns clef's next step from the install itself.
-  if (on.includes('clef')) out.push('  clef next step: run `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes`; docs/clef.md says what it does.');
+  if (on.includes('clef')) out.push(`  clef next step: run \`node ~/.pact/tools/clef.mjs setup${model === 'clef-full' ? ' --variant full' : ''}\`, then the same with \`--yes\`; docs/clef.md says what it does.`);
+  if (on.includes('coverage')) {
+    if (!on.includes('clef') && model !== 'jev') out.push(`  WARN: coverage needs a decision model: turn on clef, or set "decision-model": "jev" in ${CONFIG_REL}.`);
+    const clef = model === 'jev' ? '' : 'set up clef; or, for jev, set "decision-model" to "jev", ';
+    out.push(`  coverage next step: ${clef}set TYPESAFE_API_KEY and list each repo in ~/.pact/coverage.json; docs/coverage.md says what it does.`);
+  }
   return out;
 }
 

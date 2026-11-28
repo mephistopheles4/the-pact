@@ -422,7 +422,9 @@ parts:
     WARN: the agent-identity switch turns on the pact tool gh-app; it installs to .pact/tools/gh-app.mjs and mints GitHub App tokens from a key in Windows Credential Manager, so git over HTTPS and guarded GitHub writes run as each pinned provider app across supported harnesses, with PreToolUse guards stopping unpinned writes; an askpass program, an SSH remote, an unguarded harness and a global git write outside guarded shells still go around it (docs/agent-identity.md).
   ```
 
-  To turn Clef on, list `"clef"` in `tools`; after the apply, run `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes` ([clef.md](clef.md)).
+  To turn Clef on, list `"clef"` in `tools`; after the apply, run `node ~/.pact/tools/clef.mjs setup`, then the same with `--yes` ([clef.md](clef.md)). With `"decision-model": "clef-full"`, the first command is `setup --variant full`.
+
+  `coverage` prints an advisory hint on a security finding. It asks the model the `decision-model` key names, `"clef-flash"`, `"clef-full"` or `"jev"`, and the local Clef when there is no key. The dry run warns when `coverage` is on with `clef` off and the model is not `jev` ([coverage.md](coverage.md)).
 
   The cleaner on adds eighteen deny rules on raw worktree and branch
   removal commands and on `claude rm` to `settings.json`, each listed under
@@ -930,6 +932,8 @@ one rule and no security bar. If the commit you roll back to predates the
 column, remove it first.
 
 **The `clef` tool.** A pact from before `clef` refuses it on the `tools` list. If `clef` is on, run `clef stop` and `clef remove --yes` first (see [clef.md](clef.md)), take `clef` off the list and apply at the newer commit, then roll back. The clef folder, `pact-clef/`, is not the install's and stays unless you remove it.
+
+**The `coverage` tool and the `decision-model` key.** A pact from before them refuses both. Take `coverage` off the list and apply at the newer commit, then take `decision-model` out of the configuration and roll back. Its log folder, `pact-coverage/`, stays unless you delete it.
 
 Three settings leave rules or files that an older installer can't remove. For
 each, turn it off and apply at the newer commit first, then take its key out

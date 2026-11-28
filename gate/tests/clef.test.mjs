@@ -128,16 +128,20 @@ const miniServer = (zipBuf = ZIP()) => ({
 /** A one-row Linux table whose row names the glibc floor it needs (spec 0005 U3). */
 const linuxServer = (glibc = '2.35') => ({ ...miniServer(), archives: { 'linux-x64-cpu': { ...miniServer().archives['win32-x64-cpu'], asset: 'llama-b1-bin-ubuntu-x64.tar.gz', kind: 'tgz', glibc } } });
 const miniModel = () => ({ repo: 'ggml-org/Clef-Flash-GGUF', commit: 'a'.repeat(40), file: 'Clef-Flash-Q4_K_M.gguf', size: MODEL_BYTES.length, sha256: sha(MODEL_BYTES) });
+// Spec 0011 S9: a second pinned model, `full`, from the full model's own repo.
+const FULL_BYTES = Buffer.from('a somewhat larger full model file');
+const miniFull = () => ({ repo: 'ggml-org/Clef-GGUF', commit: 'b'.repeat(40), file: 'Clef-Q4_K_M.gguf', size: FULL_BYTES.length, sha256: sha(FULL_BYTES) });
+const miniModels = () => ({ flash: miniModel(), full: miniFull() });
 const hostsOf = { server: { origin: 'https://github.com', redirects: ['release-assets.githubusercontent.com'] }, model: { origin: 'https://huggingface.co', redirects: ['us.aws.cdn.hf.co'] } };
 /** Serves the mini table's archive and model, each through one redirect to its listed host. */
 const servingTransport = (zipBuf = ZIP()) => transportOf(url => {
   if (url.host === 'github.com') return redirect('https://release-assets.githubusercontent.com/x');
-  if (url.host === 'huggingface.co') return redirect('https://us.aws.cdn.hf.co/y');
+  if (url.host === 'huggingface.co') return redirect(url.pathname.startsWith('/ggml-org/Clef-GGUF/') ? 'https://us.aws.cdn.hf.co/full' : 'https://us.aws.cdn.hf.co/y');
   if (url.host === 'release-assets.githubusercontent.com') return ok(zipBuf);
-  if (url.host === 'us.aws.cdn.hf.co') return ok(MODEL_BYTES);
+  if (url.host === 'us.aws.cdn.hf.co') return ok(url.pathname === '/full' ? FULL_BYTES : MODEL_BYTES);
   return { status: 404 };
 });
-const setupArgs = (t, over = {}) => ({ dir: join(tempDir(t, 'clef-home-'), 'pact-clef'), platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: 'C:\\work', free: 1e12, vulkan: false, exists: () => true, server: miniServer(), model: miniModel(), sources: hostsOf, transport: servingTransport(), ...over });
+const setupArgs = (t, over = {}) => ({ dir: join(tempDir(t, 'clef-home-'), 'pact-clef'), platform: 'win32', arch: 'x64', execPath: 'C:\\node\\node.exe', cwd: 'C:\\work', free: 1e12, vulkan: false, exists: () => true, server: miniServer(), models: miniModels(), sources: hostsOf, transport: servingTransport(), ...over });
 
 // ------------------------------------------------------------ the pin table's shape (C3, C21)
 
@@ -147,6 +151,14 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
   assert.equal(clef.SERVER.repo, 'ggml-org/llama.cpp');
   assert.equal(clef.MODEL.repo, 'ggml-org/Clef-Flash-GGUF');
   assert.ok(Object.isFrozen(clef.SERVER) && Object.isFrozen(clef.MODEL) && Object.isFrozen(clef.SERVER.archives) && Object.isFrozen(clef.SOURCES));
+  // Spec 0011 S9: the full model's pin, its repo fixed too, and both ends of the research copy's sha256.
+  assert.equal(clef.MODELS.flash, clef.MODEL);
+  assert.deepEqual(Object.keys(clef.MODELS), ['flash', 'full']);
+  assert.equal(clef.MODELS.full.repo, 'ggml-org/Clef-GGUF');
+  assert.equal(clef.MODELS.full.file, 'Clef-Q4_K_M.gguf');
+  assert.match(clef.MODELS.full.sha256, /^06a81995[0-9a-f]{52}e1fd$/);
+  assert.deepEqual(clef.pinProblems(clef.SERVER, clef.MODELS.full, 'full'), []);
+  assert.ok(Object.isFrozen(clef.MODELS) && Object.isFrozen(clef.MODELS.full));
   for (const key of ['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan']) {
     assert.equal(SOURCE_TEXT.split(`'${key}': Object.freeze(`).length, 2, `one row for ${key}`);
     assert.ok(clef.SERVER.archives[key].files.length > 0, `${key} names the files it keeps`);
@@ -505,9 +517,9 @@ test('the shipped pin table passes the shape check, and fixes both repos', () =>
     const runtime = join(a.dir, 'runtime', 'b1');
     assert.equal(readFileSync(join(runtime, 'ggml-cpu.so.0'), 'utf8'), 'cpu backend');
     assert.equal(statSync(join(runtime, 'ggml-cpu.so.0')).isFile(), true);
-    assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, model: a.model }).failed, []);
+    assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, models: a.models }).failed, []);
     writeFileSync(join(runtime, 'ggml-cpu.so.0'), 'tampered, longer');
-    assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, model: a.model }).failed, ['size:ggml-cpu.so.0']);
+    assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, models: a.models }).failed, ['size:ggml-cpu.so.0']);
   });
   test('unpack: a named file missing from the archive is refused', t => assert.throws(unpackWith(t, zip([{ name: EXE, data: 'MZ server' }])), e => e.code === 'clef-archive'));
 }
@@ -630,7 +642,11 @@ test('setup with the real table prints the real plan and still fetches nothing',
     { id: 'windows-without-msvcp140', plant: () => ({ exists: p => !/MSVCP140\.dll$/i.test(p) }), fails: ['clef-platform'], why: 'MSVCP140.dll is missing from System32' },
     { id: 'windows-without-vcruntime140', plant: () => ({ exists: p => !/VCRUNTIME140\.dll$/i.test(p) }), fails: ['clef-platform'], why: 'VCRUNTIME140.dll is missing from System32' },
     { id: 'windows-x64-without-vcruntime140-1', plant: () => ({ exists: p => !/VCRUNTIME140_1\.dll$/i.test(p) }), fails: ['clef-platform'], why: 'the x64 build also needs VCRUNTIME140_1.dll' },
-    { id: 'bad-pin', plant: () => ({ model: { ...miniModel(), commit: 'main' } }), fails: ['clef-pin'], why: 'a table that fails its shape check fetches nothing' },
+    { id: 'bad-pin', plant: () => ({ models: { ...miniModels(), flash: { ...miniModel(), commit: 'main' } } }), fails: ['clef-pin'], why: 'a table that fails its shape check fetches nothing' },
+    // Spec 0011 S9.
+    { id: 'flash-pin-names-the-full-repo', plant: () => ({ models: { ...miniModels(), flash: { ...miniModel(), repo: miniFull().repo } } }), fails: ['clef-pin'], why: 'the flash pin stays in the flash repo' },
+    { id: 'full-pin-names-the-flash-repo', plant: () => ({ variant: 'full', models: { ...miniModels(), full: { ...miniFull(), repo: miniModel().repo } } }), fails: ['clef-pin'], why: 'the full pin stays in the full repo' },
+    { id: 'too-little-space-for-full', plant: () => ({ variant: 'full', free: 1000, models: { ...miniModels(), full: { ...miniFull(), size: 5000 } } }), fails: ['clef-space'], why: 'the free-space check counts the variant\'s model' },
   ];
   test('setup refusals: base passes', async t => assert.deepEqual((await run(base(), t)).fails, []));
   for (const r of rows) {
@@ -701,7 +717,7 @@ test('setup --yes fetches both files through their redirects, keeps them checked
   assert.deepEqual(a.transport.calls.map(c => new URL(c.url).host), ['github.com', 'release-assets.githubusercontent.com', 'huggingface.co', 'us.aws.cdn.hf.co']);
   assert.deepEqual(readdirSync(join(a.dir, 'runtime', 'b1')).sort(), ['LICENSE', 'ggml-cpu.dll', 'llama-server.exe']);
   assert.deepEqual(readFileSync(join(a.dir, 'models', `${sha(MODEL_BYTES)}.gguf`)), MODEL_BYTES);
-  assert.deepEqual(JSON.parse(readFileSync(join(a.dir, 'setup.json'), 'utf8')), { platform: 'win32-x64-cpu', tag: 'b1', model: sha(MODEL_BYTES), backend: 'cpu', node: 'C:\\node\\node.exe' });
+  assert.deepEqual(JSON.parse(readFileSync(join(a.dir, 'setup.json'), 'utf8')), { platform: 'win32-x64-cpu', tag: 'b1', model: sha(MODEL_BYTES), variant: 'flash', backend: 'cpu', node: 'C:\\node\\node.exe' });
   assert.deepEqual(readdirSync(join(a.dir, 'partial')), [], 'no partial file is left');
   assert.match(r.lines.join('\n'), /^kept: server b1 \(win32-x64-cpu\)$/m);
   const again = await clef.runSetup({ ...a, transport: transportOf(() => { throw new Error('a request was made'); }) });
@@ -715,13 +731,13 @@ test('setup --yes hashes a present file before skipping it, and fetches again on
   await clef.runSetup(a);
   writeFileSync(join(a.dir, 'runtime', 'b1', 'ggml-cpu.dll'), 'CPU BACKEND'); // same length as 'cpu backend'
   writeFileSync(join(a.dir, 'models', `${sha(MODEL_BYTES)}.gguf`), Buffer.alloc(MODEL_BYTES.length, 1));
-  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, model: a.model }).failed.sort(), ['sha256:ggml-cpu.dll', `sha256:model ${sha(MODEL_BYTES).slice(0, 8)}`]);
+  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, models: a.models }).failed.sort(), ['sha256:ggml-cpu.dll', `sha256:model ${sha(MODEL_BYTES).slice(0, 8)}`]);
   const dry = await clef.runSetup({ ...a, yes: false });
   assert.match(dry.lines.join('\n'), /^present \(sizes match\), skipped unless its sha256 fails: server b1/m, 'the plan does not claim a hash it did not make');
   const again = await clef.runSetup({ ...a, transport: servingTransport() });
   assert.match(again.lines.join('\n'), /^sha256 failed, fetching again: server b1$/m);
   assert.match(again.lines.join('\n'), /^sha256 failed, fetching again: model /m);
-  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, model: a.model }).failed, []);
+  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, models: a.models }).failed, []);
 });
 
 test('setup --yes: a failed fetch writes no setup.json and keeps nothing in place', async t => {
@@ -774,15 +790,57 @@ test('setup --yes resumes a partial model file', async t => {
 test('verify re-hashes every kept file and the model: ok when whole, a word for each that is not', async t => {
   const a = setupArgs(t, { yes: true });
   await clef.runSetup(a);
-  const good = clef.verify({ dir: a.dir, server: a.server, model: a.model });
+  const good = clef.verify({ dir: a.dir, server: a.server, models: a.models });
   assert.deepEqual(good.failed, []);
   assert.equal(good.lines.length, 4);
   writeFileSync(join(a.dir, 'runtime', 'b1', 'llama-server.exe'), 'MZ forged');
   writeFileSync(join(a.dir, 'runtime', 'b1', 'ggml-cpu.dll'), 'cpu backend!');
   rmSync(join(a.dir, 'runtime', 'b1', 'LICENSE'));
-  const bad = clef.verify({ dir: a.dir, server: a.server, model: a.model });
+  const bad = clef.verify({ dir: a.dir, server: a.server, models: a.models });
   assert.deepEqual(bad.failed.sort(), ['missing:LICENSE', 'sha256:llama-server.exe', 'size:ggml-cpu.dll']);
-  assert.deepEqual(clef.verify({ dir: join(a.dir, 'nowhere'), server: a.server, model: a.model }).failed, ['missing:setup.json']);
+  assert.deepEqual(clef.verify({ dir: join(a.dir, 'nowhere'), server: a.server, models: a.models }).failed, ['missing:setup.json']);
+  const path = join(a.dir, 'setup.json');
+  writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, 'utf8')), variant: 'huge' }));
+  const unknown = clef.verify({ dir: a.dir, server: a.server, models: a.models });
+  assert.deepEqual([unknown.lines, unknown.failed], [['unknown: variant'], ['unknown:variant']], 'a record that is there, naming no variant the table has');
+});
+
+// ------------------------------------------------------------ the full variant (spec 0011 S9, claim 14)
+
+const statusOf = async a => (await clef.statusRun({ dir: a.dir, server: a.server, models: a.models })).lines;
+
+test('setup --variant full: the plan names the variant and its size, setup.json records it, status prints it, and verify re-hashes the recorded model', async t => {
+  const a = setupArgs(t, { variant: 'full' });
+  const plan = await clef.runSetup(a);
+  assert.ok(plan.lines.includes(`variant: full (model Clef-Q4_K_M.gguf, ${(FULL_BYTES.length / 1e6).toFixed(1)} MB)`), plan.lines.join('\n'));
+  await clef.runSetup({ ...a, yes: true });
+  const setup = JSON.parse(readFileSync(join(a.dir, 'setup.json'), 'utf8'));
+  assert.deepEqual([setup.variant, setup.model], ['full', sha(FULL_BYTES)]);
+  const lines = await statusOf(a);
+  assert.ok(lines.includes(`model: ${sha(FULL_BYTES).slice(0, 8)}`) && lines.includes('variant: full'), lines.join('|'));
+  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, models: a.models }).failed, []);
+  writeFileSync(join(a.dir, 'models', `${sha(FULL_BYTES)}.gguf`), Buffer.alloc(FULL_BYTES.length, 1));
+  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, models: a.models }).failed, [`sha256:model ${sha(FULL_BYTES).slice(0, 8)}`]);
+});
+
+test('changing the variant keeps the other model the table names, and a switch back hashes it instead of fetching it', async t => {
+  const a = setupArgs(t, { yes: true });
+  await clef.runSetup(a);
+  await clef.runSetup({ ...a, variant: 'full' });
+  assert.deepEqual(readdirSync(join(a.dir, 'models')).sort(), [`${sha(MODEL_BYTES)}.gguf`, `${sha(FULL_BYTES)}.gguf`].sort());
+  const back = await clef.runSetup({ ...a, transport: transportOf(() => { throw new Error('a request was made'); }) });
+  assert.ok(back.lines.includes(`checked: model ${sha(MODEL_BYTES).slice(0, 8)}`), back.lines.join('\n'));
+  assert.equal(JSON.parse(readFileSync(join(a.dir, 'setup.json'), 'utf8')).variant, 'flash');
+});
+
+test('a setup.json with no variant reads as flash', async t => {
+  const a = setupArgs(t, { yes: true });
+  await clef.runSetup(a);
+  const path = join(a.dir, 'setup.json');
+  const { variant, ...old } = JSON.parse(readFileSync(path, 'utf8'));
+  writeFileSync(path, JSON.stringify(old));
+  assert.ok((await statusOf(a)).includes('variant: flash'));
+  assert.deepEqual(clef.verify({ dir: a.dir, server: a.server, models: a.models }).failed, []);
 });
 
 // ------------------------------------------------------------ the command
@@ -791,7 +849,7 @@ test('main: refuses an unknown mode, an unknown flag and a repeated flag, before
   const out = [];
   const env = { CLAUDE_CONFIG_DIR: tempDir(t, 'clef-claude-') };
   const common = { env, out: l => out.push(l), chdir: () => { throw new Error('chdir'); }, transport: transportOf(() => { throw new Error('a request was made'); }) };
-  for (const argv of [[], ['nonsense'], ['setup', '--url', 'x'], ['setup', '--yes', '--yes'], ['verify', '--yes'], ['ensure', '--wait'], ['ensure', '--wait', '61'], ['ensure', '--wait', 'x'], ['ensure', '--yes'], ['stop', '--yes'], ['status', 'x'], ['remove', '--wait', '1'], ['serve', '--yes']]) {
+  for (const argv of [[], ['nonsense'], ['setup', '--url', 'x'], ['setup', '--yes', '--yes'], ['verify', '--yes'], ['ensure', '--wait'], ['ensure', '--wait', '61'], ['ensure', '--wait', 'x'], ['ensure', '--yes'], ['stop', '--yes'], ['status', 'x'], ['remove', '--wait', '1'], ['serve', '--yes'], ['setup', '--variant'], ['setup', '--variant', 'huge'], ['setup', '--variant', '__proto__'], ['setup', '--variant', 'full', '--variant', 'full'], ['verify', '--variant', 'full']]) {
     out.length = 0;
     assert.equal(await clef.main(argv, common), 2, argv.join(' '));
     assert.match(out.at(-1), /^RESULT: refused usage$/);
@@ -997,9 +1055,9 @@ test('setup on macOS: the darwin row is kept, verify re-hashes it, status names 
   await clef.runSetup(a);
   const runtime = join(a.dir, 'runtime', 'b1');
   assert.deepEqual(readdirSync(runtime).sort(), ['libggml.0.1.dylib', 'libggml.0.dylib', 'llama-server']);
-  assert.deepEqual(clef.verify({ dir: a.dir, server, model: a.model }).failed, []);
+  assert.deepEqual(clef.verify({ dir: a.dir, server, models: a.models }).failed, []);
   writeFileSync(join(runtime, 'libggml.0.dylib'), 'DYLIB');
-  assert.deepEqual(clef.verify({ dir: a.dir, server, model: a.model }).failed, ['sha256:libggml.0.dylib'], 'the copy is re-hashed too');
+  assert.deepEqual(clef.verify({ dir: a.dir, server, models: a.models }).failed, ['sha256:libggml.0.dylib'], 'the copy is re-hashed too');
   const st = await clef.statusRun({ dir: a.dir });
   assert.ok(st.lines.includes('platform: darwin-arm64-metal') && st.lines.includes('backend: metal'), st.lines.join('|'));
   // xattr exits non-zero for a missing file too, so each file is shown to exist first, on every job.

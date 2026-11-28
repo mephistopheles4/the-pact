@@ -3,14 +3,17 @@
 // decision model, with a pinned llama.cpp server and a pinned model file: no
 // Ollama. Setup fetches and checks them; a supervisor on 127.0.0.1 serves them.
 //
-//   node clef.mjs setup  [--cpu] [--yes]   print the plan; with --yes, fetch and keep the files
+//   node clef.mjs setup  [--variant flash|full] [--cpu] [--yes]
+//                                           print the plan; with --yes, fetch and keep the files
 //   node clef.mjs verify                    re-hash every kept file against the pin table
 //   node clef.mjs ensure [--wait n]         start the supervisor if none runs; print one JSON line
 //   node clef.mjs status | stop             show the run state; end the supervisor and its server
 //   node clef.mjs remove [--yes]            name, or with --yes delete, the clef folder
 //
 // Everything the tool may fetch is in the pin table below: one server build
-// and one model, each with its size and sha256, from two fixed repos. A file
+// and one model per variant (`flash`, the default, and `full`), each with its
+// size and sha256, from one fixed repo for the server and one for each
+// variant. One model is served at a time, the one setup.json records. A file
 // is kept only when its size and sha256 match. Nothing here reads a URL,
 // host or hash from the environment, a flag or a file; every URL is built from
 // the table and checked before it is requested.
@@ -459,7 +462,7 @@ export const SERVER = Object.freeze({
   }),
 });
 
-/** The model (S5): a full commit, by sha256. */
+/** The `flash` model (S5), the default variant: a full commit, by sha256. */
 export const MODEL = Object.freeze({
   repo: 'ggml-org/Clef-Flash-GGUF',
   commit: 'c3d925454595d792d5333da8b35f3c09911f7568',
@@ -468,15 +471,27 @@ export const MODEL = Object.freeze({
   sha256: 'eef2968c238a80d49d340430f22410ea3db9934ad1c6fdb233a503cbf9a9b54e',
 });
 
+/** The `full` model (spec 0011 S9): the 27B. */
+const FULL_MODEL = Object.freeze({
+  repo: 'ggml-org/Clef-GGUF',
+  commit: '415c1d23f2355fb087cfd4cdb2c04ff6422f4970',
+  file: 'Clef-Q4_K_M.gguf',
+  size: 19540136096,
+  sha256: '06a819954debafc9664ac6bf3898818185d21d7efe36d0f01009d9958bf6e1fd',
+});
+
+/** The pinned model of each variant. */
+export const MODELS = Object.freeze({ flash: MODEL, full: FULL_MODEL });
+
 /** Where each download may start, and the hosts a redirect may land on (S5). */
 export const SOURCES = Object.freeze({
   server: Object.freeze({ origin: 'https://github.com', redirects: Object.freeze(['release-assets.githubusercontent.com', 'objects.githubusercontent.com']) }),
   model: Object.freeze({ origin: 'https://huggingface.co', redirects: Object.freeze(['us.aws.cdn.hf.co']) }),
 });
 
-// The only two repos a pin may name. A test holds both names as its own constants.
+// The only repos a pin may name: the server's, and one for each variant. A test holds every name as its own constant.
 const SERVER_REPO = 'ggml-org/llama.cpp';
-const MODEL_REPO = 'ggml-org/Clef-Flash-GGUF';
+const MODEL_REPOS = Object.freeze({ flash: 'ggml-org/Clef-Flash-GGUF', full: 'ggml-org/Clef-GGUF' });
 const PLATFORM_KEYS = Object.freeze(['win32-x64-cpu', 'win32-x64-vulkan', 'linux-x64-cpu', 'linux-x64-vulkan', 'darwin-arm64-metal', 'darwin-arm64-cpu', 'linux-arm64-cpu', 'win32-arm64-cpu', 'darwin-x64-cpu']);
 
 const MAX_REDIRECTS = 4;
@@ -520,14 +535,14 @@ export function pathProblem(path) {
 const plainSegment = s => typeof s === 'string' && SEGMENT_RE.test(s) && s !== '.' && !s.includes('..');
 
 /**
- * The shape check on the pin table: a list of rule ids, empty when it holds.
- * `repos` is the pair the tool and its gate test both hold: moving a source
- * changes a test too.
+ * The shape check on the pin table, for the server and one variant's model: a
+ * list of rule ids, empty when it holds. The repos are fixed here and held by
+ * the gate test too, so moving a source changes a test.
  */
-export function pinProblems(server = SERVER, model = MODEL, repos = { server: SERVER_REPO, model: MODEL_REPO }) {
+export function pinProblems(server = SERVER, model = MODEL, variant = 'flash') {
   const out = [];
-  if (server.repo !== repos.server) out.push('server-repo');
-  if (model.repo !== repos.model) out.push('model-repo');
+  if (server.repo !== SERVER_REPO) out.push('server-repo');
+  if (model.repo !== MODEL_REPOS[variant]) out.push('model-repo');
   if (typeof server.tag !== 'string' || !TAG_RE.test(server.tag)) out.push('tag');
   if (typeof model.commit !== 'string' || !HEX40.test(model.commit)) out.push('commit');
   if (!plainSegment(model.file)) out.push('model-file');
@@ -564,8 +579,8 @@ export function pinProblems(server = SERVER, model = MODEL, repos = { server: SE
 }
 
 /** Throws `clef-pin` when the table fails the shape check. */
-export function assertPins(server = SERVER, model = MODEL, repos) {
-  const bad = pinProblems(server, model, repos);
+export function assertPins(server = SERVER, model = MODEL, variant = 'flash') {
+  const bad = pinProblems(server, model, variant);
   if (bad.length) throw new Refused('clef-pin', `the pin table fails its shape check: ${bad.join(', ')}`);
 }
 
@@ -1055,6 +1070,15 @@ function readSetup(dir) {
   }
 }
 
+/** The variant setup.json records; one written with no `variant` key is `flash`. */
+const variantOf = setup => (setup?.variant === undefined ? 'flash' : setup.variant);
+
+/** The pin of the recorded variant, or null when the table has no such variant. */
+const recordedModel = (setup, models) => {
+  const variant = variantOf(setup);
+  return typeof variant === 'string' && Object.hasOwn(models, variant) ? models[variant] : null;
+};
+
 /** The folders under the clef folder. */
 export const paths = (dir, server = SERVER, model = MODEL) => ({
   runtime: join(dir, 'runtime', server.tag),
@@ -1079,8 +1103,8 @@ function serverPresent(dir, key, server, setup) {
   }));
 }
 
-function modelPresent(dir, model, setup) {
-  if (!setup || setup.model !== model.sha256) return false;
+/** Whether a model file is kept at its pinned size, whichever variant setup.json records: the plan makes no hash, and setup --yes hashes it before skipping it. */
+function modelPresent(dir, model) {
   try {
     return statSync(paths(dir, SERVER, model).model).size === model.size;
   } catch {
@@ -1093,8 +1117,9 @@ function modelPresent(dir, model, setup) {
  * clef folder. Throws Refused (`clef-platform`, `clef-space`, `clef-node`,
  * `clef-setpriv`, `clef-pin`).
  */
-export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, model = MODEL, glibc, machine, systemRoot = process.env.SystemRoot ?? 'C:\\Windows', readMachine = process.platform === 'win32' ? machineOf : () => undefined }) {
-  assertPins(server, model);
+export function planSetup({ dir, platform, arch, cpu = false, variant = 'flash', execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, models = MODELS, glibc, machine, systemRoot = process.env.SystemRoot ?? 'C:\\Windows', readMachine = process.platform === 'win32' ? machineOf : () => undefined }) {
+  const model = models[variant];
+  assertPins(server, model, variant);
   // Spec 0005 U4: no probe runs on macOS or on arm64, which never picks Vulkan.
   const probes = (platform === 'win32' || platform === 'linux') && arch === 'x64';
   const pick = pickPlatform({ platform, arch, vulkan: probes ? vulkan ?? probeVulkan({ platform, exists, systemRoot }) : false, cpu, machine: machine ?? (platform === 'win32' ? readMachine() : undefined) });
@@ -1117,11 +1142,11 @@ export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, fre
   const a = server.archives[pick.key];
   const setup = readSetup(dir);
   const haveServer = serverPresent(dir, pick.key, server, setup);
-  const haveModel = modelPresent(dir, model, setup);
+  const haveModel = modelPresent(dir, model);
   const need = (haveServer ? 0 : a.size) + (haveModel ? 0 : model.size);
   const needed = Math.ceil((need + (haveServer ? 0 : a.files.reduce((s, f) => s + f[1] * (f.length > 3 ? 2 : 1), 0))) * 1.1);
   if (free < needed) throw new Refused('clef-space', `the clef folder's drive has ${mb(free)} free and setup needs ${mb(needed)}`);
-  const lines = [`platform: ${pick.key} (${pick.why})`, `clef folder: ${quote(dir)}`];
+  const lines = [`platform: ${pick.key} (${pick.why})`, `variant: ${variant} (model ${model.file}, ${mb(model.size)})`, `clef folder: ${quote(dir)}`];
   const items = [];
   if (haveServer) lines.push(`present (sizes match), skipped unless its sha256 fails: server ${server.tag} (${pick.key})`);
   else {
@@ -1137,7 +1162,7 @@ export function planSetup({ dir, platform, arch, cpu = false, execPath, cwd, fre
   }
   lines.push(`free space: ${mb(free)}; needs ${mb(needed)}`);
   lines.push(`node recorded in setup.json: ${execPath}`);
-  return { pick, items, haveServer, haveModel, lines, needed };
+  return { pick, model, items, haveServer, haveModel, lines, needed };
 }
 
 function renameWithRetry(from, to) {
@@ -1190,15 +1215,15 @@ export function unpackServer({ dir, key, archivePath, platform, server = SERVER 
   rmSync(aside, { recursive: true, force: true });
 }
 
-/** Removes runtime folders and model files the table no longer names. */
-export function prune(dir, server = SERVER, model = MODEL) {
-  const p = paths(dir, server, model);
+/** Removes runtime folders and model files the table no longer names; each variant's model stays. */
+export function prune(dir, server = SERVER, models = MODELS) {
+  const p = paths(dir, server);
   const keep = (folder, names) => {
     if (!existsSync(folder)) return;
     for (const n of readdirSync(folder)) if (!names.includes(n)) rmSync(join(folder, n), { recursive: true, force: true });
   };
   keep(join(dir, 'runtime'), [server.tag]);
-  keep(p.models, [`${model.sha256}.gguf`]);
+  keep(p.models, Object.values(models).map(m => `${m.sha256}.gguf`));
   keep(p.partial, []);
 }
 
@@ -1208,10 +1233,11 @@ export function prune(dir, server = SERVER, model = MODEL) {
  * longer names, and writes setup.json last. Returns { lines }.
  */
 export async function runSetup(o) {
-  const { dir, yes = false, transport, sources = SOURCES, server = SERVER, model = MODEL, platform, execPath } = o;
+  const { dir, yes = false, variant = 'flash', transport, sources = SOURCES, server = SERVER, models = MODELS, platform, execPath } = o;
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const plan = planSetup({ ...o, server, model, free: o.free ?? freeBytes(dir) });
+  const plan = planSetup({ ...o, server, models, free: o.free ?? freeBytes(dir) });
   if (!yes) return { lines: [...plan.lines, 'run again with --yes to fetch'], plan };
+  const { model } = plan;
   const p = paths(dir, server, model);
   const a = server.archives[plan.pick.key];
   const lines = [...plan.lines];
@@ -1244,8 +1270,8 @@ export async function runSetup(o) {
     renameWithRetry(out, p.model);
     lines.push(`kept: model ${model.sha256.slice(0, 8)}`);
   }
-  prune(dir, server, model);
-  writeFileSync(p.setup, `${JSON.stringify({ platform: plan.pick.key, tag: server.tag, model: model.sha256, backend: plan.pick.backend, node: execPath }, null, 2)}\n`, { mode: 0o600 });
+  prune(dir, server, models);
+  writeFileSync(p.setup, `${JSON.stringify({ platform: plan.pick.key, tag: server.tag, model: model.sha256, variant, backend: plan.pick.backend, node: execPath }, null, 2)}\n`, { mode: 0o600 });
   return { lines, plan };
 }
 
@@ -1262,11 +1288,13 @@ export function freeBytes(path) {
 // ---------------------------------------------------------------- verify (S6)
 
 /**
- * Re-hashes every kept file and the model against the table: one line per file,
- * and the failing words. Reads setup.json for the platform.
+ * Re-hashes every kept file and the recorded model against the table: one line
+ * per file, and the failing words. Reads setup.json for the platform and the
+ * variant.
  */
-export function verify({ dir, server = SERVER, model = MODEL }) {
+export function verify({ dir, server = SERVER, models = MODELS }) {
   const setup = readSetup(dir);
+  const model = recordedModel(setup, models);
   const lines = [];
   const failed = [];
   const check = (label, path, size, sha) => {
@@ -1284,6 +1312,11 @@ export function verify({ dir, server = SERVER, model = MODEL }) {
   if (!setup || !server.archives[setup.platform]) {
     lines.push('missing: setup.json');
     failed.push('missing:setup.json');
+    return { lines, failed };
+  }
+  if (!model) {
+    lines.push('unknown: variant');
+    failed.push('unknown:variant');
     return { lines, failed };
   }
   const a = server.archives[setup.platform];
@@ -1736,11 +1769,12 @@ export function sweepOrphans({ dir, procRoot = '/proc', kill = pid => process.ki
 }
 
 /** Why the tool is not set up for the table, or null: a word and the setup. */
-function notSetUp(dir, platform, server = SERVER, model = MODEL) {
+function notSetUp(dir, platform, server = SERVER, models = MODELS) {
   const setup = readSetup(dir);
   if (!setup) return { reason: 'missing' };
   const a = server.archives[setup.platform];
-  if (setup.tag !== server.tag || setup.model !== model.sha256 || !a) return { reason: 'pin-changed' };
+  const model = recordedModel(setup, models);
+  if (setup.tag !== server.tag || !model || setup.model !== model.sha256 || !a) return { reason: 'pin-changed' };
   const p = paths(dir, server, model);
   if (!existsSync(join(p.runtime, destName(a.exe, a.exe))) || !existsSync(p.model)) return { reason: 'missing' };
   return { setup, archive: a, paths: p };
@@ -1838,8 +1872,8 @@ function freePort() {
  * pdeathsig, the timings, scriptUrl, and onKeeperOptions (shown the options
  * the keeper is forked with).
  */
-export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, model = MODEL, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig), onKeeperOptions = () => {} }) {
-  const ready = notSetUp(dir, platform, server, model);
+export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, models = MODELS, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig), onKeeperOptions = () => {} }) {
+  const ready = notSetUp(dir, platform, server, models);
   if (!ready.setup) {
     writeFail(dir, 'exit', now);
     throw new Refused('clef-setup', `not set up (${ready.reason})`);
@@ -2129,11 +2163,11 @@ function stateOf(live) {
  * `clef ensure` (S7): one result, { out, code }. It never fetches. States: ready,
  * starting, not-set-up (exit 3), failed (exit 4).
  */
-export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, model = MODEL, now = Date.now, procRoot, kill, liveCheck = liveSupervisor, line = lifetimeLine({ platform }), sweep = sweepServer }) {
+export async function ensure({ dir, wait = 0, platform = process.platform, env = process.env, execPath = process.execPath, scriptPath = fileURLToPath(import.meta.url), supervisorCommand, server = SERVER, models = MODELS, now = Date.now, procRoot, kill, liveCheck = liveSupervisor, line = lifetimeLine({ platform }), sweep = sweepServer }) {
   const rp = runPaths(dir);
   const secs = Math.min(60, Math.max(0, Number.isFinite(wait) ? wait : 0));
   const deadline = Date.now() + secs * 1000;
-  const setup = notSetUp(dir, platform, server, model);
+  const setup = notSetUp(dir, platform, server, models);
   if (!setup.setup) return { out: { state: 'not-set-up', reason: setup.reason }, code: 3 };
   const failed = () => {
     const f = readJsonFile(rp.fail);
@@ -2218,12 +2252,12 @@ export async function stopRun({ dir, platform = process.platform, procRoot, kill
   return { lines: [live ? 'stopped' : 'none running'], code: 0 };
 }
 
-/** `clef status` (S7): setup's platform, tag, backend and model prefix, the run state, and the last failure word. Never a token, key or path outside the clef folder. */
-export async function statusRun({ dir, platform = process.platform, server = SERVER, model = MODEL, now = Date.now }) {
+/** `clef status` (S7): setup's platform, tag, backend, model prefix and variant, the run state, and the last failure word. Never a token, key or path outside the clef folder. */
+export async function statusRun({ dir, platform = process.platform, server = SERVER, models = MODELS, now = Date.now }) {
   const setup = readSetup(dir);
   const lines = [];
   if (!setup) lines.push('setup: none');
-  else lines.push(`platform: ${quote(setup.platform)}`, `tag: ${quote(setup.tag)}`, `backend: ${quote(setup.backend)}`, `model: ${quote(String(setup.model).slice(0, 8))}`);
+  else lines.push(`platform: ${quote(setup.platform)}`, `tag: ${quote(setup.tag)}`, `backend: ${quote(setup.backend)}`, `model: ${quote(String(setup.model).slice(0, 8))}`, `variant: ${recordedModel(setup, models) ? variantOf(setup) : 'unknown'}`);
   const live = await liveSupervisor(dir);
   lines.push(`run: ${live ? (live.health.ready ? 'ready' : 'starting') : 'stopped'}`);
   // Spec 0003 M6: a server record no live supervisor owns names an orphan.
@@ -2301,6 +2335,16 @@ export async function main(argv, { env = process.env, platform = process.platfor
   if (!known) return refuse('usage', 'the modes are setup, verify, ensure, stop, status and remove');
   let wait = 0;
   let flagArgs = rest;
+  let variant = 'flash';
+  if (mode === 'setup') {
+    const i = rest.indexOf('--variant');
+    if (i !== -1) {
+      const v = rest[i + 1];
+      if (!Object.hasOwn(MODELS, v ?? '')) return refuse('usage', `setup --variant takes ${Object.keys(MODELS).join(' or ')}`);
+      variant = v;
+      flagArgs = [...rest.slice(0, i), ...rest.slice(i + 2)];
+    }
+  }
   if (mode === 'ensure') {
     const i = rest.indexOf('--wait');
     if (i !== -1) {
@@ -2311,7 +2355,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
     }
   }
   const flags = new Set(flagArgs);
-  if (flagArgs.length !== flags.size || flagArgs.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${known.length ? known.join(' and ') : mode === 'ensure' ? '--wait <seconds>' : 'no flags'}`);
+  if (flagArgs.length !== flags.size || flagArgs.some(f => !known.includes(f))) return refuse('usage', `${mode} takes ${mode === 'setup' ? '--variant flash|full, --cpu and --yes' : known.length ? known.join(' and ') : mode === 'ensure' ? '--wait <seconds>' : 'no flags'}`);
   let dir;
   try {
     dir = clefDir(claudeHome(env, account ?? homedir()));
@@ -2388,7 +2432,7 @@ export async function main(argv, { env = process.env, platform = process.platfor
         if (kept) return refuse('clef-orphan', 'a server from an earlier run is still loading; run `clef stop` again once it is ready');
       }
       if (yes && platform === 'linux') sweepOrphans({ dir });
-      const r = await runSetup({ dir, yes, cpu: flags.has('--cpu'), platform, arch, execPath, cwd, transport, exists, free });
+      const r = await runSetup({ dir, yes, variant, cpu: flags.has('--cpu'), platform, arch, execPath, cwd, transport, exists, free });
       for (const l of r.lines) out(l);
       out('RESULT: pass');
       return 0;

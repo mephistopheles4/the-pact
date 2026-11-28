@@ -1555,7 +1555,7 @@ test('stub page: Settings holds these sections and switches only, and a default 
   const P = bootPage();
   openSettings(P);
   assert.deepEqual(P.find(P.ids.settings, n => n.tag === 'h3').map(n => n.textContent), ['Usage limits', 'Agent identity']);
-  const rows = new Set([...[...L.OPT_TOOLS].map(c => c.name), ...readdirSync(join(REPO, 'claude', 'commands')).map(f => `/${f.slice(0, -3)}`)]);
+  const rows = new Set([...[...L.OPT_TOOLS].map(c => c.label ?? c.name), ...readdirSync(join(REPO, 'claude', 'commands')).map(f => `/${f.slice(0, -3)}`)]);
   const others = P.find(P.ids.settings, n => n.tag === 'input' && n.attrs.type === 'checkbox').map(n => n.attrs['aria-label']).filter(l => !rows.has(l));
   assert.deepEqual(others, ['Sessions act as their own GitHub App']);
   assert.equal(Object.hasOwn(JSON.parse(L.buildFiles(L.initialState())[0].text), 'settings'), false);
@@ -1566,7 +1566,7 @@ test('a tools list set on the page is saved in the installer\'s order, and wins 
   // #599 T1 (r3 X-N3): gh-app is the one exception: only the agent-identity switch installs it, so the page never lists it.
   assert.deepEqual(L.OPT_TOOLS.map(c => c.name), PACT_TOOLS.filter(n => n !== 'gh-app'));
   // PACT-61 S4: the page's row for clef says what the dry run's WARN line says.
-  assert.ok(L.OPT_TOOLS.find(c => c.name === 'clef').what.includes('downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.'));
+  assert.ok(L.OPT_TOOLS.find(c => c.name === 'clef').what.includes('downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only.'));
   const s = L.startState();
   assert.equal(s.tools, null, 'off by default: left as is');
   const config = st => JSON.parse(L.buildFiles(st)[0].text);
@@ -1577,6 +1577,66 @@ test('a tools list set on the page is saved in the installer\'s order, and wins 
   assert.deepEqual(config(s).tools, ['poster']);
   s.tools = [];
   assert.deepEqual(JSON.parse(L.keepFolderKeys(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, [], 'the page\'s empty list wins');
+});
+
+// PACT-128 C13
+test('stub page: one box enables a decision-model menu that starts at Clef Flash; a save writes the choice with its tool; only Jev shows the key notice', () => {
+  const P = bootPage();
+  openSettings(P);
+  const node = (tag, label) => P.find(P.ids.settings, n => n.tag === tag && n.attrs['aria-label'] === label)[0];
+  const box = () => node('input', 'Install a decision-one model');
+  const menu = () => node('select', 'Decision model');
+  const notice = 'Jev runs at TypeSafe, not on this machine. Set TYPESAFE_API_KEY in your environment, and list each repo Jev may be sent in ~/.pact/coverage.json: for a listed repo, the coverage hint sends security findings and threat-model entries to TypeSafe. Read docs/coverage.md for its terms first.';
+  const saved = () => {
+    P.button(P.ids.actions, 'Export').click();
+    const text = P.ids.output.text;
+    return [/"decision-model": "([a-z-]+)"/.exec(text)?.[1] ?? null, /"tools": (\[[^\]]*\])/.exec(text)?.[1].replace(/\s/g, '') ?? null];
+  };
+  let focused = null;
+  Object.getPrototypeOf(P.ids.settings).focus = function () {
+    focused = this;
+  };
+  const choose = (n, key, value) => {
+    n[key] = value;
+    n.listeners.change.forEach(f => f({}));
+  };
+  assert.deepEqual([box().checked, menu().disabled, menu().value], [false, true, 'clef-flash']);
+  assert.deepEqual(menu().children.map(o => o.attrs.value ?? o.value), ['clef-flash', 'clef-full', 'jev']);
+  assert.deepEqual(saved(), [null, null]);
+  choose(box(), 'checked', true);
+  assert.deepEqual([menu().disabled, saved()], [false, ['clef-flash', '["clef"]']]);
+  for (const [model, tools] of [['clef-full', '["clef"]'], ['jev', '[]'], ['clef-flash', '["clef"]']]) {
+    choose(menu(), 'value', model);
+    assert.deepEqual(saved(), [model, tools]);
+    assert.equal(menu().value, model);
+    assert.equal(P.ids.settings.text.includes(notice), model === 'jev', model);
+    assert.equal(P.ids.settings.text.includes('TYPESAFE_API_KEY'), model === 'jev', model);
+  }
+  choose(box(), 'checked', false);
+  assert.deepEqual(saved(), [null, '[]']);
+  choose(box(), 'checked', true);
+  // The commands list has a Leave as is of its own, above the tools'.
+  P.find(P.ids.settings, n => n.tag === 'button' && n.text.startsWith('Leave as is')).at(-1).click();
+  assert.deepEqual([box().checked, saved()], [false, [null, null]]);
+  // Each change redraws the section, so the focus goes to the new copy of the control that was changed.
+  choose(box(), 'checked', true);
+  assert.equal(focused, box());
+  choose(menu(), 'value', 'jev');
+  assert.equal(focused, menu());
+  const described = P.find(P.ids.settings, n => n.attrs.id !== undefined && n.attrs.id === menu().attrs['aria-describedby']);
+  assert.deepEqual(described.map(n => n.text), [notice], 'the menu is described by the notice');
+  choose(menu(), 'value', 'clef-flash');
+  assert.equal(menu().attrs['aria-describedby'], undefined);
+});
+
+// PACT-128 C13
+test('the decision model is kept with the tools list when left as is, and goes with a list set on the page', () => {
+  const folder = '{"schema":1,"tools":["coverage"],"decision-model":"jev"}';
+  const merged = s => JSON.parse(L.keepFolderKeys(L.buildFiles(s), folder).files[0].text);
+  const s = L.startState();
+  assert.deepEqual([merged(s).tools, merged(s)['decision-model']], [['coverage'], 'jev']);
+  s.tools = ['poster'];
+  assert.deepEqual([merged(s).tools, Object.hasOwn(merged(s), 'decision-model')], [['poster'], false]);
 });
 
 // #603 C8: the identity switch is written only when on, and it never puts gh-app in the tools list.

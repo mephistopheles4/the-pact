@@ -542,7 +542,7 @@ async function main() {
   say('Configuration:');
   for (const l of core.configBlock(parsed, boundHash, record, renders.rules.map(r => r.id).sort())) say(l);
   for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
-  for (const l of core.toolsBlock(toolsOn, staged.keys())) say(l);
+  for (const l of core.toolsBlock(toolsOn, staged.keys(), project ? null : parsed.decisionModel)) say(l);
   for (const l of core.skillsBlock(parsed)) say(l);
   if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
   else say('Working tree: clean');
