@@ -1,6 +1,6 @@
 # The coverage hint
 
-PACT-34. The owner asked for an advisory hint, because sessions keep proposing fixes for findings an accepted class already covers. [Spec 0010](../spec/0010-coverage-hint.md) says what is built, and [ADR 0178](../adr/0178-the-coverage-hint-is-advisory-and-local-by-default.md) records the decision. It went in as three tickets: full Clef in `clef`; the `coverage` tool, its install and Scriptorium's decision-model menu; and the pact's side.
+PACT-34. The owner asked for an advisory hint, because sessions keep proposing fixes for findings an accepted class already covers. [Spec 0011](../spec/0011-coverage-hint.md) says what is built, and [ADR 0178](../adr/0178-the-coverage-hint-is-advisory-and-local-by-default.md) records the decision. It went in as three tickets: full Clef in `clef`; the `coverage` tool, its install and Scriptorium's decision-model menu; and the pact's side.
 
 The pact text changes in `review.md`: a session with `coverage` on, outside a cloud session, puts the tool's one hint line under each security finding in a round comment, at most ten a round, or the `REFUSED` line of a refused run. The line changes nothing else. A round that sends findings to Jev logs one checkpoint line naming the repo and the count sent, which counts every run with Jev chosen except one refused with a word other than `coverage/internal`.
 

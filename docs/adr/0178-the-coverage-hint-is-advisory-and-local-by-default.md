@@ -1,6 +1,6 @@
 # The coverage hint is advisory, and local by default
 
-An opt-in pact tool, `coverage`, asks a decision model whether the project's threat model already covers a security finding, and the session shows its answer under the finding. The design is [spec 0010](../spec/0010-coverage-hint.md); the tool's use is in [coverage.md](../coverage.md).
+An opt-in pact tool, `coverage`, asks a decision model whether the project's threat model already covers a security finding, and the session shows its answer under the finding. The design is [spec 0011](../spec/0011-coverage-hint.md); the tool's use is in [coverage.md](../coverage.md).
 
 The owner asked for an advisory version now, because sessions keep proposing fixes for findings an accepted class already covers.
 

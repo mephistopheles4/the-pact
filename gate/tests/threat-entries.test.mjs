@@ -1,5 +1,5 @@
 // The pact's own entries file, docs/threat-entries.json, traced to
-// docs/threat-model.md in both directions (spec 0010, S2 and claim 16).
+// docs/threat-model.md in both directions (spec 0011, S2 and claim 16).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
