@@ -50,7 +50,28 @@ install into Claude Code refuses: run setup.
   install records them in the `entries` of `install.json`. The gitconfig
   includes your own global git config, sets the bot as `user.name` and
   `user.email` (your own `author.*` settings still win; see below), and drops
-  Git Credential Manager, so a failed mint fails an HTTPS push.
+  Git Credential Manager, so a failed mint fails an HTTPS push, except on a
+  repo the app isn't installed on (below).
+- **The app wherever it is installed.** The helper mints a token for any repo
+  an installation of your app covers, whoever owns it, and finds that
+  installation through GitHub's API. Where none covers the repo, git falls back
+  to you: `git-credential` answers with your own credential, from
+  `git credential fill` under your normal git config (with
+  `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`), and says so. "Not
+  installed" is remembered for ten minutes, and a remembered miss is not
+  checked against the pin again in that time. The bot stays the commit author
+  either way. Any other refusal, a failed pin check included, never falls back.
+  `gh` mode and the poster don't fall back: on a repo the app isn't installed
+  on, they refuse. Other accounts can install the app only when you make it
+  public on GitHub.
+- **Your own `git config --global` writes are kept.** In a session they land in
+  the agent gitconfig. Setup and refresh keep every line below its last line,
+  `# pact: the lines below are yours; setup and refresh keep them`. A
+  `[credential]`, `[url]`, `[http]`, `[include]` or `[includeIf]` section below
+  it makes setup and refresh refuse and the dry run say so, until you remove
+  it; the dry run compares the rest of the lines above the marker only. A key
+  git adds inside one of the pact's own sections (`[user]`,
+  `[credential "https://github.com"]`) is the pact's, and refresh rewrites it.
 - **Cross-harness identity guard (`~/.pact/guard/`).** Installs the shared guard
   (`guard.mjs`), `rules.json` (with `"identity": { "enabled": true, "posterOn": <boolean> }`),
   and the per-harness wrappers even when `cleaner` is off:
@@ -108,8 +129,16 @@ rest:
   editor's terminal) is tried after a failed mint, and `GIT_TERMINAL_PROMPT=0`
   doesn't stop it.
 - An SSH remote, a repository-local helper, a credential-bearing URL, an
-  `http.*.extraHeader` auth header, or an `insteadOf` rule.
+  `http.*.extraHeader` auth header, or an `insteadOf` rule. With an SSH remote,
+  a commit is still the bot's, but the push goes out with your SSH key, since
+  the gitconfig sets only the HTTPS helper. That is accepted: `status` reports
+  `remote protocol: ssh`, and `git remote set-url origin https://github.com/<owner>/<repo>.git`
+  moves the push to the app.
 - Your own `author.*`, `committer.*` and signing settings, which the include loads.
+- Your own git credential, for a repo the app isn't installed on, a made-up
+  one included: the helper can't tell git's call from a session's, so a
+  session that runs `git credential fill` for such a repo reads your
+  credential, which is often account-wide.
 - `GIT_CONFIG_GLOBAL` makes a session's `git config --global` write to the agent
   gitconfig, so `gh auth setup-git` swaps the helper out. The guard refuses a
   missing or symlinked gitconfig, and the next dry run refuses a changed Claude
@@ -193,7 +222,9 @@ In this order:
 5. Run `gh-app.mjs setup --provider <provider> --app-id <n> --key <downloaded .pem>`
    with the new key. It revokes the cached tokens.
 
-Pushes fail closed in between; no `forget` or switch-off is needed. Use this order for any suspected leak: a personal account
+Between steps 1 and 3, every repo answers "not installed", so git pushes go
+out with your own credentials: do steps 2 and 3 right after step 1. From step
+3, every mint fails closed. Use this order for any suspected leak: a personal account
 keeps no record of a key's use. After an account compromise, do it for each app,
 then delete every key on the app but the one whose fingerprint setup printed, and
 check its permissions and that its webhook is still off.

@@ -398,6 +398,8 @@ const ENV_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT'];
 
 /** The text setup writes for the claude app in this home folder, under the Node the install runs under. */
 const gitconfigFor = h => identityGitconfigText({ userHome: h, nodePath: process.execPath, app: APP, xdg: existsSync(join(h, '.config', 'git', 'config')) });
+/** The pact's text with `extra` put above its marker line, where the dry run still compares it; lines below the marker are the owner's. */
+const aboveMarker = (text, extra) => text.replace('# pact: the lines below', `${extra}# pact: the lines below`);
 
 /** A home folder whose configuration sets the identity switch, with setup's two files as asked: `pin` and `gitconfig` are the text to write, or null to leave the file out. */
 function identityHome(t, on, { pin = PIN, gitconfig = gitconfigFor, tools = [], env } = {}) {
@@ -497,7 +499,7 @@ for (const row of [
   { id: 'no-gitconfig', opts: { gitconfig: null }, says: /gitconfig is missing; run gh-app\.mjs setup first/ },
   { id: 'other-node', opts: { gitconfig: h => gitconfigFor(h).replace(process.execPath.replaceAll('\\', '/'), '/usr/bin/other') }, says: /gitconfig as expected: no: node path differs, run gh-app.mjs refresh/ },
   { id: 'extra-include', opts: { gitconfig: h => gitconfigFor(h).replace('[user]', '  path = /elsewhere/config\n[user]') }, says: /gitconfig as expected: no: include list differs, run gh-app.mjs refresh/ },
-  { id: 'other-line', opts: { gitconfig: h => `${gitconfigFor(h)}[core]\n  hooksPath = /x\n` }, says: /gitconfig as expected: no: other lines differ, run gh-app.mjs refresh/ },
+  { id: 'other-line', opts: { gitconfig: h => aboveMarker(gitconfigFor(h), '[core]\n  hooksPath = /x\n') }, says: /gitconfig as expected: no: other lines differ, run gh-app.mjs refresh/ },
   { id: 'owner-config-global', opts: { env: { GIT_CONFIG_GLOBAL: 'D:/mine' } }, says: /settings\.json already sets env GIT_CONFIG_GLOBAL/ },
   { id: 'owner-terminal-prompt', opts: { env: { GIT_TERMINAL_PROMPT: '1' } }, says: /settings\.json already sets env GIT_TERMINAL_PROMPT/ },
 ]) {
@@ -529,7 +531,7 @@ test('agent-identity on: an XDG git config added after setup is refused, and one
 // #603 C5: the refusal text names the part that differs and prints no line of the file.
 test('the gitconfig refusal prints only the fixed line, never a line of the file', t => {
   const repo = sharedRepo();
-  const h = identityHome(t, true, { gitconfig: hh => `${gitconfigFor(hh)}[core]\n  hooksPath = CANARY-LINE\n` });
+  const h = identityHome(t, true, { gitconfig: hh => aboveMarker(gitconfigFor(hh), '[core]\n  hooksPath = CANARY-LINE\n') });
   const r = install(repo, h);
   refused(r, /gitconfig as expected: no: other lines differ, run gh-app.mjs refresh/);
   assert.ok(!r.out.includes('CANARY-LINE'));

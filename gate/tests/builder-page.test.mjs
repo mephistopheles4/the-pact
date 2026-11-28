@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { AVIATION_PIN, EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, personalPresets, personalPresetsDir, shippedPresets } from '../../builder/build.mjs';
-import { DEFAULT_PARTS, MODEL_RE, agentModelOf, modelChoiceOk, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
+import { DEFAULT_PARTS, MODEL_RE, agentModelOf, modelChoiceOk, PART_MARKS, compileParts, copyParts, moveSkill, partsProblems, partsTexts, upgradeParts, wireSkill } from '../../builder/parts.mjs';
 import { BUILDER_KIT, CLEANER_ASK, CLEANER_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -1245,6 +1245,88 @@ test('stub page: an invalid command shows its rule under the field, linked by ar
   assert.ok(!cardClasses(clean).includes('wf-bad'));
   assert.doesNotMatch(clean.text, /⚠/);
   assert.doesNotMatch(clean.attrs['aria-label'], /invalid/);
+});
+
+// PACT-99 C1, C2: a skill's place in its stage's run order, ↑ and ↓ that move it past its neighbour there only,
+// the focus kept on the button, and the saved builder file and the rules in the new order.
+test('stub page: ↓ moves a Plan skill one place later among Plan\'s skills only; the line, the focus, the saved file and the rules follow', () => {
+  const P = bootPage();
+  const card = id => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === id)[0];
+  const line = () => P.find(P.ids.wf, n => /^(Runs|Switched off; its place:) \d+ of \d+ at /.test(n.textContent))[0].textContent;
+  const arrow = label => P.find(P.ids.wf, n => n.tag === 'button' && n.attrs['aria-label'] === label)[0];
+  const disabled = b => Object.hasOwn(b.attrs, 'disabled');
+  let focused = null;
+  Object.getPrototypeOf(P.ids.wf).focus = function () { focused = this; };
+  const save = () => {
+    P.button(P.ids.actions, 'Export').click();
+    return P.ids.output.text;
+  };
+  const before = save();
+  assert.ok(before.indexOf('`grill-with-docs`') < before.indexOf('`grimoire:eagle-eye`'), 'grilling runs first at the start');
+  openCard(P, card('plan-grill-with-docs'));
+  assert.equal(line(), 'Runs 1 of 5 at Plan');
+  assert.ok(disabled(arrow('Run grill-with-docs earlier')), 'the first skill has no earlier place');
+  assert.ok(!disabled(arrow('Run grill-with-docs later')));
+  arrow('Run grill-with-docs later').click();
+  assert.equal(line(), 'Runs 2 of 5 at Plan');
+  assert.equal(focused, arrow('Run grill-with-docs later'), 'the focus stays on the button pressed');
+  // Down to the last place: the pressed button is then disabled, so the focus goes to its partner.
+  for (let i = 0; i < 3; i++) arrow('Run grill-with-docs later').click();
+  assert.equal(line(), 'Runs 5 of 5 at Plan');
+  assert.ok(disabled(arrow('Run grill-with-docs later')));
+  assert.equal(focused, arrow('Run grill-with-docs earlier'));
+  // ↑ moves it back one place, and the focus stays on ↑.
+  assert.ok(!disabled(arrow('Run grill-with-docs earlier')));
+  arrow('Run grill-with-docs earlier').click();
+  assert.equal(line(), 'Runs 4 of 5 at Plan');
+  assert.equal(focused, arrow('Run grill-with-docs earlier'));
+  arrow('Run grill-with-docs later').click();
+  const after = save();
+  const plan = after.split('\n').find(l => l.includes('| Plan |'));
+  assert.ok(plan.indexOf('`grimoire:eagle-eye`') < plan.indexOf('`grill-with-docs`'), `the rules list grilling last at Plan: ${plan}`);
+  // The off note counts only the skill's own stage: a Design skill switched off leaves Plan's line as it was.
+  const switchOff = id => {
+    openCard(P, card(id));
+    // The panel's own switch: the cards' switches come first.
+    P.find(P.ids.wf, n => n.attrs['aria-label'] === 'skill on or off').at(-1).click();
+  };
+  switchOff('design-spec-driven-development');
+  openCard(P, card('plan-grill-with-docs'));
+  assert.equal(line(), 'Runs 5 of 5 at Plan');
+  // A Plan skill switched off: its own line says it is off, and its stage's other skills say the count holds it.
+  switchOff('plan-arena');
+  assert.equal(line(), 'Switched off; its place: 4 of 5 at Plan');
+  openCard(P, card('plan-grill-with-docs'));
+  assert.equal(line(), 'Runs 5 of 5 at Plan, counting those switched off');
+});
+
+// PACT-99 C1, C4: moveSkill (which the page embeds) swaps only with a neighbour at the same stage, and the saved builder file
+// keeps the new order; wireSkill puts a skill wired to another stage last there, and leaves one wired to its own.
+test('moveSkill and wireSkill change only the stage\'s run order, and the builder file saves it', () => {
+  const s = L.initialState();
+  const level3 = L.PACT.presets.find(p => p.id === 'level-3-full');
+  L.takePreset(s, level3, L.presetPicks(level3));
+  const g = s.parts.workflowGraph;
+  // The page's state lives in its own realm: its arrays are copied into this one before they are compared.
+  const ids = st => Array.from(g.skills.filter(k => k.stage === st), k => k.id);
+  const find = id => g.skills.find(k => k.id === id);
+  const design = ids('design');
+  const at = id => g.skills.indexOf(find(id));
+  const was = at('design-spec-driven-development');
+  // The last Plan skill has no later place there: the next skill in the array is Design's, and nothing moves.
+  assert.equal(moveSkill(g, find('plan-arena'), 1), false);
+  assert.equal(at('design-spec-driven-development'), was);
+  assert.equal(moveSkill(g, find('plan-arena'), -1), true);
+  assert.deepEqual(ids('plan'), ['plan-grill-with-docs', 'plan-eagle-eye', 'plan-impeccable-shape', 'plan-arena', 'plan-diagnose']);
+  assert.deepEqual(ids('design'), design);
+  const saved = JSON.parse(L.builderWith(null, s).text).workflowGraph.skills.filter(k => k.stage === 'plan').map(k => k.id);
+  assert.deepEqual(saved, ids('plan'), 'the builder file holds the new order');
+  const order = Array.from(g.skills, k => k.id);
+  wireSkill(g, find('plan-eagle-eye'), 'plan');
+  assert.deepEqual(Array.from(g.skills, k => k.id), order, 'wired to its own stage, it stays put');
+  wireSkill(g, find('plan-eagle-eye'), 'design');
+  assert.deepEqual(ids('design'), [...design, 'plan-eagle-eye'], 'wired to another stage, it runs last there');
+  assert.ok(!ids('plan').includes('plan-eagle-eye'));
 });
 
 // PACT-96 C12: the card, which takes the focus, carries its whole words and its skill name as its help.
