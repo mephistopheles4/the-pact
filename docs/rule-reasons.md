@@ -36,6 +36,7 @@ This file is never installed.
 | For `<effort>`, take the effort the tier table gives (the models line) | A model named with `<effort>` is no name a session can use, and no harness reads the effort from the tables. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | A skill I can't invoke | The harness blocks invoking a skill with model invocation off, and a plugin skill can be missing from the session's list; without the rule the stage stalls or the skill is skipped silently. Naming the skill in the workflow is the owner's consent to run it. |
+| Skill order | Several skills can share a stage, and nothing else says which runs first, or what a skipped skill, or one that runs with another, does to the order. Without the rule a session picks its own order, and a skill meant to shape the next can run after it. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. Where a harness has no subagents, it says each lens runs in a session of its own, which no harness arranges. |
 | Lenses are offers | An offer is a checkpoint, answered by whoever steers the session: the owner, or the grimoire head chef's lead in Turbo mode. |
 | Before you run a lens or post to the record, read `~/.pact/review.md` | Points to the procedure, which no tool loads. |
