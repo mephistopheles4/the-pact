@@ -587,8 +587,9 @@ evaluates one call and returns `null` or one decision object (`shell` accepts
 
 - **Step 1 (explicit target slots only — asymmetric prose-flag safety):**
   - If any prior segment before the evaluated `gh` or `git` segment changes
-    directories (`cd`, `pushd`, `Set-Location`, `sl`, `chdir`), fail closed
-    (`{ match: true }`) in `ownerScope`.
+    directories (`cd`, `pushd`, `popd`, `Set-Location`, `Push-Location`,
+    `Pop-Location`, `sl`, `chdir`), fail closed (`{ match: true }`) in
+    `ownerScope`.
   - For `gh`: inspect `-R`/`--repo` value (separate or attached; last flag
     wins), `gh api` endpoint token (extracted via the shared
     `parseGhApi(restArgs)` helper — where any unknown or non-decomposable flag

@@ -763,7 +763,7 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   assert.equal(call(`mise -C '${strangerWork}' x -- git commit -m x`, { cwd: fx.home }), null);
   assert.equal(call('gh pr create -t x -b y'), null);
 
-  // Account-scoped gh writes, Push-Location/Pop-Location/popd, and dot-operator wrappers stay guarded inside stranger cwd.
+  // Account-scoped gh writes and Push-Location/Pop-Location/popd stay guarded inside stranger cwd.
   for (const cmd of [
     'gh auth token',
     'gh auth setup-git',
@@ -948,6 +948,9 @@ test('C4: gh write classification, tokenizer hardening, --% stop-parsing, and po
     'gh api graphql --input body.json',
     'gh api graphql -F query=@q.gql',
     '. gh pr merge 1',
+    ".'gh' pr merge 1",
+    '[string]$env:X=gh auth token',
+    'try { ls } catch[System.Management.Automation.ActionPreferenceStopException]{gh pr merge 1}',
     'echo "x`" && gh pr create -t x -b y',
     'echo "x``\\"; gh pr create -t x -b y"',
     'echo @"\nsay "\ngh pr create -t x -b y\n"@',
@@ -1146,6 +1149,9 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
     'mise x -C . node@24 git commit -m x',
     'mise --bogus x git commit -m x',
     '. git commit -m x',
+    '."git" commit -m x',
+    '[string]$env:X=git push',
+    'try { ls } catch[System.Management.Automation.ActionPreferenceStopException]{git push}',
     'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.p GIT_CONFIG_VALUE_0=push git p',
     'GIT_CONFIG_PARAMETERS="\'alias.p=push\'" git p',
     'GIT_CONFIG_SYSTEM=/tmp/evil git p',
@@ -1204,6 +1210,9 @@ test('C5: git write guard checks all subcommands, env/global opts, shell-mode is
   assert.equal(call(`$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`, { shell: 'bash' })?.id, 'identity-git');
   assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; git commit -m x`, { shell: 'powershell' })?.id, 'identity-git');
   assert.equal(call(`cat <<EOF\n\nEOF\n$env:GIT_CONFIG_GLOBAL = '${cfgPath}'; git commit -m x`)?.id, 'identity-git');
+  assert.match(call('git commit -m x', { platform: 'win32', shell: 'bash' })?.reason ?? '', /GIT_CONFIG_GLOBAL="\$HOME\//);
+  assert.match(call('ls && git commit -m x', { platform: 'win32', shell: 'bash' })?.reason ?? '', /GIT_CONFIG_GLOBAL="\$HOME\//);
+  assert.match(call('git commit -m x', { platform: 'win32', shell: 'powershell' })?.reason ?? '', /\$env:GIT_CONFIG_GLOBAL = "\$env:USERPROFILE\//);
 
   // Unknown shell denies export and $env: GIT_CONFIG_GLOBAL while allowing inline and direct env.
   assert.equal(call(`export GIT_CONFIG_GLOBAL='${cfgPath}'; git push`, { shell: 'unknown' })?.id, 'identity-git');
@@ -1354,6 +1363,13 @@ test('C11: zero secret/URL/command leakage in reasons and 1 MiB adversarial inpu
     const elapsed = Date.now() - started;
     assert.equal(res?.id, 'identity-gh');
     assert.ok(elapsed < 3000, `brace pad took ${elapsed} ms (>= 3000 ms)`);
+  }
+  {
+    const started = Date.now();
+    const res = guard.answerCall({ command: `${'A'.repeat(400000)} ${'x{'.repeat(100000)}; git push`, provider: 'codex', cwd: ownerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform });
+    const elapsed = Date.now() - started;
+    assert.equal(res?.id, 'identity-git');
+    assert.ok(elapsed < 3000, `upper token0 brace pad took ${elapsed} ms (>= 3000 ms)`);
   }
 });
 

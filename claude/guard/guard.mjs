@@ -248,6 +248,8 @@ function tokenizeMode(command, bash, depth = 0) {
   let curLast = '';
   let curPrev = '';
   let curHasSlash = false;
+  let curHead = '';
+  let curDashState = 0; // 0 = no, 1 = leading '-', 2 = valid ^-[A-Za-z][A-Za-z0-9_-]*$
   let tokStart = -1;
   let started = false;
   let wasQuoted = false;
@@ -313,6 +315,14 @@ function tokenizeMode(command, bash, depth = 0) {
   };
 
   const addChar = ch => {
+    if (curHead.length < 8) curHead += ch;
+    if (current.length === 0) {
+      curDashState = ch === '-' ? 1 : 0;
+    } else if (curDashState === 1) {
+      curDashState = /[A-Za-z]/.test(ch) ? 2 : 0;
+    } else if (curDashState === 2) {
+      if (!/[A-Za-z0-9_-]/.test(ch)) curDashState = 0;
+    }
     curPrev = curLast;
     curLast = ch;
     if (ch === '/' || ch === '\\') curHasSlash = true;
@@ -322,6 +332,14 @@ function tokenizeMode(command, bash, depth = 0) {
   const addStr = s => {
     const len = s.length;
     if (len === 0) return;
+    if (curHead.length < 8) curHead += s.slice(0, 8 - curHead.length);
+    if (current.length === 0) {
+      curDashState = /^-[A-Za-z][A-Za-z0-9_-]*$/.test(s) ? 2 : (s === '-' ? 1 : 0);
+    } else if (curDashState === 1) {
+      curDashState = /^[A-Za-z][A-Za-z0-9_-]*$/.test(s) ? 2 : 0;
+    } else if (curDashState === 2) {
+      if (!/^[A-Za-z0-9_-]+$/.test(s)) curDashState = 0;
+    }
     curPrev = len >= 2 ? s[len - 2] : curLast;
     curLast = s[len - 1];
     if (!curHasSlash && (s.includes('/') || s.includes('\\'))) curHasSlash = true;
@@ -365,6 +383,8 @@ function tokenizeMode(command, bash, depth = 0) {
     curLast = '';
     curPrev = '';
     curHasSlash = false;
+    curHead = '';
+    curDashState = 0;
     tokStart = -1;
     started = false;
     wasQuoted = false;
@@ -419,6 +439,12 @@ function tokenizeMode(command, bash, depth = 0) {
     if (sub.hasExpandableHereStringWithDollar) hasExpandableHereStringWithDollar = true;
   };
 
+  const isPsBlockHead = t0 => {
+    if (t0 === undefined || t0.length > 15) return false;
+    const l = t0.toLowerCase();
+    return PS_BLOCK_PREFIXES.has(l) || l === 'function' || l === 'filter';
+  };
+
   while (i < n) {
     const c = command[i];
 
@@ -443,7 +469,7 @@ function tokenizeMode(command, bash, depth = 0) {
         if (c === '$' && command[i + 1] === '(') {
           hasBashSubst = true;
           parenStack.push(command[i + 2] === '(' ? { kind: 'arith-pending' } : { kind: 'group', caseStack: [] });
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -454,6 +480,8 @@ function tokenizeMode(command, bash, depth = 0) {
           curLast = '';
           curPrev = '';
           curHasSlash = false;
+          curHead = '';
+          curDashState = 0;
           tokStart = -1;
           started = false;
           wasQuoted = false;
@@ -512,7 +540,7 @@ function tokenizeMode(command, bash, depth = 0) {
           hasSubexprInDoubleQuotes = true;
           hasPsSubexpr = true;
           parenStack.push({ kind: 'group', caseStack: [] });
-          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
+          dqStack.push({ tokens, rawTokens, tokenOffsets, prevTokenQuoted, prevTokenEscaped, current, curLast, curPrev, curHasSlash, curHead, curDashState, tokStart, started, wasQuoted, wasEscaped, subParenDepth: 1 });
           inDoubleQuote = false;
           tokens = [];
           rawTokens = [];
@@ -523,6 +551,8 @@ function tokenizeMode(command, bash, depth = 0) {
           curLast = '';
           curPrev = '';
           curHasSlash = false;
+          curHead = '';
+          curDashState = 0;
           tokStart = -1;
           started = false;
           wasQuoted = false;
@@ -775,6 +805,8 @@ function tokenizeMode(command, bash, depth = 0) {
           curPrev = frame.curLast;
           curLast = '$';
           curHasSlash = frame.curHasSlash;
+          curHead = frame.curHead.length < 8 ? `${frame.curHead}$` : frame.curHead;
+          curDashState = 0;
           tokStart = frame.tokStart;
           started = frame.started;
           wasQuoted = frame.wasQuoted;
@@ -791,7 +823,7 @@ function tokenizeMode(command, bash, depth = 0) {
       endSegment(sep, i);
       i += sep.length;
     } else if (!bash && !wasQuoted && c === '=' && i + 1 < n && command[i + 1] !== "'" && command[i + 1] !== '"' && command[i + 1] !== '$' && !/[ \t\r\n]/.test(command[i + 1]) && (
-      (tokens.length === 0 && started && tokStart >= 0 && command[tokStart] === '$' && PS_VAR_PREFIX_RE.test(current)) ||
+      (tokens.length === 0 && started && tokStart >= 0 && (command[tokStart] === '$' || command[tokStart] === '[') && PS_VAR_PREFIX_RE.test(current)) ||
       (tokens.length === 1 && PS_VAR_PREFIX_RE.test(tokens[0]) && (!started || current === '+'))
     )) {
       if (started) {
@@ -816,14 +848,10 @@ function tokenizeMode(command, bash, depth = 0) {
           current === '@' ||
           (curPrev === '=' && curLast === '@') ||
           curLast === '=' ||
-          (current.length <= 64 && (
-            /^-[A-Za-z][A-Za-z0-9_-]*$/.test(current) ||
-            /^(?:catch|trap)\[/i.test(current) ||
-            PS_BLOCK_PREFIXES.has(current.toLowerCase())
-          )) ||
-          PS_BLOCK_PREFIXES.has(tokens[0]?.toLowerCase() ?? '') ||
-          tokens[0]?.toLowerCase() === 'function' ||
-          tokens[0]?.toLowerCase() === 'filter'
+          curDashState === 2 ||
+          /^(?:catch|trap)\[/i.test(curHead) ||
+          (current.length <= 15 && PS_BLOCK_PREFIXES.has(current.toLowerCase())) ||
+          isPsBlockHead(tokens[0])
         ))
       )
     )) {
@@ -884,6 +912,13 @@ function tokenizeMode(command, bash, depth = 0) {
         addChar(c);
         i++;
       }
+    } else if (!bash && c === '.' && tokens.length === 0 && !started && (command[i + 1] === "'" || command[i + 1] === '"')) {
+      tokens.push('.');
+      rawTokens.push('.');
+      tokenOffsets.push(i);
+      prevTokenQuoted = false;
+      prevTokenEscaped = false;
+      i++;
     } else {
       if (c === '$' || c === '`' || c === '[') markUnquotedScan(i, n);
       startToken(i);
@@ -3435,8 +3470,8 @@ function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform, scop
   const dirs = hasDirs ? [...segState.segEnvDirs, ...gitInfo.dirs] : segState.segEnvDirs;
   const isGitPush = gitInfo.subcmd === 'push';
   const ck = hasDirs
-    ? `git:${isGitPush ? 1 : 0}:${explicitRemoteName ?? ''}:${JSON.stringify(dirs)}`
-    : `git:${isGitPush ? 1 : 0}:${explicitRemoteName ?? ''}`;
+    ? `git1:${isGitPush ? 1 : 0}:${explicitRemoteName ?? ''}:${JSON.stringify(dirs)}`
+    : `git0:${isGitPush ? 1 : 0}:${explicitRemoteName ?? ''}`;
   if (scopeCache?.has(ck)) return scopeCache.get(ck);
   const scopeRes = resolveCwdRepoScope({
     cwd,
