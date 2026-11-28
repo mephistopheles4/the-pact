@@ -110,8 +110,11 @@ function fixture(t, cfgExtra = {}) {
   writeFileSync(cfg, JSON.stringify({ record, requests, ...cfgExtra }));
   const forwarded = () => (existsSync(requests) ? readFileSync(requests, 'utf8').split('\n').filter(Boolean).length : 0);
   const exe = { exe: process.execPath, exePrefix: [stub, cfg], pdeathsig: false };
+  // Retried until it parses: the stub's file exists before its content does.
   const recorded = async () => {
-    for (let i = 0; i < 100 && !existsSync(record); i++) await sleep(50);
+    for (let i = 0; i < 100; i++) {
+      try { return JSON.parse(readFileSync(record, 'utf8')); } catch { await sleep(50); }
+    }
     return JSON.parse(readFileSync(record, 'utf8'));
   };
   const setCfg = extra => writeFileSync(cfg, JSON.stringify({ record, requests, ...cfgExtra, ...extra }));
