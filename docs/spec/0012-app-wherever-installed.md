@@ -2,9 +2,9 @@
 
 Status: draft 2, after T1's first Test round (the QA pair and the security
 pair), with their fixes folded in. A delta on
-[0010](0010-agent-identity-guard.md): its repo-owner scoping moves from the
-owner's name to the app's installations, in T2. Everything else in 0010
-holds. The spec counts once it is on `main`.
+[0010](0010-agent-identity-guard.md): in T2, its repo-owner scoping for `git`
+writes moves from the owner's name to the app's installations. Everything else
+in 0010 holds. The spec counts once it is on `main`.
 
 - **Business driver:** the owner's ask: where the app is installed, the agent
   works as the app, whoever owns the repo; where it isn't, the work goes on
@@ -12,14 +12,29 @@ holds. The spec counts once it is on `main`.
   option that is cheaper to reverse.
 - **Trade-off:** one test against a fast guard. The guard runs before every
   shell call and can't ask GitHub. So the helper holds the installation test,
-  and the guard (T2) sends every github.com write through the helper, which
+  and the guard (T2) sends every github.com git write through the helper, which
   falls back to the owner where no installation covers the repo. A write to a
   repo the app isn't on then costs a helper call; the guard stays offline.
+- **Trade-off:** one line for git and `gh` against a `gh` write that still goes
+  through. `gh-app.mjs gh` has no fallback (S1.2), so a guard that denied
+  every github.com `gh` write would block them wherever the app isn't
+  installed. T2 leaves the `gh` side as it was, the option cheaper to
+  reverse; S5 names the gap.
 - **Trade-off:** the owner's credential against a stuck push. Where the app
   isn't installed, the helper hands git the owner's own credential instead of
   failing. That is the owner's call ("they have access and i asked for it").
   A failed pin check, or any refusal but "not installed", still never falls
   back.
+
+<!-- toc -->
+
+- [S1 What changes](#s1-what-changes)
+- [S2 Acceptance claims](#s2-acceptance-claims)
+- [S3 Tickets, route and boundaries](#s3-tickets-route-and-boundaries)
+- [S4 Rollback](#s4-rollback)
+- [S5 What T2 leaves open](#s5-what-t2-leaves-open)
+
+<!-- /toc -->
 
 ## S1 What changes
 
@@ -56,13 +71,13 @@ holds. The spec counts once it is on `main`.
    fail, since it could put a helper back. Otherwise the verdict compares only
    the text through the marker. A key git adds inside a pact section is the
    pact's.
-5. **The guard draws the same line (T2).** The guard's owner test
-   (`resolveOwnerMatch`, and the two-segment shorthand in `evalRepoShorthand`)
-   becomes "the host is GitHub": every repo-bound `git` and `gh` write to
-   github.com goes through the app's gitconfig or `gh-app.mjs gh`, and the
-   helper decides app or owner. Account-scoped `gh` writes are unchanged.
-   Hosts other than GitHub stay exempt, so 0010's C3 and Step 2 tests keep an
-   exempt case by moving their stranger repos to a non-GitHub host.
+5. **The guard sends every github.com git write through the app (T2).** For a
+   `git` write, the guard's owner test (`resolveOwnerMatch`) becomes "the host
+   is GitHub": the write needs the app's gitconfig whoever owns the repo, and
+   the credential helper decides app or owner. `gh` writes are scoped as
+   before, to the pinned owner's repos and the account-scoped commands. Hosts
+   other than GitHub stay exempt, so 0010's exempt `git` tests move their
+   stranger repos to a non-GitHub host.
 
 ## S2 Acceptance claims
 
@@ -82,9 +97,9 @@ holds. The spec counts once it is on `main`.
   section there; the install's verdict ignores the owner's lines, flags such a
   section and still sees a changed pact line; under real git, a
   `git config --global` write lands below the marker.
-- **C6 (T2):** with the guard on, a plain `gh` or `git` write to a github.com
-  repo of any owner is guarded; a non-GitHub host passes; account-scoped
-  writes are as before.
+- **C6 (T2):** with the guard on, a `git` write to a github.com repo of any
+  owner is guarded; a non-GitHub host passes; `gh` writes are scoped as
+  before.
 
 ## S3 Tickets, route and boundaries
 
@@ -93,8 +108,9 @@ holds. The spec counts once it is on `main`.
 - **T1:** `claude/tools/gh-app.mjs`, `gate/install-core.mjs` (the gitconfig
   text and verdict), their tests, `agent-identity.md`, the threat model. No
   guard line.
-- **T2:** stacks on T1. `claude/guard/guard.mjs` (S1.5) and its C3 and Step 2
-  tests, 0010's scoping text, `agent-identity.md`'s scoping paragraph. It
+- **T2:** stacks on T1. `claude/guard/guard.mjs` (S1.5) and its tests,
+  0010's scoping text, `agent-identity.md`'s scoping paragraph, and the
+  guard's lines in the threat model and `install.md`. It
   shares no lines with the guard fix running beside it
   (`hasClosingDelimiterAfter`, `buildGitDenyReason` and its two call sites,
   the end of `guard.test.mjs`).
@@ -105,3 +121,11 @@ Revert the merge, then run `gh-app.mjs refresh --provider <p>`: the older
 helper writes the gitconfig without the marker and keeps nothing below it, so
 copy the owner's lines out first. Cached "not installed" entries hold no token
 and age out in ten minutes; `forget` clears them at once.
+
+## S5 What T2 leaves open
+
+A plain `gh` write to another owner's repo where the app is installed still
+goes out as the owner's login: `gh-app.mjs gh` works there, and nothing
+enforces it. Enforcing it is a follow-up: the guard would read the helper's
+remembered "not installed" answers and deny every other github.com `gh`
+write.

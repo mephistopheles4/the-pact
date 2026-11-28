@@ -103,8 +103,9 @@ answer and hint, from any backend, Jev's included.
   Antigravity (`force_ask`) and denies in Codex. Under `agent-identity`, when
   the provider is pinned in `~/.pact/github.json`, the guard denies plain `gh`
   writes on owner repos, account-scoped `gh` writes, and `git` override/unset
-  attempts across all three harnesses, and in Codex and Antigravity intercepts
-  plain `git` writes missing `GIT_CONFIG_GLOBAL`: on eligible single simple
+  attempts (on any GitHub repo) across all three harnesses, and in Codex and
+  Antigravity intercepts plain `git` writes to any GitHub repo missing
+  `GIT_CONFIG_GLOBAL`: on eligible single simple
   `git` `run_command` calls in Antigravity, `antigravity.mjs` unconditionally
   emits `decision: "force_ask"` paired with `overwrite.CommandLine`
   (`GIT_CONFIG_GLOBAL` and `GIT_TERMINAL_PROMPT=0`, never `allow`; verified in
@@ -223,7 +224,8 @@ and `config.worktree` files read from clones by the guard; and the release job's
   `NoDefaultCurrentDirectoryInExePath=1` and cleared `NODE_OPTIONS`, or on
   POSIX via `/usr/bin/env -u NODE_OPTIONS node` for `claude.mjs` and
   `env -u NODE_OPTIONS node` for `codex.mjs` and `antigravity.mjs`) are never
-  taken from the working folder. To scope `git` and `gh` writes to the pinned owner's repos,
+  taken from the working folder. To scope a write to its repo (any GitHub repo
+  for `git`, the pinned owner's repos for `gh`),
   the guard reads `.git/config`, `gitdir:`, `commondir`, and `config.worktree`
   directly as bounded plain text (up to 1 MiB) and spawns zero `git`
   subprocesses in `cwd`, rejecting UNC/network/device paths, Windows
@@ -368,7 +370,7 @@ secret or personal detail the scan doesn't read.
   `identity-git` speed bumps for pinned providers: denying plain `gh` writes on
   owner repos and account-scoped `gh` writes (explicit-login assigning runs
   through `gh-app.mjs gh --provider <provider>`), denying `git` override/unset
-  attempts across all three harnesses, and in Codex and Antigravity verifying
+  attempts on any GitHub repo across all three harnesses, and in Codex and Antigravity verifying
   `gh-app-<provider>.gitconfig` is a regular non-symlink file and denying or (on
   simple Antigravity `run_command` calls) rewriting `CommandLine` with
   `GIT_CONFIG_GLOBAL` + `GIT_TERMINAL_PROMPT=0` under `force_ask` when
@@ -394,6 +396,8 @@ a session; while zero data retention is not confirmed in writing, a send through
 read as the owner or as the owner's agent app. Any provider unpinned in
 `github.json` at runtime (`codex` or `antigravity` absent from `apps`) passes
 through silently and writes with the owner's own Git and `gh` credentials.
+A plain `gh` write to another owner's repo passes and runs under the owner's
+`gh` login, a repo the app is installed on included.
 Exempt `gh run` and `gh workflow` writes run under the owner's `gh` login while
 `gh-app.mjs` holds `actions: read` only, and `git pull` is excluded from
 guarded `git` write subcommands (`git push` stays guarded). Each provider's

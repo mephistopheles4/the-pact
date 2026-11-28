@@ -7,7 +7,8 @@ harnesses without `settings-env` (`codex` and `antigravity`), the renderer
 adds a one-line `Use your pinned GitHub App` rule into `AGENTS.md`. While it is
 on, the pact guards git and `gh`
 writes across local sessions in Claude Code, Codex and Antigravity so
-owner-repo writes run as the GitHub App you create under your own account (see
+git writes to GitHub, and `gh` writes on your own repos, run as the GitHub
+App you create under your own account (see
 [the helper](reference.md#pact-tools)). The app's name is yours to choose: the
 examples use "Mephisto's Homunculus" for Claude Code, "Mephisto's Wagner" for
 Codex and "Mephisto's Euphorion" for Antigravity, and nothing in the pact names
@@ -106,11 +107,13 @@ install into Claude Code refuses: run setup.
   repo-scoped `git` write, the guard checks that
   `~/.pact/gh-app-<provider>.gitconfig` exists as a regular non-symlink file,
   denying with `gh-app.mjs setup --provider <provider>` (or `refresh`) guidance
-  otherwise. Repo-bound `git` and `gh` writes are scoped to `pin.owner.login`
-  repos by inspecting explicit targets (`-R`/`--repo`, `GH_REPO`, `gh api`
-  endpoint, `git push` target) and reading `.git/config` directly as plain text
-  without spawning `git` (rejecting UNC/network paths and symlinks); third-party
-  and non-owner org repos pass through, while account-scoped `gh` writes and
+  otherwise. The guard finds a write's repo by inspecting explicit targets
+  (`-R`/`--repo`, `GH_REPO`, `gh api` endpoint, `git push` target) and reading
+  `.git/config` directly as plain text without spawning `git` (rejecting
+  UNC/network paths and symlinks). A `git` write to any GitHub repo is guarded,
+  whoever owns it, and the credential helper decides app or owner; other hosts
+  pass through. `gh` writes are scoped to `pin.owner.login` repos: third-party
+  and non-owner org repos pass through. Account-scoped `gh` writes and
   unreadable or unresolvable remotes fail closed (guarded). `gh run` and
   `gh workflow` writes and `git pull` are exempt.
 - **Session guidance.** Renders a one-line `Use your pinned GitHub App` rule
@@ -134,6 +137,12 @@ rest:
   the gitconfig sets only the HTTPS helper. That is accepted: `status` reports
   `remote protocol: ssh`, and `git remote set-url origin https://github.com/<owner>/<repo>.git`
   moves the push to the app.
+- A plain `gh` write to another owner's repo where the app is installed: it goes
+  out as your own login. `gh-app.mjs gh` runs it as the app, and nothing makes a
+  session use it.
+- A `git` write to a gist or another `*.github.com` host: the guard asks for the
+  app's gitconfig, but its helper covers `github.com` only, so your own
+  credential is used.
 - Your own `author.*`, `committer.*` and signing settings, which the include loads.
 - Your own git credential, for a repo the app isn't installed on, a made-up
   one included: the helper can't tell git's call from a session's, so a

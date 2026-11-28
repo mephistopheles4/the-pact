@@ -102,6 +102,8 @@ Design round 1 security refinements marked):
    `git` in `cwd`, rejecting UNC/network paths and symlinks). Account-level
    `gh` writes stay guarded regardless of `cwd`. Third-party repos pass
    through; unreadable, missing, or unresolvable remotes fail closed (guarded).
+   [Spec 0012](0012-app-wherever-installed.md) widens the `git` side to every
+   GitHub repo.
 9. **Guarded git subcommands:** `commit`, `push`, `merge`, `cherry-pick`,
    `revert`, `rebase`, `tag`, `am` (`git pull` stays excluded as an accepted
    residual recorded in S7).
@@ -578,12 +580,33 @@ evaluates one call and returns `null` or one decision object (`shell` accepts
          - Otherwise (`canOverwrite` is false — `claude`, `manage_task`,
            `send_command_input`, `codex` — OR command is compound, wrapped, or
            overridden): return `{ decision: 'deny', id: 'identity-git',
-           reason }` with fixed text naming the exact PowerShell/POSIX
-           `GIT_CONFIG_GLOBAL` + `GIT_TERMINAL_PROMPT=0` prefix using
-           `"$env:USERPROFILE/.pact/gh-app-<provider>.gitconfig"` (Windows) /
-           `"$HOME/.pact/gh-app-<provider>.gitconfig"` (POSIX).
+           reason }`. The reason names a `GIT_CONFIG_GLOBAL` +
+           `GIT_TERMINAL_PROMPT=0` prefix that this check accepts whatever
+           `HOME` or `USERPROFILE` hold (amended by PACT-130: a hook's
+           environment can lack `HOME`, as Claude Code's does on Windows).
+           It names the expected gitconfig path as a quoted literal:
+           - **Bash form** (POSIX, `shell: 'bash'`, and `shell: 'unknown'` on
+             any platform): `Put GIT_CONFIG_GLOBAL='<path>'
+             GIT_TERMINAL_PROMPT=0 right before each git command (inside any
+             subshell or pipe too)`. A path holding `'` is written
+             `"<path>"` instead, with `\` and `"` escaped by a backslash.
+           - **PowerShell form** (Windows, any other shell): `Start the call
+             with $env:GIT_CONFIG_GLOBAL = '<path>'; $env:GIT_TERMINAL_PROMPT
+             = '0'; then the git write, in a call with no block, pipe,
+             subshell, && or ||`, with `'` in the path written `''`.
+           - **Fallback:** a path holding `$`, a backtick or a control
+             character, or starting with `~` (and, for the PowerShell form, a
+             `WIN_PATH_BAD` character) keeps the same text with the variable
+             path in place of the literal:
+             `"$env:USERPROFILE/.pact/gh-app-<provider>.gitconfig"` (PowerShell
+             form) / `"$HOME/.pact/gh-app-<provider>.gitconfig"` (Bash form).
 
 ### Plain-text repo-owner resolution (no `git` subprocess)
+
+[Spec 0012](0012-app-wherever-installed.md) changes the `git` side: a `git`
+write is guarded on every GitHub repo, whoever owns it. Where this spec
+limits a write to owner repos, or has another GitHub owner pass, that holds
+for `gh` writes only.
 
 - **Step 1 (explicit target slots only — asymmetric prose-flag safety):**
   - If any prior segment before the evaluated `gh` or `git` segment changes
