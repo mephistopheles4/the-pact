@@ -22,4 +22,6 @@
 
 ## Record
 
-- The ticket: PACT-93 on Linear. The pull request holds the Test review.
+- The ticket: [PACT-93](https://linear.app/mephistopheles4/issue/PACT-93/pact-85-t3-clef-end-to-end-in-ci-the-cpu-timeout-and-the-load-crash) on Linear.
+- Test round 1 on `62e95db5`, with the four reports verbatim: PACT-93, [comment f1840f8c](https://linear.app/mephistopheles4/issue/PACT-93/pact-85-t3-clef-end-to-end-in-ci-the-cpu-timeout-and-the-load-crash#comment-f1840f8c).
+- Test round 2, final, on `59e69295`, with the two reports verbatim: PACT-93, [comment 89ad81f8](https://linear.app/mephistopheles4/issue/PACT-93/pact-85-t3-clef-end-to-end-in-ci-the-cpu-timeout-and-the-load-crash#comment-89ad81f8).
