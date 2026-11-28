@@ -224,7 +224,8 @@ and `config.worktree` files read from clones by the guard; and the release job's
   `NoDefaultCurrentDirectoryInExePath=1` and cleared `NODE_OPTIONS`, or on
   POSIX via `/usr/bin/env -u NODE_OPTIONS node` for `claude.mjs` and
   `env -u NODE_OPTIONS node` for `codex.mjs` and `antigravity.mjs`) are never
-  taken from the working folder. To scope `git` and `gh` writes to the pinned owner's repos,
+  taken from the working folder. To scope a write to its repo (any GitHub repo
+  for `git`, the pinned owner's repos for `gh`),
   the guard reads `.git/config`, `gitdir:`, `commondir`, and `config.worktree`
   directly as bounded plain text (up to 1 MiB) and spawns zero `git`
   subprocesses in `cwd`, rejecting UNC/network/device paths, Windows

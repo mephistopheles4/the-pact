@@ -16,7 +16,7 @@ The security pair found that draft 1's `gh` fallback ran `gh` as the owner with 
 
 ## T2, the guard
 
-**2026-11-28.** A `git` write is now guarded on every GitHub repo, whoever owns it, so it goes through the app's gitconfig and the helper decides app or owner. `gh` writes keep the owner scope: after T1's security review, `gh` mode no longer falls back to the owner, so denying every github.com `gh` write would have blocked them where the app isn't installed. The lead picked this (decision 117), flagged to the owner. Left open: a plain `gh` write to another owner's repo where the app is installed goes out as the owner (spec 0012 S5). Tests: +1 −0; the exempt `git` cases moved to a non-GitHub host.
+**2026-11-28.** A `git` write is now guarded on every GitHub repo, whoever owns it, so it goes through the app's gitconfig and the helper decides app or owner. `gh` writes keep the owner scope: after T1's security review, `gh` mode no longer falls back to the owner, so denying every github.com `gh` write would have blocked them where the app isn't installed. The lead picked this (decision 117), flagged to the owner. Left open: a plain `gh` write to another owner's repo where the app is installed goes out as the owner (spec 0012 S5). Tests: +1 −0; the exempt `git` cases moved to a non-GitHub host, and the invalid-owner row moved from `git push` to a `gh` write.
 
 ## Rolling back
 

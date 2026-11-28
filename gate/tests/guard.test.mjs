@@ -676,6 +676,7 @@ test('C3: Step 1 explicit repo-owner scoping handles gh, gh api, GH_REPO, git pu
     'gh pr create --hostname ghes.example.com -R github.com/OwnerLogin/repo -t x -b y',
     'gh pr create --repo=https://@github.com/OwnerLogin/repo -t x -b y',
     'gh pr create --repo=https://a@b@github.com/OwnerLogin/repo -t x -b y',
+    'gh pr create -R https://github.com/-bad/repo -t x -b y',
     'gh pr create -t "-R Stranger/repo" -b y',
     'gh pr create -t hi -R Stranger/repo',
     'gh pr create --draft https://github.com/Stranger/repo/pull/1',
@@ -811,6 +812,8 @@ test('C3: Step 2 plain-text git config scoping handles worktrees, -C chaining, a
   assert.equal(call('gh pr create -t x -b y', { cwd: multiSafe.work }), null);
   assert.equal(call('git push', { cwd: multiSafe.work })?.id, 'identity-git');
   assert.equal(call('git push upstream main', { cwd: multiSafe.work }), null);
+  const multiStranger = makeGitRepo(t, { remoteUrl: 'https://github.com/Stranger/r1.git', extraConfig: '[remote "upstream"]\n\turl = https://github.com/Other/r2.git\n' });
+  assert.equal(call('gh pr create -t x -b y', { cwd: multiStranger.work }), null);
   const multiNoUrl = makeGitRepo(t, { remoteUrl: 'https://git.example.com/Stranger/r1.git', extraConfig: '[remote "upstream"]\n\tfetch = +refs/heads/*:refs/remotes/upstream/*\n' });
   assert.equal(call('gh pr create -t x -b y', { cwd: multiNoUrl.work })?.id, 'identity-gh');
   const pushDefaultRepo = makeGitRepo(t, { remoteUrl: 'https://git.example.com/Stranger/r.git', extraConfig: '[remote]\n\tpushDefault = origin\n' });
@@ -911,6 +914,7 @@ test('PACT-125 C6: a git write to a github.com repo of any owner is guarded; gh 
     assert.equal(call(cmd), null, cmd);
   }
   assert.equal(call('gh pr create -t x -b y', strangerRepo.work), null);
+  assert.equal(guard.answerCall({ command: 'git -c credential.helper= push', provider: 'claude', cwd: strangerRepo.work, canOverwrite: false, env: { HOME: fx.home }, tableFile: fx.tableFile, platform: process.platform })?.id, 'identity-git');
 });
 
 // #PACT-120 #PACT-119 C4

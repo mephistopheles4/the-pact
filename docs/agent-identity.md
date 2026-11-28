@@ -140,6 +140,9 @@ rest:
 - A plain `gh` write to another owner's repo where the app is installed: it goes
   out as your own login. `gh-app.mjs gh` runs it as the app, and nothing makes a
   session use it.
+- A `git` write to a gist or another `*.github.com` host: the guard asks for the
+  app's gitconfig, but its helper covers `github.com` only, so your own
+  credential is used.
 - Your own `author.*`, `committer.*` and signing settings, which the include loads.
 - Your own git credential, for a repo the app isn't installed on, a made-up
   one included: the helper can't tell git's call from a session's, so a
