@@ -135,7 +135,7 @@ Also accepted. A session takes checkpoints alone: the log is written by the
 session that took the pick, and the owner checks it against GitHub's history;
 it corrects only what can be undone, never what was published or sent; an open
 security pick is logged, flagged big, in the work's record on the project's issue tracker,
-where a public tracker's reader can read it; outside text can steer the framing of a finding, and, in a caller's `state`, a decision model's numbers, its placement call bounded by the session's own; what its
+where a public tracker's reader can read it; outside text can steer the framing of a finding, and, in a caller's `state`, a decision model's numbers, its placement call bounded by the session's own; any `coverage` backend's numbers; outside text in a finding or in an entries file, its ids included, can steer the hint's state and names; the owner reads it as a hint; what its
 rules would tell the owner reaches them through its starter; usage holds only
 as a rule, and only while a limit is set; Claude Code's permissions may read a
 start prompt as the owner's ask; a session started under a goal or a free hand
