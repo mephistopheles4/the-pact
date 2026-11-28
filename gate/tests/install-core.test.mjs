@@ -1586,6 +1586,7 @@ test('the identity gitconfig verdict ignores the owner\'s lines below the marker
   assert.equal(core.identityGitconfigVerdict(`${want.replace('useHttpPath = true', 'useHttpPath = false')}[alias]\n\tco = checkout\n`, want).ok, false);
   const helper = core.identityGitconfigVerdict(`${want}[alias]\n\tco = checkout\n[credential]\n\thelper = manager\n`, want);
   assert.equal(core.identityGitconfigLine(helper), 'gitconfig as expected: no: your lines below the marker set credential, url, http or include (remove them first), run gh-app.mjs refresh');
+  for (const tail of ['[alias] [url "x"]\n\tinsteadOf = y\n', '\thelper = store\n']) assert.equal(core.identityGitconfigVerdict(`${want}${tail}`, want).ok, false, tail);
 });
 
 // ------------------------------------------------------------ #PACT-122 #PACT-119 C8, C12

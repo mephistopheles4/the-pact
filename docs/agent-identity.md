@@ -222,9 +222,9 @@ In this order:
 5. Run `gh-app.mjs setup --provider <provider> --app-id <n> --key <downloaded .pem>`
    with the new key. It revokes the cached tokens.
 
-In between, every repo answers "not installed", so git pushes go out with your
-own credentials; run `gh-app.mjs forget --provider <provider>` first, or turn
-the switch off, if they should fail closed instead. Use this order for any suspected leak: a personal account
+Between steps 1 and 3, every repo answers "not installed", so git pushes go
+out with your own credentials: do steps 2 and 3 right after step 1. From step
+3, every mint fails closed. Use this order for any suspected leak: a personal account
 keeps no record of a key's use. After an account compromise, do it for each app,
 then delete every key on the app but the one whose fingerprint setup printed, and
 check its permissions and that its webhook is still off.

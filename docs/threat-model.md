@@ -404,8 +404,9 @@ non-shell harness or MCP tools, nested shell wrappers (`bash -c`, `pwsh -Command
 `cmd /c`, `Start-Process`) and other speed-bump parser or harness-spawn/timeout
 gaps ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)),
 a global git write that rewrites the agent gitconfig (the next dry run refuses a
-rewritten pact line, or a credential, url, http or include section below the
-marker, in the Claude gitconfig; other lines below it are the owner's and pass), an SSH remote or `url.*.insteadOf` rewrite, an askpass
+rewritten pact line, or a credential, url, http or include section or a bare
+key below the marker, in the Claude gitconfig, as a line-based check reads
+them; other lines below it are the owner's and pass), an SSH remote or `url.*.insteadOf` rewrite, an askpass
 program, a helper in a repository's own config, or a remote URL that carries
 credentials or an `http.*.extraHeader` with an auth header. Rules alone hold
 those, and `status --provider <provider>` reports each git-helper escape it can see. Whoever holds an app's key can

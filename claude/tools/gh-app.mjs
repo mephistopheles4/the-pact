@@ -523,8 +523,9 @@ function cachedNone(io, target) {
 /**
  * The app's installation that covers one repo, found through GitHub's API with
  * the app's JWT, whoever owns the repo. A 404 means no installation covers it:
- * that is remembered for NONE_TTL_MS and refused as install/none, which the
- * git and gh modes answer by falling back to the owner.
+ * that is remembered for NONE_TTL_MS and refused as install/none, which
+ * git-credential answers by falling back to the owner; gh mode and the poster
+ * refuse it.
  */
 async function repoInstallation(io, { owner, name }, jwt, app, noneTarget) {
   const r = await api(io, 'GET', `/repos/${owner}/${name}/installation`, { auth: jwt });
@@ -654,7 +655,11 @@ export const OWNER_MARKER = '# pact: the lines below are yours; setup and refres
  * A section below the marker that could change where a credential comes from or
  * goes: a helper, a URL rewrite, an http header or setting, or another file pulled in.
  */
-export const OWNER_LINES_REFUSED = /^\s*\[\s*(?:credential|url|http|include|includeif)\b/im;
+// A header counts at a line's start or straight after another header's `]`, as git reads both.
+export const OWNER_LINES_REFUSED = /(?:^|\])\s*\[\s*(?:credential|url|http|include|includeif)\b/im;
+
+/** Whether the owner's lines are refused: such a section, or a key straight under the marker, which git would read into the pact's own credential section. */
+export const ownerLinesRefused = tail => OWNER_LINES_REFUSED.test(tail) || /^\s*[^\s#;[]/.test(tail.split(/\r?\n/).find(l => !/^\s*(?:[#;].*)?$/.test(l)) ?? '');
 
 /**
  * The owner's lines of a gitconfig: what follows the marker, or, in a file
@@ -669,7 +674,7 @@ export function ownerLines(text) {
     const m = end.exec(text);
     if (!m) continue;
     const tail = text.slice(m.index + m[0].length);
-    if (OWNER_LINES_REFUSED.test(tail)) refuse('gitconfig');
+    if (ownerLinesRefused(tail)) refuse('gitconfig');
     return tail;
   }
   return '';

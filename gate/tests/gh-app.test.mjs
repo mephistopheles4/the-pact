@@ -1201,8 +1201,9 @@ test('setup and refresh keep the lines the owner\'s own git config --global wrot
 
 // #PACT-125 C5: a section below the marker that could bring a credential helper, a URL rewrite, an http setting or another file back is refused, and the old file stays.
 test('refresh refuses owner lines that open a credential, url, http or include section', async t => {
-  for (const bad of ['[credential]\n\thelper = manager\n', '[credential "https://github.com/x"]\n\thelper = store\n', '[url "git@github.com:"]\n\tinsteadOf = https://github.com/\n', '[http]\n\tsslVerify = false\n', '[includeIf "gitdir:~/"]\n\tpath = x\n']) {
-    const prior = `${STALE}  useHttpPath = true\n${OWNER_MARKER}\n[alias]\n\tco = checkout\n${bad}`;
+  for (const bad of ['[credential]\n\thelper = manager\n', '[credential "https://github.com/x"]\n\thelper = store\n', '[url "git@github.com:"]\n\tinsteadOf = https://github.com/\n', '[http]\n\tsslVerify = false\n', '[includeIf "gitdir:~/"]\n\tpath = x\n', '[include]\n\tpath = x\n', '[core] [credential] helper = store\n', 'FIRST']) {
+    // FIRST: a key straight under the marker, which git reads into the pact's own credential section.
+    const prior = bad === 'FIRST' ? `${STALE}  useHttpPath = true\n${OWNER_MARKER}\n\thelper = store\n` : `${STALE}  useHttpPath = true\n${OWNER_MARKER}\n[alias]\n\tco = checkout\n${bad}`;
     const w = refreshed(t, prior);
     assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 1, bad);
     assert.equal(printed(w).err.trim().split('\n').at(-1), `gh-app: ${REASONS.gitconfig}`, bad);

@@ -8,7 +8,7 @@
 - **The fallback:** `git-credential get` answers `install/none` with the owner's credential from `git credential fill` under the owner's normal config, and says so on stderr. No other refusal falls back. `gh` mode and the poster refuse `install/none`.
 - **The owner's lines:** the gitconfig ends with a marker line; setup and refresh keep what follows it, refusing a credential, url, http or include section there, and the install compares only what comes before, flagging such a section.
 - **SSH remotes:** accepted and documented in `agent-identity.md`.
-- **Tests: +13 −4.** Four rows or tests that held the old owner rule went (`repo-outside-owner`, `foreign-installation`, `another-owner`, the poster's another-account row); the gh test changed to the new behaviour.
+- **Tests: +13 −4.** Three rows that held the old owner rule went (`repo-outside-owner`, `foreign-installation`, `another-owner`), and the poster's another-account row went as a duplicate of its generic refusal rows and the mint row `installation-of-another-app`; the gh test changed to the new behaviour.
 
 ## The first Test round
 
