@@ -195,12 +195,12 @@ and `config.worktree` files read from clones by the guard; and the release job's
   made, or while the owner edits or disables them. A session holding the
   owner's git or `gh` credentials counts as the owner there and can make a
   stable tag: accepted under Who counts as you (S2 item 75). Actions pinned to a full commit SHA in
-  all five workflows, `clef-e2e.yml` among them; Dependabot's weekly action updates with a 14-day cooldown;
+  all four workflows; Dependabot's weekly action updates with a 14-day cooldown;
   CodeQL through `codeql.yml` (default setup is not configured); Dependabot
   security updates. They hold for what the pins and queries cover; an update
   is a pull request, read like any change.
-- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all five
-  workflows, `clef-e2e.yml` among them, to no `pull_request_target`, to no secret and no deployment
+- **The pact's tools.** `gate/tests/workflow.test.mjs` holds all four
+  workflows to no `pull_request_target`, to no secret and no deployment
   environment, and to a read-only token but for an exact allow-list each on
   `codeql.yml`, `claude.yml` and `release.yml`:
   `security-events: write` in one CodeQL job, skipped for Dependabot;

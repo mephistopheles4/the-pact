@@ -44,7 +44,6 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, wait on CI, or w
 
   All three cap the run at four test files at once, which keeps it from
   starving other sessions. Never run the suite without the cap.
-- **Clef end to end** isn't a gate test. [`clef-e2e.mjs`](../../gate/tests/clef-e2e.mjs) downloads the real server and model, so only [`clef-e2e.yml`](../../.github/workflows/clef-e2e.yml) runs it, for a change its `paths` cover. A job whose fetch fails (`clef-fetch`) may be re-run once; a second failure is a checkpoint.
 - **Node.** Run the tests on Node 24 or later; `mise use -g node@24`
   gets it. The install needs it too. The Linux run in a container is in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs
