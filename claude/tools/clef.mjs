@@ -1401,7 +1401,7 @@ function writeFail(dir, reason, now = Date.now, exit = {}) {
 function loadCrashLine(fail, setup) {
   if (fail?.reason !== 'exit' || fail.stage !== 'load' || fail.platform !== setup.platform) return null;
   const hint = setup.backend === 'cpu' ? '' : '; try `clef setup --cpu`';
-  return `the server stopped while loading the model on ${quote(setup.platform)} (${quote(fail.code)}); this build may not support this CPU or system. See docs/clef.md, Field reports${hint}`;
+  return `the server stopped while loading the model on ${quote(setup.platform)} (${quote(fail.code)}); this build may not support this CPU or system. See docs/clef.md${hint}`;
 }
 
 /** The environment the supervisor and the server run with: a named list from the caller, a fixed PATH, and on Linux the runtime folder as the library path. */

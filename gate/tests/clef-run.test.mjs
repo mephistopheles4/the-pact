@@ -617,7 +617,7 @@ test('serve: a server that ends after ready records stage serve, and no load lin
   assert.deepEqual(await ensure(f), { out: { state: 'failed', reason: 'exit' }, code: 4 });
 });
 
-const loadLine = (key, code) => `the server stopped while loading the model on ${key} (${code}); this build may not support this CPU or system. See docs/clef.md, Field reports`;
+const loadLine = (key, code) => `the server stopped while loading the model on ${key} (${code}); this build may not support this CPU or system. See docs/clef.md`;
 
 // #PACT-93 C-U13: the whole line is compared, so it can hold no server text, run id or run.key value.
 test('ensure and status: after a load crash both say the fixed line, and add setup --cpu on a GPU backend only', async t => {
@@ -644,14 +644,6 @@ test('ensure and status: after a load crash both say the fixed line, and add set
   writeFileSync(f.run.fail, JSON.stringify({ ...fail, platform: 'another-key' }));
   assert.equal((await ensure(f, { supervisorCommand })).note, undefined);
   assert.ok(!(await clef.statusRun({ dir: f.dir })).lines.some(l => l.startsWith('the server stopped while loading')));
-});
-
-// #PACT-93 C-U13: a public report asks for what U18 lists and nothing else.
-test('the field-report form asks for the closed list, and says the report is public', () => {
-  const form = readFileSync(join(REPO, '.github', 'ISSUE_TEMPLATE', 'clef-field-report.yml'), 'utf8');
-  assert.deepEqual([...form.matchAll(/^ {4}id: (\S+)$/gm)].map(m => m[1]), ['status', 'platform', 'build', 'os', 'cpu', 'node', 'stage']);
-  assert.equal([...form.matchAll(/^ {2}- type: /gm)].length, 8, 'the notice and the seven fields');
-  assert.match(form, /This report is \*\*public\*\*\. Put no path, account name, host name, log or server output in it/);
 });
 
 // ------------------------------------------------------------ ensure, stop, status, remove

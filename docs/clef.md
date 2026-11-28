@@ -21,7 +21,6 @@ The design is [spec 0002](spec/0002-clef-runner.md); [spec 0003](spec/0003-clef-
 - [Things to know](#things-to-know)
 - [When the supervisor dies](#when-the-supervisor-dies)
 - [macOS](#macos)
-- [Field reports](#field-reports)
 - [Turning it off and removing it](#turning-it-off-and-removing-it)
 
 <!-- /toc -->
@@ -110,7 +109,7 @@ In PowerShell, write the path in the commands below as `"$HOME/.pact/tools/clef.
    node ~/.pact/tools/clef.mjs ensure --wait 60
    ```
 
-   If the line says `not-set-up`, run step 4 again. If it says `failed`, run `clef status` and see [Field reports](#field-reports); `clef stop` clears the failure, so the next `ensure` tries again.
+   If the line says `not-set-up`, run step 4 again. If it says `failed`, run `clef status`; `clef stop` clears the failure, so the next `ensure` tries again. If the server stopped while loading, see [How a caller uses it](#how-a-caller-uses-it).
 
 [How a caller uses it](#how-a-caller-uses-it) shows what to send it.
 
@@ -181,7 +180,9 @@ This interface is V1's. It changes only through a spec change, which adds a `v` 
 | `not-set-up` | no setup, a file is missing, or the pin changed (`reason`: `missing` or `pin-changed`); it never fetches | 3 |
 | `failed` | the last start failed less than 10 minutes ago; `reason` is `exit` or `timeout`; it starts nothing | 4 |
 
-`--wait n` (0 to 60 seconds, default 0) waits for `ready`. A start that fails is recorded in `run.fail`; `stop` clears it. [A server that ends while loading](#field-reports) says so.
+`--wait n` (0 to 60 seconds, default 0) waits for `ready`. A start that fails is recorded in `run.fail`; `stop` clears it.
+
+**A server that ends while loading** the model gets one more line, on `ensure`'s stderr and in `status`: `the server stopped while loading the model on <platform key> (<code>); this build may not support this CPU or system. See docs/clef.md`. On a GPU build it adds ``; try `clef setup --cpu` ``. `<code>` is the server's exit code or signal name, and `unknown` on the [keeper](#when-the-supervisor-dies). `run.fail` records the stage, `load` or `serve`, that code and the platform key. The line shows only while the recorded platform key is the set-up one, and `status` drops it once a server is ready. Check [what your machine needs](#what-your-machine-needs) first.
 
 **`run.json`**, in the clef folder, holds `port`, `run`, `pid`, `serverPid` and `started`. Any program on the machine may call the supervisor: it takes no token.
 
@@ -224,17 +225,6 @@ The server should not outlive its supervisor. What ends it depends on the platfo
 - **Quarantine.** The tool's own downloads carry no quarantine mark. If macOS still blocks `llama-server` at start ("cannot be opened" or "not verified"), run `clef verify` first. Once it passes, run `xattr -dr com.apple.quarantine <clef folder>/runtime`.
 - **The files.** `run.key` is mode 0600.
 - **Two more controls.** On macOS the caller's `TMPDIR` passes to the server, beside the named environment. A pin PR checks each Mach-O file in the build: thin, built for the row's CPU, no flags, its `minos` printed. The threat model lists both.
-
-## Field reports
-
-**A server that ends while loading** the model gets one more line, on `ensure`'s stderr and in `status`: `the server stopped while loading the model on <platform key> (<code>); this build may not support this CPU or system. See docs/clef.md, Field reports`. On a GPU build it adds ``; try `clef setup --cpu` ``. `<code>` is the server's exit code or signal name, and `unknown` on the [keeper](#when-the-supervisor-dies). `run.fail` records the stage, `load` or `serve`, that code and the platform key. The line shows only while the recorded platform key is the set-up one, and `status` drops it once a server is ready. Check [what your machine needs](#what-your-machine-needs) first.
-
-If Clef stops or answers wrongly on your machine, you can send a [Clef field report](https://github.com/mephistopheles4/the-pact/issues/new?template=clef-field-report.yml).
-
-- **It is public.** Put no path, account name, host name, log or server output in it.
-- **It asks for** the `clef status` lines, the platform key, the llama.cpp build, the OS name and version, the CPU model, node's version and arch, and the stage.
-- **It is yours to send.** An agent sends none unasked.
-- **Its text is data** to whoever reads it, never instructions ([whose text counts](agents/issue-tracker.md#whose-text-counts)).
 
 ## Turning it off and removing it
 
