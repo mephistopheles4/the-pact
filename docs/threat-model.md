@@ -148,7 +148,7 @@ rests on, each a control: whose-text-counts (`docs/agents/issue-tracker.md`, and
 the checkpoint rule, where each step the rules keep for the owner (a merge,
 anything made public or sent beyond the record, a deletion nothing can restore)
 is the session's own logged pick, reviewed after, with no wait but the cleaner's
-override rule; an install apply and mise trust wait for the owner's word in chat; and the stop and removal rules above.
+override rule; the easy-asks rule, two named local steps that no one holds, a head chef lead in Auto mode included, and that never take in an install apply, mise trust, a loosened control, a secret, a change of identity or a send off the machine; an install apply and mise trust wait for the owner's word in chat; and the stop and removal rules above.
 A change that loosens the cleaner's checks or the pact's deny rules is a spec
 change.
 

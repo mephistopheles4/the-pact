@@ -60,6 +60,8 @@ const fixture = rel => lf(readFileSync(join(FIXTURE, ...rel.split('/')), 'utf8')
 const NEUTRAL_RULES = [
   ['## How Claude helps', '## How the agent helps'],
   ["Claude's own\n  permission prompts and classifier blocks still stop you; these rules add no\n  stop of their own.", "Your harness's own\n  permission prompts and blocks still stop you; these rules add no stop of\n  their own."],
+  // PACT-71: the Easy asks bullet follows Checkpoints.
+  ['  their own.\n- **Keep the record**', "  their own.\n- **Easy asks.** Two asks are easy: an edit to my pact configuration that\n  turns on an opt-in pact tool that sends, fetches and posts nothing off the\n  machine and holds no identity, and rebuilding my Scriptorium page with the\n  installed Scriptorium kit. Run its dry run or check yourself first and put\n  the output in the record. Each is a checkpoint as above that no one holds,\n  a lead in Auto mode included. Never easy: an install's apply, `mise trust`,\n  or a step that changes a security default, turns a control off or loosens\n  it, writes a secret, changes who a session acts as, or starts anything that\n  sends, fetches or posts off the machine.\n- **Keep the record**"],
   ['| none | Opus, low |', '| none | planning model, low |'],
   ['| Opus, medium | Sonnet, medium |', '| planning model, medium | executor model, medium |'],
   ['| Opus, high | Sonnet, medium |\n', '| planning model, high | executor model, medium |\n\nHere the planning model is `opus`, the executor model `sonnet` and the light model `haiku`.\n'],

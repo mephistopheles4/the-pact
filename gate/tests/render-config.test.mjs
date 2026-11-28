@@ -633,6 +633,26 @@ test('no render of the source holds "Checkpoints wait" or the checkpoint-stops m
   assert.ok(!read(SOURCE).includes('Checkpoints wait') && !read(SOURCE).includes('checkpoint-stops'));
 });
 
+// PACT-71 C1: a render names the two easy asks once, the check run first, no one holding them, and every exclusion.
+test('a render holds one Easy asks bullet: its two asks, the check run first, no one holding it, and every exclusion', t => {
+  const flat = render(t, tempDir(t, 'pact-render-nohome-')).bytes.toString('utf8').replace(/\s+/g, ' ');
+  assert.equal(flat.split('- **Easy asks.**').length - 1, 1, 'one Easy asks bullet');
+  const bullet = flat.slice(flat.indexOf('- **Easy asks.**')).split(' - **')[0];
+  for (const s of [
+    'Two asks are easy',
+    'an edit to my pact configuration that turns on an opt-in pact tool that sends, fetches and posts nothing off the machine and holds no identity',
+    'rebuilding my Scriptorium page with the installed Scriptorium kit',
+    'Run its dry run or check yourself first and put the output in the record',
+    'a checkpoint as above that no one holds, a lead in Auto mode included',
+    'Never easy: an install\'s apply, `mise trust`,',
+    'changes a security default',
+    'turns a control off or loosens it',
+    'writes a secret',
+    'changes who a session acts as',
+    'starts anything that sends, fetches or posts off the machine',
+  ]) assert.ok(bullet.includes(s), `the bullet holds "${s}"`);
+});
+
 // #564 S3.5: an edit may not target the retired mark.
 test('bad case: an edit that targets checkpoint-stops is refused as an unknown mark', t => {
   const bytes = Buffer.from('{"schema": 1, "edits": [{"mark": "checkpoint-stops", "op": "remove"}]}\n');
