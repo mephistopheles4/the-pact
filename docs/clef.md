@@ -37,6 +37,8 @@ The design is [spec 0002](spec/0002-clef-runner.md); [spec 0003](spec/0003-clef-
 | macOS arm64 (Apple Silicon) | Metal, or CPU with `--cpu` | None: CI runs the test suite on macOS 15, on CPU with a stub server | Metal and CPU |
 | macOS x64 (Intel) | CPU | None | One trial of the pinned server alone, with earlier arguments, got the six test cases right ([spec 0005 U10](spec/0005-clef-everywhere.md#u10-the-experiment-and-what-it-found)) |
 
+`setpriv` is a program from util-linux; `ls /usr/bin/setpriv` shows whether you have it. Without it Clef uses [the keeper](#when-the-supervisor-dies) to end the server, and setup needs nothing more from you.
+
 End to end means [`clef-e2e.yml`](../.github/workflows/clef-e2e.yml), with the real pinned server and the `flash` model: install, setup, verify, start, six answers checked against recorded ones, stop and remove. `full` is not run there. Setup refuses any other system, and a Linux without glibc (Alpine and other musl systems), with `clef-platform`.
 
 ## What your machine needs
@@ -90,8 +92,10 @@ macOS 13.3 or later, the builds' floor. [macOS](#macos) says what differs there.
 
 ## Turn it on
 
-1. **Get the pact**, if you haven't: [clone it](install.md#2-clone-the-repo).
-2. **Put `clef` on your tools list:** `"tools": ["clef"]` in `~/.pact/config.json`, beside any tool already there. A configuration of your own is used whole. So if you have no such file, first copy `config.json` and `blocks/` from the clone's [`builder/default-config/`](../builder/default-config/) into `~/.pact/`, which keeps the pact's default rules, then add the `tools` key. In Scriptorium, picking a Clef model under **Install a decision-one model** lists `clef` too.
+In PowerShell, write the path in the commands below as `"$HOME/.pact/tools/clef.mjs"`.
+
+1. **Get the pact.** Clef installs with it, and the install also changes every Claude Code session on your machine, so read [Install the pact](install.md) from the top first. If you have no clone yet, [clone it](install.md#2-clone-the-repo).
+2. **Put `clef` on your tools list.** If you have no `~/.pact/config.json`, first copy `config.json` and `blocks/` from the clone's [`builder/default-config/`](../builder/default-config/) into `~/.pact/`. Your file replaces the pact's default configuration whole, and this copy keeps the default rules. Then add `"tools": ["clef"]` to `~/.pact/config.json`, beside any tool already listed. In Scriptorium, picking a Clef model under **Install a decision-one model** lists `clef` too.
 3. **Apply the install:** read [the dry run](install.md#4-run-the-dry-run-and-read-it), then run [the apply command it prints](install.md#5-install-with---apply). `~/.pact/tools/clef.mjs` appears.
 4. **Set it up.** The first command prints the plan and fetches nothing; check the platform and reason it names. The second downloads about 6.7 GB.
 
@@ -106,7 +110,9 @@ macOS 13.3 or later, the builds' floor. [macOS](#macos) says what differs there.
    node ~/.pact/tools/clef.mjs ensure --wait 60
    ```
 
-In PowerShell, write the path as `"$HOME/.pact/tools/clef.mjs"`. [How a caller uses it](#how-a-caller-uses-it) shows what to send it.
+   If the line says `not-set-up`, run step 4 again. If it says `failed`, run `clef status` and see [Field reports](#field-reports); `clef stop` clears the failure, so the next `ensure` tries again.
+
+[How a caller uses it](#how-a-caller-uses-it) shows what to send it.
 
 ## What it fetches
 
@@ -134,7 +140,7 @@ The owner's machine: Vulkan, a discrete GPU with 32 GB, `flash` (Q4_K_M), `-c 65
 
 ### CI's runners, on CPU
 
-From the [end-to-end run of 2026-11-28](https://github.com/mephistopheles4/the-pact/actions/runs/46115015543) (commit `62e95db5`), `flash` with the current arguments. Each runner has 4 cores and 16 GiB of RAM. Ready is the time from the first `ensure`, right after `verify` had read the model. Median answer is over the six test cases' times. These come from one run, and the same kind of runner can get another CPU and other times.
+From the [end-to-end run of 2026-11-28](https://github.com/mephistopheles4/the-pact/actions/runs/46115015543) (commit `58abae7b`, GitHub's merge of `62e95db5` into its base branch), `flash` with the current arguments. Each runner has 4 CPUs and 16 GiB of RAM. Ready is the time from the first `ensure`, right after `verify` had read the model. Median answer is over the six test cases' times. These come from one run, and the same kind of runner can get another CPU and other times.
 
 | Runner | CPU | Ready | Median answer | Server's peak memory |
 | --- | --- | --- | --- | --- |
