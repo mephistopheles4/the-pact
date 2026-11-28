@@ -6,7 +6,7 @@ rules file is [`claude/CLAUDE.md`](claude/CLAUDE.md).
 
 ## The moves and how much checking
 
-- **Move:** one of the owner's four practices: sense the work, think before doing, checkpoint the seams, and stay the owner. The owner takes each up as the work needs it; a session nudges once when one seems to drop.
+- **Move:** one of the owner's four practices: sense the work, think before doing, checkpoint the seams, and stay the owner. The owner takes each up as the work needs it; a session nudges once when one seems to drop. In the first two, owner and session both bring judgment.
 - **Seam:** a point where work is handed on, published or decided. In a design, a seam is also a boundary between the parts a spec names, where a build is tested first.
 - **Checkpoint:** a call at a seam the rules keep for the owner: the session takes its own pick, logs it flagged and goes on, and the owner reviews after. Every checkpoint is this one kind; the pact adds no stop of its own, and only the harness's own permission prompts and blocks stop a session.
 - **Easy ask:** one of the two steps the rules file names as easy: an edit that only adds an opt-in pact tool that sends, fetches and posts nothing off the machine and holds no identity to the owner's configuration's tools list, and rebuilding the owner's Scriptorium page from their saved file with the installed Scriptorium kit. The session runs the dry run or check itself and records its verdict and counts, never its raw output. It is a checkpoint no one holds, a lead in Auto mode included. An install's apply, `mise trust`, a loosened control, a secret, a change of identity and a send off the machine are never easy.

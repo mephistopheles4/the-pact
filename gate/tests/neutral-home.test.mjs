@@ -56,8 +56,11 @@ const CONFIG = '{"schema": 1, "commands": ["make-it-so", "finis", "scry"], "tool
 const moved = text => text.replaceAll('.claude/pact/handoff/', '.pact/handoffs/').replaceAll('.claude/pact/', '.pact/').replaceAll('in my Claude folder beside', 'in `~/.pact` beside');
 const lf = text => text.replaceAll('\r\n', '\n');
 const fixture = rel => lf(readFileSync(join(FIXTURE, ...rel.split('/')), 'utf8'));
-/** Every other change to the rules since the fixture (spec 0007 S6, S7): the neutral phrases, the model roles and the models line; and PACT-99's Skill order paragraph. */
+/** Every other change to the rules since the fixture (spec 0007 S6, S7): the neutral phrases, the model roles and the models line; PACT-99's Skill order paragraph; and PACT-131's first two moves. */
 const NEUTRAL_RULES = [
+  // PACT-131: judgment from both of us, and rules that serve the intent.
+  ["  What kind of work is it, how big, how risky, and do I know enough to plan\n  it? Size sets how much checking it needs. A target I can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it.\n", "  What kind of work is it, how big, how risky, and do we know enough to plan\n  it? Size sets how much checking it needs. A target we can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it. We both bring judgment here: when the\n  work looks risky, or a request looks misread, either of us says so in one\n  line before it starts, with what we'd do instead.\n"],
+  ['  I get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right.\n', '  We get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right. Rules, numbers and latest words\n  serve that intent; none of them outranks it. When we take a risky route, we\n  mitigate it within our qualities and cost limits. A correction is something\n  to weigh, not a cue to swing the other way.\n'],
   ['## How Claude helps', '## How the agent helps'],
   ["Claude's own\n  permission prompts and classifier blocks still stop you; these rules add no\n  stop of their own.", "Your harness's own\n  permission prompts and blocks still stop you; these rules add no stop of\n  their own."],
   // PACT-71: the Easy asks bullet follows Checkpoints.

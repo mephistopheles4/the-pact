@@ -20,8 +20,8 @@ This file is never installed.
 | Rule | Gap no other guardrail covers |
 | --- | --- |
 | The moves | The owner's own practices. No tool knows how the owner works. |
-| Sense the work | Sizing, and a bug traced before any fix, are the owner's practices, not a tool's. |
-| Think before doing | An intent clear enough to defend. No check can test that. |
+| Sense the work | Sizing, a bug traced before any fix, and one line from either side before work that looks risky or misread. The harness confirms risky actions, not wrong ones, and no tool can tell a misread request from a sound one. |
+| Think before doing | An intent clear enough to defend, which rules, numbers and latest words serve, with a risky route mitigated within the qualities and cost limits. No check can test that, or tell a correction to weigh from one to follow to the letter. |
 | Checkpoint the seams | It weighs hand-offs and decisions, not only tool actions, by how hard each is to undo. The harness's confirm-first rule covers tool actions only. |
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
 | How the agent helps | What stays the owner's, and where the record's and the tools' how-to lives. |

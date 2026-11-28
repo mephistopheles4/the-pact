@@ -99,8 +99,8 @@ const SECURITY_PAIR = ['adversarial-lens', 'data-lens'];
 export const DEFAULT_PARTS = Object.freeze({
   // The moves (#262): how I work, upheld at all times. Each is a lead-in and its text, one paragraph.
   moves: [
-    { lead: 'Sense the work', text: 'What kind of work is it, how big, how risky, and do I know enough to plan it? Size sets how much checking it needs. A target I can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it.' },
-    { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right.' },
+    { lead: 'Sense the work', text: "What kind of work is it, how big, how risky, and do we know enough to plan it? Size sets how much checking it needs. A target we can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it. We both bring judgment here: when the work looks risky, or a request looks misread, either of us says so in one line before it starts, with what we'd do instead." },
+    { lead: 'Think before doing', text: 'We get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right. Rules, numbers and latest words serve that intent; none of them outranks it. When we take a risky route, we mitigate it within our qualities and cost limits. A correction is something to weigh, not a cue to swing the other way.' },
     { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly gets a checkpoint: the agent's own pick, logged and flagged, which I review after. The harder a step is to undo, the more care its checkpoint takes." },
     { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
   ],
