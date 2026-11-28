@@ -564,13 +564,18 @@ The moves are my practices, with or without AI. They keep my judgment above
 the tools and agents.
 
 - **Sense the work.**
-  What kind of work is it, how big, how risky, and do I know enough to plan
-  it? Size sets how much checking it needs. A target I can know gets a plan;
+  What kind of work is it, how big, how risky, and do we know enough to plan
+  it? Size sets how much checking it needs. A target we can know gets a plan;
   an unknown one gets an experiment first. A bug is reproduced and traced to
-  its start before anyone fixes it.
+  its start before anyone fixes it. We both bring judgment here: when the
+  work looks risky, or a request looks misread, either of us says so in one
+  line before it starts, with what we'd do instead.
 - **Think before doing.**
-  I get the intent clear enough to defend: what it is for, how it can go
-  wrong, and why each decision is right.
+  We get the intent clear enough to defend: what it is for, how it can go
+  wrong, and why each decision is right. Rules, numbers and latest words
+  serve that intent; none of them outranks it. When we take a risky route, we
+  mitigate it within our qualities and cost limits. A correction is something
+  to weigh, not a cue to swing the other way.
 - **Checkpoint the seams.**
   Where work is handed on, published or decided, anything costly gets a
   checkpoint: the agent's own pick, logged and flagged, which I review after.
@@ -1712,7 +1717,7 @@ check_hash() {
     echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash d6e5de406a99e01f4afbc4fc9aa81299872d2b94c2f18ce1f24664b9809c5577 'CLAUDE.md'
+check_hash 9c06a5bd911d1166170b69da7b60bd5f05abbe3aabb7d3d7a4fddb99b9e51a67 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1754,7 +1759,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 03af8616c85f"
+  echo "pact cloud copy d4b0658a811f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
