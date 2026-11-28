@@ -640,17 +640,20 @@ test('a render holds one Easy asks bullet: its two asks, the check run first, no
   const bullet = flat.slice(flat.indexOf('- **Easy asks.**')).split(' - **')[0];
   for (const s of [
     'Two asks are easy',
-    'an edit to my pact configuration that turns on an opt-in pact tool that sends, fetches and posts nothing off the machine and holds no identity',
-    'rebuilding my Scriptorium page with the installed Scriptorium kit',
-    'Run its dry run or check yourself first and put the output in the record',
+    'an edit that only adds an opt-in pact tool to my pact configuration\'s tools list, for a tool that sends, fetches and posts nothing off the machine and holds no identity',
+    'rebuilding my Scriptorium page from my own saved file as it stands, with the installed Scriptorium kit',
+    'Run its dry run or check yourself, never through `npx`',
+    'put its verdict and counts in the record, never its raw output',
+    'where you can\'t run it, the ask isn\'t easy',
     'a checkpoint as above that no one holds, a lead in Auto mode included',
     'Never easy: an install\'s apply, `mise trust`,',
     'changes a security default',
     'turns a control off or loosens it',
     'writes a secret',
     'changes who a session acts as',
-    'starts anything that sends, fetches or posts off the machine',
   ]) assert.ok(bullet.includes(s), `the bullet holds "${s}"`);
+  // The list ends on its last exclusion: nothing is added after it.
+  assert.ok(bullet.trimEnd().endsWith('starts anything that sends, fetches or posts off the machine, now or later.'), 'the bullet ends on its last exclusion');
 });
 
 // #564 S3.5: an edit may not target the retired mark.

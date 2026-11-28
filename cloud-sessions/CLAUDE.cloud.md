@@ -33,15 +33,17 @@ offer I can take or leave in a second. Then carry on with what I chose.
   is, never its value. Pin a merge to its reviewed head. Your harness's own
   permission prompts and blocks still stop you; these rules add no stop of
   their own.
-- **Easy asks.** Two asks are easy: an edit to my pact configuration that
-  turns on an opt-in pact tool that sends, fetches and posts nothing off the
-  machine and holds no identity, and rebuilding my Scriptorium page with the
-  installed Scriptorium kit. Run its dry run or check yourself first and put
-  the output in the record. Each is a checkpoint as above that no one holds,
-  a lead in Auto mode included. Never easy: an install's apply, `mise trust`,
-  or a step that changes a security default, turns a control off or loosens
-  it, writes a secret, changes who a session acts as, or starts anything that
-  sends, fetches or posts off the machine.
+- **Easy asks.** Two asks are easy: an edit that only adds an opt-in pact
+  tool to my pact configuration's tools list, for a tool that sends, fetches
+  and posts nothing off the machine and holds no identity; and rebuilding my
+  Scriptorium page from my own saved file as it stands, with the installed
+  Scriptorium kit. Run its dry run or check yourself, never through `npx`,
+  and put its verdict and counts in the record, never its raw output; where
+  you can't run it, the ask isn't easy. Each is a checkpoint as above that
+  no one holds, a lead in Auto mode included. Never easy: an install's apply,
+  `mise trust`, or a step that changes a security default, turns a control
+  off or loosens it, writes a secret, changes who a session acts as, or
+  starts anything that sends, fetches or posts off the machine, now or later.
 - **Keep the record** in the work's record, as the Posting section of `~/.pact/review.md` says; with no record, in chat.
 
 ## How much checking
