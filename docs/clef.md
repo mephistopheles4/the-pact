@@ -1,6 +1,6 @@
 # `clef`, the local decision model's runner
 
-`clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. It serves one of two models at a time: Clef-Flash (`flash`, the default) or full Clef (`full`, a larger model). Off by default: put `clef` on the `tools` list and apply the install, and `~/.pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
+`clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. It serves one of two models at a time: Clef-Flash (`flash`, the default) or full Clef (`full`, a larger model). Off by default: put `clef` on the `tools` list (in Scriptorium, pick a Clef model under **Install a decision-one model**) and apply the install, and `~/.pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
 
 The design is [spec 0002](spec/0002-clef-runner.md), and [spec 0010](spec/0010-coverage-hint.md#s9-full-clef-in-clef) adds full Clef; this page is for the owner and for anyone who turns it on. Every command is `node ~/.pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
 
@@ -62,7 +62,7 @@ This interface is V1's. It changes only through a spec change, which adds a `v` 
 **Two routes**, on `127.0.0.1:<port>` only. Every request needs `Host: 127.0.0.1:<port>` and no `Origin` header, so a web page can't reach it:
 
 - `GET /health` returns `{"run","pid","serverPid","ready"}`.
-- `POST /v1/systemone` with `content-type: application/json` and a body under 256 KB: `{"state": <any JSON>, "questions": {"<id>": {"type": "noul" | "score" | "choice", "instructions": "...", "criteria": {"<key>": "<text>"}}}}`. `criteria` is for `choice` only.
+- `POST /v1/systemone` with `content-type: application/json` and a body under 256 KB: `{"state": <any JSON>, "questions": {"<id>": {"type": "noul" | "score" | "choice", "instructions": "...", "criteria": {"<key>": "<text>"}}}}`. `criteria` names a `choice` question's keys. On a `noul` question it may say what `true` and `false` mean, and the model reads it.
 
 **The answer** is built by the supervisor from checked values, never passed through from the server: `{"<id>": {"noul": n}}`, `{"<id>": {"score": n}}` or `{"<id>": {"choice": "<key>", "probabilities": {"<key>": n}}}`, with each `n` a finite number from 0 to 1 and each `choice` one of the keys you sent. Anything else, and every server error, is `502 {"error":"no-answer"}`. A caller should check the answer the same way and use only numbers and keys it sent. A refused request is a fixed 4xx with a reason word, never an echo of the request: more than 64 questions is `400 {"error":"body"}`. Before the server is ready, or while the supervisor stops, a valid request gets `503` (`not-ready` or `stopping`).
 
