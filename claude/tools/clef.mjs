@@ -1388,7 +1388,7 @@ function logLine(dir, line) {
   }
 }
 
-/** Writes run.fail. `exit` is { stage, code } when the server itself ended (spec 0005 U18). */
+/** Writes run.fail. `exit` is { stage, code, platform } when the server itself ended (spec 0005 U18). */
 function writeFail(dir, reason, now = Date.now, exit = {}) {
   try {
     writeFileSync(runPaths(dir).fail, `${JSON.stringify({ time: now(), reason, ...exit })}\n`, { mode: 0o600 });
@@ -1397,9 +1397,9 @@ function writeFail(dir, reason, now = Date.now, exit = {}) {
   }
 }
 
-/** Spec 0005 U18: the fixed line for a server that ended while loading, or null. It holds the platform key and the recorded code, and no server text, token or key. */
+/** Spec 0005 U18: the fixed line for a server of this setup's build that ended while loading, or null. It holds the platform key and the recorded code, and no server text, token or key. */
 function loadCrashLine(fail, setup) {
-  if (fail?.reason !== 'exit' || fail.stage !== 'load') return null;
+  if (fail?.reason !== 'exit' || fail.stage !== 'load' || fail.platform !== setup.platform) return null;
   const hint = setup.backend === 'cpu' ? '' : '; try `clef setup --cpu`';
   return `the server stopped while loading the model on ${quote(setup.platform)} (${quote(fail.code)}); this build may not support this CPU or system. See docs/clef.md, Field reports${hint}`;
 }
@@ -2047,7 +2047,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
     if (!stopping) {
       // A child with no pid never started, so nothing ended. The keeper's message carries no code, and the keeper's own is not the server's.
       const code = useKeeper ? 'unknown' : (child.signalCode ?? child.exitCode);
-      writeFail(dir, 'exit', now, child.pid === undefined ? {} : { stage: isReady ? 'serve' : 'load', code });
+      writeFail(dir, 'exit', now, child.pid === undefined ? {} : { stage: isReady ? 'serve' : 'load', code, platform: ready.setup.platform });
       stop('exit');
     }
   });
@@ -2288,7 +2288,8 @@ export async function statusRun({ dir, platform = process.platform, server = SER
   if (isServerRecord(orphan)) lines.push(`orphan: pid ${orphan.pid}`);
   const f = readJsonFile(runPaths(dir).fail);
   lines.push(`last failure: ${f && ['exit', 'timeout'].includes(f.reason) ? f.reason : 'none'}`);
-  const crash = setup ? loadCrashLine(f, setup) : null;
+  // run.fail stays until `stop`, so a later start that reached ready is not told the build may not run.
+  const crash = setup && !live?.health.ready ? loadCrashLine(f, setup) : null;
   if (crash) lines.push(crash);
   return { lines, code: 0 };
 }

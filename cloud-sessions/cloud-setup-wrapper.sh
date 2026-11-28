@@ -630,6 +630,11 @@ its SKILL.md, first in my skills folder, then in the installed plugins'
 `skills/`. Read it and follow it, with no wait, no checkpoint and no hand-over
 line. A skill you can't find, say so in one line and go on with the stage.
 
+**Skill order.** At each stage, take its skills in the order the table lists
+them. Skip one whose condition doesn't fit the work or that I decline. A skill
+whose condition names another skill, or that skill's work, runs with that
+skill.
+
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
 | Plan | in the session, no plan | planning model, medium | planning model, high | planning model, high | none | |
@@ -1412,10 +1417,13 @@ when no other row answers the sentence.
   personal detail before posting it, and every commit before a push others
   can read. A user or host name, a home path or a settings name is not a
   personal detail here.
-- **Verbatim reports go in a fold,** a details element whose summary names the
-  lens and its verdict, holding the report in a fenced `text` block one
-  backtick longer than the report's longest run of backticks, so nothing in it
-  renders as a mention, link or image.
+- **Verbatim reports go in a fold** that names the lens and its verdict,
+  holding the report in a fenced `text` block one backtick longer than the
+  report's longest run of backticks, so nothing in it renders as a mention,
+  link or image. On GitHub, the fold is a details element whose summary holds
+  the name. On Linear, it is a `+++ <lens>: <verdict>` line, the block, then a
+  `+++` line, with a blank line each side of the block and no HTML. A post you
+  hand to another session takes the form of the place it will land.
 - **Every lens report posts** in the record word for word, like any other. One refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each decision my ask in `quote`, exactly
@@ -1693,7 +1701,7 @@ check_hash() {
     echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash c8999d3a226f1405d0db1c0a22f20c7376653a317269f0de0de8512093968823 'CLAUDE.md'
+check_hash 96150829e5156de686b8fc5718555a65a1b4fa5624dbe482cb3fe8aee1e375f1 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1705,7 +1713,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash a5f3c17544796bfbcb578a46f57c783f9d6abae7adf0f0aeb23e9f8dd15f6804 '.pact/review.md'
+check_hash b9e642f8defba65a95e669f30efce453b56860d342582d795bfeef582665ae61 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1735,7 +1743,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 904f4bbce3e6"
+  echo "pact cloud copy 3d8661886abe"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

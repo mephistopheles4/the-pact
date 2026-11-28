@@ -110,8 +110,11 @@ function fixture(t, cfgExtra = {}) {
   writeFileSync(cfg, JSON.stringify({ record, requests, ...cfgExtra }));
   const forwarded = () => (existsSync(requests) ? readFileSync(requests, 'utf8').split('\n').filter(Boolean).length : 0);
   const exe = { exe: process.execPath, exePrefix: [stub, cfg], pdeathsig: false };
+  // Retried until it parses: the stub's file exists before its content does.
   const recorded = async () => {
-    for (let i = 0; i < 100 && !existsSync(record); i++) await sleep(50);
+    for (let i = 0; i < 100; i++) {
+      try { return JSON.parse(readFileSync(record, 'utf8')); } catch { await sleep(50); }
+    }
     return JSON.parse(readFileSync(record, 'utf8'));
   };
   const setCfg = extra => writeFileSync(cfg, JSON.stringify({ record, requests, ...cfgExtra, ...extra }));
@@ -581,6 +584,7 @@ for (const [backend, status] of [['cpu', 200], ['vulkan', 502]]) {
     const { port } = (await ready(f)).run;
     const r = await call({ port, body: { state: {}, questions: QUESTIONS } });
     assert.equal(r.status, status, r.text);
+    if (status === 502) assert.deepEqual(JSON.parse(r.text), { error: 'no-answer' });
   });
 }
 
@@ -593,18 +597,24 @@ for (const [line, code] of [['setpriv', 1], ['keeper', 'unknown']]) {
     const h = await startServe(t, f, { line, keeperPidMs: 5000 });
     assert.equal(await h.done, 'exit');
     const { time, ...fail } = JSON.parse(readFileSync(f.run.fail, 'utf8'));
-    assert.deepEqual(fail, { reason: 'exit', stage: 'load', code });
+    assert.deepEqual(fail, { reason: 'exit', stage: 'load', code, platform: Object.keys(clef.SERVER.archives)[0] });
   });
 }
 
-// #PACT-93 C-U13 (spec 0005 U18: a later exit is stage serve)
-test('serve: a server that ends after ready records stage serve', async t => {
+// #PACT-93 C-U13 (spec 0005 U18: a later exit is stage serve, and the load line is a load crash's alone)
+test('serve: a server that ends after ready records stage serve, and no load line is said', async t => {
   const f = fixture(t);
   const h = await startServe(t, f);
   const live = await ready(f);
+  const said = async () => (await clef.statusRun({ dir: f.dir })).lines.filter(l => l.startsWith('the server stopped while loading'));
+  // An earlier load crash's record says nothing once a server is ready.
+  writeFileSync(f.run.fail, JSON.stringify({ time: Date.now(), reason: 'exit', stage: 'load', code: 1, platform: Object.keys(clef.SERVER.archives)[0] }));
+  assert.deepEqual(await said(), []);
   process.kill(live.run.serverPid, 'SIGKILL');
   assert.equal(await h.done, 'exit');
   assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).stage, 'serve');
+  assert.deepEqual(await said(), []);
+  assert.deepEqual(await ensure(f), { out: { state: 'failed', reason: 'exit' }, code: 4 });
 });
 
 const loadLine = (key, code) => `the server stopped while loading the model on ${key} (${code}); this build may not support this CPU or system. See docs/clef.md, Field reports`;
@@ -629,6 +639,11 @@ test('ensure and status: after a load crash both say the fixed line, and add set
   const gpu = `${line}; try \`clef setup --cpu\``;
   assert.equal((await ensure(f, { supervisorCommand })).note, gpu);
   assert.ok((await clef.statusRun({ dir: f.dir })).lines.includes(gpu));
+  // A record another build left, as before a new setup, is not said of this one.
+  const fail = JSON.parse(readFileSync(f.run.fail, 'utf8'));
+  writeFileSync(f.run.fail, JSON.stringify({ ...fail, platform: 'another-key' }));
+  assert.equal((await ensure(f, { supervisorCommand })).note, undefined);
+  assert.ok(!(await clef.statusRun({ dir: f.dir })).lines.some(l => l.startsWith('the server stopped while loading')));
 });
 
 // #PACT-93 C-U13: a public report asks for what U18 lists and nothing else.
@@ -636,7 +651,7 @@ test('the field-report form asks for the closed list, and says the report is pub
   const form = readFileSync(join(REPO, '.github', 'ISSUE_TEMPLATE', 'clef-field-report.yml'), 'utf8');
   assert.deepEqual([...form.matchAll(/^ {4}id: (\S+)$/gm)].map(m => m[1]), ['status', 'platform', 'build', 'os', 'cpu', 'node', 'stage']);
   assert.equal([...form.matchAll(/^ {2}- type: /gm)].length, 8, 'the notice and the seven fields');
-  assert.match(form, /This report is \*\*public\*\*\. Put no path, account name, log or server output in it/);
+  assert.match(form, /This report is \*\*public\*\*\. Put no path, account name, host name, log or server output in it/);
 });
 
 // ------------------------------------------------------------ ensure, stop, status, remove

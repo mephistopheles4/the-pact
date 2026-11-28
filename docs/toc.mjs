@@ -67,7 +67,7 @@ const linesOf = text => text.split(/\r?\n/);
 function fenced(lines) {
   let fence = null;
   return lines.map(line => {
-    const f = FENCE.exec(line);
+    const f = line.match(FENCE);
     if (fence) {
       if (f && f[1][0] === fence[0] && f[1].length >= fence.length && line.trim() === f[1]) fence = null;
       return true;
@@ -125,7 +125,7 @@ export function headings(text) {
   const out = [];
   lines.forEach((line, i) => {
     if (inFence[i] || (span && i >= span.open && i <= span.close)) return;
-    const h = HEADING.exec(line);
+    const h = line.match(HEADING);
     if (!h) return;
     // As github-slugger counts: a taken anchor gets the next free -n, and the anchor given is taken too.
     const base = slug(h[2]);
