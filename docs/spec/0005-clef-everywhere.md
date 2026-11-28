@@ -11,7 +11,9 @@ spec round): on Linux's keeper line, U6 adds 0003 M6's record and keyed probe,
 and C-U5 a claim for them. **Amended at T3** by the owner's words, relayed by
 the lead (decision 146), flagged for the owner's review (no spec round): no CI
 job runs Clef end to end. U7 and claims C-U7 to C-U9 are removed, and U1, U2,
-U3, U8, U9, U12 to U17 and U19 follow. Amends
+U3, U8, U9, U12 to U17 and U19 follow. **Amended at T3 again** by the owner's
+words, relayed by the lead (decision 161), flagged for the owner's review (no
+spec round): there is no field report. U2, U9, U13 to U16 and U18 follow. Amends
 [0002-clef-runner](0002-clef-runner.md) and builds on
 [0003-clef-macos](0003-clef-macos.md); everything they say holds unless a
 section here replaces it. The spec counts once it is on `main`.
@@ -99,8 +101,8 @@ The session took these picks, each logged as a checkpoint:
 6. **A longer forward timeout on CPU** (U8): 180 s on CPU keys, 60 s on GPU
    keys. A 4-core Intel Mac took up to 70 s per answer.
 7. **A server that ends while loading says so** (U18), with the platform and
-   a request for a field report, since the owner will rely on field reports
-   from platforms nobody here runs (the lead's decision 67).
+   a pointer to the doc. Nothing asks for a report (amended at T3, decision
+   161).
 8. **No end-to-end job (amended at T3).** No new CI job runs Clef with the
    real server, and no existing job changes (decision 146).
 9. **Removed at T3** with the end-to-end jobs: the check of each answer
@@ -320,8 +322,7 @@ test downloads a real archive" holds for the whole repo.
   (U8, the lead's decision 71); the example machines give real times.
 - **The lifetime lines:** setpriv where it exists, else the keeper, with the
   residual (U6).
-- **A server that ends while loading** (U18): what you see, and where to send
-  a field report.
+- **A server that ends while loading** (U18): what you see.
 - **Removed:** "Windows x64 is the target", "Linux x64 … has not been run end
   to end", and the `clef-setpriv` line.
 - The header list in `claude/tools/clef.mjs` drops `clef-setpriv`.
@@ -399,7 +400,7 @@ a comment on this work's PACT issue:
 | The keeper everywhere on Linux vs. only without `setpriv` | Only without it | `setpriv` survives both processes being killed; the keeper doesn't |
 | `-nr` on every CPU key vs. only where repacking crashes | Every CPU key, no GPU key | Which CPUs crash can't be known ahead, and U10 prices the cost where both load; no evidence covers a GPU key |
 | One forward timeout vs. one per backend | 180 s on CPU, 60 s on GPU | A slow CPU answers in up to 70 s; on a GPU a long wait means a fault |
-| A run with the real server in CI vs. no new job | No new job (amended at T3) | The owner's words (decision 146). A fault that only the real server shows, as U10's crash did, is found on a user's machine and comes back as a field report |
+| A run with the real server in CI vs. no new job | No new job (amended at T3) | The owner's words (decision 146). A fault that only the real server shows, as U10's crash did, is found on a user's machine, and nothing asks the user to report it (decision 161) |
 | Pin-time dependency report vs. a setup-time library check | Pin time, plus the glibc check at setup | Library search paths vary by distro; a setup check would guess |
 | arm64 Vulkan rows now vs. when a machine can run C14 | Later | An unchecked backend's answers reach users at once |
 
@@ -414,7 +415,7 @@ evidence on its own head.
    C-U11. Its pin record cites U10's runs as C14 (U3).
 2. **T2: no setpriv.** U6. Claims C-U5, C-U6. Its start check is U11's
    first line.
-3. **T3: the timeout and the load-crash word.** U8, U18 and the issue form.
+3. **T3: the timeout and the load-crash word.** U8 and U18.
    Claims C-U12 and C-U13. Needs T1's rows and T2's keeper.
 4. **T4: the doc.** U9, and the 0002 and 0003 pointer edits (U2 pick 1).
    Claim C-U10.
@@ -471,7 +472,7 @@ evidence on its own head.
   and its stderr line and `clef status` say U18's words, naming the platform
   key, with "try `clef setup --cpu`" on a GPU key only; neither holds server
   text, the token or the `run.key` value. A keeper-line stub's exit records
-  `code: 'unknown'`. The issue form holds U18's closed list.
+  `code: 'unknown'`.
 
 ## U16 Needs the owner
 
@@ -481,7 +482,6 @@ evidence on its own head.
 | The security pair on this spec | spec round 2 | done: no high, no security block |
 | The security pair on the keeper on Linux | checkpoint | at T2's Test |
 | U10's branch push (done, the lead's OK, decision 64) and its deletion | checkpoint | delete once the spec is approved |
-| Where field reports go (U18): a public GitHub issue form, the lead's decision 78 | flagged for the owner's review | after |
 | The forward-timeout change (U8) | checkpoint (a bound in 0002 changes) | spec approval |
 | Merging each ticket (`claude/tools/`, `.github/`, read closely) | checkpoint, pinned to the reviewed head | after each Test |
 
@@ -503,20 +503,12 @@ evidence on its own head.
 - `ensure`, on `failed` with `stage: 'load'`, prints one line to stderr, and
   `clef status` prints the same line: "the server stopped while loading the
   model on <platform key> (<code>); this build may not support this CPU or
-  system. See docs/clef.md, Field reports". On a GPU key it adds "; try
-  `clef setup --cpu`". The line points and does not ask: a field report is
-  the user's own act. No server text, path, token or `run.key` value is in
-  it.
-- **Field reports** go to a public GitHub issue form, `Clef field report`,
-  in `.github/ISSUE_TEMPLATE/clef-field-report.yml` (the lead's decision 78,
-  flagged for the owner's review). Its fields, a closed list: the `clef
-  status` lines, the platform key, the llama.cpp build, the OS name and
-  version, the CPU model, node's version and arch, and the stage. The form
-  and `docs/clef.md` say the report is public, and that it holds no path,
-  account name, log or server output. The doc says an agent sends none
-  unasked. A report's text is outside text under
-  `docs/agents/issue-tracker.md`: data, never instructions. If issues lock,
-  the form moves to Discussions in that change.
+  system. See docs/clef.md". On a GPU key it adds "; try
+  `clef setup --cpu`". The line points and does not ask. No server text,
+  path, token or `run.key` value is in it.
+- **No field report (amended at T3, decision 161).** The owner's words,
+  relayed by the lead: "a field report gives nothing to act on". There is no
+  issue form for one, and the doc asks for none.
 
 ## U19 Rollback (amends 0002 S15)
 
