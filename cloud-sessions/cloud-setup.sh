@@ -629,8 +629,9 @@ its SKILL.md, first in my skills folder, then in the installed plugins'
 line. A skill you can't find, say so in one line and go on with the stage.
 
 **Skill order.** At each stage, take its skills in the order the table lists
-them, skipping one whose when doesn't fit the work or that I decline; one
-whose when names another skill or its work runs with it.
+them. Skip one whose condition doesn't fit the work or that I decline. A skill
+whose condition names another skill, or that skill's work, runs with that
+skill.
 
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1695,7 +1696,7 @@ check_hash() {
     echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 38f23722bcc678480313bc6e547ba12d8a26e9ab13766e43e7850ff14cfa73ca 'CLAUDE.md'
+check_hash 96150829e5156de686b8fc5718555a65a1b4fa5624dbe482cb3fe8aee1e375f1 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1737,7 +1738,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 0fb9f7df7e7c"
+  echo "pact cloud copy d59a38bcdd46"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

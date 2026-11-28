@@ -1252,7 +1252,7 @@ test('stub page: an invalid command shows its rule under the field, linked by ar
 test('stub page: ↓ moves a Plan skill one place later among Plan\'s skills only; the line, the focus, the saved file and the rules follow', () => {
   const P = bootPage();
   const card = id => P.find(P.ids.wf, n => cardClasses(n).includes('wf-node') && n.dataset.id === id)[0];
-  const line = () => P.find(P.ids.wf, n => /^Runs \d+ of \d+ at /.test(n.textContent))[0].textContent;
+  const line = () => P.find(P.ids.wf, n => /^(Runs|Switched off; its place:) \d+ of \d+ at /.test(n.textContent))[0].textContent;
   const arrow = label => P.find(P.ids.wf, n => n.tag === 'button' && n.attrs['aria-label'] === label)[0];
   const disabled = b => Object.hasOwn(b.attrs, 'disabled');
   let focused = null;
@@ -1275,17 +1275,32 @@ test('stub page: ↓ moves a Plan skill one place later among Plan\'s skills onl
   assert.equal(line(), 'Runs 5 of 5 at Plan');
   assert.ok(disabled(arrow('Run grill-with-docs later')));
   assert.equal(focused, arrow('Run grill-with-docs earlier'));
+  // ↑ moves it back one place, and the focus stays on ↑.
+  assert.ok(!disabled(arrow('Run grill-with-docs earlier')));
+  arrow('Run grill-with-docs earlier').click();
+  assert.equal(line(), 'Runs 4 of 5 at Plan');
+  assert.equal(focused, arrow('Run grill-with-docs earlier'));
+  arrow('Run grill-with-docs later').click();
   const after = save();
   const plan = after.split('\n').find(l => l.includes('| Plan |'));
   assert.ok(plan.indexOf('`grimoire:eagle-eye`') < plan.indexOf('`grill-with-docs`'), `the rules list grilling last at Plan: ${plan}`);
-  // The off note: a Plan skill switched off is counted, and the line says so.
-  openCard(P, card('plan-arena'));
-  const switches = P.find(P.ids.wf, n => n.attrs['aria-label'] === 'skill on or off');
-  switches.at(-1).click(); // the panel's own switch: the cards' switches come first
-  assert.match(line(), /^Runs 4 of 5 at Plan, counting those switched off$/);
+  // The off note counts only the skill's own stage: a Design skill switched off leaves Plan's line as it was.
+  const switchOff = id => {
+    openCard(P, card(id));
+    // The panel's own switch: the cards' switches come first.
+    P.find(P.ids.wf, n => n.attrs['aria-label'] === 'skill on or off').at(-1).click();
+  };
+  switchOff('design-spec-driven-development');
+  openCard(P, card('plan-grill-with-docs'));
+  assert.equal(line(), 'Runs 5 of 5 at Plan');
+  // A Plan skill switched off: its own line says it is off, and its stage's other skills say the count holds it.
+  switchOff('plan-arena');
+  assert.equal(line(), 'Switched off; its place: 4 of 5 at Plan');
+  openCard(P, card('plan-grill-with-docs'));
+  assert.equal(line(), 'Runs 5 of 5 at Plan, counting those switched off');
 });
 
-// PACT-99 C1, C4: moveSkill (which the page embeds from parts.mjs) swaps only with a neighbour at the same stage, and the saved builder file
+// PACT-99 C1, C4: moveSkill (which the page embeds) swaps only with a neighbour at the same stage, and the saved builder file
 // keeps the new order; wireSkill puts a skill wired to another stage last there, and leaves one wired to its own.
 test('moveSkill and wireSkill change only the stage\'s run order, and the builder file saves it', () => {
   const s = L.initialState();

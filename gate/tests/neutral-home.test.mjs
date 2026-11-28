@@ -69,7 +69,7 @@ const NEUTRAL_RULES = [
   ['| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high |', '| Build | planning model, low | executor model, medium | executor model, medium | planning model, high |'],
   ['| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high |', '| Test | planning model, low | executor model, medium | executor model, medium | planning model, high |'],
   ['| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high |', '| Maintain | in the session, no plan | planning model, medium | planning model, high | planning model, high |'],
-  ["line. A skill you can't find, say so in one line and go on with the stage.\n", "line. A skill you can't find, say so in one line and go on with the stage.\n\n**Skill order.** At each stage, take its skills in the order the table lists\nthem, skipping one whose when doesn't fit the work or that I decline; one\nwhose when names another skill or its work runs with it.\n"],
+  ["line. A skill you can't find, say so in one line and go on with the stage.\n", "line. A skill you can't find, say so in one line and go on with the stage.\n\n**Skill order.** At each stage, take its skills in the order the table lists\nthem. Skip one whose condition doesn't fit the work or that I decline. A skill\nwhose condition names another skill, or that skill's work, runs with that\nskill.\n"],
 ];
 const neutral = text => NEUTRAL_RULES.reduce((s, [from, to]) => {
   assert.equal(s.split(from).length, 2, `the fixture holds ${from} once`);
