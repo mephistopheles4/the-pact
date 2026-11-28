@@ -91,6 +91,8 @@ const bare = (pairs = []) => {
 
 const FENCE_RE = /^\s*(`{3,}|~{3,})/;
 const HEADING_RE = /^ {0,3}(#{1,6})(?:\s+(.*?))??(?:\s+#+)?\s*$/;
+/** The longest line tried as a heading: the match's cost grows with the square of a line of spaces. */
+const MAX_HEADING = 1000;
 const ITEM_RE = /^(\s*)(?:[-*+]|\d{1,9}[.)])\s+(.*)$/;
 const CLASS_RE = /accepted threat classes|accepted risks/i;
 const plain = s => s.replace(/\*|`/g, '');
@@ -124,7 +126,7 @@ function blocks(markdown) {
       if (open?.kind === 'paragraph') open = null;
       continue;
     }
-    const heading = HEADING_RE.exec(line);
+    const heading = line.length <= MAX_HEADING ? HEADING_RE.exec(line) : null;
     const item = ITEM_RE.exec(line);
     const indented = /^\s/.test(line);
     if (heading) {

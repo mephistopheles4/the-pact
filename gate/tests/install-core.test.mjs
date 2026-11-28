@@ -1091,7 +1091,8 @@ test('the tools block lists every pact tool, on or off, says which this commit l
 test('the tools block for coverage: its warning, the missing-model warning, both next steps, and the variant the chosen model needs', () => {
   const both = ['claude/tools/clef.mjs', 'claude/tools/coverage.mjs'];
   const needs = '  WARN: coverage needs a decision model: turn on clef, or set "decision-model": "jev" in .pact/config.json.';
-  const next = '  coverage next step: set up clef, or set "decision-model" to "jev" and set TYPESAFE_API_KEY; docs/coverage.md says what it does.';
+  const next = '  coverage next step: set up clef, or set "decision-model" to "jev", set TYPESAFE_API_KEY and list each repo in ~/.pact/coverage.json; docs/coverage.md says what it does.';
+  const jevNext = '  coverage next step: set TYPESAFE_API_KEY and list each repo in ~/.pact/coverage.json; docs/coverage.md says what it does.';
   const alone = core.toolsBlock(['coverage'], both, null);
   assert.deepEqual(alone.slice(-3), [
     '  WARN: the user configuration turns on the pact tool coverage; it installs to .pact/tools/coverage.mjs and asks a local Clef by default; with `jev` chosen as the decision model, it sends the security findings and threat-model entries of each repo listed in ~/.pact/coverage.json to TypeSafe.',
@@ -1101,7 +1102,7 @@ test('the tools block for coverage: its warning, the missing-model warning, both
   for (const [on, model] of [[['coverage'], 'jev'], [['clef', 'coverage'], null], [['clef', 'coverage'], 'clef-flash']]) {
     const block = core.toolsBlock(on, both, model);
     assert.ok(!block.includes(needs), `${on} ${model}`);
-    assert.equal(block.at(-1), next);
+    assert.equal(block.at(-1), model === 'jev' ? jevNext : next);
   }
   assert.ok(core.toolsBlock(['coverage'], both, 'clef-flash').includes(needs), 'a clef model named with clef off still has none');
   const full = core.toolsBlock(['clef'], both, 'clef-full');

@@ -99,6 +99,8 @@ code change.
   name one source of harm, and a scope paragraph one thing put out of scope.
 - **The draft:** `coverage entries` prints a draft built by a fixed rule:
   - Fenced blocks (```` ``` ```` or `~~~`) are skipped throughout.
+  - A line over 1,000 characters is never a heading; it is read as body
+    text.
   - The class heading is the first heading, at any level, whose text matches
     `accepted threat classes` or `accepted risks`, ignoring case. Each
     top-level bullet under it, up to the next heading of the same or a

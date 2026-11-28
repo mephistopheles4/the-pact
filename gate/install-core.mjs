@@ -1244,7 +1244,8 @@ export function toolsBlock(on, stagedRels, model = null) {
   if (on.includes('clef')) out.push(`  clef next step: run \`node ~/.pact/tools/clef.mjs setup${model === 'clef-full' ? ' --variant full' : ''}\`, then the same with \`--yes\`; docs/clef.md says what it does.`);
   if (on.includes('coverage')) {
     if (!on.includes('clef') && model !== 'jev') out.push(`  WARN: coverage needs a decision model: turn on clef, or set "decision-model": "jev" in ${CONFIG_REL}.`);
-    out.push('  coverage next step: set up clef, or set "decision-model" to "jev" and set TYPESAFE_API_KEY; docs/coverage.md says what it does.');
+    const clef = model === 'jev' ? '' : 'set up clef, or set "decision-model" to "jev", ';
+    out.push(`  coverage next step: ${clef}set TYPESAFE_API_KEY and list each repo in ~/.pact/coverage.json; docs/coverage.md says what it does.`);
   }
   return out;
 }
