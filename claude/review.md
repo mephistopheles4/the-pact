@@ -119,6 +119,25 @@ Ask each lens to report in this shape:
 - **You decide** which findings are security findings, by the Threat model
   section below. A security or `security?` finding comes to me and is never
   `auto`.
+- **The coverage hint.** When `coverage` is on the tools list and the session is
+  not a cloud session: once you have drafted the Lens dispositions table, for
+  each finding you sorted as security or `security?`, at most ten a round, write
+  its finding text to a scratch file outside the repo (the headline, then the
+  evidence from the next line, paths relative to the repo), read that file as
+  Posting's read before you post reads a post, run `coverage ask` from that folder
+  with the folder of the repo under review, the base and `--ref` naming the
+  finding in the record (`node "$HOME/.pact/tools/coverage.mjs" ask --finding
+  <file> --repo-dir <repo folder> --base <base> --ref <issue>/<round>/<finding>`,
+  in either shell), put the hint line under that finding in the round comment, as
+  printed, and delete the scratch file. A failed or refused run puts its one line
+  there instead; past ten, the line is `> Coverage hint: skipped (cap).` The
+  round goes on either way. The hint changes no sort, severity, disposition,
+  `auto` mark or route, and no rule reads it back. It goes in no Lens
+  dispositions table and no status comment. This is not step 2's placement call,
+  which stays on the local model only. A repo listed for `jev` in
+  `~/.pact/coverage.json` is my standing pick for that repo's sends; the hint
+  line's backend name and the log are their record, and no per-call checkpoint is
+  logged.
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,
   and a further read runs again the same way; every report it returned stays

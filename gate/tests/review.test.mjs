@@ -1,6 +1,7 @@
 // The review output module (#53, slice 4), driven through its command line as
 // the install script runs it. Judged on what it prints and what it leaves on
 // disk. The install script's own use of it is tested in install-edits.test.mjs.
+// The last test reads the review procedure's own text, claude/review.md.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -308,4 +309,23 @@ test('it never echoes the folder or home path', t => {
   const p = review(t, ok);
   assert.equal(p.code, 0, p.out);
   assert.ok(!p.out.includes(C), p.out);
+});
+
+// ------------------------------------------------------------ the procedure's text
+
+test("review.md's coverage hint item names the tool, the scratch folder and the cap, changes no disposition, and step 2 stays off the network", () => {
+  const text = readFileSync(join(REPO, 'claude', 'review.md'), 'utf8').replace(/\r\n/g, '\n');
+  const section = name => (text.split(`\n## ${name}\n`)[1] ?? '').split('\n## ')[0];
+  const item = (/\n- \*\*The coverage hint\.\*\*[\s\S]*?(?=\n- |$)/.exec(section('Handling the reports'))?.[0] ?? '').replace(/\s+/g, ' ');
+  for (const says of [
+    'When `coverage` is on the tools list and the session is not a cloud session',
+    'to a scratch file outside the repo',
+    'run `coverage ask` from that folder',
+    'at most ten a round',
+    '`> Coverage hint: skipped (cap).`',
+    'The hint changes no sort, severity, disposition, `auto` mark or route',
+  ]) {
+    assert.ok(item.includes(says), `the item does not say: ${says}`);
+  }
+  assert.ok(section('The threat model').replace(/\s+/g, ' ').includes('Never ask it over a network or in a cloud session'), "step 2's network sentence is gone");
 });
