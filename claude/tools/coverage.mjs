@@ -540,6 +540,9 @@ const clefScript = () => join(dirname(fileURLToPath(import.meta.url)), 'clef.mjs
 const serves = (variant, model) => VARIANTS.includes(variant) && (model === null || model === `clef-${variant}`);
 const variantIn = status => /^variant: (\S+)\r?$/m.exec(status)?.[1];
 
+/** clef.mjs's environment: the caller's, without the key, which only a jev request carries. */
+const clefEnv = env => Object.fromEntries(Object.entries(env).filter(([k]) => k.toUpperCase() !== 'TYPESAFE_API_KEY'));
+
 /**
  * Asks the installed clef.mjs for a ready local server: `ensure --wait 60`,
  * then `status`. It never runs setup or starts a download.
@@ -547,7 +550,7 @@ const variantIn = status => /^variant: (\S+)\r?$/m.exec(status)?.[1];
 function startClef({ model: chosen, execPath, env, cwd, spawn }) {
   const script = clefScript();
   if (!existsSync(script)) unavailable('clef-missing');
-  const childEnv = Object.fromEntries(Object.entries(env).filter(([k]) => k.toUpperCase() !== 'TYPESAFE_API_KEY'));
+  const childEnv = clefEnv(env);
   const run = (args, timeout) => String(spawn(execPath, [script, ...args], { cwd, env: childEnv, encoding: 'utf8', timeout, windowsHide: true, shell: false }).stdout ?? '');
   let ensured = null;
   try {
@@ -668,7 +671,9 @@ async function ask({ options }, io, entry) {
   const choice = readChoice(io.account);
   entry.backend = choice.model ?? 'clef';
   const raw = readUtf8(resolve(io.cwd, options['--finding']), 'coverage/finding', 'the finding file');
-  const text = findingText(raw.replace(/^\uFEFF/, ''));
+  // A byte-order mark at the file's start is the encoding's, not the finding's.
+  const written = raw.replace(/^\uFEFF/, '');
+  const text = findingText(written);
   entry.finding = createHash('sha256').update(text).digest('hex');
   const reader = repoReader({ dir: options['--repo-dir'], base: options['--base'], ...io });
   reader.shortHash();
@@ -691,7 +696,7 @@ async function ask({ options }, io, entry) {
     if (env.CLAUDE_CODE_REMOTE) refuse('coverage/cloud', 'a cloud session sends nothing to jev');
     const key = env.TYPESAFE_API_KEY;
     if (!key) refuse('coverage/key', 'TYPESAFE_API_KEY is not set');
-    const sent = [raw, text, ...[doc.entries, doc.scope].flatMap(m => [...Object.keys(m), ...Object.values(m)])];
+    const sent = [written, text, ...[doc.entries, doc.scope].flatMap(m => [...Object.keys(m), ...Object.values(m)])];
     const secret = secretIn(sent, env);
     if (secret !== null) refuse('coverage/secret', `the finding or the entries hold ${secret}`);
     const personal = personalIn(sent, io);
@@ -763,7 +768,7 @@ function statusMode(io) {
     let ready = 'no (clef-missing)';
     if (existsSync(script)) {
       // `status` starts nothing; `ask` starts a set-up clef that is stopped.
-      const text = String(io.spawn(io.execPath, [script, 'status'], { cwd: io.cwd, env: io.env, encoding: 'utf8', timeout: 30_000, windowsHide: true, shell: false }).stdout ?? '');
+      const text = String(io.spawn(io.execPath, [script, 'status'], { cwd: io.cwd, env: clefEnv(io.env), encoding: 'utf8', timeout: 30_000, windowsHide: true, shell: false }).stdout ?? '');
       const run = /^run: (ready|starting|stopped)\r?$/m.exec(text)?.[1];
       const variant = variantIn(text);
       if (/^setup: none\r?$/m.test(text)) ready = 'no (clef-not-set-up)';

@@ -662,6 +662,8 @@ test('scan: jev refuses a secret, a hidden character, the home folder and the us
   }
   const w = await world(t, { ...JEV, env });
   assert.equal((await w.ask({ ...personal, userName: 'a' })).code, 0, 'a user name under 3 characters is not matched');
+  writeFileSync(w.findingFile, `${cp(0xfeff)}headline\nevidence`);
+  assert.equal((await w.ask(personal)).code, 0, "a file's byte-order mark is not a hidden character in the finding");
   const local = await world(t, { env, finding: 't\nfixture-secret-value-1 signed fixtureuser' });
   const f = stubFetch();
   assert.equal((await local.ask({ fetch: f.fetch, ...personal })).code, 0);
@@ -678,7 +680,9 @@ test('clef: ensure then status, by this node, from the scratch folder; the varia
   assert.equal(r.code, 0, r.out);
   const calls = w.calls();
   assert.deepEqual(calls.map(c => c.argv), [['ensure', '--wait', '60'], ['status']]);
-  for (const c of calls) assert.deepEqual([c.execPath, c.key], [process.execPath, false]);
+  await w.run(['status']);
+  assert.equal(w.calls().length, 3);
+  for (const c of w.calls()) assert.deepEqual([c.execPath, c.key], [process.execPath, false]);
   assert.equal(spawnSync(process.execPath, ['-e', 'console.log(require("node:fs").realpathSync.native(process.argv[1]))', calls[0].cwd], { encoding: 'utf8' }).status, 0);
   assert.deepEqual(Object.keys(f.sent[0].body), ['state', 'questions']);
   const full = await world(t, { clef: { ...READY, status: READY.status.replace('variant: flash', 'variant: full') } });
