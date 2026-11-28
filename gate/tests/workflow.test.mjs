@@ -866,12 +866,6 @@ for (const [label, other, says] of [
   });
 }
 
-const E2E = join(WORKFLOWS, 'clef-e2e.yml');
-// #PACT-93 C-U9
-test('the end-to-end workflow keeps its allow-list', () => {
-  assert.deepEqual(e2eProblems(readFileSync(E2E, 'utf8'), readFileSync(WORKFLOW, 'utf8')), []);
-});
-
 const OTHER_JOB = id => `${id} is not the job its allow-list holds`;
 // #PACT-93 C-U9: each bad case spec 0005 U7 names, through the folder check, which hands the file to its allow-list.
 for (const [label, plant, says] of [

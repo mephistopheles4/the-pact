@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        This report is **public**. Put no path, account name, log or server output in it: only what the fields below ask for. [Field reports](https://github.com/mephistopheles4/the-pact/blob/main/docs/clef.md#field-reports) says more.
+        This report is **public**. Put no path, account name, host name, log or server output in it:only what the fields below ask for. [Field reports](https://github.com/mephistopheles4/the-pact/blob/main/docs/clef.md#field-reports) says more.
   - type: textarea
     id: status
     attributes:
@@ -32,12 +32,14 @@ body:
     id: os
     attributes:
       label: OS name and version
+      description: Such as Ubuntu 24.04 or Windows 11 24H2. `node -p "os.type() + ' ' + os.release()"` prints one with no host name.
     validations:
       required: true
   - type: input
     id: cpu
     attributes:
       label: CPU model
+      description: What `node -p "os.cpus()[0].model"` prints.
     validations:
       required: true
   - type: input

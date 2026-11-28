@@ -2,7 +2,7 @@
 // fail on a bad case. Nothing here downloads or runs the real server.
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { forwardTimeoutMs } from '../../claude/tools/clef.mjs';
@@ -72,6 +72,8 @@ test('writeLine: writes a line, and refuses one holding a secret, naming neither
 test('parseArgs: takes a scratch folder outside the repo and a CPU platform key, and refuses anything else', t => {
   const outside = tempDir(t, 'clef-e2e-');
   assert.deepEqual(parseArgs([outside, 'linux-arm64-cpu']), { scratch: outside, key: 'linux-arm64-cpu' });
+  // A junction on Windows, which needs no extra right; a symlink elsewhere.
+  symlinkSync(REPO, join(outside, 'link'), 'junction');
   for (const [argv, says] of [
     [[outside], /two arguments/],
     [[outside, 'linux-x64-cpu', 'more'], /two arguments/],
@@ -80,6 +82,7 @@ test('parseArgs: takes a scratch folder outside the repo and a CPU platform key,
     [[outside, 'toString'], /platform key/],
     [[REPO, 'linux-x64-cpu'], /outside the repo/],
     [[join(REPO, 'gate', 'scratch'), 'linux-x64-cpu'], /outside the repo/],
+    [[join(outside, 'link', 'not-there-yet'), 'linux-x64-cpu'], /outside the repo/],
     [[join(REPO, '..'), 'linux-x64-cpu'], /outside the repo/],
     [['relative/scratch', 'linux-x64-cpu'], /full path/],
   ]) assert.throws(() => parseArgs(argv), says, argv.join(' '));

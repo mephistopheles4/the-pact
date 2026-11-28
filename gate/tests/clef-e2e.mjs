@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { cpus, release, totalmem, type } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkedAnswer, forwardTimeoutMs, lifetimeLine, runPaths } from '../../claude/tools/clef.mjs';
 import { realOrResolved, within } from '../paths.mjs';
@@ -27,12 +27,23 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------------------------------------------------------------- the checks
 
+/** A folder's real path: links are followed in the part of it that exists, so a folder yet to be made is judged where it would land. */
+function realFolder(path) {
+  let at = resolve(path);
+  const rest = [];
+  while (!existsSync(at) && dirname(at) !== at) {
+    rest.unshift(basename(at));
+    at = dirname(at);
+  }
+  return join(realOrResolved(at), ...rest);
+}
+
 export function parseArgs(argv) {
   if (argv.length !== 2) throw new Error('takes two arguments: a scratch folder and a platform key');
   const [scratch, key] = argv;
   if (!KEYS.includes(key)) throw new Error(`the platform key is one of ${KEYS.join(', ')}`);
   if (!isAbsolute(scratch)) throw new Error('the scratch folder takes a full path');
-  const folder = realOrResolved(scratch);
+  const folder = realFolder(scratch);
   const repo = realOrResolved(REPO);
   if (within(folder, repo) || within(repo, folder)) throw new Error('the scratch folder must lie outside the repo, and not hold it');
   return { scratch, key };

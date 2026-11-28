@@ -17,6 +17,7 @@
 - **The token.** U7 and U18 name `run.json`'s token; `run.json` holds none. The script's writer guards the `run` id and `run.key`'s value.
 - **The throwaway home.** U7 names `pact/config.json` and `pact/tools/clef.mjs`; they are under `.pact/` in the home, where the install now reads and writes.
 - **The apply command.** The script reads the commit and the rendered hash from the printed line and runs the installer with them, with no shell between.
+- **The failure record.** `run.fail` also holds the platform key, so the load-crash line names the build that ended: after a new setup it isn't said of the new one. `status` drops the line once a server is ready.
 - **The doc.** U18's line points at `docs/clef.md`, Field reports, so this change adds that section and the CPU wait; the rewrite is the next ticket's.
 
 ## Record
