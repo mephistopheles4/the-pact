@@ -24,9 +24,9 @@
 //   0  RESULT: pass            the plan printed, the files kept, or the files verified
 //   1  RESULT: fail <words>    a file failed verify
 //   2  RESULT: refused <word>  a refusal (clef-pin, clef-platform, clef-space,
-//                              clef-node, clef-setpriv, clef-redirect, clef-size,
-//                              clef-hash, clef-archive, clef-home, clef-running,
-//                              clef-orphan, clef-keep, clef-fetch) or a usage fault
+//                              clef-node, clef-redirect, clef-size, clef-hash,
+//                              clef-archive, clef-home, clef-running, clef-orphan,
+//                              clef-keep, clef-fetch) or a usage fault
 // `ensure` prints its JSON line and exits 0 (ready or starting), 3 (not set up)
 // or 4 (failed); docs/clef.md has its states.
 //
@@ -1115,7 +1115,7 @@ function modelPresent(dir, model) {
 /**
  * The plan: what setup would do, as lines and data. Writes nothing but the
  * clef folder. Throws Refused (`clef-platform`, `clef-space`, `clef-node`,
- * `clef-setpriv`, `clef-pin`).
+ * `clef-pin`).
  */
 export function planSetup({ dir, platform, arch, cpu = false, variant = 'flash', execPath, cwd, free, exists = existsSync, vulkan, server = SERVER, models = MODELS, glibc, machine, systemRoot = process.env.SystemRoot ?? 'C:\\Windows', readMachine = process.platform === 'win32' ? machineOf : () => undefined }) {
   const model = models[variant];
@@ -1137,7 +1137,6 @@ export function planSetup({ dir, platform, arch, cpu = false, variant = 'flash',
     const missing = VC_RUNTIME[pick.key.includes('-arm64-') ? 'arm64' : 'x64'].filter(name => !exists(win32.join(system32, name)));
     if (missing.length) throw new Refused('clef-platform', `${pick.key} needs the Microsoft Visual C++ Redistributable, and %SystemRoot%\\System32 lacks ${missing.join(', ')}. Install the Redistributable for ${pick.key.includes('-arm64-') ? 'arm64' : 'x64'}`);
   }
-  if (platform === 'linux' && !exists('/usr/bin/setpriv')) throw new Refused('clef-setpriv', 'Linux needs /usr/bin/setpriv, which this machine does not have');
   if (insideOf(execPath, cwd, platform === 'win32', platform === 'darwin')) throw new Refused('clef-node', 'the node that runs setup lies inside the folder the command was started from');
   const a = server.archives[pick.key];
   const setup = readSetup(dir);
@@ -1422,14 +1421,14 @@ export function serverArgs({ port, keyFile, modelPath, vulkan, metal, noDevice, 
   return ['--host', '127.0.0.1', '--port', String(port), '--api-key-file', keyFile, '--no-webui', '--no-slots', '--cors-origins', 'http://127.0.0.1.invalid', ...(vulkan || metal ? ['-ngl', '99'] : []), ...(noDevice ? ['--device', 'none'] : []), '-c', '65536', '-ub', '8192', '-b', '8192', '-m', modelPath, ...(cpu ? ['-nr'] : [])];
 }
 
-/** The program and arguments that start the server: on Linux through setpriv, so the kernel ends it when the supervisor dies. */
 /**
- * What ends the server when its supervisor dies (spec 0003 M2, pick 3): a job
- * object on Windows, setpriv's parent-death signal on Linux, the keeper on
- * macOS. Linux keeps setpriv here; setup refuses clef-setpriv without it.
+ * What ends the server when its supervisor dies (spec 0003 M2, pick 3; spec
+ * 0005 U6): a job object on Windows, the keeper on macOS, and on Linux
+ * setpriv's parent-death signal where /usr/bin/setpriv exists, else the keeper.
  */
-export function lifetimeLine({ platform }) {
-  return platform === 'win32' ? 'job-object' : platform === 'darwin' ? 'keeper' : 'setpriv';
+export function lifetimeLine({ platform, exists = existsSync }) {
+  if (platform === 'win32') return 'job-object';
+  return platform === 'darwin' || (platform === 'linux' && !exists(SETPRIV)) ? 'keeper' : 'setpriv';
 }
 
 /** The keeper's one message, as the supervisor builds it: a command, its folder and its environment, each a plain string or list of strings. */
@@ -1500,6 +1499,7 @@ export function keep({ proc = process, spawnFn = spawn, termWaitMs = 5000 } = {}
   });
 }
 
+/** The program and arguments that start the server: on Linux through setpriv, unless `pdeathsig` is off, so the kernel ends it when the supervisor dies. */
 export function launchCommand({ platform, exe, exePrefix = [], args, setpriv = SETPRIV, pdeathsig = true }) {
   if (platform === 'linux' && pdeathsig) return { file: setpriv, args: ['--pdeathsig', 'KILL', '--', exe, ...exePrefix, ...args] };
   return { file: exe, args: [...exePrefix, ...args] };
@@ -1625,12 +1625,6 @@ function releaseLock(dir, pid = process.pid) {
 }
 
 /**
- * Ends every orphan server on Linux: a process whose /proc/<pid>/exe lies under
- * <clef folder>/runtime/ (any tag, or a deleted target there) and whose parent is
- * not the live supervisor. Called only while holding run.lock. Returns the pids
- * it ended.
- */
-/**
  * One GET /props to the recorded loopback port (spec 0003 M6): the status code,
  * 'timeout', 'refused' when nothing listens, or 'error'. The key, when given,
  * goes only to 127.0.0.1.
@@ -1729,6 +1723,12 @@ export async function sweepServer({ dir, boundMs, now = Date.now, uptime = osUpt
   }
 }
 
+/**
+ * Ends every orphan server on Linux: a process whose /proc/<pid>/exe lies under
+ * <clef folder>/runtime/ (any tag, or a deleted target there) and whose parent
+ * and grandparent are not the live supervisor: on the keeper line the parent is
+ * the keeper. Called only while holding run.lock. Returns the pids it ended.
+ */
 export function sweepOrphans({ dir, procRoot = '/proc', kill = pid => process.kill(pid, 'SIGKILL'), liveSupervisorPid = null }) {
   const ended = [];
   const base = `${posix.resolve(dir.split('\\').join('/'))}/runtime/`;
@@ -1738,6 +1738,15 @@ export function sweepOrphans({ dir, procRoot = '/proc', kill = pid => process.ki
   } catch {
     return ended;
   }
+  /** The parent pid /proc/<pid>/stat names, or null when it cannot be read. */
+  const parentOf = pid => {
+    try {
+      const stat = readFileSync(join(procRoot, String(pid), 'stat'), 'utf8');
+      return Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]);
+    } catch {
+      return null;
+    }
+  };
   for (const n of names) {
     if (!/^[0-9]+$/.test(n)) continue;
     const pid = Number(n);
@@ -1750,14 +1759,9 @@ export function sweepOrphans({ dir, procRoot = '/proc', kill = pid => process.ki
     }
     exe = exe.replace(/ \(deleted\)$/, '');
     if (!exe.startsWith(base)) continue;
-    let ppid = null;
-    try {
-      const stat = readFileSync(join(procRoot, n, 'stat'), 'utf8');
-      ppid = Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]);
-    } catch {
-      continue;
-    }
-    if (liveSupervisorPid !== null && ppid === liveSupervisorPid) continue;
+    const ppid = parentOf(pid);
+    if (ppid === null) continue;
+    if (liveSupervisorPid !== null && (ppid === liveSupervisorPid || parentOf(ppid) === liveSupervisorPid)) continue;
     try {
       kill(pid);
       ended.push(pid);
@@ -1869,10 +1873,10 @@ function freePort() {
  * its own script changes or goes, on a signal, and when the server exits.
  * Resolves { done, stop } once it is serving; `done` resolves with the reason.
  * Test seams are parameters here only: exe and exePrefix (the server program),
- * pdeathsig, the timings, scriptUrl, and onKeeperOptions (shown the options
- * the keeper is forked with).
+ * pdeathsig, exists (the file test that picks the lifetime line), the timings,
+ * scriptUrl, and onKeeperOptions (shown the options the keeper is forked with).
  */
-export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, models = MODELS, exe, exePrefix = [], pdeathsig = true, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig), onKeeperOptions = () => {} }) {
+export async function serve({ dir, platform = process.platform, env = process.env, server = SERVER, models = MODELS, exe, exePrefix = [], pdeathsig = true, exists = existsSync, idleMs = IDLE_MS, checkMs = CHECK_MS, startTimeoutMs = START_TIMEOUT_MS, pollMs = 250, scriptUrl = import.meta.url, now = Date.now, line = lifetimeLine({ platform, exists }), keeperPidMs = KEEPER_PID_MS, kill = (pid, sig) => process.kill(pid, sig), onKeeperOptions = () => {} }) {
   const ready = notSetUp(dir, platform, server, models);
   if (!ready.setup) {
     writeFail(dir, 'exit', now);
@@ -1890,7 +1894,7 @@ export async function serve({ dir, platform = process.platform, env = process.en
   const serverPort = await freePort();
   writeFileSync(rp.key, `${serverKey}\n`, { mode: 0o600 });
   const exePath = exe ?? join(p.runtime, destName(ready.archive.exe, ready.archive.exe));
-  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan', metal: ready.setup.backend === 'metal', noDevice: ready.setup.platform === 'darwin-arm64-cpu', cpu: ready.setup.backend === 'cpu' }), pdeathsig });
+  const cmd = launchCommand({ platform, exe: exePath, exePrefix, args: serverArgs({ port: serverPort, keyFile: rp.key, modelPath: p.model, vulkan: ready.setup.backend === 'vulkan', metal: ready.setup.backend === 'metal', noDevice: ready.setup.platform === 'darwin-arm64-cpu', cpu: ready.setup.backend === 'cpu' }), pdeathsig: pdeathsig && line === 'setpriv' });
   let stopping = false;
   let isReady = false;
   let lastForward = now();
@@ -1909,7 +1913,10 @@ export async function serve({ dir, platform = process.platform, env = process.en
   let gotGone = false;
   const childExited = new Promise(r => {
     try {
-      const keeperOptions = { cwd: p.runtime, env: serveEnv(env, platform, p.runtime), stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [], windowsHide: true };
+      const keeperEnv = serveEnv(env, platform, p.runtime);
+      // Spec 0005 U6: the keeper's node never loads a kept library; the one message carries the server's environment.
+      if (platform === 'linux') delete keeperEnv.LD_LIBRARY_PATH;
+      const keeperOptions = { cwd: p.runtime, env: keeperEnv, stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [], windowsHide: true };
       onKeeperOptions(keeperOptions);
       child = useKeeper
         ? fork(scriptPath, ['keep'], keeperOptions)
@@ -2419,14 +2426,13 @@ export async function main(argv, { env = process.env, platform = process.platfor
       out('RESULT: pass');
       return r.code;
     }
-    if (platform === 'linux' && !exists(SETPRIV)) return refuse('clef-setpriv', 'this machine has no /usr/bin/setpriv, which keeps the server from outliving the supervisor');
     if (await liveSupervisor(dir)) return refuse('clef-running', 'a supervisor is running; run `clef stop` first');
     const yes = flags.has('--yes');
     const locked = yes ? takeLock(dir) : true;
     if (!locked) return refuse('clef-running', 'a supervisor is starting; run `clef stop` first');
     try {
       // Spec 0003 M6 step 7: a server still loading under an old record keeps setup off its files. The plan only reads the record; --yes sweeps it.
-      if (lifetimeLine({ platform }) === 'keeper') {
+      if (lifetimeLine({ platform, exists }) === 'keeper') {
         const rec = readJsonFile(runPaths(dir).server);
         const kept = yes ? (await sweep({ dir, boundMs: orphanWaitMs })).result === 'kept' : isServerRecord(rec) && pidAlive(rec.pid);
         if (kept) return refuse('clef-orphan', 'a server from an earlier run is still loading; run `clef stop` again once it is ready');

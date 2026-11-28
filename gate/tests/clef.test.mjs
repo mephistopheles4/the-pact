@@ -554,7 +554,8 @@ test('the probe picks Vulkan on the loader file and CPU without it, runs nothing
   const options = SOURCE_TEXT.match(/const keeperOptions = \{[^\n]*\};/)?.[0] ?? '';
   assert.match(options, /\bexecArgv: \[\]/);
   assert.doesNotMatch(options, /execPath/);
-  assert.match(options, /env: serveEnv\(env, platform, p\.runtime\)/);
+  assert.match(options, /env: keeperEnv,/);
+  assert.ok(SOURCE_TEXT.includes('const keeperEnv = serveEnv(env, platform, p.runtime);'), 'the keeper\'s environment starts from the named list');
   // The only way in to child processes is the one import line.
   assert.ok(SOURCE_TEXT.includes("import { fork, spawn } from 'node:child_process';\n"), 'the one child_process import');
   assert.equal(SOURCE_TEXT.split('child_process').length - 1, 1, 'nothing else names child_process');
@@ -633,7 +634,6 @@ test('setup with the real table prints the real plan and still fetches nothing',
     { id: 'too-little-space', plant: () => ({ free: 100 }), fails: ['clef-space'], why: 'the drive cannot hold the files' },
     { id: 'node-in-the-folder', plant: () => ({ execPath: 'C:\\work\\evil\\node.exe', cwd: 'C:\\work' }), fails: ['clef-node'], why: 'a node inside the starting folder' },
     { id: 'node-in-the-folder-cased', plant: () => ({ execPath: 'c:\\WORK\\node.exe', cwd: 'C:\\work' }), fails: ['clef-node'], why: 'Windows compares names without case' },
-    { id: 'linux-without-setpriv', plant: () => ({ platform: 'linux', exists: () => false, glibc: '2.35', server: linuxServer() }), fails: ['clef-setpriv'], why: 'Linux needs /usr/bin/setpriv' },
     // #PACT-91 C-U3: the C library is checked before any fetch.
     { id: 'linux-without-glibc', plant: () => ({ platform: 'linux', glibc: null, server: linuxServer() }), fails: ['clef-platform'], why: 'a musl system reports no glibc' },
     { id: 'linux-glibc-below-the-row', plant: () => ({ platform: 'linux', glibc: '2.34', server: linuxServer('2.35') }), fails: ['clef-platform'], why: 'the row needs 2.35' },
@@ -658,10 +658,11 @@ test('setup with the real table prints the real plan and still fetches nothing',
   }
   test('setup refusals: base passes after the rows', async t => assert.deepEqual((await run(base(), t)).fails, []));
   // #PACT-91 C-U3: at or above the row's glibc, setup passes the check.
-  // The seam answers only for setpriv, so a pass also shows that no OpenSSL file is asked for (decision 93: no OpenSSL check on Linux).
+  // #PACT-92 C-U6: no file exists on this seam, so a pass shows that Linux without /usr/bin/setpriv passes the plan,
+  // and that no OpenSSL file is asked for (decision 93: no OpenSSL check on Linux).
   for (const glibc of ['2.35', '2.36', '2.100', '3.0']) {
     test(`setup: glibc ${glibc} passes a row that needs 2.35`, t => {
-      assert.doesNotThrow(() => clef.planSetup({ ...setupArgs(t), platform: 'linux', exists: p => p === '/usr/bin/setpriv', glibc, server: linuxServer('2.35') }));
+      assert.doesNotThrow(() => clef.planSetup({ ...setupArgs(t), platform: 'linux', exists: () => false, glibc, server: linuxServer('2.35') }));
     });
   }
   // #PACT-91 C-U3: the real read takes glibcVersionRuntime from the report, asks it without network lookups, and answers null where there is none.

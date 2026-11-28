@@ -29,3 +29,6 @@ seam-a.test.mjs bad case: two agents whose names differ only in case
 clef-run.test.mjs main: on macOS, serve from the runtime folder named in another case is accepted
 clef-run.test.mjs serve on the keeper line: a stop sends the server no signal from the supervisor, and a server that ignores SIGTERM is still ended
 clef.test.mjs unpack: on macOS the executable gets mode 0755
+clef-run.test.mjs Linux without setpriv: a sweep leaves a live supervisor's server, and a supervisor killed outright leaves no server behind within 2 seconds
+clef-run.test.mjs Linux without setpriv: with the keeper sent SIGKILL, the supervisor ends the server, records run.fail and stops
+clef-run.test.mjs Linux without setpriv: with the supervisor and the keeper both killed, ensure under another's lock leaves the orphan, the keyed probe finds it, and the next ensure ends it through the /proc sweep
