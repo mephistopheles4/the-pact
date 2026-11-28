@@ -15,7 +15,7 @@ The owner asked for an advisory version now, because sessions keep proposing fix
 ## What it takes into the threat model
 
 - **What leaves the machine:** a listed repo's security findings and entries go to TypeSafe, held by the tool's checks, against accidents only, and by the read before posting, at most ten findings a round.
-- **Scope:** TypeSafe is out, as a provider the user chose.
+- **Scope:** TypeSafe is out, as a provider the user chose, only while zero data retention is confirmed in writing, since the terms as read state no retention limit. Nothing enforces the condition, and the owner may still rule on the line.
 - **Text into a session:** the tool's answer and hint, bounded by its answer check.
 - **Accepted:** what the scan doesn't read reaches TypeSafe; and, on any backend, outside text in a finding or an entries file can steer the hint's state and names, which the owner reads as a hint. The second reaches the local default too, past the agreement the owner gave for the `jev` path, so it is open for the owner.
 

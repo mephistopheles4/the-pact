@@ -324,6 +324,9 @@ test("review.md's coverage hint item names the tool, the scratch folder and the 
     'at most ten a round',
     '`> Coverage hint: skipped (cap).`',
     'The hint changes no sort, severity, disposition, `auto` mark or route',
+    'never the JSON line printed before it, which goes in no post',
+    'a refused run puts its `REFUSED` line there',
+    'a round that sends any logs one checkpoint line for them, naming the repo and the count sent',
   ]) {
     assert.ok(item.includes(says), `the item does not say: ${says}`);
   }

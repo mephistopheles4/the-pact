@@ -309,11 +309,13 @@ secret or personal detail the scan doesn't read.
   With an app pinned it refuses a post as anything but the pinned bot the
   post's `as` names, for posts sent through it.
 - **The pact's tools, for sends through `coverage`:** the fixed host, HTTPS with
-  certificate checks on, no redirect, the key only in its header, the scan, the
-  per-repo list read from the user's own file and the repo's `origin`, and no
-  cloud session; against accidents only. A session that calls TypeSafe itself
-  with the key, or edits the choice file, gets past them all. Rules it rests on:
-  the read before posting, at most ten a round.
+  certificate checks not switched off, no redirect, the key only in its header,
+  the scan, the per-repo list read from the user's own file and the repo's
+  `origin`, and no cloud session; against accidents only. A session that calls
+  TypeSafe itself with the key, or edits the choice file, gets past them all,
+  and a proxy the environment names, with a certificate authority the
+  environment adds, sees the key and the findings. Rules it rests on: the read
+  before posting, at most ten a round.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
   each token it mints to one repo and a permission set, and refuses a repo
   outside the pinned owner. It holds against accidents only: any process
@@ -378,8 +380,8 @@ though code that reached it from outside stays in scope. What the machine makes 
 isolation and disk encryption hold it. Also out: the owner's own edits and
 account's edit in the browser; Claude Code with Anthropic's models and servers,
 Codex with OpenAI's, Antigravity with Google's, and GitHub; TypeSafe, as a
-provider the user chose, like Anthropic; the provider of a synced or backed-up
-copy, though
+provider the user chose, like Anthropic, while zero data retention is confirmed
+in writing; the provider of a synced or backed-up copy, though
 [`install.md`](install.md)'s rule to never sync, share or commit the backups
 folders still holds.
 

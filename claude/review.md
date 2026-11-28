@@ -129,15 +129,16 @@ Ask each lens to report in this shape:
   finding in the record (`node "$HOME/.pact/tools/coverage.mjs" ask --finding
   <file> --repo-dir <repo folder> --base <base> --ref <issue>/<round>/<finding>`,
   in either shell), put the hint line under that finding in the round comment, as
-  printed, and delete the scratch file. A failed or refused run puts its one line
-  there instead; past ten, the line is `> Coverage hint: skipped (cap).` The
-  round goes on either way. The hint changes no sort, severity, disposition,
-  `auto` mark or route, and no rule reads it back. It goes in no Lens
-  dispositions table and no status comment. This is not step 2's placement call,
-  which stays on the local model only. A repo listed for `jev` in
-  `~/.pact/coverage.json` is my standing pick for that repo's sends; the hint
-  line's backend name and the log are their record, and no per-call checkpoint is
-  logged.
+  printed, and never the JSON line printed before it, which goes in no post, and
+  delete the scratch file. A failed run's hint line, `unavailable` with its
+  reason, goes there the same way, and a refused run puts its `REFUSED` line
+  there; past ten, the line is `> Coverage hint: skipped (cap).` The round goes
+  on either way. The hint changes no sort, severity, disposition, `auto` mark or
+  route, and no rule reads it back. It goes in no Lens dispositions table and no
+  status comment. This is not step 2's placement call, which stays on the local
+  model only. A repo listed for `jev` in `~/.pact/coverage.json` is my standing
+  pick for that repo's sends, with no checkpoint per call; a round that sends any
+  logs one checkpoint line for them, naming the repo and the count sent.
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,
   and a further read runs again the same way; every report it returned stays

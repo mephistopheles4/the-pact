@@ -374,15 +374,18 @@ first form would run a file the working folder holds.)
   relative to the repo) to a scratch file outside the repo, run `coverage
   ask` from that folder with the folder of the repo under review, the base
   and `--ref` naming the finding in the record, put the
-  hint line under that finding in the round comment, as printed, and delete
-  the scratch file. A failed or refused run puts its one line there instead;
-  past ten, the line is `> Coverage hint: skipped (cap).` The round goes on
-  either way. The hint changes no sort, severity, disposition, `auto` mark or
+  hint line under that finding in the round comment, as printed, never the
+  JSON line printed before it, which goes in no post, and delete the scratch
+  file. A failed run's hint line, `unavailable` with its reason, goes there
+  the same way, and a refused run puts its `REFUSED` line there; past ten,
+  the line is `> Coverage hint: skipped (cap).` The round goes on either
+  way. The hint changes no sort, severity, disposition, `auto` mark or
   route, and no rule reads it back. It goes in no Lens dispositions table and
   no status comment. This is not step 2's placement call, which stays on the
   local model only. A repo listed for `jev` in `~/.pact/coverage.json` is
-  the owner's standing pick for that repo's sends; the hint line's backend
-  name and the log are their record, and no per-call checkpoint is logged.
+  the owner's standing pick for that repo's sends, with no checkpoint per
+  call; a round that sends any logs one checkpoint line for them, naming the
+  repo and the count sent.
 
 ## S7 What leaves the machine
 
@@ -412,15 +415,17 @@ first form would run a file the working folder holds.)
     carry private code, private-tracker text, a path, and a secret or
     personal detail the scan doesn't read."
   - **Controls:** "The pact's tools, for sends through `coverage`: the fixed
-    host, HTTPS with certificate checks on, no redirect, the key only in its
-    header, the scan, the per-repo list read from the user's own file and
-    the repo's `origin`, and no cloud session; against accidents only. A
-    session that calls TypeSafe itself with the key, or edits the choice
-    file, gets past them all. Rules it rests on: the read before posting, at
-    most ten a round."
+    host, HTTPS with certificate checks not switched off, no redirect, the key
+    only in its header, the scan, the per-repo list read from the user's own
+    file and the repo's `origin`, and no cloud session; against accidents
+    only. A session that calls TypeSafe itself with the key, or edits the
+    choice file, gets past them all, and a proxy the environment names, with a
+    certificate authority the environment adds, sees the key and the findings.
+    Rules it rests on: the read before posting, at most ten a round."
   - **Scope, Also out:** TypeSafe, as a provider the user chose, like
-    Anthropic. This is its own checkpoint, logged as within the owner's
-    agreement to the change.
+    Anthropic, while zero data retention is confirmed in writing. Nothing
+    enforces the condition. This is its own checkpoint, logged for the owner,
+    who may still rule on it.
   - **Text into a session, Crosses:** "`coverage`'s answer and hint, from
     any backend, Jev's included", bounded by the answer check.
   - **Accepted, `jev` path:** a new "Also accepted" line under What leaves
@@ -483,7 +488,8 @@ of Clef Flash. One model is served at a time.
   `full`), and the free-space check counts it. `setup.json` gains a
   `variant` key beside its `model` (the sha256, unchanged); a `setup.json`
   with no `variant` reads as `flash`. Changing the variant needs `clef stop`
-  first, as a pin bump does.
+  first, as a pin bump does. It keeps the other variant's downloaded model,
+  so a switch back hashes that file and downloads nothing.
 - **`clef status`** keeps its `model:` line and adds `variant: flash` or
   `variant: full`. `ensure` and the routes are unchanged.
 - **Texts:** `TOOL_WARNS.clef`, the `OPT_TOOLS` text for `clef` and its
@@ -607,11 +613,12 @@ local run on a machine holding the key sends nothing.
     on the owner's machine. Nothing goes to TypeSafe: Jev is scored from the
     research's recorded answers in the same folder.
     - **Scored states, with their label:** not covered: `W1a@W1-before`,
-      `W2a@W2-before`, `the-pact#482-F5@W3-before`, `W5a@W5-before`;
+      `the-pact#482-F5@W3-before`, `W5a@W5-before`;
       covered: `W1a@W1-after`, `W1b@W1-after`, `W2a@W2-after`,
       `the-pact#482-F5@W3-after`, `W3b@W3-after`, `W5a@W5-after`. Left out:
-      both sides of `W4a`, `W4b` and `W5b` (open, or a weak label), and the
-      before-states of `W1b` and `W3b` (another entry already covered them).
+      both sides of `W4a`, `W4b` and `W5b` (open, or a weak label), the
+      before-states of `W1b` and `W3b` (another entry already covered them),
+      and `W2a@W2-before`, for every backend (past S5's size cap).
     - **Confidently wrong** is "likely covered" on a not-covered state, or
       "no entry found" on a covered one; "unsure" is never wrong.
     - The Test record on the private tracker gives each backend's
