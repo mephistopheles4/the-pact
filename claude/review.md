@@ -289,10 +289,13 @@ when no other row answers the sentence.
   personal detail before posting it, and every commit before a push others
   can read. A user or host name, a home path or a settings name is not a
   personal detail here.
-- **Verbatim reports go in a fold,** a details element whose summary names the
-  lens and its verdict, holding the report in a fenced `text` block one
-  backtick longer than the report's longest run of backticks, so nothing in it
-  renders as a mention, link or image.
+- **Verbatim reports go in a fold** that names the lens and its verdict,
+  holding the report in a fenced `text` block one backtick longer than the
+  report's longest run of backticks, so nothing in it renders as a mention,
+  link or image. On GitHub, the fold is a details element whose summary holds
+  the name. On Linear, it is a `+++ <lens>: <verdict>` line, the block, then a
+  `+++` line, with a blank line each side of the block and no HTML. A post you
+  hand to another session takes the form of the place it will land.
 - **Every lens report posts** in the record word for word, like any other. One refused for hidden characters or a live secret, or one the read before posting finds a secret or a personal detail in, stays local: tell me where it is, and its findings still go in the dispositions table and count.
 - **Keep the record where the project keeps it.** Post with `signer` set to
   your session's short label. Give each decision my ask in `quote`, exactly
