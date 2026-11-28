@@ -1,10 +1,11 @@
 # The pact's review procedure
 
-How to run a lens and handle its report. The rules file's Workflow says which
-lenses to offer, and when.
+How sessions follow the stages, how to run a lens and how to handle its
+report. The rules file's Workflow says which lenses to offer, and when.
 
 <!-- toc -->
 
+- [Sessions](#sessions)
 - [Running a lens](#running-a-lens)
 - [The report template](#the-report-template)
 - [Handling the reports](#handling-the-reports)
@@ -14,6 +15,32 @@ lenses to offer, and when.
 - [Lens dispositions](#lens-dispositions)
 
 <!-- /toc -->
+
+## Sessions
+
+How sessions follow the rules file's Workflow, under the move "Stay the
+owner": a stage's own work runs where I can open it, steer it and stop it.
+
+- **A stage's own work runs in a session,** never a subagent: the plan, the
+  spec, the build and its fixes. A subagent is one I can't open or steer.
+  Lenses, `scout` and other helpers may be subagents.
+- **The model is the stage's model role,** planning or executor, as the
+  tier and workflow tables give it. Where a harness names the effort in the
+  model id, a change of effort is still no change of model.
+- **A session carries the next stage while its model stays the same.** A
+  change of effort alone doesn't split it. Where a tier's Fits says "one
+  session" but its stages' models differ, the models decide.
+- **A new model means a new session,** started from the record on the
+  issue, or, with no record, from a hand-off note in its start prompt, so
+  the hand-off needs no transcript. Never switch a running session's model:
+  the switch drops the prompt cache, and the new model would carry the
+  whole old context.
+- **At the seam,** put the state and the open questions in the record. A
+  lead, or I, start the new session. Without a lead, end the stage there
+  and hand me its start prompt: the record, the next stage, its model and
+  effort, the standing goal with each narrowing I gave, and each open flag
+  or offer. Keeping going under a goal never means doing the stage's work
+  in a subagent.
 
 ## Running a lens
 
@@ -309,8 +336,8 @@ when no other row answers the sentence.
   tool renders `quote`, `intent` and `signer` for you, write the two quotes
   (or "no owner words: <why>" for one), your read-back and a `Signed: <label>`
   line yourself, as plain text. With no record, quote it in each
-  hand-off. At a phase boundary, put the state and the open questions in the
-  record, and propose a fresh session.
+  hand-off. Where the model changes (Sessions), put the state and the open
+  questions in the record, and propose a fresh session.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint in Turbo mode.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the

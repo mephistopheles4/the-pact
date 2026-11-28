@@ -23,7 +23,7 @@ This file is never installed.
 | Sense the work | Sizing, and a bug traced before any fix, are the owner's practices, not a tool's. |
 | Think before doing | An intent clear enough to defend. No check can test that. |
 | Checkpoint the seams | It weighs hand-offs and decisions, not only tool actions, by how hard each is to undo. The harness's confirm-first rule covers tool actions only. |
-| Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
+| Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. It also keeps a stage's own work where the owner can open, steer and stop it: a subagent is out of the owner's reach, and no harness keeps the work in a session. |
 | How the agent helps | What stays the owner's, and where the record's and the tools' how-to lives. |
 | Checkpoints | What the rules keep for the owner is the session's own pick, logged and flagged, so work runs on and the owner reviews after; the pact adds no stop of its own, and the harness's permission prompts and blocks still stop a session. Nothing else logs it or pins a merge to its head. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
@@ -33,7 +33,7 @@ This file is never installed.
 | Use your pinned GitHub App | Harnesses without `settings.json` environment injection (`settings-env`, Codex and Antigravity) lack pre-set `GIT_CONFIG_GLOBAL` and `GIT_TERMINAL_PROMPT`, and no other tool tells a session on turn 1 the exact gitconfig path and `gh-app.mjs gh --provider <provider>` / `poster.mjs` routes; without it, a session discovers them only after hitting a guard hook. |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. The tables name roles and one line names the harness's models for them, since no harness maps a role to a model. |
 | For `<effort>`, take the effort the tier table gives (the models line) | A model named with `<effort>` is no name a session can use, and no harness reads the effort from the tables. |
-| Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
+| Workflow | The owner's stages and which lens goes where. No tool sequences the work. Its opening points to `review.md`'s Sessions, how sessions follow the stages: no harness splits a session where the model changes, and a model switch drops the prompt cache and makes the new model carry the old context. |
 | A skill I can't invoke | The harness blocks invoking a skill with model invocation off, and a plugin skill can be missing from the session's list; without the rule the stage stalls or the skill is skipped silently. Naming the skill in the workflow is the owner's consent to run it. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. Where a harness has no subagents, it says each lens runs in a session of its own, which no harness arranges. |
 | Lenses are offers | An offer is a checkpoint, answered by whoever steers the session: the owner, or the grimoire head chef's lead in Turbo mode. |

@@ -1,5 +1,7 @@
 # One model per session, split at phase boundaries
 
+Amended by [ADR 0180](0180-a-session-splits-where-the-model-changes.md) (2026-11-28): a session splits where the model changes, not at every phase boundary, and a stage's own work never runs in a subagent.
+
 A session never switches model. Work is split into sessions at phase boundaries: triage, plan and build. Opus plans and reviews, and runs the whole quick tier. Sonnet runs the build sessions of standard and thorough work. Security builds run on Opus at high effort. At each boundary the session posts its result, state and open questions to the issue and ends with a line that starts the next session, with no compaction first. The issue suggests a model and effort for each phase, and the owner sets the effort when starting the session.
 
 ## Why

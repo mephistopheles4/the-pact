@@ -575,7 +575,8 @@ the tools and agents.
   The harder a step is to undo, the more care its checkpoint takes.
 - **Stay the owner.**
   I own a result when I can verify it, reconstruct why it is right, and know
-  when to stop it. Checks that could have failed are the evidence.
+  when to stop it. Checks that could have failed are the evidence. A stage's
+  own work runs where I can open it, steer it and stop it.
 
 **Nudge once.** When a move seems to drop, mention it once, lightly, as an
 offer I can take or leave in a second. Then carry on with what I chose.
@@ -620,7 +621,7 @@ or stop the work over it.
 ## Workflow
 
 Each stage: what each tier sets, the lenses to offer, where the work goes
-next.
+next. Which session runs each stage: `~/.pact/review.md`'s Sessions.
 
 **A skill I can't invoke.** When the table names a skill you can't invoke
 (model invocation is off, or a plugin skill is missing from your list), find
@@ -1121,11 +1122,12 @@ __CLAUDE_CONFIG_EOF__
 write_config '.pact/review.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact's review procedure
 
-How to run a lens and handle its report. The rules file's Workflow says which
-lenses to offer, and when.
+How sessions follow the stages, how to run a lens and how to handle its
+report. The rules file's Workflow says which lenses to offer, and when.
 
 <!-- toc -->
 
+- [Sessions](#sessions)
 - [Running a lens](#running-a-lens)
 - [The report template](#the-report-template)
 - [Handling the reports](#handling-the-reports)
@@ -1135,6 +1137,32 @@ lenses to offer, and when.
 - [Lens dispositions](#lens-dispositions)
 
 <!-- /toc -->
+
+## Sessions
+
+How sessions follow the rules file's Workflow, under the move "Stay the
+owner": a stage's own work runs where I can open it, steer it and stop it.
+
+- **A stage's own work runs in a session,** never a subagent: the plan, the
+  spec, the build and its fixes. A subagent is one I can't open or steer.
+  Lenses, `scout` and other helpers may be subagents.
+- **The model is the stage's model role,** planning or executor, as the
+  tier and workflow tables give it. Where a harness names the effort in the
+  model id, a change of effort is still no change of model.
+- **A session carries the next stage while its model stays the same.** A
+  change of effort alone doesn't split it. Where a tier's Fits says "one
+  session" but its stages' models differ, the models decide.
+- **A new model means a new session,** started from the record on the
+  issue, or, with no record, from a hand-off note in its start prompt, so
+  the hand-off needs no transcript. Never switch a running session's model:
+  the switch drops the prompt cache, and the new model would carry the
+  whole old context.
+- **At the seam,** put the state and the open questions in the record. A
+  lead, or I, start the new session. Without a lead, end the stage there
+  and hand me its start prompt: the record, the next stage, its model and
+  effort, the standing goal with each narrowing I gave, and each open flag
+  or offer. Keeping going under a goal never means doing the stage's work
+  in a subagent.
 
 ## Running a lens
 
@@ -1430,8 +1458,8 @@ when no other row answers the sentence.
   tool renders `quote`, `intent` and `signer` for you, write the two quotes
   (or "no owner words: <why>" for one), your read-back and a `Signed: <label>`
   line yourself, as plain text. With no record, quote it in each
-  hand-off. At a phase boundary, put the state and the open questions in the
-  record, and propose a fresh session.
+  hand-off. Where the model changes (Sessions), put the state and the open
+  questions in the record, and propose a fresh session.
 - **Checkpoint log.** Log each checkpoint you settle in the work's record as your own pick under your own label: a one-line why, the goal you ran under, and a flag: big when it drops or narrows a review, check or route, accepts a security risk, or takes a heavy checkpoint in Turbo mode.
 - **The read-back.**
   - The read-back, not a list, sets the work's edge: rows, files or items the
@@ -1691,7 +1719,7 @@ check_hash() {
     echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash c8999d3a226f1405d0db1c0a22f20c7376653a317269f0de0de8512093968823 'CLAUDE.md'
+check_hash d765f27207239ca2cccf9766aa8c4f531c196850cf6f92eba3934e917690245c 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1703,7 +1731,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash a5f3c17544796bfbcb578a46f57c783f9d6abae7adf0f0aeb23e9f8dd15f6804 '.pact/review.md'
+check_hash 5d46e8e7429a26f2de993789753811a866897bff33b6645c438f9859bdd7d3ff '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1733,7 +1761,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 904f4bbce3e6"
+  echo "pact cloud copy 5c916b05fd67"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

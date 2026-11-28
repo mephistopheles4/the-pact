@@ -1,7 +1,8 @@
 // The review output module (#53, slice 4), driven through its command line as
 // the install script runs it. Judged on what it prints and what it leaves on
 // disk. The install script's own use of it is tested in install-edits.test.mjs.
-// The last test reads the review procedure's own text, claude/review.md.
+// The tests under "the procedure's text" read claude/review.md and the rules
+// that point to it.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -9,6 +10,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
+import { DEFAULT_PARTS, compileParts } from '../../builder/parts.mjs';
 import { GATE, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -331,4 +333,15 @@ test("review.md's coverage hint item names the tool, the scratch folder and the 
     assert.ok(item.includes(says), `the item does not say: ${says}`);
   }
   assert.ok(section('The threat model').replace(/\s+/g, ' ').includes('Never ask it over a network or in a cloud session'), "step 2's network sentence is gone");
+});
+
+test("the Stay the owner move keeps a stage's own work in reach, and the rules' Workflow points to review.md's Sessions", () => {
+  const read = file => readFileSync(join(REPO, 'claude', file), 'utf8').replace(/\r\n/g, '\n');
+  const flat = s => s.replace(/\s+/g, ' ').trim();
+  const moves = flat(compileParts(DEFAULT_PARTS).moves);
+  const move = moves.slice(moves.indexOf('**Stay the owner.**'), moves.indexOf('**Nudge once.**'));
+  assert.ok(flat(move).endsWith("A stage's own work runs where I can open it, steer it and stop it."), `the move ends otherwise: ${move}`);
+  const opening = flat((read('CLAUDE.md').split('\n## Workflow\n\n')[1] ?? '').split('\n\n')[0]);
+  assert.ok(opening.includes("`~/.pact/review.md`'s Sessions"), `the Workflow section opens otherwise: ${opening}`);
+  assert.ok(read('review.md').includes('\n## Sessions\n'), 'review.md has no Sessions section');
 });
