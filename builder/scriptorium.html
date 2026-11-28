@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-vpCR/51Y1zn2pLetz5GSbsd/alC9Pxg+YmmOWQ+wEEI='; style-src 'sha256-dvIS1hXclUucdz7995liqmwJvdBmnSOsdhShBhLknSM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-b6GrsPZ7hMrMPz7Jvqhhf4XHZkZhcWdpEenpQNuZiF0='; style-src 'sha256-dvIS1hXclUucdz7995liqmwJvdBmnSOsdhShBhLknSM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -7551,7 +7551,7 @@ const ALWAYS_COMMAND = { name: 'scriptorium', what: 'Always installed: the build
 const OPT_TOOLS = Object.freeze([
   { name: 'poster', what: "Posts free text to GitHub as your gh account, edits what a session posted, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which a dry run with --review-folder shows." },
   { name: 'cleaner', what: "Removes leftover worktrees under .claude/worktrees/ and their local branches, only those it named back and you said yes to; it forces only on an override pair you gave for that run. Turning it on adds a rule to the rules file, deny rules on raw removal commands and two ask rules on remove --override to settings.json." },
-  { name: 'clef', label: 'Install a decision-one model', what: "Clef Flash and Clef Full are local decision models, run with no Ollama. Choosing one turns on the tool clef: when you run its setup, it downloads a llama.cpp server build (about 25–39 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only. Jev runs at TypeSafe, and choosing it installs nothing here. It adds nothing to the rules file." },
+  { name: 'clef', label: 'Install a decision-one model', what: "Clef Flash and Clef Full are local decision models, run with no Ollama. Choosing one turns on the tool clef: when you run its setup, it downloads a llama.cpp server build (about 12–38 MB) and a Clef model (about 6.7 GB, or about 19.5 GB for the full variant) from GitHub and Hugging Face, then runs them on this machine, listening on 127.0.0.1 only. Jev runs at TypeSafe, and choosing it installs nothing here. It adds nothing to the rules file." },
   { name: 'coverage', what: "Adds an advisory coverage hint for a security finding: it asks the decision model whether the project's threat model already covers it, and rules nothing. With Clef nothing leaves this machine; with Jev, the findings of the repos you list go to TypeSafe. It adds nothing to the rules file." },
 ]);
 // The decision models the menu offers, the default first; a save writes the one chosen as decision-model.

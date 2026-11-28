@@ -11,6 +11,7 @@
 - **The field-report form,** `.github/ISSUE_TEMPLATE/clef-field-report.yml`.
 - **The Test evidence rule** in `AGENTS.md`, with [ADR 0179](../adr/0179-a-change-to-clef-is-tested-with-the-real-server-on-five-runners.md).
 - **The threat model's** two workflow-lockdown lines count the new workflow. No control changes.
+- **The size of the server build** in the `clef` tool's description, on the installer's WARN line and the Scriptorium page, reads about 12 to 38 MB, the range of the pins. [Spec 0002](../spec/0002-clef-runner.md) keeps the figure it was written with.
 
 ## Where the build differs from the spec's words
 
