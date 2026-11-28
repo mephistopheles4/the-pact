@@ -591,6 +591,17 @@ offer I can take or leave in a second. Then carry on with what I chose.
   is, never its value. Pin a merge to its reviewed head. Your harness's own
   permission prompts and blocks still stop you; these rules add no stop of
   their own.
+- **Easy asks.** Two asks are easy: an edit that only adds an opt-in pact
+  tool to my pact configuration's tools list, for a tool that sends, fetches
+  and posts nothing off the machine and holds no identity; and rebuilding my
+  Scriptorium page from my own saved file as it stands, with the installed
+  Scriptorium kit. Run its dry run or check yourself, never through `npx`,
+  and put its verdict and counts in the record, never its raw output; where
+  you can't run it, the ask isn't easy. Each is a checkpoint as above that
+  no one holds, a lead in Auto mode included. Never easy: an install's apply,
+  `mise trust`, or a step that changes a security default, turns a control
+  off or loosens it, writes a secret, changes who a session acts as, or
+  starts anything that sends, fetches or posts off the machine, now or later.
 - **Keep the record** in the work's record, as the Posting section of `~/.pact/review.md` says; with no record, in chat.
 
 ## How much checking
@@ -1701,7 +1712,7 @@ check_hash() {
     echo "HASH MISMATCH: $(config_shown "$rel")"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 96150829e5156de686b8fc5718555a65a1b4fa5624dbe482cb3fe8aee1e375f1 'CLAUDE.md'
+check_hash d6e5de406a99e01f4afbc4fc9aa81299872d2b94c2f18ce1f24664b9809c5577 'CLAUDE.md'
 check_hash 1f7770bd20b3549cb5984141558a0d5464ab86a2f78960ca17995640f72ecff4 'agents/adversarial-lens.md'
 check_hash c14e9256066190071ced96b44ef2fd061f185889bfe1276cd9687856df77ecd5 'agents/behaviour-lens.md'
 check_hash 22ce9eb1439eec6b43166dcdf867fb92569745bb845f9a530188baa775b36304 'agents/conventions-lens.md'
@@ -1743,7 +1754,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 3d8661886abe"
+  echo "pact cloud copy 03af8616c85f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
