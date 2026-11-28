@@ -1,6 +1,6 @@
 # Clef runs end to end in CI
 
-**2026-11-28.** PACT-93, the third ticket of [spec 0005](../spec/0005-clef-everywhere.md): U7, U8 and U18. Sensitive route, as the spec sets it. No spec round of its own: the ticket is cut from that spec.
+**2026-11-28.** PACT-93, the third ticket of [spec 0005](../spec/0005-clef-everywhere.md): U7, U8 and U18. The security pair reads the workflow at Test, as the spec asks. No spec round of its own: the ticket is cut from that spec.
 
 ## What was built
 
