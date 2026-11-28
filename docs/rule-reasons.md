@@ -26,6 +26,7 @@ This file is never installed.
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
 | How the agent helps | What stays the owner's, and where the record's and the tools' how-to lives. |
 | Checkpoints | What the rules keep for the owner is the session's own pick, logged and flagged, so work runs on and the owner reviews after; the pact adds no stop of its own, and the harness's permission prompts and blocks still stop a session. Nothing else logs it or pins a merge to its head. |
+| Easy asks | A lead in the head chef's Auto mode holds each checkpoint for the owner's word, and no other guardrail names the few local steps no one holds, or keeps an install apply, mise trust, a loosened control, a secret, an identity or a send off the machine out of them. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
 | Keep the record | Points to review.md's Posting section, which no tool loads, and says where the record is: the work's record, else chat. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent; and the read-back, not a listed set of items, sets the work's edge and its acceptance, which no check reads. |
 | Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
