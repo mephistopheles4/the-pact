@@ -352,8 +352,11 @@ secret or personal detail the scan doesn't read.
   settings, the tool checks only `NODE_TLS_REJECT_UNAUTHORIZED`. Rules it rests
   on: the read before posting, at most ten a round.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
-  each token it mints to one repo and a permission set, and refuses a repo
-  outside the pinned owner. It holds against accidents only: any process
+  each token it mints to one repo and a permission set, for any repo an
+  installation of the pinned app covers, found through GitHub's API. Where none
+  covers it, git gets the owner's own credential and `gh` runs as the owner's
+  login; a remembered "not installed" lasts ten minutes, and a planted one only
+  sends a write out as the owner, as before. It holds against accidents only: any process
   running as the owner can read the key or ask git's helper for a token. Setup,
   refresh, the poster and the checker check the pin against GitHub's records (the app,
   the bot, the owner). That doesn't hold against a process that edits both the

@@ -1578,6 +1578,14 @@ test('the identity gitconfig verdict names the part that differs and prints no l
   for (const v of [node, inc, other]) assert.ok(!/CANARY|nodejs|useHttpPath|\.gitconfig/.test(said(v)));
 });
 
+// #PACT-125 C5: the owner's lines below the marker are never compared; a changed pact line above it still is.
+test('the identity gitconfig verdict ignores the owner\'s lines below the marker', () => {
+  const want = core.identityGitconfigText({ userHome: 'C:\\Users\\e', nodePath: 'C:\\Program Files\\nodejs\\node.exe', app: APP, xdg: false });
+  assert.ok(want.endsWith(`\n${core.IDENTITY_OWNER_MARKER}\n`));
+  assert.equal(core.identityGitconfigVerdict(`${want}[alias]\n\tco = checkout\n`, want).ok, true);
+  assert.equal(core.identityGitconfigVerdict(`${want.replace('useHttpPath = true', 'useHttpPath = false')}[alias]\n\tco = checkout\n`, want).ok, false);
+});
+
 // ------------------------------------------------------------ #PACT-122 #PACT-119 C8, C12
 
 // Bad cases for the command path check inside claudeGuardHookEntry.

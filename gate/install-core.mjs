@@ -2104,15 +2104,23 @@ export function identityGitconfigText({ userHome, nodePath, app, xdg }) {
     '  helper =',
     `  helper = ${iniValue(helper, true)}`,
     '  useHttpPath = true',
+    IDENTITY_OWNER_MARKER,
     '',
   ].join('\n');
 }
 
+/** The gitconfig's last pact line, as OWNER_MARKER in gh-app.mjs, which a test holds equal: the owner's own lines below it are never compared. */
+export const IDENTITY_OWNER_MARKER = '# pact: the lines below are yours; setup and refresh keep them';
+
 /**
  * The verdict on the gitconfig on disk: `{ ok }`, and when not ok the parts that
  * differ, from node path, include list and other lines, never the file's lines.
+ * Only the text up to the marker line is compared.
  */
-export function identityGitconfigVerdict(actual, expected) {
+export function identityGitconfigVerdict(whole, expected) {
+  const end = `\n${IDENTITY_OWNER_MARKER}\n`;
+  const at = whole.indexOf(end);
+  const actual = at < 0 ? whole : whole.slice(0, at + end.length);
   if (actual === expected) return { ok: true, parts: [] };
   const split = text => {
     const lines = text.split(/\r?\n/);

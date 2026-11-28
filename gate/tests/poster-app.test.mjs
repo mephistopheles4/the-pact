@@ -205,7 +205,9 @@ test('C6: a helper that cannot load, or throws, and a malformed or refused mint 
     ['a token that is not a token', w => { w.state.mintOverride = { token: `${CANARY} not a token`, expires_at: '2026-11-21T13:00:00Z' }; }, 'shape'],
     ['an answer with no expiry', w => { w.state.mintOverride = { token: 'ghs_aaaaaaaaaaaaaaaaaaaaaaaa' }; }, 'shape'],
     ['a mint GitHub refuses', w => { w.state.mintStatus = 500; }, 'net'],
-    ['an installation of another account', w => { w.state.installation.account.id = 99; }, 'install/owner'],
+    ['an installation of another app', w => { w.state.installation.app_id = 77; }, 'install/owner'],
+    // #PACT-125 C2: the poster never falls back to the owner where the app is not installed.
+    ['a repo the app is not installed on', w => { w.state.notInstalled.add(TARGET.toLowerCase()); }, 'install/none'],
   ];
   for (const [what, change, id] of rows) {
     const s = setup(t);

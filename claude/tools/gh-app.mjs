@@ -16,6 +16,11 @@
 // makes no new key. Setup deletes the downloaded key when it succeeds, so running
 // setup again needs a new private key from the app's GitHub page.
 //
+// A token is minted for any repo an installation of the pinned app covers,
+// whoever owns it. Where none covers the repo, git-credential answers with the
+// owner's own credential (git credential fill under the owner's normal config)
+// and gh runs as the owner's own gh login. The bot stays the commit author.
+//
 // <p> is claude, codex or antigravity. No mode prints a token: mintToken is a
 // module export only, and git-credential get answers git on git's own pipe.
 // Every mode catches every error at its top level and prints one fixed
@@ -44,6 +49,10 @@ const NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
 // An installation token is opaque: the stateless ghs_APPID_JWT format is about 520 characters with dots, the older one 40.
 const TOKEN_RE = /^[A-Za-z0-9_.-]{20,2048}$/;
 const SKEW_MS = 5 * 60 * 1000;
+// How long "the app is not installed on this repo" is remembered, so each git call on such a repo makes no API call.
+export const NONE_TTL_MS = 10 * 60 * 1000;
+// Set on the git that answers for the owner, so a helper chain that leads back here ends at once.
+export const FALLBACK_ENV = 'PACT_GH_APP_OWNER_FALLBACK';
 export const CLAIM_PERMISSIONS = Object.freeze({ contents: 'write', pull_requests: 'write', issues: 'write', workflows: 'write', actions: 'read', checks: 'read', statuses: 'read', metadata: 'read' });
 export const SETS = Object.freeze({
   git: Object.freeze({ contents: 'write', workflows: 'write' }),
@@ -66,9 +75,9 @@ export const REASONS = Object.freeze({
   'owner/unavailable': 'your gh login could not be read; run gh auth status',
   'pin/unavailable': "the pin check could not run; nothing was posted as the owner",
   'pin/owner': 'the pinned owner differs from the owner of this login',
-  'repo/owner': "the repository is not the pinned owner's",
   'repo/shape': 'the repository is not <owner>/<name>',
-  'install/owner': "the app's installation is not on the pinned owner's account",
+  'install/owner': "the app's installation is not on the pinned owner's account, or is not the pinned app's",
+  'install/none': 'the app is not installed on that repository',
   'key/missing': 'the provider has no key',
   'key/not-rsa': 'the key is not an RSA key of 2048 bits or more',
   'key/read': 'the key file could not be read',
@@ -496,11 +505,49 @@ function cachedToken(io, target) {
   return v.token;
 }
 
+/** Whether "not installed" is remembered for this repo and still fresh; a malformed entry is a miss. */
+function cachedNone(io, target) {
+  let v;
+  try {
+    const bytes = io.credStore.read(target);
+    v = bytes ? JSON.parse(bytes.toString('utf8')) : null;
+  } catch {
+    return false;
+  }
+  if (!sameKeys(v, ['none', 'until']) || v.none !== true || typeof v.until !== 'string') return false;
+  const at = Date.parse(v.until);
+  return Number.isFinite(at) && at > io.now() && at - io.now() <= NONE_TTL_MS;
+}
+
+/**
+ * The app's installation that covers one repo, found through GitHub's API with
+ * the app's JWT, whoever owns the repo. A 404 means no installation covers it:
+ * that is remembered for NONE_TTL_MS and refused as install/none, which the
+ * git and gh modes answer by falling back to the owner.
+ */
+async function repoInstallation(io, { owner, name }, jwt, app, noneTarget) {
+  const r = await api(io, 'GET', `/repos/${owner}/${name}/installation`, { auth: jwt });
+  if (r.status === 404) {
+    try {
+      io.credStore.write(noneTarget, Buffer.from(JSON.stringify({ none: true, until: new Date(io.now() + NONE_TTL_MS).toISOString() }), 'utf8'));
+    } catch {
+      // unremembered: the next call looks again
+    }
+    return refuse('install/none');
+  }
+  if (r.status !== 200) return refuse('net');
+  const inst = jsonOf(r);
+  if (!isId(inst.id) || inst.app_id !== app.app_id) return refuse('install/owner');
+  return inst;
+}
+
 /**
  * An installation token narrowed to one repo and a permission set ("git",
- * "post" or "gh"). Module export only: no mode prints it. Refuses a repo
- * outside the pinned owner, a foreign installation, an unpinned provider or
- * one with no key, a pin that fails the pin checks on a cache miss, and certificate checks off.
+ * "post" or "gh"), for any repo an installation of the pinned app covers,
+ * whoever owns it. Module export only: no mode prints it. Refuses a repo no
+ * installation covers (install/none), another app's installation, an unpinned
+ * provider or one with no key, a pin that fails the pin checks on a cache miss,
+ * and certificate checks off.
  */
 export async function mintToken({ provider, repo, set }, io = realIo()) {
   needWindows(io);
@@ -511,15 +558,17 @@ export async function mintToken({ provider, repo, set }, io = realIo()) {
   const { owner, name } = parseRepo(typeof repo === 'string' ? repo : isObject(repo) ? `${repo.owner}/${repo.name}` : null);
   const pin = readPin(io);
   const app = pin.apps[provider] ?? refuse('pin/unpinned');
-  if (!sameLogin(owner, pin.owner.login)) refuse('repo/owner');
   const target = tokenTarget(provider, owner, name, set);
   const hit = cachedToken(io, target);
   if (hit) return hit;
+  // Kept beside the tokens, so setup and forget clear it with them.
+  const noneTarget = tokenTarget(provider, owner, name, 'none');
+  if (cachedNone(io, noneTarget)) refuse('install/none');
   checkPin(io, pin, provider);
   const der = io.credStore.read(keyTarget(provider)) ?? refuse('key/missing');
   guard(io, der.toString('base64'));
   const jwt = makeJwt(io, app.app_id, der);
-  const inst = await installationFor(io, `/repos/${owner}/${name}/installation`, jwt, pin, provider);
+  const inst = await repoInstallation(io, { owner, name }, jwt, app, noneTarget);
   const permissions = { ...SETS[set] };
   const r = await api(io, 'POST', `/app/installations/${inst.id}/access_tokens`, { auth: jwt, body: { repositories: [name], permissions } });
   if (r.status !== 201) return refuse('net');
@@ -593,6 +642,24 @@ function iniValue(v, force = false) {
 }
 
 /**
+ * The last line the pact writes in a provider's gitconfig. In a session
+ * GIT_CONFIG_GLOBAL names that file, so `git config --global` writes land in
+ * it: setup and refresh keep every line below this one, and the install
+ * compares only the text above it.
+ */
+export const OWNER_MARKER = '# pact: the lines below are yours; setup and refresh keep them';
+
+/** The owner's lines of a gitconfig: what follows the marker, or, in a file written before the marker, what follows its last pact line. */
+export function ownerLines(text) {
+  if (typeof text !== 'string') return '';
+  for (const end of [`\n${OWNER_MARKER}\n`, '\n  useHttpPath = true\n']) {
+    const i = text.indexOf(end);
+    if (i >= 0) return text.slice(i + end.length);
+  }
+  return '';
+}
+
+/**
  * The gitconfig setup writes for a provider, as text: the text the install compares against.
  * `nodePath` is the Node setup or refresh runs under (process.execPath), so a Node
  * upgrade is followed by running refresh, which writes the new path.
@@ -612,6 +679,7 @@ export function gitconfigText({ home, nodePath, app, provider, xdg = false }) {
     '  helper =',
     `  helper = ${iniValue(helper, true)}`,
     '  useHttpPath = true',
+    OWNER_MARKER,
     '',
   ].join('\n');
 }
@@ -683,7 +751,7 @@ async function setup(io, { provider, appId, keyPath }) {
     const next = pinNow ?? { owner: me, apps: {} };
     next.apps[provider] = entry;
     writeText(io, pinPath(io.home), `${JSON.stringify(next, null, 2)}\n`);
-    writeGitconfig(io, provider, gitconfig);
+    writeGitconfig(io, provider, gitconfig + ownerLines(before.gitconfig));
   } catch (e) {
     // Each put-back is tried on its own, so one that fails never leaves the others replaced.
     let incomplete = false;
@@ -736,8 +804,9 @@ function writeGitconfig(io, provider, text) {
 
 /**
  * refresh: rewrite a pinned provider's gitconfig for the Node this runs under,
- * after the pin check, from the pin and the stored key. It makes no key, mints no
- * token and writes nothing else; a failed write puts the old file back.
+ * after the pin check, from the pin and the stored key, keeping the owner's lines
+ * below the marker. It makes no key, mints no token and writes nothing else; a
+ * failed write puts the old file back.
  */
 async function refresh(io, provider) {
   const pin = readPin(io);
@@ -755,7 +824,7 @@ async function refresh(io, provider) {
     if (err?.code !== 'ENOENT') refuse('gitconfig');
   }
   try {
-    writeGitconfig(io, provider, text);
+    writeGitconfig(io, provider, text + ownerLines(before));
   } catch (e) {
     try {
       if (before !== null) writeText(io, path, before);
@@ -798,37 +867,75 @@ function sslVerifyOffByEnv(env) {
   return false;
 }
 
-/** git-credential: `get` answers on git's pipe; `store` and `erase` do nothing. A refusal prints nothing on stdout and exits 0. */
+/**
+ * The owner's own answer for a repo the app does not cover: `git credential
+ * fill` under the owner's normal config, with GIT_CONFIG_GLOBAL dropped so this
+ * helper's gitconfig is out of the chain, and FALLBACK_ENV set so a chain that
+ * leads back here ends. True when it printed a username and password for git.
+ */
+function ownerCredential(io, path) {
+  const env = cleanEnv(io.env, { [FALLBACK_ENV]: '1', GIT_TERMINAL_PROMPT: '0' });
+  for (const k of Object.keys(env)) if (k.toUpperCase() === 'GIT_CONFIG_GLOBAL') delete env[k];
+  const r = makeRun(io)('git', ['credential', 'fill'], { env, input: `protocol=https\nhost=github.com\npath=${path}\n\n` });
+  if (!r.ok) return false;
+  const got = readRequest(r.stdout);
+  if (typeof got.username !== 'string' || typeof got.password !== 'string' || got.username === '' || got.password === '') return false;
+  guard(io, got.password);
+  io.out(`username=${got.username}\npassword=${got.password}\n`);
+  return true;
+}
+
+/**
+ * git-credential: `get` answers on git's pipe, with an app token where an
+ * installation covers the repo and the owner's own credential where none does;
+ * `store` and `erase` do nothing. A refusal prints nothing on stdout and exits 0.
+ */
 async function gitCredential(io, provider, op) {
   if (op === 'store' || op === 'erase') return;
   if (op !== 'get') refuse('usage');
+  let q = {};
   try {
-    const q = readRequest(io.stdin());
+    if (envGet(io.env, FALLBACK_ENV) !== undefined) refuse('refused');
+    q = readRequest(io.stdin());
     if (q.protocol !== 'https' || q.host !== 'github.com' || typeof q.path !== 'string') refuse('repo/shape');
     needWindows(io);
     // git reads GIT_SSL_NO_VERIFY as set for any value, an empty one included.
     if (envGet(io.env, 'GIT_SSL_NO_VERIFY') !== undefined || sslVerifyOffByEnv(io.env)) refuse('tls');
-    // mintToken refuses a repo outside the pinned owner before any spawn or request.
     const token = await mintToken({ provider, repo: parseRepo(q.path, true), set: 'git' }, io);
     io.out(`username=x-access-token\npassword=${token}\n`);
   } catch (e) {
-    say(io, `gh-app: ${REASONS[e instanceof Refusal ? e.id : 'refused']}`, 'err');
+    const id = e instanceof Refusal ? e.id : 'refused';
+    if (id === 'install/none' && ownerCredential(io, q.path)) {
+      say(io, 'gh-app: the app is not installed on that repository; git used your own credentials', 'err');
+      return;
+    }
+    say(io, `gh-app: ${REASONS[id]}`, 'err');
   }
 }
 
 // ---------------------------------------------------------------- the gh mode
 
-/** gh with a `gh`-set token in GH_TOKEN, from a fresh empty folder; output lines that hold the token are withheld. */
+/**
+ * gh with a `gh`-set token in GH_TOKEN, from a fresh empty folder; output lines
+ * that hold the token are withheld. Where no installation of the app covers the
+ * repo, gh runs as the owner's own gh login instead, and says so on stderr.
+ */
 async function ghMode(io, provider, repoArg, args) {
   // The first argument is the subcommand: a leading flag could hide a forbidden one from the check.
   if (args.length === 0 || String(args[0]).startsWith('-') || GH_FORBIDDEN_FIRST.has(String(args[0]).toLowerCase())) refuse('gh');
   const repo = parseRepo(repoArg);
-  const token = await mintToken({ provider, repo, set: 'gh' }, io);
-  guard(io, token);
-  const run = makeRun(io);
-  const r = run('gh', args, { env: cleanEnv(io.env, { GH_TOKEN: token, GH_REPO: `${repo.owner}/${repo.name}` }), keep: true });
+  const GH_REPO = `${repo.owner}/${repo.name}`;
+  let token = null;
+  try {
+    token = await mintToken({ provider, repo, set: 'gh' }, io);
+  } catch (e) {
+    if (!(e instanceof Refusal && e.id === 'install/none')) throw e;
+    say(io, 'gh-app: the app is not installed on that repository; gh runs as your own login', 'err');
+  }
+  if (token) guard(io, token);
+  const r = makeRun(io)('gh', args, { env: cleanEnv(io.env, token ? { GH_TOKEN: token, GH_REPO } : { GH_REPO }), keep: true });
   for (const [text, stream] of [[r.stdout, 'out'], [r.stderr, 'err']]) {
-    for (const l of text.split(/\r?\n/)) if (l !== '') io[stream](`${l.includes(token) ? '(withheld)' : l}\n`);
+    for (const l of text.split(/\r?\n/)) if (l !== '') io[stream](`${token && l.includes(token) ? '(withheld)' : l}\n`);
   }
   return r.ok ? 0 : 1;
 }

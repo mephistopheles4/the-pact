@@ -57,6 +57,8 @@ export function world(t, { platform = 'win32', env = {}, pin = true, key = true,
     app: { id: IDS.app, slug: SLUG, owner: { id: IDS.owner }, permissions: { ...CLAIM_PERMISSIONS }, events: [] },
     bot: { id: IDS.bot, login: BOT, type: 'Bot' },
     installation: { id: IDS.inst, app_id: IDS.app, account: { id: IDS.owner } },
+    // "<owner>/<name>" in lower case: repos no installation of the app covers, which GitHub answers with a 404.
+    notInstalled: new Set(),
     tokens: new Map(),
     revoked: [],
     revokeStatus: null,
@@ -107,7 +109,8 @@ export function world(t, { platform = 'win32', env = {}, pin = true, key = true,
     }
     if (rec.method === 'GET' && path === '/app') return res(200, state.app);
     if (rec.method === 'GET' && path === `/users/${state.owner.login}/installation`) return res(200, state.installation);
-    if (rec.method === 'GET' && /^\/repos\/[^/]+\/[^/]+\/installation$/.test(path)) return res(200, state.installation);
+    const repoInst = /^\/repos\/([^/]+\/[^/]+)\/installation$/.exec(path);
+    if (rec.method === 'GET' && repoInst) return state.notInstalled.has(repoInst[1].toLowerCase()) ? res(404, { message: 'Not Found' }) : res(200, state.installation);
     if (rec.method === 'POST' && path === `/app/installations/${state.installation.id}/access_tokens`) {
       if (state.mintStatus !== 201) return res(state.mintStatus, {});
       if (state.mintOverride !== null) return res(201, state.mintOverride);

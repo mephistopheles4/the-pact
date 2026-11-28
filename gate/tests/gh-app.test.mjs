@@ -8,7 +8,7 @@ import { generateKeyPairSync, createPrivateKey, createPublicKey, createHash } fr
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { PS_ENCODED, PS_SCRIPT, REASONS, Refusal, SETS, gitconfigText, main, makeCredStore, mintToken, parseArgs, parseRepo, pemToDer } from '../../claude/tools/gh-app.mjs';
+import { FALLBACK_ENV, NONE_TTL_MS, OWNER_MARKER, PS_ENCODED, PS_SCRIPT, REASONS, Refusal, SETS, gitconfigText, main, makeCredStore, mintToken, parseArgs, parseRepo, pemToDer } from '../../claude/tools/gh-app.mjs';
 import { BOT, IDS, NODE, OWNER, SLUG, derOf, keys, leakSurface, printed, world, writePem, writePin } from './gh-app-world.mjs';
 
 const REPO = `${OWNER}/sandbox`;
@@ -41,12 +41,12 @@ test('mintToken asks for one repo and the set\'s permissions, signed as the app 
 // #602 C2: each refusal, as its own case, with nothing minted.
 {
   const rows = [
-    { id: 'repo-outside-owner', reason: 'repo/owner', run: w => mint(w, 'git', 'someone-else/sandbox') },
+    // #PACT-125 C2: a repo no installation of the app covers.
+    { id: 'repo-not-installed', reason: 'install/none', setup: w => { w.state.notInstalled.add('someone-else/sandbox'); }, run: w => mint(w, 'git', 'someone-else/sandbox') },
     { id: 'repo-not-owner-name', reason: 'repo/shape', run: w => mint(w, 'git', 'sandbox') },
     { id: 'repo-extra-segment', reason: 'repo/shape', run: w => mint(w, 'git', `${OWNER}/a/b`) },
     { id: 'repo-object-with-a-path-in-its-name', reason: 'repo/shape', run: w => mint(w, 'git', { owner: OWNER, name: '../orgs' }) },
     { id: 'repo-is-neither-text-nor-an-object', reason: 'repo/shape', run: w => mint(w, 'git', null) },
-    { id: 'foreign-installation', reason: 'install/owner', setup: w => { w.state.installation.account.id = 99; }, run: w => mint(w) },
     { id: 'installation-of-another-app', reason: 'install/owner', setup: w => { w.state.installation.app_id = 77; }, run: w => mint(w) },
     { id: 'unpinned-provider', reason: 'pin/unpinned', run: w => mint(w, 'git', REPO, 'codex') },
     { id: 'unknown-provider', reason: 'provider', run: w => mint(w, 'git', REPO, 'gemini') },
@@ -85,6 +85,36 @@ test('mintToken asks for one repo and the set\'s permissions, signed as the app 
     });
   }
 }
+
+// #PACT-125 C1: a repo another account owns mints where an installation of the app covers it, narrowed to that repo.
+test('mintToken mints for a repo another account owns when the app is installed there', async t => {
+  const w = world(t);
+  w.state.installation.account.id = 99;
+  assert.match(await mint(w, 'git', 'someone-else/sandbox'), /^ghs_/);
+  assert.ok(w.spy.fetches.some(f => f.method === 'GET' && new URL(f.url).pathname === '/repos/someone-else/sandbox/installation'), 'found through the repo, not the owner');
+  assert.deepEqual(w.spy.fetches.find(f => f.method === 'POST').body, { repositories: ['sandbox'], permissions: SETS.git });
+});
+
+// #PACT-125 C2: "not installed" is remembered for ten minutes: no request and no spawn on a repeat, and a fresh look after.
+test('mintToken remembers a repo the app is not installed on for ten minutes, then looks again', async t => {
+  const w = world(t);
+  w.state.notInstalled.add('someone-else/sandbox');
+  await refusesWith(mint(w, 'git', 'someone-else/sandbox'), 'install/none');
+  const [calls, spawns] = [w.spy.fetches.length, w.spy.spawns.length];
+  await refusesWith(mint(w, 'gh', 'someone-else/sandbox'), 'install/none');
+  assert.equal(w.spy.fetches.length, calls, 'no request on a remembered miss');
+  assert.equal(w.spy.spawns.length, spawns, 'no pin check on a remembered miss');
+  w.state.notInstalled.clear();
+  w.state.now += NONE_TTL_MS + 1000;
+  assert.match(await mint(w, 'git', 'someone-else/sandbox'), /^ghs_/, 'installed since: found on the next look');
+});
+
+// #PACT-125 C2: a "not installed" entry that claims to last longer than ten minutes is not taken.
+test('mintToken ignores a remembered miss that runs past ten minutes', async t => {
+  const w = world(t);
+  w.store.set(`the-pact/gh-app/claude/token/${OWNER}/sandbox/none`, Buffer.from(JSON.stringify({ none: true, until: new Date(w.state.now + NONE_TTL_MS * 10).toISOString() })));
+  assert.match(await mint(w), /^ghs_/);
+});
 
 // #602 C2: the control for the table above: the same world, unchanged, mints; and the owner name matches without regard to case.
 test('mintToken: the same world with nothing planted mints, owner matched case-insensitively', async t => {
@@ -227,7 +257,8 @@ test('git-credential get prints username and password on stdout only for an http
     { id: 'no-path', lines: ['protocol=https', 'host=github.com'], reason: 'repo/shape' },
     { id: 'path-with-a-subfolder', lines: ['protocol=https', 'host=github.com', `path=${REPO}/x`], reason: 'repo/shape' },
     { id: 'path-with-dotdot', lines: ['protocol=https', 'host=github.com', `path=${OWNER}/..`], reason: 'repo/shape' },
-    { id: 'another-owner', lines: ['protocol=https', 'host=github.com', 'path=someone-else/sandbox.git'], reason: 'repo/owner' },
+    // #PACT-125 C3: a helper reached through the owner's own fallback never answers again.
+    { id: 'inside-the-owner-fallback', lines: GOOD_ASK, env: { [FALLBACK_ENV]: '1' }, reason: 'refused' },
     { id: 'ssl-verify-off', lines: GOOD_ASK, env: { GIT_SSL_NO_VERIFY: 'true' }, reason: 'tls' },
     { id: 'ssl-verify-off-empty-value', lines: GOOD_ASK, env: { GIT_SSL_NO_VERIFY: '' }, reason: 'tls' },
     { id: 'tls-off', lines: GOOD_ASK, env: { NODE_TLS_REJECT_UNAUTHORIZED: '0' }, reason: 'tls' },
@@ -256,7 +287,7 @@ test('git-credential get prints username and password on stdout only for an http
   }
   // #602 C2: git-credential get refuses anything but an https github.com <owner>/<name> path, before any call.
   test('git-credential get refuses its protocol, host, path and owner before any spawn', async t => {
-    for (const r of rows.filter(x => /^(http|other-host|host-with|no-path|path-with|another-owner)/.test(x.id))) {
+    for (const r of rows.filter(x => /^(http|other-host|host-with|no-path|path-with)/.test(x.id))) {
       const w = world(t);
       await ask(w, r.lines);
       assert.equal(w.spy.spawns.length, 0, r.id);
@@ -264,6 +295,39 @@ test('git-credential get prints username and password on stdout only for an http
     }
   });
 }
+
+// #PACT-125 C3: where no installation covers the repo, git gets the owner's own credential, from git under the owner's normal config.
+test('git-credential get answers a repo the app is not installed on with the owner\'s own credential', async t => {
+  const w = world(t, { env: { GIT_CONFIG_GLOBAL: 'C:/Users/x/.pact/gh-app-claude.gitconfig', git_config_global: 'also' } });
+  w.state.notInstalled.add('someone-else/sandbox');
+  const owned = `gho_${'k'.repeat(36)}`;
+  w.state.git = args => (args[0] === 'credential' && args[1] === 'fill' ? { status: 0, stdout: `protocol=https\nhost=github.com\nusername=owner-login\npassword=${owned}\n`, stderr: '' } : { status: 1, stdout: '', stderr: '' });
+  assert.equal(await ask(w, ['protocol=https', 'host=github.com', 'path=someone-else/sandbox.git']), 0);
+  assert.equal(printed(w).out, `username=owner-login\npassword=${owned}\n`);
+  assert.equal(printed(w).err, 'gh-app: the app is not installed on that repository; git used your own credentials\n');
+  const fill = w.spy.spawns.find(s => s.file === 'git');
+  assert.equal(fill.input, 'protocol=https\nhost=github.com\npath=someone-else/sandbox.git\n\n');
+  assert.ok(Object.keys(fill.env).every(k => k.toUpperCase() !== 'GIT_CONFIG_GLOBAL'), 'the app\'s gitconfig is out of the chain');
+  assert.equal(fill.env[FALLBACK_ENV], '1');
+  assert.equal(fill.env.GIT_TERMINAL_PROMPT, '0');
+  assert.equal(w.spy.fetches.filter(f => f.method === 'POST').length, 0, 'no app token');
+});
+
+// #PACT-125 C3: a fallback that gets no credential, and every refusal but install/none, leave stdout empty and never ask the owner's git.
+test('git-credential get falls back only for install/none, and prints nothing when the owner\'s git has no answer', async t => {
+  const w = world(t);
+  w.state.notInstalled.add('someone-else/sandbox');
+  w.state.git = () => ({ status: 0, stdout: 'protocol=https\nhost=github.com\n', stderr: '' });
+  assert.equal(await ask(w, ['protocol=https', 'host=github.com', 'path=someone-else/sandbox']), 0);
+  assert.equal(printed(w).out, '');
+  assert.equal(printed(w).err, `gh-app: ${REASONS['install/none']}\n`);
+  const v = world(t);
+  v.state.mintStatus = 403;
+  v.state.git = () => { throw new Error('the owner\'s git ran'); };
+  assert.equal(await ask(v, GOOD_ASK), 0);
+  assert.equal(printed(v).out, '');
+  assert.equal(printed(v).err, `gh-app: ${REASONS.net}\n`);
+});
 
 // #602 C3: store and erase print and write nothing, so no secret leaves through them.
 test('git-credential store and erase do nothing', async t => {
@@ -359,11 +423,23 @@ test('gh passes gh\'s failure on as exit 1', async t => {
   assert.equal(await main(['gh', '--provider', 'claude', '-R', REPO, '--', 'issue', 'list'], w.io), 1);
 });
 
-// #602 C2: a repo outside the pinned owner is refused in gh mode too.
-test('gh refuses a repo outside the pinned owner and a missing -R', async t => {
+// #PACT-125 C4: gh runs with the app's token where the app is installed, whoever owns the repo, and as the owner's own login where it is not.
+test('gh uses the app on an installed repo of another account, the owner\'s login on one it is not installed on, and refuses a missing -R', async t => {
   const w = world(t);
-  assert.equal(await main(['gh', '--provider', 'claude', '-R', 'someone-else/x', '--', 'issue', 'list'], w.io), 1);
-  assert.equal(printed(w).err, `gh-app: ${REASONS['repo/owner']}\n`);
+  w.state.gh = () => ({ status: 0, stdout: 'ok\n', stderr: '' });
+  assert.equal(await main(['gh', '--provider', 'claude', '-R', 'someone-else/x', '--', 'issue', 'list'], w.io), 0);
+  const withApp = w.spy.spawns.find(s => s.file === 'gh' && s.args[0] === 'issue');
+  assert.match(withApp.env.GH_TOKEN, /^ghs_/);
+  assert.equal(withApp.env.GH_REPO, 'someone-else/x');
+  const u = world(t, { env: { GH_TOKEN: `planted-${'z'.repeat(30)}` } });
+  u.state.notInstalled.add('someone-else/x');
+  u.state.gh = () => ({ status: 0, stdout: 'ok\n', stderr: '' });
+  assert.equal(await main(['gh', '--provider', 'claude', '-R', 'someone-else/x', '--', 'issue', 'list'], u.io), 0);
+  const asOwner = u.spy.spawns.find(s => s.file === 'gh' && s.args[0] === 'issue');
+  assert.equal(Object.keys(asOwner.env).some(k => k.toUpperCase() === 'GH_TOKEN'), false, 'no token: gh uses the owner\'s own login');
+  assert.equal(asOwner.env.GH_REPO, 'someone-else/x');
+  assert.equal(printed(u).err, 'gh-app: the app is not installed on that repository; gh runs as your own login\n');
+  assert.equal(printed(u).out, 'ok\n');
   const v = world(t);
   assert.equal(await main(['gh', '--provider', 'claude', '--', 'issue', 'list'], v.io), 1);
 });
@@ -431,6 +507,7 @@ test('gitconfigText is the spec\'s file: forward slashes, the include, the empty
     '  helper =',
     '  helper = "!\\"C:/Program Files/nodejs/node.exe\\" \\"C:/Users/alice/.pact/tools/gh-app.mjs\\" git-credential --provider claude"',
     '  useHttpPath = true',
+    '# pact: the lines below are yours; setup and refresh keep them',
     '',
   ].join('\n'));
   assert.match(gitconfigText({ ...EXAMPLE, xdg: true }), /\[include\]\n  path = C:\/Users\/alice\/\.gitconfig\n  path = C:\/Users\/alice\/\.config\/git\/config\n\[user\]/);
@@ -1100,6 +1177,16 @@ for (const prior of [STALE, null]) test(`refresh whose helper line reads back wr
   assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 1);
   assert.ok(printed(w).err.includes(REASONS.gitconfig));
   assert.equal(gitconfigNow(w), prior);
+});
+
+// #PACT-125 C5: refresh keeps the owner's lines below the marker, and in a file from before the marker, those after its last pact line.
+test('refresh keeps the lines the owner\'s own git config --global wrote, with or without the marker', async t => {
+  const mine = '[alias]\n\tco = checkout\n[filter "lfs"]\n\tclean = git-lfs clean -- %f\n';
+  for (const prior of [`${STALE}  useHttpPath = true\n${OWNER_MARKER}\n${mine}`, `${STALE}  useHttpPath = true\n${mine}`]) {
+    const w = refreshed(t, prior);
+    assert.equal(await main(['refresh', '--provider', 'claude'], w.io), 0, printed(w).err);
+    assert.equal(readFileSync(gitconfigFile(w), 'utf8'), gitconfigText({ home: w.home, nodePath: NODE, provider: 'claude', app: readPinFile(w).apps.claude, xdg: false }) + mine);
+  }
 });
 
 // PACT-104 R1: refresh writes the XDG include when that config exists.

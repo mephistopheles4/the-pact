@@ -1,0 +1,98 @@
+# Spec: the agent app wherever it is installed
+
+Status: draft 1, written with T1's build. A delta on
+[0010](0010-agent-identity-guard.md): its repo-owner scoping moves from the
+owner's name to the app's installations, in T2. Everything else in 0010
+holds. The spec counts once it is on `main`.
+
+- **Business driver:** the owner's ask: where the app is installed, the agent
+  works as the app, whoever owns the repo; where it isn't, the work goes on
+  under the owner's own credentials. Where nothing else decides, take the
+  option that is cheaper to reverse.
+- **Trade-off:** one test against a fast guard. The guard runs before every
+  shell call and can't ask GitHub. So the helper holds the installation test,
+  and the guard (T2) sends every github.com write through the helper, which
+  falls back to the owner where no installation covers the repo. A write to a
+  repo the app isn't on then costs a helper call; the guard stays offline.
+- **Trade-off:** the owner's credential against a stuck push. Where the app
+  isn't installed, the helper hands git the owner's own credential instead of
+  failing. That is the owner's call ("they have access and i asked for it").
+  A failed pin check, or any refusal but "not installed", still never falls
+  back.
+
+## S1 What changes
+
+1. **The app works wherever it is installed (T1).** `mintToken` drops the
+   owner-name check. It finds the installation with
+   `GET /repos/<owner>/<name>/installation` under the app's JWT, and refuses
+   another app's installation (`install/owner`). A 404 is `install/none`,
+   remembered for ten minutes beside the token cache, so `setup` and `forget`
+   clear it with the tokens. An entry claiming more than ten minutes is not
+   taken.
+2. **The fallback (T1).** On `install/none`, `git-credential get` runs
+   `git credential fill` with `GIT_CONFIG_GLOBAL` dropped, so git reads the
+   owner's normal config, `GIT_TERMINAL_PROMPT=0`, and
+   `PACT_GH_APP_OWNER_FALLBACK=1`, which makes a helper reached from that git
+   refuse at once. It passes on only the `username` and `password` lines and
+   says on stderr that it used the owner's credentials. `gh` mode runs `gh`
+   without `GH_TOKEN`, as the owner's login, and says so. The poster does not
+   fall back: it refuses, as it refuses any helper refusal.
+3. **SSH remotes: accepted and documented (T1).** The commit is the bot's, the
+   push uses the owner's SSH key. `status` already prints
+   `remote protocol: ssh`; `agent-identity.md` says how to move the push to
+   HTTPS. Cheapest to reverse of the three options; a rewrite or a refusal can
+   follow if the owner wants one.
+4. **The owner's global writes are kept (T1).** The gitconfig's last pact line
+   is `# pact: the lines below are yours; setup and refresh keep them`. Setup
+   and refresh keep what follows it, and in a file written before the marker,
+   what follows `  useHttpPath = true`. The install's verdict compares only the
+   text through the marker. A key git adds inside a pact section is the
+   pact's.
+5. **The guard draws the same line (T2).** The guard's owner test
+   (`resolveOwnerMatch`, and the two-segment shorthand in `evalRepoShorthand`)
+   becomes "the host is GitHub": every repo-bound `git` and `gh` write to
+   github.com goes through the app's gitconfig or `gh-app.mjs gh`, and the
+   helper decides app or owner. Account-scoped `gh` writes are unchanged.
+   Hosts other than GitHub stay exempt, so 0010's C3 and Step 2 tests keep an
+   exempt case by moving their stranger repos to a non-GitHub host.
+
+## S2 Acceptance claims
+
+- **C1:** a repo another account owns, where an installation of the pinned
+  app covers it, gets a token narrowed to that repo and the set's permissions.
+- **C2:** a repo no installation covers is refused `install/none`; a repeat
+  within ten minutes makes no request and no spawn; after that the helper
+  looks again; an entry past ten minutes is ignored; the poster refuses it.
+- **C3:** `git-credential get` on such a repo prints the owner's username and
+  password from `git credential fill`, run without `GIT_CONFIG_GLOBAL` and
+  with the fallback variable set; when that git gives no credential, stdout is
+  empty; no other refusal runs it; a helper run with the variable set refuses.
+- **C4:** `gh` mode runs with the app's token on an installed repo of another
+  account, and with no `GH_TOKEN` and a stderr line where the app isn't
+  installed.
+- **C5:** setup and refresh keep the owner's lines, with and without the
+  marker; the install's verdict ignores them and still sees a changed pact
+  line; under real git, a `git config --global` write lands below the marker.
+- **C6 (T2):** with the guard on, a plain `gh` or `git` write to a github.com
+  repo of any owner is guarded; a non-GitHub host passes; account-scoped
+  writes are as before.
+
+## S3 Tickets, route and boundaries
+
+- **Route:** the sensitive route (credential selection and token minting),
+  thorough, cut in two.
+- **T1:** `claude/tools/gh-app.mjs`, `gate/install-core.mjs` (the gitconfig
+  text and verdict), their tests, `agent-identity.md`, the threat model. No
+  guard line.
+- **T2:** stacks on T1. `claude/guard/guard.mjs` (S1.5) and its C3 and Step 2
+  tests, 0010's scoping text, `agent-identity.md`'s scoping paragraph. It
+  shares no lines with the guard fix running beside it
+  (`hasClosingDelimiterAfter`, `buildGitDenyReason` and its two call sites,
+  the end of `guard.test.mjs`).
+
+## S4 Rollback
+
+Revert the merge, then run `gh-app.mjs refresh --provider <p>`: the older
+helper writes the gitconfig without the marker and keeps nothing below it, so
+copy the owner's lines out first. Cached "not installed" entries hold no token
+and age out in ten minutes; `forget` clears them at once.

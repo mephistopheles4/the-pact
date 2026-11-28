@@ -51,6 +51,23 @@ install into Claude Code refuses: run setup.
   includes your own global git config, sets the bot as `user.name` and
   `user.email` (your own `author.*` settings still win; see below), and drops
   Git Credential Manager, so a failed mint fails an HTTPS push.
+- **The app wherever it is installed.** The helper mints a token for any repo
+  an installation of your app covers, whoever owns it, and finds that
+  installation through GitHub's API. Where none covers the repo, it falls back
+  to you: `git-credential` answers with your own credential, from
+  `git credential fill` under your normal git config, and `gh` mode runs `gh`
+  as your own login and says so. "Not installed" is remembered for ten minutes.
+  The bot stays the commit author either way. A failed pin check, or any other
+  refusal, never falls back. The poster doesn't fall back either: on a repo the
+  app isn't installed on, it refuses. Other accounts can install the app only
+  when you make it public on GitHub.
+- **Your own `git config --global` writes are kept.** In a session they land in
+  the agent gitconfig. Setup and refresh keep every line below its last line,
+  `# pact: the lines below are yours; setup and refresh keep them`, and the
+  install compares only the lines above it. A key git adds inside one of the
+  pact's own sections (`[user]`, `[credential "https://github.com"]`) is the
+  pact's, and refresh rewrites it. A helper line for `https://github.com` below
+  the marker makes refresh refuse until you remove it.
 - **Cross-harness identity guard (`~/.pact/guard/`).** Installs the shared guard
   (`guard.mjs`), `rules.json` (with `"identity": { "enabled": true, "posterOn": <boolean> }`),
   and the per-harness wrappers even when `cleaner` is off:
@@ -108,7 +125,11 @@ rest:
   editor's terminal) is tried after a failed mint, and `GIT_TERMINAL_PROMPT=0`
   doesn't stop it.
 - An SSH remote, a repository-local helper, a credential-bearing URL, an
-  `http.*.extraHeader` auth header, or an `insteadOf` rule.
+  `http.*.extraHeader` auth header, or an `insteadOf` rule. With an SSH remote,
+  a commit is still the bot's, but the push goes out with your SSH key, since
+  the gitconfig sets only the HTTPS helper. That is accepted: `status` reports
+  `remote protocol: ssh`, and `git remote set-url origin https://github.com/<owner>/<repo>.git`
+  moves the push to the app.
 - Your own `author.*`, `committer.*` and signing settings, which the include loads.
 - `GIT_CONFIG_GLOBAL` makes a session's `git config --global` write to the agent
   gitconfig, so `gh auth setup-git` swaps the helper out. The guard refuses a
