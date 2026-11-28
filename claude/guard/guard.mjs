@@ -199,6 +199,11 @@ function extractPsSubexprs(body) {
           else k++;
         } else if (ch === '`' && k + 1 < len) {
           k += 2;
+        } else if (ch === '<' && body[k + 1] === '#') {
+          const close = body.indexOf('#>', k + 2);
+          k = close === -1 ? len : close + 2;
+        } else if (ch === '#') {
+          while (k < len && body[k] !== '\n') k++;
         } else if (ch === "'") {
           k++;
           while (k < len) {
@@ -398,7 +403,9 @@ function tokenizeMode(command, bash, depth = 0) {
         if (segPsPrefixState === 0 && !wasQuoted && curPsVarState === 4) {
           segPsPrefixState = 0;
         } else if (segPsPrefixState === 0 && !wasQuoted && curPsVarState === 5) {
-          segPsPrefixState = 1;
+          segPsPrefixState = (current.endsWith('=') || current.endsWith(',')) ? 0 : 1;
+        } else if (segPsPrefixState === 1 && !wasQuoted && (current === '=' || current === '+=' || current === ',')) {
+          segPsPrefixState = 0;
         } else {
           segPsPrefixState = 2;
         }
@@ -973,7 +980,7 @@ function tokenizeMode(command, bash, depth = 0) {
       const sep = command.startsWith('||', i) ? '||' : c;
       endSegment(sep, i);
       i += sep.length;
-    } else if (!bash && !wasQuoted && c === '=' && i + 1 < n && command[i + 1] !== "'" && command[i + 1] !== '"' && command[i + 1] !== '$' && !/[ \t\r\n]/.test(command[i + 1]) && (
+    } else if (!bash && !wasQuoted && c === '=' && i + 1 < n && command[i + 1] !== "'" && command[i + 1] !== '"' && !/[ \t\r\n]/.test(command[i + 1]) && (
       (segPsPrefixState === 0 && started && curPsVarState === 5) ||
       (segPsPrefixState === 1 && (!started || current === '+'))
     )) {
@@ -986,6 +993,7 @@ function tokenizeMode(command, bash, depth = 0) {
         tokenOffsets.push(i);
         prevTokenQuoted = false;
         prevTokenEscaped = false;
+        segPsPrefixState = 0;
       }
       i++;
     } else if (c === '{' && (bash
@@ -1413,8 +1421,9 @@ function scanPsAssign(tokens, i) {
   while (k < tokens.length && isPsTypeCast(tokens[k])) k++;
   const v = tokens[k];
   if (v === undefined || !isPsVarPrefix(v)) return i;
+  if (v.endsWith(',')) return k + 1;
   const op = tokens[k + 1];
-  if (op === '=' || op === '+=') return k + 2;
+  if (op === '=' || op === '+=' || op === ',') return k + 2;
   if (v.endsWith('=')) return k + 1;
   return i;
 }
@@ -2800,8 +2809,8 @@ function splitAssign(tok, rawTok) {
   };
 }
 
-function parsePsEnvAssign(tokens, rawTokens, start = 0) {
-  let k = start;
+function parsePsEnvAssign(tokens, rawTokens) {
+  let k = 0;
   while (k < tokens.length && isPsTypeCast(tokens[k])) k++;
   const tk = tokens[k];
   if (tk === undefined) return null;
@@ -2817,7 +2826,7 @@ function parsePsEnvAssign(tokens, rawTokens, start = 0) {
     hasInlineCast = true;
     lhs = tk.slice(after);
   }
-  const hasTypeCast = k > start || hasInlineCast;
+  const hasTypeCast = k > 0 || hasInlineCast;
   const lowerLhs = lhs.toLowerCase();
   let varName = '';
   let rest = '';
@@ -2839,7 +2848,7 @@ function parsePsEnvAssign(tokens, rawTokens, start = 0) {
     return null;
   }
   if (!varName) return null;
-  const tainted = hasTypeCast || start > 0;
+  const tainted = hasTypeCast;
   if (rest === '') {
     const op = tokens[k + 1];
     if (op === '=' || op === '+=') {
@@ -2878,36 +2887,71 @@ const GUARDED_ENV_NAMES = new Set([
   'GIT_CONFIG_COUNT', 'GIT_CONFIG_PARAMETERS', 'GIT_ASKPASS', 'SSH_ASKPASS',
 ]);
 
-function collectChainedPsEnvVars(tok, nextTok) {
+function collectSegmentPsEnvAssigns(tokens, rawTokens) {
+  let start = 0;
+  while (start < tokens.length) {
+    const rn = scanLeadingRedir(tokens, start);
+    if (rn <= start) break;
+    start = rn;
+  }
+  if (start >= tokens.length) return [];
+  if (/^['"]/.test(rawTokens[start] ?? '')) return [];
+  if (!isPsVarPrefix(tokens[start]) && !isPsTypeCast(tokens[start])) return [];
+  let lastEqTok = -1;
+  for (let m = tokens.length - 1; m >= start; m--) {
+    if (!/^['"]/.test(rawTokens[m] ?? '') && tokens[m].includes('=')) {
+      lastEqTok = m;
+      break;
+    }
+  }
+  if (lastEqTok === -1) return [];
   const found = [];
-  let eq = tok.indexOf('=');
-  while (eq !== -1) {
-    if (eq + 1 >= tok.length) break;
-    let p = eq + 1;
-    if (tok[p] === '[') {
-      const after = scanBalancedBrackets(tok, p);
-      if (after === -1) break;
-      p = after;
-    }
-    const subLower = tok.slice(p, p + 6).toLowerCase();
-    if (subLower.startsWith('$env:')) {
-      const eq2 = tok.indexOf('=', p + 5);
-      if (eq2 !== -1) {
-        const opStart = eq2 > p + 5 && tok[eq2 - 1] === '+' ? eq2 - 1 : eq2;
-        const v = tok.slice(p + 5, opStart);
-        if (v) found.push(v);
-      } else if (nextTok === '=' || nextTok === '+=') {
-        const v = tok.slice(p + 5);
-        if (v) found.push(v);
+  for (let m = start; m <= lastEqTok; m++) {
+    if (/^['"]/.test(rawTokens[m] ?? '')) continue;
+    const tok = tokens[m];
+    if (!tok.includes('$')) continue;
+    const nextTok = tokens[m + 1];
+    const nextIsEq = nextTok !== undefined && (nextTok.startsWith('=') || nextTok.startsWith('+='));
+    const nextIsComma = nextTok === ',';
+    const lower = tok.toLowerCase();
+    let noCloseBrace = false;
+    let p = lower.indexOf('$');
+    while (p !== -1) {
+      let varName = '';
+      let end = -1;
+      if (lower.startsWith('$env:', p)) {
+        let q = p + 5;
+        while (q < tok.length) {
+          const cc = tok.charCodeAt(q);
+          const isWord = (cc >= 65 && cc <= 90) || (cc >= 97 && cc <= 122) || (cc >= 48 && cc <= 57) || cc === 95;
+          if (!isWord) break;
+          q++;
+        }
+        if (q > p + 5) {
+          varName = tok.slice(p + 5, q);
+          end = q;
+        }
+      } else if (!noCloseBrace && lower.startsWith('${env:', p)) {
+        const cb = tok.indexOf('}', p + 6);
+        if (cb === -1) {
+          noCloseBrace = true;
+        } else if (cb > p + 6) {
+          varName = tok.slice(p + 6, cb);
+          end = cb + 1;
+        }
       }
-    } else if (subLower === '${env:') {
-      const cb = tok.indexOf('}', p + 6);
-      if (cb > p + 6 && (tok[cb + 1] === '=' || tok.startsWith('+=', cb + 1) || (cb + 1 === tok.length && (nextTok === '=' || nextTok === '+=')))) {
-        const v = tok.slice(p + 6, cb);
-        if (v) found.push(v);
+      if (varName) {
+        const isTarget =
+          tok[end] === '=' ||
+          tok.startsWith('+=', end) ||
+          (end === tok.length && nextIsEq) ||
+          (m < lastEqTok && (tok[end] === ',' || (end === tok.length && nextIsComma)));
+        if (isTarget) found.push(varName);
+        p = lower.indexOf('$', end);
+      } else {
+        p = lower.indexOf('$', p + 1);
       }
     }
-    eq = tok.indexOf('=', eq + 1);
   }
   return found;
 }
@@ -3167,25 +3211,10 @@ function analyzeMode(modeInfo, bash, { env, platform, expectedGitconfig, homeDir
       applyExportOrSet(psEnvAssign.varName, psEnvAssign.rawRhs, isLiteralPsEnvAssign, idx, psEnvAssign.taintedAssign);
       if (isGuardedName(psEnvAssign.varName)) segSawDisqualifier = true;
     }
-    if (!bash && tokens.length > 0) {
-      let pos = 0;
-      while (pos < tokens.length) {
-        if (pos > 0) {
-          const chained = parsePsEnvAssign(tokens, rawTokens, pos);
-          if (chained) {
-            applyExportOrSet(chained.varName, chained.rawRhs, false, idx, true);
-            if (isGuardedName(chained.varName)) segSawDisqualifier = true;
-          }
-        }
-        if (isPsVarPrefix(tokens[pos]) && tokens[pos].includes('=') && !/^['"]/.test(rawTokens[pos] ?? '')) {
-          for (const v of collectChainedPsEnvVars(tokens[pos], tokens[pos + 1])) {
-            applyExportOrSet(v, '', false, idx, true);
-            if (isGuardedName(v)) segSawDisqualifier = true;
-          }
-        }
-        const nextPos = scanPsAssign(tokens, pos);
-        if (nextPos <= pos) break;
-        pos = nextPos;
+    if (!bash && !isLiteralPsEnvAssign && tokens.length > 0) {
+      for (const v of collectSegmentPsEnvAssigns(tokens, rawTokens)) {
+        applyExportOrSet(v, '', false, idx, true);
+        if (isGuardedName(v)) segSawDisqualifier = true;
       }
     }
 
