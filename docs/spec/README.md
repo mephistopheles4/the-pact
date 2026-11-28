@@ -21,7 +21,7 @@ None yet.
 - [0008-per-harness-models-and-efforts](0008-per-harness-models-and-efforts.md) — a delta on 0007: per-harness agent models and tier efforts in a harness description, rendered by the install and set in Scriptorium, with one page of the setup across harnesses
 - [0007-harness-agnostic-pact](0007-harness-agnostic-pact.md) — the pact in a neutral home, `~/.pact`, rendered by one installer into Claude Code, Codex, Antigravity and a person's own harness, with one shared guard and tagged releases through `npx`
 - [0006-claude-workflows-wif](0006-claude-workflows-wif.md) — the Claude GitHub workflows, authenticated through Workload Identity Federation, under an exact allow-list of their own
-- [0005-clef-everywhere](0005-clef-everywhere.md) — Clef on Linux end to end without setpriv, on arm64 Linux and Windows and on Intel Macs, with CPU end-to-end runs in CI and a doc for anyone
+- [0005-clef-everywhere](0005-clef-everywhere.md) — Clef on Linux end to end without setpriv, on arm64 Linux and Windows and on Intel Macs, with a doc for anyone
 - [0004-portable-toc](0004-portable-toc.md) — a portable table-of-contents script and its per-repo config, which grimoire, stacks and athanor adopt by choice
 - [0003-clef-macos](0003-clef-macos.md) — Clef on macOS arm64 with Metal, a keeper process and a keyed orphan sweep standing in for pdeathsig and /proc
 - [0002-clef-runner](0002-clef-runner.md) — a pinned llama-server runner for Clef, as an opt-in pact tool, fetched by setup and run behind a loopback supervisor

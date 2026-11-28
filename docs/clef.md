@@ -15,7 +15,7 @@ The design is [spec 0002](spec/0002-clef-runner.md); [spec 0003](spec/0003-clef-
 - [What it fetches](#what-it-fetches)
 - [Example machines](#example-machines)
   - [A Windows x64 machine with a GPU](#a-windows-x64-machine-with-a-gpu)
-  - [CI's runners, on CPU](#cis-runners-on-cpu)
+  - [One-off runs on CPU](#one-off-runs-on-cpu)
 - [Commands](#commands)
 - [How a caller uses it](#how-a-caller-uses-it)
 - [Things to know](#things-to-know)
@@ -28,23 +28,23 @@ The design is [spec 0002](spec/0002-clef-runner.md); [spec 0003](spec/0003-clef-
 
 ## Platforms
 
-| Platform | Setup picks | Run end to end in CI | Not run end to end |
+| Platform | Setup picks | Run with the real server | Not run |
 | --- | --- | --- | --- |
-| Windows x64 | Vulkan when it finds the loader, else CPU | CPU | Vulkan in CI; it has run on one [example machine](#example-machines) |
-| Windows arm64 | CPU | CPU | Vulkan is not offered yet |
-| Linux x64 (glibc) | Vulkan when it finds the loader, else CPU | CPU, with and without `setpriv` | Vulkan |
-| Linux arm64 (glibc) | CPU | CPU, with `setpriv` | Without `setpriv`; Vulkan is not offered yet |
-| macOS arm64 (Apple Silicon) | Metal, or CPU with `--cpu` | None: CI runs the test suite on macOS 15, on CPU with a stub server | Metal and CPU |
-| macOS x64 (Intel) | CPU | None | One trial of the pinned server alone, with earlier arguments, got the six test cases right ([spec 0005 U10](spec/0005-clef-everywhere.md#u10-the-experiment-and-what-it-found)) |
+| Windows x64 | Vulkan when it finds the loader, else CPU | CPU, in a [one-off run](#one-off-runs-on-cpu); Vulkan on the owner's [example machine](#a-windows-x64-machine-with-a-gpu) | Vulkan on any other machine |
+| Windows arm64 | CPU | CPU, in a one-off run | Vulkan, which is not offered yet |
+| Linux x64 (glibc) | Vulkan when it finds the loader, else CPU | CPU, in a one-off run | Vulkan |
+| Linux arm64 (glibc) | CPU | CPU, in a one-off run | Vulkan, which is not offered yet |
+| macOS arm64 (Apple Silicon) | Metal, or CPU with `--cpu` | None | Metal and CPU |
+| macOS x64 (Intel) | CPU | CPU, in a one-off run without `-nr`, an argument CPU builds now get | The current arguments |
 
 `setpriv` is a program from util-linux; `ls /usr/bin/setpriv` shows whether you have it. Without it Clef uses [the keeper](#when-the-supervisor-dies) to end the server, and setup needs nothing more from you.
 
-End to end means [`clef-e2e.yml`](../.github/workflows/clef-e2e.yml), with the real pinned server and the `flash` model: install, setup, verify, start, six answers checked against recorded ones, stop and remove. `full` is not run there. Setup refuses any other system, and a Linux without glibc (Alpine and other musl systems), with `clef-platform`.
+No CI job runs the real server: CI tests the tool with a stub. Setup refuses any other system, and a Linux without glibc (Alpine and other musl systems), with `clef-platform`.
 
 ## What your machine needs
 
 - **Disk:** about 7.6 GB free for `flash` and 22 GB for `full`, on the drive that holds your Claude home folder ([what it fetches](#what-it-fetches)).
-- **Memory:** 16 GB of RAM for `flash`. On CI's 16 GB runners the server peaked at 5.2 to 6.8 GiB ([example machines](#example-machines)). `full` is unmeasured.
+- **Memory:** 16 GB of RAM for `flash`. In the [one-off runs](#one-off-runs-on-cpu) on 15 and 16 GB machines the server peaked at 5.1 to 6.7 GiB, with the arguments of that time. `full` is unmeasured.
 - **Node 24 or later, built for your CPU.** `node -p "process.version + ' ' + process.arch"` shows both. An x64 node on an arm64 Windows machine, or under Rosetta on Apple Silicon, picks an x64 CPU build, which runs emulated; use an arm64 node.
 - **The system libraries** for your platform, below. No download holds them.
 
@@ -138,17 +138,17 @@ The owner's machine: Vulkan, a discrete GPU with 32 GB, `flash` (Q4_K_M), `-c 65
 
 **`full` is unmeasured:** its memory use with the current arguments, its load time and its answer time have not been measured on any platform.
 
-### CI's runners, on CPU
+### One-off runs on CPU
 
-From the [end-to-end run of 2026-11-28](https://github.com/mephistopheles4/the-pact/actions/runs/46115015543) (commit `58abae7b`, GitHub's merge of `62e95db5` into its base branch), `flash` with the current arguments. Each runner has 4 CPUs and 16 GiB of RAM. Ready is the time from the first `ensure`, right after `verify` had read the model. Median answer is over the six test cases' times. These come from one run, and the same kind of runner can get another CPU and other times.
+Before these platforms were added, the pinned server and the `flash` model ran six test cases on each machine below ([spec 0005 U10](spec/0005-clef-everywhere.md#u10-the-experiment-and-what-it-found)). The arguments were those of that time, `-c 16384 -ub 4096 -b 4096`, plus `-nr` except on the Intel Mac. They are now `-c 65536 -ub 8192 -b 8192`, and this page has no CPU figures for those. Ready is the time from the server's start. These are one-off runs, not a promise for yours.
 
-| Runner | CPU | Ready | Median answer | Server's peak memory |
-| --- | --- | --- | --- | --- |
-| Linux x64, with `setpriv` | AMD EPYC 9V74 | 2 s | 7.7 s | 6.8 GiB |
-| Linux x64, on the keeper | AMD EPYC 7763 | 2 s | 15.3 s | 6.8 GiB |
-| Linux arm64 | not reported | 2 s | 18.7 s | 6.8 GiB |
-| Windows x64 | AMD EPYC 7763 | 3 s | 16.6 s | 5.2 GiB |
-| Windows arm64 | Cobalt 100 | 4 s | 16.3 s | 5.2 GiB |
+| Machine | CPU | CPUs, RAM | Ready | Median answer | Server's peak memory |
+| --- | --- | --- | --- | --- | --- |
+| Windows x64 | AMD EPYC 7763 | 4, 16 GB | 3 s | 17 s | 5.1 GiB |
+| Linux x64 | Intel Xeon 6975P-C | 4, 15 GB | 2 s | 8 s | 6.7 GiB |
+| Linux arm64 | Neoverse N2 | 4, 16 GB | 2 s | 19 s | 6.7 GiB |
+| Windows arm64 | Cobalt 100 | 4, 16 GB | 4 s | 16 s | 5.1 GiB |
+| macOS x64 (Intel) | Intel i7-8700B | 4, 14 GB | 113 s | not recorded; each took 34 to 70 s, with verbose logging | not recorded |
 
 ## Commands
 
@@ -166,7 +166,7 @@ A refusal is one line, `REFUSED <word>: <reason>`. Every mode but `ensure` ends 
 
 **Changing the variant.** Run `clef stop`, then `clef setup --variant <variant> --yes`; setup refuses `clef-running` while a supervisor lives. `flash` is the default, so a `setup` with no `--variant` selects `flash`, whatever was set up before. A downloaded model stays on disk when you switch, and switching back hashes it instead of downloading it again; both together take about 26 GB. `remove --yes` deletes them. A `setup.json` written before variants existed reads as `flash`.
 
-**Backend and speed.** The [platform table](#platforms) says what setup picks; `--cpu` forces CPU. A CPU answer took 7 to 24 s on [CI's runners](#cis-runners-on-cpu), and **can take up to 3 minutes** on a slow machine; the text in its `state` can make it slow. The supervisor answers `no-answer` after 180 s with nothing from the server on CPU, and 60 s on a GPU. Give a caller's own timeout the same room. The [coverage hint](coverage.md) gives up after 60 s, so on a CPU it can end `unavailable (timeout)`.
+**Backend and speed.** The [platform table](#platforms) says what setup picks; `--cpu` forces CPU. In the [one-off runs](#one-off-runs-on-cpu) a CPU answer took 8 to 23 s on Linux and Windows and 34 to 70 s on the Intel Mac, and it **can take up to 3 minutes** on a slow machine; the text in its `state` can make it slow. The supervisor answers `no-answer` after 180 s with nothing from the server on CPU, and 60 s on a GPU. Give a caller's own timeout the same room. The [coverage hint](coverage.md) gives up after 60 s, so on a CPU it can end `unavailable (timeout)`.
 
 ## How a caller uses it
 
