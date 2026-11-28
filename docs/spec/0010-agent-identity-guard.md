@@ -585,6 +585,11 @@ evaluates one call and returns `null` or one decision object (`shell` accepts
 
 ### Plain-text repo-owner resolution (no `git` subprocess)
 
+[Spec 0012](0012-app-wherever-installed.md) changes the `git` side: a `git`
+write is guarded on every GitHub repo, whoever owns it. Where this spec has
+another GitHub owner pass, in this section and in C3, that holds for `gh`
+writes only.
+
 - **Step 1 (explicit target slots only — asymmetric prose-flag safety):**
   - If any prior segment before the evaluated `gh` or `git` segment changes
     directories (`cd`, `pushd`, `popd`, `Set-Location`, `Push-Location`,

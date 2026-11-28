@@ -1,4 +1,4 @@
-# The agent app wherever it is installed (T1)
+# The agent app wherever it is installed
 
 **2026-11-28.** PACT-125, T1 of [spec 0012](../spec/0012-app-wherever-installed.md). The owner's ask: where the app is installed, the agent works as the app, whoever owns the repo, and falls back to the owner where it isn't. Sensitive route (credential selection and token minting), thorough, cut in two; T2, the guard, stacks on this.
 
@@ -13,6 +13,10 @@
 ## The first Test round
 
 The security pair found that draft 1's `gh` fallback ran `gh` as the owner with arguments that could reach any repo (a high from the data lens), and that lines below the marker could put a credential helper back unseen. Both were fixed. That any caller of the helper can read the owner's credential for a repo the app isn't on is written into the threat model and comes to the owner as an accepted-risk candidate.
+
+## T2, the guard
+
+**2026-11-28.** A `git` write is now guarded on every GitHub repo, whoever owns it, so it goes through the app's gitconfig and the helper decides app or owner. `gh` writes keep the owner scope: after T1's security review, `gh` mode no longer falls back to the owner, so denying every github.com `gh` write would have blocked them where the app isn't installed. The lead picked this (decision 117), flagged to the owner. Left open: a plain `gh` write to another owner's repo where the app is installed goes out as the owner (spec 0012 S5). Tests: +1 −0; the exempt `git` cases moved to a non-GitHub host.
 
 ## Rolling back
 

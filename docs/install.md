@@ -810,8 +810,8 @@ format, get the active rules from a `pact-guard` hook the install adds.
   when the provider is pinned in `~/.pact/github.json` (unpinned Codex and
   Antigravity pass through; a symlinked, oversized, or malformed `github.json`
   fails closed `pin`), `identity-gh` denies plain `gh` writes on owner repos
-  and account-scoped `gh` writes across all three harnesses, and `identity-git`
-  in Codex and Antigravity checks `~/.pact/gh-app-<provider>.gitconfig` and
+  and account-scoped `gh` writes across all three harnesses, and `identity-git`,
+  for a `git` write to any GitHub repo, in Codex and Antigravity checks `~/.pact/gh-app-<provider>.gitconfig` and
   either rewrites `CommandLine` with `GIT_CONFIG_GLOBAL` +
   `GIT_TERMINAL_PROMPT=0` paired with `force_ask` on unambiguous single simple
   `git` `run_command` calls in Antigravity, or denies (on compound/wrapped/

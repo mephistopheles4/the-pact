@@ -2280,9 +2280,13 @@ function parseGhSegment(tokens, at) {
 
 // ------------------------------------------------------------ URL, shorthand & repo-owner scoping
 
+// ownerLogin is null for a git write, which matches every GitHub repo: the guard
+// can't ask GitHub where the app is installed, so gh-app.mjs's credential helper
+// decides app or owner (spec 0012). A gh write passes the owner's login, since
+// gh-app.mjs gh has no such fallback.
 function resolveOwnerMatch(host, owner, ownerLogin) {
   if (!isGitHubHost(host)) return false;
-  if (!LOGIN_RE.test(owner)) return true;
+  if (ownerLogin === null || !LOGIN_RE.test(owner)) return true;
   return owner.toLowerCase() === ownerLogin.toLowerCase();
 }
 
@@ -3900,7 +3904,7 @@ function checkGhOwnerScope(ghInfo, segState, { ownerLogin, cwd, platform, scopeC
   return scopeRes;
 }
 
-function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform, scopeCache }) {
+function checkGitOwnerScope(gitInfo, segState, { cwd, platform, scopeCache }) {
   if (segState.sawCdBefore || segState.sawEnvSplitBefore) return { match: true };
   if (gitInfo.hasUnknownLeadingOpt || gitInfo.hasAliasOpt) return { match: true };
 
@@ -3910,7 +3914,7 @@ function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform, scop
     if (pushTarget.unknownFlag) return { match: true };
     if (pushTarget.target !== null) {
       if (/^[a-z][a-z0-9+.-]*:\/\//i.test(pushTarget.target) || /^[^@/\s]+@[^:@/\s]+:/.test(pushTarget.target)) {
-        const res = evalRepoUrl(pushTarget.target, ownerLogin);
+        const res = evalRepoUrl(pushTarget.target, null);
         return { match: !res.ok || res.match };
       }
       explicitRemoteName = pushTarget.target;
@@ -3938,7 +3942,7 @@ function checkGitOwnerScope(gitInfo, segState, { ownerLogin, cwd, platform, scop
     explicitRemoteName,
     isGitPush,
     isGh: false,
-    ownerLogin,
+    ownerLogin: null,
     platform,
   });
   scopeCache?.set(ck, scopeRes);
@@ -4341,7 +4345,7 @@ export function answerCall({ command, provider, cwd, canOverwrite = false, env =
         const gitInfo = parseGitSegment(st.tokens, st.at);
         const r9Guarded = st.envConfigInjectionActive && Boolean(gitInfo.subcmd) && !GIT_BUILTIN_READ_SUBCOMMANDS.has(gitInfo.subcmd);
         if (!gitInfo.isGuarded && !r9Guarded) continue;
-        const scope = checkGitOwnerScope(gitInfo, st, { ownerLogin, cwd, platform, scopeCache });
+        const scope = checkGitOwnerScope(gitInfo, st, { cwd, platform, scopeCache });
         if (!scope.match) continue;
         guardedCount++;
         if (!verifyGitconfig()) {
