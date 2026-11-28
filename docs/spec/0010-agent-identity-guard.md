@@ -585,18 +585,19 @@ evaluates one call and returns `null` or one decision object (`shell` accepts
            It names the expected gitconfig path as a quoted literal:
            - **Bash form** (POSIX, `shell: 'bash'`, and `shell: 'unknown'` on
              any platform): `Put GIT_CONFIG_GLOBAL='<path>'
-             GIT_TERMINAL_PROMPT=0 right before the git command (inside any
+             GIT_TERMINAL_PROMPT=0 right before each git command (inside any
              subshell or pipe too)`. A path holding `'` is written
              `"<path>"` instead, with `\` and `"` escaped by a backslash.
-           - **PowerShell form** (Windows, any other shell): `Run the git
-             write in a call with no block, pipe, subshell, && or ||, after
-             $env:GIT_CONFIG_GLOBAL = '<path>'; $env:GIT_TERMINAL_PROMPT =
-             '0';`, with `'` in the path written `''`.
+           - **PowerShell form** (Windows, any other shell): `Start the call
+             with $env:GIT_CONFIG_GLOBAL = '<path>'; $env:GIT_TERMINAL_PROMPT
+             = '0'; then the git write, in a call with no block, pipe,
+             subshell, && or ||`, with `'` in the path written `''`.
            - **Fallback:** a path holding `$`, a backtick or a control
              character, or starting with `~` (and, for the PowerShell form, a
-             `WIN_PATH_BAD` character) keeps the variable form:
-             `"$env:USERPROFILE/.pact/gh-app-<provider>.gitconfig"` (Windows) /
-             `"$HOME/.pact/gh-app-<provider>.gitconfig"` (POSIX).
+             `WIN_PATH_BAD` character) keeps the same text with the variable
+             path in place of the literal:
+             `"$env:USERPROFILE/.pact/gh-app-<provider>.gitconfig"` (PowerShell
+             form) / `"$HOME/.pact/gh-app-<provider>.gitconfig"` (Bash form).
 
 ### Plain-text repo-owner resolution (no `git` subprocess)
 

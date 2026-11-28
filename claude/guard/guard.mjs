@@ -3968,16 +3968,16 @@ function buildGitDenyReason(provider, platform, shell, gitconfig) {
   const literal = typeof gitconfig === 'string' && !/[$`\p{Cc}]/u.test(gitconfig) && !gitconfig.startsWith('~');
   if (platform === 'win32' && shell !== 'bash' && shell !== 'unknown') {
     if (literal && !WIN_PATH_BAD.test(gitconfig)) {
-      return `Plain git writes are blocked while agent-identity is on for ${provider}. Run the git write in a call with no block, pipe, subshell, && or ||, after $env:GIT_CONFIG_GLOBAL = '${gitconfig.replaceAll("'", "''")}'; $env:GIT_TERMINAL_PROMPT = '0'; so git writes use the pinned app.`;
+      return `Plain git writes are blocked while agent-identity is on for ${provider}. Start the call with $env:GIT_CONFIG_GLOBAL = '${gitconfig.replaceAll("'", "''")}'; $env:GIT_TERMINAL_PROMPT = '0'; then the git write, in a call with no block, pipe, subshell, && or ||, so git writes use the pinned app.`;
     }
-    return `Plain git writes are blocked while agent-identity is on for ${provider}. Prefix with $env:GIT_CONFIG_GLOBAL = "$env:USERPROFILE/.pact/gh-app-${provider}.gitconfig"; $env:GIT_TERMINAL_PROMPT = '0'; <command> so git writes use the pinned app.`;
+    return `Plain git writes are blocked while agent-identity is on for ${provider}. Start the call with $env:GIT_CONFIG_GLOBAL = "$env:USERPROFILE/.pact/gh-app-${provider}.gitconfig"; $env:GIT_TERMINAL_PROMPT = '0'; then the git write, in a call with no block, pipe, subshell, && or ||, so git writes use the pinned app.`;
   }
   if (literal) {
     // Bash takes no escaped ' inside single quotes, and neither does the check.
     const quoted = gitconfig.includes("'") ? `"${gitconfig.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"` : `'${gitconfig}'`;
-    return `Plain git writes are blocked while agent-identity is on for ${provider}. Put GIT_CONFIG_GLOBAL=${quoted} GIT_TERMINAL_PROMPT=0 right before the git command (inside any subshell or pipe too) so git writes use the pinned app.`;
+    return `Plain git writes are blocked while agent-identity is on for ${provider}. Put GIT_CONFIG_GLOBAL=${quoted} GIT_TERMINAL_PROMPT=0 right before each git command (inside any subshell or pipe too) so git writes use the pinned app.`;
   }
-  return `Plain git writes are blocked while agent-identity is on for ${provider}. Prefix with GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-${provider}.gitconfig" GIT_TERMINAL_PROMPT=0 <command> so git writes use the pinned app.`;
+  return `Plain git writes are blocked while agent-identity is on for ${provider}. Put GIT_CONFIG_GLOBAL="$HOME/.pact/gh-app-${provider}.gitconfig" GIT_TERMINAL_PROMPT=0 right before each git command (inside any subshell or pipe too) so git writes use the pinned app.`;
 }
 
 function hasUnsafeShellEscape(segState, subcmdIdx, bash) {

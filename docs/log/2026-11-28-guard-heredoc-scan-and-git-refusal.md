@@ -21,12 +21,14 @@ The tier is Standard. The owner said "its not sensitive" (relayed by the lead), 
   - Two cases were added inside existing tests. One is a command with two PowerShell heredocs on different lines, which fails when the reuse keeps a stale newline. The other adds `<< a ` to the `answerCall` timing loop.
   - Tests: +0 −0.
 - **The second PR, the refusal text.** The refusal now names the pinned gitconfig as a quoted literal, which the check accepts whatever `HOME` or `USERPROFILE` hold. It also says where the prefix goes:
-  - the Bash form goes right before the git command, inside any subshell or pipe;
-  - the PowerShell form goes in a call of its own, with no block, pipe, subshell, `&&` or `||`;
+  - the Bash form goes right before each git command, inside any subshell or pipe;
+  - the PowerShell form starts a call of its own, then the git write, with no block, pipe, subshell, `&&` or `||`;
   - an unknown shell gets the Bash form;
-  - a path that would not pass as a literal keeps the old variable form.
+  - a path that would not pass as a literal keeps the same text with the variable path, `$HOME` or `$env:USERPROFILE`.
 
-  Spec 0010 S3 is amended to match. The C11 `answerCall` timing loop now holds all ten inputs of the `judge` timing test, each bounded at 3,000 ms. A hook that times out lets the call through, so the hook's own entry point is bounded on every CI runner. Tests: +2 −0. One test checks that each provider's refusal prefix, put where its text says, passes, with `HOME` and `USERPROFILE` each absent and present, and a home holding `'`. The other covers the paths that keep the variable form.
+  Spec 0010 S3 is amended to match.
+  - A hook that times out lets the call through. So the C11 `answerCall` timing loop now bounds `answerCall`, the hook's own entry point, on every CI runner. It holds all ten inputs of the `judge` timing test, at 3,000 ms each.
+  - Tests: +3 −0. The first checks that each provider's refusal prefix, put where its text says, passes, with `HOME` and `USERPROFILE` each absent and present, and with a home holding `'`. The second covers the paths that keep the variable form. The third runs the real claude hook with no `HOME`.
 
 ## The Test review
 
