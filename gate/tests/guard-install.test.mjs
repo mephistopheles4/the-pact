@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, commitAll, home, install, makeRepo, passed, refused } from './install-harness.mjs';
+import { applyBound, commitAll, home, install, makeRepo, passed, refused, sharedRepo } from './install-harness.mjs';
 import { REPO } from './text.mjs';
 
 const TRUST = /^(?: )*Codex: open \/hooks and trust pact-guard; until then Codex runs unguarded\.\r?$/m;
@@ -102,7 +102,7 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
 });
 
 test('C16: the apply backs up each hooks file it changes, and with every rule off removes only the pact\'s entry and the guard', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   const before = readFileSync(at(h, CODEX), 'utf8');
   const first = applyBound(repo, h);
@@ -125,7 +125,7 @@ test('C16: the apply backs up each hooks file it changes, and with every rule of
 });
 
 test('C16: a hooks file the record doesn\'t list is merged, not refused; one that doesn\'t exist is made; a harness taken out loses only the pact\'s entry', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, '.codex'));
   mkdirSync(join(h, '.gemini', 'config'), { recursive: true });
@@ -145,7 +145,7 @@ test('C16: a hooks file the record doesn\'t list is merged, not refused; one tha
 });
 
 test("C12: a skill that stands for the owner's answer installs no guard, and no hook of the cleaner's meets a read tool", t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
   config(h, { tools: [], commands: ['finis'] });
@@ -167,7 +167,7 @@ test("C12: a skill that stands for the owner's answer installs no guard, and no 
 });
 
 test('with no rule on, no guard file or hook is written', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   config(h, OFF);
   const before = readFileSync(at(h, CODEX), 'utf8');
@@ -180,7 +180,7 @@ test('with no rule on, no guard file or hook is written', t => {
 
 // A hook written by a Linux or macOS node can't run where the home is a Windows one (a WSL node, say).
 test('bad case: a node that is not Windows\'s refuses to write a guard into a Windows home', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   mkdirSync(at(h, 'AppData/Local'), { recursive: true });
   const before = readFileSync(at(h, CODEX), 'utf8');
@@ -198,7 +198,7 @@ test('bad case: a node that is not Windows\'s refuses to write a guard into a Wi
 });
 
 test('bad case: a changed pact hook is drift, a hooks file that is not a strict JSON object refuses, and so does a list of another shape', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   passed(applyBound(repo, h));
   const codex = json(h, CODEX);
@@ -220,7 +220,7 @@ test('bad case: a changed pact hook is drift, a hooks file that is not a strict 
 
 // The undo steps are followed by hand, so they must allow what the guard's apply backs up.
 test('bad case: the undo steps allow each hooks file the apply backs up, one it made included', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, '.codex'));
   put(h, AG, { mine: MY_GROUP });
@@ -240,7 +240,7 @@ test('bad case: the undo steps allow each hooks file the apply backs up, one it 
 });
 
 test('bad case: a hooks path only the install record names is held to the same bound, under a harness that isn\'t found or that the install doesn\'t have', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   // `codex` is a harness the pact knows and doesn't find here; `gone` is one of the owner's own, since dropped.
   for (const harness of ['codex', 'gone']) {
     const h = home(t);
@@ -269,7 +269,7 @@ test('bad case: a commit that holds a guard table or an unknown guard file, or l
 });
 
 test('bad case: a hooks file that is settings.json, or sits behind a link, refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const shared = home(t);
   mkdirSync(join(shared, '.codex'));
   config(shared, { ...ON, harnesses: { own: [{ id: 'codex', hooks: { file: '~/.claude/Settings.json', format: 'codex' } }] } });
@@ -299,7 +299,7 @@ function markedHome(t, repo, text) {
 }
 
 test('shell policy: a recorded pact line is removed, the rest of config.toml is kept byte for byte and backed up, and the new record drops the mark', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const mine = '# mine\r\nmodel = "m"\r\n\r\n[history]\r\npersistence = "none"\r\n';
   const h = markedHome(t, repo, `${POLICY_LINE}\r\n${mine}`);
   const dry = install(repo, h);
@@ -315,7 +315,7 @@ test('shell policy: a recorded pact line is removed, the rest of config.toml is 
 });
 
 test('bad case: a recorded but edited pact line is left alone, with no drift stop and no warning', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const edited = `${POLICY_LINE.replace('= false', '= true')}\n[shell_environment_policy]\ninherit = "all"\n`;
   const h = markedHome(t, repo, edited);
   const r = applyBound(repo, h);
@@ -325,7 +325,7 @@ test('bad case: a recorded but edited pact line is left alone, with no drift sto
 });
 
 test('shell policy: taking Codex with no mark in the record leaves config.toml, the exact pact line in it included, byte for byte, prints no shell policy line, and records no shellPolicy key', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(at(h, '.codex'));
   config(h, { ...OFF, harnesses: { install: ['codex'] } });
