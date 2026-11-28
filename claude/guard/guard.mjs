@@ -309,13 +309,22 @@ function tokenizeMode(command, bash, depth = 0) {
     return 0;
   };
 
+  // The last newline search, reused while it still answers: no newline lies
+  // from nlFrom up to nlAt (or up to the end, when nlAt is -1), so a search
+  // from anywhere in that stretch finds nlAt again. Without it, a line of N
+  // `<<` searches to the end of the command N times.
+  let nlFrom = -1;
+  let nlAt = -1;
   const hasClosingDelimiterAfter = (afterIdx, word, strip) => {
-    const firstNl = command.indexOf('\n', afterIdx);
-    if (firstNl === -1) return false;
+    if (nlFrom === -1 || afterIdx < nlFrom || (nlAt !== -1 && afterIdx > nlAt)) {
+      nlFrom = afterIdx;
+      nlAt = command.indexOf('\n', afterIdx);
+    }
+    if (nlAt === -1) return false;
     if (!lineIndex) lineIndex = buildLineIndex(command);
     const map = strip ? lineIndex.strippedLast : lineIndex.rawLast;
     const lastPos = map.get(word);
-    return lastPos !== undefined && lastPos > firstNl;
+    return lastPos !== undefined && lastPos > nlAt;
   };
 
   const markUnquotedScan = (idx, lim) => {
