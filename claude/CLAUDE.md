@@ -90,6 +90,11 @@ its SKILL.md, first in my skills folder, then in the installed plugins'
 `skills/`. Read it and follow it, with no wait, no checkpoint and no hand-over
 line. A skill you can't find, say so in one line and go on with the stage.
 
+**Skill order.** At each stage, take its skills in the order the table lists
+them. Skip one whose condition doesn't fit the work or that I decline. A skill
+whose condition names another skill, or that skill's work, runs with that
+skill.
+
 <!-- pact:begin workflow -->
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -56,7 +56,7 @@ const CONFIG = '{"schema": 1, "commands": ["make-it-so", "finis", "scry"], "tool
 const moved = text => text.replaceAll('.claude/pact/handoff/', '.pact/handoffs/').replaceAll('.claude/pact/', '.pact/').replaceAll('in my Claude folder beside', 'in `~/.pact` beside');
 const lf = text => text.replaceAll('\r\n', '\n');
 const fixture = rel => lf(readFileSync(join(FIXTURE, ...rel.split('/')), 'utf8'));
-/** Every other change to the rules since the fixture: the stage-session sentences (spec 0013), then the neutral phrases, the model roles and the models line (spec 0007 S6, S7). */
+/** Every other change to the rules since the fixture: the stage-session sentences (spec 0013), the neutral phrases, the model roles and the models line (spec 0007 S6, S7), and PACT-99's Skill order paragraph. */
 const NEUTRAL_RULES = [
   ["  when to stop it. Checks that could have failed are the evidence.", "  when to stop it. Checks that could have failed are the evidence. A stage's\n  own work runs where I can open it, steer it and stop it."],
   ["Each stage: what each tier sets, the lenses to offer, where the work goes\nnext.", "Each stage: what each tier sets, the lenses to offer, where the work goes\nnext. Which session runs each stage: `~/.pact/review.md`'s Sessions."],
@@ -71,6 +71,7 @@ const NEUTRAL_RULES = [
   ['| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high |', '| Build | planning model, low | executor model, medium | executor model, medium | planning model, high |'],
   ['| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high |', '| Test | planning model, low | executor model, medium | executor model, medium | planning model, high |'],
   ['| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high |', '| Maintain | in the session, no plan | planning model, medium | planning model, high | planning model, high |'],
+  ["line. A skill you can't find, say so in one line and go on with the stage.\n", "line. A skill you can't find, say so in one line and go on with the stage.\n\n**Skill order.** At each stage, take its skills in the order the table lists\nthem. Skip one whose condition doesn't fit the work or that I decline. A skill\nwhose condition names another skill, or that skill's work, runs with that\nskill.\n"],
 ];
 const neutral = text => NEUTRAL_RULES.reduce((s, [from, to]) => {
   assert.equal(s.split(from).length, 2, `the fixture holds ${from} once`);
