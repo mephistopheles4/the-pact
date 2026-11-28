@@ -106,7 +106,8 @@ function blocks(markdown) {
   let open = null;
   let fence = null;
   let blank = false;
-  for (const line of markdown.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/)) {
+  // A line or paragraph separator reads as a space: a regex dot skips both, which made a crafted heading line stall the match.
+  for (const line of markdown.replace(/^\uFEFF/, '').replace(/[\u2028\u2029]/g, ' ').split(/\r\n|\r|\n/)) {
     if (fence !== null) {
       const close = FENCE_RE.exec(line);
       if (close && close[1][0] === fence[0] && close[1].length >= fence.length && line.trim() === close[1]) fence = null;

@@ -23,7 +23,7 @@ With no `decision-model` key the tool asks the local Clef, whichever variant is 
 
 **The repo list** is `~/.pact/coverage.json`: `{"jev_repos": ["<owner>/<name>"]}`. The tool reads the repo from `origin` in the folder it is given; a repo not on the list is refused (`coverage/not-listed`) and nothing is sent. A clone whose `origin` names a listed repo is sent as that repo, and so is a finding passed with another listed repo's folder.
 
-**Before a Jev request** the tool refuses a secret-named environment variable's value, a hidden character, your home folder and your user name (`coverage/secret`, `coverage/personal`). It reads the text as written, so an encoded secret, private code or tracker text goes through. Read the finding as you would before posting it. A cloud session sends nothing, and so does a session with certificate checks off.
+**Before a Jev request** the tool refuses a secret-named environment variable's value, a hidden character, your home folder and your user name (`coverage/secret`, `coverage/personal`). It reads the text as written, so an encoded secret, private code or tracker text goes through. Read the finding as you would before posting it. A cloud session sends nothing, and neither does one with `NODE_TLS_REJECT_UNAUTHORIZED=0`. That variable is the only certificate setting the tool checks. It does not look for a proxy or an added certificate authority: if your environment sends Node through a proxy (`NODE_USE_ENV_PROXY` or `--use-env-proxy`) and Node trusts the proxy's certificate (as through `NODE_EXTRA_CA_CERTS`), the proxy reads the key and the findings.
 
 ## The key
 
@@ -69,6 +69,8 @@ In PowerShell, write the script as `"$HOME/.pact/tools/coverage.mjs"`.
 | `no threat model` | the base holds neither file |
 
 A `REFUSED coverage/<word>` line (exit 2) says why nothing was asked. A request over 30,000 characters is refused (`coverage/size`), on every model.
+
+A long finding that is mostly code can come back `unavailable (status-502)` from a local Clef while still under that limit: the model counts tokens, and code takes more of them. Shorten the evidence and ask again.
 
 ## The log
 
