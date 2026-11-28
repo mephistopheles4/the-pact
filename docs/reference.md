@@ -1,15 +1,14 @@
 # Reference
 
-What is in this repo, where each part installs, which agent runs at which
-effort, and what never goes in. For what the pact is and why, read the
-[README](../README.md); to install it, follow [install.md](install.md).
+What is in this repo, where each part installs, and what never goes in. For
+what the pact is and why, read the [README](../README.md); to install it,
+follow [install.md](install.md).
 
 <!-- toc -->
 
 - [What's here](#whats-here)
 - [Pact commands](#pact-commands)
 - [Pact tools](#pact-tools)
-- [The familiars, by effort](#the-familiars-by-effort)
 - [The moves and Anthropic's playbook](#the-moves-and-anthropics-playbook)
 - [Repos that vendor `docs/toc.mjs`](#repos-that-vendor-docstocmjs)
 - [What never goes in here](#what-never-goes-in-here)
@@ -23,7 +22,7 @@ effort, and what never goes in. For what the pact is and why, read the
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
 | `claude/review.md` | The review procedure: how to give lenses their input, cross their reports by its template, post them and log each finding's fate. It also holds the record's rules, and the poster's when the poster is on. The rules file tells a session to read it before it runs a lens or posts | `~/.pact/review.md` |
 | `claude/review-diagrams.md` | The review diagrams' block, pin colours and no-diagram rule; review.md points to it | `~/.pact/review-diagrams.md` |
-| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `unstated-lens`, which looks for needs nobody wrote down; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text. Each runs on the planning model by default, Opus in Claude Code. And `scout`, the one search helper, on the light model, Haiku there, at medium effort. A configuration may set any agent's model and effort, to a role or to any model by name | `~/.claude/agents/` |
+| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `unstated-lens`, which looks for needs nobody wrote down; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text. Each runs on the planning model by default, Opus in Claude Code. And `scout`, the one search helper, on the light model, Haiku there, at medium effort. A configuration may set any agent's model and effort, to a role or to any model by name. Builds run in a main session the owner watches, not in agents | `~/.claude/agents/` |
 | `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`: `/scriptorium` always, the others only when the configuration's `commands` list names them |
 | `claude/tools/` | The pact tools, each one file the owner turns on by name (see "Pact tools" below). Today `poster.mjs`, the poster: posts free text to GitHub from one strict JSON post that carries the owner's quote and the session's read-back, or edits what a session posted, through one fixed call per surface, and reads back what landed; and `cleaner.mjs`, the cleaner: removes leftover worktrees and their local branches with fixed git commands; and `clef.mjs`, the decision model's runner; and `coverage.mjs`, the advisory coverage hint; and `gh-app.mjs`, the Windows GitHub App helper | `~/.pact/tools/<name>.mjs`, only when the configuration's `tools` list names it; `gh-app.mjs`, only while the `agent-identity` setting is on |
 | `claude/hooks/` | The pact's hook script, `compact-handoff.mjs`: keeps a session's hand-off across auto-compaction. It installs only while `auto-compact-window` is on, which it is by default | `~/.pact/hooks/compact-handoff.mjs` |
@@ -75,12 +74,6 @@ only while the tool is on. The cloud copy installs none.
 | `cleaner` | Removes leftover worktrees under `.claude/worktrees/` and their local branches with its own fixed git commands: `show` names back each one with what it holds and a tag, and `remove --yes` takes only the tags whose facts haven't changed. It keeps a worktree in use, or holding commits found nowhere else on a detached head; commits found nowhere else on a branch are a soft risk. It forces only on a fresh `remove --override <folder>=<tag>` pair, which `show` prints for a soft risk beside a warning and an undo line. On, it installs to `~/.pact/tools/cleaner.mjs`, the rules file tells a session to remove worktrees only through it, each removal being a checkpoint, and the install adds eighteen deny rules on raw removal commands (git worktree and branch removal, and `claude rm`) and two ask rules on `remove --override` to `settings.json`, a speed bump, not a gate. Usage, keeps and exit codes are in [cleaner.md](cleaner.md). |
 | `clef` | Runs Clef, the local decision model, with no Ollama, from one pinned llama.cpp server build and one pinned model, each checked by size and sha256. `setup` fetches only with `--yes`; `verify` re-hashes; `ensure` starts a supervisor on `127.0.0.1` and prints `{"url","state"}`, never a token. The supervisor ends after 30 idle minutes, or when its script changes or goes. Only the script installs, with nothing added to the rules file; downloads land in `~/.claude/pact-clef/`, which no install touches. See [clef.md](clef.md). |
 | `coverage` | Prints an advisory hint on a security finding: whether the project's threat model already covers it, as a decision model reads the two. It rules nothing. It asks a local Clef by default, which sends nothing off the machine; with `"decision-model": "jev"` it sends the findings of the repos listed in `~/.pact/coverage.json` to TypeSafe. Only the script installs, with nothing added to the rules file; its log lands in `~/.claude/pact-coverage/`, which no install touches. See [coverage.md](coverage.md). |
-
-## The familiars, by effort
-
-- **High:** the security pair, `adversarial-lens` and `data-lens`.
-
-Builds run in a main session the owner watches, not in agents.
 
 ## The moves and Anthropic's playbook
 

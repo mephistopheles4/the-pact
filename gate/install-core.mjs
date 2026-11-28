@@ -2104,15 +2104,27 @@ export function identityGitconfigText({ userHome, nodePath, app, xdg }) {
     '  helper =',
     `  helper = ${iniValue(helper, true)}`,
     '  useHttpPath = true',
+    IDENTITY_OWNER_MARKER,
     '',
   ].join('\n');
 }
 
+/** The gitconfig's last pact line, as OWNER_MARKER in gh-app.mjs, which a test holds equal: the owner's own lines below it are never compared. */
+export const IDENTITY_OWNER_MARKER = '# pact: the lines below are yours; setup and refresh keep them';
+
 /**
  * The verdict on the gitconfig on disk: `{ ok }`, and when not ok the parts that
  * differ, from node path, include list and other lines, never the file's lines.
+ * Only the text up to the marker line is compared.
  */
-export function identityGitconfigVerdict(actual, expected) {
+export function identityGitconfigVerdict(whole, expected) {
+  const end = `\n${IDENTITY_OWNER_MARKER}\n`;
+  const at = whole.indexOf(end);
+  const actual = at < 0 ? whole : whole.slice(0, at + end.length);
+  // The owner's lines are not compared, but one that opens a credential, url, http or include section could put a helper back, as OWNER_LINES_REFUSED in gh-app.mjs refuses.
+  const tail = at >= 0 ? whole.slice(at + end.length) : '';
+  const firstKey = /^\s*[^\s#;[]/.test(tail.split(/\r?\n/).find(l => !/^\s*(?:[#;].*)?$/.test(l)) ?? '');
+  if (at >= 0 && (firstKey || /(?:^|\])\s*\[\s*(?:credential|url|http|include|includeif)\b/im.test(tail))) return { ok: false, parts: ['your lines below the marker set credential, url, http or include (remove them first)'] };
   if (actual === expected) return { ok: true, parts: [] };
   const split = text => {
     const lines = text.split(/\r?\n/);

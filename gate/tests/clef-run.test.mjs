@@ -4,7 +4,7 @@
 // here downloads or runs the real server.
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync as clefRm, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync as clefRm, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { request } from 'node:http';
@@ -751,6 +751,7 @@ test('remove: without --yes it deletes nothing; with --yes it stops a live super
 
 // ------------------------------------------------------------ the orphan sweep (Linux's /proc)
 
+// #PACT-92 C-U5 (spec 0005 U6): a keeper is told by its own parent, read from its stat, and never by its command line.
 test('sweepOrphans: ends a process whose exe lies under runtime/ and whose parent is not the live supervisor, and nothing else', t => {
   if (WIN) return t.skip('/proc is Linux only');
   const f = fixture(t);
@@ -768,13 +769,19 @@ test('sweepOrphans: ends a process whose exe lies under runtime/ and whose paren
     mk(104, '/usr/bin/node', 1);
     mk(105, `${under}x/llama-server`, 1);
     mk(106, null, 1);
+    // 107's parent is a child of the live supervisor and has no command line to read. 108's parent reads like a keeper and is not its child.
+    mk(107, `${under}/b1/llama-server`, 700);
+    mk(700, null, 555);
+    mk(108, `${under}/b1/llama-server`, 800);
+    mk(800, null, 1);
+    writeFileSync(join(proc, '800', 'cmdline'), 'node\0clef.mjs\0keep\0');
   } catch {
     return t.skip('this machine cannot make a link');
   }
   const killed = [];
   const ended = clef.sweepOrphans({ dir: f.dir, procRoot: proc, kill: pid => killed.push(pid), liveSupervisorPid: 555 });
-  assert.deepEqual([...ended].sort(), [101, 102]);
-  assert.deepEqual(killed.sort(), [101, 102]);
+  assert.deepEqual([...ended].sort(), [101, 102, 108]);
+  assert.deepEqual(killed.sort(), [101, 102, 108]);
 });
 
 // Spec 0011 S9, claim 14: the recorded variant picks the served model, and it changes only after a stop.
@@ -796,15 +803,23 @@ test('a full setup is served from the full model file, and main refuses a varian
 
 // ------------------------------------------------------------ setup's new refusals (main)
 
-test('main: setup refuses clef-running while a supervisor is live, and clef-setpriv on Linux without /usr/bin/setpriv, each before any fetch', async t => {
+test('main: setup refuses clef-running while a supervisor is live, on Linux without /usr/bin/setpriv too, before any fetch', async t => {
   const f = fixture(t);
   f.stoppers.push(() => stopFixture(f));
   const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome };
   const out = [];
-  assert.equal(await clef.main(['setup', '--yes'], { ...base, platform: 'linux', arch: 'x64', exists: () => false, out: l => out.push(l) }), 2);
-  assert.equal(out.at(-1), 'RESULT: refused clef-setpriv');
+  // #PACT-92 C-U6: with nothing running, setup's plan on Linux without setpriv gets past every check of main's own. A host with no glibc is refused for that, by the plan.
+  const code = await clef.main(['setup'], { ...base, platform: 'linux', arch: 'x64', exists: () => false, free: Number.MAX_SAFE_INTEGER, out: l => out.push(l) });
+  assert.equal(out.at(-1), clef.runtimeGlibc() === null ? 'RESULT: refused clef-platform' : 'RESULT: pass', out.join('\n'));
+  assert.equal(code, clef.runtimeGlibc() === null ? 2 : 0);
+  assert.ok(!out.join('\n').includes('clef-setpriv'));
+  out.length = 0;
   await startServe(t, f);
   await ready(f);
+  // #PACT-92 C-U6: Linux without setpriv is not refused for it, so setup reaches the next check.
+  assert.equal(await clef.main(['setup', '--yes'], { ...base, platform: 'linux', arch: 'x64', exists: () => false, out: l => out.push(l) }), 2);
+  assert.equal(out.at(-1), 'RESULT: refused clef-running');
+  assert.ok(!out.join('\n').includes('clef-setpriv'));
   out.length = 0;
   assert.equal(await clef.main(['setup', '--yes'], { ...base, platform: 'win32', arch: 'x64', exists: () => true, out: l => out.push(l) }), 2);
   assert.equal(out.at(-1), 'RESULT: refused clef-running');
@@ -1157,10 +1172,12 @@ test('main: keep without an IPC channel refuses clef-keep and works out no folde
   assert.equal(children(), before, 'no child process was started');
 });
 
-test('lifetimeLine: a job object on Windows, the keeper on macOS, setpriv on Linux', () => {
+// #PACT-92 C-U5
+test('lifetimeLine: a job object on Windows, the keeper on macOS, and on Linux setpriv where it exists, else the keeper', () => {
   assert.equal(clef.lifetimeLine({ platform: 'win32' }), 'job-object');
   assert.equal(clef.lifetimeLine({ platform: 'darwin' }), 'keeper');
-  assert.equal(clef.lifetimeLine({ platform: 'linux' }), 'setpriv');
+  assert.equal(clef.lifetimeLine({ platform: 'linux', exists: p => p === '/usr/bin/setpriv' }), 'setpriv');
+  assert.equal(clef.lifetimeLine({ platform: 'linux', exists: p => p !== '/usr/bin/setpriv' }), 'keeper');
 });
 
 const KEEPER = { line: 'keeper' };
@@ -1179,16 +1196,21 @@ test('serve on the keeper line: the server answers, its pid is the keeper\'s chi
 });
 
 // Spec 0003 C-M4: the keeper itself runs in the named environment, not the supervisor's.
-test('serve on the keeper line: the keeper is forked in serveEnv\'s environment and with no node flags', async t => {
-  const f = fixture(t);
-  const env = { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome };
-  let seen;
-  await startServe(t, f, { ...KEEPER, env, onKeeperOptions: o => (seen = o) });
-  await ready(f);
-  assert.deepEqual(Object.keys(seen.env).sort(), Object.keys(clef.serveEnv(env, process.platform, f.p.runtime)).sort());
-  for (const k of Object.keys(POISON)) assert.ok(!(k in seen.env) || seen.env[k] !== POISON[k], `the keeper got ${k}`);
-  assert.equal('CLAUDE_CONFIG_DIR' in seen.env, false);
-  assert.deepEqual(seen.execArgv, []);
+// #PACT-92 C-U5 (spec 0005 U6): on Linux it also gets no LD_LIBRARY_PATH, so its node loads no kept library, while the server still gets it.
+test('serve on the keeper line: the keeper is forked in serveEnv\'s environment, on Linux without LD_LIBRARY_PATH, and with no node flags', async t => {
+  for (const platform of new Set([process.platform, 'linux'])) {
+    const f = fixture(t);
+    const env = { ...process.env, ...POISON, CLAUDE_CONFIG_DIR: f.cfgHome };
+    let seen;
+    await startServe(t, f, { ...KEEPER, platform, env, onKeeperOptions: o => (seen = o) });
+    await ready(f);
+    const named = Object.keys(clef.serveEnv(env, platform, f.p.runtime)).filter(k => platform !== 'linux' || k !== 'LD_LIBRARY_PATH');
+    assert.deepEqual(Object.keys(seen.env).sort(), named.sort(), platform);
+    for (const k of Object.keys(POISON)) assert.ok(!(k in seen.env) || seen.env[k] !== POISON[k], `the keeper got ${k}`);
+    assert.equal('CLAUDE_CONFIG_DIR' in seen.env, false);
+    assert.deepEqual(seen.execArgv, []);
+    if (platform === 'linux') assert.equal((await f.recorded()).env.LD_LIBRARY_PATH, f.p.runtime, 'the server gets the library path');
+  }
 });
 
 // Spec 0003 C-M5: the darwin rows of setup.json reach the server's arguments through serve.
@@ -1270,6 +1292,81 @@ test('serve on the keeper line: a missing server executable leaves run.fail (exi
   await assert.rejects(clef.serve({ dir: f.dir, exe: join(f.root, 'no-such-server'), pdeathsig: false, idleMs: 60_000, checkMs: 60_000, pollMs: 50, ...KEEPER, keeperPidMs: 5000 }), e => e.code === 'clef-setup');
   assert.ok(existsSync(f.run.fail));
   assert.equal(existsSync(f.run.key), false);
+});
+
+// ------------------------------------------------------------ the keeper line on Linux (spec 0005 U6)
+
+// These run on Linux alone: they read /proc, and setpriv is hidden through the exists seam. pdeathsig stays on, as in production, so a start through setpriv would show.
+const NOT_LINUX = process.platform !== 'linux' && 'reads Linux /proc (runs on gate)';
+
+/** The parent pid /proc/<pid>/stat names. */
+const parentOf = pid => Number(readFileSync(`/proc/${pid}/stat`, 'utf8').replace(/^.*\) /s, '').split(' ')[1]);
+
+/** A supervisor, started by ensure, for a Linux machine without setpriv. Its stub server runs from a copy of node under runtime/, where the /proc sweep looks. */
+async function startWithoutSetpriv(t) {
+  const f = fixture(t);
+  const exe = join(f.p.runtime, 'stub-node');
+  copyFileSync(process.execPath, exe);
+  chmodSync(exe, 0o755);
+  const line = clef.lifetimeLine({ platform: 'linux', exists: () => false });
+  const supervisorCommand = wrapperFor(f, `, exe: ${JSON.stringify(exe)}, pdeathsig: true, exists: () => false`);
+  f.stoppers.push(() => stopFixture(f));
+  assert.equal((await ensure(f, { wait: 20, line, supervisorCommand })).out.state, 'ready');
+  const run = JSON.parse(readFileSync(f.run.run, 'utf8'));
+  f.stoppers.push(() => alive(run.serverPid) && process.kill(run.serverPid, 'SIGKILL'));
+  const keeper = parentOf(run.serverPid);
+  assert.notEqual(keeper, run.pid, 'a keeper stands between the supervisor and its server');
+  assert.equal(parentOf(keeper), run.pid, 'the supervisor is the server\'s grandparent');
+  return { f, run, keeper, line, supervisorCommand };
+}
+
+// #PACT-92 C-U5
+test('Linux without setpriv: a sweep leaves a live supervisor\'s server, and a supervisor killed outright leaves no server behind within 2 seconds', { skip: NOT_LINUX }, async t => {
+  const { f, run } = await startWithoutSetpriv(t);
+  const sweep = liveSupervisorPid => clef.sweepOrphans({ dir: f.dir, kill: () => {}, liveSupervisorPid });
+  assert.deepEqual(sweep(run.pid), [], 'its grandparent is the live supervisor');
+  assert.deepEqual(sweep(null), [run.serverPid], 'the sweep does see this server: with no supervisor named it would end it');
+  process.kill(run.pid, 'SIGKILL');
+  assert.ok(await gone(run.serverPid, 2000), 'the keeper ended the server when its channel closed');
+});
+
+// #PACT-92 C-U5
+test('Linux without setpriv: with the keeper sent SIGKILL, the supervisor ends the server, records run.fail and stops', { skip: NOT_LINUX }, async t => {
+  const f = fixture(t);
+  const h = await startServe(t, f, { pdeathsig: true, exists: () => false });
+  const live = await ready(f);
+  process.kill(h.keeperPid, 'SIGKILL');
+  assert.equal(await h.done, 'exit');
+  assert.ok(await gone(live.run.serverPid, 3000), 'the server went with its keeper');
+  assert.equal(JSON.parse(readFileSync(f.run.fail, 'utf8')).reason, 'exit');
+});
+
+// #PACT-92 C-U5, with decision 90's keyed probe
+test('Linux without setpriv: with the supervisor and the keeper both killed, ensure under another\'s lock leaves the orphan, the keyed probe finds it, and the next ensure ends it through the /proc sweep', { skip: NOT_LINUX }, async t => {
+  const { f, run, keeper, line, supervisorCommand } = await startWithoutSetpriv(t);
+  // Both are stopped first, so neither can end the server in the moment the other dies.
+  for (const pid of [run.pid, keeper]) process.kill(pid, 'SIGSTOP');
+  for (const pid of [keeper, run.pid]) process.kill(pid, 'SIGKILL');
+  assert.ok((await gone(keeper)) && (await gone(run.pid)));
+  await sleep(300);
+  assert.ok(alive(run.serverPid), 'the server outlived both');
+  const ended = [];
+  const kill = pid => {
+    ended.push(pid);
+    process.kill(pid, 'SIGKILL');
+  };
+  writeFileSync(f.run.lock, `${process.pid}\n`);
+  await ensure(f, { wait: 0, line, kill, supervisorCommand });
+  assert.deepEqual(ended, [], 'someone else holds the lock: nothing is ended');
+  assert.ok(alive(run.serverPid));
+  clefRm(f.run.lock);
+  // The keyed probe, its kill only recorded, so the orphan is still there for the /proc sweep.
+  const keyed = [];
+  assert.deepEqual(await clef.sweepServer({ dir: f.dir, boundMs: 5000, kill: p => keyed.push(p) }), { result: 'ended', pid: run.serverPid });
+  assert.deepEqual(keyed, [run.serverPid]);
+  assert.equal((await ensure(f, { wait: 20, line, kill, supervisorCommand })).out.state, 'ready');
+  assert.deepEqual(ended, [run.serverPid], 'the /proc sweep ended it');
+  assert.ok(await gone(run.serverPid, 3000));
 });
 
 // ------------------------------------------------------------ the server record and keyed probe (spec 0003 M6)
@@ -1382,15 +1479,20 @@ test('stop on the keeper line: a stop under another holder\'s lock leaves run.ke
   assert.ok(existsSync(f.run.key));
 });
 
-test('main: setup on macOS refuses clef-orphan while a recorded server is still loading, before any fetch', async t => {
+// #PACT-92 C-U5 (decision 90): on Linux without setpriv the same refusal holds.
+test('main: setup on the keeper line (macOS, and Linux without setpriv) refuses clef-orphan while a recorded server is still loading, before any fetch', async t => {
   const f = fixture(t);
   const o = await orphan(t, f, { propsNotReady: true });
-  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, platform: 'darwin', arch: 'arm64', exists: () => true, orphanWaitMs: 300 };
-  for (const argv of [['setup', '--yes'], ['setup']]) {
-    const out = [];
-    assert.equal(await clef.main(argv, { ...base, out: l => out.push(l) }), 2, argv.join(' '));
-    assert.equal(out.at(-1), 'RESULT: refused clef-orphan');
-    assert.ok(!out.join('\n').includes(o.key), `${argv.join(' ')}: no output holds the run key`);
+  const base = { env: { CLAUDE_CONFIG_DIR: f.cfgHome }, cwd: tempDir(t, 'clef-start-'), chdir: () => {}, transport: { request: () => { throw new Error('a request was made'); } }, account: f.cfgHome, orphanWaitMs: 300 };
+  const machines = [{ platform: 'darwin', arch: 'arm64', exists: () => true }, { platform: 'linux', arch: 'x64', exists: p => p !== '/usr/bin/setpriv' }];
+  for (const machine of machines) {
+    for (const argv of [['setup', '--yes'], ['setup']]) {
+      const out = [];
+      const label = `${machine.platform} ${argv.join(' ')}`;
+      assert.equal(await clef.main(argv, { ...base, ...machine, out: l => out.push(l) }), 2, label);
+      assert.equal(out.at(-1), 'RESULT: refused clef-orphan', label);
+      assert.ok(!out.join('\n').includes(o.key), `${label}: no output holds the run key`);
+    }
   }
   assert.ok(existsSync(f.run.server) && alive(o.child.pid), 'the record and the server are left');
 });
