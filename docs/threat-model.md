@@ -76,7 +76,8 @@ local session is inside the root of trust and doesn't cross, as
 `docs/agents/issue-tracker.md` says, and a cloud session reads it as data),
 outside pull requests read as text, a cloned repo's files, fetched pages, other
 sessions' messages and hand-offs, a trigger's prompt, a mic transcript, a file
-someone hands a session to load, and a decision model's answer.
+someone hands a session to load, a decision model's answer, and `coverage`'s
+answer and hint, from any backend, Jev's included.
 
 **Controls:**
 
@@ -116,6 +117,8 @@ someone hands a session to load, and a decision model's answer.
   The tracker author checker (`gate/tracker-authors.mjs`) reads who wrote what
   where GraphQL is refused, and trusts a clone's `origin` by its path. With an
   app pinned it also checks the pin and counts that app's PR as insiders' code.
+  `coverage`'s answer check bounds what its answer and hint carry: only a number
+  from 0 to 1 for each id it sent counts.
   No detector for injected wording is built
   ([ADR 0150](adr/0150-text-steering-is-accepted-and-no-detector-is-built.md)).
 
@@ -152,8 +155,8 @@ apply or mise trust.
 **Crosses:** plugins and skills, the cloud setup's upstream pins, this repo's
 publisher, CI actions and dependencies, mise configs, a program a clone or
 version pin supplies that runs by bare name, the pinned design system inlined
-into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
-setup, run with the owner's rights; the pact's `npx` bootstrap and the release
+into Scriptorium; with `clef` on, a llama.cpp build and a model of one of two
+pinned variants, fetched at setup, run with the owner's rights; the pact's `npx` bootstrap and the release
 clone it makes, run before any dry run; the guard, before each shell call in
 Codex and Antigravity, and there before typed input; and the release job's token.
 
@@ -197,7 +200,8 @@ Codex and Antigravity, and there before typed input; and the release job's token
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
   grants it; each pin is held by hash.
-- **The decision model, when on.** A pin table (fixed repos; per-file size and
+- **The decision model, when on:** a model of one of two pinned variants. A pin
+  table (fixed repos, one per variant; per-file size and
   sha256, checked before keeping); fixed redirect hosts, `https:` only; its
   archive readers, writing only pinned names; a pin-time Mach-O check (thin
   arm64, no flags); a fixed working folder and environment (on macOS, also
@@ -274,7 +278,10 @@ anything else a session sends off the machine: a push, a fetch or search
 (`clef setup --yes`'s requests), a connector call; and a Codex or Antigravity
 session's context, sent to OpenAI or Google, the rules, pins, private tracker
 text, hand-offs, private code and any secret or personal detail it reads among
-it.
+it; and, with `coverage`'s `jev` backend chosen for a repo: that repo's security
+findings, as their headline and evidence, and its threat-model entries, sent to
+TypeSafe. A finding can carry private code, private-tracker text, a path, and a
+secret or personal detail the scan doesn't read.
 
 **Controls:**
 
@@ -302,6 +309,12 @@ it.
   The poster's text fields and edit checks catch accidents only and are not a control.
   With an app pinned it refuses a post as anything but the pinned bot the
   post's `as` names, for posts sent through it.
+- **The pact's tools, for sends through `coverage`:** the fixed host, HTTPS with
+  certificate checks on, no redirect, the key only in its header, the scan, the
+  per-repo list read from the user's own file and the repo's `origin`, and no
+  cloud session; against accidents only. A session that calls TypeSafe itself
+  with the key, or edits the choice file, gets past them all. Rules it rests on:
+  the read before posting, at most ten a round.
 - **The pact's tools, for an agent app.** The helper (`gh-app.mjs`) narrows
   each token it mints to one repo and a permission set, and refuses a repo
   outside the pinned owner. It holds against accidents only: any process
@@ -316,7 +329,13 @@ control: read every commit before a push, and the post before it is sent, for
 a secret or a personal detail. Also accepted. Posts are public: a lens can
 send a secret out through a post, a builder file keeps what was typed into it,
 and a message to a cloud or Remote Control session leaves the machine when a
-session sends it. Who counts as you: a foreign token or a commit's email can
+session sends it; and, resting on TypeSafe's place in Scope's Also out, through
+`coverage`'s `jev` backend what the scan doesn't read reaches TypeSafe, an
+encoded secret included, and so does an open hole's detail; a clone whose `origin` names a
+listed repo is sent as that repo, and so is a finding passed with another listed
+repo's folder; the key sits in the environment of every session where it is set,
+and a steered session sending it, or calling TypeSafe with it, fits Text steers
+a session. Who counts as you: a foreign token or a commit's email can
 read as the owner or as the owner's agent app. Codex and Antigravity sessions
 push with the owner's own Git credentials, whatever `agent-identity` says. A
 session can still write as
@@ -359,8 +378,9 @@ session these copies sit in Anthropic's sandbox: out of scope,
 though code that reached it from outside stays in scope. What the machine makes from outside input stays outside input. The machine's antivirus, account
 isolation and disk encryption hold it. Also out: the owner's own edits and
 account's edit in the browser; Claude Code with Anthropic's models and servers,
-Codex with OpenAI's, Antigravity with Google's, and GitHub; the provider of a
-synced or backed-up copy, though
+Codex with OpenAI's, Antigravity with Google's, and GitHub; TypeSafe, as a
+provider the user chose, like Anthropic; the provider of a synced or backed-up
+copy, though
 [`install.md`](install.md)'s rule to never sync, share or commit the backups
 folders still holds.
 
@@ -375,7 +395,7 @@ Each "Also accepted" line above details what the class it names covers; it is no
 
 - **Text steers a session.** Any text a session or lens reads can move it, in auto mode before the owner sees it, to take a step the rules keep for the owner, raw `gh` posts past the poster included, or steer its checkpoint picks (A session takes checkpoints alone).
 - **A session takes checkpoints alone.** A session takes each checkpoint, a call the rules keep for the owner, as its own logged pick, open security picks included, on words from any prompt or replies it can't tell from its starter's; nothing waits but the cleaner's override rule, an install apply and mise trust.
-- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, bootstrap and release job's token, a trusted mise config, a program a clone supplies by bare name, the pinned llama.cpp build and decision model, and the gate's unscanned test files run with the owner's rights or a write token.
+- **What you install and CI run.** Plugins and skills, the cloud setup's pins, this repo's publisher, bootstrap and release job's token, a trusted mise config, a program a clone supplies by bare name, the pinned llama.cpp build, a decision model of one of two pinned variants, and the gate's unscanned test files run with the owner's rights or a write token.
 - **Pinned design-system code.** The owner's design system is inlined into Scriptorium at a pinned commit and runs with the page's powers, a folder the owner grants included, and a re-pin is reviewed like any change, with no security pair of its own.
 - **The pact gets loosened.** A steered session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary code, and work that publishes or handles credentials can run below the thorough tier.
