@@ -204,6 +204,11 @@ const SHOWN_STATES = [
     s.usage = false;
     s.tools = ['cleaner'];
   }],
+  // #PACT-122 #PACT-119 C9
+  ['agent-identity on across known and own harnesses', s => {
+    s.identity = true;
+    assert.equal(L.addHarness(s, OWN), null);
+  }],
 ];
 
 for (const [name, edit] of SHOWN_STATES) {

@@ -310,6 +310,7 @@ function rulesText(src, renderSrc) {
   const before = {
     'tool-poster': ['[Only while the poster is on, under Settings:]', ...toolLines('tool-poster')],
     'tool-cleaner': ['[Only while the cleaner is on, under Settings:]', ...toolLines('tool-cleaner')],
+    'tool-gh-app': ['[Only while agent-identity is on, under Settings:]', ...toolLines('tool-gh-app')],
     'usage-pause': ['[The percentage is yours to set or turn off, under Settings:]'],
     'usage-pause-session': ['[Only when you set this line, under Settings:]', ...templateLines(renderSrc, /const SESSION_TEMPLATE = n => \[([\s\S]*?)\];/, 'SESSION_TEMPLATE')],
   };
@@ -358,7 +359,7 @@ function harnessData(root, src, renderSrc) {
     commandNames: [...PACT_COMMANDS],
     rules: src,
     open: listFrom(renderSrc, 'OPEN_MARKS'),
-    templates: { 'usage-pause': setting('USAGE_TEMPLATE'), 'usage-pause-session': setting('SESSION_TEMPLATE'), 'tool-poster': tool('tool-poster'), 'tool-cleaner': tool('tool-cleaner') },
+    templates: { 'usage-pause': setting('USAGE_TEMPLATE'), 'usage-pause-session': setting('SESSION_TEMPLATE'), 'tool-poster': tool('tool-poster'), 'tool-cleaner': tool('tool-cleaner'), 'tool-gh-app': tool('tool-gh-app') },
     commands: Object.fromEntries(readdirSync(join(root, 'claude', 'commands')).filter(f => f.endsWith('.md')).sort().map(f => [f.slice(0, -3), read(`claude/commands/${f}`)])),
   };
 }

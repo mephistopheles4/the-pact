@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { applyBound, commitAll, home, install, makeRepo, passed, refused } from './install-harness.mjs';
+import { applyBound, commitAll, home, install, makeRepo, passed, refused, sharedRepo } from './install-harness.mjs';
 import { REPO } from './text.mjs';
 
 const TRUST = /^(?: )*Codex: open \/hooks and trust pact-guard; until then Codex runs unguarded\.\r?$/m;
@@ -30,7 +30,8 @@ const record = h => json(h, '.pact/install.json');
 const guardEntries = h => record(h).entries.filter(e => e.key.startsWith('guard.'));
 const WIN = process.platform === 'win32';
 // On Windows each wrapper has a launcher beside it (S8).
-const GUARD_FILES = [...(WIN ? ['antigravity.cmd', 'codex.cmd'] : []), 'antigravity.mjs', 'codex.mjs', 'guard.mjs', 'rules.json'].sort();
+// #PACT-121 #PACT-119 C7
+const GUARD_FILES = [...(WIN ? ['antigravity.cmd', 'codex.cmd'] : []), 'antigravity.mjs', 'claude.mjs', 'codex.mjs', 'guard.mjs', 'rules.json'].sort();
 /** The hook's command run through the platform's shell: on Windows, Windows PowerShell, since Codex runs hooks under PowerShell. */
 const asCodex = (command, input) => (WIN
   ? spawnSync('powershell.exe', ['-NoProfile', '-Command', command], { input, encoding: 'utf8' })
@@ -102,7 +103,7 @@ test('C15, C16: one apply writes the guard and merges each hook beside the perso
 });
 
 test('C16: the apply backs up each hooks file it changes, and with every rule off removes only the pact\'s entry and the guard', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   const before = readFileSync(at(h, CODEX), 'utf8');
   const first = applyBound(repo, h);
@@ -125,7 +126,7 @@ test('C16: the apply backs up each hooks file it changes, and with every rule of
 });
 
 test('C16: a hooks file the record doesn\'t list is merged, not refused; one that doesn\'t exist is made; a harness taken out loses only the pact\'s entry', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, '.codex'));
   mkdirSync(join(h, '.gemini', 'config'), { recursive: true });
@@ -145,7 +146,7 @@ test('C16: a hooks file the record doesn\'t list is merged, not refused; one tha
 });
 
 test("C12: a skill that stands for the owner's answer installs no guard, and no hook of the cleaner's meets a read tool", t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   const entry = () => json(h, AG)['pact-guard']?.PreToolUse[0];
   config(h, { tools: [], commands: ['finis'] });
@@ -167,7 +168,7 @@ test("C12: a skill that stands for the owner's answer installs no guard, and no 
 });
 
 test('with no rule on, no guard file or hook is written', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   config(h, OFF);
   const before = readFileSync(at(h, CODEX), 'utf8');
@@ -180,7 +181,7 @@ test('with no rule on, no guard file or hook is written', t => {
 
 // A hook written by a Linux or macOS node can't run where the home is a Windows one (a WSL node, say).
 test('bad case: a node that is not Windows\'s refuses to write a guard into a Windows home', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   mkdirSync(at(h, 'AppData/Local'), { recursive: true });
   const before = readFileSync(at(h, CODEX), 'utf8');
@@ -198,7 +199,7 @@ test('bad case: a node that is not Windows\'s refuses to write a guard into a Wi
 });
 
 test('bad case: a changed pact hook is drift, a hooks file that is not a strict JSON object refuses, and so does a list of another shape', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = three(t);
   passed(applyBound(repo, h));
   const codex = json(h, CODEX);
@@ -220,7 +221,7 @@ test('bad case: a changed pact hook is drift, a hooks file that is not a strict 
 
 // The undo steps are followed by hand, so they must allow what the guard's apply backs up.
 test('bad case: the undo steps allow each hooks file the apply backs up, one it made included', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(join(h, '.codex'));
   put(h, AG, { mine: MY_GROUP });
@@ -240,7 +241,7 @@ test('bad case: the undo steps allow each hooks file the apply backs up, one it 
 });
 
 test('bad case: a hooks path only the install record names is held to the same bound, under a harness that isn\'t found or that the install doesn\'t have', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   // `codex` is a harness the pact knows and doesn't find here; `gone` is one of the owner's own, since dropped.
   for (const harness of ['codex', 'gone']) {
     const h = home(t);
@@ -269,7 +270,7 @@ test('bad case: a commit that holds a guard table or an unknown guard file, or l
 });
 
 test('bad case: a hooks file that is settings.json, or sits behind a link, refuses', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const shared = home(t);
   mkdirSync(join(shared, '.codex'));
   config(shared, { ...ON, harnesses: { own: [{ id: 'codex', hooks: { file: '~/.claude/Settings.json', format: 'codex' } }] } });
@@ -299,7 +300,7 @@ function markedHome(t, repo, text) {
 }
 
 test('shell policy: a recorded pact line is removed, the rest of config.toml is kept byte for byte and backed up, and the new record drops the mark', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const mine = '# mine\r\nmodel = "m"\r\n\r\n[history]\r\npersistence = "none"\r\n';
   const h = markedHome(t, repo, `${POLICY_LINE}\r\n${mine}`);
   const dry = install(repo, h);
@@ -315,7 +316,7 @@ test('shell policy: a recorded pact line is removed, the rest of config.toml is 
 });
 
 test('bad case: a recorded but edited pact line is left alone, with no drift stop and no warning', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const edited = `${POLICY_LINE.replace('= false', '= true')}\n[shell_environment_policy]\ninherit = "all"\n`;
   const h = markedHome(t, repo, edited);
   const r = applyBound(repo, h);
@@ -325,7 +326,7 @@ test('bad case: a recorded but edited pact line is left alone, with no drift sto
 });
 
 test('shell policy: taking Codex with no mark in the record leaves config.toml, the exact pact line in it included, byte for byte, prints no shell policy line, and records no shellPolicy key', t => {
-  const repo = makeRepo(t);
+  const repo = sharedRepo();
   const h = home(t);
   mkdirSync(at(h, '.codex'));
   config(h, { ...OFF, harnesses: { install: ['codex'] } });
@@ -345,4 +346,179 @@ test('shell policy: taking Codex with no mark in the record leaves config.toml, 
   passed(applyBound(repo, h));
   assert.equal(readFileSync(at(h, POLICY), 'utf8'), text);
   assert.ok(!('shellPolicy' in record(h)));
+});
+
+// ------------------------------------------------------------ #PACT-122 #PACT-119 C8, C9, C12
+
+const CLAUDE_SETTINGS = '.claude/settings.json';
+const APP_PINS = {
+  owner: { login: 'example-owner', id: 1000001 },
+  apps: {
+    claude: { app_id: 2000001, slug: 'example-owner-claude', bot_login: 'example-owner-claude[bot]', bot_id: 3000001 },
+    codex: { app_id: 2000002, slug: 'example-owner-codex', bot_login: 'example-owner-codex[bot]', bot_id: 3000002 },
+    antigravity: { app_id: 2000003, slug: 'example-owner-antigravity', bot_login: 'example-owner-antigravity[bot]', bot_id: 3000003 },
+  },
+};
+const ALL_GUARD_FILES = [...(WIN ? ['antigravity.cmd', 'claude.cmd', 'codex.cmd'] : []), 'antigravity.mjs', 'claude.mjs', 'codex.mjs', 'guard.mjs', 'rules.json'].sort();
+
+const asClaude = (hook, input, opts = {}) => spawnSync(hook.command, hook.args, {
+  input: typeof input === 'string' ? input : JSON.stringify(input),
+  encoding: 'utf8',
+  cwd: opts.cwd,
+  env: { ...process.env, PATH: `${dirname(process.execPath)}${WIN ? ';' : ':'}${process.env.PATH ?? ''}`, ...(opts.env ?? {}) },
+});
+
+async function seedIdentityHome(t, extraConfig = {}, extraLive = {}) {
+  const { gitconfigText } = await import('../../claude/tools/gh-app.mjs');
+  const h = home(t);
+  const cfgText = gitconfigText({ home: h, nodePath: process.execPath, app: APP_PINS.apps.claude, provider: 'claude', xdg: false });
+  put(h, '.pact/github.json', APP_PINS);
+  put(h, '.pact/gh-app-claude.gitconfig', cfgText);
+  if (Object.keys(extraLive).length) put(h, CLAUDE_SETTINGS, extraLive);
+  config(h, { ...OFF, settings: { 'agent-identity': true, 'auto-compact-window': 0 }, ...extraConfig });
+  return h;
+}
+
+function makeOwnerGitRepo(t) {
+  const dir = join(home(t), 'owner-repo');
+  mkdirSync(dir, { recursive: true });
+  const r = spawnSync('git', ['init'], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const r2 = spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/example-owner/example-repo.git'], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r2.status, 0, r2.stderr);
+  return dir;
+}
+
+// #PACT-122 #PACT-119 C8, C9, C12
+test('C8, C9, C12: three-harness identity apply installs all launchers and rules within caps, suppresses pin login prints, and invokes all three rendered hooks end-to-end', async t => {
+  const repo = makeRepo(t);
+  const h = await seedIdentityHome(t, { tools: ['cleaner', 'poster'] }, { permissions: { defaultMode: 'auto' } });
+  put(h, CODEX, { hooks: { PreToolUse: [MINE] } });
+  put(h, AG, { mine: MY_GROUP });
+
+  const offHome = home(t);
+  put(offHome, '.pact/config.json', { schema: 1, tools: ['cleaner', 'poster'], commands: [], settings: { 'agent-identity': false, 'auto-compact-window': 0 }, harnesses: { install: ['claude', 'codex', 'antigravity'] } });
+  passed(applyBound(repo, offHome));
+  const claudeOffRules = readFileSync(at(offHome, '.claude/CLAUDE.md'));
+
+  const dry = install(repo, h);
+  passed(dry);
+  assert.match(dry.stdout, /^Guard rules \(\.pact\/guard\/rules\.json\): worktree-remove \(deny\), .*identity-gh \(deny\), identity-git \(overwrite-ask\/deny\)\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}hook PreToolUse: added\r?$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, /example-owner-claude|example-owner-codex|example-owner-antigravity/, dry.out);
+
+  const applied = applyBound(repo, h);
+  passed(applied);
+  assert.doesNotMatch(applied.stdout, /example-owner-claude|example-owner-codex|example-owner-antigravity/, applied.out);
+  assert.deepEqual(guardFiles(h), ALL_GUARD_FILES);
+
+  // Byte caps and zero Claude rules body drift across settings-env.
+  const body = text => text.slice(text.indexOf('\n## The moves'));
+  assert.equal(body(readFileSync(at(h, '.claude/CLAUDE.md'), 'utf8')), body(claudeOffRules.toString('utf8')));
+  assert.ok(readFileSync(at(h, '.gemini/AGENTS.md')).length <= 24000);
+  assert.ok(readFileSync(at(h, '.codex/AGENTS.md')).length <= 32768);
+  assert.match(readFileSync(at(h, '.gemini/AGENTS.md'), 'utf8'), /--provider antigravity/);
+  assert.match(readFileSync(at(h, '.codex/AGENTS.md'), 'utf8'), /--provider codex/);
+  assert.doesNotMatch(readFileSync(at(h, '.claude/CLAUDE.md'), 'utf8'), /--provider/);
+
+  const claudeSettings = json(h, CLAUDE_SETTINGS);
+  assert.equal(claudeSettings.autoCompactWindow, undefined);
+  const preGroup = claudeSettings.hooks.PreToolUse.find(g => g.matcher === 'Bash|PowerShell');
+  assert.ok(preGroup, 'Claude PreToolUse group installed');
+  const recHooks = record(h).entries.filter(e => e.path === CLAUDE_SETTINGS && e.key === 'hooks.PreToolUse');
+  assert.equal(recHooks.length, 1);
+
+  // Seed sibling provider gitconfigs and invoke every rendered launcher against an owner git repository.
+  const { gitconfigText } = await import('../../claude/tools/gh-app.mjs');
+  for (const p of ['codex', 'antigravity']) {
+    put(h, `.pact/gh-app-${p}.gitconfig`, gitconfigText({ home: h, nodePath: process.execPath, app: APP_PINS.apps[p], provider: p, xdg: false }));
+  }
+  const ownerDir = makeOwnerGitRepo(t);
+  const claudeHook = preGroup.hooks[0];
+  const claudeEnv = { HOME: h, USERPROFILE: h, GIT_CONFIG_GLOBAL: `${h.replaceAll('\\', '/')}/.pact/gh-app-claude.gitconfig`, GIT_TERMINAL_PROMPT: '0' };
+  const ghBlocked = asClaude(claudeHook, { tool_name: 'Bash', tool_input: { command: 'gh pr create -t test -b body' }, cwd: ownerDir }, { cwd: ownerDir, env: claudeEnv });
+  assert.equal(ghBlocked.status, 0, ghBlocked.stderr);
+  const ghParsed = JSON.parse(ghBlocked.stdout).hookSpecificOutput;
+  assert.equal(ghParsed.permissionDecision, 'deny');
+  assert.match(ghParsed.permissionDecisionReason, /poster\.mjs.*gh-app\.mjs" gh --provider claude/);
+  const gitClean = asClaude(claudeHook, { tool_name: 'Bash', tool_input: { command: 'git commit -m ok' }, cwd: ownerDir }, { cwd: ownerDir, env: claudeEnv });
+  assert.equal(gitClean.status, 0, gitClean.stderr);
+  assert.equal(gitClean.stdout.trim(), '');
+
+  const codexCmd = json(h, CODEX).hooks.PreToolUse.find(g => g.matcher === '^Bash$' && g.hooks?.[0]?.statusMessage === 'pact-guard').hooks[0].command;
+  const codexOut = spawnSync(WIN ? 'powershell.exe' : '/bin/sh', WIN ? ['-NoProfile', '-Command', codexCmd] : ['-c', codexCmd], {
+    input: JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', cwd: ownerDir, tool_input: { command: 'git commit -m ok' } }),
+    encoding: 'utf8',
+    env: { ...process.env, HOME: h, USERPROFILE: h, PATH: `${dirname(process.execPath)}${WIN ? ';' : ':'}${process.env.PATH ?? ''}` },
+  });
+  assert.equal(codexOut.status, 2, `${codexOut.stdout}${codexOut.stderr}`);
+  assert.match(codexOut.stderr, /Plain git writes are blocked while agent-identity is on for codex/, codexOut.stderr);
+
+  const agCmd = json(h, AG)['pact-guard'].PreToolUse[0].hooks[0].command;
+  const agOut = spawnSync(WIN ? (process.env.ComSpec ?? 'cmd.exe') : '/bin/sh', WIN ? ['/d', '/s', '/c', `"${agCmd}"`] : ['-c', agCmd], {
+    input: JSON.stringify({ toolCall: { name: 'run_command', args: { CommandLine: 'git commit -m ok', Cwd: ownerDir } } }),
+    encoding: 'utf8',
+    windowsVerbatimArguments: WIN,
+    env: { ...process.env, HOME: h, USERPROFILE: h, PATH: `${dirname(process.execPath)}${WIN ? ';' : ':'}${process.env.PATH ?? ''}` },
+  });
+  assert.equal(agOut.status, 0, agOut.stderr);
+  assert.equal(JSON.parse(agOut.stdout).decision, 'force_ask');
+
+  // Re-running dry run is clean.
+  assert.match(install(repo, h).stdout, /^Nothing to do\.\r?$/m);
+});
+
+// #PACT-122 #PACT-119 C8: Claude PreToolUse lifecycle stays independent of auto-compact-window, preserves user hooks, detects drift, writes before delete, and handles malformed live settings.
+test('C8: Claude PreToolUse stays independent of auto-compact-window, refuses matcher drift, merges before delete, and keeps bad settings untouched', async t => {
+  const repo = makeRepo(t);
+  const ownerHook = { type: 'command', command: 'echo owner', timeout: 5 };
+  const h = await seedIdentityHome(t, { settings: { 'agent-identity': true, 'auto-compact-window': 400000 } }, {
+    permissions: { defaultMode: 'auto' },
+    hooks: { PreToolUse: [{ matcher: 'Edit', hooks: [ownerHook] }] },
+  });
+  passed(applyBound(repo, h));
+  const afterBoth = json(h, CLAUDE_SETTINGS);
+  assert.ok(afterBoth.hooks.PreCompact && afterBoth.hooks.PreToolUse.length === 2);
+
+  // Turning auto-compact-window off keeps PreToolUse and removes PreCompact.
+  config(h, { ...OFF, settings: { 'agent-identity': true, 'auto-compact-window': 0 } });
+  passed(applyBound(repo, h));
+  const afterZeroWindow = json(h, CLAUDE_SETTINGS);
+  assert.equal(afterZeroWindow.hooks.PreCompact, undefined);
+  assert.equal(afterZeroWindow.hooks.PreToolUse.length, 2);
+
+  // Changing the matcher triggers drift refusal on reinstall.
+  afterZeroWindow.hooks.PreToolUse[1].matcher = 'Bash';
+  put(h, CLAUDE_SETTINGS, afterZeroWindow);
+  const driftRes = applyBound(repo, h);
+  refused(driftRes, /installed files or settings entries changed/);
+  assert.match(driftRes.out, /hooks\.PreToolUse/);
+
+  // Repairing drift, then turning agent-identity off with compact on preserves compact hooks and user PreToolUse hook, and merges before deleting guard files.
+  afterZeroWindow.hooks.PreToolUse[1].matcher = 'Bash|PowerShell';
+  put(h, CLAUDE_SETTINGS, afterZeroWindow);
+  config(h, { ...OFF, settings: { 'agent-identity': false, 'auto-compact-window': 400000 } });
+  const offRes = applyBound(repo, h);
+  passed(offRes);
+  const mergedIdx = offRes.stdout.indexOf('merged settings.json');
+  const deletedIdx = offRes.stdout.indexOf('deleted .pact/guard/claude.mjs');
+  assert.ok(mergedIdx >= 0 && deletedIdx >= 0 && mergedIdx < deletedIdx, offRes.out);
+  const afterIdOff = json(h, CLAUDE_SETTINGS);
+  assert.ok(afterIdOff.hooks.PreCompact);
+  assert.deepEqual(afterIdOff.hooks.PreToolUse, [{ matcher: 'Edit', hooks: [ownerHook] }]);
+  assert.deepEqual(guardFiles(h), []);
+
+  // Turning agent-identity back on when live hooks is an array refuses hooks-shape before writes.
+  config(h, { ...OFF, settings: { 'agent-identity': true, 'auto-compact-window': 0 } });
+  put(h, CLAUDE_SETTINGS, { permissions: { defaultMode: 'auto' }, hooks: [] });
+  refused(install(repo, h), /hooks is not a JSON object/);
+
+  // Turning agent-identity on when live settings is non-strict JSON warns and leaves settings untouched.
+  const badHome = await seedIdentityHome(t);
+  const corrupt = '{/* comment */ "permissions": {"defaultMode": "auto"}}';
+  put(badHome, CLAUDE_SETTINGS, corrupt);
+  const warnRes = install(repo, badHome);
+  passed(warnRes);
+  assert.match(warnRes.stdout, /WARN: settings\.json is not a strict JSON object/);
+  assert.equal(readFileSync(at(badHome, CLAUDE_SETTINGS), 'utf8'), corrupt);
 });

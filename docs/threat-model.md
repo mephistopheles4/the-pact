@@ -94,13 +94,34 @@ someone hands a session to load, and a decision model's answer.
   `git branch -d`, `-D` and `--delete`, and `claude rm`, and an ask rule on a
   `cleaner.mjs remove --override` call, on only while the cleaner is on (off by default). Deny
   rules are speed bumps: another spelling gets past them. The ask rule is
-  passed by `bypassPermissions`, a mod, or another spelling. In Codex and
-  Antigravity a guard hook denies what those rules deny, under the same
-  switch; an ask rule prompts in Antigravity and denies in Codex. The hook
-  denies on an error it catches; a hook that can't start (on Windows, one whose
-  `cmd.exe` or launcher is missing, since the launcher denies a missing `node`)
-  or times out lets the call through, as do a crash past that (off Windows), another spelling and, in
-  Codex, text typed into a running shell, which
+  passed by `bypassPermissions`, a mod, or another spelling. Under `cleaner` or
+  `agent-identity`, a guard hook runs before shell commands across Codex and
+  Antigravity (for both switches) and Claude Code (`PreToolUse` on
+  `Bash|PowerShell` when `agent-identity` is on): in Codex and Antigravity it
+  denies what the cleaner deny rules deny, and an ask rule prompts in
+  Antigravity (`force_ask`) and denies in Codex. Under `agent-identity`, when
+  the provider is pinned in `~/.pact/github.json`, the guard denies plain `gh`
+  writes on owner repos, account-scoped `gh` writes, and `git` override/unset
+  attempts across all three harnesses, and in Codex and Antigravity intercepts
+  plain `git` writes missing `GIT_CONFIG_GLOBAL`: on eligible single simple
+  `git` `run_command` calls in Antigravity, `antigravity.mjs` unconditionally
+  emits `decision: "force_ask"` paired with `overwrite.CommandLine`
+  (`GIT_CONFIG_GLOBAL` and `GIT_TERMINAL_PROMPT=0`, never `allow`; verified in
+  headless `agy -p` and live interactive Antigravity `T5` dogfooding, and switching
+  simple `git` writes to `deny` requires updating the hook code if a live
+  probe fails), returning `deny` on compound, wrapped, or overridden commands,
+  `manage_task` (`send_input`), and `send_command_input`, and `deny` in Codex.
+  By the speed-bump boundary ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)),
+  the guard catches ordinary command shapes and session mistakes, not
+  arbitrary-code-execution antivirus or obfuscated shell polyglots (`bash -c`
+  wrappers, `gh api repos/<stranger>/<repo>/forks`, nested subshell or
+  polyglot quote tricks) on trusted local shells. The hook
+  denies on an error it catches (and fails closed with `pin` on a symlinked,
+  oversized, or malformed `github.json` during a candidate `git`/`gh` call); a
+  hook that can't start (on Windows, one whose `cmd.exe` or launcher is
+  missing, since the launcher denies a missing `node`) or times out lets the
+  call through, as do a crash past that (off Windows), another spelling, nested
+  shell wrappers, and, in Codex, text typed into a running shell, which
   `features.unified_exec_tty=false` would close, with every interactive
   terminal session; the pact doesn't set it. In Antigravity it judges text
   typed into a running program. In Codex it runs only once the owner
@@ -155,7 +176,9 @@ version pin supplies that runs by bare name, the pinned design system inlined
 into Scriptorium; with `clef` on, a llama.cpp build and a model, fetched at
 setup, run with the owner's rights; the pact's `npx` bootstrap and the release
 clone it makes, run before any dry run; the guard, before each shell call in
-Codex and Antigravity, and there before typed input; and the release job's token.
+Claude Code (when `agent-identity` is on), Codex and Antigravity, and in
+Antigravity before typed input; plain-text `.git/config`, `gitdir:`, `commondir`,
+and `config.worktree` files read from clones by the guard; and the release job's token.
 
 **Controls:**
 
@@ -192,7 +215,17 @@ Codex and Antigravity, and there before typed input; and the release job's token
   like any change. The bootstrap takes only an exact release tag, stable unless asked, and checks the
   clone's head, which keeps the clone consistent, not intact; npm picks the
   bootstrap, so tag rulesets decide it. The bootstrap's `git` and the guard
-  hook's `node` are never taken from the working folder. The Scriptorium page's
+  hook's `node` (across `claude.mjs`, `codex.mjs`, and `antigravity.mjs`, via
+  the Windows `.cmd` launchers with `cmd.exe /d /c`,
+  `NoDefaultCurrentDirectoryInExePath=1` and cleared `NODE_OPTIONS`, or on
+  POSIX via `/usr/bin/env -u NODE_OPTIONS node` for `claude.mjs` and
+  `env -u NODE_OPTIONS node` for `codex.mjs` and `antigravity.mjs`) are never
+  taken from the working folder. To scope `git` and `gh` writes to the pinned owner's repos,
+  the guard reads `.git/config`, `gitdir:`, `commondir`, and `config.worktree`
+  directly as bounded plain text (up to 1 MiB) and spawns zero `git`
+  subprocesses in `cwd`, rejecting UNC/network/device paths, Windows
+  drive-relative/drive-less paths, and symlinks or junctions segment-by-segment
+  before `realpathSync`. The Scriptorium page's
   policy (`builder/build.mjs`) sets
   `default-src 'none'` and `connect-src 'none'`, so it blocks loads and
   connections, not navigation, pop-ups or writes into a folder the owner
@@ -308,7 +341,20 @@ it.
   running as the owner can read the key or ask git's helper for a token. Setup,
   refresh, the poster and the checker check the pin against GitHub's records (the app,
   the bot, the owner). That doesn't hold against a process that edits both the
-  pin and the code that reads it. A session gets the check only through `status` or `refresh`.
+  pin and the code that reads it. A session gets the check only through `status --provider <provider>` or `refresh`.
+  Under `agent-identity`, the shared guard (`guard.mjs` via `claude.mjs`,
+  `codex.mjs`, and `antigravity.mjs`) enforces cross-harness `identity-gh` and
+  `identity-git` speed bumps for pinned providers: denying plain `gh` writes on
+  owner repos and account-scoped `gh` writes (explicit-login assigning runs
+  through `gh-app.mjs gh --provider <provider>`), denying `git` override/unset
+  attempts across all three harnesses, and in Codex and Antigravity verifying
+  `gh-app-<provider>.gitconfig` is a regular non-symlink file and denying or (on
+  simple Antigravity `run_command` calls) rewriting `CommandLine` with
+  `GIT_CONFIG_GLOBAL` + `GIT_TERMINAL_PROMPT=0` under `force_ask` when
+  `GIT_CONFIG_GLOBAL` is missing or overridden. `github.json` is read lazily
+  only on candidate `gh`/`git` calls (capped at 64 KiB, failing closed `pin` on
+  symlinks or schema mismatches) and never interpolated into `reason` or
+  `deny` outputs.
 
 **Residual classes:** Posts are public; Who counts as you; Text steers a session, for
 what a steered session sends. Rule they rest on, a
@@ -317,15 +363,23 @@ a secret or a personal detail. Also accepted. Posts are public: a lens can
 send a secret out through a post, a builder file keeps what was typed into it,
 and a message to a cloud or Remote Control session leaves the machine when a
 session sends it. Who counts as you: a foreign token or a commit's email can
-read as the owner or as the owner's agent app. Codex and Antigravity sessions
-push with the owner's own Git credentials, whatever `agent-identity` says. A
-session can still write as
-the owner by plain `gh` or the harness, a git call that drops the agent
-gitconfig, a global git write that rewrites it (the next dry run refuses a
-rewritten file), an SSH remote or `url.*.insteadOf` rewrite, an askpass
+read as the owner or as the owner's agent app. Any provider unpinned in
+`github.json` at runtime (`codex` or `antigravity` absent from `apps`) passes
+through silently and writes with the owner's own Git and `gh` credentials.
+Exempt `gh run` and `gh workflow` writes run under the owner's `gh` login while
+`gh-app.mjs` holds `actions: read` only, and `git pull` is excluded from
+guarded `git` write subcommands (`git push` stays guarded). Each provider's
+gitconfig includes `~/.gitconfig`, so your own `author.*`, `committer.*` and
+signing settings still apply to commits ([agent identity](agent-identity.md#what-it-doesnt-stop)).
+A session can also still write as the owner via an unguarded custom harness,
+non-shell harness or MCP tools, nested shell wrappers (`bash -c`, `pwsh -Command`,
+`cmd /c`, `Start-Process`) and other speed-bump parser or harness-spawn/timeout
+gaps ([ADR 0175](adr/0175-the-machine-is-trusted-and-guards-catch-mistakes.md)),
+a global git write that rewrites the agent gitconfig (the next dry run refuses a
+rewritten Claude gitconfig), an SSH remote or `url.*.insteadOf` rewrite, an askpass
 program, a helper in a repository's own config, or a remote URL that carries
 credentials or an `http.*.extraHeader` with an auth header. Rules alone hold
-those, and `status` reports each it can see. Whoever holds an app's key can
+those, and `status --provider <provider>` reports each git-helper escape it can see. Whoever holds an app's key can
 mint for every installation, with every permission, until the key is deleted
 on GitHub, and can open PRs that local sessions run and a session may merge
 on a checkpoint. An app token's holder, a steered session included, can run a

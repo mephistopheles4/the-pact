@@ -73,9 +73,9 @@ export const CLOUD_COMPACT_WINDOW = 400000;
 export const CLOUD_PINS = Object.freeze({
   MISE_VERSION: '2026.10.14',
   MISE_SHA256: '5bc573bc91c2571ee371f5d570cf6f8d51af3ef343b124a6609b9fec7f0d47f2',
-  NODE_VERSION: '24.22.1',
-  NODE_TAR_SHA256: 'eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c',
-  NODE_BIN_SHA256: 'e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb',
+  NODE_VERSION: '24.22.3',
+  NODE_TAR_SHA256: '061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2',
+  NODE_BIN_SHA256: 'a7ec1b37e6ff9d187e4198c5b6df9a4eb1c74dd31804fb3bac55cc4ceca1ac01',
 });
 
 // The third-party repos the setup fetches (#183 T3), each pinned by commit:

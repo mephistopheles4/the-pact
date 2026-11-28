@@ -1,8 +1,8 @@
 # Agent apps and whose text counts
 
-Holds only while an agent app is pinned. An app is pinned when it has an entry in `~/.pact/github.json` and `gh-app.mjs` is installed in `~/.pact/tools/` ([agent identity](../agent-identity.md) sets it up). A session counts an app as its agent app only when its own `gh-app.mjs status` printed "pin check: pass" for it. Otherwise every app's PR is outsiders' code, and [the issue tracker doc](issue-tracker.md) holds as written. This doc changes the rules below and nothing else; the rule for Linear is unchanged.
+Holds only while an agent app is pinned. An app is pinned when it has an entry in `~/.pact/github.json` and `gh-app.mjs` is installed in `~/.pact/tools/` ([agent identity](../agent-identity.md) sets it up). A session counts an app as its agent app only when its own `gh-app.mjs status --provider <provider>` (for `claude`, `codex` or `antigravity`) printed "pin check: pass" for it. Otherwise every app's PR is outsiders' code, and [the issue tracker doc](issue-tracker.md) holds as written. This doc changes the rules below and nothing else; the rule for Linear is unchanged.
 
-**Before you use the tracker,** state your read login and the output of `gh-app.mjs status` in your first chat message, in chat only: never in a post, or in a hand-off quoted to the record. If git resolves to the owner's helper while an app is pinned, say that your pushes go as the owner.
+**Before you use the tracker,** state your read login and the output of `gh-app.mjs status --provider <provider>` in your first chat message, in chat only: never in a post, or in a hand-off quoted to the record. If git resolves to the owner's helper while an app is pinned, say that your pushes go as the owner.
 
 ## Whose text counts
 
@@ -28,6 +28,6 @@ Reading a PR:
 
 ## Posting and assigning
 
-- **Writes.** A session writes to GitHub only through the poster or `gh-app.mjs gh`. Assigning is the exception: apps can't be assignees, so the owner's login assigns itself through plain `gh` to each issue a session takes and each PR the app opens (`gh pr edit <n> -R <owner>/<repo> --add-assignee '@me'`). It marks the owner's work, never a claim.
-- **Merges** go through `gh-app.mjs gh` with `--match-head-commit <the reviewed head>`.
+- **Writes and assigning.** A session writes to GitHub only through the poster or `gh-app.mjs gh --provider <provider>`. Apps can't be assignees and `@me` resolves to the app, so the owner is assigned to each issue a session takes and each PR the app opens (and unassigned if work stops) through `node ~/.pact/tools/gh-app.mjs gh --provider <provider> -R <owner>/<repo> -- issue edit <n> --add-assignee <owner>` (or `pr edit <n>`, `--remove-assignee <owner>`; in PowerShell, `node "$HOME/.pact/tools/gh-app.mjs"`), naming the owner's login explicitly. It marks the owner's work, never a claim.
+- **Merges** go through `gh-app.mjs gh --provider <provider>` with `--match-head-commit <the reviewed head>`.
 - **The status comment** is the one the posting identity wrote. An older one by the owner's account stays as it is.

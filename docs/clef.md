@@ -2,7 +2,7 @@
 
 `clef` is an opt-in pact tool. It runs Clef, a small local decision model, with a pinned `llama-server` build and a pinned model file, on your machine, with no Ollama. It serves one of two models at a time: Clef-Flash (`flash`, the default) or full Clef (`full`, a larger model). Off by default: put `clef` on the `tools` list (in Scriptorium, pick a Clef model under **Install a decision-one model**) and apply the install, and `~/.pact/tools/clef.mjs` appears. The install copies that one script and nothing else; setup fetches the rest.
 
-The design is [spec 0002](spec/0002-clef-runner.md), and [spec 0010](spec/0010-coverage-hint.md#s9-full-clef-in-clef) adds full Clef; this page is for the owner and for anyone who turns it on. Every command is `node ~/.pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
+The design is [spec 0002](spec/0002-clef-runner.md), and [spec 0011](spec/0011-coverage-hint.md#s9-full-clef-in-clef) adds full Clef; this page is for the owner and for anyone who turns it on. Every command is `node ~/.pact/tools/clef.mjs <mode>`; below, `clef <mode>` is short for it.
 
 ## What it fetches, and how much room it needs
 

@@ -44,6 +44,10 @@ offer I can take or leave in a second. Then carry on with what I chose.
 <!-- pact:begin tool-cleaner -->
 <!-- pact:end tool-cleaner -->
 <!-- pact:end -->
+<!-- pact:unless settings-env -->
+<!-- pact:begin tool-gh-app -->
+<!-- pact:end tool-gh-app -->
+<!-- pact:end -->
 
 ## How much checking
 

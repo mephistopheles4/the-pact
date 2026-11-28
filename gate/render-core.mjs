@@ -190,7 +190,7 @@ import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, PACT_TOOLS, Refused, Report, SEGME
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, a spec
 // change like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'tool-cleaner', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'tool-cleaner', 'tool-gh-app', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 // The open marks an edit may target: every open mark but the notice slot, a
 // setting's part and a tool's part.
 const EDITABLE = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
@@ -336,7 +336,7 @@ const settingRule = (name, spec) => (spec.kind === 'switch' ? `${name} must be t
 // names its command (PACT-80): a lead may run a cleaner only when the
 // user-level rules name its program.
 // The pact tools that name nothing in the rules file, so a tool being on adds no part for them.
-export const TOOLS_WITHOUT_PART = Object.freeze(['gh-app', 'clef', 'coverage']);
+export const TOOLS_WITHOUT_PART = Object.freeze(['clef', 'coverage']);
 const TOOL_PARTS = new Map([
   ['poster', Object.freeze({
     mark: 'tool-poster',
@@ -345,6 +345,10 @@ const TOOL_PARTS = new Map([
   ['cleaner', Object.freeze({
     mark: 'tool-cleaner',
     template: Object.freeze(['- **Remove worktrees only through the cleaner,** `node ~/.pact/tools/cleaner.mjs show` (PowerShell: `node "$HOME/.pact/tools/cleaner.mjs" show`), then `remove` with its tags; it stops a finished session first. Each removal is a checkpoint.']),
+  })],
+  ['gh-app', Object.freeze({
+    mark: 'tool-gh-app',
+    template: Object.freeze(['- **Use your pinned GitHub App:** set `GIT_CONFIG_GLOBAL` to `"$env:USERPROFILE/.pact/gh-app-__PACT_PROVIDER__.gitconfig"` (POSIX: `"$HOME/.pact/gh-app-__PACT_PROVIDER__.gitconfig"`) and `GIT_TERMINAL_PROMPT=0` on git writes, and run GitHub writes through `"$HOME/.pact/tools/poster.mjs"` (when on) or `node "$HOME/.pact/tools/gh-app.mjs" gh --provider __PACT_PROVIDER__`.']),
   })],
 ]);
 
