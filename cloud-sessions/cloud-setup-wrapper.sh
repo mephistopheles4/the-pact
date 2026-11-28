@@ -1242,6 +1242,28 @@ Ask each lens to report in this shape:
 - **You decide** which findings are security findings, by the Threat model
   section below. A security or `security?` finding comes to me and is never
   `auto`.
+- **The coverage hint.** When `coverage` is on the tools list and the session is
+  not a cloud session: once you have drafted the Lens dispositions table, for
+  each finding you sorted as security or `security?`, at most ten a round, write
+  its finding text to a scratch file outside the repo (the headline, then the
+  evidence from the next line, paths relative to the repo), read that file as
+  Posting's read before you post reads a post, run `coverage ask` from that folder
+  with the folder of the repo under review, the base and `--ref` naming the
+  finding in the record (`node "$HOME/.pact/tools/coverage.mjs" ask --finding
+  <file> --repo-dir <repo folder> --base <base> --ref <issue>/<round>/<finding>`,
+  in either shell), put the hint line under that finding in the round comment, as
+  printed, and never the JSON line printed before it, which goes in no post, and
+  delete the scratch file. A failed run's hint line, `unavailable` with its
+  reason, goes there the same way, and a refused run puts its `REFUSED` line
+  there; past ten, the line is `> Coverage hint: skipped (cap).` The round goes
+  on either way. The hint changes no sort, severity, disposition, `auto` mark or
+  route, and no rule reads it back. It goes in no Lens dispositions table and no
+  status comment. This is not step 2's placement call, which stays on the local
+  model only. A repo listed for `jev` in `~/.pact/coverage.json` is my standing
+  pick for that repo's sends, with no checkpoint per call; a round that sends any
+  logs one checkpoint line for them, naming the repo and the count sent, counting
+  every `ask` run with `jev` chosen, except one refused with a word other than
+  `coverage/internal`.
 - **A stage's rounds.** Under a Review rounds cost, a lens that errors or
   returns no report, or comes back inconclusive, runs again inside its round,
   and a further read runs again the same way; every report it returned stays
@@ -1683,7 +1705,7 @@ check_hash 4714ef5df67b9f66f49c4bf64d128a016705fdab2343f21cf9b629827225e838 'age
 check_hash c7f085d89c598c083d8d1f897244afec20d67dc7ccd185a9228b1f02604fd1fa 'agents/unstated-lens.md'
 check_hash 2ec13aed0edc777142a73fb0c2660a66997893f680a9bd0f9a2fc64aaf3aff1e '.pact/hooks/compact-handoff.mjs'
 check_hash 04764753e3483deb1d9586523d8b3a03a215674a4497e7aeacb1afcbb330d06e '.pact/review-diagrams.md'
-check_hash 5bef4554c3b55dd7c5824c8c0855a1430f5856859daada2c70eb5cf294d88fb8 '.pact/review.md'
+check_hash a5f3c17544796bfbcb578a46f57c783f9d6abae7adf0f0aeb23e9f8dd15f6804 '.pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1713,7 +1735,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy d98f78add4f9"
+  echo "pact cloud copy 904f4bbce3e6"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
