@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-HUYQdkCJOfBrQLCMPD2owOj0A6T8EGrcQyFLeF5eSH0='; style-src 'sha256-0IVEz81iFQJ6B0dhRN1gICHhUYcNS0JgFl8wZ4jRoq0='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4ABOcupx6L4k3WpJsslXyjBtaHVn4ddSzFure9pVV6I=' 'sha256-ExpwyrvwQ7ughY3OfJEFi/SkV/iS7Kj0C735Q3pd73w=' 'sha256-BytQpZuxt1Q15gooj7Jf0Zd8vT1WvUpidu2i3wX7sFw='; style-src 'sha256-yTafQ80Z2ZpjgUjhQE7rXc5Y/YSqxjKgy1apPqXb5mE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <script>try{if(localStorage.getItem('aviation-scheme')==='dark')document.documentElement.setAttribute('data-aviation-scheme','dark')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
@@ -1171,9 +1171,14 @@ html, body { margin: 0; }
 #values .prose { max-width: 110ch; }
 .value-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
 .command-row { display: grid; grid-template-columns: 1.5rem 9.5rem 1fr; gap: var(--av-s2); align-items: baseline; }
-.model-row > select { min-width: 0; max-width: 100%; }
-/* On a narrow screen the third column is too small to show the chosen model. */
-@media (max-width: 600px) { .model-row > span + span { display: none; } .model-row > select { grid-column: 2 / -1; } }
+.command-row.model-row > select { min-width: 0; max-width: 100%; }
+/* On a narrow screen the third column is too small: the description and the model menu go under the name. */
+@media (max-width: 600px) {
+  .command-row { grid-template-columns: 1.5rem minmax(0, 1fr); }
+  .command-row > .av-annot { grid-column: 2; overflow-wrap: anywhere; }
+  .command-row.model-row > span + span { display: none; }
+  .command-row.model-row > select { grid-column: 2; }
+}
 input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
 input[type="checkbox"] { accent-color: var(--av-ink); }
 input[type="checkbox"]:not(:disabled), label:has(> input[type="checkbox"]:not(:disabled)) { cursor: pointer; }
@@ -9381,7 +9386,7 @@ function boot() {
       { class: 'acc-stack' },
       ...OPT_TOOLS.map(c => (c.label ? modelRow(c) : row(c))),
       el('div', { class: 'chips' }, leave),
-      el('p', { class: 'av-annot', text: set === null ? 'Left as is: a save keeps the tools list and the decision model already in your config.json. Change one here to set both here instead.' : 'Set here: a save writes this list and the model chosen above, and the next install adds or deletes those tools. Leave as is keeps your config.json\'s own list and model instead.' }),
+      el('p', { class: 'av-annot', text: set === null ? 'Left as is: a save keeps the tools list and the decision model already in your config.json. Change one here to set both here instead.' : 'Set here: a save writes this list, and writes a decision model only when that box is ticked. The next install adds or deletes those tools. Leave as is keeps your config.json\'s own list and model instead.' }),
     );
   }
   /**

@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
@@ -192,6 +192,12 @@ test('draft: the classes under the heading and each out-of-scope paragraph outsi
   });
   const risks = lines('# T', '', '### Accepted Risks', '', '- **Posts are public.** They are.', '');
   assert.deepEqual(coverage.draftEntries(risks), { entries: { posts_are_public: 'Posts are public. They are.' }, scope: {} });
+  // A heading line holding a line or paragraph separator, which a regex dot skips, reads in time that grows with its length.
+  const started = process.hrtime.bigint();
+  for (const sep of [String.fromCodePoint(0x2028), String.fromCodePoint(0x2029)]) {
+    assert.deepEqual(coverage.draftEntries(lines(`#${' '.repeat(3000)}${sep}x${sep}x`, '', risks)).entries, { posts_are_public: 'Posts are public. They are.' });
+  }
+  assert.ok(process.hrtime.bigint() - started < 2_000_000_000n, 'a crafted heading line does not stall the draft');
 });
 
 // PACT-128 C1
@@ -260,7 +266,8 @@ test('which file: the reviewed file at the base, else the draft from the model a
   assert.equal(drafted.log()[0].source, `docs/threat-model.md@${drafted.repo.head}`);
 
   const neither = await world(t, { files: {} });
-  writeFileSync(join(neither.repo.dir, 'threat-model.md'), MODEL_MD);
+  mkdirSync(join(neither.repo.dir, 'docs'), { recursive: true });
+  writeFileSync(join(neither.repo.dir, 'docs', 'threat-model.md'), MODEL_MD);
   const c = stubFetch();
   const r = await neither.ask({ fetch: c.fetch });
   assert.deepEqual([r.code, r.lines], [0, ['> Coverage hint: no threat model.', 'RESULT: pass']]);
@@ -683,7 +690,7 @@ test('clef: ensure then status, by this node, from the scratch folder; the varia
   await w.run(['status']);
   assert.equal(w.calls().length, 3);
   for (const c of w.calls()) assert.deepEqual([c.execPath, c.key], [process.execPath, false]);
-  assert.equal(spawnSync(process.execPath, ['-e', 'console.log(require("node:fs").realpathSync.native(process.argv[1]))', calls[0].cwd], { encoding: 'utf8' }).status, 0);
+  for (const c of w.calls()) assert.equal(realpathSync.native(c.cwd), realpathSync.native(w.scratch));
   assert.deepEqual(Object.keys(f.sent[0].body), ['state', 'questions']);
   const full = await world(t, { clef: { ...READY, status: READY.status.replace('variant: flash', 'variant: full') } });
   assert.match((await full.ask()).out, /^> Coverage hint \(clef-full, /m);
