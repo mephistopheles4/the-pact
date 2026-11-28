@@ -258,11 +258,17 @@ first form would run a file the working folder holds.)
   `--repo-dir`, parsed as `owner/name` from a GitHub URL (`https://github.com/`
   or `git@github.com:`, `.git` optional). The tool trusts `origin` by its
   path, as the author checker does.
-- **The choice** is the user's file `~/.pact/coverage.json`, never a repo
+- **The choice** is the user's, in two files of their own, never a repo
   file, so no project can pick a backend or a repo list:
-  `{"backend": "clef" | "jev", "jev_repos": ["<owner/name>", ...]}`. With no
-  file, the backend is `clef`. Any other key or value is refused
-  (`coverage/config`).
+  - the decision model: the `decision-model` key of `~/.pact/config.json`,
+    `"clef-flash"`, `"clef-full"` or `"jev"`. The tool reads that key and no
+    other, at each run, so a change needs no install.
+  - the repos `jev` may be sent: `~/.pact/coverage.json`,
+    `{"jev_repos": ["<owner/name>", ...]}`.
+
+  With no key, the backend is the local Clef, whichever variant is set up. A
+  `config.json` that is not one JSON object, any other value of the key, and
+  any other key or value in `coverage.json` are refused (`coverage/config`).
 - **`clef`, the default:**
   - Once per `ask`, the tool runs the installed `clef.mjs` beside its own
     script, by `process.execPath`, from the scratch folder: `ensure --wait
@@ -271,14 +277,16 @@ first form would run a file the working folder holds.)
     wait makes the hint `unavailable (clef-<state>)`; no `clef.mjs` beside
     it makes it `unavailable (clef-missing)`.
   - `status`'s `variant:` line (S9) names the backend `clef-flash` or
-    `clef-full`.
+    `clef-full`. A line that names neither, or a variant other than the one
+    `decision-model` names, makes the hint `unavailable (clef-variant)`: one
+    variant never answers for the other.
   - Requests go to `POST <url>/v1/systemone` with body `{"state",
     "questions"}`; the answer is `{"<id>": {"noul": n}}`.
 - **The size cap, every backend:** a request whose state and questions
   together pass 30,000 characters is refused (`coverage/size`) before any
   request, since Clef's prompt holds 8,192 tokens, and so calibration and
   cost stay the same on every backend.
-- **`jev`, the user's choice per project:**
+- **`jev`, the user's choice, for the repos they list:**
   - Only when the repo the tool found (above) is in `jev_repos`. Otherwise
     the run is refused (`coverage/not-listed`) and nothing is sent; it never
     falls back to another backend.
@@ -317,16 +325,42 @@ first form would run a file the working folder holds.)
   through a flag, a variable or a file.
 - **Install:** `coverage` joins `PACT_TOOLS` (`gate/install-core.mjs`,
   `gate/shared.mjs`) after `clef`, `TOOLS_WITHOUT_PART` after `clef`, and
-  `OPT_TOOLS` in `claude/builder/scriptorium.html`. Only the script
-  installs.
+  `OPT_TOOLS` in `builder/scriptorium.html`. Only the script installs.
   - `TOOL_WARNS.coverage`, in the form of its neighbours: " and asks a
-    local Clef by default; with `jev` chosen for a repo in
-    ~/.pact/coverage.json, it sends that repo's security findings and
-    threat-model entries to TypeSafe."
-  - With `coverage` on and `clef` off, the dry run warns (`coverage` needs
-    `clef`, or `jev` chosen), and does not refuse.
+    local Clef by default; with `jev` chosen as the decision model, it sends
+    the security findings and threat-model entries of each repo listed in
+    ~/.pact/coverage.json to TypeSafe."
+  - With `coverage` on, `clef` off and `decision-model` not `jev`, the dry
+    run warns (`coverage` needs `clef`, or `jev` chosen), and does not
+    refuse.
   - The next-step line: set up `clef`, or choose `jev` and set the key; read
     `docs/coverage.md`.
+- **The installer's key:** `decision-model` joins the user configuration's
+  top-level keys. The renderer refuses any other value
+  (`config-decision-model`) and, in a project configuration, the key
+  (`project-key`). It reports the value on a `DECISION-MODEL` line. With
+  `clef-full`, the `clef` next-step line names `setup --variant full`.
+- **Scriptorium:** in the tools section, the `clef` row is a checkbox,
+  "Install a decision-one model", off by default, with a menu the checkbox
+  enables.
+
+  | Choice | A save writes | The install puts on the machine |
+  | --- | --- | --- |
+  | Box unticked | no `decision-model`; `clef` not listed | nothing |
+  | Clef Flash, the default | `"clef-flash"`; `clef` listed | `clef.mjs`; `clef setup` downloads the model |
+  | Clef Full | `"clef-full"`; `clef` listed | `clef.mjs`; `clef setup --variant full` downloads the model |
+  | Jev | `"jev"`; `clef` not listed | nothing: no script and no model |
+
+  - The `coverage` checkbox is what turns the hint on. Neither box ticks the
+    other.
+  - With Jev chosen, the page says: "Jev runs at TypeSafe, not on this
+    machine. Set TYPESAFE_API_KEY in your environment, and list each repo Jev
+    may be sent in ~/.pact/coverage.json: for a listed repo, the coverage
+    hint sends security findings and threat-model entries to TypeSafe. Read
+    docs/coverage.md for its terms first." The page never asks for the key.
+  - A save with the tools left as is keeps the folder's `tools` and
+    `decision-model`. A save with the tools set on the page writes the page's
+    choice of both.
 - **No dependency:** Node 24's `fetch` only.
 
 ## S6 Where the hint shows
@@ -461,7 +495,7 @@ of Clef Flash. One model is served at a time.
 ## S10 Docs and records
 
 - **`docs/coverage.md`:** what the tool sends and where, per backend; the
-  choice file; the key: set it in your own user environment or user-scope
+  choice and the repo list; the key: set it in your own user environment or user-scope
   settings, only on a machine where a listed repo is worked, never in a file
   inside a repo (a project's settings, `mise.toml`, `.env`), and how to
   revoke it; TypeSafe's terms on retention,
@@ -518,8 +552,11 @@ local run on a machine holding the key sends nothing.
    `NaN`, a string, a non-200 status, a redirect, a timeout, a thrown network
    error, and for `jev` a `model` that breaks the pattern each give
    `unavailable` with S5's word, exit 1, and nothing of the body.
-8. **The choice file and the repo:** with none, `clef` is used. A bad key or
-   value is refused. With `jev`: a repo folder whose `origin` (HTTPS and SSH
+8. **The choice and the repo:** with no `decision-model` key, the local Clef
+   is used, whichever variant it serves. With a Clef variant named, that one
+   is used, and the other gives `unavailable (clef-variant)` with no request.
+   Any other value, a `config.json` that is not one JSON object, and a bad key
+   or value in `coverage.json` are refused. With `jev`: a repo folder whose `origin` (HTTPS and SSH
    forms) is listed is sent; one whose `origin` is unlisted, missing or not
    GitHub gives `coverage/not-listed` and no request. There is no `--repo`
    option to name another.
@@ -552,7 +589,12 @@ local run on a machine holding the key sends nothing.
     prints `TOOL_WARNS.coverage` as one sentence with its neighbours, and
     the next-step line; with `clef` off too, it warns and doesn't refuse;
     off, nothing prints. `PACT_TOOLS`, `TOOLS_WITHOUT_PART` and `OPT_TOOLS`
-    match their pinned tests.
+    match their pinned tests. A user configuration with `decision-model` set
+    to `jev` installs with no `clef` warning, and one set to `clef-full`
+    prints `setup --variant full`; any other value is refused, and so is the
+    key in a project configuration. On the page, the menu is disabled until
+    the box is ticked, defaults to Clef Flash, writes S5's table, and shows
+    the notice, `TYPESAFE_API_KEY` in it, for Jev only.
 14. **`clef --variant full`** (S9): setup's plan names the variant and its
     size; `setup.json` records `variant`; one without it reads as `flash`;
     `status` keeps `model:` and prints `variant: full`; changing the variant
@@ -691,5 +733,7 @@ local run on a machine holding the key sends nothing.
   if wanted.
 - **The install at Test:** if the PR doesn't merge, install `main` again
   (or the last installed commit), with the same dry run and go-ahead.
-- **Not undoable:** findings already sent to TypeSafe. The log's repo field
-  says which repos' findings went, for a deletion request.
+- **Before installing a version without `coverage`,** take `decision-model`
+  out of `~/.pact/config.json`: its installer refuses the key (`config-key`).
+- **Not undoable:** findings already sent to TypeSafe, which deletes no
+  single request. The log's repo field says which repos' findings went.
